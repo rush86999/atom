@@ -77,6 +77,19 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     // open. Every socket carries the generation it was created in, and a
     // close/cleanup only mutates shared state if it is still the current
     // generation.
+    //
+    // THE GENERATION GUARDS ON *EVERY* CALLBACK, NOT JUST onclose. A retired
+    // socket can still fire its open and message handlers, and both mutate
+    // shared state:
+    //   - a stale `onopen` used to clearTimeout() the SHARED reconnect ref, so
+    //     a dead connection's late accept cancelled the LIVE generation's only
+    //     path back from a real outage, and it re-sent `initialChannels`
+    //     subscriptions on the dead socket, leaving the live one unsubscribed;
+    //   - a stale `onmessage` used to write `lastMessage`/`streamingContent`
+    //     and fan frames out to every `onMessage` handler, so a connection the
+    //     hook had already abandoned kept injecting frames into the UI.
+    // "A late callback must not change state, deliver tokens, or clear the
+    // current socket" — so the guard is checked first in all three handlers.
     const generationRef = useRef(0);
 
     // Per-message listener registry. `lastMessage` is a SINGLE state slot:
@@ -84,10 +97,10 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     // frames in seconds) React coalesces the setLastMessage calls and the
     // consumer's [lastMessage] effect only ever sees the newest frame —
     // every frame landing between two render commits is silently dropped
-    // (observed live 2026-09-06: a streamed canvas-chat reply rendered with
-    // whole chunks missing — the "garbled" bubble — while the DB copy was
-    // clean). Handlers registered here are invoked synchronously for EVERY
-    // message, in arrival order, so streaming consumers lose nothing.
+    // (measured in hooks/chat/__tests__/useWebSocket.stale-callbacks.test.ts:
+    // 50 frames in one commit reach a listener 50 times and a [lastMessage]
+    // effect ONCE). Handlers registered here are invoked synchronously for
+    // EVERY message, in arrival order, so streaming consumers lose nothing.
     const messageHandlersRef = useRef<Set<WebSocketMessageHandler>>(new Set());
     const onMessage = useCallback((handler: WebSocketMessageHandler) => {
         messageHandlersRef.current.add(handler);
@@ -101,6 +114,10 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     // useWhatsAppWebSocket.ts where the counter was captured from a prior render.
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const reconnectAttemptsRef = useRef<number>(0);
+    // Which generation owns the pending retry. A timer left over from a
+    // generation that has since been superseded must not open a socket:
+    // a superseded retry is exactly a stale callback in time-delay form.
+    const reconnectGenerationRef = useRef<number | null>(null);
     // Tracks whether the close was intentional (disconnect() / unmount) so the
     // onclose handler doesn't kick off a reconnect loop for a deliberate teardown.
     const manualCloseRef = useRef<boolean>(false);
@@ -108,6 +125,18 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
     // Use deep comparison key for channels array to avoid ref instability
     const channelKey = JSON.stringify(options.initialChannels || []);
+
+    // AUTH CREDENTIAL AS A VALUE, NOT AN OBJECT IDENTITY.
+    // `connect` used to depend on the whole `session` OBJECT. next-auth
+    // returns a new object on every session poll, refetch and router event, so
+    // an unchanged credential still changed `connect`, re-ran the autoConnect
+    // effect, and tore the socket down and rebuilt it (disconnect() then
+    // connect()) for reasons unrelated to the credential. Depending on the
+    // TOKEN STRING distinguishes the two cases that actually matter: a
+    // same-token render is a no-op, and a changed token is a deliberate
+    // reconnect. The value is used directly inside connect() so the dependency
+    // list stays accurate — no lint suppression and no captured stale session.
+    const authToken = (session as any)?.backendToken || (session as any)?.accessToken || "";
 
     // Derive the default WebSocket host so the client talks to the same
     // backend the REST API uses. MUST mirror lib/api.ts's fallback chain:
@@ -142,9 +171,11 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         // next close as a candidate for reconnect.
         manualCloseRef.current = false;
 
-        // Resolve JWT token: check localStorage first (set by login page),
-        // then fall back to NextAuth session.
-        let token = session?.backendToken || (session as any)?.accessToken;
+        // Resolve JWT token: the session credential first, then the
+        // localStorage copy written by pages/login.tsx. `authToken` is the
+        // VALUE this hook keys its connection identity on, so reading it here
+        // is exact — never a stale capture.
+        let token: string | undefined = authToken || undefined;
 
         // Check localStorage for auth_token (written by pages/login.tsx)
         if (!token && typeof window !== "undefined") {
@@ -167,13 +198,28 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         }
 
         const hasParams = socketUrl.includes("?");
+        // NOTE: the token is appended to the URL and must never reach a log.
+        // Diagnostics below carry socket generation, close code and the
+        // sanitized endpoint only.
         socketUrl = `${socketUrl}${hasParams ? "&" : "?"}token=${token}`;
 
         const ws = new WebSocket(socketUrl);
         const generation = ++generationRef.current;
         wsRef.current = ws;
 
+        // The URL without its credential, for diagnostics.
+        const sanitizedEndpoint = `${socketUrl.split("?")[0]}`;
+
         ws.onopen = () => {
+            // A socket that has been superseded owns nothing: it must not
+            // publish a connection, cancel the current generation's pending
+            // retry, or re-subscribe channels on a connection nobody reads.
+            if (generation !== generationRef.current) {
+                console.debug(
+                    `[useWebSocket] stale socket opened (gen ${generation}, ` +
+                    `current ${generationRef.current}) — ignoring`);
+                return;
+            }
             setIsConnected(true);
             // A successful connection resets the backoff window and cancels
             // any pending retry from a prior transient failure.
@@ -183,14 +229,27 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
                 clearTimeout(reconnectTimeoutRef.current);
                 reconnectTimeoutRef.current = null;
             }
+            reconnectGenerationRef.current = null;
 
-            // Re-subscribe to channels if any
+            // Re-subscribe to channels if any. `ws` is the current generation
+            // here, so this subscription belongs to the live connection and
+            // cannot multiply across reconnects.
             parseInitialChannels(channelKey).forEach(channel => {
                 ws.send(JSON.stringify({ type: "subscribe", channel }));
             });
         };
 
         ws.onmessage = (event) => {
+            // A retired socket's buffered frames are not part of this
+            // conversation: dropping them here is what keeps a late frame
+            // from overwriting the newest message, from corrupting the
+            // streaming accumulator, and from being fanned out to consumers.
+            if (generation !== generationRef.current) {
+                console.debug(
+                    `[useWebSocket] dropped frame from stale socket (gen ${generation}, ` +
+                    `current ${generationRef.current})`);
+                return;
+            }
             try {
                 const message = JSON.parse(event.data);
 
@@ -248,35 +307,53 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
             // refreshes the token. Mirrors lib/api.ts 401→no-retry convention.
             if (TERMINAL_CLOSE_CODES.has(event.code)) {
                 console.warn(
-                    `[useWebSocket] Terminal close (code ${event.code}) — not reconnecting. ` +
-                    `Auth recovery will occur on session refresh.`
+                    `[useWebSocket] Terminal close (code ${event.code}) on ${sanitizedEndpoint} — ` +
+                    `not reconnecting. Auth recovery will occur on session refresh.`
                 );
                 return;
             }
 
+            // AT MOST ONE RETRY IS EVER PENDING. A close can be observed more
+            // than once (server frame + our own teardown, proxy + client), and
+            // each observation used to overwrite the previous timer handle —
+            // losing the only cancellable reference and leaking a socket per
+            // duplicate. Collapse onto the retry that is already scheduled.
+            if (reconnectTimeoutRef.current) return;
+            if (!reconnect) return;
+            if (reconnectAttemptsRef.current >= maxReconnectAttempts) return;
+
             // Transient close — schedule a reconnect with exponential backoff.
-            if (reconnect && reconnectAttemptsRef.current < maxReconnectAttempts) {
-                const attempt = reconnectAttemptsRef.current; // 0-indexed
-                reconnectAttemptsRef.current += 1;
-                setReconnectAttempts(reconnectAttemptsRef.current);
-                // delay * 2^attempt + jitter, capped. Jitter prevents retry
-                // storms when many clients drop simultaneously.
-                const jitter = Math.random() * 250;
-                const delay = Math.min(
-                    reconnectDelay * Math.pow(2, attempt) + jitter,
-                    RECONNECT_MAX_DELAY_MS
-                );
-                reconnectTimeoutRef.current = setTimeout(() => {
-                    reconnectTimeoutRef.current = null;
-                    connectRef.current();
-                }, delay);
-            }
+            const attempt = reconnectAttemptsRef.current; // 0-indexed
+            reconnectAttemptsRef.current += 1;
+            setReconnectAttempts(reconnectAttemptsRef.current);
+            // delay * 2^attempt + jitter, capped. Jitter prevents retry
+            // storms when many clients drop simultaneously.
+            const jitter = Math.random() * 250;
+            const delay = Math.min(
+                reconnectDelay * Math.pow(2, attempt) + jitter,
+                RECONNECT_MAX_DELAY_MS
+            );
+            reconnectGenerationRef.current = generation;
+            reconnectTimeoutRef.current = setTimeout(() => {
+                reconnectTimeoutRef.current = null;
+                const owner = reconnectGenerationRef.current;
+                reconnectGenerationRef.current = null;
+                // A retry that outlived its generation is a stale callback in
+                // time-delay form: a successor already owns the connection.
+                if (owner !== null && owner !== generationRef.current) {
+                    console.debug(
+                        `[useWebSocket] dropping retry scheduled by superseded gen ${owner} ` +
+                        `(current ${generationRef.current})`);
+                    return;
+                }
+                connectRef.current();
+            }, delay);
         };
 
         ws.onerror = (error) => {
             // Silent error or toast? For now silent.
         };
-    }, [url, session, channelKey, reconnect, maxReconnectAttempts, reconnectDelay]);
+    }, [url, authToken, channelKey, reconnect, maxReconnectAttempts, reconnectDelay]);
 
     useEffect(() => {
         connectRef.current = connect;
@@ -289,6 +366,9 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
             clearTimeout(reconnectTimeoutRef.current);
             reconnectTimeoutRef.current = null;
         }
+        // Retire the pending retry's owner too, so nothing that outlives this
+        // call can open a socket on the caller's behalf.
+        reconnectGenerationRef.current = null;
         if (wsRef.current) {
             // Retire the generation BEFORE closing: the close is
             // asynchronous, and its onclose would otherwise run against a

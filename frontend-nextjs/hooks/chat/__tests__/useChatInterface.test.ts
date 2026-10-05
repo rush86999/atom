@@ -29,8 +29,22 @@ let mockWsState: any = {
 const mockToastFn = jest.fn();
 
 // Mock dependencies
+// WebSocket event delivery. The hook registers through the socket's
+// `onMessage` listener (the lossless path — a single `lastMessage` state slot
+// coalesces a token burst, so it cannot express "these 5 frames arrived").
+// `emit` therefore hands the frame to every registered listener, which is
+// exactly what useWebSocket does on the wire.
+const wsListeners = new Set<(m: any) => void>();
+const emit = (frame: any) => {
+  act(() => { wsListeners.forEach((h) => h(frame)); });
+};
+const onMessage = (handler: (m: any) => void) => {
+  wsListeners.add(handler);
+  return () => { wsListeners.delete(handler); };
+};
+
 jest.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => mockWsState,
+  useWebSocket: () => ({ ...mockWsState, onMessage }),
 }));
 
 jest.mock('@/components/ui/use-toast', () => ({
@@ -63,6 +77,7 @@ const mockPatch = apiClient.patch as jest.Mock;
 describe('useChatInterface', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    wsListeners.clear();
     mockWsState = {
       isConnected: false,
       lastMessage: null,
@@ -816,18 +831,13 @@ describe('useChatInterface', () => {
       useChatInterface({ sessionId: 'new', initialAgentId: null })
     );
 
-    mockWsState = { ...mockWsState, lastMessage: { type: 'streaming:start', id: 'stream-1' } };
-    rerender();
+    emit({ type: 'streaming:start', id: 'stream-1' });
 
     await waitFor(() => {
       expect(result.current.currentStreamId).toBe('stream-1');
     });
 
-    mockWsState = {
-      ...mockWsState,
-      lastMessage: { type: 'streaming:complete', id: 'stream-1', content: 'Streamed answer' },
-    };
-    rerender();
+    emit({ type: 'streaming:complete', id: 'stream-1', content: 'Streamed answer' });
 
     await waitFor(() => {
       expect(result.current.messages.some(m => m.type === 'assistant' && m.content === 'Streamed answer')).toBe(true);
@@ -850,18 +860,24 @@ describe('useChatInterface', () => {
     });
     const countAfterREST = result.current.messages.length;
 
-    mockWsState = { ...mockWsState, lastMessage: { type: 'streaming:start', id: 's-2' } };
-    rerender();
-    mockWsState = { ...mockWsState, lastMessage: { type: 'streaming:complete', id: 's-2', content: 'Dup' } };
-    rerender();
+    emit({ type: 'streaming:start', id: 's-2' });
+    emit({ type: 'streaming:complete', id: 's-2', content: 'Dup' });
 
     // No duplicate assistant message appended.
     expect(result.current.messages.length).toBe(countAfterREST);
     expect(result.current.messages.some(m => m.content === 'Dup')).toBe(false);
   });
 
-  // Test 31: a mismatched streaming:complete still resets processing
-  test('mismatched streaming complete resets processing', async () => {
+  // Test 31: a mismatched streaming:complete must NOT resolve the local turn.
+  //
+  // INVERTED. This test used to assert the opposite — that a completion for a
+  // stream this panel never started clears its spinner. That behaviour IS the
+  // cross-turn defect: two turns can overlap on one session (two tabs, or an
+  // API client driving the same conversation), and one turn's completion
+  // ending the other's spinner hides a still-running answer behind a dead
+  // composer. The local turn is released by its OWN POST resolving, or by the
+  // 120s safety net — never by somebody else's event.
+  test('mismatched streaming complete does NOT reset processing', async () => {
     let resolveSend: (v: any) => void = () => {};
     mockPost.mockImplementation((url: string) => {
       if (url === '/api/chat/message') {
@@ -872,12 +888,11 @@ describe('useChatInterface', () => {
       return Promise.resolve({ status: 200, data: { success: true } });
     });
 
-    const { result, rerender } = renderHook(() =>
+    const { result } = renderHook(() =>
       useChatInterface({ sessionId: 'new', initialAgentId: null })
     );
 
-    mockWsState = { ...mockWsState, lastMessage: { type: 'streaming:start', id: 'expected' } };
-    rerender();
+    emit({ type: 'streaming:start', id: 'expected' });
     await waitFor(() => {
       expect(result.current.currentStreamId).toBe('expected');
     });
@@ -891,16 +906,27 @@ describe('useChatInterface', () => {
     });
     expect(result.current.isProcessing).toBe(true);
 
-    mockWsState = { ...mockWsState, lastMessage: { type: 'streaming:complete', id: 'other-stream' } };
-    rerender();
+    // A completion for a stream this panel did not start...
+    emit({ type: 'streaming:complete', id: 'other-stream' });
+    // ...and one whose stream id was lost in transit entirely.
+    emit({ type: 'streaming:complete' });
 
+    // The local turn is still running: its spinner must survive both.
+    expect(result.current.isProcessing).toBe(true);
+
+    // Only its own POST resolution ends it. Wait until the POST is actually
+    // in flight before resolving it.
     await waitFor(() => {
-      expect(result.current.isProcessing).toBe(false);
+      expect(mockPost).toHaveBeenCalledWith(
+        '/api/chat/message', expect.anything(), expect.anything(),
+      );
     });
-
     await act(async () => {
       resolveSend({ data: { success: true, message: 'late', session_id: 'new' } });
       await sendPromise;
+    });
+    await waitFor(() => {
+      expect(result.current.isProcessing).toBe(false);
     });
   });
 
@@ -917,14 +943,14 @@ describe('useChatInterface', () => {
       await result.current.handleSend();
     });
 
-    mockWsState = {
-      ...mockWsState,
-      lastMessage: {
-        type: 'agent_step_update',
+    emit({
+      type: 'agent_step_update',
+      data: {
         step: { step: 1, thought: 'Checking', action: { tool: 'web_search' }, output: 'found' },
+        execution_id: 'step-exec-1',
+        session_id: 'test-session-123',
       },
-    };
-    rerender();
+    });
 
     expect(result.current.statusMessage).toBe('Executing web_search...');
 
@@ -939,11 +965,7 @@ describe('useChatInterface', () => {
       useChatInterface({ sessionId: 'new', initialAgentId: null })
     );
 
-    mockWsState = {
-      ...mockWsState,
-      lastMessage: { type: 'hitl_paused', action_id: 'act-1', tool: 'finance_tool', reason: 'Needs approval' },
-    };
-    rerender();
+    emit({ type: 'hitl_paused', session_id: 'test-session-123', action_id: 'act-1', tool: 'finance_tool', reason: 'Needs approval' });
 
     expect(result.current.pendingApproval).toEqual({
       action_id: 'act-1',
@@ -952,8 +974,7 @@ describe('useChatInterface', () => {
     });
     expect(result.current.statusMessage).toBe('Waiting for approval...');
 
-    mockWsState = { ...mockWsState, lastMessage: { type: 'hitl_decision' } };
-    rerender();
+    emit({ type: 'hitl_decision', session_id: 'test-session-123' });
 
     expect(result.current.pendingApproval).toBeNull();
     expect(result.current.statusMessage).toBe('Resuming execution...');

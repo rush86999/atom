@@ -104,7 +104,13 @@ const AgentsDashboard = () => {
     const [isMaturityGuideOpen, setIsMaturityGuideOpen] = useState(false);
 
     // WebSocket Integration
-    const { isConnected, lastMessage, subscribe } = useWebSocket();
+    // Frames are read from the socket's `onMessage` listener rather than the
+    // `lastMessage` state slot. That slot is ONE slot: a burst of frames inside
+    // a single render commit produces one commit, so an effect keyed on it sees
+    // only the newest frame. A run's `agent_step_update` frames arrive as a
+    // burst, so the activity log was rendering with whole steps missing — the
+    // log is the page's whole reason for subscribing.
+    const { isConnected, subscribe, onMessage } = useWebSocket();
 
     useEffect(() => {
         if (isConnected) {
@@ -173,7 +179,7 @@ const AgentsDashboard = () => {
         }
     }, [routerPush]);
 
-    useEffect(() => {
+    useEffect(() => onMessage((lastMessage: any) => {
         if (lastMessage) {
             if (lastMessage.type === "agent_step_update") {
                 const { agent_id, step } = lastMessage.data || (lastMessage as any).step || lastMessage;
@@ -205,7 +211,7 @@ const AgentsDashboard = () => {
                 fetchAgents();
             }
         }
-    }, [lastMessage, activeAgentId, appendLog, agents, fetchAgents]);
+    }), [onMessage, activeAgentId, appendLog, agents, fetchAgents]);
 
     useEffect(() => {
         fetchAgents();

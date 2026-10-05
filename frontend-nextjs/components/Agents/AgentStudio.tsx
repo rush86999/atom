@@ -103,7 +103,12 @@ const AgentStudio: React.FC = () => {
     const [feedbackStep, setFeedbackStep] = useState<TraceStep | null>(null);
 
     // --- WebSocket for Real-time Updates ---
-    const { isConnected, lastMessage, subscribe } = useWebSocket();
+    // Frames are read from the socket's `onMessage` listener rather than the
+    // `lastMessage` state slot. That slot is ONE slot: a burst of frames inside
+    // a single render commit produces one commit, so an effect keyed on it sees
+    // only the newest frame. A run's `agent_step_update` frames arrive as a
+    // burst, so the live trace was rendering with whole steps missing.
+    const { isConnected, subscribe, onMessage } = useWebSocket();
 
     useEffect(() => {
         if (isConnected) {
@@ -113,7 +118,7 @@ const AgentStudio: React.FC = () => {
         }
     }, [isConnected, subscribe]);
 
-    useEffect(() => {
+    useEffect(() => onMessage((lastMessage: any) => {
         if (lastMessage && (lastMessage as any).type === "agent_step_update") {
             const { agent_id, step } = lastMessage as any;
 
@@ -166,7 +171,7 @@ const AgentStudio: React.FC = () => {
                 setIsRunning(false);
             }
         }
-    }, [lastMessage, selectedAgent, isRunning]);
+    }), [onMessage, selectedAgent, isRunning]);
     const [feedbackText, setFeedbackText] = useState("");
 
     // --- Fetch Agents ---

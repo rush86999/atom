@@ -42,6 +42,27 @@ coordination protocol lives in `notes/AGENT_COORDINATION.md` (local, gitignored)
     startup logs a CRITICAL when the world shrank) and
     `scripts/restart_backend.sh` (snapshot before every restart). Snapshots
     live in `backend/data/backups/` — restore from there, never re-seed.
+  - **SILENT EMPTY ACCEPTANCE WORLD** (2026-09-27: `backend/data/acceptance_worlds`
+    is being relocated to the external drive, canonical path kept as a symlink).
+    Every world launcher mkdir's its world (`preview_stack.save_state`,
+    `run_isolated.main_async`, `preview_launch`), so if the worlds root is ever
+    a plain local directory again — drive unplugged and the symlink replaced —
+    that mkdir SUCCEEDS against an empty tree and the run then "passes" against
+    nothing. Never hand-create that directory to work around a launcher error.
+    Safety net: `core/world_storage_guard.py` — one preflight every launcher runs
+    BEFORE any mkdir, rejecting a missing volume, a volume UUID/name mismatch, a
+    dangling worlds symlink, and an unexpected local directory. Config lives
+    OUTSIDE the movable tree in `backend/config/world_storage.json` (never trust
+    config from inside `backend/data/`, it is gitignored and it is what moves).
+    It also holds the **maintenance interlock**: `python -m core.world_storage_guard
+    lock --reason ...` makes every launcher refuse new runs, which is the ONLY
+    thing that works when a supervisor respawns the processes you just killed.
+    Take the lock BEFORE stopping writers. `scripts/drive_status.sh` reports
+    worlds storage + internal symlink resolution. Bypass is
+    `ATOM_WORLD_STORAGE_BYPASS=1` (logged, and only after verifying by hand).
+    Note the limit: no startup check can protect a world that is already running
+    when the drive is pulled — that I/O error is meant to stay loud, so do not
+    add retry/swallows around it.
 - **Read the run history.** `git log`, recent commits by other agents, and
   `notes/AGENT_COORDINATION.md` — someone may have already built (or
   deliberately removed) what you're about to add. E.g. the cross-user token

@@ -33,8 +33,17 @@ _ap.add_argument("--name", default="preview_app")
 _ap.add_argument("--frontend-origin", default="http://127.0.0.1:3090",
                  help="origin(s) the preview frontend is served from; "
                       "comma-separated for several")
+# STORAGE POLICY: the full dev database is opt-in. Without this flag the
+# world is built from the small API-seeded fixture (app schema, zero dev
+# rows) and the live dev database is never read.
+_ap.add_argument("--full-dev-db-snapshot", dest="full_dev_db",
+                 action="store_true",
+                 help="copy the FULL live dev database into this world "
+                      "(~412 MB, plus ~400-550 MB per run directory seeded "
+                      "from it, and the world inherits the dev lane's rows)")
 _a = _ap.parse_args()
 PORT, NAME = _a.port, _a.name
+SP_FULL_DEV_DB = bool(_a.full_dev_db)
 # Established local real-model configuration (no live credentials).
 _MODEL_DEFAULTS = {
     "OLLAMA_BASE_URL": "http://127.0.0.1:11434/v1",
@@ -49,8 +58,18 @@ _MODEL_DEFAULTS = {
 FRONTEND_ORIGINS = ",".join(
     o.strip() for o in _a.frontend_origin.split(",") if o.strip())
 world = Path("/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds") / NAME
+# Refuse to build or serve a world unless worlds storage is in the configured
+# state and no maintenance lock is held. Note this path is hardcoded (not
+# derived from __file__) because the preview is launched from a different
+# working directory; the guard's config is anchored to backend/ instead, so
+# the two agree on which tree is under protection.
+ri.require_storage_ready()
 if not (world / "MANIFEST.json").exists():
-    ri.build_world(world, refreeze_db=True)
+    # STORAGE POLICY: the default fixture is the small API-seeded one (app
+    # schema, zero dev rows, live dev database never read). Pass
+    # --full-dev-db-snapshot to this launcher to get the previous behaviour,
+    # which copied the whole ~412 MB live dev database into the world.
+    ri.build_world(world, refreeze_db=True, full_dev_db=SP_FULL_DEV_DB)
     print("world built")
 env = {k: os.environ[k] for k in ri.SERVER_ENV_WHITELIST if k in os.environ}
 env.update({

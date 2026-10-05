@@ -266,6 +266,28 @@ the authority, NOT your memory of earlier drafts:
   fields its UI renders). For object content set "field" to one of THOSE
   keys; the op applies inside that field only, and the other keys stay
   untouched.
+- REFERENTIAL VALUES (2026-10-02 live, the 'update the prices that were
+  found in the email' turn): when the request references values by their
+  SOURCE instead of naming them ('the prices found in the email', 'the
+  numbers from the quote', 'your latest findings', 'the confirmed
+  values'), RESOLVE them from the Recent conversation section — it
+  carries the agent's own replies with the exact figures. Emit ops whose
+  "replace" holds the CONCRETE value quoted there (e.g. "$2,902.00") and
+  whose "find" is the canvas's current text for that same row, copied
+  verbatim. NEVER emit an op whose replace is a description ("the email
+  price") or leave a value unresolved because the user didn't type it —
+  the conversation is the authority the request points at. If a
+  referenced value genuinely appears nowhere in the prompt, do not guess
+  and do not emit a vague op: wants_edit=false with a reply naming
+  exactly which values are missing.
+- REFERENTIAL EDITS REPORT THE FULL SET (2026-10-02 live, the 'updated
+  only 1 price' misread): a plural referential instruction ("update the
+  prices that were found in the email") resolved to ONE changed row is
+  usually CORRECT — the other rows already match — but a reply that
+  names only the change reads as if the work stopped short. The reply
+  must account for EVERY referenced item: how many were checked, which
+  changed (old → new), and how many already matched. Same for
+  fill-in-the-blank sets: report filled vs already-correct vs missing.
 - SET-FIELD ops: to FILL AN EMPTY field (e.g. an empty To or Cc), return
   {"field": "<name>", "find": "", "replace": "<new value>"}. find="" is
   accepted ONLY when that field is currently empty — it sets the field.
@@ -3661,6 +3683,22 @@ def describe_apply_failure(
             "The proposed edit would remove part of the existing footer or "
             "its links, so nothing was written. I kept the customer footer "
             "unchanged."
+        )
+    if reason and reason.startswith("scope_dropped_product"):
+        # PRESERVATION VIOLATION, NAMED (2026-10-03, reliability run A):
+        # the planned patch would have dropped a product identity the
+        # canvas already carries (e.g. the PE-16 line under a
+        # fill-the-TBC instruction). The guard is the product working as
+        # designed — the reply must say WHICH identity and WHY nothing
+        # was written, not a generic field hint.
+        _dropped = reason.split(":", 1)[1] if ":" in reason else "a product"
+        return (
+            f"I didn't write the change: the proposed edit would have "
+            f"dropped {_dropped} from the quote, and product identities "
+            "only leave when you ask for it. The draft is unchanged. If "
+            "the line should be reworded, name the new wording with the "
+            "item still in it; if it should be removed outright, say "
+            f"'remove {_dropped}'."
         )
     if not _verified_zero_effect_refusal(reason):
         # DEFAULT DIRECTION IS UNCERTAIN. Every branch above either decided

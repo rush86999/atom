@@ -24,16 +24,15 @@ import '@testing-library/jest-dom';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
 
-// --- WS mock: React state so a new lastMessage re-renders the component ---
-let _setLastMessage: (m: any) => void = () => {};
+// --- WS mock -----------------------------------------------------------------
+// Frames reach the component through the socket's `onMessage` listener, so the
+// mock must deliver to listeners as well as to the state slot. tests/helpers/
+// wsMock does both, and `wsMock().burst()` reproduces the case this component
+// has to survive: many frames inside one render commit.
+import { wsMock } from '../../../tests/helpers/wsMock';
 
 jest.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => {
-    const React = require('react');
-    const [lm, setLm] = React.useState(null);
-    _setLastMessage = setLm;
-    return { lastMessage: lm, isConnected: false };
-  },
+  useWebSocket: require('../../../tests/helpers/wsMock').createWebSocketMock(),
 }));
 
 jest.mock('next-auth/react', () => ({
@@ -169,7 +168,7 @@ describe('CommunicationCommandCenter', () => {
     await screen.findByText('Communication Command Center');
 
     act(() => {
-      _setLastMessage({ type: 'status_update', data: { totalUnread: 42, responseRate: 91 } });
+      wsMock().emit({ type: 'status_update', data: { totalUnread: 42, responseRate: 91 } });
     });
 
     expect(await screen.findByText('42')).toBeInTheDocument();
@@ -184,7 +183,7 @@ describe('CommunicationCommandCenter', () => {
     expect(screen.getAllByText('connected')).toHaveLength(2);
 
     act(() => {
-      _setLastMessage({
+      wsMock().emit({
         type: 'platform_status_change',
         data: { platform: 'slack', status: 'degraded' },
       });
@@ -199,7 +198,7 @@ describe('CommunicationCommandCenter', () => {
     await screen.findByText('Communication Command Center');
 
     act(() => {
-      _setLastMessage({ type: 'some_other_event', data: { totalUnread: 99 } });
+      wsMock().emit({ type: 'some_other_event', data: { totalUnread: 99 } });
     });
 
     // stats unchanged (still from analytics fetch: 7 unread)

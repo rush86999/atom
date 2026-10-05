@@ -107,7 +107,15 @@ fi
 echo "==> Starting backend from $BACKEND_DIR"
 mkdir -p "$(dirname "$LOG_FILE")"
 cd "$BACKEND_DIR" || exit 1
-nohup env ATOM_MISS_HANDOFF_NARRATION=1 "$PY" -m uvicorn main_api_app:app \
+# CANVAS EDIT-PLAN PIN (2026-10-02): the interactive canvas plan's
+# structured pool ranked openrouter top while its credits were exhausted
+# (402 all day — every 'update the …' turn died as 'canvas edit planner
+# unavailable'). The pin targets a working BYOK provider; the pinned call
+# verifies the client exists and falls back to ranked routing on failure
+# (core/llm/pinned_planning.py).
+nohup env ATOM_MISS_HANDOFF_NARRATION=1 \
+     ATOM_ASYNC_EDIT_PLAN_MODEL=opencode-go/deepseek-v4-pro \
+     "$PY" -m uvicorn main_api_app:app \
     --host 0.0.0.0 --port "$PORT" --timeout-keep-alive 75 \
     >> "$LOG_FILE" 2>&1 &
 NEW_PID=$!

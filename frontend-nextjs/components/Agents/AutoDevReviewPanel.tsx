@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api";
@@ -57,7 +57,14 @@ export function AutoDevReviewPanel({ agentId }: { agentId?: string | null }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [guidance, setGuidance] = useState<Guidance[]>([]);
-  const { lastMessage } = useWebSocket();
+  // Frames are read from the socket's `onMessage` listener rather than the
+  // `lastMessage` state slot. That slot is ONE slot: a burst of frames inside a
+  // single render commit produces one commit, so an effect keyed on it sees only
+  // the newest frame — an `autodev_guidance` ping landing mid-burst never
+  // triggered its reload. The in-flight guard keeps a burst of pings from
+  // becoming one reload per frame.
+  const { onMessage } = useWebSocket();
+  const guidanceReloadInFlight = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -92,11 +99,14 @@ export function AutoDevReviewPanel({ agentId }: { agentId?: string | null }) {
 
   // Live refresh: the backend pings `autodev_guidance` over the workspace
   // websocket when a tool-error pattern is detected or a fix is proposed.
-  useEffect(() => {
-    if (lastMessage?.type === "autodev_guidance") {
-      load();
-    }
-  }, [lastMessage, load]);
+  useEffect(() => onMessage((msg: any) => {
+    if (msg?.type !== "autodev_guidance") return;
+    if (guidanceReloadInFlight.current) return;
+    guidanceReloadInFlight.current = true;
+    void Promise.resolve(load()).finally(() => {
+      guidanceReloadInFlight.current = false;
+    });
+  }), [onMessage, load]);
 
   const act = async (kind: "skill" | "mutation", id: string, action: "approve" | "reject") => {
     setNotice(null);

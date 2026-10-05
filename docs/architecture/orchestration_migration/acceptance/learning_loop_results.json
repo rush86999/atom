@@ -1,0 +1,254 @@
+{
+ "world": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/learning_loop_01",
+ "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/learning_loop_01/runs/run-0496e25b389e",
+ "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/learning_loop_01/runs/run-0496e25b389e/data/atom.db",
+ "hire_id": "60f63501-c5b0-43ca-9ac6-67378174e233",
+ "canvas_id": "c7fc9462-852b-4d47-b082-293226b8ce99",
+ "generated_at": "2026-10-01T12:27:27-0400",
+ "cases_passed": 7,
+ "cases_total": 7,
+ "all_pass": true,
+ "results": [
+  {
+   "case": "C1_canvas_edit_is_agent_authored",
+   "status": "PASS",
+   "checks": {
+    "edit_turn_succeeded": true,
+    "audit_row_is_agent_attributed_with_the_edit": true,
+    "canvas_read_shows_the_edit": true,
+    "edit_planner_reached_the_llm_boundary": true
+   },
+   "details": {
+    "edit_turn_succeeded": {
+     "status": 200,
+     "err": null,
+     "head": "Updated the quote validity to 30 days.\n\n\ud83d\udcdd I'm still learning canvas edits, so treat this as my draft attempt \u2014 fix it right here on the canv"
+    },
+    "audit_row_is_agent_attributed_with_the_edit": [
+     "create/agent=None",
+     "update/agent=60f63501"
+    ],
+    "canvas_read_shows_the_edit": "{'success': True, 'canvas_id': 'c7fc9462-852b-4d47-b082-293226b8ce99', 'canvas_type': 'email', 'content': {'to': 'steve@acme.test', 'cc': '', 'subject': 'Machinery quote', 'body': 'Hi Steve,<br><br>Pl",
+    "edit_planner_reached_the_llm_boundary": [
+     {
+      "tool": [
+       "ToolPlan"
+      ],
+      "matched": true,
+      "by": "tool+match"
+     },
+     {
+      "tool": [
+       "CanvasEditPlan"
+      ],
+      "matched": true,
+      "by": "tool+match"
+     },
+     {
+      "tool": [],
+      "matched": true,
+      "by": "substring"
+     }
+    ]
+   },
+   "notes": []
+  },
+  {
+   "case": "C2_right_panel_teach_saves_and_dedups",
+   "status": "PASS",
+   "checks": {
+    "teach_reply_is_deterministic_teaching_intent": true,
+    "teach_saved": true,
+    "lesson_durably_journaled": true,
+    "repeat_teach_is_duplicate_not_second_entry": true,
+    "teach_turn_bypassed_the_reply_model": true
+   },
+   "details": {
+    "teach_reply_is_deterministic_teaching_intent": "teaching",
+    "teach_saved": {
+     "status": "saved",
+     "lesson": "ALWAYS address the client by their first name in every quote you draft zzq firstname rule zzq",
+     "message": "\u2713 Learned \u2014 Sloan (Learning Loop Hire) will apply this to all of their work from now on.",
+     "agent": {
+      "id": "60f63501-c5b0-43ca-9ac6-67378174e233",
+      "name": "Sloan (Learning Loop Hire)",
+      "status": "student"
+     },
+     "mode": "student",
+     "teaching_point_id": "f5b7aa383ab04341925151b327364c7b",
+     "scope": "global",
+     "goal_id": null,
+     "goal_title": null,
+     "goal_inferred": false
+    },
+    "lesson_durably_journaled": [
+     "ALWAYS address the client by their first name in every quote you draft zzq firstname rule zzq"
+    ],
+    "repeat_teach_is_duplicate_not_second_entry": {
+     "status": "duplicate",
+     "count": 1
+    },
+    "teach_turn_bypassed_the_reply_model": "no edit-plan leg fired for a teaching turn"
+   },
+   "notes": []
+  },
+  {
+   "case": "C3_cue_suggests_writes_nothing_until_confirmed",
+   "status": "PASS",
+   "checks": {
+    "turn_succeeded": true,
+    "suggestion_rode_the_reply": true,
+    "detection_wrote_nothing": true,
+    "confirm_endpoint_accepts_the_lesson": true,
+    "confirmed_lesson_journaled": true
+   },
+   "details": {
+    "turn_succeeded": {
+     "status": 200,
+     "head": "Understood."
+    },
+    "suggestion_rode_the_reply": "{\"status\": 200, \"success\": true, \"message\": \"Understood.\", \"session_id\": \"ll-cue-1790872028\", \"intent\": \"search_request\", \"confidence\": 0.2, \"suggested_actions\": [\"Open Search UI for detailed results\", \"Save this search for later\", \"Set up alert for similar content\"], \"requires_confirmation\": false, \"next_steps\": [\"Refine your search with more specific terms\", \"Check the search results in the Sear",
+    "detection_wrote_nothing": [
+     "ALWAYS address the client by their first name in every quote you draft zzq firstname rule zzq"
+    ],
+    "confirm_endpoint_accepts_the_lesson": {
+     "status": 200,
+     "body": "{'success': True, 'data': {'status': 'ok', 'source': 'teacher', 'confidence': 0.45, 'confidence_boost': 0.03, 'at_learning_ceiling': True, 'note': 'Learning ceiling reached \u2014 ready for a training sess"
+    },
+    "confirmed_lesson_journaled": [
+     "ALWAYS address the client by their first name in every quote you draft zzq firstname rule zzq",
+     "From now on use USD for all machinery pricing zzq usd rule zzq"
+    ]
+   },
+   "notes": []
+  },
+  {
+   "case": "C4_canvas_correction_becomes_a_permanent_lesson",
+   "status": "PASS",
+   "checks": {
+    "corrected_content_differs_from_the_draft": true,
+    "supervisor_put_accepted": true,
+    "rlhf_correction_row_recorded": true,
+    "correction_recorded_on_canvas_context": true,
+    "correction_journaled_as_permanent_lesson": true
+   },
+   "details": {
+    "corrected_content_differs_from_the_draft": "Hi Steve,<br><br>Please find our quote attached. Quote validity: 30 days from the signed order date; payment terms net-30 (zzq correction marker zzq).<br><br>Regards,",
+    "supervisor_put_accepted": {
+     "status": 200,
+     "body": "{\"success\":true,\"write_outcome\":\"committed\",\"canvas_id\":\"c7fc9462-852b-4d47-b082-293226b8ce99\",\"canvas_type\":\"email\",\"audit_id\":\"daeec22f-2400-4c16-ac3e-2a7adda"
+    },
+    "rlhf_correction_row_recorded": 1,
+    "correction_recorded_on_canvas_context": "[{'original': {'type': 'canvas_edit', 'content': {'to': 'steve@acme.test', 'cc': '', 'subject': 'Machinery quote', 'body': 'Hi Steve,<br><br>Please find our quote attached. Quote validity: 30 days.<br",
+    "correction_journaled_as_permanent_lesson": [
+     "ALWAYS address the client by their first name in every quote you draft zzq firstname rule zzq",
+     "From now on use USD for all machinery pricing zzq usd rule zzq",
+     "Style: keep the supervisor's wording \u2014 marker \u2014 in future drafts.",
+     "Supervisor corrected my work \u2014 follow the corrected version's content and style: {\"to\": \"steve@acme.test\", \"cc\": \"\", \"subject\": \"Machinery quote\", \"body\": \"Hi Steve,<br><br>Please find our quote attached. Quote validity: 30 days from the signed order date; payment terms net-30 (zzq correction marker zzq).<br><br>Regards,\"}"
+    ]
+   },
+   "notes": []
+  },
+  {
+   "case": "C5_lessons_reach_the_model_on_the_next_turn",
+   "status": "PASS",
+   "checks": {
+    "readback_turn_succeeded": true,
+    "training_lessons_block_reached_the_llm": true,
+    "taught_rule_in_the_block": true,
+    "confirmed_cue_rule_in_the_block": true,
+    "canvas_correction_in_the_block": true,
+    "block_is_a_system_message": true
+   },
+   "details": {
+    "readback_turn_succeeded": {
+     "status": 200,
+     "head": "The canvas now states the quote validity is 30 days."
+    },
+    "training_lessons_block_reached_the_llm": "[system] You return only the requested JSON object.\n[user] You are the tool planner for an AI automation platform.\nGiven the recent conversation and the user's latest message, decide whether\nanswering needs FRESH data from one of the available tools\n(listed below with what they contain), or whether the conversation itself is\nenough.\n\nRules:\n- Retry phrases (\"try again\", \"any luck?\", \"still nothing",
+    "taught_rule_in_the_block": [
+     "1. [general] Supervisor corrected my work \u2014 follow the corrected version's content and style: {\"to\": \"steve@acme.test\", \"cc\": \"\", \"subject\": \"Machinery quote\", \"body\": \"Hi Steve,<br><br>Please find our quote attached. Quote validity: 30 days from the signed order date; payment terms net-30 (zzq correction marker zzq).<br><br>Regard\u2026",
+     "2. [general] From now on use USD for all machinery pricing zzq usd rule zzq \u2014 taught on canvas \"Acme quote\" (Email)",
+     "3. [general] ALWAYS address the client by their first name in every quote you draft zzq firstname rule zzq",
+     "- Started: Please draft the quote for Acme. From now on use USD for all machinery pricing zzq usd rule zzq... Ended: Understood. (outcome: success)"
+    ]
+   },
+   "notes": []
+  },
+  {
+   "case": "C6_teach_without_agent_refuses_to_guess",
+   "status": "PASS",
+   "checks": {
+    "needs_agent_notice": true,
+    "pickable_agent_list_offered": true,
+    "no_lesson_was_written_anywhere": true
+   },
+   "details": {
+    "needs_agent_notice": {
+     "status": "needs_agent",
+     "lesson": "Always double-check totals before sending.",
+     "message": "I can save that as a permanent lesson, but I need to know which agent should learn it. Pick one below \u2014 or open a canvas and teach from its chat to use its attached agent.",
+     "agents": [
+      {
+       "id": "03837838-5c34-497e-a68b-55d8d300c5b3",
+       "name": "Demo Assistant",
+       "display_name": null,
+       "category": "system",
+       "status": "intern",
+       "confidence": 0.6
+      },
+      {
+       "id": "60f63501-c5b0-43ca-9ac6-67378174e233",
+       "name": "Sloan (Learning Loop Hire)",
+       "display_name": null,
+       "category": "Sales",
+       "status": "student",
+       "confidence": 0.46
+      }
+     ]
+    },
+    "pickable_agent_list_offered": [
+     {
+      "id": "03837838-5c34-497e-a68b-55d8d300c5b3",
+      "name": "Demo Assistant",
+      "display_name": null,
+      "category": "system",
+      "status": "intern",
+      "confidence": 0.6
+     },
+     {
+      "id": "60f63501-c5b0-43ca-9ac6-67378174e233",
+      "name": "Sloan (Learning Loop Hire)",
+      "display_name": null,
+      "category": "Sales",
+      "status": "student",
+      "confidence": 0.46
+     }
+    ],
+    "no_lesson_was_written_anywhere": [
+     "ALWAYS address the client by their first name in every quote you draft zzq firstname rule zzq",
+     "From now on use USD for all machinery pricing zzq usd rule zzq",
+     "Style: keep the supervisor's wording \u2014 marker \u2014 in future drafts.",
+     "Supervisor corrected my work \u2014 follow the corrected version's content and style: {\"to\": \"steve@acme.test\", \"cc\": \"\", \"subject\": \"Machinery quote\", \"body\": \"Hi Steve,<br><br>Please find our quote attached. Quote validity: 30 days from the signed order date; payment terms net-30 (zzq correction marker zzq).<br><br>Regards,\"}"
+    ]
+   },
+   "notes": []
+  },
+  {
+   "case": "C7_lessons_survive_a_server_restart",
+   "status": "PASS",
+   "checks": {
+    "turn_after_restart_succeeded": true,
+    "lessons_still_injected_after_restart": true
+   },
+   "details": {
+    "turn_after_restart_succeeded": {
+     "status": 200,
+     "head": "Understood."
+    },
+    "lessons_still_injected_after_restart": "[system] You return only the requested JSON object.\n[user] You are the tool planner for an AI automation platform.\nGiven the recent conversation and the user's latest message, decide whether\nanswering needs FRESH data from one of the available tools\n(listed below with what they contain), or whether "
+   },
+   "notes": []
+  }
+ ]
+}

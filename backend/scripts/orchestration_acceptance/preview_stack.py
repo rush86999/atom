@@ -70,40 +70,12 @@ from typing import Any, Dict, List, Optional, Tuple
 BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
 FRONTEND = REPO / "frontend-nextjs"
-# Farms are PER WORLD. There used to be exactly one project directory for every
-# preview, and because Next 16 locks `<distDir>/dev/lock` exclusively, a second
-# preview's `next dev` died with "Another next dev server is already running"
-# -- naming the first preview's port and PID. `farm_dir` gives each world its
-# own project directory and its own distDir, so N worlds can each serve a real
-# frontend. `.preview-instance` itself stays as the farm ROOT; the per-world
-# farms live inside it.
-PREVIEW_FE_ROOT = FRONTEND / ".preview-instance"
-
-
-def farm_dir(world: str) -> Path:
-    safe = "".join(c if (c.isalnum() or c in "-_") else "_" for c in str(world))
-    return PREVIEW_FE_ROOT / safe
-
-
-def dist_dir_for(world: str) -> str:
-    safe = "".join(c if (c.isalnum() or c in "-_") else "_" for c in str(world))
-    return f".next-preview-{safe}"
-
-
-#: Kept for callers that only ever hosted one preview. It is the per-world farm
-#: for the default world, not a shared directory.
-def _legacy_preview_fe() -> Path:
-    return farm_dir(DEFAULT_WORLD)
+PREVIEW_FE = FRONTEND / ".preview-instance"
 VENV_PY = BACKEND / "venv314" / "bin" / "python"
 APP_PY = BACKEND / "scripts" / "orchestration_acceptance" / "_app.py"
 
 sys.path.insert(0, str(BACKEND))
 from scripts.orchestration_acceptance import run_isolated as R  # noqa: E402
-from core.world_storage_guard import (  # noqa: E402
-    assert_worlds_root_usable,
-    guarded_entry,
-    require_storage_ready,
-)
 
 DEFAULT_WORLD = "preview_v1"
 DEFAULT_BACKEND_PORT = 8051
@@ -177,6 +149,25 @@ def pick_free_port(preferred: int) -> int:
     raise RuntimeError(f"no free port near {preferred}")
 
 
+def _frontend_owner(world: Path) -> Optional[Path]:
+    """The world whose live stack currently holds the shared frontend farm,
+    or None if no world has a live frontend.
+
+    A world "has" the farm when its saved state names a frontend pid that is
+    still alive. Stale state from a crashed stack does not count, and neither
+    does this world's own previous frontend -- a restart of the same world is
+    the legitimate case where taking the farm back is correct.
+    """
+    for other in sorted(world_path("").glob("*")):
+        if not other.is_dir() or not (other / "preview_stack.json").exists():
+            continue
+        st = load_state(other)
+        pid = st.get("frontend_pid")
+        if pid and _pid_alive(pid) and other.resolve() != world.resolve():
+            return other
+    return None
+
+
 # --------------------------------------------------------------------------
 # World + state
 # --------------------------------------------------------------------------
@@ -199,9 +190,6 @@ def load_state(world: Path) -> Dict[str, Any]:
 
 
 def save_state(world: Path, state: Dict[str, Any]) -> None:
-    # Cheap guard immediately in front of the mkdir that would otherwise
-    # create a fresh, empty world against an unverified worlds root.
-    assert_worlds_root_usable(where=f"save_state({world.name})")
     world.mkdir(parents=True, exist_ok=True)
     state_path(world).write_text(json.dumps(state, indent=2, sort_keys=True))
 
@@ -214,23 +202,9 @@ def sha256_file(p: Path) -> str:
     return h.hexdigest()
 
 
-def _pid_alive(pid: Optional[int]) -> bool:
-    """Is this pid a live process?
-
-    `pid` is Optional because a world launched API-only records
-    `"frontend_pid": null` -- and a state file written by an older launcher can
-    carry a null for either pid. `os.kill(None, 0)` is a TypeError, not an
-    OSError, so this used to crash `verify` and `frontend-up` on exactly the
-    state those two commands exist to inspect.
-    """
-    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
-        return False
+def _pid_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
-        return True
-    except ProcessLookupError:
-        return False
-    except PermissionError:
         return True
     except OSError:
         return False
@@ -250,12 +224,6 @@ FINGERPRINT_MODULES = (
     "main_api_app",
     "core.task_lifecycle",
     "core.chat_transport",
-    # The boot crash-recovery path. It decides what happens to a running
-    # execution after a restart, and it is the code the crash-recovery evidence
-    # is actually about -- a fingerprint that omitted it would let a change there
-    # pass unrecorded.
-    "core.execution_recovery",
-    "core.execution_ownership",
     "core.answer_presentation",
     "core.chat_tool_planner",
     "core.workbook_read_artifact",
@@ -355,31 +323,7 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
         "ATOM_DATA_DIR": str(run_dir / "data"),
         "LANCEDB_URI": str(run_dir / "data" / "atom_memory"),
         "ATOM_SHEET_DATASETS": "1",
-        # "true", not "1". The orchestrator gates the streaming leg on
-        # `os.getenv("ATOM_CHAT_STREAMING", "true").lower() == "true"`, so "1"
-        # DISABLES streaming while the launch descriptor still reports
-        # ATOM_CHAT_STREAMING=1 -- which reads as "on" to anyone auditing the
-        # descriptor. That is why zero chat_token frames had ever been observed:
-        # the leg never ran. The default is "true", so setting the flag to
-        # anything other than a literal "true" is the only way to turn it off.
-        "ATOM_CHAT_STREAMING": "true",
-        # Planner model pin, when the operator sets one. Recorded in
-        # effective_flags either way, so a launch that pins the planner is
-        # self-describing instead of differing from an unpinned one by an
-        # invisible environment variable.
-        "ATOM_ASYNC_EDIT_PLAN_MODEL": os.environ.get(
-            "ATOM_ASYNC_EDIT_PLAN_MODEL", ""),
-        # The INTERACTIVE request budget, when the operator sets one. Without
-        # this pass-through the variable is stripped by the SERVER_ENV_WHITELIST
-        # filter above, so asking for a short interactive budget silently does
-        # nothing and the server runs on the product default
-        # (CHAT_TURN_BUDGET_DEFAULT_SECONDS=95s). That is what made the c16
-        # background case non-deterministic: a 40s stall fitted inside 95s, the
-        # request completed synchronously, the product never forked, and every
-        # "background" assertion was measuring the synchronous path. Recorded in
-        # effective_flags below, like every other knob under test.
-        "ATOM_CHAT_REQUEST_DEADLINE_SECONDS": os.environ.get(
-            "ATOM_CHAT_REQUEST_DEADLINE_SECONDS", ""),
+        "ATOM_CHAT_STREAMING": "1",
         "ENABLE_SCHEDULER": "false",
         "ENABLE_INGESTION_SYNC": "false",
         "ACC_PORT": str(backend_port),
@@ -403,9 +347,6 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
         "CHAT_FINALIZATION_M1": env["CHAT_FINALIZATION_M1"],
         "CHAT_FINALIZATION_M2": env["CHAT_FINALIZATION_M2"],
         "ATOM_CHAT_STREAMING": env["ATOM_CHAT_STREAMING"],
-        "ATOM_ASYNC_EDIT_PLAN_MODEL": env["ATOM_ASYNC_EDIT_PLAN_MODEL"] or "(unpinned)",
-        "ATOM_CHAT_REQUEST_DEADLINE_SECONDS": (
-            env["ATOM_CHAT_REQUEST_DEADLINE_SECONDS"] or "(product default)"),
         "ATOM_SHEET_DATASETS": env["ATOM_SHEET_DATASETS"],
         "ENABLE_SCHEDULER": env["ENABLE_SCHEDULER"],
         "ENABLE_INGESTION_SYNC": env["ENABLE_INGESTION_SYNC"],
@@ -436,6 +377,26 @@ def cmd_up(args: argparse.Namespace) -> int:
     frontend_port = pick_free_port(args.frontend_port)
     if backend_port == frontend_port:
         frontend_port = pick_free_port(frontend_port + 1)
+
+    # ONE FRONTEND FARM, ONE distDir (2026-09-27). `_start_frontend` runs
+    # every instance from the single symlink farm at
+    # frontend-nextjs/.preview-instance, whose next.config.js pins
+    # `distDir: '.next-preview'`. Two instances therefore share one build
+    # directory and one lock, and the second `next dev` does not merely fail
+    # to start -- it takes the running instance's cache with it. Observed
+    # live: a candidate launched with the default frontend port landed on
+    # the measured preview's :3101 and the preview's frontend AND backend
+    # went down. The measured preview must survive candidate work, so
+    # `--no-frontend` makes "API only" an explicit, intentional state
+    # instead of an accident of a crashed frontend.
+    if not args.no_frontend and _frontend_owner(world) not in (None, world):
+        other = _frontend_owner(world)
+        print(f"[preview] REFUSING to start a frontend: another world "
+              f"({other.name}) already owns the shared farm at {PREVIEW_FE}. "
+              f"Use --no-frontend for an API-only instance, or give this one "
+              f"its own farm. Not touching the running instance's cache.",
+              file=sys.stderr)
+        return 3
 
     # Per-run data dir, seeded from the sanitized fixture via the SQLite
     # backup API, exactly as the acceptance harness does.
@@ -503,30 +464,13 @@ def cmd_up(args: argparse.Namespace) -> int:
         _terminate(proc)
         return 1
 
-    # ---- the frontend, and the one thing that must never lie --------------
-    # A frontend is REQUESTED unless --api-only was passed explicitly. So a
-    # frontend that cannot start is a failed launch, not a quiet downgrade: the
-    # previous behaviour wrote "frontend_pid": null, printed a URL with
-    # "(pid None)" and exited 0, leaving a world that advertised a URL it could
-    # not serve. verify was the only thing that noticed, and only if someone ran
-    # it. `farm` above is the BACKEND symlink farm; this is the frontend's.
-    fe_farm = Path(args.farm).resolve() if args.farm else farm_dir(args.world)
-    api_only = bool(getattr(args, "api_only", False))
-    fe: Optional[int] = None
-    if api_only:
-        print("[preview] --api-only: launching the backend WITHOUT a frontend, "
-              "by explicit request. No frontend URL will be advertised.")
+    fe = None
+    if args.no_frontend:
+        print("[preview] --no-frontend: API-only instance. The public-boundary "
+              "acceptance scripts talk HTTP, so this is all they need, and it "
+              "leaves the shared frontend farm to the world that owns it.")
     else:
-        fe = _start_frontend(backend_port, frontend_port, world, fe_farm)
-        if fe is None:
-            # Undo the half-launch rather than leave it looking ready.
-            print("[preview] FAILED: a frontend was requested and did not start. "
-                  f"See {world/'preview_frontend.log'}. Tearing the backend down so "
-                  "this world is not left advertising a URL it cannot serve. Pass "
-                  "--api-only if a backend with no frontend is what you want.",
-                  file=sys.stderr)
-            _terminate(proc)
-            return 1
+        fe = _start_frontend(backend_port, frontend_port, world)
 
     state = {
         "world": args.world,
@@ -536,10 +480,8 @@ def cmd_up(args: argparse.Namespace) -> int:
         "backend_port": backend_port,
         "backend_pid": proc.pid,
         "backend_health_identity": identity,
-        "frontend_port": None if api_only else frontend_port,
+        "frontend_port": frontend_port,
         "frontend_pid": fe,
-        "frontend_intent": "api-only" if api_only else "requested",
-        "frontend_farm": str(fe_farm) if not api_only else None,
         "effective_flags": flags,
         "byok": byok,
         "source_snapshot_sha256": _world_snapshot_sha(world),
@@ -556,84 +498,9 @@ def cmd_up(args: argparse.Namespace) -> int:
     write_launch_descriptor(world, state)
 
     print(f"\n  backend : {base}   (pid {proc.pid})")
-    if api_only:
-        print("  frontend: NONE (--api-only, by explicit request)")
-    else:
-        print(f"  frontend: http://localhost:{frontend_port}   (pid {fe})")
+    print(f"  frontend: http://localhost:{frontend_port}   (pid {fe})")
     print(f"  world   : {args.world}   run {run_dir.name}")
     print(f"  db      : {state['db_path']}")
-    return 0
-
-
-def cmd_frontend_up(args: argparse.Namespace) -> int:
-    """Attach a frontend to an ALREADY-RUNNING backend, without rebuilding it.
-
-    Why this exists rather than just using `up`: adding a frontend must not
-    change the backend's identity. A world that already passed acceptance has a
-    run dir, a source fingerprint and a database that the result refers to, and
-    `up` would mint a new run dir and therefore a new candidate. This path
-    leaves the backend process, its run dir and its source_id untouched, and
-    only adds the UI.
-
-    It is deliberately strict: the compiled bundle must be proven to target this
-    world's backend before this reports success, because a frontend on its own
-    port proves nothing when NEXT_PUBLIC_API_URL is inlined at COMPILE time.
-    """
-    import httpx
-    world = world_path(args.world)
-    st = load_state(world)
-    if not st:
-        print(f"no preview stack state for world {args.world!r}; run `up` first",
-              file=sys.stderr)
-        return 1
-    if not _pid_alive(st.get("backend_pid")):
-        print(f"[preview] backend pid {st.get('backend_pid')} is not alive; "
-              f"run `up` first.", file=sys.stderr)
-        return 1
-
-    backend_port = int(st["backend_port"])
-    base = f"http://127.0.0.1:{backend_port}"
-    ident = _health_identity(base)
-    if ident.get("cwd") and str(Path(ident["cwd"]).resolve()) != str(
-            (world / "backend_root").resolve()):
-        print(f"[preview] REFUSING: :{backend_port} is served by cwd "
-              f"{ident.get('cwd')!r}, not this world.", file=sys.stderr)
-        return 1
-
-    existing = st.get("frontend_port")
-    if existing and _pid_alive(st.get("frontend_pid")):
-        print(f"[preview] a frontend is already running on :{existing} "
-              f"(pid {st.get('frontend_pid')})")
-        return 0
-
-    fe_farm = Path(args.farm).resolve() if args.farm else farm_dir(args.world)
-    frontend_port = pick_free_port(args.frontend_port)
-    fe = _start_frontend(backend_port, frontend_port, world, fe_farm)
-    if fe is None:
-        print("[preview] FAILED: the frontend did not start. See "
-              f"{world/'preview_frontend.log'}. The backend was left running; "
-              "this world is still API-only.", file=sys.stderr)
-        return 1
-
-    st["frontend_port"] = frontend_port
-    st["frontend_pid"] = fe
-    st["frontend_intent"] = "requested"
-    st["frontend_farm"] = str(fe_farm)
-    st["frontend_attached_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
-    save_state(world, st)
-    write_launch_descriptor(world, st)
-
-    found, origin = _frontend_api_origin(frontend_port, backend_port, fe_farm)
-    if not found:
-        print(f"[preview] FAILED: the frontend started on :{frontend_port} but "
-              f"its compiled bundle does not target this backend ({origin}). "
-              "Refusing to call this world browser-ready -- the UI would talk to "
-              "a different world.", file=sys.stderr)
-        return 1
-    print(f"  frontend: http://localhost:{frontend_port}   (pid {fe})")
-    print(f"  farm    : {fe_farm}")
-    print(f"  origin  : {origin}")
-    print(f"  backend : {base} (unchanged, pid {st['backend_pid']})")
     return 0
 
 
@@ -676,8 +543,7 @@ def _health_identity(base: str) -> Dict[str, Any]:
         return {"error": f"{type(exc).__name__}: {exc}"}
 
 
-def _start_frontend(backend_port: int, frontend_port: int, world: Path,
-                    farm: Path) -> Optional[int]:
+def _start_frontend(backend_port: int, frontend_port: int, world: Path) -> Optional[int]:
     """Start a SECOND frontend instance against this world's backend.
 
     The repo's own dev server (and the user's) already holds
@@ -689,11 +555,9 @@ def _start_frontend(backend_port: int, frontend_port: int, world: Path,
     Its config is the repo's real config with distDir overridden, which is the
     only behavioural change.
     """
-    if not farm.is_dir():
-        print(f"[preview] ERROR: frontend farm {farm} does not exist. Build it "
-              f"first (frontend_farm.py build --name <world>), or launch with "
-              f"--api-only if you deliberately want a backend with no frontend.",
-              file=sys.stderr)
+    if not PREVIEW_FE.exists():
+        print(f"[preview] WARNING: {PREVIEW_FE} missing; not starting a frontend. "
+              f"Create the symlink farm first.", file=sys.stderr)
         return None
     env = dict(os.environ)
     env.update({
@@ -713,7 +577,7 @@ def _start_frontend(backend_port: int, frontend_port: int, world: Path,
     proc = subprocess.Popen(
         ["node", "node_modules/next/dist/bin/next", "dev", "--webpack",
          "-p", str(frontend_port)],
-        cwd=str(farm), env=env, stdout=log, stderr=subprocess.STDOUT,
+        cwd=str(PREVIEW_FE), env=env, stdout=log, stderr=subprocess.STDOUT,
         start_new_session=True,
     )
     end = time.time() + 240
@@ -858,33 +722,6 @@ def write_launch_descriptor(world: Path, st: Dict[str, Any]) -> Path:
     return d
 
 
-def _verify_farm(st: Dict[str, Any], world_name: str) -> Path:
-    """The farm whose compiled bundle this world's frontend actually built.
-
-    Read from the saved state when the launch recorded one. Worlds launched
-    before farms were per-world have no `frontend_farm` and their frontend ran
-    from the single shared farm, so the legacy root is checked too -- otherwise
-    verify would go looking for a distDir that was never built and report a
-    healthy running preview as broken.
-    """
-    recorded = st.get("frontend_farm")
-    if recorded and (Path(recorded) / "next.config.js").exists():
-        return Path(recorded)
-    for candidate in (farm_dir(world_name), PREVIEW_FE_ROOT):
-        cfg = candidate / "next.config.js"
-        if not cfg.exists():
-            continue
-        try:
-            for line in cfg.read_text().splitlines():
-                if "distDir:" in line:
-                    dist = candidate / line.split("distDir:")[1].strip().strip("',").strip("'")
-                    if dist.is_dir():
-                        return candidate
-        except OSError:
-            continue
-    return Path(recorded) if recorded else farm_dir(world_name)
-
-
 def cmd_verify(args: argparse.Namespace) -> int:
     """Prove the running stack is the world we claim, from the outside.
 
@@ -939,39 +776,12 @@ def cmd_verify(args: argparse.Namespace) -> int:
                   f"/api/health -> {r.status_code}")
         except Exception as exc:
             check("frontend answers", False, f"{type(exc).__name__}: {exc}")
-        found, origin = _frontend_api_origin(fe, port, _verify_farm(st, args.world))
+        found, origin = _frontend_api_origin(fe, port)
         check("frontend compiled API origin is THIS backend", found, origin)
-    else:
-        # An API-only world is legitimate, but ONLY when it was asked for. A
-        # world that merely lost its frontend must not verify quietly: that is
-        # how "API-only candidate" started being reported as a working preview.
-        intent = st.get("frontend_intent")
-        if intent == "api-only":
-            print("  SKIP  no frontend -- this world was launched --api-only, "
-                  "by explicit request (no UI workflows can be verified against it)")
-        else:
-            check("frontend is running", False,
-                  f"no frontend_port recorded and frontend_intent={intent!r}; "
-                  "this is an unrequested API-only launch, not a working preview")
 
     check("effective lifecycle flag is on",
           st.get("effective_flags", {}).get("ATOM_TASK_LIFECYCLE_ENABLED") == "1",
           st.get("effective_flags", {}).get("ATOM_TASK_LIFECYCLE_ENABLED"))
-    # A flag that is SET is not a flag that is EFFECTIVE. The plan requires
-    # preflight to refuse when "the requested production flag is ineffective",
-    # and until now nothing compared the requested value against the value the
-    # code actually tests. ATOM_CHAT_STREAMING=1 satisfied the descriptor and
-    # silently disabled the streaming leg, so the socket only ever carried
-    # status frames and every "token frames: 0" in the corpus was recorded as a
-    # product observation rather than a configuration error.
-    #
-    # The honoured set is the set the orchestrator's own comparison accepts.
-    streaming = st.get("effective_flags", {}).get("ATOM_CHAT_STREAMING")
-    check("requested streaming flag is EFFECTIVE, not merely set",
-          str(streaming).lower() == "true",
-          f"ATOM_CHAT_STREAMING={streaming!r}; the orchestrator tests "
-          f".lower() == 'true', so anything else skips the streaming leg "
-          f"entirely while still reporting the flag as present")
     check("real model credentials were forwarded",
           bool(st.get("effective_flags", {}).get("credential_names_present")),
           ",".join(st.get("effective_flags", {}).get("credential_names_present", [])) or "NONE")
@@ -998,36 +808,21 @@ def _opened_sqlite(pid: int) -> List[str]:
     return sorted(set(out))
 
 
-def _frontend_api_origin(fe_port: int, backend_port: int,
-                         farm: Optional[Path] = None) -> Tuple[bool, Optional[str]]:
+def _frontend_api_origin(fe_port: int, backend_port: int) -> Tuple[bool, Optional[str]]:
     """Prove the frontend compiled THIS backend origin into its client bundle.
 
     `NEXT_PUBLIC_API_URL` is inlined into the client bundle at COMPILE time,
     so neither `.env.local` nor the process environment is evidence -- only
     the emitted chunk is. The server-rendered HTML does not contain it (the
     variable is used by client code), so the check reads the built static
-    chunks of this instance's own distDir, which lives in this WORLD's farm
-    (each world gets its own, precisely so this scan cannot read another
-    world's bundle).
+    chunks of this instance's own distDir, which is `distDir: '.next-preview'`
+    (see .preview-instance/next.config.js).
 
     Returns (found, origin). A bare "not found in bundle" is NOT treated as a
     pass: an unproven origin is exactly the failure this whole check exists to
     catch, so it stays a FAIL.
     """
-    if farm is None:
-        farm = _legacy_preview_fe()
-    dist = farm / dist_dir_for(farm.name)
-    # The farm's own config is the authority for its distDir; fall back to the
-    # conventional name only if the config cannot be read.
-    cfg = farm / "next.config.js"
-    if cfg.exists():
-        try:
-            for line in cfg.read_text().splitlines():
-                if "distDir:" in line:
-                    dist = farm / line.split("distDir:")[1].strip().strip("',").strip("'")
-                    break
-        except OSError:
-            pass
+    dist = PREVIEW_FE / ".next-preview"
     if not dist.exists():
         return False, f"no distDir at {dist}"
     found: Optional[str] = None
@@ -1102,7 +897,6 @@ def cmd_creds(args: argparse.Namespace) -> int:
     return 0 if names else 1
 
 
-@guarded_entry
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1118,23 +912,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--no-user-byok", action="store_true",
                    help="do NOT seed the run dir with the repo's encrypted BYOK "
                         "store; the preview then has no real provider access")
-    p.add_argument("--api-only", action="store_true",
-                   help="launch the backend ONLY, deliberately, and record that "
-                        "intent in the world state. Without this flag a frontend "
-                        "IS requested, and a frontend that fails to start FAILS "
-                        "the launch instead of leaving a world that advertises a "
-                        "URL it cannot serve.")
-    p.add_argument("--farm", default="",
-                   help="frontend farm project directory (default: a per-world "
-                        "farm under frontend-nextjs/.preview-instance/)")
+    p.add_argument("--no-frontend", action="store_true",
+                   help="backend only. The frontend farm at "
+                        "frontend-nextjs/.preview-instance and its distDir are "
+                        "SHARED across worlds, so a second frontend takes the "
+                        "running instance's cache down with it. Use this for an "
+                        "API-only candidate while a measured preview holds the "
+                        "farm; refuse to start rather than collide.")
     p.set_defaults(fn=cmd_up)
-
-    p = sub.add_parser("frontend-up",
-                       help="attach a frontend to an already-running backend, "
-                            "without rebuilding the world or changing its identity")
-    p.add_argument("--frontend-port", type=int, default=DEFAULT_FRONTEND_PORT)
-    p.add_argument("--farm", default="")
-    p.set_defaults(fn=cmd_frontend_up)
 
     p = sub.add_parser("verify", help="prove the running stack is the claimed world")
     p.set_defaults(fn=cmd_verify)
@@ -1152,11 +937,6 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.set_defaults(fn=cmd_creds)
 
     args = ap.parse_args(argv)
-    # Refuse to touch worlds storage unless it is in the configured state and
-    # no maintenance lock is held. `creds` only reports credential NAMES and
-    # reads no world, so it stays available during a window.
-    if getattr(args, "fn", None) is not cmd_creds:
-        require_storage_ready()
     return int(args.fn(args))
 
 

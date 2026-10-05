@@ -1,0 +1,514 @@
+{
+  "schema": "lane3-c16-controlled-planner-v1",
+  "generated_at": "2026-09-27T21:47:32-0400",
+  "world": "write_combined",
+  "launch": {
+    "only": "bg",
+    "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-a1086fe326f9",
+    "db_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-a1086fe326f9/data/atom.db",
+    "port": 8078,
+    "effective_interactive_budget": "60.0",
+    "interactive_budget_requested": 60.0,
+    "reply_leg_reserve_seconds": 40.0,
+    "fixture_sha256": "e1ee47cbc92628f0ae39f75bbaeb2123",
+    "code_snapshot_sha256": "431ed5f2687293992078d63091e1d522",
+    "edit_leg_slice_seconds": 20.0,
+    "stall_seconds": 40.0
+  },
+  "scope": "ONLY the planner's model response is injected. Auth, authorization<REDACTED>, reservation, execution claim, mutation, audit, read-back, verification and finalization all run for real. This is EFFECT-LAYER coverage and is NOT evidence that the production planner accepts canvas edits.",
+  "shim": {
+    "port": 59758,
+    "script": "/Users/rushiparikh/projects/atom/docs/architecture/orchestration_migration/acceptance/lane3/write_combined_c16/planner_script.json",
+    "provider_key": "local_66c11c51",
+    "pin": "local_66c11c51/shim-1",
+    "model": "shim-1",
+    "base_url": "http://127.0.0.1:59758/v1",
+    "scripted_plan": {
+      "wants_edit": true,
+      "edit_mode": "patch",
+      "ops": [
+        {
+          "field": "body",
+          "find": "Quote validity: 15 days.",
+          "replace": "Quote validity: 30 days."
+        }
+      ],
+      "restore_audit_id": null,
+      "updated_content_json": null,
+      "title": null,
+      "reply": "Updated the quote validity to 30 days."
+    }
+  },
+  "authenticated_user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+  "response_keys": [
+    "confidence",
+    "error_code",
+    "execution_id",
+    "intent",
+    "memory_context",
+    "message",
+    "metadata",
+    "model",
+    "next_steps",
+    "provider",
+    "reasoning",
+    "recovery_url",
+    "requires_confirmation",
+    "session_id",
+    "success",
+    "suggested_actions",
+    "timestamp"
+  ],
+  "response_preview": {
+    "success": true,
+    "session_id": "c16-sync-C16SYNC-1790560053",
+    "intent": "canvas_edit",
+    "confidence": 0.9,
+    "suggested_actions": [],
+    "requires_confirmation": false,
+    "next_steps": [],
+    "timestamp": "2026-09-27T21:47:52.391468",
+    "metadata": {
+      "canvas_edit": {
+        "canvas_id": "3a061106-5952-45be-81bd-7b4edfcdb8e3",
+        "updated": true,
+        "execution_id": "97a92da3-a1f4-4bd2-83c7-1ae1b8bc8bba",
+        "operation_id": "97a92da3-a1f4-4bd2-83c7-1ae1b8bc8bba",
+        "outcome": "completed",
+        "postcondition_verified": true,
+        "audit_id": "daafaa61-f84d-4d54-8568-ccfe7b124f25",
+        "review_status": "accepted",
+        "matched_playbooks": [
+          {
+            "id": "0fa14b32-af62-4002-92a2-42629b545092",
+            "name": "[other] or"
+          },
+          {
+            "id": "acc43818-a723-4ed0-ae77-98661ca73514",
+            "name": "[tone] 10.5\""
+          }
+        ]
+      },
+      "persistence": {
+        "status": "persisted"
+      }
+    },
+    "memory_context": null,
+    "model": null,
+    "provider": null,
+    "reasoning": null,
+    "execution_id": "97a92da3-a1f4-4bd2-83c7-1ae1b8bc8bba",
+    "error_code": null,
+    "recovery_url": null
+  },
+  "case_bg-success": {
+    "name": "background bg-success",
+    "mode": "bg-success",
+    "status_code": 200,
+    "fork_observed": true,
+    "durable_lookup": {
+      "lookup_ok": true,
+      "lookup_problem": null,
+      "db_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-a1086fe326f9/data/atom.db",
+      "server_database_url": "sqlite:////Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-a1086fe326f9/data/atom.db",
+      "db_matches_server": true,
+      "session_id": "c16-bg-C16BG-BG-SUCCESS-1790560072",
+      "rows": [
+        {
+          "continuation_id": "479b718d-c497-4139-85e5-fb5db963be79",
+          "status": "completed",
+          "result_summary": "[applied] Updated the quote validity to 30 days.",
+          "output_summary": "",
+          "error_message": "",
+          "session_id": "c16-bg-C16BG-BG-SUCCESS-1790560072",
+          "canvas_id": null,
+          "originating_execution_id": "12061920-4789-4ebd-9f77-e08b42fb3f04",
+          "origin_operation_id": "e237a6e3-9c82-4c59-8c3d-f226ed7721b4",
+          "continuation": {
+            "session_id": "c16-bg-C16BG-BG-SUCCESS-1790560072",
+            "canvas_id": "9888382f-c367-48c4-83b4-cecd29f7fc90",
+            "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+            "message": "in the open canvas, change the quote validity from 15 days to 30 days and mark the edit C16BG-BG-SUCCESS-1790560072",
+            "snapshot_content_hash": "287af1841ea6f1e705bb0415ebdbe2f6d7eaba891f9ce4e512ef20527e19a988",
+            "snapshot_audit_ts": "2026-09-28T01:47:52",
+            "origin_operation_id": "e237a6e3-9c82-4c59-8c3d-f226ed7721b4",
+            "failure_stage": "attempt-1-readback",
+            "evidence_contract": null,
+            "outcome": "applied",
+            "summary": "Updated the quote validity to 30 days.",
+            "notified": true,
+            "audit_id": "ab1f4e52-1db6-424e-9034-b8cdc649f61b",
+            "postcondition_verified": true,
+            "review_status": "accepted"
+          }
+        }
+      ],
+      "row_count": 1,
+      "found": true,
+      "duplicate": false,
+      "count": 1,
+      "state": "terminal",
+      "status": "completed",
+      "terminal": true
+    },
+    "durable_lookup_controls": [
+      {
+        "control": "missing",
+        "expected_state": "missing",
+        "observed_state": "missing",
+        "expected_duplicate": false,
+        "observed_duplicate": false,
+        "ok": true
+      },
+      {
+        "control": "duplicate",
+        "expected_state": "duplicate",
+        "observed_state": "duplicate",
+        "expected_duplicate": true,
+        "observed_duplicate": true,
+        "ok": true
+      },
+      {
+        "control": "running",
+        "expected_state": "running",
+        "observed_state": "running",
+        "expected_duplicate": false,
+        "observed_duplicate": false,
+        "ok": true
+      },
+      {
+        "control": "terminal",
+        "expected_state": "terminal",
+        "observed_state": "terminal",
+        "expected_duplicate": false,
+        "observed_duplicate": false,
+        "ok": true
+      }
+    ],
+    "identity_chain": {
+      "canvas_id": "9888382f-c367-48c4-83b4-cecd29f7fc90",
+      "session_id": "c16-bg-C16BG-BG-SUCCESS-1790560072",
+      "continuation_id": "479b718d-c497-4139-85e5-fb5db963be79",
+      "audit_rows": [
+        {
+          "audit_id": "49ab1531-adb9-4a5f-b510-395a53655ccf",
+          "action_type": "create",
+          "session_id": null,
+          "created_at": "2026-09-28 01:47:52",
+          "operation_id": null,
+          "review_status": null,
+          "previous_audit_id": null
+        },
+        {
+          "audit_id": "ab1f4e52-1db6-424e-9034-b8cdc649f61b",
+          "action_type": "update",
+          "session_id": "c16-bg-C16BG-BG-SUCCESS-1790560072",
+          "created_at": "2026-09-28 01:48:18.117478",
+          "operation_id": "479b718d-c497-4139-85e5-fb5db963be79",
+          "review_status": "accepted",
+          "previous_audit_id": null
+        }
+      ],
+      "read_ok": true,
+      "read_problem": null,
+      "update_count": 1,
+      "landed_operation_id": "479b718d-c497-4139-85e5-fb5db963be79",
+      "landed_review_status": "accepted",
+      "landed_matches_continuation": true,
+      "landed_by_interactive_attempt": false,
+      "attribution": "continuation",
+      "continuation_operation_id": "479b718d-c497-4139-85e5-fb5db963be79",
+      "origin_operation_id": "e237a6e3-9c82-4c59-8c3d-f226ed7721b4",
+      "current_revision_is_the_landed_row": true
+    },
+    "durable_continuation_rows": 1,
+    "interactive_budget_requested": 60.0,
+    "stall_seconds": 40.0,
+    "interactive_budget_seen_by_server": "60.0",
+    "pending_signal": true,
+    "pending_signal_source": {
+      "shared_forked": false,
+      "metadata_forked": false,
+      "initial_outcome": null
+    },
+    "initial_reply": "The canvas edit \u2014 changing the quote validity from 15 days to 30 days and tagging it with the C16BG-BG-SUCCESS-1790560072 marker \u2014 has been started in the background. It hasn't finished yet, so the canvas still shows the 15-day validity for now. The outcome will be reported as soon as the task completes; no need to retry.\n\n\u2014 Operation status: a canvas write from this operation is recorded, but the",
+    "terminal": {
+      "continuation_id": "479b718d-c497-4139-85e5-fb5db963be79",
+      "status": "completed",
+      "result_summary": "[applied] Updated the quote validity to 30 days.",
+      "output_summary": "",
+      "error_message": "",
+      "session_id": "c16-bg-C16BG-BG-SUCCESS-1790560072",
+      "canvas_id": null,
+      "originating_execution_id": "12061920-4789-4ebd-9f77-e08b42fb3f04",
+      "origin_operation_id": "e237a6e3-9c82-4c59-8c3d-f226ed7721b4",
+      "continuation": {
+        "session_id": "c16-bg-C16BG-BG-SUCCESS-1790560072",
+        "canvas_id": "9888382f-c367-48c4-83b4-cecd29f7fc90",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "message": "in the open canvas, change the quote validity from 15 days to 30 days and mark the edit C16BG-BG-SUCCESS-1790560072",
+        "snapshot_content_hash": "287af1841ea6f1e705bb0415ebdbe2f6d7eaba891f9ce4e512ef20527e19a988",
+        "snapshot_audit_ts": "2026-09-28T01:47:52",
+        "origin_operation_id": "e237a6e3-9c82-4c59-8c3d-f226ed7721b4",
+        "failure_stage": "attempt-1-readback",
+        "evidence_contract": null,
+        "outcome": "applied",
+        "summary": "Updated the quote validity to 30 days.",
+        "notified": true,
+        "audit_id": "ab1f4e52-1db6-424e-9034-b8cdc649f61b",
+        "postcondition_verified": true,
+        "review_status": "accepted"
+      }
+    },
+    "after": {
+      "audit_count": 2,
+      "audit_actions": [
+        "create",
+        "update"
+      ],
+      "audit_details": [
+        "{\"content\": \"{\\\"to\\\": \\\"steve@example.com\\\", \\\"cc\\\": \\\"\\\", \\\"subject\\\": \\\"Quote for Steve\\\", \\\"body\\\": \\\"<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested ",
+        "{\"content\": \"{\\\"to\\\": \\\"steve@example.com\\\", \\\"cc\\\": \\\"\\\", \\\"subject\\\": \\\"Quote for Steve\\\", \\\"body\\\": \\\"<div><p>Quote for Steve</p><p><b>Quote validity: 30 days.</b></p><p>Rows 1-5 are the requested "
+      ],
+      "content": "\"{\\\"to\\\": \\\"steve@example.com\\\", \\\"cc\\\": \\\"\\\", \\\"subject\\\": \\\"Quote for Steve\\\", \\\"body\\\": \\\"<div><p>Quote for Steve</p><p><b>Quote validity: 30 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- C16BG-BG-SUCCESS-1790560072 --></div>\\\"}\"",
+      "has_new_text": true,
+      "has_old_text": false,
+      "operations": [
+        {
+          "status": "cancelled",
+          "operation_id": "e237a6e3-9c82-4c59-8c3d-f226ed7721b4",
+          "run_id": "120aec98-028a-4902-b560-998546ea3142"
+        },
+        {
+          "status": "cancelled",
+          "operation_id": "83700e78-c51e-459d-bc8a-f88ac7f6787a",
+          "run_id": "f95e318e-916b-4dfe-b6b6-7e2ccb77dd37"
+        }
+      ]
+    },
+    "ws_events_seen": 9,
+    "continuation_events": [
+      {
+        "type": "chat_continuation",
+        "data": {
+          "continuation_id": "479b718d-c497-4139-85e5-fb5db963be79",
+          "originating_execution_id": "12061920-4789-4ebd-9f77-e08b42fb3f04",
+          "session_id": "c16-bg-C16BG-BG-SUCCESS-1790560072",
+          "canvas_id": "9888382f-c367-48c4-83b4-cecd29f7fc90",
+          "status": "applied",
+          "summary": "Updated the quote validity to 30 days."
+        },
+        "timestamp": "2026-09-27T21:48:18.128481"
+      }
+    ],
+    "history": {
+      "reachable": true,
+      "status_code": 200,
+      "has_continuation": true,
+      "has_raw_bracket_diagnostic": true,
+      "bytes": 3242
+    },
+    "audit_count_before_reconnect": 2,
+    "audit_count_after_reconnect": 2,
+    "fallback_evidence": [],
+    "checks": {
+      "injection_was_consumed": true,
+      "interactive_budget_knob_reached_the_server": true,
+      "stall_exceeds_interactive_budget": true,
+      "durable_lookup_was_trustworthy": true,
+      "durable_lookup_controls_all_green": true,
+      "background_path_was_actually_exercised": true,
+      "initial_response_was_pending_not_complete": true,
+      "terminal_state_observed": true,
+      "terminal_state_matches_expectation": true,
+      "durable_completion_recorded": true,
+      "no_duplicate_effect_after_reconnect": true,
+      "history_recovery_reachable": true,
+      "no_stranded_operation": true,
+      "exactly_one_update_audit": true,
+      "intended_mutation_persisted": true,
+      "old_text_gone": true,
+      "live_notification_received": true,
+      "history_shows_the_completed_edit": true,
+      "no_false_failure": true,
+      "no_fallback_provider_supplied_the_plan": true,
+      "injection_was_proven_at_the_shim": true,
+      "edit_leg_actually_ran": true,
+      "intended_stall_was_consumed": true,
+      "no_unmatched_request_drew_the_stall": true,
+      "landed_mutation_attributable_to_this_request": true,
+      "landed_mutation_is_the_current_revision": true
+    },
+    "injection_proof": {
+      "proven": true,
+      "problem": null,
+      "shim_log_entries": 5,
+      "completion_requests": 5,
+      "requests_served": 5,
+      "tool_mode_requests": 5,
+      "gate_missed": [],
+      "stall_hits": [
+        {
+          "t": "2026-09-27T21:47:56",
+          "seconds": 40.0,
+          "tool_names": [
+            "CanvasEditPlan"
+          ]
+        }
+      ],
+      "armed": {
+        "seconds": 40.0,
+        "first_n": 1,
+        "tool": "CanvasEditPlan"
+      }
+    },
+    "edit_leg_ran": true,
+    "intended_stall_consumed": true,
+    "pass": true,
+    "inconclusive": false
+  },
+  "shim_log": [
+    {
+      "epoch": 1790560071.190392,
+      "t": "2026-09-27T21:47:51",
+      "model": "shim-1",
+      "messages": 2,
+      "stream": false,
+      "tool_mode": true,
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "served": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], ",
+      "nonce": "shim-1790560071190-0",
+      "last_user_tail": "m 15 days to 30 days and mark the edit C16SYNC-1790560053\n\nReturn the edit plan."
+    },
+    {
+      "epoch": 1790560097.110076,
+      "t": "2026-09-27T21:48:17",
+      "model": "shim-1",
+      "messages": 2,
+      "stream": false,
+      "tool_mode": true,
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "served": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], ",
+      "nonce": "shim-1790560097110-1",
+      "last_user_tail": " to 30 days and mark the edit C16BG-BG-SUCCESS-1790560072\n\nReturn the edit plan."
+    },
+    {
+      "epoch": 1790560116.580776,
+      "t": "2026-09-27T21:48:36",
+      "model": "shim-1",
+      "messages": 2,
+      "stream": false,
+      "tool_mode": true,
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "served": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], ",
+      "nonce": "shim-1790560116580-2",
+      "last_user_tail": " to 30 days and mark the edit C16BG-BG-SUCCESS-1790560072\n\nReturn the edit plan."
+    },
+    {
+      "epoch": 1790560127.785884,
+      "t": "2026-09-27T21:48:47",
+      "model": "shim-1",
+      "messages": 2,
+      "stream": false,
+      "tool_mode": true,
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "served": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], ",
+      "nonce": "shim-1790560127785-3",
+      "last_user_tail": "confirmed until reviewed.\nUser: what did you just change?\n\nReturn the edit plan."
+    },
+    {
+      "epoch": 1790560128.796608,
+      "t": "2026-09-27T21:48:48",
+      "model": "shim-1",
+      "messages": 2,
+      "stream": false,
+      "tool_mode": true,
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "served": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], ",
+      "nonce": "shim-1790560128796-4",
+      "last_user_tail": " applying the user's request. Same shape and value types as the current content."
+    }
+  ],
+  "shim_log_tail": [
+    {
+      "epoch": 1790560071.190392,
+      "t": "2026-09-27T21:47:51",
+      "model": "shim-1",
+      "messages": 2,
+      "stream": false,
+      "tool_mode": true,
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "served": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], ",
+      "nonce": "shim-1790560071190-0",
+      "last_user_tail": "m 15 days to 30 days and mark the edit C16SYNC-1790560053\n\nReturn the edit plan."
+    },
+    {
+      "epoch": 1790560097.110076,
+      "t": "2026-09-27T21:48:17",
+      "model": "shim-1",
+      "messages": 2,
+      "stream": false,
+      "tool_mode": true,
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "served": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], ",
+      "nonce": "shim-1790560097110-1",
+      "last_user_tail": " to 30 days and mark the edit C16BG-BG-SUCCESS-1790560072\n\nReturn the edit plan."
+    },
+    {
+      "epoch": 1790560116.580776,
+      "t": "2026-09-27T21:48:36",
+      "model": "shim-1",
+      "messages": 2,
+      "stream": false,
+      "tool_mode": true,
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "served": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], ",
+      "nonce": "shim-1790560116580-2",
+      "last_user_tail": " to 30 days and mark the edit C16BG-BG-SUCCESS-1790560072\n\nReturn the edit plan."
+    },
+    {
+      "epoch": 1790560127.785884,
+      "t": "2026-09-27T21:48:47",
+      "model": "shim-1",
+      "messages": 2,
+      "stream": false,
+      "tool_mode": true,
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "served": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], ",
+      "nonce": "shim-1790560127785-3",
+      "last_user_tail": "confirmed until reviewed.\nUser: what did you just change?\n\nReturn the edit plan."
+    },
+    {
+      "epoch": 1790560128.796608,
+      "t": "2026-09-27T21:48:48",
+      "model": "shim-1",
+      "messages": 2,
+      "stream": false,
+      "tool_mode": true,
+      "tool_names": [
+        "CanvasEditPlan"
+      ],
+      "served": "{\"tool_call\": {\"name\": \"CanvasEditPlan\", \"arguments\": {\"wants_edit\": true, \"edit_mode\": \"patch\", \"ops\": [{\"field\": \"body\", \"find\": \"Quote validity: 15 days.\", \"replace\": \"Quote validity: 30 days.\"}], ",
+      "nonce": "shim-1790560128796-4",
+      "last_user_tail": " applying the user's request. Same shape and value types as the current content."
+    }
+  ]
+}

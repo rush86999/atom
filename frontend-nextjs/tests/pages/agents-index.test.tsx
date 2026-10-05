@@ -8,6 +8,7 @@
 
 import React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { wsMock as wsBridge } from '../../tests/helpers/wsMock';
 import AgentsDashboard from "@/pages/agents/index";
 import { handleSessionExpired } from "@/lib/auth-headers";
 
@@ -33,15 +34,41 @@ jest.mock("@/components/ui/use-toast", () => ({
   useToast: () => ({ toast: mockToast }),
 }));
 
+// A frame staged before mount, delivered to the first listener that registers.
+let mockSeedFrame: any = null;
+
+/** `render`, then deliver any frame staged before the mount. */
+function renderAgents(ui: React.ReactElement) {
+  const utils = render(ui);
+  if (mockSeedFrame) {
+    const frame = mockSeedFrame;
+;
+    wsBridge().emit(frame);
+  }
+  return utils;
+}
+
 let wsState: any = {
   isConnected: false,
   lastMessage: null,
   subscribe: mockSubscribe,
 };
 
-jest.mock("@/hooks/useWebSocket", () => ({
-  useWebSocket: () => wsState,
-}));
+// The page reads frames through the socket's `onMessage` listener — the
+// `lastMessage` state slot coalesces a burst, and a run's `agent_step_update`
+// frames arrive as a burst, so the live log rendered with whole steps missing.
+// `seed` replays a frame staged in `wsState` before mount, mirroring a frame
+// that arrived just before the page subscribed.
+jest.mock("@/hooks/useWebSocket", () => {
+  const mock = require('../../tests/helpers/wsMock').createWebSocketMock({
+    isConnectedOf: () => wsState.isConnected,
+    // The component's own subscribe spy, so the existing channel assertions
+    // keep testing the same thing.
+    subscribe: (channel: string) => mockSubscribe(channel),
+    seed: () => wsState.lastMessage,
+  });
+  return { useWebSocket: mock };
+});
 
 // handleSessionExpired redirects via window.location.href, which jsdom
 // cannot navigate — mock it (implementation is set per-test because the
@@ -133,13 +160,13 @@ describe("AgentsDashboard", () => {
   });
 
   test("shows loading state before agents resolve", () => {
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     expect(screen.getByText("Loading agents...")).toBeInTheDocument();
     expect(screen.getByText("Agent Control Center")).toBeInTheDocument();
   });
 
   test("renders agent list with normalized maturity derived from status", async () => {
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
     expect(screen.getByTestId("agent-card-a2")).toBeInTheDocument();
     expect(screen.getByText("Sales Agent")).toBeInTheDocument();
@@ -149,13 +176,13 @@ describe("AgentsDashboard", () => {
 
   test("accepts a bare array response shape", async () => {
     mockFetch.mockResolvedValue(okJson(AGENTS));
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
   });
 
   test("renders empty state when no agents", async () => {
     mockFetch.mockResolvedValue(okJson({ success: true, data: [] }));
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() =>
       expect(screen.getByText(/No agents found/)).toBeInTheDocument()
     );
@@ -164,7 +191,7 @@ describe("AgentsDashboard", () => {
 
   test("redirects to login when no auth token", async () => {
     localStorage.clear();
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith("/login"));
     expect(screen.getByText(/Unauthorized: Redirecting to login/)).toBeInTheDocument();
     expect(mockFetch).not.toHaveBeenCalled();
@@ -194,7 +221,7 @@ describe("AgentsDashboard", () => {
 
   test("shows error when fetch fails", async () => {
     rejectAgentsList();
-    const { unmount } = render(<AgentsDashboard />);
+    const { unmount } = renderAgents(<AgentsDashboard />);
     await waitFor(() =>
       expect(screen.getByText(/Failed to load agents: network down/)).toBeInTheDocument()
     );
@@ -224,7 +251,7 @@ describe("AgentsDashboard", () => {
         }
         return Promise.resolve(okJson({ success: true, data: AGENTS }));
       });
-      render(<AgentsDashboard />);
+      renderAgents(<AgentsDashboard />);
       await waitFor(() =>
         expect(screen.getByText(/Failed to load agents: network down/)).toBeInTheDocument()
       );
@@ -245,7 +272,7 @@ describe("AgentsDashboard", () => {
       statusText: "Internal Server Error",
       json: async () => ({ error: { message: "DB schema drift" } }),
     });
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() =>
       expect(screen.getByText("Failed to load agents: DB schema drift")).toBeInTheDocument()
     );
@@ -260,7 +287,7 @@ describe("AgentsDashboard", () => {
         throw new Error("not json");
       },
     });
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() =>
       expect(screen.getByText("Failed to load agents: Internal Server Error")).toBeInTheDocument()
     );
@@ -279,13 +306,13 @@ describe("AgentsDashboard", () => {
       statusText: "Unauthorized",
       json: async () => ({}),
     });
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(handleSessionExpired).toHaveBeenCalled());
     expect(localStorage.getItem("auth_token")).toBeNull();
   });
 
   test("filters agents by search query on name or category", async () => {
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     const search = screen.getByTestId("agent-search-input");
@@ -303,7 +330,7 @@ describe("AgentsDashboard", () => {
   });
 
   test("run dialog executes agent run successfully and closes", async () => {
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Run")[0]);
@@ -314,6 +341,9 @@ describe("AgentsDashboard", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Run Agent" }));
 
+    // The step arrives while the run is in flight — the realistic order.
+    mockSeedFrame = null;
+    wsBridge().emit(null);
     await waitFor(() => expect(mockToast).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Agent Started Successfully" })
     ));
@@ -333,7 +363,7 @@ describe("AgentsDashboard", () => {
       }
       return Promise.resolve(okJson({ success: true, data: AGENTS }));
     });
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Run")[0]);
@@ -352,7 +382,7 @@ describe("AgentsDashboard", () => {
       if (u.includes('/run')) return Promise.reject(new Error("offline"));
       return Promise.resolve(okJson({ success: true, data: AGENTS }));
     });
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Run")[0]);
@@ -366,7 +396,7 @@ describe("AgentsDashboard", () => {
   });
 
   test("stop agent success path", async () => {
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Stop")[0]);
@@ -389,7 +419,7 @@ describe("AgentsDashboard", () => {
       }
       return Promise.resolve(okJson({ success: true, data: AGENTS }));
     });
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Stop")[0]);
@@ -406,7 +436,7 @@ describe("AgentsDashboard", () => {
       if (u.includes('/stop')) return Promise.reject(new Error("offline"));
       return Promise.resolve(okJson({ success: true, data: AGENTS }));
     });
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Stop")[0]);
@@ -418,7 +448,7 @@ describe("AgentsDashboard", () => {
   });
 
   test("edit dialog saves changes successfully", async () => {
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Edit")[0]);
@@ -443,7 +473,7 @@ describe("AgentsDashboard", () => {
       }
       return Promise.resolve(okJson({ success: true, data: AGENTS }));
     });
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Edit")[0]);
@@ -457,7 +487,7 @@ describe("AgentsDashboard", () => {
   });
 
   test("reasoning modal opens and submits thumbs-up feedback", async () => {
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Reasoning")[0]);
@@ -488,7 +518,7 @@ describe("AgentsDashboard", () => {
   });
 
   test("submits thumbs-down feedback for low score", async () => {
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Reasoning")[0]);
@@ -505,107 +535,107 @@ describe("AgentsDashboard", () => {
 
   test("subscribes to workspace channel when websocket connects", async () => {
     wsState = { isConnected: true, lastMessage: null, subscribe: mockSubscribe };
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(mockSubscribe).toHaveBeenCalledWith("workspace:default"));
     expect(screen.getByText("Live Connection")).toBeInTheDocument();
   });
 
   test("shows offline badge when websocket disconnected", async () => {
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     expect(screen.getByText("Offline")).toBeInTheDocument();
   });
 
   test("streams agent step updates for the active agent into live logs", async () => {
-    wsState = {
-      isConnected: true,
-      lastMessage: {
-        type: "agent_step_update",
-        data: { agent_id: "a1", step: { thought: "checking inventory" } },
-      },
-      subscribe: mockSubscribe,
-    };
-    const { unmount } = render(<AgentsDashboard />);
+    wsState = { isConnected: true, lastMessage: null, subscribe: mockSubscribe };
+;;
+    const { unmount } = renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
     fireEvent.click(screen.getAllByText("Run")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Run Agent" }));
-    await waitFor(() =>
+
+    // The step arrives while the run is in flight — the realistic order.
+    mockSeedFrame = null;
+    wsBridge().emit({
+        type: "agent_step_update",
+        data: { agent_id: "a1", step: { thought: "checking inventory" } },
+      });    await waitFor(() =>
       expect(screen.getAllByText(/Thought: checking inventory/).length).toBeGreaterThan(0)
     );
     unmount();
   });
 
   test("appends Action prefix log when step has no thought", async () => {
-    wsState = {
-      isConnected: true,
-      lastMessage: {
-        type: "agent_step_update",
-        data: { agent_id: "a1", step: { action: { name: "search" } } },
-      },
-      subscribe: mockSubscribe,
-    };
-    const { unmount } = render(<AgentsDashboard />);
+    wsState = { isConnected: true, lastMessage: null, subscribe: mockSubscribe };
+;;
+    const { unmount } = renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
     fireEvent.click(screen.getAllByText("Run")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Run Agent" }));
-    await waitFor(() =>
+
+    // The step arrives while the run is in flight — the realistic order.
+    mockSeedFrame = null;
+    wsBridge().emit({
+        type: "agent_step_update",
+        data: { agent_id: "a1", step: { action: { name: "search" } } },
+      });    await waitFor(() =>
       expect(screen.getAllByText(/Action: \{/).length).toBeGreaterThan(0)
     );
     unmount();
   });
 
   test("appends Observation prefix log when step only has output", async () => {
-    wsState = {
-      isConnected: true,
-      lastMessage: {
-        type: "agent_step_update",
-        data: { agent_id: "a1", step: { output: "found 3" } },
-      },
-      subscribe: mockSubscribe,
-    };
-    const { unmount } = render(<AgentsDashboard />);
+    wsState = { isConnected: true, lastMessage: null, subscribe: mockSubscribe };
+;;
+    const { unmount } = renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
     fireEvent.click(screen.getAllByText("Run")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Run Agent" }));
-    await waitFor(() =>
+
+    // The step arrives while the run is in flight — the realistic order.
+    mockSeedFrame = null;
+    wsBridge().emit({
+        type: "agent_step_update",
+        data: { agent_id: "a1", step: { output: "found 3" } },
+      });    await waitFor(() =>
       expect(screen.getAllByText(/Observation: found 3/).length).toBeGreaterThan(0)
     );
     unmount();
   });
 
   test("appends final answer log when step has final_answer", async () => {
-    wsState = {
-      isConnected: true,
-      lastMessage: {
-        type: "agent_step_update",
-        data: { agent_id: "a1", step: { thought: "done", final_answer: "42" } },
-      },
-      subscribe: mockSubscribe,
-    };
-    const { unmount } = render(<AgentsDashboard />);
+    wsState = { isConnected: true, lastMessage: null, subscribe: mockSubscribe };
+;;
+    const { unmount } = renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
     fireEvent.click(screen.getAllByText("Run")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Run Agent" }));
-    await waitFor(() =>
+
+    // The step arrives while the run is in flight — the realistic order.
+    mockSeedFrame = null;
+    wsBridge().emit({
+        type: "agent_step_update",
+        data: { agent_id: "a1", step: { thought: "done", final_answer: "42" } },
+      });    await waitFor(() =>
       expect(screen.getAllByText(/Final Answer: 42/).length).toBeGreaterThan(0)
     );
     unmount();
   });
 
   test("agent_status_change appends status log and refreshes agents", async () => {
-    wsState = {
-      isConnected: true,
-      lastMessage: {
-        type: "agent_status_change",
-        data: { agent_id: "a1", status: "failed", error: "boom" },
-      },
-      subscribe: mockSubscribe,
-    };
-    const { unmount } = render(<AgentsDashboard />);
+    wsState = { isConnected: true, lastMessage: null, subscribe: mockSubscribe };
+;;
+    const { unmount } = renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
     const callsBeforeRun = mockFetch.mock.calls.length;
     fireEvent.click(screen.getAllByText("Run")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Run Agent" }));
-    await waitFor(() =>
+
+    // The step arrives while the run is in flight — the realistic order.
+    mockSeedFrame = null;
+    wsBridge().emit({
+        type: "agent_status_change",
+        data: { agent_id: "a1", status: "failed", error: "boom" },
+      });    await waitFor(() =>
       expect(screen.getAllByText(/Status Changed: failed - Error: boom/).length).toBeGreaterThan(0)
     );
     expect(mockFetch.mock.calls.length).toBeGreaterThan(callsBeforeRun);
@@ -613,38 +643,38 @@ describe("AgentsDashboard", () => {
   });
 
   test("agent_status_change appends status log without error suffix", async () => {
-    wsState = {
-      isConnected: true,
-      lastMessage: {
-        type: "agent_status_change",
-        data: { agent_id: "a1", status: "success" },
-      },
-      subscribe: mockSubscribe,
-    };
-    const { unmount } = render(<AgentsDashboard />);
+    wsState = { isConnected: true, lastMessage: null, subscribe: mockSubscribe };
+;;
+    const { unmount } = renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
     fireEvent.click(screen.getAllByText("Run")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Run Agent" }));
-    await waitFor(() =>
+
+    // The step arrives while the run is in flight — the realistic order.
+    mockSeedFrame = null;
+    wsBridge().emit({
+        type: "agent_status_change",
+        data: { agent_id: "a1", status: "success" },
+      });    await waitFor(() =>
       expect(screen.getAllByText(/Status Changed: success/).length).toBeGreaterThan(0)
     );
     unmount();
   });
 
   test("ignores agent_step_update for a different agent", async () => {
-    wsState = {
-      isConnected: true,
-      lastMessage: {
-        type: "agent_step_update",
-        data: { agent_id: "other", step: { thought: "irrelevant" } },
-      },
-      subscribe: mockSubscribe,
-    };
-    const { unmount } = render(<AgentsDashboard />);
+    wsState = { isConnected: true, lastMessage: null, subscribe: mockSubscribe };
+;;
+    const { unmount } = renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
     fireEvent.click(screen.getAllByText("Run")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Run Agent" }));
-    await waitFor(() =>
+
+    // The step arrives while the run is in flight — the realistic order.
+    mockSeedFrame = null;
+    wsBridge().emit({
+        type: "agent_step_update",
+        data: { agent_id: "other", step: { thought: "irrelevant" } },
+      });    await waitFor(() =>
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({ title: "Agent Started Successfully" })
       )
@@ -654,14 +684,14 @@ describe("AgentsDashboard", () => {
   });
 
   test("chat button navigates to /chat with agent id", async () => {
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
     fireEvent.click(screen.getAllByText("Chat")[0]);
     expect(mockRouterPush).toHaveBeenCalledWith("/chat?agent_id=a1");
   });
 
   test("cancel buttons close run and edit dialogs", async () => {
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Run")[0]);
@@ -679,7 +709,7 @@ describe("AgentsDashboard", () => {
       if (u.includes('/feedback')) return Promise.reject(new Error("offline"));
       return Promise.resolve(okJson({ success: true, data: AGENTS }));
     });
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Reasoning")[0]);
@@ -699,7 +729,7 @@ describe("AgentsDashboard", () => {
       }
       return Promise.resolve(okJson({ success: true, data: AGENTS }));
     });
-    render(<AgentsDashboard />);
+    renderAgents(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByText("Edit")[0]);

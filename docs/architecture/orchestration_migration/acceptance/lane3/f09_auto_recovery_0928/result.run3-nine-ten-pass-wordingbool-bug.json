@@ -1,0 +1,82 @@
+{
+ "generated_at": "2026-09-28T22:58:05-0400",
+ "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09_delivery/runs/run-b140bbab7c2a",
+ "foreign_interference": {
+  "foreign_sessions": [],
+  "detected": false
+ },
+ "export_binding": {
+  "code_snapshot_sha256": "0d3bd68378faa4ef2354815dbaa21a530f1979f7f5436cf270a5fb05fe7fdc13",
+  "flags": [
+   "CHAT_FINALIZATION_M1",
+   "CHAT_FINALIZATION_M2",
+   "ATOM_TASK_LIFECYCLE_ENABLED"
+  ]
+ },
+ "results": [
+  {
+   "case": "F09A_running_server_expiry_recovery",
+   "status": "FAIL",
+   "checks": {
+    "parked_at_boundary_session_matched": true,
+    "old_process_dead": true,
+    "barrier_never_released": true,
+    "restarted_same_database": true,
+    "new_process_started_before_expiry": true,
+    "in_flight_claim_deferred_at_boot": true,
+    "automatic_delivery_after_expiry_same_process": true,
+    "exactly_one_terminal_row": true,
+    "no_additional_canvas_mutation": true,
+    "wording_matches_recorded_attribution": [
+     "landed"
+    ]
+   },
+   "notes": [],
+   "details": {
+    "timings": {
+     "claim_anchor": 1790650572.080064,
+     "expiry_at": 1790650662.080064,
+     "boot_done": 1790650581.085771,
+     "delivered_at": 1790650665.767742,
+     "lease_s": 90.0,
+     "interval_s": 5.0
+    },
+    "pids": {
+     "before": 36848,
+     "after": 36961
+    },
+    "prekill": {
+     "one_fork_record": true,
+     "fork_still_running": true,
+     "delivery_claim_taken": true,
+     "no_terminal_message_yet": true,
+     "no_release_file": true,
+     "worker_alive": true
+    },
+    "notifications": [
+     0,
+     0,
+     1,
+     1
+    ],
+    "msgs": [
+     0,
+     1,
+     1
+    ],
+    "update_count": [
+     1,
+     1
+    ],
+    "effects": [
+     "landed"
+    ],
+    "history_r2": [
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet.",
+     "Background update was already applied. the edit itself landed before a restart cut off its confirmation \u2014 the "
+    ],
+    "notification_channel_note": "notification deltas are recorded as live-channel evidence per handoff step 10; the durable terminal MESSAGE is the gating delivery."
+   }
+  }
+ ]
+}

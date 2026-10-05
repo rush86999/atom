@@ -1,0 +1,69 @@
+{
+  "schema": "f09-automatic-recovery-v2",
+  "shim_port": 50585,
+  "lease_seconds": 240,
+  "shim_script": "/Users/rushiparikh/projects/atom/docs/architecture/orchestration_migration/acceptance/lane3/f09_fork_bg/planner_script.json",
+  "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09crash/runs/run-1a255f223c20",
+  "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09crash/runs/run-1a255f223c20/data/atom.db",
+  "provider": {
+    "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09crash/runs/run-1a255f223c20/data/atom.db",
+    "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09crash/runs/run-1a255f223c20",
+    "provider_key": "local_fea0fcc7",
+    "base_url": "http://127.0.0.1:50585/v1",
+    "model": "shim-1",
+    "pin": "local_fea0fcc7/shim-1",
+    "workspace_id": "default"
+  },
+  "findings": [
+    {
+      "check": "the world is pointed at THIS shim (world-local local_* provider)",
+      "ok": true,
+      "detail": "provider_key=local_fea0fcc7/shim-1"
+    },
+    {
+      "check": "candidate relaunched on the controlled shim with the claim barrier armed",
+      "ok": true,
+      "detail": "pid 34637; rc=0; rld   : f09crash   run run-1a255f223c20\n  db      : /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09crash/runs/run-1a255f223c20/data/atom.db\n"
+    },
+    {
+      "check": "API-created canvas matching the controlled plan",
+      "ok": true,
+      "detail": "POST 200 PUT 200"
+    },
+    {
+      "check": "the stall is armed for the CanvasEditPlan call only",
+      "ok": true,
+      "detail": "200 {\"armed\": {\"seconds\": 40.0, \"first_n\": 1, \"tool\": \"CanvasEditPlan\"}, \"stall_counts\": {}}"
+    },
+    {
+      "check": "barrier arrival observed",
+      "ok": false,
+      "detail": "the request finished (HTTP 200) without parking: no continuation_after_claim marker"
+    }
+  ],
+  "serving_pid_before": 34637,
+  "canvas_id": "b3ea2453-523d-4f18-9225-193248fa3a8c",
+  "canvas_audit_before": 20,
+  "stall_armed": {
+    "status": 200,
+    "body": "{\"armed\": {\"seconds\": 40.0, \"first_n\": 1, \"tool\": \"CanvasEditPlan\"}, \"stall_counts\": {}}",
+    "hits_before": 0
+  },
+  "budget_seconds": 60,
+  "stall_seconds": 40,
+  "blocked_on": {
+    "shim_served_nothing": {
+      "stall_hits": 0,
+      "gate_missed": 0,
+      "log_entries": 0
+    },
+    "meaning": "the measured request never called the pinned local shim, so no canvas-edit plan was drawn and the edit never reached the background leg",
+    "pin_used": "local_fea0fcc7",
+    "prior_fixes": [
+      "stall armed by this driver (was consumed by the C16 run)",
+      "stop-then-launch (preview_stack refused while a stack was up, rc=2)",
+      "driver-owned shim (--keep-shim does not keep it)",
+      "world-local local_* provider registered via point_world_at_shim"
+    ]
+  }
+}

@@ -59,6 +59,14 @@ PREVIEW_BACKEND_PORT = 8091
 PREVIEW_FRONTEND_PORT = 3091
 
 
+def _fingerprint(value: str) -> Dict[str, Any]:
+    """A non-reversible descriptor of a secret, safe to write to a report."""
+    import hashlib
+    v = value or ""
+    return {"REDACTED": True, "length": len(v),
+            "sha256": hashlib.sha256(v.encode()).hexdigest() if v else None}
+
+
 def _load_isolation() -> Any:
     spec = importlib.util.spec_from_file_location("orchestration_isolation", HARNESS)
     if spec is None or spec.loader is None:
@@ -540,6 +548,12 @@ def main() -> int:
 
     world = BACKEND / "data" / "acceptance_worlds" / args.name
     if args.rebuild_world or not (world / "MANIFEST.json").exists():
+        # Refuse before the mkdir below can create a fresh, empty world
+        # against an unverified worlds root (missing drive, dangling link, or
+        # a plain local directory standing in for the drive).
+        from core.world_storage_guard import assert_worlds_root_usable, require_storage_ready
+        require_storage_ready()
+        assert_worlds_root_usable(where=f"preview_launch({args.name})")
         world.mkdir(parents=True, exist_ok=True)
         ISO.build_world.snapshot_working_tree = True
         ISO.build_world(world, refreeze_db=False)
@@ -563,7 +577,17 @@ def main() -> int:
         "api_url": api_url,
         "frontend_url": f"http://localhost:{args.frontend_port}",
         "model": model,
-        "preview_secret_key": getattr(ISO.launch_server, "preview_secret", ""),
+        # A fingerprint, never the key. This state file is a runtime artifact
+        # that had been committed, and it carried the live JWT signing key for
+        # the preview. `preview_login.py` needs the real value to mint a driver
+        # token, so it must stay reachable -- but it belongs in a file that is
+        # not tracked and not under docs/, not in a report.
+        "_preview_secret_key_sha256": _fingerprint(
+            getattr(ISO.launch_server, "preview_secret", "")),
+        "_preview_secret_key_note": (
+            "the raw key is NOT written here; preview_login.py reads it from "
+            "ISO.launch_server.preview_secret in-process. This file is "
+            "gitignored precisely because it used to contain the value."),
         "credential_isolation": getattr(launch_backend, "credential_report", {}),
         "isolation": checks,
         "descriptor": getattr(ISO.launch_server, "descriptor", {}),

@@ -59,8 +59,15 @@ jest.mock('../../lib/api-client', () => ({
   },
 }));
 
+// The widget reads frames through the socket's `onMessage` listener — the
+// `lastMessage` state slot coalesces a burst, and a turn's reply arrives as one
+// — so the mock delivers to listeners as well as the slot, and `isConnected`
+// stays live from `wsState`.
 jest.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => wsState,
+  useWebSocket: require('../../tests/helpers/wsMock').createWebSocketMock({
+    isConnectedOf: () => wsState.isConnected,
+    subscribe: (channel: string) => wsState.subscribe(channel),
+  }),
 }));
 
 jest.mock('@/components/Voice/VoiceInput', () => ({
@@ -68,6 +75,7 @@ jest.mock('@/components/Voice/VoiceInput', () => ({
 }));
 
 import { GlobalChatWidget } from '../GlobalChatWidget';
+import { wsMock } from '../../tests/helpers/wsMock';
 
 const wsState = {
   isConnected: false,
@@ -216,11 +224,13 @@ describe('GlobalChatWidget', () => {
     openChat();
     await screen.findByText('ATOM Assistant');
 
-    wsState.lastMessage = {
+    wsMock().emit({
       type: 'agent_step_update',
-      step: { step: 1, thought: 'Searching memory for context', action: 'memory_query' },
-    };
-    rerender(<GlobalChatWidget />);
+      data: {
+        step: { step: 1, thought: 'Searching memory for context', action: 'memory_query' },
+        execution_id: 'exec-1',
+      },
+    });
 
     const toggle = await screen.findByRole('button', { name: /reasoning process \(1 steps\)/i });
     fireEvent.click(toggle);
@@ -232,8 +242,7 @@ describe('GlobalChatWidget', () => {
     openChat();
     await screen.findByText('ATOM Assistant');
 
-    wsState.lastMessage = { type: 'hitl_paused', action_id: 'a-1', tool: 'send_email', reason: 'Email needs approval' };
-    rerender(<GlobalChatWidget />);
+    wsMock().emit({ type: 'hitl_paused', action_id: 'a-1', tool: 'send_email', reason: 'Email needs approval' });
 
     expect(await screen.findByText('Approval Required')).toBeInTheDocument();
     expect(screen.getByText(/send_email/)).toBeInTheDocument();
@@ -242,8 +251,7 @@ describe('GlobalChatWidget', () => {
       expect.objectContaining({ title: 'Approval Required' })
     );
 
-    wsState.lastMessage = { type: 'hitl_decision', action_id: 'a-1' };
-    rerender(<GlobalChatWidget />);
+    wsMock().emit({ type: 'hitl_decision', action_id: 'a-1' });
     await waitFor(() => {
       expect(screen.queryByText('Approval Required')).not.toBeInTheDocument();
     });
@@ -845,7 +853,20 @@ describe('GlobalChatWidget (extended coverage)', () => {
     expect(await screen.findByText('slow history')).toBeInTheDocument();
   });
 
-  it('keeps messages unchanged when an agent step arrives while a user message is last', async () => {
+  /**
+   * REWRITTEN. This test used to assert that a step arriving while a user
+   * message is last leaves the transcript completely unchanged — i.e. the step
+   * is buffered and never shown. That was the misattribution bug: the old rule
+   * was "append to the last message if it is an assistant", and the only way
+   * to avoid filing a new turn's step under the previous turn's answer was to
+   * drop the step on the floor until the POST resolved — which, for a hanging
+   * POST, is never.
+   *
+   * It now asserts what the fix guarantees: the step is NOT attached to the
+   * user's message or to any earlier answer. It opens its OWN turn, attributed
+   * to the execution the frame names.
+   */
+  it('attributes an agent step to its own turn, not to the trailing user message', async () => {
     // Make the chat POST hang so the last message stays the user's message.
     let resolvePost: () => void = () => {};
     server.use(
@@ -867,18 +888,19 @@ describe('GlobalChatWidget (extended coverage)', () => {
 
     expect(await screen.findByText('Pending message')).toBeInTheDocument();
 
-    wsState.lastMessage = {
+    wsMock().emit({
       type: 'agent_step_update',
-      step: { step: 1, thought: 'Ignored thought' },
-    };
-    rerender(<GlobalChatWidget />);
+      data: { step: { step: 1, thought: 'Ignored thought' }, execution_id: 'exec-x' },
+    });
 
-    // rerender is act-wrapped, so the passive effect has already flushed —
-    // no sleep-based assertion needed for this negative case.
-    expect(
-      screen.queryByRole('button', { name: /reasoning process/i })
-    ).not.toBeInTheDocument();
+    // The user's message is untouched and no earlier answer absorbed the step.
     expect(screen.getByText('Pending message')).toBeInTheDocument();
+
+    // The step is visible, on its own turn, attributed to the execution the
+    // frame named — rather than dropped or spliced into a neighbouring bubble.
+    const toggle = await screen.findByRole('button', { name: /reasoning process \(1 steps\)/i });
+    fireEvent.click(toggle);
+    expect(await screen.findByText('Ignored thought')).toBeInTheDocument();
 
     resolvePost();
   });

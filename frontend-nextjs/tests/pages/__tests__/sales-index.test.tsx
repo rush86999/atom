@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SalesIntelligencePage from "@/pages/sales/index";
+import { wsMock } from "../../../tests/helpers/wsMock";
 import { useToast } from "@/components/ui/use-toast";
 
 jest.mock("@/components/ui/use-toast", () => ({
@@ -13,8 +14,14 @@ let mockWsState: {
   isConnected: boolean;
 };
 
+// The page reads frames through the socket's `onMessage` listener: the
+// `lastMessage` state slot coalesces a burst, and new-lead / deal-health frames
+// arrive in bursts, so notifications were being dropped. The mock delivers to
+// listeners as well as the slot, and forwards `subscribe` to the test's spy.
 jest.mock("@/hooks/useWebSocket", () => ({
-  useWebSocket: () => mockWsState,
+  useWebSocket: require('../../../tests/helpers/wsMock').createWebSocketMock({
+    subscribe: (channel: string) => mockWsState.subscribe(channel),
+  }),
 }));
 
 const mockToast = jest.fn();
@@ -234,15 +241,7 @@ describe("Sales Intelligence page (pages/sales/index.tsx)", () => {
     const { rerender } = render(<SalesIntelligencePage />);
     await screen.findByText("AI-Scored Leads");
 
-    mockWsState = {
-      ...mockWsState,
-      lastMessage: {
-        type: "new_lead",
-        data: { first_name: "Bob", last_name: "Lee", company: "Bolt", ai_score: 85 },
-      },
-    };
-    rerender(<SalesIntelligencePage />);
-
+    wsMock().emit({ type: "new_lead", data: { first_name: "Bob", last_name: "Lee", company: "Bolt", ai_score: 85 }, });
     await waitFor(() =>
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({ title: "New Lead Ingested", variant: "success" })
@@ -256,15 +255,7 @@ describe("Sales Intelligence page (pages/sales/index.tsx)", () => {
     const { rerender } = render(<SalesIntelligencePage />);
     await screen.findByText("AI-Scored Leads");
 
-    mockWsState = {
-      ...mockWsState,
-      lastMessage: {
-        type: "new_lead",
-        data: { first_name: "Sara", last_name: "Kim", company: "Warm Co", ai_score: 40 },
-      },
-    };
-    rerender(<SalesIntelligencePage />);
-
+    wsMock().emit({ type: "new_lead", data: { first_name: "Sara", last_name: "Kim", company: "Warm Co", ai_score: 40 }, });
     await waitFor(() =>
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({ title: "New Lead Ingested", variant: "default" })
@@ -276,15 +267,7 @@ describe("Sales Intelligence page (pages/sales/index.tsx)", () => {
     const { rerender } = render(<SalesIntelligencePage />);
     await screen.findByText("AI-Scored Leads");
 
-    mockWsState = {
-      ...mockWsState,
-      lastMessage: {
-        type: "deal_update",
-        data: { name: "Acme Expansion", health_score: 30, risk_level: "high" },
-      },
-    };
-    rerender(<SalesIntelligencePage />);
-
+    wsMock().emit({ type: "deal_update", data: { name: "Acme Expansion", health_score: 30, risk_level: "high" }, });
     await waitFor(() =>
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -300,15 +283,7 @@ describe("Sales Intelligence page (pages/sales/index.tsx)", () => {
     const { rerender } = render(<SalesIntelligencePage />);
     await screen.findByText("AI-Scored Leads");
 
-    mockWsState = {
-      ...mockWsState,
-      lastMessage: {
-        type: "deal_update",
-        data: { name: "Globex", health_score: 90, risk_level: "low" },
-      },
-    };
-    rerender(<SalesIntelligencePage />);
-
+    wsMock().emit({ type: "deal_update", data: { name: "Globex", health_score: 90, risk_level: "low" }, });
     await waitFor(() =>
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -324,9 +299,7 @@ describe("Sales Intelligence page (pages/sales/index.tsx)", () => {
     const { rerender } = render(<SalesIntelligencePage />);
     await screen.findByText("AI-Scored Leads");
 
-    mockWsState = { ...mockWsState, lastMessage: { type: "new_lead" } };
-    rerender(<SalesIntelligencePage />);
-
+    wsMock().emit({ type: "new_lead" });
     await waitFor(() => expect(mockWsState.subscribe).toHaveBeenCalled());
     expect(mockToast).not.toHaveBeenCalled();
   });
@@ -335,12 +308,7 @@ describe("Sales Intelligence page (pages/sales/index.tsx)", () => {
     const { rerender } = render(<SalesIntelligencePage />);
     await screen.findByText("AI-Scored Leads");
 
-    mockWsState = {
-      ...mockWsState,
-      lastMessage: { type: "random_event", data: { anything: true } },
-    };
-    rerender(<SalesIntelligencePage />);
-
+    wsMock().emit({ type: "random_event", data: { anything: true } });
     expect(mockToast).not.toHaveBeenCalled();
   });
 });

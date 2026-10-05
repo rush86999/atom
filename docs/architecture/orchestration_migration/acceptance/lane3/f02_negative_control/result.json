@@ -1,0 +1,63 @@
+{
+  "schema": "f02-negative-control-v1",
+  "candidate": "1a953b58934d-dirty.526a9a7135e8",
+  "world": "finish_line",
+  "run_dir": "run-cfb0605d01ce",
+  "base": "http://127.0.0.1:8086",
+  "canvas_id": "195ff6b5-9cf4-4e23-aa98-c498e26812ff",
+  "request": "In the open canvas, change the quote validity from 15 days to 45 days and mark the edit VALIDITY-45",
+  "absent_target": "Quote validity: 45 days.",
+  "subject_before": "Quote for Steve",
+  "subject_after": "Quote for Steve",
+  "seed_audits": 2,
+  "new_audits": [],
+  "http_status": 200,
+  "reply_excerpt": "{\"success\": true, \"message\": \"I didn't apply that canvas change, so nothing was changed. The change was clear; the canvas editor declined it, which usually means it could not match your wording to a specific part of this canvas. Naming the exact text to change (for example 'change \\\"Quote validity: 15 days\\\" to \\\"30 days\\\"') usually gets it applied.\", \"session_id\": \"2e5fec1e-1a3b-444c-98b4-ac25d7706682\", \"intent\": \"canvas_edit\", \"confidence\": 0.9, \"suggested_actions\": [], \"requires_confirmation\": false, \"next_steps\": [], \"timestamp\": \"2026-09-28T16:02:43.153548\", \"metadata\": {\"canvas_edit\": {\"canvas_id\": \"195ff6b5-9cf4-4e23-aa98-c498e26812ff\", \"updated\": false, \"no_apply\": true, \"reason\": \"planner_declined\", \"background_started\": false, \"execution_id\": \"8b93c5d2-2868-442d-878b-9a1bf9b098c5\", \"operation_id\": \"a8477b97-a757-4d8b-b6c0-679d3a9a4dbe\", \"task_run_id\": \"30ffb28b-c24b-4a60-b052-623219b379c8\", \"outcome\": \"refused\"}, \"persistence\": {\"status\": \"persisted\"}, \"replay_pin\": {\"status\": \"pinned\", \"durable\": true}}, \"memory_context\": null, \"model\": null, \"provider\": null, \"reasoning\": null, \"execution_id\": \"8b93c5d2-2868-442d-878b-9a1bf9b098c5\", \"error_code\": null, \"recovery_url\": null}",
+  "findings": [
+    {
+      "check": "seed subject is the known value",
+      "ok": true,
+      "detail": "subject='Quote for Steve'"
+    },
+    {
+      "check": "seed body contains the real text",
+      "ok": true,
+      "detail": "body_contains_old=True"
+    },
+    {
+      "check": "the requested target is genuinely ABSENT from the canvas",
+      "ok": true,
+      "detail": "'Quote validity: 45 days.' absent=True"
+    },
+    {
+      "check": "SUBJECT untouched (the reported defect)",
+      "ok": true,
+      "detail": "subject_after='Quote for Steve' expected='Quote for Steve'"
+    },
+    {
+      "check": "subject was not replaced with the wrecked variant",
+      "ok": true,
+      "detail": "contains_wrecked=False"
+    },
+    {
+      "check": "the body's real text still present",
+      "ok": true,
+      "detail": "body_contains_old=True"
+    },
+    {
+      "check": "the absent target was NOT invented into the body",
+      "ok": true,
+      "detail": "body_contains_absent=False"
+    },
+    {
+      "check": "zero update audit rows for this canvas after the seed",
+      "ok": true,
+      "detail": "update_rows=0"
+    },
+    {
+      "check": "the reply does not claim the subject changed",
+      "ok": true,
+      "detail": "reply_mentions_subject_change=False"
+    }
+  ]
+}

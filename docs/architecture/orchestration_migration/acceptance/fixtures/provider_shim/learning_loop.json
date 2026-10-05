@@ -1,0 +1,60 @@
+{
+  "default": "Understood.",
+  "responses": [
+    {
+      "match": "tool planner for an AI automation platform",
+      "response": {
+        "tool_call": {
+          "name": "ToolPlan",
+          "arguments": {"use_tool": false}
+        },
+        "tool": "ToolPlan"
+      }
+    },
+    {
+      "match": "expert NLU parser",
+      "response": {
+        "tool_call": {
+          "name": "CommandIntentResult",
+          "arguments": {
+            "command_type": "conversational",
+            "platforms": [],
+            "entities": [],
+            "parameters": {},
+            "confidence": 0.9,
+            "reasoning": "plain conversational turn; no integration command"
+          }
+        },
+        "tool": "CommandIntentResult"
+      }
+    },
+    {
+      "match": "quote validity from 15 days to 30 days",
+      "response": {
+        "tool_call": {
+          "name": "CanvasEditPlan",
+          "arguments": {
+            "wants_edit": true,
+            "edit_mode": "patch",
+            "ops": [
+              {
+                "field": "body",
+                "find": "Quote validity: 15 days.",
+                "replace": "Quote validity: 30 days."
+              }
+            ],
+            "restore_audit_id": null,
+            "updated_content_json": null,
+            "title": null,
+            "reply": "Updated the quote validity to 30 days."
+          }
+        },
+        "tool": "CanvasEditPlan"
+      }
+    },
+    {
+      "match": "quote validity from 15 days to 30 days",
+      "response": "The canvas now states the quote validity is 30 days."
+    }
+  ]
+}

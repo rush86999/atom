@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createSocketGuard } from '@/lib/guardedSocket';
 import { Send, MessageSquare } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
@@ -24,7 +25,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
     const { data: session } = useSession();
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
-    const socketRef = useRef<WebSocket | null>(null);
+    // Generation-guarded socket (lib/guardedSocket). Switching `channel`
+    // re-runs the effect: the old socket is closed and a new one opened, but
+    // the close is asynchronous, so the OLD socket's onmessage could still fire
+    // and append the previous channel's comments to the channel now on screen.
+    const socketGuardRef = useRef(createSocketGuard());
     const scrollRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
@@ -34,47 +39,41 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
         const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
         // #12 fix: use real auth token instead of 'demo-token'.
         const token = localStorage.getItem('auth_token') || '';
-        const socket = new WebSocket(`${protocol}//${host}/ws?token=${token}`);
-
-        socket.onopen = () => {
-            console.log(`Connected to WebSocket for channel: ${channel}`);
-            socket.send(JSON.stringify({ type: 'subscribe', channel }));
-        };
-
-        socket.onmessage = (event) => {
-            // Wrap JSON.parse in try/catch — a single non-JSON frame
-            // (keepalive, proxy error, partial) would throw synchronously,
-            // killing the onmessage handler and permanently deafening the
-            // comment channel. Mirrors CollaborativeCursor.tsx's pattern.
-            let data;
-            try {
-                data = JSON.parse(event.data);
-            } catch {
-                return; // ignore non-JSON frames (ping/pong/proxy noise)
-            }
-            if (data.type === 'comment' || data.type === 'message') {
-                setMessages(prev => [...prev, {
-                    id: data.id || Date.now().toString(),
-                    sender: data.sender || 'System',
-                    senderType: data.senderType || 'user',
-                    content: data.content,
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                }]);
-            }
-        };
-
-        socketRef.current = socket;
+        const url = `${protocol}//${host}/ws?token=${token}`;
 
         // BUG-066: Removed hardcoded mock messages. Comments load from the
         // WebSocket / API, not from fake data.
-
-        return () => {
-            socketRef.current = null;
-            if (socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ type: 'unsubscribe', channel }));
-                socket.close();
-            }
-        };
+        return socketGuardRef.current.open(url, {
+            onRetire: (socket) => {
+                // The server expects an explicit unsubscribe before the socket
+                // goes away; the guard runs this only while this socket is
+                // still the one we own.
+                if (socket.readyState === WebSocket.OPEN) {
+                    try {
+                        socket.send(JSON.stringify({ type: 'unsubscribe', channel }));
+                    } catch {
+                        // Already closing; the connection is going away anyway.
+                    }
+                }
+            },
+            onOpen: (socket) => {
+                socket.send(JSON.stringify({ type: 'subscribe', channel }));
+            },
+            // The guard already skips a malformed frame (lib/guardedSocket wraps
+            // JSON.parse), so a keepalive / proxy-error / partial frame cannot
+            // kill this handler and permanently deafen the comment channel.
+            onMessage: (data) => {
+                if (data.type === 'comment' || data.type === 'message') {
+                    setMessages(prev => [...prev, {
+                        id: data.id || Date.now().toString(),
+                        sender: data.sender || 'System',
+                        senderType: data.senderType || 'user',
+                        content: data.content,
+                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    }]);
+                }
+            },
+        });
     }, [channel]);
 
     useEffect(() => {
@@ -84,8 +83,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
     }, [messages]);
 
     const handleSend = () => {
-        const socket = socketRef.current;
-        if (!input.trim() || !socket) return;
+        // Send on the socket this guard currently owns — the previous channel's
+        // socket is retired the moment `channel` changes.
+        const socket = socketGuardRef.current.current();
+        if (!input.trim() || !socket || socket.readyState !== WebSocket.OPEN) return;
 
         const newMessage = {
             type: 'comment',

@@ -636,8 +636,17 @@ async def _refresh_storage_metadata(
 def _dataset_reverify_due(ds_result: Dict[str, Any]) -> bool:
     """Should a served-from-copy answer trigger a background re-verification?
     Only when the copy is older than the min-age — a copy materialized seconds
-    ago is definitionally current, and skipping keeps the common case free."""
+    ago is definitionally current, and skipping keeps the common case free.
+    ALWAYS due when the workbook's formula sidecar is missing (2026-10-03,
+    the every-row formula availability contract): the re-download's
+    hash-match branch backfills sidecars, so a workbook actually in use
+    heals its formula coverage organically — no quota-burning sweep. Only
+    sheet files are eligible; app-record datasets have no workbook bytes."""
     try:
+        file_name = str(ds_result.get("file_name") or "").lower()
+        if file_name.endswith((".xlsx", ".xls", ".xlsm", ".csv")):
+            if ds_result.get("sidecar_present") is False:
+                return True
         min_age_s = float(os.getenv("ATOM_SHEET_DATASET_REVERIFY_MIN_AGE_S", "300"))
     except ValueError:
         min_age_s = 300.0

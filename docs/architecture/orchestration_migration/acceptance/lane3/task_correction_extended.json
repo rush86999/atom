@@ -1,0 +1,419 @@
+{
+  "base": "http://127.0.0.1:8071",
+  "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+  "generated_at": "2026-09-27T11:26:36-0400",
+  "cases_passed": 4,
+  "cases_total": 4,
+  "all_pass": true,
+  "results": [
+    {
+      "case": "replacement_applies_to_task_and_display",
+      "expect": "the requested item change reaches the durable task and the displayed list, with the outgoing item gone",
+      "status": "PASS",
+      "checks": {
+        "base_lookup_succeeded": true,
+        "base_lookup_shows_all_eight_in_order": true,
+        "base_lookup_has_structured_evidence": true,
+        "durable_task_entities_match_base_order": true,
+        "replacement_turn_succeeded": true,
+        "reply_is_not_a_task_creation_confirmation": true,
+        "no_unrelated_task_row_was_created": true,
+        "replacement_produced_structured_evidence": true,
+        "replacement_performed_a_REAL_retrieval": true,
+        "replacement_evidence_action_is_a_read": true,
+        "durable_task_revised_to_the_new_set": true,
+        "durable_task_removed_the_outgoing_item": true,
+        "durable_task_preserved_the_other_items_and_order": true,
+        "replacement_record_carries_the_new_item": true,
+        "incoming_item_absence_is_labelled_and_invents_nothing": true,
+        "outgoing_items_evidence_is_not_reused": true,
+        "displayed_list_matches_the_revised_set": true,
+        "displayed_list_does_not_show_the_outgoing_item": true,
+        "displayed_list_does_not_silently_report_the_change_as_applied_when_nothing_changed": true,
+        "displayed_citations_are_grounded_in_the_record": true,
+        "displayed_values_are_in_the_source_cells": true
+      },
+      "details": {
+        "base_lookup_succeeded": "status=200 err=None",
+        "base_lookup_shows_all_eight_in_order": [
+          "No. 381",
+          "U-22",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "durable_task_entities_match_base_order": [
+          "No. 381",
+          "U-22",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "replacement_turn_succeeded": "status=200 err=None",
+        "reply_is_not_a_task_creation_confirmation": "Results from the saved copy of Consolidated Price List 2019.xlsx (copy saved 2026-09-07T23:06:19):\n\n- **No. 381** - several rows match (RoperWhitney!R88, identi",
+        "no_unrelated_task_row_was_created": [],
+        "replacement_performed_a_REAL_retrieval": "attempt-d41224be-a3ab-4f6a-90db-5c6ebd6258d7 -> attempt-0c951bef-5eca-40aa-b0d0-cd64447a0967",
+        "replacement_evidence_action_is_a_read": "new_read",
+        "durable_task_revised_to_the_new_set": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "durable_task_removed_the_outgoing_item": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "durable_task_preserved_the_other_items_and_order": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "replacement_record_carries_the_new_item": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "incoming_item_absence_is_labelled_and_invents_nothing": {
+          "probe": "U-38 absent from the indexed source",
+          "status": "none",
+          "retrieval": "searched",
+          "retrieval_error": null,
+          "identity_cells": [],
+          "values": []
+        },
+        "outgoing_items_evidence_is_not_reused": "U-22 absent from the revised record entirely",
+        "displayed_list_matches_the_revised_set": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "displayed_list_does_not_show_the_outgoing_item": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "displayed_list_does_not_silently_report_the_change_as_applied_when_nothing_changed": "the previous list would equal the base order",
+        "displayed_citations_are_grounded_in_the_record": {
+          "gating": {
+            "citations_grounded": true,
+            "no_failed_read_as_data": true,
+            "items_not_stale": true
+          },
+          "violations": []
+        },
+        "displayed_values_are_in_the_source_cells": {
+          "not_on_the_items_row": {},
+          "unverifiable": {},
+          "verified": {
+            "TK Manual Flanger": {
+              "column": "Price",
+              "value": 1609.0
+            },
+            "SLE24-16": {
+              "column": "PRICE",
+              "value": 8880.0
+            },
+            "TK 1624": {
+              "column": "Price",
+              "value": 8040.0
+            },
+            "GSL48-16": {
+              "column": "PRICE",
+              "value": 14166.0
+            }
+          }
+        }
+      },
+      "notes": [
+        "U-38 is NOT in this fixture's workbook, so no price or identity cell can be required; the correct outcome is a labelled absence",
+        "advisory values_grounded violations: []",
+        "binding=None"
+      ]
+    },
+    {
+      "case": "replacement_then_formatting",
+      "expect": "a formatting follow-up after a replacement re-renders the REVISED set and does not resurrect the replaced item",
+      "status": "PASS",
+      "checks": {
+        "setup_base_then_replacement": true,
+        "earlier_messages_survive_the_formatting_turn": true,
+        "formatting_turn_succeeded": true,
+        "formatting_invoked_no_retrieval": true,
+        "formatted_list_is_the_revised_set": true,
+        "formatted_list_does_not_resurrect_the_replaced_item": true,
+        "durable_task_still_the_revised_set": true,
+        "formatted_citations_grounded": true
+      },
+      "details": {
+        "earlier_messages_survive_the_formatting_turn": {
+          "before": 4,
+          "after": 6,
+          "changed": []
+        },
+        "formatting_turn_succeeded": "status=200 err=None",
+        "formatting_invoked_no_retrieval": {
+          "formatting_attempt": "attempt-63706315-724a-4fc5-9d6e-5c24466e2ddf",
+          "replacement_attempt": "attempt-63706315-724a-4fc5-9d6e-5c24466e2ddf"
+        },
+        "formatted_list_is_the_revised_set": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "formatted_list_does_not_resurrect_the_replaced_item": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "durable_task_still_the_revised_set": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "formatted_citations_grounded": {
+          "execution_id": "7c05bb6e-1c2d-44a5-8b6e-6b7bc231bc3f",
+          "record_found": true,
+          "referenced_attempt": "attempt-63706315-724a-4fc5-9d6e-5c24466e2ddf",
+          "referenced_revision": "ff2597d26fc6d0ea216c0fd9b933090dc64e3348:2026-09-07T23:06:19",
+          "gating": {
+            "citations_grounded": true,
+            "no_failed_read_as_data": true,
+            "items_not_stale": true
+          },
+          "violations": []
+        }
+      },
+      "notes": []
+    },
+    {
+      "case": "replacement_then_research",
+      "expect": "an explicit re-search after a replacement re-reads and still returns the revised set",
+      "status": "PASS",
+      "checks": {
+        "research_turn_succeeded": true,
+        "re_search_returns_the_revised_set": true,
+        "re_search_did_not_resurrect_the_replaced_item": true,
+        "re_search_performed_a_new_attempt": true,
+        "durable_task_still_the_revised_set": true,
+        "re_search_citations_grounded": true
+      },
+      "details": {
+        "research_turn_succeeded": "status=200 err=None",
+        "re_search_returns_the_revised_set": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "re_search_did_not_resurrect_the_replaced_item": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "re_search_performed_a_new_attempt": "attempt-caab2140-06d7-4245-9282-9ab8bf690b35",
+        "durable_task_still_the_revised_set": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "re_search_citations_grounded": {
+          "gating": {
+            "citations_grounded": true,
+            "no_failed_read_as_data": true,
+            "items_not_stale": true
+          },
+          "violations": []
+        }
+      },
+      "notes": []
+    },
+    {
+      "case": "reload_after_replacement",
+      "expect": "reloading the session returns the revised final answer, with the same evidence association and no duplicate",
+      "status": "PASS",
+      "checks": {
+        "history_returns_after_reload": true,
+        "history_has_no_duplicate_turns": true,
+        "every_assistant_row_is_bound_to_an_execution": true,
+        "no_two_assistant_rows_share_an_execution": true,
+        "history_executions_are_exactly_the_executions_this_run_issued": true,
+        "no_user_row_carries_an_execution_id": true,
+        "reloaded_final_answer_is_the_revised_set": true,
+        "reloaded_answer_does_not_resurrect_the_replaced_item": true,
+        "reloaded_answer_matches_what_was_delivered": true,
+        "reloaded_citations_grounded": true
+      },
+      "details": {
+        "history_returns_after_reload": "status=200",
+        "history_has_no_duplicate_turns": {
+          "rows": 4,
+          "requests_issued": 2,
+          "user_rows": 2,
+          "unique_ids": 4,
+          "ids": [
+            "8a7cc05c",
+            "66292eab",
+            "3da712e0",
+            "77d18764"
+          ],
+          "user_texts": [
+            "find the prices of these 8 machines in Consolidated Price Li",
+            "Replace U-22 with U-38"
+          ]
+        },
+        "every_assistant_row_is_bound_to_an_execution": {
+          "requests_issued": 2,
+          "execution_ids_returned_by_the_turns": [
+            "2acf6612-8afa-4baa-9f9a-5f5eeee64be1",
+            "53a56df9-4844-4beb-90a9-67c77e7795f3"
+          ],
+          "assistant_rows": [
+            {
+              "message_id": "66292eab",
+              "execution_id": "53a56df9-4844-4beb-90a9-67c77e7795f3"
+            },
+            {
+              "message_id": "77d18764",
+              "execution_id": "2acf6612-8afa-4baa-9f9a-5f5eeee64be1"
+            }
+          ],
+          "user_rows": [
+            {
+              "message_id": "8a7cc05c",
+              "execution_id": null
+            },
+            {
+              "message_id": "3da712e0",
+              "execution_id": null
+            }
+          ]
+        },
+        "no_two_assistant_rows_share_an_execution": {
+          "bound": [
+            "2acf6612-8afa-4baa-9f9a-5f5eeee64be1",
+            "53a56df9-4844-4beb-90a9-67c77e7795f3"
+          ]
+        },
+        "history_executions_are_exactly_the_executions_this_run_issued": {
+          "history": [
+            "2acf6612-8afa-4baa-9f9a-5f5eeee64be1",
+            "53a56df9-4844-4beb-90a9-67c77e7795f3"
+          ],
+          "issued": [
+            "2acf6612-8afa-4baa-9f9a-5f5eeee64be1",
+            "53a56df9-4844-4beb-90a9-67c77e7795f3"
+          ]
+        },
+        "no_user_row_carries_an_execution_id": [
+          {
+            "message_id": "8a7cc05c",
+            "execution_id": null
+          },
+          {
+            "message_id": "3da712e0",
+            "execution_id": null
+          }
+        ],
+        "reloaded_final_answer_is_the_revised_set": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "reloaded_answer_does_not_resurrect_the_replaced_item": [
+          "No. 381",
+          "U-38",
+          "No. 622",
+          "TK Manual Flanger",
+          "SLE24-16",
+          "TK 1624",
+          "TK Multi Wheel Gang Slitter",
+          "GSL48-16"
+        ],
+        "reloaded_answer_matches_what_was_delivered": "history=2192 chars",
+        "reloaded_citations_grounded": {
+          "gating": {
+            "citations_grounded": true,
+            "no_failed_read_as_data": true,
+            "items_not_stale": true
+          },
+          "violations": []
+        }
+      },
+      "notes": [
+        "two requests issued -> 4 rows is two user/assistant pairs, not duplication",
+        "identity is established by execution binding, so two turns that legitimately render the same text are not mistaken for duplication"
+      ]
+    }
+  ]
+}

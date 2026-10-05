@@ -1,0 +1,57 @@
+{
+  "schema": "f10-restart-pin-v1",
+  "key": "b7c83d97-7598-4d71-8480-27425277e045",
+  "run_dir": "run-cfb0605d01ce",
+  "old_pid": null,
+  "new_pid": 53617,
+  "record_after_restart": [
+    "completed",
+    "d862a2c8-f3c9-4019-9e50-822e2236f830",
+    "360370387e47c69761a996b2a345ff621066b5b8e25fe92398ea6200e5e4430d",
+    850
+  ],
+  "execution_id": "d862a2c8-f3c9-4019-9e50-822e2236f830",
+  "counts": {
+    "before": {
+      "executions": 10,
+      "canvas_audit": 11
+    },
+    "after": {
+      "executions": 10,
+      "canvas_audit": 11
+    }
+  },
+  "replay_pin_after_restart": null,
+  "findings": [
+    {
+      "check": "the completed pin SURVIVED the restart in the durable store",
+      "ok": true,
+      "detail": "state=completed"
+    },
+    {
+      "check": "the replay was answered, not re-executed",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "check": "the restart+replay created NO new execution",
+      "ok": true,
+      "detail": "10->10"
+    },
+    {
+      "check": "the restart+replay created NO new effect",
+      "ok": true,
+      "detail": "canvas_audit 11->11"
+    },
+    {
+      "check": "the replay returned the SAME execution id as before the restart",
+      "ok": true,
+      "detail": "before=d862a2c8-f3c9-4019-9e50-822e2236f830 after=d862a2c8-f3c9-4019-9e50-822e2236f830"
+    },
+    {
+      "check": "the stored finalized_response still matches the served answer",
+      "ok": true,
+      "detail": "answer_head='The sunk cost fallacy is the tendency to continue investing '"
+    }
+  ]
+}

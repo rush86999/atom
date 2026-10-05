@@ -68,6 +68,16 @@ _FILE_RETRY_RE = re.compile(
     r"\b(?:read|open)\s+[^,.;?!]{1,80}\.(?:xlsx|xls|csv|tsv|pdf|docx?)\b",
     re.IGNORECASE,
 )
+# A RETRY SIGNAL: without one, 'search the workbook' is a plain command,
+# not a confirmation — the retry-shape branch must not claim it (the
+# 23:2x live turn: a plain command reached no lane because the shape
+# alone classified it).
+_RETRY_SIGNAL_RE = re.compile(
+    r"\bagain\b|\bre-?(?:run|read|check|try|fetch|scan)\b|\bretry\b"
+    r"|\.(?:xlsx|xls|xlsm|csv|tsv|pdf|docx?)\b",
+    re.IGNORECASE,
+)
+
 _CONFIRMATION_ACTION_RE = re.compile(
     r"\b(?:send|export|share|post|publish|submit|schedule|ship|"
     r"update|replace|delete|edit)\b",
@@ -205,8 +215,44 @@ def is_filename_confirmation(message: str) -> bool:
         return False
     if _CONFIRMATION_ACTION_RE.search(t):
         return False
-    if _FILE_RETRY_RE.search(t):
-        return True
+    if _FILE_RETRY_RE.search(t) and _RETRY_SIGNAL_RE.search(t):
+        # OWN-SUBJECT DISCIPLINE (2026-10-01 live, replay-retry2 22:43):
+        # the loose retry shape ('search … workbook') classified a
+        # substantive two-clause ask — 'search the price list workbook in
+        # more than one ways to confirm. attachments from emails might
+        # show something as well' — as a BARE confirmation: the anaphoric
+        # resolver refused, the read never ran, and narration fabricated
+        # the very search the message asked for (with a false 'confirmed
+        # not found' for an item the workbook holds). A retry
+        # confirmation is SHORT: retry verbs + file nouns + fillers ('try
+        # the file search again', 'search the workbook again more
+        # thoroughly'); more than a few other content words is the turn's
+        # own subject — the same rule the approval branch already
+        # applies.
+        _retry_subject_words = (
+            _CONFIRMATION_VOCABULARY | _CONTINUATION_VOCABULARY | {
+                "search", "read", "open", "look", "lookup", "check",
+                "try", "retry", "recheck", "run", "rerun", "pull",
+                "fetch", "scan", "again", "file", "filename", "workbook",
+                "spreadsheet", "sheet", "excel", "price", "list", "copy",
+                "one", "same", "latest", "newest", "version", "results",
+                "confirm", "confirms", "confirmation",
+            })
+        # Filenames are the SUBJECT BEING CONFIRMED, not a new subject —
+        # strip extension-ful tokens before counting ('open
+        # Trumatic-L3030S.xlsx' is a bare confirmation, pinned case).
+        _t_no_files = re.sub(
+            r"\S+\.(?:xlsx|xls|xlsm|csv|tsv|pdf|docx?)\b", " ", t)
+        _retry_others = [
+            w for w in _content_words(_t_no_files)
+            if w not in _retry_subject_words]
+        # <=2, not more: the pinned bare retries carry ZERO other words
+        # ('try the file search again', 'search the workbook again more
+        # thoroughly'); 'search the price list workbook to confirm the
+        # rows that are found in the email' carries three (rows, found,
+        # email) — new objects make it the turn's own subject (2026-10-01
+        # 23:2x live turn).
+        return len(_retry_others) <= 2
     if _BARE_CONFIRMATION_RE.match(t):
         return True
     subject_words = _CONFIRMATION_VOCABULARY | _mention_words(t)
@@ -367,6 +413,7 @@ def merge_pending_task(
     message: str,
     mention: str,
     disambiguation: Optional[Dict[str, Any]] = None,
+    inherit: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Update the stored task for THIS turn. A confirmation refreshing the
     stored task keeps the ORIGINAL ask (a confirmation is not a new
@@ -380,7 +427,17 @@ def merge_pending_task(
     An EXTENDING follow-up (``request_extends_objective`` — a new source,
     changed requested information) is a new objective even when retry- or
     confirmation-shaped: it replaces the task, never merges into the old
-    ask (2026-09-29 cross-source incident)."""
+    ask (2026-09-29 cross-source incident).
+
+    ``inherit`` (2026-10-02, the empty-target churn): when the caller
+    already POPPED the superseded task from the session (the normal
+    supersession flow), ``existing`` arrives None and none of the
+    inheritance below can run — the replacement task was born with no
+    requested_targets while the stash still held the objective's item
+    set, and the read then ran empty ("cross check what's already
+    confirmed" rendered header + footer with no body). Callers pass the
+    supersession stash here; it fills ONLY the gaps the replacement
+    does not state itself, exactly like the existing-task branch."""
     refresh = is_retrieval_refresh_request(message)
     was_terminal = isinstance(existing, dict) and existing.get(
         "status") in ("served", "retrieved", "delivered")
@@ -432,6 +489,23 @@ def merge_pending_task(
                 existing.get("original_message") or "")[:500],
             "mention": existing.get("mention"),
         }
+    if isinstance(inherit, dict):
+        # SUPERSESSION-STASH INHERITANCE (2026-10-02): fills the gaps the
+        # branches above could not — usually because existing is None
+        # (the caller popped the superseded task before storing the
+        # replacement), but also when the predecessor itself lacked the
+        # context. The item set rides first: a replacement born without
+        # requested_targets is the empty-read root cause;
+        # resolved_file/mention keep the same source pin the predecessor
+        # executed against.
+        for _key in ("requested_targets", "resolved_file",
+                     "confirmed_mention", "disambiguation"):
+            _value = inherit.get(_key)
+            if _value and not replacement.get(_key):
+                replacement[_key] = (
+                    list(_value) if _key == "requested_targets"
+                    else dict(_value) if _key == "disambiguation"
+                    else _value)
     return replacement
 
 

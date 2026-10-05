@@ -118,7 +118,23 @@ def sanitize(run_data_dir: Path, live_data_dir: Path) -> dict[str, Any]:
         finally:
             con.close()
 
-    report["world_unique"] = fresh.decode() if isinstance(fresh, bytes) else str(fresh)
+    # A FINGERPRINT, never the key. This report is serialised into
+    # preview_state.json, which is a committed, tracked file -- so writing the
+    # world Fernet key here put a live at-rest decryption key into git, in the
+    # very module whose premise is that nothing secret is ever rendered.
+    #
+    # The field exists to prove one thing: this world's key is not the
+    # developer's. A sha256 proves that just as well, and discloses nothing:
+    # the comparison at prove_isolated() is `world_key != live_key`, and that
+    # holds for the digests exactly when it holds for the keys.
+    import hashlib
+    raw = fresh.decode() if isinstance(fresh, bytes) else str(fresh)
+    report["world_unique"] = {
+        "sha256": hashlib.sha256(raw.encode()).hexdigest(),
+        "length": len(raw),
+        "note": "fingerprint of the world-local Fernet key; the key itself is "
+                "written only to the world's own data dir, never to a report",
+    }
     return report
 
 

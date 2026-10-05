@@ -1,0 +1,21 @@
+{
+ "code_snapshot_sha256": "96c0aaa80a5f1c56a43443094543a8a9e7776c1ea82cab6ee53a46fbf7ee9587",
+ "code_source": "WORKING-TREE SNAPSHOT (includes uncommitted changes; hash-pinned; owning stream's commit is the durable pin)",
+ "network_boundary_verified": {
+  "loopback": true,
+  "external_blocked": true
+ },
+ "network_boundary": "seatbelt local-only profile (runtime-enforced)",
+ "atom_db_sha256": "3745360d9e743772837f2707e7317bfa87b351104bcd94ee3940c17a5aa9d620",
+ "db_frozen_at": "2026-09-27T20:10:50-0400",
+ "db_source": "online-backup snapshot, parquet paths repointed, credentials scrubbed",
+ "credential_scrub": {
+  "integration_tokens(rows deleted)": 9,
+  "oauth_tokens(rows deleted)": 2
+ },
+ "venv_freeze_sha256": "70aedee442940759490bea13dc32bc0526af274d7fd1fb13f573886df403d060",
+ "built_at": "2026-09-27T20:10:51-0400",
+ "parquet_files_verified": 46,
+ "server_env": "strict whitelist (no credentials)",
+ "harness_version": "enforced-isolation-v3.2"
+}

@@ -1,0 +1,87 @@
+{
+ "generated_at": "2026-09-28T23:03:07-0400",
+ "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/f09_delivery/runs/run-e1b198fd3421",
+ "foreign_interference": {
+  "foreign_sessions": [],
+  "detected": false
+ },
+ "export_binding": {
+  "code_snapshot_sha256": "0d3bd68378faa4ef2354815dbaa21a530f1979f7f5436cf270a5fb05fe7fdc13",
+  "flags": [
+   "CHAT_FINALIZATION_M1",
+   "CHAT_FINALIZATION_M2",
+   "ATOM_TASK_LIFECYCLE_ENABLED"
+  ]
+ },
+ "results": [
+  {
+   "case": "F09A_running_server_expiry_recovery",
+   "status": "PASS",
+   "checks": {
+    "parked_at_boundary_session_matched": true,
+    "old_process_dead": true,
+    "barrier_never_released": true,
+    "restarted_same_database": true,
+    "new_process_started_before_expiry": true,
+    "in_flight_claim_deferred_at_boot": true,
+    "automatic_delivery_after_expiry_same_process": true,
+    "exactly_one_terminal_row": true,
+    "no_additional_canvas_mutation": true,
+    "wording_matches_recorded_attribution": true
+   },
+   "notes": [],
+   "details": {
+    "timings": {
+     "claim_anchor": 1790650874.105083,
+     "expiry_at": 1790650964.105083,
+     "boot_done": 1790650883.118051,
+     "delivered_at": 1790650967.779853,
+     "lease_s": 90.0,
+     "interval_s": 5.0
+    },
+    "pids": {
+     "before": 37636,
+     "after": 37779
+    },
+    "prekill": {
+     "one_fork_record": true,
+     "fork_still_running": true,
+     "delivery_claim_taken": true,
+     "no_terminal_message_yet": true,
+     "no_release_file": true,
+     "worker_alive": true
+    },
+    "notifications": [
+     0,
+     0,
+     1,
+     1
+    ],
+    "msgs": [
+     0,
+     1,
+     1
+    ],
+    "update_count": [
+     1,
+     1
+    ],
+    "effects": [
+     "landed"
+    ],
+    "history_r2": [
+     "The canvas edit is still running in the background, but nothing is confirmed changed yet.",
+     "Background update was already applied. the edit itself landed before a restart cut off its confirmation \u2014 the "
+    ],
+    "notification_channel_note": "notification deltas are recorded as live-channel evidence per handoff step 10; the durable terminal MESSAGE is the gating delivery."
+   }
+  }
+ ],
+ "export_binding_correction": {
+  "recorded_value": "0d3bd68378faa4ef2354815dbaa21a530f1979f7f5436cf270a5fb05fe7fdc13",
+  "recorded_world": "write_combined (driver bug: hardcoded manifest read)",
+  "actual_world": "f09_delivery",
+  "actual_export_sha256": "80905c7bf1788d2b7e1e768622b674e6f0825df5913d96d4acbe762c238ffe68",
+  "note": "export_binding above is retained as recorded; the run executed the actual_export_sha256 tree. Driver fixed 2026-09-29."
+ }
+}

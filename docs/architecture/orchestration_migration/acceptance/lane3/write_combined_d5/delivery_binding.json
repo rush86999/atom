@@ -1,0 +1,57 @@
+{
+ "schema": "lane3-delivery-binding-v1",
+ "claim": "the terminal event is about this conversation, this canvas and this execution -- identity, not arrival",
+ "results": [
+  {
+   "artifact": "docs/architecture/orchestration_migration/acceptance/lane3/write_combined_d5/c16_controlled_bg-success.json",
+   "checks": {
+    "the run reached a terminal state": true,
+    "exactly ONE terminal event was delivered": true,
+    "the event names the same continuation as the durable row": [
+     true,
+     {
+      "event": "35bf5882-3e45-475e-886f-a6af473008d2",
+      "durable_row": "35bf5882-3e45-475e-886f-a6af473008d2"
+     }
+    ],
+    "the event names the same CONVERSATION as the request": [
+     true,
+     {
+      "event": "c16-bg-C16BG-BG-SUCCESS-1790591574",
+      "request": "c16-bg-C16BG-BG-SUCCESS-1790591574"
+     }
+    ],
+    "the event names the same canvas as the one edited": [
+     true,
+     {
+      "event": "d61c0035-c41c-42d6-b691-509080e87736",
+      "canvas": "d61c0035-c41c-42d6-b691-509080e87736"
+     }
+    ],
+    "the event's originating execution matches the terminal row": [
+     true,
+     {
+      "event": "bb3319ff-c938-4c48-ad06-b194c503fa09",
+      "terminal": "bb3319ff-c938-4c48-ad06-b194c503fa09"
+     }
+    ],
+    "the event's status agrees with the durable terminal status": [
+     true,
+     {
+      "event": "applied",
+      "durable": "completed"
+     }
+    ],
+    "the event carries a readable summary, not an internal diagnostic": [
+     true,
+     {
+      "summary": "Updated the quote validity to 30 days."
+     }
+    ]
+   },
+   "failed": [],
+   "passed": true
+  }
+ ],
+ "all_pass": true
+}

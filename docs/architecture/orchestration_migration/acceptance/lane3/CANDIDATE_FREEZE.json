@@ -1,70 +1,137 @@
 {
-  "schema": "lane3-candidate-freeze-v1",
-  "frozen_at": "2026-09-28T06:51:37",
-  "base_HEAD_at_session_start": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
-  "candidate_HEAD": "dba5aef89ffca40b6c0fad3c03231acd166af644",
-  "commits_in_candidate": [
-    "dba5aef89 feat(d5): render a readable terminal outcome, and bind recovery to the message",
-    "5a7fe6bdf fix(continuation): keep _operation_landed as the predicate, not an inlined probe",
-    "3b3c0e36c docs(lane3): finalize the C16 controlled-acceptance checkpoint",
-    "f14cb301a test(lane3): seed probe canvases through the supported APIs, not direct INSERT",
-    "94c087f18 fix(canvas+continuation): bind mutations to their operation, and make email-canvas creation real"
+  "frozen_at": "2026-09-28 (session close)",
+  "base_commit": "1a953b58934d144b2cd149c557d1243e9e16ea1c",
+  "dirty_file_count": 236,
+  "world": "write_verify_0928",
+  "run": "run-7240b4691cc1",
+  "export_sha256": "f530c509948d947db10ce47772723839b73a4f0a48e78ca869a90df26a124e42",
+  "fixture": {
+    "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_verify_0928/fixture/atom.db",
+    "mode": "api-seeded-fixture (small)"
+  },
+  "resolved_db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_verify_0928/runs/run-7240b4691cc1/data/atom.db",
+  "ports": {
+    "backend": 8140,
+    "frontend": 3140
+  },
+  "planner_pin": "deepseek/deepseek-v4-pro",
+  "credentials_present": [
+    "EMBEDDING_PROVIDER",
+    "FASTEMBED_MODEL",
+    "OLLAMA_MODEL",
+    "OPENROUTER_API_KEY"
   ],
-  "working_tree_state": {
-    "note": "The candidate is the COMMITTED tree. Uncommitted paths below are deliberately NOT in it.",
-    "uncommitted_path_count": 173,
-    "uncommitted_excluded_reason": "other streams' in-flight work; committing it was not authorized"
-  },
-  "included_product_files_sha256_16": {
-    "backend/core/async_turn_continuation.py": "db57053e2b0ac4cd",
-    "backend/core/canvas_email_service.py": "52434d1264292520",
-    "backend/integrations/chat_orchestrator.py": "fced25c3824a59a2",
-    "backend/scripts/orchestration_acceptance/provider_shim.py": "a7542d6c19527587",
-    "backend/scripts/orchestration_acceptance/preview_stack.py": "4166ecaec938c493",
-    "docs/architecture/orchestration_migration/acceptance/lane3/controlled_planner_c16.py": "bf673912b0d9928e"
-  },
-  "included_committed_files_count": 45,
-  "verification_before_freeze": {
-    "tests/test_async_turn_continuation.py": "49 passed",
-    "test_reply_leg_name_safety + test_workbook_structured_delivery + test_chat_canvas_editor": "190 passed",
-    "note": "tests/unit/test_canvas_tool.py is environment-sensitive: intermittent provider 402 (OpenRouter credits) pollutes shared state; TestPresentForm passes in isolation."
-  },
-  "read_only_preview_untouched": {
-    "fe": 3101,
-    "be": 8051,
-    "fe_candidate": 3102,
-    "be_candidate": 8071
-  },
-  "verified_export": {
-    "world": "c16_fin",
-    "backend_port": 8078,
-    "code_snapshot_sha256_32": "c0b02bcd7966ac76f4d733184d0c48a7",
-    "canvas_seeded_via": "api (POST /api/canvas/email/create + PUT /api/canvas/{id})",
-    "cases": {
-      "case_1_synchronous": "15/15 PASS",
-      "case_2_background_success": "28/28 PASS",
-      "case_3_background_failure": "26/26 PASS (empty notification channel, zero mutations)"
+  "serving_modules": {
+    "main_api_app": {
+      "sha256": "004e3638a739c74454d9ae1fa07f56473ac6b9ef9986b0442f5b811161f215c0",
+      "served_sha256": "004e3638a739c74454d9ae1fa07f56473ac6b9ef9986b0442f5b811161f215c0",
+      "identical": true
     },
-    "cases_carried_over": "none - all three re-run on this export",
-    "zero_additional_writes_regression": {
-      "assertion": "reconciliation_wrote_nothing_additional",
-      "rows_attributed_to_this_request": 1,
-      "meaning": "exactly one audit row carries an operation id attributed to this request, so the landed-operation reconciliation applied no second write"
+    "core.task_lifecycle": {
+      "sha256": "a49d529dc69362e9d238d8db0c40c6519af1bf45095f87286ac76b60de0738c4",
+      "served_sha256": "a49d529dc69362e9d238d8db0c40c6519af1bf45095f87286ac76b60de0738c4",
+      "identical": true
     },
-    "stale_needle": "the earlier history-recovery failure was the harness needle still matching the old bracket syntax; case 2 now passes history_shows_the_completed_edit on this export, so the explanation is verified rather than assumed"
+    "core.chat_transport": {
+      "sha256": "24cfc95606032364edcab0ba68d364bb7cae6eca5c9ca64d027ff3d6d8ac242e",
+      "served_sha256": "24cfc95606032364edcab0ba68d364bb7cae6eca5c9ca64d027ff3d6d8ac242e",
+      "identical": true
+    },
+    "core.execution_recovery": {
+      "sha256": "494000bf4cbb39f5eff951598d0cbec25e332946ff11b231973e14e74707e39d",
+      "served_sha256": "494000bf4cbb39f5eff951598d0cbec25e332946ff11b231973e14e74707e39d",
+      "identical": true
+    },
+    "core.execution_ownership": {
+      "sha256": "547265c6dfdf52e1f6f69a153a6dcfea8049427996b4e218587d7b8821214180",
+      "served_sha256": "547265c6dfdf52e1f6f69a153a6dcfea8049427996b4e218587d7b8821214180",
+      "identical": true
+    },
+    "core.answer_presentation": {
+      "sha256": "d875f731037a087b8ce636c372552659cc3551163271fef1ef4f608dea89fa15",
+      "served_sha256": "d875f731037a087b8ce636c372552659cc3551163271fef1ef4f608dea89fa15",
+      "identical": true
+    },
+    "core.chat_tool_planner": {
+      "sha256": "9ffaad02421039b31f51d39f90d448dc3b61f41ef91fb668b8f4fe516e363243",
+      "served_sha256": "9ffaad02421039b31f51d39f90d448dc3b61f41ef91fb668b8f4fe516e363243",
+      "identical": true
+    },
+    "core.workbook_read_artifact": {
+      "sha256": "c38df2e437f6b4d3f9ad514df1aae9b9e6d912bdfe3e6fff44e813c2e13a1796",
+      "served_sha256": "c38df2e437f6b4d3f9ad514df1aae9b9e6d912bdfe3e6fff44e813c2e13a1796",
+      "identical": true
+    },
+    "core.hybrid_retrieval_service": {
+      "sha256": "f6ebea1853f57ee3a514d2f88c9714f5c1fda7ffc0a20ffe75956edb54915412",
+      "served_sha256": "f6ebea1853f57ee3a514d2f88c9714f5c1fda7ffc0a20ffe75956edb54915412",
+      "identical": true
+    },
+    "core.hybrid_search.documents_hybrid": {
+      "sha256": "cf73d492676523bb69e7efc427fb2e3d2d8dbc2772cfd5655fbf05239938047b",
+      "served_sha256": "cf73d492676523bb69e7efc427fb2e3d2d8dbc2772cfd5655fbf05239938047b",
+      "identical": true
+    },
+    "core.memory_context_assembler": {
+      "sha256": "901af64547f2d1a7eda5aad29d220e5b2f3806a66b72e3941de4f936fdbe6a8e",
+      "served_sha256": "901af64547f2d1a7eda5aad29d220e5b2f3806a66b72e3941de4f936fdbe6a8e",
+      "identical": true
+    },
+    "core.identifier_search": {
+      "sha256": "240687c5309bb7225fb0a5ad15fd86326d3c570eb031cac89c1c3a5c90865b14",
+      "served_sha256": "240687c5309bb7225fb0a5ad15fd86326d3c570eb031cac89c1c3a5c90865b14",
+      "identical": true
+    },
+    "core.pending_file_task": {
+      "sha256": "107bb419b8ee9114d52acd366837bb012deec0b39751b8407edee1ab1f65186f",
+      "served_sha256": "107bb419b8ee9114d52acd366837bb012deec0b39751b8407edee1ab1f65186f",
+      "identical": true
+    },
+    "integrations.chat_orchestrator": {
+      "sha256": "e14101821aed924857a20fbd94d255a83fa5f84f17e0df82ec6b322832ce4809",
+      "served_sha256": "e14101821aed924857a20fbd94d255a83fa5f84f17e0df82ec6b322832ce4809",
+      "identical": true
+    },
+    "integrations.chat_routes": {
+      "sha256": "5f5d808d6300db5bb8cb1f69a7d23fdf13bbddf439008117b32c087005b788b3",
+      "served_sha256": "5f5d808d6300db5bb8cb1f69a7d23fdf13bbddf439008117b32c087005b788b3",
+      "identical": true
+    },
+    "tools.drive_tool": {
+      "sha256": "a033c7b42531eba1d2f2409b6dd7e0d814445ae149cb7fb5387728f56e02515a",
+      "served_sha256": "a033c7b42531eba1d2f2409b6dd7e0d814445ae149cb7fb5387728f56e02515a",
+      "identical": true
+    }
   },
-  "provider_availability": {
-    "checked_at": "2026-09-28T07:04:53",
-    "openrouter": {
-      "status": "AVAILABLE",
-      "http": 200,
-      "model": "openai/gpt-4o-mini",
-      "note": "already authorized via backend/.env"
+  "serving_modules_identical_to_F06_F07": true,
+  "mutable_bleed": [],
+  "auth": "next-auth CredentialsProvider, world-local 0600 credential (no secret recorded)",
+  "preserved": {
+    "read_preview_frontend": 3102,
+    "read_preview_backend": 8071,
+    "touched": false
+  },
+  "export_relationship": {
+    "statement": "The world export was NOT rebuilt after the two harness-driver edits, so the export fingerprint f530c509948d947d is UNCHANGED from the candidate that produced F06/F07. The serving application modules are therefore byte-identical because the exported tree is literally the same tree, not merely equivalent.",
+    "export_sha256": "f530c509948d947db10ce47772723839b73a4f0a48e78ca869a90df26a124e42",
+    "produced_f06_f07": true,
+    "still_current": true,
+    "what_did_change": {
+      "where": "the CHECKOUT copies only; the world export retains the older copies",
+      "files": {
+        "scripts/orchestration_acceptance/provider_shim.py": {
+          "checkout": "05b2b8e1bcec",
+          "world_export": "a7542d6c1952",
+          "change": "tool-name-first script selection + selected_by/tool_scoped_entries capture"
+        },
+        "scripts/orchestration_acceptance/canvas_write_verify.py": {
+          "checkout": "e87321a0ff24",
+          "world_export": "41f20753370a",
+          "change": "--expect/--old/--new/--field for the F07 second edit"
+        }
+      },
+      "why_it_does_not_affect_f06_f07": "both are client-side harness drivers executed from the checkout as separate processes; neither is imported by the serving app, and both are absent from the 16 fingerprint modules"
     },
-    "openai_anthropic_deepseek_moonshot": {
-      "status": "no usable credential resolved in this process"
-    },
-    "earlier_402": "OpenRouter 402 'requires more credits' affected EXPENSIVE models (e.g. glm-5.3-flash at 6000 max_tokens). It is a per-model credit ceiling, not a total provider outage: a cheap model on the same provider answers 200.",
-    "consequence": "real-planner verification is NOT externally blocked; a cheap authorized model is reachable"
+    "if_a_rebuild_is_ever_required": "record the NEW export fingerprint alongside this one and re-verify the 16 serving module hashes; do not overwrite or assert equivalence"
   }
 }

@@ -224,6 +224,37 @@ async def read_canvas(
                     content_audit = None
             content = raw_content if raw_content is not None else details
 
+            # EMAIL DRAFT-STATE READ (2026-10-03, the taught-employee job
+            # step 7): EmailCanvasService.save_draft appends a save_draft
+            # audit whose `content` is the EMPTY draft shell while the
+            # real body lives under details["draft"]["body"]. Serving that
+            # shell made every agent turn see an empty draft on any
+            # panel-typical email canvas (the Halton quote: the employee
+            # answered "the quote isn't in front of me" for a fully seeded
+            # quote). Read shape, not history: when the served content is
+            # a blank email body and the draft carries the actual body,
+            # the draft IS the content.
+            try:
+                _draft = details.get("draft")
+                if (
+                    isinstance(content, dict)
+                    and isinstance(_draft, dict)
+                    and isinstance(content.get("body"), str)
+                    and not content.get("body").strip()
+                    and str(_draft.get("body") or "").strip()
+                ):
+                    content = {
+                        **content,
+                        "body": _draft.get("body"),
+                        "subject": content.get("subject")
+                        or _draft.get("subject")
+                        or "",
+                        "to": content.get("to")
+                        or ", ".join(_draft.get("to_emails") or []),
+                    }
+            except Exception:  # noqa: BLE001 — read normalization only
+                pass
+
             # Email-draft normalization: canvases created before the
             # classifier existed (and EmailCanvasService's draft-details
             # shape) render on /canvas/{id} as documents/raw JSON with no

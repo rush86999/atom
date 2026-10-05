@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -38,23 +38,44 @@ export const KnowledgeCommandCenter: React.FC = () => {
     const { data: session } = useSession();
     const workspaceId = (session as any)?.user?.workspace_id || 'default';
 
-    // WebSocket for Real-Time Refreshes
-    const { lastMessage, isConnected } = useWebSocket({
+    // WebSocket for Real-Time Refreshes.
+    //
+    // Frames are read from the socket's `onMessage` listener rather than the
+    // `lastMessage` state slot. That slot is ONE slot: a burst of frames inside
+    // a single render commit produces one commit, so an effect keyed on it sees
+    // only the newest frame and the rest are dropped. `urgent_alert` is exactly
+    // the frame that must not be dropped — losing one means a critical system
+    // alert never surfaces. The in-flight guard keeps a burst of sync notices
+    // from becoming one refetch per frame.
+    const { isConnected, onMessage } = useWebSocket({
         initialChannels: ['platform_status', 'communication_stats']
     });
+    const alertRefreshInFlight = useRef(false);
 
     // Listen for real-time critical alerts and sync completions
-    useEffect(() => {
-        if (!lastMessage) return;
+    useEffect(() => onMessage((msg: any) => {
+        if (!msg) return;
 
-        if (lastMessage.type === 'urgent_alert') {
-            toast.error(lastMessage.data?.message || 'Critical system alert', { duration: 5000 });
-            refresh();
-        } else if (lastMessage.type === 'status_update') {
+        if (msg.type === 'urgent_alert') {
+            // An alert always surfaces, even mid-refresh.
+            toast.error(msg.data?.message || 'Critical system alert', { duration: 5000 });
+            if (alertRefreshInFlight.current) return;
+            alertRefreshInFlight.current = true;
+            void Promise.resolve(refresh()).finally(() => {
+                alertRefreshInFlight.current = false;
+            });
+        } else if (msg.type === 'status_update') {
+            // Notify FIRST, unconditionally — see the note above. A toast is
+            // cheap and per-frame; the refetch is expensive and idempotent, so
+            // only the refetch is guarded.
             toast.info('Intelligence sync complete. Refreshing data...');
-            refresh();
+            if (alertRefreshInFlight.current) return;
+            alertRefreshInFlight.current = true;
+            void Promise.resolve(refresh()).finally(() => {
+                alertRefreshInFlight.current = false;
+            });
         }
-    }, [lastMessage, refresh]);
+    }), [onMessage, refresh]);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         const query = e.target.value;

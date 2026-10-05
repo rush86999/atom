@@ -1,0 +1,7 @@
+{"t": "2026-09-29T06:08:31-0400", "epoch": 1790676511.958446, "event": "driver_start", "phase": "2", "world": "cand_79b2a4103", "pid": 70489}
+{"t": "2026-09-29T06:08:32-0400", "epoch": 1790676512.1348999, "event": "skip_phase", "phase": 1, "reason": "--phase 2 standalone"}
+{"t": "2026-09-29T06:08:32-0400", "epoch": 1790676512.140636, "event": "armed", "session": "f09-dlv-bce44d92", "lease_s": 90.0, "interval_s": 5.0, "barrier": "continuation_after_claim"}
+{"t": "2026-09-29T06:08:44-0400", "epoch": 1790676524.694207, "event": "launched", "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/cand_79b2a4103/runs/run-119c838071a8", "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/cand_79b2a4103/runs/run-119c838071a8/data/atom.db", "pid": 70501}
+{"t": "2026-09-29T06:08:44-0400", "epoch": 1790676524.703928, "event": "stall_armed", "seconds": 40, "first_n": 1}
+{"t": "2026-09-29T06:11:47-0400", "epoch": 1790676707.639189, "event": "arrival_polled", "parked": false, "marker": null}
+{"t": "2026-09-29T06:11:47-0400", "epoch": 1790676707.651529, "event": "skip_phase", "phase": 3, "reason": "--phase 2"}

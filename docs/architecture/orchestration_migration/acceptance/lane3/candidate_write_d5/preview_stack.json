@@ -1,0 +1,246 @@
+{
+  "backend_health_identity": {
+    "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/backend_root/data/byok_keys.json",
+    "captured_at": "2026-09-28T10:35:43.119307+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/backend_root",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-311d05da9580/data/atom.db",
+    "dirty": true,
+    "dirty_digest": "56bc3abf2376",
+    "dirty_paths": [
+      ".gitignore",
+      "AGENTS.md",
+      "backend/core/chat_canvas_editor.py",
+      "backend/core/chat_transport.py",
+      "backend/core/execution_recovery.py",
+      "backend/core/models.py",
+      "backend/integrations/chat_routes.py",
+      "backend/main_api_app.py",
+      "backend/scripts/orchestration_acceptance/preview_server.py",
+      "backend/scripts/orchestration_acceptance/restart_durability.py",
+      "backend/scripts/orchestration_acceptance/run_isolated.py",
+      "backend/scripts/orchestration_acceptance/task_correction_acceptance.py",
+      "backend/tests/test_async_turn_continuation.py",
+      "backend/tests/test_chat_canvas_editor.py",
+      "backend/tests/test_covpush_w65b_sql_fusion_recovery.py",
+      "docs/architecture/orchestration_migration/MANUAL_TEST_QUICKSTART.md",
+      "docs/architecture/orchestration_migration/RESUME.md",
+      "docs/architecture/orchestration_migration/acceptance/preview/credential_isolation.py",
+      "docs/architecture/orchestration_migration/acceptance/preview/preview_launch.py",
+      "docs/architecture/orchestration_migration/acceptance/task_correction_results.json",
+      "frontend-nextjs/README_TEAM_CHAT.md",
+      "frontend-nextjs/components/Agents/AgentStudio.tsx",
+      "frontend-nextjs/components/Agents/AutoDevReviewPanel.tsx",
+      "frontend-nextjs/components/Agents/__tests__/AutoDevReviewPanel.test.tsx",
+      "frontend-nextjs/components/Collaboration/CollaborativeCursor.tsx",
+      "frontend-nextjs/components/GlobalChatWidget.tsx",
+      "frontend-nextjs/components/Teams/TeamChatPanel.tsx",
+      "frontend-nextjs/components/__tests__/GlobalChatWidget.test.tsx",
+      "frontend-nextjs/components/canvas/CanvasPanel.tsx",
+      "frontend-nextjs/components/canvas/MiniAppHarness.tsx",
+      "frontend-nextjs/components/chat/AgentWorkspace.tsx",
+      "frontend-nextjs/components/chat/__tests__/AgentWorkspace.test.tsx",
+      "frontend-nextjs/components/chat/canvas-host.tsx",
+      "frontend-nextjs/components/dashboards/CommunicationCommandCenter.tsx",
+      "frontend-nextjs/components/dashboards/FinanceCommandCenter.tsx",
+      "frontend-nextjs/components/dashboards/KnowledgeCommandCenter.tsx",
+      "frontend-nextjs/components/dashboards/ProjectCommandCenter.tsx",
+      "frontend-nextjs/components/dashboards/SalesCommandCenter.tsx",
+      "frontend-nextjs/components/dashboards/SupportCommandCenter.tsx",
+      "frontend-nextjs/components/dashboards/__tests__/CommunicationCommandCenter.test.tsx"
+    ],
+    "error": null,
+    "git_commit": "dba5aef89ffc",
+    "instance_id": "dba5aef89ffc-dirty.56bc3abf2376.25245.1790591743",
+    "pid": 25245,
+    "port": null,
+    "revision": "dba5aef89ffca40b6c0fad3c03231acd166af644",
+    "source_id": "dba5aef89ffc-dirty.56bc3abf2376",
+    "started_at": "2026-09-28T10:35:40.034729+00:00",
+    "untracked_paths": [
+      "backend/config/world_storage.json",
+      "backend/core/execution_ownership.py",
+      "backend/core/world_storage_guard.py",
+      "backend/scripts/orchestration_acceptance/archive_dest_only_evidence.py",
+      "backend/scripts/orchestration_acceptance/worlds_delete_audit.py",
+      "backend/scripts/orchestration_acceptance/worlds_migration_verify.py",
+      "backend/tests/core/test_archive_dest_only_evidence.py",
+      "backend/tests/core/test_world_storage_guard.py",
+      "backend/tests/core/test_world_storage_interlock.py",
+      "backend/tests/core/test_worlds_delete_audit.py",
+      "backend/tests/test_boot_recovery_not_gated_by_scheduler.py",
+      "backend/tests/test_execution_insert_path_audit.py",
+      "backend/tests/test_execution_ownership_and_crashed_keys.py",
+      "backend/tests/test_task_correction_routing.py",
+      "backend/tests/test_write_path_d0_negative_control.py",
+      "docs/architecture/orchestration_migration/FINISH_LANE3_DIRECTIVE_2026_09_27.md",
+      "docs/architecture/orchestration_migration/LANE_1_TASK_CORRECTION.md",
+      "docs/architecture/orchestration_migration/LANE_2_FRONTEND_STREAMING.md",
+      "docs/architecture/orchestration_migration/LANE_2_HANDOFF_2026_09_27.md",
+      "docs/architecture/orchestration_migration/LANE_3_ACCEPTANCE_AND_INTEGRATION.md",
+      "docs/architecture/orchestration_migration/RESUMED_AGENT_REVIEW_2026_09_27.md",
+      "docs/architecture/orchestration_migration/STATUS.md",
+      "docs/architecture/orchestration_migration/acceptance/WORLDS_RELOCATION_RUNBOOK.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/C16_BOUNDARY_TRACE.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/CASE_ACCOUNTING_C00_C26.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/LANE3_RESUME_2026_09_27_CASE2_BLOCKED.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/LANE_3_INVENTORY.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/PREVIEW_QUICKSTART_CANDIDATE.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/PREVIEW_STATUS.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/RELOCATION_PLAN.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/STORAGE_RECOVERY_REPORT.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/WRITE_PATH_HANDOFF.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/WRITE_PATH_STATUS.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/authorized_edit_probe.py",
+      "docs/architecture/orchestration_migration/acceptance/lane3/background_interrupt_probe.py",
+      "docs/architecture/orchestration_migration/acceptance/lane3/bg_interrupt_after_effect/background_interrupt.json",
+      "docs/architecture/orchestration_migration/acceptance/lane3/bg_interrupt_after_effect/planner_script.json",
+      "docs/architecture/orchestration_migration/acceptance/lane3/bg_interrupt_after_effect/shim_requests.jsonl",
+      "docs/architecture/orchestration_migration/acceptance/lane3/bg_interrupt_run1/background_interrupt.json",
+      "docs/architecture/orchestration_migration/acceptance/lane3/bg_interrupt_run1/planner_script.json"
+    ]
+  },
+  "backend_pid": 25245,
+  "backend_port": 8078,
+  "byok": {
+    "files_copied": [
+      "byok_keys.json",
+      "byok_config.json",
+      "byok_encryption_key"
+    ],
+    "files_missing": [],
+    "note": "encrypted store copied verbatim; no secret was read or printed",
+    "provider_ids_present": [
+      "deepseek",
+      "opencode-go",
+      "openrouter"
+    ]
+  },
+  "db_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-311d05da9580/data/atom.db",
+  "effective_flags": {
+    "ATOM_ASYNC_EDIT_PLAN_MODEL": "(unpinned)",
+    "ATOM_CHAT_REQUEST_DEADLINE_SECONDS": "(product default)",
+    "ATOM_CHAT_STREAMING": "true",
+    "ATOM_SHEET_DATASETS": "1",
+    "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+    "CHAT_FINALIZATION_M1": "1",
+    "CHAT_FINALIZATION_M2": "1",
+    "ENABLE_INGESTION_SYNC": "false",
+    "ENABLE_SCHEDULER": "false",
+    "credential_names_present": [
+      "EMBEDDING_PROVIDER",
+      "FASTEMBED_MODEL",
+      "OLLAMA_MODEL",
+      "OPENROUTER_API_KEY"
+    ]
+  },
+  "frontend_farm": null,
+  "frontend_intent": "api-only",
+  "frontend_pid": null,
+  "frontend_port": null,
+  "loaded_modules": {
+    "core.answer_presentation": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/answer_presentation.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/answer_presentation.py",
+      "sha256": "d875f731037a087b8ce636c372552659cc3551163271fef1ef4f608dea89fa15"
+    },
+    "core.chat_tool_planner": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/chat_tool_planner.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/chat_tool_planner.py",
+      "sha256": "9ffaad02421039b31f51d39f90d448dc3b61f41ef91fb668b8f4fe516e363243"
+    },
+    "core.chat_transport": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/chat_transport.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/chat_transport.py",
+      "sha256": "24cfc95606032364edcab0ba68d364bb7cae6eca5c9ca64d027ff3d6d8ac242e"
+    },
+    "core.execution_ownership": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/execution_ownership.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/execution_ownership.py",
+      "sha256": "547265c6dfdf52e1f6f69a153a6dcfea8049427996b4e218587d7b8821214180"
+    },
+    "core.execution_recovery": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/execution_recovery.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/execution_recovery.py",
+      "sha256": "494000bf4cbb39f5eff951598d0cbec25e332946ff11b231973e14e74707e39d"
+    },
+    "core.hybrid_retrieval_service": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/hybrid_retrieval_service.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/hybrid_retrieval_service.py",
+      "sha256": "f6ebea1853f57ee3a514d2f88c9714f5c1fda7ffc0a20ffe75956edb54915412"
+    },
+    "core.hybrid_search.documents_hybrid": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/hybrid_search/documents_hybrid.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/hybrid_search/documents_hybrid.py",
+      "sha256": "cf73d492676523bb69e7efc427fb2e3d2d8dbc2772cfd5655fbf05239938047b"
+    },
+    "core.identifier_search": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/identifier_search.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/identifier_search.py",
+      "sha256": "240687c5309bb7225fb0a5ad15fd86326d3c570eb031cac89c1c3a5c90865b14"
+    },
+    "core.memory_context_assembler": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/memory_context_assembler.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/memory_context_assembler.py",
+      "sha256": "901af64547f2d1a7eda5aad29d220e5b2f3806a66b72e3941de4f936fdbe6a8e"
+    },
+    "core.pending_file_task": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/pending_file_task.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/pending_file_task.py",
+      "sha256": "107bb419b8ee9114d52acd366837bb012deec0b39751b8407edee1ab1f65186f"
+    },
+    "core.task_lifecycle": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/task_lifecycle.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/task_lifecycle.py",
+      "sha256": "a49d529dc69362e9d238d8db0c40c6519af1bf45095f87286ac76b60de0738c4"
+    },
+    "core.workbook_read_artifact": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/workbook_read_artifact.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/core/workbook_read_artifact.py",
+      "sha256": "c38df2e437f6b4d3f9ad514df1aae9b9e6d912bdfe3e6fff44e813c2e13a1796"
+    },
+    "integrations.chat_orchestrator": {
+      "import_error": "PermissionError: [Errno 13] Permission denied: '/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backe",
+      "import_ok": false,
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/integrations/chat_orchestrator.py",
+      "sha256": "fced25c3824a59a203b5f0859d1e7814f7647344aa5f933a5a7a11373a6a29fd"
+    },
+    "integrations.chat_routes": {
+      "import_error": "PermissionError: [Errno 13] Permission denied: '/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backe",
+      "import_ok": false,
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/integrations/chat_routes.py",
+      "sha256": "cc8eebe866c8348e67f7caa4ff31c458c9ab47b23d23a3e01336203a046f4fc0"
+    },
+    "main_api_app": {
+      "import_error": "PermissionError: [Errno 13] Permission denied: '/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backe",
+      "import_ok": false,
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/main_api_app.py",
+      "sha256": "004e3638a739c74454d9ae1fa07f56473ac6b9ef9986b0442f5b811161f215c0"
+    },
+    "tools.drive_tool": {
+      "import_ok": true,
+      "imported_from": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/tools/drive_tool.py",
+      "path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/code/backend/tools/drive_tool.py",
+      "sha256": "a033c7b42531eba1d2f2409b6dd7e0d814445ae149cb7fb5387728f56e02515a"
+    }
+  },
+  "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined/runs/run-311d05da9580",
+  "seatbelt": false,
+  "seatbelt_note": "preview requires real model egress; isolation is at the data boundary. See module docstring.",
+  "source_snapshot_sha256": "code_snapshot_sha256=eb20ce267c77304585f6893b9cadcf9142ef6e0d71f3111b7385d5fe85a26e58",
+  "started_at": "2026-09-28T06:35:43-0400",
+  "stopped_at": "2026-09-28T06:36:04-0400",
+  "world": "write_combined",
+  "world_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/write_combined"
+}

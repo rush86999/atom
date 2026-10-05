@@ -234,6 +234,33 @@ async def upload_document(
                 status_code=413,
             )
 
+        # 0. Materialize the SQL-queryable sheet datasets BEFORE parsing —
+        # fire-and-forget, exactly like the storage-read path (2026-10-01
+        # three-domain live finding: an UPLOADED workbook ingested as a
+        # document but never entered the sheet-datasets catalog, so the
+        # named-file reader answered 'not present in the catalogued file
+        # index' for a file the user had JUST uploaded — the 2026-09-07
+        # 'two reads, zero datasets' class, on the upload surface).
+        if file_ext in ("xlsx", "xls", "xlsm", "csv"):
+            try:
+                from core.sheet_dataset_service import (
+                    ensure_sheet_dataset_background,
+                    sheet_datasets_enabled,
+                )
+
+                if sheet_datasets_enabled():
+                    ensure_sheet_dataset_background(
+                        content_bytes,
+                        file_name=filename,
+                        source="upload",
+                        user_id=str(current_user.id) if current_user else None,
+                        workspace_id=ws_id or "default",
+                        external_id=None,
+                    )
+            except Exception as ds_err:  # noqa: BLE001 — never block upload
+                logger.warning(
+                    f"sheet datasets: upload scheduling failed for {filename}: {ds_err}")
+
         # 1. Parse content using robust parser
         content = await DocumentParser.parse_document(content_bytes, file_ext, filename)
         

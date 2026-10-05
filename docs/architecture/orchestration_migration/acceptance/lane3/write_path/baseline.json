@@ -1,0 +1,37 @@
+{
+  "schema": "lane3-write-path-baseline-v1",
+  "frozen_at": "2026-09-27T15:24:48-0400",
+  "purpose": "scoped baseline for the D0/D1/D3/D5/D4 write-path fix. Records only the files that fix will touch, so the diff can be shown to contain nothing else from the 90 dirty paths.",
+  "scope": [
+    "backend/integrations/chat_orchestrator.py",
+    "backend/core/chat_canvas_editor.py",
+    "backend/core/task_lifecycle.py",
+    "backend/core/async_turn_continuation.py",
+    "backend/tools/canvas_crud_tool.py"
+  ],
+  "files": {
+    "backend/integrations/chat_orchestrator.py": {
+      "sha256": "0e78a44d5be2824f96db472c7009b4fab7cb3d522366627b52c9361cc1787b1f",
+      "bytes": 808393
+    },
+    "backend/core/chat_canvas_editor.py": {
+      "sha256": "60fc8585e63b112251f6dd8f7e8e069085ef8f349953a0e70f319a9fd575d0bc",
+      "bytes": 141997
+    },
+    "backend/core/task_lifecycle.py": {
+      "sha256": "a49d529dc69362e9d238d8db0c40c6519af1bf45095f87286ac76b60de0738c4",
+      "bytes": 91756
+    },
+    "backend/core/async_turn_continuation.py": {
+      "sha256": "13bdf668cba7832bb0064e2f257f7164a9a32fc851145d0506406cb9cb8c0b46",
+      "bytes": 54289
+    },
+    "backend/tools/canvas_crud_tool.py": {
+      "sha256": "165654770b5dd5bb40474bdb6f4865c19a23d2af2a56085d1604eccac8a9c63c",
+      "bytes": 55134
+    }
+  },
+  "dirty_paths_total": 90,
+  "head": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+  "note": "no commit is made by this tool; a scoped commit of these paths is available on request"
+}

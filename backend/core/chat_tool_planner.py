@@ -1197,6 +1197,14 @@ async def plan_tool_use(
         response_model=ToolPlan,
         system_instruction="You return only the requested JSON object.",
     )
+    # PLANNING PROVENANCE (job-work ledger, 2026-10-04): how this plan came
+    # to be — first-pass success, or RECOVERED after a planner failure
+    # (repair pass, deterministic rung, escalation). The execution seam
+    # records this on the operation so a failure the fallback machinery
+    # recovered is ATTEMPT HISTORY, never a final not_dispatched verdict.
+    plan_meta = {"source": "structured", "recovered": False}
+    if plan is None:
+        plan_meta["source"] = "unavailable"
     # EXPLICIT-RESEARCH FLOOR: a message that explicitly instructs web
     # research must END in a web tool whenever web is configured — whether
     # the first pass declined, failed, or validly routed somewhere else
@@ -1209,6 +1217,8 @@ async def plan_tool_use(
             or (plan.service or "") not in ("web_search", "web_fetch")):
         plan = await _escalate_declined_web_research(
             llm_service, plan, connected, catalog, history, message)
+        if plan is not None:
+            plan_meta.update(source="web_escalation", recovered=True)
     if plan is None:
         return None
     if plan.use_tool:
@@ -1247,6 +1257,7 @@ async def plan_tool_use(
                     f"tool planner: LLM repair -> "
                     f"{repaired.service}.{repaired.intent}")
                 plan = repaired
+                plan_meta.update(source="service_repair", recovered=True)
             elif repaired and not repaired.use_tool:
                 # The repair pass looked at the context and concluded no
                 # tool can help — honor that instead of forcing memory.
@@ -1264,6 +1275,7 @@ async def plan_tool_use(
                     "always-available memory search")
                 plan.service = "memory"
                 plan.intent = "search"
+                plan_meta.update(source="memory_rung", recovered=True)
                 if not (plan.query or "").strip():
                     plan.query = message[:120]
             else:
@@ -1322,6 +1334,7 @@ async def plan_tool_use(
                     f"tool planner: provenance repair -> "
                     f"{repaired.service}.{repaired.intent}")
                 plan = repaired
+                plan_meta.update(source="provenance_repair", recovered=True)
             else:
                 terms = (
                     _quoted_content_phrases(message)
@@ -1333,6 +1346,7 @@ async def plan_tool_use(
                 plan.service, plan.intent = "memory", "search"
                 plan.query = (terms[0] if terms else message[:120])
                 plan.reason = "provenance floor: quoted wording lives in ingested mail"
+                plan_meta.update(source="provenance_floor", recovered=True)
 
         # REQUEST-RELEVANCE FLOOR (RCA 2026-09-17 finding 2, the replan
         # arm). Runs BEFORE execution, upstream of the consumption-side
@@ -1390,6 +1404,7 @@ async def plan_tool_use(
                     f"{repaired.service}.{repaired.intent} "
                     f"query={repaired.query!r}")
                 plan = repaired
+                plan_meta.update(source="relevance_repair", recovered=True)
             elif repaired is not None and not repaired.use_tool:
                 # The corrective pass looked at the CURRENT request and
                 # concluded no tool can help — the same contract as the
@@ -1419,6 +1434,17 @@ async def plan_tool_use(
             plan.relevance_verdict, plan.relevance_basis = (
                 _plan_relevance_basis(plan.query or "", message, history,
                                       extra_topic=_canvas_topic))
+    # PLANNING PROVENANCE: the meta rides the plan object to the execution
+    # seam (never parsed from logs). setdefault: an executor may have
+    # already stamped _result_meta for its own purposes.
+    try:
+        _meta = getattr(plan, "_result_meta", None)
+        if not isinstance(_meta, dict):
+            _meta = {}
+            plan._result_meta = _meta
+        _meta.setdefault("planning", plan_meta)
+    except Exception:  # noqa: BLE001 — provenance must not break the plan
+        pass
     return plan
 
 
@@ -6307,9 +6333,9 @@ async def _datasets_named_file_block(
     )
 
     item_tokens = _resolve_active_items(query, context, candidate_probe_tokens)
-    # IDENTITY-SHAPE FILTER ON MESSAGE-MINED ITEMS (2026-10-01 live
-    # finding, T2 of the consistency run): an assertion like 'no. 381 is
-    # on Tennsmith sheet under row 338' mined THREE items — 381 (real,
+    # IDENTITY-SHAPE FILTER ON THE ITEM SET (2026-10-01 live finding, T2
+    # of the consistency run): an assertion like 'no. 381 is on Tennsmith
+    # sheet under row 338' mined THREE items — 381 (real,
     # identifier-prefixed), 'Tennsmith' (the SHEET NAME), and '338' (the
     # ROW NUMBER) — so the answer carried junk rows for the sheet and
     # the row. Generic rules, same family as the canvas extractor:
@@ -6317,29 +6343,30 @@ async def _datasets_named_file_block(
     #       not an item;
     #   (b) a bare number that follows 'row'/'R' in the message is a
     #       row locator, not an item;
-    #   (c) otherwise: identifier-prefixed, alnum-mixed, or >=4 digits.
+    #   (c) otherwise the ITEM itself must be code-shaped.
+    # SHAPE IS JUDGED ON THE ITEM, NOT ON PRESENCE IN THE TURN TEXT
+    # (2026-10-01 regression): the first version of this filter kept
+    # only items the current message restates — which wiped every item
+    # the reader did NOT mine from the ask: the stored objective's
+    # inherited set ('check the other machinery…' carries
+    # ['381','U-22','622','SLE24-16','1624','GSL48-16'], the ask names
+    # none of them → out=[]) and the probe-fallback tokens, leaving the
+    # read nothing to search (measured: per-item tables rendered empty).
+    # Caller-supplied requested/revised targets are additionally trusted
+    # outright — durable objective state, the same rule
+    # _named_file_targets documents ("trusted and never filtered").
+    _id_trusted = {
+        re.sub(r"[^0-9a-z]+", "", str(v).strip().lower())
+        for v in [
+            *((context or {}).get("requested_targets") or []),
+            *((context or {}).get("revised_targets") or []),
+        ]
+        if str(v).strip()
+    }
     try:
         import re as _id_re
 
-        # CODE-SHAPE KEEP RULE (2026-10-01, PEXTO finding): the canvas
-        # extractor's digit requirement dropped brand-word subjects —
-        # 'PEXTO' in 'the PEXTO 888 shearmaker' is a code-shaped token
-        # (capitalized, >=4 chars) even without a digit. Keep rule here:
-        # has a digit (>=3 chars), OR capitalized alpha >= 4 chars.
         _id_whole = " ".join(v for v in (query, msg_text) if v)
-        _id_keep = set()
-        for _id_t in _id_re.findall(
-                r"\b[A-Za-z0-9][A-Za-z0-9./&-]*\b",
-                " ".join(v for v in (query, msg_text) if v)):
-            if len(_id_t) < 3 or _id_re.fullmatch(
-                    r"\d{1,3}", _id_t):
-                continue
-            if _id_re.search(r"\d", _id_t) or (
-                    _id_t[:1].isupper() and _id_t.isalpha()
-                    and len(_id_t) >= 4):
-                _id_low_k = _id_t.lower()
-                if _id_low_k not in _id_keep:
-                    _id_keep.add(_id_low_k)
         _id_sheets = {str(x).strip().lower() for x in (sheet_names or [])}
         _id_rownums = {
             m.group(1).lower()
@@ -6347,35 +6374,37 @@ async def _datasets_named_file_block(
                 r"\brow\s+(\d{1,6})\b", _id_whole,
                 _id_re.IGNORECASE)}
         _id_filtered = []
+        try:
+            from core.workbook_read_artifact import identity_shaped_item
+        except Exception:  # noqa: BLE001 — fallback keeps inline rule
+            identity_shaped_item = None
         for _id_t in item_tokens:
             _id_low = str(_id_t).strip().lower()
             if _id_low in _id_sheets or _id_low in _id_rownums:
                 continue
-            if _id_low in _id_keep or any(
-                    str(_id_t).lower() == str(_id_k)
-                    for _id_k in _id_keep):
+            if _id_low in _id_trusted or re.sub(
+                    r"[^0-9a-z]+", "", _id_low) in _id_trusted:
                 _id_filtered.append(_id_t)
                 continue
-            # prefixed forms like 'No. 381' extract as '381' — the
-            # identifier prefix in the message is the keep-signal
-            if _id_re.search(
-                    r"\b(?:no\.?|model|sku|part|item|code|m/n|p/n|ref)\.?\s*"
-                    + _id_re.escape(str(_id_t))
-                    + r"\b", _id_whole, _id_re.IGNORECASE):
+            # CODE-SHAPE KEEP RULE, judged per item via the one shared
+            # predicate (2026-10-01, PEXTO finding): a word with a digit
+            # >=3 chars ('381', 'SLE24-16') or a capitalized alpha >=4
+            # ('PEXTO'; 'Manual Flanger' via its capitalized word). Bare
+            # <=2-digit numerics and lowercase prose drop.
+            _shaped = (
+                identity_shaped_item(_id_t)
+                if identity_shaped_item is not None else any(
+                    (len(w) >= 3 and _id_re.search(r"\d", w))
+                    or (w[:1].isupper() and w.isalpha() and len(w) >= 4)
+                    for w in str(_id_t).split()))
+            if _shaped:
                 _id_filtered.append(_id_t)
         logger.info(
-            "[item-filter] in=%r keep=%r sheets=%r rownums=%r out=%r",
-            list(item_tokens), sorted(_id_keep), sorted(_id_sheets)[:6],
+            "[item-filter] in=%r sheets=%r rownums=%r out=%r",
+            list(item_tokens), sorted(_id_sheets)[:6],
             sorted(_id_rownums), _id_filtered)
-        if _id_filtered:
+        if _id_filtered or _id_sheets or _id_rownums:
             item_tokens = _id_filtered
-        elif item_tokens and not _id_keep and not _id_sheets:
-            pass  # nothing learned; keep the original set
-        elif not _id_filtered and _id_keep:
-            item_tokens = [
-                t for t in item_tokens
-                if str(t).strip().lower() in {
-                    str(k).strip().lower() for k in _id_keep}]
     except Exception as _id_err:  # noqa: BLE001 — filter is advisory
         logger.debug("item identity filter skipped: %r", _id_err)
     # REFERENCE-RECOGNITION GATE (2026-09-30) — ONE decision point for
@@ -6747,6 +6776,44 @@ async def _datasets_named_file_block(
                             _source_ref_names.append(_cand["possessor"])
             except Exception:  # noqa: BLE001 — refinement is optional
                 _source_ref_names = []
+            # CROSS-CONVERSATION WORKBOOK BINDINGS (2026-10-01, the
+            # cross-session memory gap): a user-confirmed row is a fact
+            # about the WORKBOOK revision, not one chat. The session/task
+            # carriers are empty on a FRESH conversation's first read, so
+            # the merge happens HERE — after the reader resolved the
+            # file (content_hash known), before the scan pins candidates.
+            # Both scopes required (workspace AND revision), matching the
+            # orchestrator-side gate; the reader itself still honors only
+            # bindings whose content_hash equals this revision's.
+            def _workbook_binding_disambiguation():
+                dis = dict((context or {}).get("disambiguation") or {})
+                try:
+                    from core import dialogue_state as _ds
+
+                    _ws = (context or {}).get("workspace_id")
+                    if (not _ws or not prov.get("content_hash")
+                            or not item_tokens):
+                        return dis
+                    extra = _ds.workbook_bindings(
+                        _ws, prov.get("content_hash"), list(item_tokens))
+                    if not extra:
+                        return dis
+                    merged = list(dis.get("resolved_bindings") or [])
+                    have = {
+                        (str(b.get("item") or "").lower(),
+                         str(b.get("sheet") or "").lower(), b.get("row"))
+                        for b in merged if isinstance(b, dict)}
+                    for b in extra:
+                        _k = (str(b.get("item") or "").lower(),
+                              str(b.get("sheet") or "").lower(),
+                              b.get("row"))
+                        if _k not in have:
+                            merged.append(b)
+                    dis["resolved_bindings"] = merged[:64]
+                except Exception:  # noqa: BLE001 — memory tier is optional
+                    pass
+                return dis
+
             workbook_read = await asyncio.to_thread(
                 inspect_dataset_entries,
                 file_entries,
@@ -6762,7 +6829,7 @@ async def _datasets_named_file_block(
                 content_hash=prov["content_hash"],
                 content_hash_algorithm="sha1",
                 ingested_at=prov["ingested_at"],
-                disambiguation=(context or {}).get("disambiguation"),
+                disambiguation=_workbook_binding_disambiguation(),
                 attribute_texts=_brand_texts,
                 source_reference_names=_source_ref_names,
             )
@@ -7107,7 +7174,8 @@ async def _datasets_named_file_block(
 
 
 async def _datasets_search_block(
-    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
+    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]],
+    plan: Optional["ToolPlan"] = None,
 ) -> Optional[str]:
     """Cross-file content probe over the dataset catalog, formatted as a LIVE
     TOOL RESULTS block. The `datasets` service leg of execute_tool_plan: lets
@@ -7146,6 +7214,30 @@ async def _datasets_search_block(
     )
     files_searched = result.get("files_searched", 0) if result else 0
     hits = (result or {}).get("hits") or []
+    # STRUCTURED RECEIPT (round 36 reviewer correction 4): this branch
+    # previously returned ONLY prose — the ledger read 2,641 chars of text
+    # with no execution receipt and could not distinguish a real empty
+    # search from junk name-matches. The receipt records what the sweep
+    # actually did: scope (files searched), hits, matched files, tokens.
+    if plan is not None:
+        try:
+            _meta = getattr(plan, "_result_meta", None)
+            if not isinstance(_meta, dict):
+                _meta = {}
+                plan._result_meta = _meta
+            _meta["datasets_search"] = {
+                "files_searched": int(files_searched or 0),
+                "hits": len(hits),
+                "tokens_tried": [
+                    str(t)[:60]
+                    for t in ((result or {}).get("tokens_tried") or [])][:8],
+                "matched_files": sorted({
+                    str((h or {}).get("file") or (h or {}).get("source")
+                        or "")[:120] for h in hits if h})[:12],
+                "query": str(query)[:200],
+            }
+        except Exception:  # noqa: BLE001 — receipt is additive
+            pass
     if hits:
         lines = [
             f"LIVE TOOL RESULTS (datasets.search, query='{query}') — every "
@@ -8509,6 +8601,21 @@ async def execute_tool_plan(
                         exclude_file=_vt_exclude,
                         user_id=(context or {}).get("user_id") or user_id,
                         workspace_id=(context or {}).get("workspace_id"))
+                    # STRUCTURED RECEIPT (round 39): per-item document
+                    # bindings — which cataloged documents carry each traced
+                    # item. The ledger reads this to record item coverage
+                    # and the exact next read (item -> [documents]).
+                    try:
+                        _vt_meta = getattr(plan, "_result_meta", None)
+                        if not isinstance(_vt_meta, dict):
+                            _vt_meta = {}
+                            plan._result_meta = _vt_meta
+                        _vt_meta["value_trace"] = {
+                            str(k)[:80]: [str(d)[:120] for d in (v or [])][:6]
+                            for k, v in (_vt_res or {}).items()
+                        } if isinstance(_vt_res, dict) else {}
+                    except Exception:  # noqa: BLE001 — receipt is additive
+                        pass
                     _vt_out = _vt_lines(_vt_res)
                     if _vt_out:
                         return _with_grounding(
@@ -8558,8 +8665,32 @@ async def execute_tool_plan(
         block = await _datasets_named_file_block(
             user_id, query, context, plan=plan)
         if block is None:
-            block = await _datasets_search_block(user_id, query, context)
+            block = await _datasets_search_block(
+                user_id, query, context, plan=plan)
         if block:
+            # RECEIPT GUARANTEE (round 40 reviewer correction 2): every
+            # datasets return carries a structured receipt. The named-file
+            # paths that produce prose without storage_read meta are
+            # marked explicitly — the ledger must never mistake an
+            # unexplained text block for evidence, and partial/error
+            # reads stay visible as such.
+            try:
+                _meta = getattr(plan, "_result_meta", None)
+                if not isinstance(_meta, dict) or not any(
+                        k in _meta for k in ("storage_read", "file_read",
+                                             "structured_result",
+                                             "datasets_search")):
+                    if not isinstance(_meta, dict):
+                        _meta = {}
+                        plan._result_meta = _meta
+                    _meta["datasets_prose_only"] = {
+                        "query": str(query)[:200],
+                        "note": ("block returned without a structured "
+                                 "receipt — coverage unknown, not "
+                                 "established"),
+                    }
+            except Exception:  # noqa: BLE001 — receipt is additive
+                pass
             return block
         return _with_grounding(
             f"LIVE TOOL RESULTS (datasets.search, query='{query}'): "
@@ -8660,6 +8791,23 @@ async def execute_tool_plan(
                 t.strip('"$€£¥₹₩₽₺%,;:()') for t in query.split()
                 if len(t.strip('"$€£¥₹₩₽₺%,;:()')) >= 2
             ][:3] or [query]
+
+            # ITEM-CODE TOKENS (2026-10-03, the taught-employee job): the
+            # outcome-resolved codes ride the query TAIL ("... search for:
+            # GSL24-16, SLE16-8") — past the first-3 cut — and they are the
+            # SELECTIVE terms (a hyphenated model code matches one thread;
+            # the prose words match hundreds). Identifier-shaped tokens
+            # (letters AND digits, any domain's code convention) join the
+            # per-term pool so the search covers what the user is actually
+            # asking about.
+            for _t in query.split():
+                _tc = _t.strip('"$€£¥₹₩₽₺%,;:()')
+                if len(_tc) < 4 or _tc in tokens:
+                    continue
+                if re.search(r"[A-Za-z]", _tc) and re.search(r"\d", _tc):
+                    tokens.append(_tc)
+                    if len(tokens) >= 6:
+                        break
 
             async def _collect() -> Dict[str, Dict[str, Any]]:
                 """Every live-search form, merged into one ranking pool.
@@ -8940,6 +9088,62 @@ async def execute_tool_plan(
             graph_listing = "\n".join(_graph_line(e) for e in emails[:6])
             if graph_listing:
                 listing = (listing + "\n" if listing else "") + graph_listing
+
+            # AUTO-READ (2026-10-04, thread-depth directive): preview-only
+            # and excerpt-truncated hits used to cost a SECOND turn ("plan
+            # outlook again with intent=read and that message_id") — and the
+            # follow-up often never happened, leaving quoted-thread pricing
+            # unretrieved. The search now chains bounded full-body reads for
+            # its own top truncation-affected hits: same machinery as the
+            # read path (per-id outcomes, honest elision markers), capped at
+            # 2 hits × the read body cap. depth of the thread stops being
+            # the agent's problem: the bodies arrive with the search.
+            try:
+                _auto_ids = [
+                    e.get("id") for e in emails[:3]
+                    if e.get("id") and (
+                        e.get("id") not in full_bodies
+                        or (full_bodies.get(e.get("id")) or {}).get(
+                            "truncated"))
+                ][:2]
+                if _auto_ids:
+                    _auto = await _outlook_read_by_ids(
+                        user_id, _auto_ids, _OUTLOOK_READ_BODY_CAP,
+                        budget_seconds=20.0, context=context,
+                    )
+                    _auto_lines: List[str] = []
+                    _auto_outcomes: List[Dict[str, Any]] = []
+                    for _aid in _auto_ids:
+                        _res = _auto.get(_aid) or {}
+                        _outcome = _res.get("outcome")
+                        if _outcome in ("full", "excerpt"):
+                            full_bodies[_aid] = {
+                                "text": _res.get("text") or "",
+                                "truncated": _outcome == "excerpt",
+                            }
+                            _mark = ("FULL BODY" if _outcome == "full"
+                                     else "FULL BODY (EXCERPT — middle elided)")
+                            _auto_lines.append(
+                                f"- AUTO-READ OK ({_mark}) | "
+                                f"message_id: {_aid}\n{_res.get('text') or ''}")
+                            _auto_outcomes.append(
+                                {"id": _aid, "outcome": _outcome})
+                        else:
+                            _auto_lines.append(
+                                f"- AUTO-READ FAILED | {_aid[:24]}… — "
+                                f"{_res.get('detail') or _outcome}")
+                    if _auto_lines:
+                        listing += (
+                            "\nAUTO-READ (full thread content pulled for the "
+                            "truncated/preview-only hits — quoted and "
+                            "forwarded messages included; use these bodies, "
+                            "not the previews above):\n"
+                            + "\n".join(_auto_lines))
+                        if _auto_outcomes:
+                            plan._result_meta.setdefault(
+                                "read_outcomes", []).extend(_auto_outcomes)
+            except Exception as _auto_err:  # noqa: BLE001 — additive depth
+                logger.debug(f"search auto-read skipped: {_auto_err}")
             # HONEST COMPLETION STATE (2026-09-22): rendered hits without a
             # full body are NOT read. Structured handles travel via plan
             # result metadata (never parsed back out of this prose — bodies

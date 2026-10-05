@@ -398,28 +398,37 @@ def _rank_candidates(
     candidates: List[Dict[str, Any]],
     requested_fields: Optional[Sequence[str]] = None,
     requested_sheets: Optional[Sequence[str]] = None,
+    item: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Stable partition: answerable candidates first, then sheet scope, then
-    scan order.
+    """Stable partition: answerable candidates first, then sheet scope,
+    then identity fidelity, then scan order.
 
-    Two precedence axes, in this order:
+    Three precedence axes, in this order:
 
     1. ANSWERABILITY. A candidate whose requested value is a real figure
        leads; blank/zero/unavailable cannot answer however well its identity
        matches.
     2. SHEET SCOPE. Within each of those buckets, a candidate on a sheet the
        reader named leads.
+    3. IDENTITY FIDELITY (2026-10-02, the comma-form ordering defect):
+       within each scope bucket, a candidate whose MATCHED IDENTITY CELL
+       equals the requested item (comma-normalized — the sheet displays
+       "56,100" while the item is 56100) leads over fragment/containment
+       matches ("56", "100" matched inside other text). Fidelity is a
+       DISPLAY order only: nothing is eliminated, ambiguity is still
+       reported, and the confirmation ask still stands.
 
     The axis order is deliberate: answerability decides what can REPLY, so it
     outranks a positional preference. Scope then decides what the reader gets
-    to SEE among rows that can all reply.
+    to SEE among rows that can all reply. Fidelity then puts the row the
+    user's own tokens spell out first among equals.
 
     Stable by construction (one pass per axis, no sort key), so candidates
-    that are equally answerable and equally in-scope keep the reader's order
-    and no existing rendering changes. Neither axis ELIMINATES: every input
-    candidate is still returned, so ambiguity is still reported, the
-    confirmation ask still stands, and the structured artifact still retains
-    the full set.
+    that are equally answerable, equally in-scope and equally faithful keep
+    the reader's order and no existing rendering changes. No axis
+    ELIMINATES: every input candidate is still returned, so ambiguity is
+    still reported, the confirmation ask still stands, and the structured
+    artifact still retains the full set.
     """
     scoped_keys = {_sheet_scope_key(s) for s in (requested_sheets or [])}
     scoped_keys.discard("")
@@ -433,12 +442,35 @@ def _rank_candidates(
                 if _sheet_scope_key(_candidate_sheet(c)) not in scoped_keys]
         return named + rest
 
+    _want = str(item or "").strip().lower().replace(",", "")
+    _want = _want.replace("\u202f", "").replace("\xa0", "")
+
+    def _fidelity_first(bucket: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not _want or not bucket:
+            return bucket
+        exact: List[Dict[str, Any]] = []
+        rest: List[Dict[str, Any]] = []
+        for c in bucket:
+            refs = ((c.get("identity") or {}).get("references") or [])
+            cell_values = [
+                str((r or {}).get("value") or "")
+                .strip().lower().replace(",", "")
+                .replace("\u202f", "").replace("\xa0", "")
+                for r in refs
+                if isinstance(r, dict)
+                and str((r or {}).get("role") or "") == "matched_target"]
+            (exact if _want in cell_values else rest).append(c)
+        return exact + rest
+
     answering: List[Dict[str, Any]] = []
     silent: List[Dict[str, Any]] = []
     for candidate in candidates:
         (answering if _candidate_answers_request(candidate, requested_fields)
          else silent).append(candidate)
-    return _scope_first(answering) + _scope_first(silent)
+    return (
+        _fidelity_first(_scope_first(answering))
+        + _fidelity_first(_scope_first(silent))
+    )
 
 
 def _read_failure_clause(t: Dict[str, Any]) -> Optional[str]:
@@ -556,6 +588,20 @@ def present(*, requested_items: List[str], requested_fields: List[str],
     plain words instead of audit vocabulary.
     """
     lines: List[str] = []
+    # EMPTY-ITEM GUARD (2026-10-02 live, the bare-footer turns): a read
+    # that ran with an empty item set rendered as header + coverage
+    # footer with NO body — the user's question visibly unanswered with
+    # nothing to say it was unanswered. A record whose targets survived
+    # but whose requested_items were dropped (older record, broken
+    # inheritance) still knows the objective — render ITS items. If
+    # neither exists, the block says so explicitly below instead of
+    # rendering a silent empty shell.
+    if not requested_items:
+        requested_items = [
+            str((t or {}).get("item") or "").strip()
+            for t in (targets or [])
+        ]
+        requested_items = [i for i in requested_items if i]
     name = source.get("file_name") or "the workbook"
     saved = _human_date(source.get("saved_copy_date"))
     live_vs_saved = source.get("live_vs_saved") or "saved copy"
@@ -567,6 +613,8 @@ def present(*, requested_items: List[str], requested_fields: List[str],
         if saved:
             opening += f" (copy saved {saved})"
         lines.append(opening + ":")
+        if not requested_items:
+            lines.append(_no_items_resolved_line(name))
         lines.append("")
         lines.append("| item | result |")
         lines.append("|---|---|")
@@ -583,6 +631,8 @@ def present(*, requested_items: List[str], requested_fields: List[str],
         if saved:
             opening += f" (saved {saved})"
         lines.append(opening + ":")
+        if not requested_items:
+            lines.append(_no_items_resolved_line(name))
         # Scope receipt: the search was narrowed, and the user can see why.
         scope_bits = []
         for s in (requested_sheets or []):
@@ -683,6 +733,16 @@ def present(*, requested_items: List[str], requested_fields: List[str],
             "evidence_revision": evidence_revision,
             "requested_fields": list(requested_fields),
             "style": style}
+
+
+def _no_items_resolved_line(name: str) -> str:
+    """The both-empty case, stated instead of rendered as silence: the
+    read completed but resolved no items, so the block carries no
+    per-item rows and the reader needs the one-line way out."""
+    return ("No items were resolved from the request, so there is no "
+            "per-item result here — name the items to look up in "
+            f"{name} (for example '381, U-22'), or ask to repeat the "
+            "previous set.")
 
 
 def _unresolved_clause(source_failure: Optional[str]) -> str:
@@ -1331,7 +1391,7 @@ def _rank_candidates_with_receipt(
         return ranked, receipt
     except Exception:  # noqa: BLE001 — fail-open to identical direct ranking
         return _rank_candidates(candidate_list, requested_fields,
-                                requested_sheets), None
+                                requested_sheets, item=item), None
 
 
 def build_targets_from_scan(
@@ -1407,8 +1467,27 @@ def build_targets_from_scan(
                         vk = (col, basis, tv.get("display"))
                         if vk not in grp["seen"]:
                             grp["seen"].add(vk)
-                            grp["values"].append(
-                                {"col": col, "basis": basis, **tv})
+                            # FORMULA TRAVELS WITH THE VALUE (2026-10-03,
+                            # every-row availability): the sidecar formula
+                            # for this cell rides into the structured
+                            # target, so every downstream decision context
+                            # (editor data section, chain evidence, guards)
+                            # sees the workbook's own derivation.
+                            _fx = v.get("formula")
+                            _entry = {"col": col, "basis": basis, **tv}
+                            if _fx:
+                                _entry["formula"] = str(_fx)
+                            grp["values"].append(_entry)
+                    # THE ROW'S WHOLE FORMULA MAP (2026-10-03): cells the
+                    # request never selected still derive the row — the
+                    # candidate carries the map so any decision context
+                    # can reason about the computation.
+                    row_fx = ev.get("row_formulas") or {}
+                    if row_fx:
+                        merged = dict(grp.get("row_formulas") or {})
+                        merged.update(row_fx)
+                        grp["row_formulas"] = dict(
+                            list(merged.items())[:30])
                     alias = ev.get("matched_alias")
                     if alias and str(alias) not in aliases:
                         aliases.append(str(alias))
@@ -1479,7 +1558,10 @@ def build_targets_from_scan(
             item, [
                 {"ref": g["ref"], "values": list(g["values"]),
                  "identity": copy.deepcopy(
-                     g.get("identity") or _identity_block([]))}
+                     g.get("identity") or _identity_block([])),
+                 # THE ROW'S FORMULA MAP rides the candidate into the
+                 # structured target (every-row availability, 2026-10-03).
+                 "row_formulas": dict(g.get("row_formulas") or {})}
                 for g in row_groups.values()], requested_fields,
             requested_sheets)
         values: List[Dict[str, Any]] = []

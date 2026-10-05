@@ -1,0 +1,30 @@
+{
+ "generated_at": "2026-09-29T06:11:47-0400",
+ "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/cand_79b2a4103/runs/run-119c838071a8",
+ "foreign_interference": {
+  "foreign_sessions": [],
+  "detected": false
+ },
+ "export_binding": {
+  "code_archive_sha256": "64b44f297617b05046cc577501108f6ca2b9c3fc7b1cf99fec40d096f199b2a2",
+  "code_source": "git archive 79b2a41032c355d84dfd58229966d85a73a7d079 (immutable export, file-manifested, read-only)",
+  "world": "cand_79b2a4103",
+  "note": "manifest records code_archive_sha256 (git archive), not code_snapshot_sha256; filled 2026-09-29"
+ },
+ "results": [
+  {
+   "case": "F09A_running_server_expiry_recovery",
+   "status": "INVALID",
+   "checks": {
+    "scenario_invalid_not_run": false
+   },
+   "notes": [
+    "INVALID: no session-matched barrier arrival within 150s \u2014 the turn never parked at continuation_after_claim, so no kill was performed and nothing about recovery is claimed. A FAIL here would assert something untested."
+   ],
+   "details": {
+    "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/cand_79b2a4103/runs/run-119c838071a8",
+    "session": "f09-dlv-bce44d92"
+   }
+  }
+ ]
+}

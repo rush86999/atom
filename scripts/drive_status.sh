@@ -12,36 +12,61 @@
 # Run this whenever memory/RAG features error, backups stop appearing, or
 # Ollama/Docker misbehave. On drive-hosted layouts the overwhelmingly likely
 # cause is the drive being unplugged or not yet mounted after reboot/replug.
+#
+# It also reports ACCEPTANCE-WORLD storage (backend/data/acceptance_worlds),
+# which is drive-hosted independently of the memory store: worlds can live on
+# the external volume while atom_memory is still local, or vice versa. That
+# check is delegated to `core.world_storage_guard` — the same preflight every
+# world launcher runs — rather than reimplemented here, so the diagnostic and
+# the guard can never disagree about what "correct" means.
+#
+# LIMIT OF ANY STARTUP CHECK: this script, and the launcher preflight, can
+# only describe the state at the moment they run. Neither can protect a
+# world that is already running when the drive is unplugged. That is why
+# nothing in the guard retries or caches a verdict: an I/O error from a live
+# server stays a loud EIO/ENOENT instead of being smoothed over.
 
 set -u
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 DRIVE="${ATOM_EXTERNAL_DRIVE:-/Volumes/Seagate Portable Drive}"
 MEM_LINK="$REPO/backend/data/atom_memory"
+WORLDS="$REPO/backend/data/acceptance_worlds"
+GUARD_PY="$REPO/backend/venv314/bin/python"
 DRIVE_HOSTED=0
-if [ -L "$MEM_LINK" ] || [ -n "${ATOM_EXTERNAL_DRIVE:-}" ]; then
+if [ -L "$MEM_LINK" ] || [ -L "$WORLDS" ] || [ -n "${ATOM_EXTERNAL_DRIVE:-}" ]; then
     DRIVE_HOSTED=1
 fi
 FAIL=0
 
 ok()   { echo "  OK    $1"; }
 bad()  { echo "  FAIL  $1"; FAIL=1; }
+warn() { echo "  WARN  $1"; }
 
 echo "== External storage status =="
 echo
 
 echo "[0] Layout"
 if [ "$DRIVE_HOSTED" = "1" ]; then
-    ok "drive-hosted (memory store symlinked onto $DRIVE)"
+    ok "drive-hosted (memory store and/or acceptance worlds symlinked onto $DRIVE)"
+    echo
 else
     ok "local-only — no external drive configured (fresh-install default)"
-    echo "        -> Nothing to check; heavy data lives in $REPO/backend/data."
-    echo "        -> To host the store on an external volume: move backend/data/atom_memory"
-    echo "           there, symlink it back, and optionally set ATOM_EXTERNAL_DRIVE."
+    echo "        -> Nothing to check for memory/backups; heavy data lives in $REPO/backend/data."
+    echo "        -> To host it on an external volume: move the data directory there,"
+    echo "           symlink it back, and optionally set ATOM_EXTERNAL_DRIVE."
+    echo
+    # Worlds storage is checked in BOTH layouts: it can be drive-hosted while
+    # the memory store is still local. Do not exit before checking it.
+    . "$REPO/scripts/_drive_status_worlds.sh"
     echo
     echo "== Summary =="
-    echo "Local-only layout: all checks passed."
-    exit 0
+    if [ "$FAIL" -eq 0 ]; then
+        echo "Local-only layout: all checks passed."
+    else
+        echo "One or more checks FAILED — see the '->' notes above."
+    fi
+    exit "$FAIL"
 fi
 echo
 
@@ -99,6 +124,12 @@ if [ -f "$SETTINGS" ] && grep -q "Volumes" "$SETTINGS" 2>/dev/null; then
 else
     ok "not drive-hosted (no action needed)"
 fi
+echo
+
+# Worlds storage is independent of the memory store, so it is checked last
+# in the drive-hosted branch too — the same section the local-only branch
+# runs before exiting.
+. "$REPO/scripts/_drive_status_worlds.sh"
 echo
 
 echo "== Summary =="

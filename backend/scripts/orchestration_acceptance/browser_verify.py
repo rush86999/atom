@@ -328,6 +328,86 @@ SEQUENCE: List[Dict[str, Any]] = [
 STEPS: Dict[str, Dict[str, Any]] = {s_["id"]: s_ for s_ in SEQUENCE}
 
 
+def dismiss_first_run_modals(page: Any) -> Dict[str, Any]:
+    """Clear anything standing between the user and the composer.
+
+    A brand-new account lands on a "Welcome to Atom" onboarding wizard
+    (role=dialog, aria-modal) whose scrim is `fixed inset-0`, so it sits OVER
+    the chat composer: Playwright resolves the textarea, reports it visible and
+    stable, then refuses the click because the modal intercepts pointer events.
+    Every step of the sequence timed out on that click while the app itself was
+    healthy (2026-09-29, candidate 79b2a41032c3).
+
+    A real user dismisses it, so the driver does too: prefer a close control,
+    otherwise walk the wizard's own Next button to the end. Returns what it did
+    so the run records that the page was prepared rather than silently assumed.
+    """
+    out: Dict[str, Any] = {"attempted": True, "dismissed": [], "left_open": []}
+    for _ in range(6):
+        dlg = page.locator('[role="dialog"][aria-modal="true"]')
+        if not dlg.count():
+            break
+        text = ""
+        try:
+            text = (dlg.first.inner_text() or "")[:80].replace("\n", " ")
+        except Exception:
+            pass
+        clicked = False
+        for sel in ('[aria-label="Close"]', 'button[data-state="closed"]',
+                    'button:has-text("Skip")', 'button:has-text("Get started")',
+                    'button:has-text("Finish")'):
+            loc = dlg.first.locator(sel)
+            if loc.count():
+                try:
+                    loc.first.click(timeout=4000)
+                    out["dismissed"].append(text)
+                    clicked = True
+                    break
+                except Exception:
+                    continue
+        if not clicked:
+            nxt = dlg.first.locator('button:has-text("Next"), button:has-text("Continue")')
+            if nxt.count():
+                try:
+                    nxt.first.click(timeout=4000)
+                    clicked = True
+                except Exception:
+                    pass
+        if not clicked:
+            # No close and no Next: press Escape, which is what a user does.
+            try:
+                page.keyboard.press("Escape")
+                page.wait_for_timeout(600)
+                if page.locator('[role="dialog"][aria-modal="true"]').count():
+                    out["left_open"].append(text)
+                    break
+                out["dismissed"].append(text + " (via Escape)")
+                continue
+            except Exception:
+                out["left_open"].append(text)
+                break
+        page.wait_for_timeout(700)
+    try:
+        page.wait_for_selector('[data-testid="agent-chat-input"]', state="visible",
+                               timeout=15000)
+    except Exception:
+        pass
+    out["composer_clickable"] = _composer_clickable(page)
+    return out
+
+
+def _composer_clickable(page: Any) -> bool:
+    """Can the composer actually be clicked right now?"""
+    loc = page.locator('[data-testid="agent-chat-input"]').first
+    try:
+        if not loc.count():
+            return False
+        loc.click(timeout=4000)
+        return True
+    except Exception:
+        return False
+
+
 def send_via_ui(page: Any, text: str) -> None:
     """Type into the chat composer and submit, the way a user does."""
     box = None
@@ -403,6 +483,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         # so M03..M07 genuinely continue the same task.
         page.goto(f"{fe}/chat", wait_until="domcontentloaded")
         page.wait_for_timeout(6000)
+        results["first_run_modals"] = dismiss_first_run_modals(page)
+        print(f"first-run modals: {results['first_run_modals']}")
         for spec in SEQUENCE:
             name = spec["id"]
             if args.step != "all" and name != args.step:

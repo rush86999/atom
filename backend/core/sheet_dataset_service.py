@@ -1073,16 +1073,30 @@ def materialize_sheet_bytes_sync(
             return {"status": "skipped", "reason": "parquet_write_failed"}
 
         # Supersede every other active version of this file, then GC disk.
-        older = (
-            db.query(DatasetEntry)
-            .filter(
-                DatasetEntry.source_kind == "file",
+        # CONTENT-KEYED ENTRIES SUPERSEDE BY FILE NAME (2026-10-01
+        # three-domain live finding): uploads have no stable resource id,
+        # so each new byte-version gets a fresh 'sha1:' key — the exact-key
+        # filter never matched the previous version, BOTH stayed active,
+        # and the reader correctly refused the name as ambiguous after a
+        # simple re-upload. With a stable resource id (storage reads) the
+        # exact-key semantics are unchanged.
+        _version_filters = [
+            DatasetEntry.source_kind == "file",
+            DatasetEntry.status == "active",
+            DatasetEntry.content_hash != content_hash,
+        ]
+        if str(file_key).startswith("sha1:"):
+            _version_filters += [
+                DatasetEntry.file_name == file_name,
+                DatasetEntry.workspace_id == ws_id,
+            ]
+        else:
+            _version_filters += [
                 DatasetEntry.source == source,
                 DatasetEntry.external_id == file_key,
-                DatasetEntry.status == "active",
-                DatasetEntry.content_hash != content_hash,
-            )
-            .all()
+            ]
+        older = (
+            db.query(DatasetEntry).filter(*_version_filters).all()
         )
         new_ids = {r["id"] for r in registered}
         stale_paths: List[str] = []
@@ -2490,6 +2504,13 @@ async def answer_from_datasets(
                 con.close()
             out = out.astype(object).where(out.notna(), None)
             rows = out.to_dict(orient="records")
+            # SIDECAR-PRESENCE SIGNAL (2026-10-03, the every-row formula
+            # availability contract): an EMPTY formulas dict is ambiguous —
+            # "static workbook" or "sidecar never built". Only the latter
+            # is healable (the re-download's hash-match branch backfills
+            # it), so the result carries the sidecar's presence and the
+            # parquet path for the reverify trigger to check.
+            _fx = load_formulas_for_parquet(chosen_entry["parquet_path"])
             return {
                 "dataset_name": chosen_entry["dataset_name"],
                 "entity_name": chosen_entry["entity_name"],
@@ -2507,7 +2528,10 @@ async def answer_from_datasets(
                 # Cell->formula from the original workbook (sidecar written at
                 # materialization). Rendered as a FORMULAS footer so a "how is
                 # this computed?" turn cites real cells instead of guessing.
-                "formulas": load_formulas_for_parquet(chosen_entry["parquet_path"]),
+                "formulas": _fx,
+                "sidecar_present": _formula_sidecar_path(
+                    str(chosen_entry["parquet_path"])).exists(),
+                "parquet_path": str(chosen_entry["parquet_path"]),
                 "note": getattr(plan, "note", "") or "",
             }
 

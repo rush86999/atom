@@ -889,6 +889,63 @@ async def get_session_agent_trace(
         raise HTTPException(status_code=500, detail="Failed to retrieve agent trace")
 
 
+@router.get("/task/{session_id}")
+async def get_session_task_record(
+    session_id: str,
+    canvas_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """The durable job-work record for a chat session (2026-10-04
+    coordination-audit request — the Milestone-A gate reads "the task
+    ledger never engages", and until now no supported surface exposed
+    task records: the history API drops response data blocks and the
+    settle arms log failures only).
+
+    Read-only. Resolves the conversation's ACTIVE task; when the
+    conversation has none, an explicit ``?canvas_id=`` resolves the
+    canvas-bound task (the same scoping continuation uses — never 'the
+    user's latest conversation'). Returns the ``task_snapshot``
+    projection: open questions, next work, operations with execution
+    facts, authorization scope. Unknown sessions and task-less
+    conversations return ``{"task": None}`` — absence of a record is
+    itself the observable fact an acceptance gate needs.
+    """
+    try:
+        known = chat_orchestrator.conversation_sessions.get(session_id)
+        if known is not None and not _ensure_session_access(known, current_user):
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        from integrations.chat_orchestrator import _task_lifecycle_for
+        from core.task_lifecycle import task_snapshot
+
+        lifecycle = _task_lifecycle_for(
+            getattr(current_user, "tenant_id", None),
+            workspace_id or getattr(current_user, "workspace_id", None),
+        )
+        if lifecycle is None:
+            return {"success": True, "task": None,
+                    "note": "task lifecycle disabled "
+                            "(ATOM_TASK_LIFECYCLE_ENABLED)"}
+        record = None
+        try:
+            record = lifecycle.find_active_task(session_id)
+        except Exception:
+            record = None
+        if record is None and canvas_id:
+            try:
+                record = lifecycle.find_active_task_for_canvas(canvas_id)
+            except Exception:
+                record = None
+        return {"success": True, "session_id": session_id,
+                "task": task_snapshot(record) if record else None}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve task record for {session_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve task record")
+
+
 @router.get("/sessions")
 async def get_user_sessions(
     user_id: Optional[str] = "demo-user",
@@ -1899,6 +1956,23 @@ async def send_chat_message(
             "agent_id": getattr(request, "agent_id", None)
             or ((request.context or {}).get("agent_id")),
         }
+        # WORKSPACE ON THE TURN CONTEXT (2026-10-01, cross-conversation
+        # workbook memory): chat turns never carried a workspace_id, so
+        # workspace-scoped seams (dialogue_state.workbook_bindings — a
+        # user-confirmed row inherited by NEW conversations on the same
+        # file) stayed closed in production. Resolved from the acting
+        # user, exactly like turn-time memory recall does; an explicit
+        # request-context value still wins.
+        if not context_with_agent.get("workspace_id"):
+            try:
+                from integrations.chat_orchestrator import (
+                    resolve_user_workspace,
+                )
+
+                context_with_agent["workspace_id"] = (
+                    resolve_user_workspace(active_user_id))
+            except Exception:  # noqa: BLE001 — context enrichment only
+                pass
         # The keyed id travels INTO the turn so the execution row can record it.
         # `ChatRequestRecord.execution_id` is only written at finalization, so a
         # turn that crashes in flight leaves a key with no link to anything --
@@ -2641,6 +2715,80 @@ async def chat_draft_to_canvas(
             )
         except Exception as sig_err:
             logger.debug(f"default signature resolution skipped: {sig_err}")
+    # SAME-CONVERSATION DEDUP (2026-10-02, the duplicate quote canvases):
+    # re-running "make this a canvas" — or a rebuild landing here after a
+    # retry — inserted a SIBLING with the identical title, and the panel
+    # then held two same-named quote drafts the editor could not tell
+    # apart (edits landed on whichever was open; the other went stale).
+    # When THIS conversation already created an active canvas of the same
+    # type and normalized title, UPDATE that artifact instead of forking
+    # it. Conversation-scoped (the create audit's session_id) so distinct
+    # conversations keep their own same-titled drafts.
+    _existing_canvas = None
+    try:
+        _norm_title = " ".join(str(title or "").split()).casefold()
+        if _norm_title and session_id:
+            for _c in (
+                db.query(Canvas)
+                .filter(
+                    Canvas.created_by == current_user.id,
+                    Canvas.canvas_type == canvas_type,
+                    Canvas.status == "active",
+                )
+                .order_by(Canvas.updated_at.desc())
+                .limit(50)
+                .all()
+            ):
+                if " ".join(
+                        str(_c.name or "").split()).casefold() != _norm_title:
+                    continue
+                _create_row = (
+                    db.query(CanvasAudit)
+                    .filter(
+                        CanvasAudit.canvas_id == _c.id,
+                        CanvasAudit.action_type == "create",
+                    )
+                    .order_by(CanvasAudit.created_at.desc())
+                    .first()
+                )
+                if _create_row is not None and str(
+                        _create_row.session_id or "") == str(session_id):
+                    _existing_canvas = _c
+                    break
+    except Exception as _dedup_err:
+        logger.debug(f"chat canvas dedup lookup skipped: {_dedup_err}")
+        _existing_canvas = None
+
+    if _existing_canvas is not None:
+        _existing_canvas.content = canvas_content
+        _existing_canvas.name = title
+        _existing_canvas.last_edited_by = current_user.id
+        _existing_canvas.last_edited_at = datetime.now(timezone.utc)
+        db.add(_existing_canvas)
+        db.add(CanvasAudit(
+            canvas_id=_existing_canvas.id,
+            tenant_id=_existing_canvas.tenant_id,
+            session_id=session_id,
+            agent_id=agent_id,
+            canvas_type=canvas_type,
+            action_type="update",
+            user_id=current_user.id,
+            details_json={
+                "source": "chat_to_canvas",
+                "title": title,
+                "content": canvas_content,
+                "dedup": "adopted_same_conversation_canvas",
+            },
+        ))
+        db.commit()
+        result = {"success": True, "canvas_id": _existing_canvas.id,
+                  "url": f"/canvas/{_existing_canvas.id}"}
+        if selected and selected.get("message_id") is not None:
+            result["selected_message_id"] = selected["message_id"]
+        if office_fallback_warning:
+            result["warning"] = office_fallback_warning
+        return result
+
     canvas = Canvas(
         id=canvas_id,
         tenant_id=current_user.tenant_id or "default",

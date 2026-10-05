@@ -7,7 +7,8 @@ import { ChatInput } from "./GlobalChat/ChatInput";
 import { ChatMessage, ChatMessageData, ChatAction, ReasoningStep, reasoningTextToStep } from "./GlobalChat/ChatMessage";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
-import { useWebSocket } from "../hooks/useWebSocket";
+import { useTurnStream } from "@/hooks/chat/useTurnStream";
+import type { TurnBound } from "@/hooks/chat/turnBinding";
 import { Badge } from "@/components/ui/badge";
 
 import { useRouter } from 'next/router';
@@ -22,6 +23,14 @@ interface GlobalChatWidgetProps {
     userId?: string;
 }
 
+/**
+ * The widget's transcript entries, extended with the turn-ownership fields a
+ * streamed frame needs in order to reach the right reply. It EXTENDS
+ * ChatMessageData so `components/GlobalChat/ChatMessage.tsx` and every existing
+ * render path accept it unchanged.
+ */
+type WidgetMessage = ChatMessageData & TurnBound;
+
 function buildWelcomeMessage(): ChatMessageData {
     return {
         id: "welcome",
@@ -33,7 +42,7 @@ function buildWelcomeMessage(): ChatMessageData {
 
 export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<ChatMessageData[]>([]);
+    const [messages, setMessages] = useState<WidgetMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string>("");
     // History hydration is best-effort over a network that restarts under
@@ -46,9 +55,13 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     // WS reasoning steps that arrive before this turn's assistant message
     // exists (see the agent_step_update handler).
     const _pendingStepsRef = useRef<ReasoningStep[]>([]);
+    // Synchronous view of the transcript. A `setMessages` updater body runs
+    // LATER, when React processes the update, so the HTTP-convergence branch
+    // below — which has already been decided by then — reads it from here.
+    const messagesRef = useRef<WidgetMessage[]>([]);
+    useEffect(() => { messagesRef.current = messages; }, [messages]);
     const { toast } = useToast();
     const router = useRouter();
-    const { isConnected, lastMessage, subscribe } = useWebSocket();
     const actionProposalsQuery = useActionProposals({
         statusFilter: "pending_approval",
         limit: 10,
@@ -142,59 +155,80 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         }
     }, [isOpen, actionProposalsQuery.refetch]);
 
+    /**
+     * Streamed-turn handling, shared with /chat and /canvas.
+     *
+     * This widget POSTs to the same `/api/chat/message` as every other chat
+     * surface, so the orchestrator broadcasts this turn's reply here too — and
+     * this socket is auto-subscribed to the `user:{id}` channel that carries
+     * it. Before this, the widget read the single-slot `lastMessage` state and
+     * handled only `agent_step_update`, so it received every token of every
+     * reply (including other tabs' turns) and rendered none of them: the reply
+     * appeared only when the POST resolved. It also appended a turn's first
+     * reasoning step to whatever assistant message happened to be last, which
+     * is the previous turn's answer.
+     *
+     * See hooks/chat/turnBinding.ts for the binding rules and why they are
+     * general rather than per-surface.
+     */
+    const turn = useTurnStream<WidgetMessage>({
+        sessionId: sessionId || null,
+        isBusy: isLoading,
+        onSessionAdopted: (sid) => {
+            setSessionId(sid);
+            localStorage.setItem('atom_chat_session_id', sid);
+        },
+        onLocalTurnSettled: () => { setIsLoading(false); },
+        renderStream: (action) => {
+            if (action.kind === "token") {
+                setMessages(prev => turn.applyTokenFrame(prev, action.execution, action.delta, action.agentId));
+                return;
+            }
+            setMessages(prev => turn.applyDoneFrame(prev, action.execution, action.content));
+        },
+        onReasoningStep: (rawStep, execution, agentId) => {
+            const step: ReasoningStep = {
+                step: rawStep.step || 1,
+                thought: rawStep.thought,
+                action: rawStep.action,
+                observation: rawStep.observation ?? rawStep.output,
+                final_answer: rawStep.final_answer,
+            };
+            if (!execution) {
+                // The step named no turn, so there is nowhere unambiguous to
+                // put it. Buffer it for this widget's own HTTP reply, which is
+                // the one place it can be placed without guessing.
+                _pendingStepsRef.current = [..._pendingStepsRef.current, step];
+                return;
+            }
+            setMessages(prev => turn.applyStepFrame(prev, execution, step, agentId));
+        },
+        onHitl: (phase, msg) => {
+            if (phase === "paused") {
+                setPendingApproval({
+                    action_id: msg.action_id,
+                    tool: msg.tool,
+                    reason: msg.reason,
+                });
+                toast({
+                    title: "Approval Required",
+                    description: `Action '${msg.tool}' needs your approval.`,
+                    variant: "default",
+                });
+                return;
+            }
+            setPendingApproval(null);
+        },
+    });
+
+    const { isConnected, subscribe } = turn.socket;
+
     // WebSocket subscription
     useEffect(() => {
         if (isConnected) {
             subscribe("workspace:default");
         }
     }, [isConnected, subscribe]);
-
-    // Handle WebSocket messages
-    useEffect(() => {
-        if (!lastMessage) return;
-        const msg = lastMessage as any;
-
-        // Agent step update - append to last assistant message's reasoningTrace
-        if (msg.type === "agent_step_update") {
-            const step: ReasoningStep = {
-                step: msg.step?.step || 1,
-                thought: msg.step?.thought,
-                action: msg.step?.action,
-                observation: msg.step?.output,
-                final_answer: msg.step?.final_answer,
-            };
-
-            setMessages(prev => {
-                const lastMsg = prev[prev.length - 1];
-                if (lastMsg && lastMsg.type === "assistant") {
-                    return [...prev.slice(0, -1), {
-                        ...lastMsg,
-                        reasoningTrace: [...(lastMsg.reasoningTrace || []), step]
-                    }];
-                }
-                // Reply not appended yet — buffer the step for the REST
-                // response instead of dropping it (these ARE the reasoning
-                // the "Reasoning Process" drawer renders).
-                _pendingStepsRef.current = [..._pendingStepsRef.current, step];
-                return prev;
-            });
-        }
-
-        // HITL paused
-        if (msg.type === "hitl_paused") {
-            setPendingApproval({
-                action_id: msg.action_id,
-                tool: msg.tool,
-                reason: msg.reason
-            });
-            toast({ title: "Approval Required", description: `Action '${msg.tool}' needs your approval.`, variant: "default" });
-        }
-
-        // HITL decision made
-        if (msg.type === "hitl_decision") {
-            setPendingApproval(null);
-        }
-    }, [lastMessage, toast]);
 
     // --- history hydration plumbing -------------------------------------
     // Reconnect-triggered reload: the websocket auto-reconnects (unlimited
@@ -312,6 +346,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         setMessages(prev => [...prev, userMessage]);
         setIsLoading(true);
         _pendingStepsRef.current = [];
+        turn.beginLocalTurn();
 
         try {
             // Transport idempotency key for this submitted turn (reused
@@ -375,7 +410,26 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                             : {}),
                         ...(reasoningTrace.length ? { reasoningTrace } : {}),
                     };
-                    setMessages(prev => [...prev, assistantMessage]);
+                    // CONVERGE WITH THE STREAM. This turn may already have a
+                    // bubble on screen (tokens are broadcast while the POST is
+                    // still in flight). The response is the authoritative final
+                    // text for that same bubble — replacing it keeps one answer
+                    // per turn, in the right place. Appending produced two
+                    // bubbles carrying the same reply.
+                    const converged = turn.converge(messagesRef.current, {
+                        content: data.message,
+                        actions: assistantMessage.actions,
+                        model: assistantMessage.model,
+                        provider: assistantMessage.provider,
+                        reasoning: assistantMessage.reasoning,
+                        ...(assistantMessage.teaching ? { teaching: assistantMessage.teaching } : {}),
+                        ...(reasoningTrace.length ? { reasoningTrace } : {}),
+                    });
+                    if (converged) {
+                        setMessages(converged);
+                    } else {
+                        setMessages(prev => [...prev, assistantMessage]);
+                    }
                     // The turn may have co-edited the open canvas; converge it
                     // locally in case the WS broadcast was missed (lib/canvasSync).
                     if (chatTurnTouchedCanvas(data)) {

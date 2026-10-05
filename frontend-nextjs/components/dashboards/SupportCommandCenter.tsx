@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,17 +23,31 @@ export const SupportCommandCenter: React.FC = () => {
     // Unified Search
     const { results: searchResults, isSearching, searchMemory, clearSearch } = useMemorySearch({ tag: 'support' });
 
-    // WebSocket for Real-Time Sync Refreshes
-    const { lastMessage } = useWebSocket({
+    // Real-time refreshes, driven by the socket's `onMessage` listener rather
+    // than the `lastMessage` state slot. That slot is ONE slot: a burst of
+    // frames inside a single render commit produces one commit, so an effect
+    // keyed on it sees only the newest frame and the rest are dropped — a
+    // `status_update` landing mid-burst never triggered its refresh. The
+    // listener sees every frame, so the in-flight guard below is what keeps a
+    // burst from becoming one refetch per frame.
+    const syncRefreshInFlight = useRef(false);
+    const { onMessage } = useWebSocket({
         initialChannels: ['communication_stats', 'platform_status']
     });
 
-    useEffect(() => {
-        if (lastMessage && lastMessage.type === 'status_update') {
-            toast.info('Support sync complete. Refreshing tickets...');
-            refresh();
-        }
-    }, [lastMessage, refresh]);
+    useEffect(() => onMessage((msg: any) => {
+        if (!msg || msg.type !== 'status_update') return;
+        // Notify FIRST, unconditionally. A toast is cheap and per-frame; a
+        // refetch is expensive and idempotent. Guarding the toast behind the
+        // in-flight flag meant a notice arriving during a refresh was silently
+        // swallowed, which is the same class of loss this change exists to fix.
+        toast.info('Support sync complete. Refreshing tickets...');
+        if (syncRefreshInFlight.current) return;
+        syncRefreshInFlight.current = true;
+        void Promise.resolve(refresh()).finally(() => {
+            syncRefreshInFlight.current = false;
+        });
+    }), [onMessage, refresh]);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         const query = e.target.value;

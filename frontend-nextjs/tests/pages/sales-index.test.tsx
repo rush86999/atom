@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SalesIntelligencePage from "@/pages/sales/index";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { wsMock } from "../../tests/helpers/wsMock";
 
 const mockToast = jest.fn();
 const mockSubscribe = jest.fn();
@@ -10,13 +10,14 @@ jest.mock("@/components/ui/use-toast", () => ({
   useToast: () => ({ toast: mockToast }),
 }));
 
+// The page reads frames through the socket's `onMessage` listener — the
+// `lastMessage` state slot coalesces a burst, and new-lead / deal-health frames
+// arrive in bursts, so notifications were dropped. The mock delivers to
+// listeners as well as the slot.
 jest.mock("@/hooks/useWebSocket", () => ({
-  useWebSocket: jest.fn(() => ({
-    isConnected: false,
-    lastMessage: null,
-    subscribe: mockSubscribe,
-    disconnect: jest.fn(),
-  })),
+  useWebSocket: require('../../tests/helpers/wsMock').createWebSocketMock({
+    subscribe: (channel: string) => mockSubscribe(channel),
+  }),
 }));
 
 const LEADS = [
@@ -87,18 +88,12 @@ const routeFetch = (mockFetch: jest.Mock) => {
 
 describe("SalesIntelligencePage", () => {
   const mockFetch = jest.fn();
-  const wsMock = useWebSocket as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = mockFetch;
     routeFetch(mockFetch);
-    wsMock.mockReturnValue({
-      isConnected: false,
-      lastMessage: null,
-      subscribe: mockSubscribe,
-      disconnect: jest.fn(),
-    });
+    wsMock().reset();
   });
 
   it("subscribes to the workspace channel on mount", () => {
@@ -196,20 +191,7 @@ describe("SalesIntelligencePage", () => {
 
   it("toasts a new-lead notification from the websocket", async () => {
     const { rerender } = render(<SalesIntelligencePage />);
-    wsMock.mockReturnValue({
-      lastMessage: {
-        type: "new_lead",
-        data: {
-          first_name: "Ada",
-          last_name: "Lovelace",
-          company: "Analytical Engines",
-          ai_score: 85,
-        },
-      },
-      subscribe: mockSubscribe,
-    });
-    rerender(<SalesIntelligencePage />);
-
+    wsMock().emit({ type: "new_lead", data: { first_name: "Ada", last_name: "Lovelace", company: "Analytical Engines", ai_score: 85, }, });
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -224,15 +206,7 @@ describe("SalesIntelligencePage", () => {
 
   it("toasts a deal-health warning from the websocket", async () => {
     const { rerender } = render(<SalesIntelligencePage />);
-    wsMock.mockReturnValue({
-      lastMessage: {
-        type: "deal_update",
-        data: { name: "Acme Renewal", health_score: 35, risk_level: "high" },
-      },
-      subscribe: mockSubscribe,
-    });
-    rerender(<SalesIntelligencePage />);
-
+    wsMock().emit({ type: "deal_update", data: { name: "Acme Renewal", health_score: 35, risk_level: "high" }, });
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -246,12 +220,7 @@ describe("SalesIntelligencePage", () => {
 
   it("ignores websocket messages with a null data payload", async () => {
     const { rerender } = render(<SalesIntelligencePage />);
-    wsMock.mockReturnValue({
-      lastMessage: { type: "new_lead", data: null },
-      subscribe: mockSubscribe,
-    });
-    rerender(<SalesIntelligencePage />);
-
+    wsMock().emit({ type: "new_lead", data: null });
     await waitFor(() => {
       expect(screen.getByText("AI-Scored Leads")).toBeInTheDocument();
     });
@@ -260,12 +229,7 @@ describe("SalesIntelligencePage", () => {
 
   it("falls back to safe defaults when websocket data fields are missing", async () => {
     const { rerender } = render(<SalesIntelligencePage />);
-    wsMock.mockReturnValue({
-      lastMessage: { type: "deal_update", data: {} },
-      subscribe: mockSubscribe,
-    });
-    rerender(<SalesIntelligencePage />);
-
+    wsMock().emit({ type: "deal_update", data: {} });
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({

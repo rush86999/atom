@@ -12,9 +12,13 @@ import '@testing-library/jest-dom';
 const mockGet = jest.fn();
 const mockPost = jest.fn();
 
+// The panel reads frames through the socket's `onMessage` listener, so the mock
+// delivers to listeners as well as to the state slot.
+import { wsMock } from '../../../tests/helpers/wsMock';
+
 jest.mock('@/hooks/useWebSocket', () => ({
   __esModule: true,
-  useWebSocket: () => ({ lastMessage: null }),
+  useWebSocket: require('../../../tests/helpers/wsMock').createWebSocketMock(),
 }));
 
 jest.mock('@/lib/api', () => ({

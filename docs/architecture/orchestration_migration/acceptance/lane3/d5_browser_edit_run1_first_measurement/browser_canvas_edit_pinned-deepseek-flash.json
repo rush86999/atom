@@ -1,0 +1,1420 @@
+{
+  "schema": "lane3-browser-canvas-edit-v1",
+  "generated_at": "2026-09-28T09:24:03-0400",
+  "label": "pinned-deepseek-flash",
+  "world": "d5_browser_edit",
+  "world_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/d5_browser_edit",
+  "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/d5_browser_edit/runs/run-26ebe1ca462c",
+  "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/d5_browser_edit/runs/run-26ebe1ca462c/data/atom.db",
+  "ports": {
+    "backend": 8086,
+    "frontend": 3106
+  },
+  "frontend": "http://localhost:3106",
+  "backend": "http://127.0.0.1:8086",
+  "backend_health_identity": {
+    "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/d5_browser_edit/backend_root/data/byok_keys.json",
+    "captured_at": "2026-09-28T13:17:33.716358+00:00",
+    "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/d5_browser_edit/backend_root",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/d5_browser_edit/runs/run-26ebe1ca462c/data/atom.db",
+    "dirty": true,
+    "dirty_digest": "0568837f6431",
+    "dirty_paths": [
+      ".gitignore",
+      "AGENTS.md",
+      "backend/core/agent_integration_gateway.py",
+      "backend/core/async_turn_continuation.py",
+      "backend/core/chat_canvas_editor.py",
+      "backend/core/chat_transport.py",
+      "backend/core/execution_recovery.py",
+      "backend/core/models.py",
+      "backend/core/websockets.py",
+      "backend/integrations/chat_orchestrator.py",
+      "backend/integrations/chat_routes.py",
+      "backend/integrations/shopify_routes.py",
+      "backend/integrations/shopify_service.py",
+      "backend/main_api_app.py",
+      "backend/scripts/orchestration_acceptance/_app.py",
+      "backend/scripts/orchestration_acceptance/preview_server.py",
+      "backend/scripts/orchestration_acceptance/preview_stack.py",
+      "backend/scripts/orchestration_acceptance/restart_durability.py",
+      "backend/scripts/orchestration_acceptance/run_isolated.py",
+      "backend/scripts/orchestration_acceptance/task_correction_acceptance.py",
+      "backend/tests/core/integration/test_agent_integration_gateway_coverage.py",
+      "backend/tests/test_async_turn_continuation.py",
+      "backend/tests/test_canvas_app_editor_fixes.py",
+      "backend/tests/test_canvas_link_verification.py",
+      "backend/tests/test_chat_canvas_editor.py",
+      "backend/tests/test_covpush_intgr_b.py",
+      "backend/tests/test_covpush_saaspair.py",
+      "backend/tests/test_covpush_w65b_sql_fusion_recovery.py",
+      "backend/tests/test_covpush_w87_freshdesk_trello_shopify.py",
+      "backend/tests/test_covpush_w95_shopify.py",
+      "backend/tests/test_execution_recovery.py",
+      "backend/tools/canvas_crud_tool.py",
+      "docs/architecture/orchestration_migration/MANUAL_TEST_QUICKSTART.md",
+      "docs/architecture/orchestration_migration/RESUME.md",
+      "docs/architecture/orchestration_migration/acceptance/preview/credential_isolation.py",
+      "docs/architecture/orchestration_migration/acceptance/preview/preview_launch.py",
+      "docs/architecture/orchestration_migration/acceptance/task_correction_results.json",
+      "frontend-nextjs/README_TEAM_CHAT.md",
+      "frontend-nextjs/components/Agents/AgentStudio.tsx",
+      "frontend-nextjs/components/Agents/AutoDevReviewPanel.tsx"
+    ],
+    "error": null,
+    "git_commit": "6e34725c7017",
+    "instance_id": "6e34725c7017-dirty.0568837f6431.8296.1790601453",
+    "pid": 8296,
+    "port": null,
+    "revision": "6e34725c70179506515888a23c00635188f833c0",
+    "source_id": "6e34725c7017-dirty.0568837f6431",
+    "started_at": "2026-09-28T13:17:28.046118+00:00",
+    "untracked_paths": [
+      "backend/config/world_storage.json",
+      "backend/core/acceptance_barrier.py",
+      "backend/core/execution_ownership.py",
+      "backend/core/log_redaction.py",
+      "backend/core/world_storage_guard.py",
+      "backend/scripts/orchestration_acceptance/archive_dest_only_evidence.py",
+      "backend/scripts/orchestration_acceptance/canvas_write_verify.py",
+      "backend/scripts/orchestration_acceptance/provenance.py",
+      "backend/scripts/orchestration_acceptance/worlds_delete_audit.py",
+      "backend/scripts/orchestration_acceptance/worlds_migration_verify.py",
+      "backend/tests/core/test_archive_dest_only_evidence.py",
+      "backend/tests/core/test_log_redaction.py",
+      "backend/tests/core/test_world_storage_guard.py",
+      "backend/tests/core/test_world_storage_interlock.py",
+      "backend/tests/core/test_worlds_delete_audit.py",
+      "backend/tests/test_acceptance_barrier.py",
+      "backend/tests/test_boot_recovery_not_gated_by_scheduler.py",
+      "backend/tests/test_execution_insert_path_audit.py",
+      "backend/tests/test_execution_ownership_and_crashed_keys.py",
+      "backend/tests/test_task_correction_routing.py",
+      "backend/tests/test_write_path_d0_negative_control.py",
+      "backend/tests/test_write_zero_effect_claims.py",
+      "backend/tests/test_zero_effect_claim.py",
+      "docs/architecture/orchestration_migration/FINISH_LANE3_DIRECTIVE_2026_09_27.md",
+      "docs/architecture/orchestration_migration/LANE_1_TASK_CORRECTION.md",
+      "docs/architecture/orchestration_migration/LANE_2_FRONTEND_STREAMING.md",
+      "docs/architecture/orchestration_migration/LANE_2_HANDOFF_2026_09_27.md",
+      "docs/architecture/orchestration_migration/LANE_3_ACCEPTANCE_AND_INTEGRATION.md",
+      "docs/architecture/orchestration_migration/RESUMED_AGENT_REVIEW_2026_09_27.md",
+      "docs/architecture/orchestration_migration/STATUS.md",
+      "docs/architecture/orchestration_migration/acceptance/WORLDS_RELOCATION_RUNBOOK.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/C16_BOUNDARY_TRACE.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/CASE_ACCOUNTING_C00_C26.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/LANE3_RESUME_2026_09_27_CASE2_BLOCKED.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/LANE_3_INVENTORY.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/PREVIEW_QUICKSTART_CANDIDATE.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/PREVIEW_STATUS.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/RELOCATION_PLAN.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/STORAGE_RECOVERY_REPORT.md",
+      "docs/architecture/orchestration_migration/acceptance/lane3/WRITE_PATH_HANDOFF.md"
+    ]
+  },
+  "source_id": "6e34725c7017-dirty.0568837f6431",
+  "effective_flags": {
+    "ATOM_ACCEPTANCE_BARRIER": "(disarmed)",
+    "ATOM_ACCEPTANCE_BARRIER_MATCH": "(any session)",
+    "ATOM_ASYNC_EDIT_PLAN_MODEL": "deepseek/deepseek-flash",
+    "ATOM_CHAT_REQUEST_DEADLINE_SECONDS": "(product default)",
+    "ATOM_CHAT_STREAMING": "true",
+    "ATOM_SHEET_DATASETS": "1",
+    "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+    "CHAT_FINALIZATION_M1": "1",
+    "CHAT_FINALIZATION_M2": "1",
+    "ENABLE_INGESTION_SYNC": "false",
+    "ENABLE_SCHEDULER": "false",
+    "credential_names_present": [
+      "EMBEDDING_PROVIDER",
+      "FASTEMBED_MODEL",
+      "OLLAMA_MODEL",
+      "OPENROUTER_API_KEY"
+    ]
+  },
+  "planner_pin": "deepseek/deepseek-flash",
+  "injection": "none: the production planner ran on the real request; no provider shim, no stubbed planner, no injected plan",
+  "frontend_source": {
+    "farm": "/Users/rushiparikh/projects/atom/frontend-nextjs/.preview-instance/d5_browser_edit",
+    "tree_sha256": "5d09935a32bfd62d238e22923dc3b051d71c1ca99c7463bfbdb92bc1e36ffe7a",
+    "files": {
+      "pages/canvas/[id].tsx": "7f3438356bdb13585fc86c6cedd002a57a89b649d1ec1ba7509cf5386d725b06",
+      "components/canvas/CanvasPanel.tsx": "f6f50555ef9c74049ad5c4548c07778ee6d71c3b423e2a2a5ea461a145e9dd76",
+      "components/canvas/ChatMarkdown.tsx": "32c5464a7802711ff58eb0ba04ec254bbbb9b19208d6f9599ae9cabf414607df",
+      "lib/canvasSync.ts": "27571336ceb02cfdcfebda63cdc8f34dab7037dcc44eaccf8af58d056a12c3a6",
+      "lib/api-client.ts": "d74e73b9225ac3d61e345abd786a083a107b2ecc7ba01323d0f4f64301895596",
+      "pages/login.tsx": "736da7ce206ff54f107b4cb59afee7b718beec3cc988a31f883808ffd8284c56",
+      "next.config.js": "649fa130aa15d8ae0363fa52c70115b59ae006df6ebaa9d80b9e87b4b9759ff5"
+    },
+    "note": "symlink farm over the live working tree; the backend is frozen by the world's code export but the frontend is not, so this digest is what makes the browser result attributable"
+  },
+  "login": {
+    "email": "admin@example.com",
+    "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+    "api_login_status": 200,
+    "form_login_attempted": true,
+    "note": "the password is set in the world for this run and is never recorded here"
+  },
+  "seed": {
+    "canvas_id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+    "content": {
+      "to": "steve@example.com",
+      "cc": "",
+      "subject": "Quote for Steve",
+      "body": "<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>"
+    },
+    "seeded_via": "api",
+    "http_calls": [
+      {
+        "step": "create",
+        "method": "POST",
+        "url": "http://127.0.0.1:8086/api/canvas/email/create",
+        "request": {
+          "subject": "Quote for Steve",
+          "recipients": [
+            "steve@example.com"
+          ],
+          "canvas_id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+          "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3"
+        },
+        "status": 200,
+        "response_keys": [
+          "canvas_id",
+          "draft_id",
+          "subject",
+          "success",
+          "thread_id"
+        ]
+      },
+      {
+        "step": "seed_content",
+        "method": "PUT",
+        "url": "http://127.0.0.1:8086/api/canvas/8a6a026b-ba11-4a45-a62e-68840e22644e?canvas_type=email",
+        "request": {
+          "to": "steve@example.com",
+          "cc": "",
+          "subject": "Quote for Steve",
+          "body": "<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>"
+        },
+        "status": 200,
+        "response": {
+          "success": true,
+          "canvas_id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+          "canvas_type": "email",
+          "audit_id": "fa0ce92e-40ad-4e8e-9f37-d603346c8f31",
+          "operation_id": null,
+          "review_status": "accepted",
+          "message": "Canvas updated successfully"
+        }
+      }
+    ]
+  },
+  "edit_request": "In the open canvas, change the quote validity from 15 days to 30 days and mark the edit VALIDITY-30",
+  "captured_request": {
+    "url": "http://localhost:8086/api/chat/message",
+    "method": "POST",
+    "post_data_bytes": 661,
+    "post_data": "{\"message\":\"In the open canvas, change the quote validity from 15 days to 30 days and mark the edit VALIDITY-30\",\"user_id\":\"b83eb105-d9e7-41a5-83e3-a632b15b9ee3\",\"session_id\":\"new\",\"request_id\":\"3fff6167-5f4a-4c48-aff4-465b7cdf94fb\",\"context\":{\"current_page\":\"/canvas/8a6a026b-ba11-4a45-a62e-68840e22644e\",\"canvas_id\":\"8a6a026b-ba11-4a45-a62e-68840e22644e\",\"canvas_type\":\"email\",\"canvas_title\":null,\"canvas_content\":{\"to\":\"steve@example.com\",\"cc\":\"\",\"subject\":\"Quote for Steve\",\"body\":\"<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>\"},\"conversation_history\":[]}}"
+  },
+  "chat_response": {
+    "status": 200,
+    "url": "http://localhost:8086/api/chat/message",
+    "body": {
+      "success": true,
+      "message": "Updated the quote validity in the body from 15 to 30 days and marked the change with a VALIDITY-30 comment. Nothing else in the draft was touched.",
+      "session_id": "32f989fb-6a0c-44e9-abe6-0719de553c74",
+      "intent": "canvas_edit",
+      "confidence": 0.9,
+      "suggested_actions": [],
+      "requires_confirmation": false,
+      "next_steps": [],
+      "timestamp": "2026-09-28T09:23:43.196841",
+      "metadata": {
+        "canvas_edit": {
+          "canvas_id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+          "updated": true,
+          "execution_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+          "operation_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+          "outcome": "completed",
+          "postcondition_verified": true,
+          "audit_id": "f869d9b0-cb81-4c28-829b-8e589bd0400f",
+          "review_status": "accepted",
+          "matched_playbooks": [
+            {
+              "id": "0fa14b32-af62-4002-92a2-42629b545092",
+              "name": "[other] or"
+            },
+            {
+              "id": "acc43818-a723-4ed0-ae77-98661ca73514",
+              "name": "[tone] 10.5\""
+            }
+          ]
+        },
+        "persistence": {
+          "status": "persisted"
+        },
+        "replay_pin": {
+          "status": "pinned",
+          "durable": true
+        }
+      },
+      "memory_context": null,
+      "model": null,
+      "provider": null,
+      "reasoning": null,
+      "execution_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+      "error_code": null,
+      "recovery_url": null
+    }
+  },
+  "product_outcome": {
+    "http_status": 200,
+    "success": true,
+    "error_code": null,
+    "intent": "canvas_edit",
+    "execution_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+    "session_id": "32f989fb-6a0c-44e9-abe6-0719de553c74",
+    "canvas_edit": {
+      "canvas_id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+      "updated": true,
+      "execution_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+      "operation_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+      "outcome": "completed",
+      "postcondition_verified": true,
+      "audit_id": "f869d9b0-cb81-4c28-829b-8e589bd0400f",
+      "review_status": "accepted",
+      "matched_playbooks": [
+        {
+          "id": "0fa14b32-af62-4002-92a2-42629b545092",
+          "name": "[other] or"
+        },
+        {
+          "id": "acc43818-a723-4ed0-ae77-98661ca73514",
+          "name": "[tone] 10.5\""
+        }
+      ]
+    },
+    "reply_message": "Updated the quote validity in the body from 15 to 30 days and marked the change with a VALIDITY-30 comment. Nothing else in the draft was touched."
+  },
+  "durable_store": {
+    "canvas_row_before": {
+      "id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+      "name": "Quote for Steve",
+      "canvas_type": "email",
+      "content": {
+        "to": "steve@example.com",
+        "cc": "",
+        "subject": "Quote for Steve",
+        "body": "<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>"
+      },
+      "status": "active",
+      "created_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "last_edited_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "last_edited_at": "2026-09-28 13:21:53.585050",
+      "updated_at": "2026-09-28 13:21:53",
+      "found": true,
+      "body_html": "<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>",
+      "body_contains_old": true,
+      "body_contains_new": false
+    },
+    "canvas_row_after": {
+      "id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+      "name": "Quote for Steve",
+      "canvas_type": "email",
+      "content": {
+        "to": "steve@example.com",
+        "cc": "",
+        "subject": "Quote for Steve",
+        "body": "<div><p>Quote for Steve</p><p><b>Quote validity: 30 days.</b><!-- VALIDITY-30 --></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>"
+      },
+      "status": "active",
+      "created_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "last_edited_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "last_edited_at": "2026-09-28 13:23:43.191328",
+      "updated_at": "2026-09-28 13:23:43",
+      "found": true,
+      "body_html": "<div><p>Quote for Steve</p><p><b>Quote validity: 30 days.</b><!-- VALIDITY-30 --></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>",
+      "body_contains_old": false,
+      "body_contains_new": true
+    },
+    "canvas_row_after_reload": {
+      "id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+      "name": "Quote for Steve",
+      "canvas_type": "email",
+      "content": {
+        "to": "steve@example.com",
+        "cc": "",
+        "subject": "Quote for Steve",
+        "body": "<div><p>Quote for Steve</p><p><b>Quote validity: 30 days.</b><!-- VALIDITY-30 --></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>"
+      },
+      "status": "active",
+      "created_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "last_edited_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "last_edited_at": "2026-09-28 13:23:43.191328",
+      "updated_at": "2026-09-28 13:23:43",
+      "found": true,
+      "body_html": "<div><p>Quote for Steve</p><p><b>Quote validity: 30 days.</b><!-- VALIDITY-30 --></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>",
+      "body_contains_old": false,
+      "body_contains_new": true
+    },
+    "audit_before": [
+      {
+        "id": "4a5ea001-0487-470c-a284-b908f14fd467",
+        "action_type": "create",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "agent_id": null,
+        "canvas_type": "email",
+        "created_at": "2026-09-28 13:21:53.425994",
+        "operation_id": null,
+        "review_status": null,
+        "body_contains_old": false,
+        "body_contains_new": false,
+        "details_keys": [
+          "attachments",
+          "canvas_type",
+          "component_type",
+          "draft",
+          "layout",
+          "messages",
+          "subject",
+          "template",
+          "thread_id"
+        ]
+      },
+      {
+        "id": "fa0ce92e-40ad-4e8e-9f37-d603346c8f31",
+        "action_type": "update",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "agent_id": null,
+        "canvas_type": "email",
+        "created_at": "2026-09-28 13:21:53.584483",
+        "operation_id": null,
+        "review_status": "accepted",
+        "body_contains_old": true,
+        "body_contains_new": false,
+        "details_keys": [
+          "attachments",
+          "canvas_type",
+          "component_type",
+          "content",
+          "draft",
+          "layout",
+          "messages",
+          "review_status",
+          "subject",
+          "template",
+          "thread_id"
+        ]
+      }
+    ],
+    "audit_after": [
+      {
+        "id": "4a5ea001-0487-470c-a284-b908f14fd467",
+        "action_type": "create",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "agent_id": null,
+        "canvas_type": "email",
+        "created_at": "2026-09-28 13:21:53.425994",
+        "operation_id": null,
+        "review_status": null,
+        "body_contains_old": false,
+        "body_contains_new": false,
+        "details_keys": [
+          "attachments",
+          "canvas_type",
+          "component_type",
+          "draft",
+          "layout",
+          "messages",
+          "subject",
+          "template",
+          "thread_id"
+        ]
+      },
+      {
+        "id": "fa0ce92e-40ad-4e8e-9f37-d603346c8f31",
+        "action_type": "update",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "agent_id": null,
+        "canvas_type": "email",
+        "created_at": "2026-09-28 13:21:53.584483",
+        "operation_id": null,
+        "review_status": "accepted",
+        "body_contains_old": true,
+        "body_contains_new": false,
+        "details_keys": [
+          "attachments",
+          "canvas_type",
+          "component_type",
+          "content",
+          "draft",
+          "layout",
+          "messages",
+          "review_status",
+          "subject",
+          "template",
+          "thread_id"
+        ]
+      },
+      {
+        "id": "f869d9b0-cb81-4c28-829b-8e589bd0400f",
+        "action_type": "update",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "agent_id": null,
+        "canvas_type": "email",
+        "created_at": "2026-09-28 13:23:43.190934",
+        "operation_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+        "review_status": "accepted",
+        "body_contains_old": false,
+        "body_contains_new": true,
+        "details_keys": [
+          "attachments",
+          "canvas_type",
+          "component_type",
+          "content",
+          "draft",
+          "layout",
+          "messages",
+          "operation_id",
+          "review_status",
+          "subject",
+          "template",
+          "thread_id"
+        ]
+      }
+    ],
+    "audit_after_reload": [
+      {
+        "id": "4a5ea001-0487-470c-a284-b908f14fd467",
+        "action_type": "create",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "agent_id": null,
+        "canvas_type": "email",
+        "created_at": "2026-09-28 13:21:53.425994",
+        "operation_id": null,
+        "review_status": null,
+        "body_contains_old": false,
+        "body_contains_new": false,
+        "details_keys": [
+          "attachments",
+          "canvas_type",
+          "component_type",
+          "draft",
+          "layout",
+          "messages",
+          "subject",
+          "template",
+          "thread_id"
+        ]
+      },
+      {
+        "id": "fa0ce92e-40ad-4e8e-9f37-d603346c8f31",
+        "action_type": "update",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "agent_id": null,
+        "canvas_type": "email",
+        "created_at": "2026-09-28 13:21:53.584483",
+        "operation_id": null,
+        "review_status": "accepted",
+        "body_contains_old": true,
+        "body_contains_new": false,
+        "details_keys": [
+          "attachments",
+          "canvas_type",
+          "component_type",
+          "content",
+          "draft",
+          "layout",
+          "messages",
+          "review_status",
+          "subject",
+          "template",
+          "thread_id"
+        ]
+      },
+      {
+        "id": "f869d9b0-cb81-4c28-829b-8e589bd0400f",
+        "action_type": "update",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "agent_id": null,
+        "canvas_type": "email",
+        "created_at": "2026-09-28 13:23:43.190934",
+        "operation_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+        "review_status": "accepted",
+        "body_contains_old": false,
+        "body_contains_new": true,
+        "details_keys": [
+          "attachments",
+          "canvas_type",
+          "component_type",
+          "content",
+          "draft",
+          "layout",
+          "messages",
+          "operation_id",
+          "review_status",
+          "subject",
+          "template",
+          "thread_id"
+        ]
+      }
+    ],
+    "new_audit_rows": [
+      {
+        "id": "f869d9b0-cb81-4c28-829b-8e589bd0400f",
+        "action_type": "update",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "agent_id": null,
+        "canvas_type": "email",
+        "created_at": "2026-09-28 13:23:43.190934",
+        "operation_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+        "review_status": "accepted",
+        "body_contains_old": false,
+        "body_contains_new": true,
+        "details_keys": [
+          "attachments",
+          "canvas_type",
+          "component_type",
+          "content",
+          "draft",
+          "layout",
+          "messages",
+          "operation_id",
+          "review_status",
+          "subject",
+          "template",
+          "thread_id"
+        ]
+      }
+    ],
+    "update_rows": [
+      {
+        "id": "f869d9b0-cb81-4c28-829b-8e589bd0400f",
+        "action_type": "update",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "agent_id": null,
+        "canvas_type": "email",
+        "created_at": "2026-09-28 13:23:43.190934",
+        "operation_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+        "review_status": "accepted",
+        "body_contains_old": false,
+        "body_contains_new": true,
+        "details_keys": [
+          "attachments",
+          "canvas_type",
+          "component_type",
+          "content",
+          "draft",
+          "layout",
+          "messages",
+          "operation_id",
+          "review_status",
+          "subject",
+          "template",
+          "thread_id"
+        ]
+      }
+    ],
+    "store_changed": true
+  },
+  "canvas_before": {
+    "id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+    "name": "Quote for Steve",
+    "canvas_type": "email",
+    "content": {
+      "to": "steve@example.com",
+      "cc": "",
+      "subject": "Quote for Steve",
+      "body": "<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>"
+    },
+    "status": "active",
+    "created_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+    "last_edited_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+    "last_edited_at": "2026-09-28 13:21:53.585050",
+    "updated_at": "2026-09-28 13:21:53",
+    "found": true,
+    "body_html": "<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>",
+    "body_contains_old": true,
+    "body_contains_new": false
+  },
+  "canvas_after": {
+    "id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+    "name": "Quote for Steve",
+    "canvas_type": "email",
+    "content": {
+      "to": "steve@example.com",
+      "cc": "",
+      "subject": "Quote for Steve",
+      "body": "<div><p>Quote for Steve</p><p><b>Quote validity: 30 days.</b><!-- VALIDITY-30 --></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>"
+    },
+    "status": "active",
+    "created_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+    "last_edited_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+    "last_edited_at": "2026-09-28 13:23:43.191328",
+    "updated_at": "2026-09-28 13:23:43",
+    "found": true,
+    "body_html": "<div><p>Quote for Steve</p><p><b>Quote validity: 30 days.</b><!-- VALIDITY-30 --></p><p>Rows 1-5 are the requested machines.</p><!-- d5-browser-canvas-edit --></div>",
+    "body_contains_old": false,
+    "body_contains_new": true
+  },
+  "audit_before": [
+    {
+      "id": "4a5ea001-0487-470c-a284-b908f14fd467",
+      "action_type": "create",
+      "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "agent_id": null,
+      "canvas_type": "email",
+      "created_at": "2026-09-28 13:21:53.425994",
+      "operation_id": null,
+      "review_status": null,
+      "body_contains_old": false,
+      "body_contains_new": false,
+      "details_keys": [
+        "attachments",
+        "canvas_type",
+        "component_type",
+        "draft",
+        "layout",
+        "messages",
+        "subject",
+        "template",
+        "thread_id"
+      ]
+    },
+    {
+      "id": "fa0ce92e-40ad-4e8e-9f37-d603346c8f31",
+      "action_type": "update",
+      "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "agent_id": null,
+      "canvas_type": "email",
+      "created_at": "2026-09-28 13:21:53.584483",
+      "operation_id": null,
+      "review_status": "accepted",
+      "body_contains_old": true,
+      "body_contains_new": false,
+      "details_keys": [
+        "attachments",
+        "canvas_type",
+        "component_type",
+        "content",
+        "draft",
+        "layout",
+        "messages",
+        "review_status",
+        "subject",
+        "template",
+        "thread_id"
+      ]
+    }
+  ],
+  "audit_after": [
+    {
+      "id": "4a5ea001-0487-470c-a284-b908f14fd467",
+      "action_type": "create",
+      "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "agent_id": null,
+      "canvas_type": "email",
+      "created_at": "2026-09-28 13:21:53.425994",
+      "operation_id": null,
+      "review_status": null,
+      "body_contains_old": false,
+      "body_contains_new": false,
+      "details_keys": [
+        "attachments",
+        "canvas_type",
+        "component_type",
+        "draft",
+        "layout",
+        "messages",
+        "subject",
+        "template",
+        "thread_id"
+      ]
+    },
+    {
+      "id": "fa0ce92e-40ad-4e8e-9f37-d603346c8f31",
+      "action_type": "update",
+      "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "agent_id": null,
+      "canvas_type": "email",
+      "created_at": "2026-09-28 13:21:53.584483",
+      "operation_id": null,
+      "review_status": "accepted",
+      "body_contains_old": true,
+      "body_contains_new": false,
+      "details_keys": [
+        "attachments",
+        "canvas_type",
+        "component_type",
+        "content",
+        "draft",
+        "layout",
+        "messages",
+        "review_status",
+        "subject",
+        "template",
+        "thread_id"
+      ]
+    },
+    {
+      "id": "f869d9b0-cb81-4c28-829b-8e589bd0400f",
+      "action_type": "update",
+      "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "agent_id": null,
+      "canvas_type": "email",
+      "created_at": "2026-09-28 13:23:43.190934",
+      "operation_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+      "review_status": "accepted",
+      "body_contains_old": false,
+      "body_contains_new": true,
+      "details_keys": [
+        "attachments",
+        "canvas_type",
+        "component_type",
+        "content",
+        "draft",
+        "layout",
+        "messages",
+        "operation_id",
+        "review_status",
+        "subject",
+        "template",
+        "thread_id"
+      ]
+    }
+  ],
+  "audit_after_reload": [
+    {
+      "id": "4a5ea001-0487-470c-a284-b908f14fd467",
+      "action_type": "create",
+      "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "agent_id": null,
+      "canvas_type": "email",
+      "created_at": "2026-09-28 13:21:53.425994",
+      "operation_id": null,
+      "review_status": null,
+      "body_contains_old": false,
+      "body_contains_new": false,
+      "details_keys": [
+        "attachments",
+        "canvas_type",
+        "component_type",
+        "draft",
+        "layout",
+        "messages",
+        "subject",
+        "template",
+        "thread_id"
+      ]
+    },
+    {
+      "id": "fa0ce92e-40ad-4e8e-9f37-d603346c8f31",
+      "action_type": "update",
+      "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "agent_id": null,
+      "canvas_type": "email",
+      "created_at": "2026-09-28 13:21:53.584483",
+      "operation_id": null,
+      "review_status": "accepted",
+      "body_contains_old": true,
+      "body_contains_new": false,
+      "details_keys": [
+        "attachments",
+        "canvas_type",
+        "component_type",
+        "content",
+        "draft",
+        "layout",
+        "messages",
+        "review_status",
+        "subject",
+        "template",
+        "thread_id"
+      ]
+    },
+    {
+      "id": "f869d9b0-cb81-4c28-829b-8e589bd0400f",
+      "action_type": "update",
+      "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "agent_id": null,
+      "canvas_type": "email",
+      "created_at": "2026-09-28 13:23:43.190934",
+      "operation_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+      "review_status": "accepted",
+      "body_contains_old": false,
+      "body_contains_new": true,
+      "details_keys": [
+        "attachments",
+        "canvas_type",
+        "component_type",
+        "content",
+        "draft",
+        "layout",
+        "messages",
+        "operation_id",
+        "review_status",
+        "subject",
+        "template",
+        "thread_id"
+      ]
+    }
+  ],
+  "dom": {
+    "reply_text": "Updated the quote validity in the body from 15 to 30 days and marked the change with a VALIDITY-30 comment. Nothing else in the draft was touched.\n\nfeedback trains the agent",
+    "claim": {
+      "asserts_mutation": true,
+      "denies_mutation": false,
+      "claim_phrases_matched": [
+        "updated"
+      ],
+      "no_change_phrases_matched": []
+    },
+    "live_messages": [
+      {
+        "kind": "user",
+        "wrapper_class": "text-sm text-right",
+        "bubble_class": "inline-block max-w-full px-3 py-2 rounded-lg bg-primary text-primary-foreground",
+        "text": "In the open canvas, change the quote validity from 15 days to 30 days and mark the edit VALIDITY-30"
+      },
+      {
+        "kind": "assistant",
+        "wrapper_class": "text-sm ",
+        "bubble_class": "inline-block max-w-full px-3 py-2 rounded-lg bg-background border",
+        "text": "Updated the quote validity in the body from 15 to 30 days and marked the change with a VALIDITY-30 comment. Nothing else in the draft was touched.\n\nfeedback trains the agent"
+      },
+      {
+        "kind": "other",
+        "wrapper_class": "pt-1 space-y-2",
+        "bubble_class": "text-[10px] uppercase font-bold text-muted-foreground tracking-wider",
+        "text": "PREVIOUS RUN REASONING\n\nReasoning Process (2 steps)"
+      },
+      {
+        "kind": "other",
+        "wrapper_class": "",
+        "bubble_class": "",
+        "text": ""
+      }
+    ],
+    "after_reload_messages": [
+      {
+        "kind": "user",
+        "wrapper_class": "text-sm text-right",
+        "bubble_class": "inline-block max-w-full px-3 py-2 rounded-lg bg-primary text-primary-foreground",
+        "text": "In the open canvas, change the quote validity from 15 days to 30 days and mark the edit VALIDITY-30"
+      },
+      {
+        "kind": "assistant",
+        "wrapper_class": "text-sm ",
+        "bubble_class": "inline-block max-w-full px-3 py-2 rounded-lg bg-background border",
+        "text": "Updated the quote validity in the body from 15 to 30 days and marked the change with a VALIDITY-30 comment. Nothing else in the draft was touched.\n\nfeedback trains the agent"
+      },
+      {
+        "kind": "other",
+        "wrapper_class": "pt-1 space-y-2",
+        "bubble_class": "text-[10px] uppercase font-bold text-muted-foreground tracking-wider",
+        "text": "PREVIOUS RUN REASONING\n\nReasoning Process (2 steps)"
+      },
+      {
+        "kind": "other",
+        "wrapper_class": "",
+        "bubble_class": "",
+        "text": ""
+      }
+    ],
+    "canvas_text_live": "",
+    "canvas_text_before_reload": "Agent Artifact\nEMAIL\n\u25be\n\u270e Sig\nSend\nTO:\nCC:\nSUB:\nATTACHMENTS\nAttach\nB\nI\nU\nSize\nSmall\nNormal\nLarge\nHuge\nFont\nAptos\nCalibri\nArial\nGeorgia\nTimes New Roman\nCourier New\nVerdana\nTrebuchet MS\nA\nA\nA\nA\nA\nA\nA\n\ud83d\udd17\n\u25a6\nShading\nNo fill\nNavy\nLight blue\nLight gray\nLight amber\nLight green\nLight red\nWhite\n\u2022\u2261\n1\u2261\n\u21e4\n\u2194\n\u21e5\n\u2500\nClear\n\nQuote for Steve\n\nQuote validity: 30 days.\n\nRows 1-5 are the requested machines.\n\nRegards,\n\n\nRish M.\nBrennan Machinery Inc.\nVisit Our Web Site\u00a0www.brennan.ca\nHow am I doing?\u00a0Rate\u00a0my performance.\nReclaim your floor space and monetize your idle equipment.\u00a0\nSimply reply with your machine specs, and we'll leverage our buyer network to get it sold for you.\nAll quotes are valid for 15 days only, thank you for understanding.\n\n\nHistory\nSynced to cloud",
+    "canvas_text_after_reload": "",
+    "header": "Canvas 8a6a026b-ba11-4a45-a62e-68840e22644e"
+  },
+  "planner_log_lines": [
+    "INFO:integrations.chat_orchestrator:[timeline] chat planner finished: 11.0s after the turn's canvas-edit clock started",
+    "INFO:core.websockets:[WS-DEBUG] Broadcasting to 'workspace:default' (2 clients): {'type': 'agent_step_update', 'data': {'step': {'step_number': 1, 'type': 'thought', 'thought': '', 'action': {'tool': 'canvas_editor', 'params': {'canvas_id': '8a6a026b-ba11-4a45-a62e-68840e22644e'}}...",
+    "INFO:integrations.chat_orchestrator:canvas co-editor edit applied: canvas=8a6a026b-ba11-4a45-a62e-68840e22644e type=email"
+  ],
+  "log_window_bytes": 31280,
+  "network_origins": [
+    "http://localhost:3106",
+    "http://localhost:8086"
+  ],
+  "console": [
+    "info: %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold",
+    "log: [HMR] connected",
+    "log: WakeWordProvider unmounting. Cleaning up audio resources.",
+    "log: Stopping audio processing for wake word.",
+    "error: Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "error: Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "error: Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "error: Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "error: Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "log: [Fast Refresh] rebuilding",
+    "error: Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "log: [Fast Refresh] done in 12938ms",
+    "warning: WebSocket connection to 'ws://localhost:8086/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA2ODgxMjIsImp0aSI6Ijk4OTg1NjlmLWZhN",
+    "error: [API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}",
+    "debug: [useWebSocket] stale socket closed (gen 1, current 3) \u2014 ignoring",
+    "log: [Fast Refresh] rebuilding",
+    "log: [Fast Refresh] done in 12740ms",
+    "log: Refreshing page data due to server-side change",
+    "info: %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold",
+    "log: [HMR] connected",
+    "warning: WebSocket connection to 'ws://localhost:8086/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA2ODgxMjIsImp0aSI6Ijk4OTg1NjlmLWZhN",
+    "log: WakeWordProvider unmounting. Cleaning up audio resources.",
+    "log: Stopping audio processing for wake word.",
+    "warning: WebSocket connection to 'ws://localhost:8086/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA2ODgxMjIsImp0aSI6Ijk4OTg1NjlmLWZhN",
+    "error: [API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}",
+    "debug: [useWebSocket] stale socket closed (gen 1, current 3) \u2014 ignoring",
+    "debug: [useWebSocket] stale socket closed (gen 1, current 3) \u2014 ignoring",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "debug: [useWebSocket] stale socket closed (gen 3, current 5) \u2014 ignoring",
+    "info: %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold",
+    "log: [HMR] connected",
+    "warning: WebSocket connection to 'ws://localhost:8086/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA2ODgxMjIsImp0aSI6Ijk4OTg1NjlmLWZhN",
+    "log: WakeWordProvider unmounting. Cleaning up audio resources.",
+    "log: Stopping audio processing for wake word.",
+    "warning: WebSocket connection to 'ws://localhost:8086/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODNlYjEwNS1kOWU3LTQxYTUtODNlMy1hNjMyYjE1YjllZTMiLCJleHAiOjE3OTA2ODgxMjIsImp0aSI6Ijk4OTg1NjlmLWZhN",
+    "error: [API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}",
+    "debug: [useWebSocket] stale socket closed (gen 1, current 3) \u2014 ignoring",
+    "debug: [useWebSocket] stale socket closed (gen 1, current 3) \u2014 ignoring",
+    "debug: [useWebSocket] stale socket closed (gen 3, current 5) \u2014 ignoring"
+  ],
+  "steps": [
+    {
+      "assertion": "V1_canvas_exists_after_api_creation",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "canvas_id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+        "canvas_type": "email",
+        "audit_rows": 2
+      }
+    },
+    {
+      "assertion": "V1_canvas_seeded_with_the_old_text",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "body_contains_old": true,
+        "body_contains_new": false
+      }
+    },
+    {
+      "assertion": "V1_api_creation_left_an_audit_trail",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "actions": [
+          "create",
+          "update"
+        ]
+      }
+    },
+    {
+      "assertion": "V0_login_through_the_real_form",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": "http://localhost:3106/dashboard"
+    },
+    {
+      "assertion": "V0_the_composer_will_post_as_this_user",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "email": "admin@example.com",
+        "has_token": true
+      }
+    },
+    {
+      "assertion": "V2_the_page_renders_the_co_editor_composer",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "composer_textareas": 1,
+        "send_buttons": 1,
+        "url": "http://localhost:3106/canvas/8a6a026b-ba11-4a45-a62e-68840e22644e"
+      }
+    },
+    {
+      "assertion": "V2_the_page_identifies_this_canvas",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "url": "http://localhost:3106/canvas/8a6a026b-ba11-4a45-a62e-68840e22644e",
+        "header": "Canvas 8a6a026b-ba11-4a45-a62e-68840e22644e"
+      }
+    },
+    {
+      "assertion": "V2_the_page_shows_the_canvas_type",
+      "verdict": "FAIL",
+      "recorded_value": false,
+      "detail": "Canvas 8a6a026b-ba11-4a45-a62e-68840e22644e | "
+    },
+    {
+      "assertion": "V2_the_canvas_area_rendered_its_content_on_load",
+      "verdict": "FAIL",
+      "recorded_value": false,
+      "detail": {
+        "canvas_container_present": false,
+        "canvas_text_chars": 0,
+        "rte_surface": 0,
+        "note": "the page DID load this canvas (the header carries its type); the panel host did not render. CanvasPanel applies its `lastMessage` prop only when the parent passes no socket listener, and /canvas/[id] passes both."
+      }
+    },
+    {
+      "assertion": "V0_this_browser_only_talks_to_this_candidate",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "origins": [
+          "http://localhost:3106",
+          "http://localhost:8086"
+        ],
+        "foreign": []
+      }
+    },
+    {
+      "assertion": "V3_the_composer_actually_sent_one_chat_request",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "count": 1,
+        "url": "http://localhost:8086/api/chat/message"
+      }
+    },
+    {
+      "assertion": "V3_payload_names_this_canvas",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "sent_canvas_id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+        "expected": "8a6a026b-ba11-4a45-a62e-68840e22644e"
+      }
+    },
+    {
+      "assertion": "V3_payload_names_the_canvas_type",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "sent_canvas_type": "email"
+      }
+    },
+    {
+      "assertion": "V3_payload_names_the_current_page",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "sent_current_page": "/canvas/8a6a026b-ba11-4a45-a62e-68840e22644e"
+      }
+    },
+    {
+      "assertion": "V3_payload_carries_the_canvas_content",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "is_dict": true,
+        "keys": [
+          "body",
+          "cc",
+          "subject",
+          "to"
+        ],
+        "body_contains_old": true,
+        "body_chars": 145
+      }
+    },
+    {
+      "assertion": "V3_payload_content_matches_the_durable_canvas",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "sent_subject": "Quote for Steve",
+        "durable_subject": "Quote for Steve"
+      }
+    },
+    {
+      "assertion": "V3_payload_carries_the_edit_request_verbatim",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": "In the open canvas, change the quote validity from 15 days to 30 days and mark the edit VALIDITY-30"
+    },
+    {
+      "assertion": "V3_payload_posts_to_this_world_s_backend",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": "http://localhost:8086/api/chat/message"
+    },
+    {
+      "assertion": "V3_payload_carries_a_session_identity",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "session_id": "new",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "request_id": "3fff6167-5f4a-4c48-aff4-465b7cdf94fb",
+        "agent_id": null
+      }
+    },
+    {
+      "assertion": "V3_payload_carries_the_conversation_so_far",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "history_len": 0
+      }
+    },
+    {
+      "assertion": "V4_the_turn_produced_exactly_one_user_message",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "before": 0,
+        "after": 1
+      }
+    },
+    {
+      "assertion": "V4_the_turn_produced_an_assistant_answer",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "assistant_bubbles": 1,
+        "chars": 173,
+        "head": "Updated the quote validity in the body from 15 to 30 days and marked the change with a VALIDITY-30 comment. Nothing else in the draft was touched.\n\nfeedback tra"
+      }
+    },
+    {
+      "assertion": "V4_the_product_reported_a_machine_readable_outcome",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "http_status": 200,
+        "success": true,
+        "error_code": null,
+        "intent": "canvas_edit",
+        "execution_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+        "session_id": "32f989fb-6a0c-44e9-abe6-0719de553c74",
+        "canvas_edit": {
+          "canvas_id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+          "updated": true,
+          "execution_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+          "operation_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+          "outcome": "completed",
+          "postcondition_verified": true,
+          "audit_id": "f869d9b0-cb81-4c28-829b-8e589bd0400f",
+          "review_status": "accepted",
+          "matched_playbooks": [
+            {
+              "id": "0fa14b32-af62-4002-92a2-42629b545092",
+              "name": "[other] or"
+            },
+            {
+              "id": "acc43818-a723-4ed0-ae77-98661ca73514",
+              "name": "[tone] 10.5\""
+            }
+          ]
+        },
+        "reply_message": "Updated the quote validity in the body from 15 to 30 days and marked the change with a VALIDITY-30 comment. Nothing else in the draft was touched."
+      }
+    },
+    {
+      "assertion": "V4_the_durable_canvas_content_actually_changed",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "body_contains_old": false,
+        "body_contains_new": true,
+        "reported_updated": true
+      }
+    },
+    {
+      "assertion": "V4_exactly_one_update_audit_row_for_this_turn",
+      "verdict": "NOT APPLICABLE",
+      "reason": "no mutation landed, so there is no update row to count; the correct expectation for this run is zero update rows, asserted separately below",
+      "established_by": "V4_the_durable_canvas_content_actually_changed = True"
+    },
+    {
+      "assertion": "V4_the_update_row_is_attributed_to_an_operation",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "operation_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+        "review_status": "accepted",
+        "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3"
+      }
+    },
+    {
+      "assertion": "V4_the_update_row_is_accepted_not_pending_review",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "review_status": "accepted"
+      }
+    },
+    {
+      "assertion": "V4_the_update_row_belongs_to_this_user",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "row_user": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "request_user": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3"
+      }
+    },
+    {
+      "assertion": "V4_the_update_row_is_the_current_revision",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "latest": "f869d9b0-cb81-4c28-829b-8e589bd0400f",
+        "update_row": "f869d9b0-cb81-4c28-829b-8e589bd0400f"
+      }
+    },
+    {
+      "assertion": "V4_the_turn_added_no_unrelated_audit_rows",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "actions": [
+          "update"
+        ]
+      }
+    },
+    {
+      "assertion": "V5_the_visible_answer_matches_the_durable_store",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "store_changed": true,
+        "asserts_mutation": true,
+        "denies_mutation": false,
+        "claim_phrases_matched": [
+          "updated"
+        ],
+        "no_change_phrases_matched": [],
+        "reply": "Updated the quote validity in the body from 15 to 30 days and marked the change with a VALIDITY-30 comment. Nothing else in the draft was touched.\n\nfeedback trains the agent"
+      }
+    },
+    {
+      "assertion": "V5_the_visible_answer_does_not_deny_the_change",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "asserts_mutation": true,
+        "denies_mutation": false,
+        "claim_phrases_matched": [
+          "updated"
+        ],
+        "no_change_phrases_matched": []
+      }
+    },
+    {
+      "assertion": "V5_the_visible_canvas_shows_the_new_content",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "body_contains_new_in_dom": true,
+        "canvas_container_present": true,
+        "store_changed": true
+      }
+    },
+    {
+      "assertion": "V6_reload_recovers_the_same_conversation",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "before": 2,
+        "after": 2,
+        "first_diff": null
+      }
+    },
+    {
+      "assertion": "V6_reload_shows_the_same_canvas_state",
+      "verdict": "FAIL",
+      "recorded_value": false,
+      "detail": {
+        "body_contains_new_before": true,
+        "body_contains_new_after": false,
+        "canvas_container_after_reload": 0,
+        "chars_before": 751,
+        "chars_after": 0
+      }
+    },
+    {
+      "assertion": "V6_reload_writes_nothing_new",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "audit_rows_before_reload": 3,
+        "audit_rows_after_reload": 3
+      }
+    },
+    {
+      "assertion": "V6_reload_reads_back_the_same_durable_content",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "body_contains_old": false,
+        "body_contains_new": true
+      }
+    },
+    {
+      "assertion": "V7_the_product_decided_an_outcome_on_this_turn",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "canvas_edit": {
+          "canvas_id": "8a6a026b-ba11-4a45-a62e-68840e22644e",
+          "updated": true,
+          "execution_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+          "operation_id": "fc160a17-88eb-4c83-8a9f-90e715722de9",
+          "outcome": "completed",
+          "postcondition_verified": true,
+          "audit_id": "f869d9b0-cb81-4c28-829b-8e589bd0400f",
+          "review_status": "accepted",
+          "matched_playbooks": [
+            {
+              "id": "0fa14b32-af62-4002-92a2-42629b545092",
+              "name": "[other] or"
+            },
+            {
+              "id": "acc43818-a723-4ed0-ae77-98661ca73514",
+              "name": "[tone] 10.5\""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "assertion": "V7_the_declared_outcome_agrees_with_the_durable_store",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": {
+        "declared_updated": true,
+        "store_changed": true,
+        "log_says_applied": true
+      }
+    },
+    {
+      "assertion": "V7_the_backend_log_records_the_applied_edit",
+      "verdict": "PASS",
+      "recorded_value": true,
+      "detail": [
+        "INFO:integrations.chat_orchestrator:canvas co-editor edit applied: canvas=8a6a026b-ba11-4a45-a62e-68840e22644e type=email"
+      ]
+    }
+  ],
+  "counts": {
+    "published": 40,
+    "pass": 36,
+    "fail": 3,
+    "not_applicable": 1,
+    "applicable": 39,
+    "note": "36/39 of the APPLICABLE assertions passed; 1 published as NOT APPLICABLE and not counted in the ratio"
+  },
+  "verdict": "FAIL",
+  "capability_outcome": "EDIT APPLIED",
+  "capability_note": "The harness verdict above is the HARNESS's health: it can be green because a decline was refused and reported honestly. The capability is the PRODUCT OUTCOME line: editing is only supported if the canvas actually changed.",
+  "timing": {
+    "sent_at": 1790601805.040695,
+    "response_at": 1790601823.3719401,
+    "response_s": 18.33
+  }
+}

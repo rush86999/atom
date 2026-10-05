@@ -593,9 +593,27 @@ def _recovered_terminal_continuations(session_ids=None):
 
     out = []
     with get_db_session() as db:
-        rows = db.query(AgentExecution).all()
-        for row in rows:
-            meta = row.metadata_json or {}
+        # COLUMN-PROJECTION, not entity materialization (2026-10-03, the
+        # recovery-outage incident): 19 login-audit rows from a historical
+        # model-mapping era carry started_at='127.0.0.1' and
+        # completed_at=<user-agent>. Querying whole entities made
+        # SQLAlchemy's DateTime processor explode on the FIRST such row,
+        # so `recover_missing_terminal_deliveries` failed every cycle
+        # (4,919 consecutive failures) and NO stranded outcome was ever
+        # re-delivered. The scan reads only (id, metadata_json) — the
+        # columns it actually uses — so poisoned timestamp debris is
+        # inert. If a future writer poisons metadata_json the per-row
+        # guard below still isolates it to one skipped row.
+        rows = (
+            db.query(AgentExecution.id, AgentExecution.metadata_json)
+            .all()
+        )
+        for row_id, row_meta in rows:
+            try:
+                meta = row_meta if isinstance(row_meta, dict) else (
+                    json.loads(row_meta) if isinstance(row_meta, str) else {})
+            except (TypeError, ValueError):
+                continue
             if not isinstance(meta, dict):
                 continue
             cm = meta.get("continuation") or {}
@@ -611,7 +629,7 @@ def _recovered_terminal_continuations(session_ids=None):
                 continue
             if cm.get("notified") and not outcome:
                 continue
-            cid = str(row.id)
+            cid = str(row_id)
             delivered = db.query(ChatMessageModel).filter(
                 ChatMessageModel.conversation_id == str(
                     cm.get("session_id") or ""),
@@ -628,7 +646,7 @@ def _recovered_terminal_continuations(session_ids=None):
                 "outcome": str(outcome or ""),
                 "summary": str(cm.get("summary") or ""),
                 "execution_id": str(cm.get("originating_execution_id")
-                                    or row.id or ""),
+                                    or row_id or ""),
                 # ATTRIBUTION INPUTS: the effect wording is decided against
                 # operation-linked audit evidence, not the canvas hash alone.
                 "origin_operation_id": str(

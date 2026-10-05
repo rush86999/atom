@@ -159,7 +159,7 @@ class Handler(BaseHTTPRequestHandler):
             })
         if STATE.capture_path:
             with open(STATE.capture_path, "a") as cf:
-                cf.write(json.dumps({
+                capture: Dict[str, object] = {
                     "t": time.strftime("%FT%T"), "model": body.get("model"),
                     "stream": bool(body.get("stream")),
                     "tool_mode": bool(tool_specs) or bool(body.get("tool_choice")),
@@ -176,7 +176,14 @@ class Handler(BaseHTTPRequestHandler):
                     "tool_gate_ok": bool(_gate_ok),
                     "served_head": (json.dumps(entry[1])[:200] if entry and not isinstance(entry[1], str)
                                     else str(entry[1])[:200]) if entry else None,
-                }) + "\n")
+                }
+                # SHIM_CAPTURE_MESSAGES=1: opt-in FULL message lists, so a runner
+                # can assert on what the model was actually ASKED (e.g. that the
+                # lessons block reached the prompt) instead of inferring it from
+                # a 400-char head. Off by default: full transcripts are large.
+                if CAPTURE_MESSAGES:
+                    capture["messages_full"] = messages
+                cf.write(json.dumps(capture) + "\n")
         if entry and isinstance(entry[1], dict) and _gate_ok and (
                 entry[1].get("stall_seconds") or STATE.armed):
             # `stall_first_n` scopes the stall to the FIRST n GATED matches --
@@ -361,8 +368,12 @@ class Handler(BaseHTTPRequestHandler):
 
 
 STATE = ShimState()
+#: Set by the launcher (SHIM_CAPTURE_MESSAGES=1) — see the capture block below.
+CAPTURE_MESSAGES = False
 
 if __name__ == "__main__":
+    import os as _os
+    CAPTURE_MESSAGES = _os.environ.get("SHIM_CAPTURE_MESSAGES", "") in ("1", "true", "yes")
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8099)
     ap.add_argument("--script", required=True)

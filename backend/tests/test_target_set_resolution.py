@@ -218,3 +218,114 @@ class TestOrchestratorWiring:
         src = inspect.getsource(orch.ChatOrchestrator.process_chat_message)
         assert "compare_item_values" in src
         assert "Compared with the earlier saved copy" in src
+
+
+class TestRefreshOperativeRecheck:
+    """2026-10-01 live (e2e replay): 'check the other machinery … verify if
+    any pricing needs to be updated from latest pricing data' arrived
+    right after the FULL set was served. 'Other' made it contrastive, the
+    whole base was served, and the clarify branch answered 'which other
+    items should I check?' — a question the user never asked, while their
+    re-verification never ran. An explicit re-retrieval/freshness request
+    over a fully-served set is a RE-CHECK of that set."""
+
+    MACHINES = ["381", "U-22", "622", "SLE24-16", "1624", "GSL48-16"]
+
+    def test_freshness_request_over_served_set_rechecks_it(self):
+        from core.target_set_resolution import resolve_target_set
+
+        got = resolve_target_set(
+            "check the other machinery from price list and verify if "
+            "any pricing needs to be updated from latest pricing data",
+            canvas_items=[], prior_items=list(self.MACHINES),
+            last_served_items=list(self.MACHINES))
+        assert got["kind"] == "resolved", got
+        assert got["items"] == self.MACHINES
+        assert got["origin"].endswith("_recheck")
+
+    def test_rerun_wording_over_served_set_rechecks_it(self):
+        from core.target_set_resolution import resolve_target_set
+
+        got = resolve_target_set(
+            "check the other machinery again",
+            canvas_items=[], prior_items=list(self.MACHINES),
+            last_served_items=list(self.MACHINES))
+        assert got["kind"] == "resolved", got
+        assert got["items"] == self.MACHINES
+
+    def test_plain_other_without_refresh_wording_still_clarifies(self):
+        from core.target_set_resolution import resolve_target_set
+
+        got = resolve_target_set(
+            "check the other machinery",
+            canvas_items=[], prior_items=["381", "U-22"],
+            last_served_items=["381", "U-22"])
+        assert got["kind"] == "clarify", got
+
+
+class TestBaseAwareExclusions:
+    """2026-10-01 flagged gap: 'except 622' names a bare 3-digit code the
+    item extractor deliberately drops (the canvas '36' junk rule) — but
+    recognizing which KNOWN base items the user moved past is not mining:
+    a word-boundary literal hit on a base item excludes it."""
+
+    MACHINES = ["381", "U-22", "622", "SLE24-16"]
+
+    def test_except_bare_code_excludes_it(self):
+        from core.target_set_resolution import resolve_target_set
+
+        got = resolve_target_set(
+            "check the other machinery except 622",
+            canvas_items=[], prior_items=list(self.MACHINES),
+            last_served_items=[])
+        assert got["kind"] == "resolved", got
+        assert got["items"] == ["381", "U-22", "SLE24-16"]
+
+    def test_recheck_honors_except_bare_code(self):
+        from core.target_set_resolution import resolve_target_set
+
+        got = resolve_target_set(
+            "re-check the other machinery except 622 against the latest data",
+            canvas_items=[], prior_items=list(self.MACHINES),
+            last_served_items=list(self.MACHINES))
+        assert got["kind"] == "resolved", got
+        assert got["items"] == ["381", "U-22", "SLE24-16"]
+
+    def test_named_code_in_plain_message_moves_past_it(self):
+        from core.target_set_resolution import resolve_target_set
+
+        got = resolve_target_set(
+            "check the other machinery",
+            canvas_items=[], prior_items=["381", "U-22", "622"],
+            last_served_items=["381"])
+        assert got["items"] == ["U-22", "622"]
+
+
+class TestOutcomeReferencedSubsets:
+    """'search email attachments for the ones not found' — the user
+    points at a RESULT STATE, not at item codes."""
+
+    def test_not_found_reference_resolves_absent_then_ambiguous(self):
+        import uuid as _uuid
+
+        from core import dialogue_state as ds
+        from core.target_set_resolution import outcome_referenced_items
+
+        cid = f"osub-{_uuid.uuid4().hex[:8]}"
+        ds.append_event(ds.OBJECTIVE_SET, cid, {
+            "items": ["381", "U-22", "622", "GSL24-16", "U-38"],
+            "file": "f.xlsx"})
+        ds.record_item_outcomes(cid, {
+            "381": "found", "U-22": "found", "622": "multiple",
+            "GSL24-16": "none", "U-38": "none"})
+        got = outcome_referenced_items(
+            "search email attachments for the ones not found", cid)
+        assert got == ["GSL24-16", "U-38", "622"]  # absent in order, then ambiguous
+
+    def test_plain_message_and_empty_ledger_fail_closed(self):
+        from core.target_set_resolution import outcome_referenced_items
+
+        assert outcome_referenced_items(
+            "search the emails for quotes", "no-such-conv") == []
+        assert outcome_referenced_items(
+            "find U-22 in the workbook", "") == []

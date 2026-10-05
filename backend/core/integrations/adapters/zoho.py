@@ -123,6 +123,16 @@ class ZohoAdapter:
 
     async def refresh_token(self) -> bool:
         """Refresh Zoho access token using refresh token"""
+        # A cold adapter has no credentials until _load_token() runs, but
+        # refresh_token() is called DIRECTLY by callers that never fetch data
+        # first (workers.token_refresh_worker constructs the adapter and
+        # refreshes immediately). Without this load the method returned False
+        # on every cycle without touching the network, and the worker logged
+        # "grant may need a manual reconnect" for a perfectly healthy grant
+        # while the suite rows sat expired (live 2026-10-02: the UI badge
+        # stayed green, the chat-side reads degraded).
+        if not self._refresh_token and self.db:
+            await self._load_token()
         if not self._refresh_token:
             return False
 

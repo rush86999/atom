@@ -1,0 +1,15 @@
+{
+ "model": "strands-decider-2B-hobson-v19",
+ "answers": {
+  "t": {
+   "type": "noul",
+   "noul": 0.8661
+  }
+ },
+ "usage": {
+  "input_tokens": 75,
+  "output_tokens": 1
+ },
+ "latency_ms": 111.45,
+ "_client_ms": 119.9
+}

@@ -1,0 +1,226 @@
+{
+  "schema": "lane3-candidate-freeze-v1",
+  "frozen_at": "2026-09-27T10:34:50-0400",
+  "world": "candidate_fix1",
+  "world_path": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1",
+  "source_id": "a8bc48dc13e5-dirty.58293b7b2484",
+  "git_commit": "a8bc48dc13e5",
+  "revision": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+  "dirty_digest": "58293b7b2484",
+  "instance_id": "a8bc48dc13e5-dirty.58293b7b2484.11007.1790518164",
+  "export_tree_sha256": "068171fa71421e62690c7d091315c576507b090bbe30d1a0d8d50409096df022",
+  "export_file_count": 6554,
+  "export_rehashed_ok": 6554,
+  "export_mismatches": [],
+  "export_intact": true,
+  "dirty_paths": [
+    "AGENTS.md",
+    "backend/core/chat_tool_planner.py",
+    "backend/integrations/chat_orchestrator.py",
+    "backend/scripts/orchestration_acceptance/preview_server.py",
+    "backend/scripts/orchestration_acceptance/preview_stack.py",
+    "backend/scripts/orchestration_acceptance/run_isolated.py",
+    "backend/scripts/orchestration_acceptance/task_correction_acceptance.py",
+    "backend/tests/test_reply_leg_name_safety.py",
+    "backend/tests/test_workbook_structured_delivery.py",
+    "docs/architecture/orchestration_migration/acceptance/preview/preview_launch.py",
+    "scripts/drive_status.sh"
+  ],
+  "untracked_paths": [
+    "backend/config/world_storage.json",
+    "backend/core/world_storage_guard.py",
+    "backend/scripts/orchestration_acceptance/worlds_delete_audit.py",
+    "backend/tests/core/test_world_storage_guard.py",
+    "backend/tests/core/test_worlds_delete_audit.py",
+    "backend/tests/test_task_correction_routing.py",
+    "docs/architecture/orchestration_migration/LANE_1_TASK_CORRECTION.md",
+    "docs/architecture/orchestration_migration/LANE_2_FRONTEND_STREAMING.md",
+    "docs/architecture/orchestration_migration/LANE_3_ACCEPTANCE_AND_INTEGRATION.md",
+    "docs/architecture/orchestration_migration/RESUMED_AGENT_REVIEW_2026_09_27.md",
+    "docs/architecture/orchestration_migration/acceptance/WORLDS_RELOCATION_RUNBOOK.md",
+    "frontend-nextjs/hooks/chat/__tests__/fixtures/useWebSocket.broken.ts",
+    "frontend-nextjs/hooks/chat/__tests__/useWebSocket.stale-callbacks.test.ts",
+    "scripts/_drive_status_worlds.sh"
+  ],
+  "dirty_file_hashes": {
+    "AGENTS.md": {
+      "export": null,
+      "working_tree": "16bbd4d266eddeb2f41620c14cfc5273c0cc8fae3c2935034a2ec6bfb0f481ba",
+      "drifted": true
+    },
+    "backend/core/chat_tool_planner.py": {
+      "export": "9ffaad02421039b31f51d39f90d448dc3b61f41ef91fb668b8f4fe516e363243",
+      "working_tree": "9ffaad02421039b31f51d39f90d448dc3b61f41ef91fb668b8f4fe516e363243",
+      "drifted": false
+    },
+    "backend/integrations/chat_orchestrator.py": {
+      "export": "7a462e4afd8695cef7a2cd43ecd20e04c2ba436d12fd9e1301a3738d49cde58a",
+      "working_tree": "7a462e4afd8695cef7a2cd43ecd20e04c2ba436d12fd9e1301a3738d49cde58a",
+      "drifted": false
+    },
+    "backend/scripts/orchestration_acceptance/preview_server.py": {
+      "export": "d1e927f19b219fbeb7c9203d36a1a10eba9c40d2dd22f968e65c6836e1750de2",
+      "working_tree": "d1e927f19b219fbeb7c9203d36a1a10eba9c40d2dd22f968e65c6836e1750de2",
+      "drifted": false
+    },
+    "backend/scripts/orchestration_acceptance/preview_stack.py": {
+      "export": "11651eb6a09eb7b595dc860cdc202e16c9c64b73ff13d7421142bf9dff7621c3",
+      "working_tree": "11651eb6a09eb7b595dc860cdc202e16c9c64b73ff13d7421142bf9dff7621c3",
+      "drifted": false
+    },
+    "backend/scripts/orchestration_acceptance/run_isolated.py": {
+      "export": "634978ec70e5779f8bfed075ffbc1509171b72b75649d202d1d31df411cd5aa4",
+      "working_tree": "634978ec70e5779f8bfed075ffbc1509171b72b75649d202d1d31df411cd5aa4",
+      "drifted": false
+    },
+    "backend/scripts/orchestration_acceptance/task_correction_acceptance.py": {
+      "export": "52e10b9ec3389d32ab70454417c1ce56d9ffe422b80f83b7131cd5026fabf5ac",
+      "working_tree": "52e10b9ec3389d32ab70454417c1ce56d9ffe422b80f83b7131cd5026fabf5ac",
+      "drifted": false
+    },
+    "backend/tests/test_reply_leg_name_safety.py": {
+      "export": "a3b3f05c390145fc73b9047b3072dd8fd80dbf8e6cc3bc3cf8f45069f67812f7",
+      "working_tree": "a3b3f05c390145fc73b9047b3072dd8fd80dbf8e6cc3bc3cf8f45069f67812f7",
+      "drifted": false
+    },
+    "backend/tests/test_workbook_structured_delivery.py": {
+      "export": "7bcc25ef7b5e50c128746ea0cc0fc5cc0b14a6138524902958287c844ab06921",
+      "working_tree": "7bcc25ef7b5e50c128746ea0cc0fc5cc0b14a6138524902958287c844ab06921",
+      "drifted": false
+    },
+    "docs/architecture/orchestration_migration/acceptance/preview/preview_launch.py": {
+      "export": null,
+      "working_tree": "4bc1a412223d16ff47749d4e90ee705e6b90b6d69129204713afc0d70f7a787a",
+      "drifted": true
+    },
+    "scripts/drive_status.sh": {
+      "export": null,
+      "working_tree": "2ccb04595a9dd979b023a74ce2f6cd97e3712fb5d932730de5ecec325d6683cf",
+      "drifted": true
+    },
+    "backend/config/world_storage.json": {
+      "export": "50f8c78458b7aa6fce580c95b0e93e50b5ac3a3bcfb25be9715cc7abeb1b8f33",
+      "working_tree": "50f8c78458b7aa6fce580c95b0e93e50b5ac3a3bcfb25be9715cc7abeb1b8f33",
+      "drifted": false
+    },
+    "backend/core/world_storage_guard.py": {
+      "export": "637647091bcfbd34735b9859c3c3900c4f4896f0ef62bfd551d9dc34e65b113d",
+      "working_tree": "637647091bcfbd34735b9859c3c3900c4f4896f0ef62bfd551d9dc34e65b113d",
+      "drifted": false
+    },
+    "backend/scripts/orchestration_acceptance/worlds_delete_audit.py": {
+      "export": "f3dc35ce98e1c43c957f6cd4fa95933541f3487b371652ca27b1e4e918bca29b",
+      "working_tree": "f3dc35ce98e1c43c957f6cd4fa95933541f3487b371652ca27b1e4e918bca29b",
+      "drifted": false
+    },
+    "backend/tests/core/test_world_storage_guard.py": {
+      "export": "9468ec1f241f5d012cc873d857495c86b81d5fd9f1d805bc2e9e844620992a89",
+      "working_tree": "9468ec1f241f5d012cc873d857495c86b81d5fd9f1d805bc2e9e844620992a89",
+      "drifted": false
+    },
+    "backend/tests/core/test_worlds_delete_audit.py": {
+      "export": "f41869bc8a8cd23cf8a4974cf5fceed5921133853fb03ea25bc886fd40746bc0",
+      "working_tree": "f41869bc8a8cd23cf8a4974cf5fceed5921133853fb03ea25bc886fd40746bc0",
+      "drifted": false
+    },
+    "backend/tests/test_task_correction_routing.py": {
+      "export": "6231ce4eda7e1dcc97ff6d32914128c7135d7f2c6e1387bdc16f7bdfadb4b0c3",
+      "working_tree": "6231ce4eda7e1dcc97ff6d32914128c7135d7f2c6e1387bdc16f7bdfadb4b0c3",
+      "drifted": false
+    },
+    "docs/architecture/orchestration_migration/LANE_1_TASK_CORRECTION.md": {
+      "export": null,
+      "working_tree": "8e83cc9646c0e9644fa9ab89810f36acddba02a92045d8fba558eea24b724144",
+      "drifted": true
+    },
+    "docs/architecture/orchestration_migration/LANE_2_FRONTEND_STREAMING.md": {
+      "export": null,
+      "working_tree": "43ca3df06e8ed84d169c50c6b65bbba619ad568b54d3ae0b2b8eeab0508f2ae7",
+      "drifted": true
+    },
+    "docs/architecture/orchestration_migration/LANE_3_ACCEPTANCE_AND_INTEGRATION.md": {
+      "export": null,
+      "working_tree": "be6827c8f525eb44f036f5997a443656b046ec0416f771b4150fcb5bd6c9630e",
+      "drifted": true
+    },
+    "docs/architecture/orchestration_migration/RESUMED_AGENT_REVIEW_2026_09_27.md": {
+      "export": null,
+      "working_tree": "769302538d30c48b70cd2b6b5d216dda16d09ee1768cff694a9605515171e168",
+      "drifted": true
+    },
+    "docs/architecture/orchestration_migration/acceptance/WORLDS_RELOCATION_RUNBOOK.md": {
+      "export": null,
+      "working_tree": "1c041510f2867540877858f4462f62b8767ff98e965ddfa5f8a2e9fc55524f1d",
+      "drifted": true
+    },
+    "frontend-nextjs/hooks/chat/__tests__/fixtures/useWebSocket.broken.ts": {
+      "export": null,
+      "working_tree": "c7e7135e541909fe850f1ef27ee5b27fe495ee752cbf0f9a11e4331c5b131188",
+      "drifted": true
+    },
+    "frontend-nextjs/hooks/chat/__tests__/useWebSocket.stale-callbacks.test.ts": {
+      "export": null,
+      "working_tree": "2d473624e7c0129b82e439bfa4e445129d6fcfebbe489e9bfef00c04c5439ccf",
+      "drifted": true
+    },
+    "scripts/_drive_status_worlds.sh": {
+      "export": null,
+      "working_tree": "4b8dc2aeec84d6224ac74aba8275b7a9b6f4ce337459c96d06a9d652d5303c3f",
+      "drifted": true
+    }
+  },
+  "ports": {
+    "backend": 8071,
+    "frontend": 3102
+  },
+  "process": {
+    "pid": 11007,
+    "open_db_paths": [
+      "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db",
+      "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db-shm",
+      "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/candidate_fix1/runs/run-7325767729a0/data/atom.db-wal"
+    ]
+  },
+  "effective_flags": {
+    "ATOM_CHAT_STREAMING": "1",
+    "ATOM_SHEET_DATASETS": "1",
+    "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+    "CHAT_FINALIZATION_M1": "1",
+    "CHAT_FINALIZATION_M2": "1",
+    "ENABLE_INGESTION_SYNC": "false",
+    "ENABLE_SCHEDULER": "false",
+    "credential_names_present": [
+      "EMBEDDING_PROVIDER",
+      "FASTEMBED_MODEL",
+      "OLLAMA_MODEL",
+      "OPENROUTER_API_KEY"
+    ]
+  },
+  "world_manifest": {
+    "code_snapshot_sha256": "db8d733f967ae9a6869c894a1173d4e976f899937ac768da9554b7a61a133f71",
+    "code_source": "WORKING-TREE SNAPSHOT (includes uncommitted changes; hash-pinned; owning stream's commit is the durable pin)",
+    "network_boundary_verified": {
+      "loopback": true,
+      "external_blocked": true
+    },
+    "network_boundary": "seatbelt local-only profile (runtime-enforced)",
+    "atom_db_sha256": "89b882fca7eec8b8493673caee848d2b3bec36331a76df92df729f8be9ac9ee8",
+    "db_frozen_at": "2026-09-27T10:08:48-0400",
+    "db_source": "online-backup snapshot, parquet paths repointed, credentials scrubbed",
+    "credential_scrub": {
+      "integration_tokens(rows deleted)": 9,
+      "oauth_tokens(rows deleted)": 2
+    },
+    "venv_freeze_sha256": "70aedee442940759490bea13dc32bc0526af274d7fd1fb13f573886df403d060",
+    "built_at": "2026-09-27T10:08:49-0400",
+    "parquet_files_verified": 46,
+    "server_env": "strict whitelist (no credentials)",
+    "harness_version": "enforced-isolation-v3.2"
+  },
+  "results": {
+    "docs/architecture/orchestration_migration/acceptance/task_correction_results.json": {
+      "sha256": "8e7e88bd16e7fc8ec703d3a59f3d9bc3b17e4aab17b49efb9fb63c65d34ca52b",
+      "generated_at": "2026-09-27T10:10:30-0400"
+    }
+  }
+}

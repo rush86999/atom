@@ -1,0 +1,468 @@
+{
+ "schema": "lane3-background-interrupt-v1",
+ "generated_at": "2026-09-28T07:21:56-0400",
+ "world": "barrier_c17",
+ "backend": "http://127.0.0.1:8085",
+ "mode": "barrier-after-effect",
+ "barrier": {
+  "stage": "continuation_after_effect",
+  "armed": true,
+  "env": {
+   "ATOM_ACCEPTANCE_BARRIER": "continuation_after_effect",
+   "ATOM_ACCEPTANCE_BARRIER_MATCH": "bgint-BGINT-1790594372-a852",
+   "ATOM_ACCEPTANCE_BARRIER_TIMEOUT": "600"
+  },
+  "confined_to": "acceptance_worlds (refused elsewhere)"
+ },
+ "verdict": "PASS",
+ "checks_passed": 21,
+ "checks_total": 21,
+ "checks": {
+  "a BACKGROUND continuation was running when the kill was timed": true,
+  "the serving worker parked at the acceptance barrier": true,
+  "the barrier was armed for THIS session and the parking process is the recorded serving worker": true,
+  "the operation-LINKED audit row exists before the kill": true,
+  "the terminal record had NOT been written when the kill fired": true,
+  "the recorded serving worker is gone (SIGKILL, not a stall)": true,
+  "BEFORE any restart the continuation is still 'running' (a ghost)": true,
+  "the same run dir and database served the restart": true,
+  "the interrupted continuation is no longer 'running'": true,
+  "it is reconciled as CRASH-recovered from a VERIFIED dead owner": true,
+  "recovery did not invent a second continuation row": true,
+  "the already-landed effect was NOT applied a second time": true,
+  "the canvas carries EXACTLY ONE update audit row, and it is this request's": true,
+  "no new audit row appeared during recovery itself": true,
+  "the restart ran with the barrier DISARMED": true,
+  "a follow-up turn did not re-apply the same edit": true,
+  "after recovery the session still reports the turn honestly": true,
+  "nothing the user is shown claims the interrupted background update applied": true,
+  "the user WAS told the background update was interrupted": true,
+  "no duplicate execution was created for the interrupted turn": true,
+  "recovery wrote no new continuation row for the session": true
+ },
+ "details": {
+  "a BACKGROUND continuation was running when the kill was timed": {
+   "continuations": [
+    {
+     "id": "306c666c-b0f3-44b6-bf5b-2e68b98900b0",
+     "status": "running",
+     "error_message": null,
+     "metadata": {
+      "session_id": "bgint-BGINT-1790594372-a852",
+      "surface": "async_turn_continuation",
+      "originating_execution_id": "66334ede-7b52-41c7-8401-c89964b3ce37",
+      "origin_operation_id": "006c02bc-d37d-4540-9e12-2e5b49ae7569",
+      "continuation": {
+       "session_id": "bgint-BGINT-1790594372-a852",
+       "canvas_id": "a512edec-cc0e-4f7f-b4c4-608b742e5e61",
+       "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+       "message": "in the open canvas, change the quote validity from 15 days to 30 days and mark the edit BGINT-1790594372-a852",
+       "snapshot_content_hash": "ca5ab1dfc228d577f2276b9ea974fb5cd8f720bf6a4161f202c2b0242a44cbc2",
+       "snapshot_audit_ts": "2026-09-28T11:20:23",
+       "origin_operation_id": "006c02bc-d37d-4540-9e12-2e5b49ae7569",
+       "failure_stage": "",
+       "evidence_contract": null
+      },
+      "owner": {
+       "pid": 37175,
+       "token": "17248579cfae4e74ac0c7a4bd1f09fb6",
+       "host": "MacBook-Pro.local",
+       "process_started_at": "2026-09-28T11:20:44.387759+00:00",
+       "os_process_start": "ps:Mon Sep 28 07:20:08 2026"
+      }
+     },
+     "started_at": "2026-09-28 11:20:44",
+     "completed_at": null
+    }
+   ],
+   "thread_alive": true
+  },
+  "the serving worker parked at the acceptance barrier": {
+   "stage": "continuation_after_effect",
+   "waited_for": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-f6912bafb9de/data/acceptance_barrier",
+   "expected_pid": 37175,
+   "barrier_armed": "continuation_after_effect",
+   "continuations": [
+    {
+     "id": "306c666c-b0f3-44b6-bf5b-2e68b98900b0",
+     "status": "running",
+     "error_message": null,
+     "metadata": {
+      "session_id": "bgint-BGINT-1790594372-a852",
+      "surface": "async_turn_continuation",
+      "originating_execution_id": "66334ede-7b52-41c7-8401-c89964b3ce37",
+      "origin_operation_id": "006c02bc-d37d-4540-9e12-2e5b49ae7569",
+      "continuation": {
+       "session_id": "bgint-BGINT-1790594372-a852",
+       "canvas_id": "a512edec-cc0e-4f7f-b4c4-608b742e5e61",
+       "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+       "message": "in the open canvas, change the quote validity from 15 days to 30 days and mark the edit BGINT-1790594372-a852",
+       "snapshot_content_hash": "ca5ab1dfc228d577f2276b9ea974fb5cd8f720bf6a4161f202c2b0242a44cbc2",
+       "snapshot_audit_ts": "2026-09-28T11:20:23",
+       "origin_operation_id": "006c02bc-d37d-4540-9e12-2e5b49ae7569",
+       "failure_stage": "",
+       "evidence_contract": null
+      },
+      "owner": {
+       "pid": 37175,
+       "token": "17248579cfae4e74ac0c7a4bd1f09fb6",
+       "host": "MacBook-Pro.local",
+       "process_started_at": "2026-09-28T11:20:44.387759+00:00",
+       "os_process_start": "ps:Mon Sep 28 07:20:08 2026"
+      }
+     },
+     "started_at": "2026-09-28 11:20:44",
+     "completed_at": null
+    }
+   ],
+   "thread_alive": true
+  },
+  "the barrier was armed for THIS session and the parking process is the recorded serving worker": {
+   "arrival": {
+    "stage": "continuation_after_effect",
+    "pid": 37175,
+    "arrived_at": "2026-09-28T11:20:49.315588+00:00",
+    "wall_clock": 1790594449.315594,
+    "context": {
+     "surface": "async_turn_continuation",
+     "continuation_id": "306c666c-b0f3-44b6-bf5b-2e68b98900b0",
+     "session_id": "bgint-BGINT-1790594372-a852",
+     "canvas_id": "a512edec-cc0e-4f7f-b4c4-608b742e5e61",
+     "origin_operation_id": "006c02bc-d37d-4540-9e12-2e5b49ae7569",
+     "outcome": "applied",
+     "audit_id": "de62f442-ec96-4496-9e87-89f9873f0504"
+    },
+    "_file": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-f6912bafb9de/data/acceptance_barrier/barrier.continuation_after_effect.arrived.37175.json"
+   },
+   "session": "bgint-BGINT-1790594372-a852",
+   "serving_pid": 37175,
+   "why": "a marker from another pid, or for another session, would mean the kill is not landing in the window this probe opened"
+  },
+  "the operation-LINKED audit row exists before the kill": {
+   "attributed_operation_ids": [
+    "006c02bc-d37d-4540-9e12-2e5b49ae7569",
+    "306c666c-b0f3-44b6-bf5b-2e68b98900b0"
+   ],
+   "audits": [
+    {
+     "id": "acfad3ba-6f18-4249-a874-8164eb7791a6",
+     "action": "create",
+     "at": "2026-09-28 11:20:23",
+     "operation_id": null,
+     "review_status": null
+    },
+    {
+     "id": "de62f442-ec96-4496-9e87-89f9873f0504",
+     "action": "update",
+     "at": "2026-09-28 11:20:49.302985",
+     "operation_id": "306c666c-b0f3-44b6-bf5b-2e68b98900b0",
+     "review_status": "accepted"
+    }
+   ],
+   "thread_alive": true,
+   "how": "barrier arrival"
+  },
+  "the terminal record had NOT been written when the kill fired": {
+   "status": "running",
+   "completed_at": null,
+   "how": "the worker was parked at the barrier, so this is a real observation of the window, not a race",
+   "why": "if completion had already been recorded this is the ordinary completed case, not the interrupted one"
+  },
+  "the recorded serving worker is gone (SIGKILL, not a stall)": {
+   "pid": 37175,
+   "why_not_a_stall": "a stall keeps a live owner, and the boot sweep correctly refuses to touch live work -- that is a different case and would not measure recovery"
+  },
+  "BEFORE any restart the continuation is still 'running' (a ghost)": {
+   "status": "running"
+  },
+  "the same run dir and database served the restart": {
+   "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-f6912bafb9de/data/atom.db",
+   "run_dir": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/barrier_c17/runs/run-f6912bafb9de"
+  },
+  "the interrupted continuation is no longer 'running'": {
+   "status": "failed"
+  },
+  "it is reconciled as CRASH-recovered from a VERIFIED dead owner": {
+   "recovery": {
+    "crashed": true,
+    "recovered_at": "2026-09-28T11:21:00.518589+00:00",
+    "owner_state": "dead"
+   },
+   "owner_state_meaning": "dead = no such pid, or a confirmed pid reuse; anything else would be 'unknown' and must NOT be reconciled"
+  },
+  "recovery did not invent a second continuation row": {
+   "rows": 1
+  },
+  "the already-landed effect was NOT applied a second time": {
+   "update_audits_at_kill": 1,
+   "after_recovery": 1,
+   "audits": [
+    "create",
+    "update"
+   ],
+   "why": "a repeated mutation on a user's canvas is the one failure this whole path exists to prevent"
+  },
+  "the canvas carries EXACTLY ONE update audit row, and it is this request's": {
+   "total_update_rows": 1,
+   "attributed_operation_ids": [
+    "006c02bc-d37d-4540-9e12-2e5b49ae7569",
+    "306c666c-b0f3-44b6-bf5b-2e68b98900b0"
+   ],
+   "update_rows": [
+    {
+     "id": "de62f442-ec96-4496-9e87-89f9873f0504",
+     "action": "update",
+     "at": "2026-09-28 11:20:49.302985",
+     "operation_id": "306c666c-b0f3-44b6-bf5b-2e68b98900b0",
+     "review_status": "accepted"
+    }
+   ],
+   "canvas_content": {
+    "audit_count": 2,
+    "audit_actions": [
+     "create",
+     "update"
+    ],
+    "audit_details": [
+     "{\"content\": {\"to\": \"steve@example.com\", \"cc\": \"\", \"subject\": \"Quote for Steve\", \"body\": \"<div><p>Quote for Steve</p><p><b>Quote validity: 15 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-",
+     "{\"content\": {\"to\": \"steve@example.com\", \"cc\": \"\", \"subject\": \"Quote for Steve\", \"body\": \"<div><p>Quote for Steve</p><p><b>Quote validity: 30 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-"
+    ],
+    "content": "{\"to\": \"steve@example.com\", \"cc\": \"\", \"subject\": \"Quote for Steve\", \"body\": \"<div><p>Quote for Steve</p><p><b>Quote validity: 30 days.</b></p><p>Rows 1-5 are the requested machines.</p><!-- BGINT-1790594372-a852 --></div>\"}",
+    "has_new_text": true,
+    "has_old_text": false,
+    "operations": [
+     {
+      "status": "cancelled",
+      "operation_id": "006c02bc-d37d-4540-9e12-2e5b49ae7569",
+      "run_id": "b1352814-c412-4291-8845-a5fc27121489"
+     }
+    ]
+   }
+  },
+  "no new audit row appeared during recovery itself": {
+   "at_kill": 2,
+   "after": 2
+  },
+  "the restart ran with the barrier DISARMED": {
+   "effective_flags": {
+    "ATOM_ACCEPTANCE_BARRIER": "(disarmed)",
+    "ATOM_ACCEPTANCE_BARRIER_MATCH": "(any session)",
+    "ATOM_ASYNC_EDIT_PLAN_MODEL": "(unpinned)",
+    "ATOM_CHAT_REQUEST_DEADLINE_SECONDS": "(product default)",
+    "ATOM_CHAT_STREAMING": "true",
+    "ATOM_SHEET_DATASETS": "1",
+    "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+    "CHAT_FINALIZATION_M1": "1",
+    "CHAT_FINALIZATION_M2": "1",
+    "ENABLE_INGESTION_SYNC": "false",
+    "ENABLE_SCHEDULER": "false",
+    "credential_names_present": [
+     "EMBEDDING_PROVIDER",
+     "FASTEMBED_MODEL",
+     "OLLAMA_MODEL",
+     "OPENROUTER_API_KEY"
+    ]
+   },
+   "why": "a barrier still armed during recovery would let the probe's own seam, not the product, decide when recovery finished"
+  },
+  "a follow-up turn did not re-apply the same edit": {
+   "updates_at_kill": 1,
+   "after_followup": 1
+  },
+  "after recovery the session still reports the turn honestly": {
+   "status": 200,
+   "bytes": 2769,
+   "raw_bracket_diagnostic": false,
+   "note": "the bracketed text is the known D5 UX gap, recorded not fixed here"
+  },
+  "nothing the user is shown claims the interrupted background update applied": {
+   "notifications": [
+    {
+     "type": "info",
+     "title": "Background update could not finish",
+     "message": "A background canvas update was interrupted by a server restart.",
+     "metadata": {
+      "notification_type": "async_turn_failed",
+      "session_id": "bgint-BGINT-1790594372-a852",
+      "canvas_id": "a512edec-cc0e-4f7f-b4c4-608b742e5e61"
+     },
+     "at": "2026-09-28 11:21:00"
+    },
+    {
+     "type": "info",
+     "title": "Background update could not finish",
+     "message": "A background canvas update was interrupted by a server restart.",
+     "metadata": {
+      "notification_type": "async_turn_failed",
+      "session_id": "bgint-BGINT-1790594372-a852",
+      "canvas_id": "a512edec-cc0e-4f7f-b4c4-608b742e5e61"
+     },
+     "at": "2026-09-28 11:21:00"
+    },
+    {
+     "type": "info",
+     "title": "Background update could not finish",
+     "message": "A background canvas update was interrupted by a server restart.",
+     "metadata": {
+      "notification_type": "async_turn_failed",
+      "session_id": "bgint-BGINT-1790594372-a852",
+      "canvas_id": "a512edec-cc0e-4f7f-b4c4-608b742e5e61"
+     },
+     "at": "2026-09-28 11:21:00"
+    }
+   ],
+   "applied_claims": [],
+   "why": "the write DID land, but the background attempt that landed it was killed before it could say so; a claim of 'applied' attributed to the interrupted attempt would be asserting a completion nobody recorded"
+  },
+  "the user WAS told the background update was interrupted": {
+   "notifications": [
+    {
+     "type": "info",
+     "title": "Background update could not finish",
+     "message": "A background canvas update was interrupted by a server restart.",
+     "metadata": {
+      "notification_type": "async_turn_failed",
+      "session_id": "bgint-BGINT-1790594372-a852",
+      "canvas_id": "a512edec-cc0e-4f7f-b4c4-608b742e5e61"
+     },
+     "at": "2026-09-28 11:21:00"
+    },
+    {
+     "type": "info",
+     "title": "Background update could not finish",
+     "message": "A background canvas update was interrupted by a server restart.",
+     "metadata": {
+      "notification_type": "async_turn_failed",
+      "session_id": "bgint-BGINT-1790594372-a852",
+      "canvas_id": "a512edec-cc0e-4f7f-b4c4-608b742e5e61"
+     },
+     "at": "2026-09-28 11:21:00"
+    },
+    {
+     "type": "info",
+     "title": "Background update could not finish",
+     "message": "A background canvas update was interrupted by a server restart.",
+     "metadata": {
+      "notification_type": "async_turn_failed",
+      "session_id": "bgint-BGINT-1790594372-a852",
+      "canvas_id": "a512edec-cc0e-4f7f-b4c4-608b742e5e61"
+     },
+     "at": "2026-09-28 11:21:00"
+    }
+   ],
+   "why": "silence is not truthful reporting either: the turn the user asked for ended in a state they were never shown"
+  },
+  "no duplicate execution was created for the interrupted turn": {
+   "executions": [
+    {
+     "id": "66334ede-7b52-41c7-8401-c89964b3ce37",
+     "status": "failed",
+     "error": "Process restarted while execution was running (crashed)"
+    },
+    {
+     "id": "306c666c-b0f3-44b6-bf5b-2e68b98900b0",
+     "status": "failed",
+     "error": "Process restarted while execution was running (crashed)"
+    },
+    {
+     "id": "8106ff65-080a-4975-aa06-6f0bd9fc1fa1",
+     "status": "success",
+     "error": null
+    }
+   ]
+  },
+  "recovery wrote no new continuation row for the session": {
+   "before": 1,
+   "after": 1,
+   "why": "a reconcile that re-forked the work would be a second attempt at a mutation that already landed"
+  }
+ },
+ "timeline": [
+  {
+   "at": "07:19:32",
+   "event": "shim listening",
+   "port": 57932
+  },
+  {
+   "at": "07:20:23",
+   "event": "world launched",
+   "pid": 37175,
+   "run_dir": "run-f6912bafb9de",
+   "pin": "local_89817fd2/shim-1",
+   "barrier": "continuation_after_effect"
+  },
+  {
+   "at": "07:20:23",
+   "event": "canvas seeded",
+   "canvas_id": "a512edec-cc0e-4f7f-b4c4-608b742e5e61",
+   "audit_count": 1
+  },
+  {
+   "at": "07:20:44",
+   "event": "continuation running",
+   "execution_id": "306c666c-b0f3-44b6-bf5b-2e68b98900b0"
+  },
+  {
+   "at": "07:20:49",
+   "event": "barrier arrival",
+   "pid": 37175,
+   "stage": "continuation_after_effect",
+   "context": {
+    "surface": "async_turn_continuation",
+    "continuation_id": "306c666c-b0f3-44b6-bf5b-2e68b98900b0",
+    "session_id": "bgint-BGINT-1790594372-a852",
+    "canvas_id": "a512edec-cc0e-4f7f-b4c4-608b742e5e61",
+    "origin_operation_id": "006c02bc-d37d-4540-9e12-2e5b49ae7569",
+    "outcome": "applied",
+    "audit_id": "de62f442-ec96-4496-9e87-89f9873f0504"
+   }
+  },
+  {
+   "at": "07:20:49",
+   "event": "effect landed",
+   "audit_id": "de62f442-ec96-4496-9e87-89f9873f0504",
+   "operation_id": "306c666c-b0f3-44b6-bf5b-2e68b98900b0"
+  },
+  {
+   "at": "07:20:49",
+   "event": "worker killed",
+   "pid": 37175
+  },
+  {
+   "at": "07:20:49",
+   "event": "state at kill",
+   "audit_count": 2,
+   "updates": 1,
+   "effect_landed": true
+  },
+  {
+   "at": "07:21:08",
+   "event": "restarted",
+   "pid": 37347,
+   "source_id": "6e34725c7017-dirty.f19c241fee97"
+  },
+  {
+   "at": "07:21:52",
+   "event": "follow-up turn",
+   "status": 200
+  }
+ ],
+ "scope_note": "the only injection is the planner's model response; the fork, the continuation, the reservation, the store, the audit rows and the recovery are all the product's. The barrier is a PAUSE between two steps that both really happen: it writes no row, decides nothing, and cannot make a failed outcome read as applied.",
+ "observations_not_graded": [
+  {
+   "what": "3 recovery notifications for one restart",
+   "canvas_ids": [
+    "a512edec-cc0e-4f7f-b4c4-608b742e5e61"
+   ],
+   "sessions": [
+    "bgint-BGINT-1790594372-a852"
+   ],
+   "note": "the fixture carries older crashed rows, and every notification carries this run's identity -- deferred closure over the loop variable in notify_recovered_continuations"
+  },
+  {
+   "what": "continuation.notified is still unset on the recovered row",
+   "execution_id": "306c666c-b0f3-44b6-bf5b-2e68b98900b0",
+   "note": "the pass sets the flag after dispatching, so a later boot would notify the same crashed row again"
+  }
+ ]
+}

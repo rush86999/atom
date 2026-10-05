@@ -1344,6 +1344,18 @@ export default function CanvasDetailPage() {
                             <CanvasDataSection
                                 canvasId={canvasId as string}
                                 hireAttached={canvasAgents.length > 0}
+                                provenanceAgent={
+                                    trainingCtx?.agent
+                                        ? {
+                                              id: trainingCtx.agent.id,
+                                              name: trainingCtx.agent.name || "the hire",
+                                          }
+                                        : null
+                                }
+                                onAttached={() => {
+                                    void loadCanvasAgents();
+                                    setAttachNonce(n => n + 1);
+                                }}
                             />
                         )}
                         {/* Step 2 nudge: a canvas with no resolvable hire
@@ -1374,7 +1386,19 @@ export default function CanvasDetailPage() {
                                     <p className="text-muted-foreground">Loading canvas…</p>
                                 </div>
                             ) : canvasData ? (
-                                <CanvasPanel lastMessage={canvasLastMessage} registerFlushBeforeSend={registerPanelFlush} />
+                                <CanvasPanel
+                                    lastMessage={canvasLastMessage}
+                                    // Lossless: the page's own chat/canvas
+                                    // handler already moved to `onMessage`
+                                    // (see handleWsMessage above) because the
+                                    // `lastMessage` slot coalesces a frame
+                                    // burst. The panel applies canvas frames
+                                    // the same way, so a `canvas:update` that
+                                    // lands mid-burst — including the newest
+                                    // one — is no longer dropped.
+                                    onSocketMessage={onMessage}
+                                    registerFlushBeforeSend={registerPanelFlush}
+                                />
                             ) : (
                                 <div className="flex items-center justify-center h-full">
                                     <Card className="max-w-md text-center">
@@ -1390,6 +1414,8 @@ export default function CanvasDetailPage() {
                             <MiniAppHarness
                                 canvasId={canvasId as string}
                                 lastMessage={lastMessage}
+                                // Lossless — see the note on CanvasPanel above.
+                                onSocketMessage={onMessage}
                                 // Logic saves go through PUT /canvas/{id}/logic,
                                 // whose R89 governance gate requires an
                                 // AUTONOMOUS agent — without an id every

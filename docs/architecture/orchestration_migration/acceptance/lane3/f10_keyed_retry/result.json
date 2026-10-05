@@ -1,0 +1,116 @@
+{
+  "schema": "f10-keyed-retry-v1",
+  "candidate": "1a953b58934d-dirty.526a9a7135e8",
+  "code_snapshot": "f7bb91218dee27532551c366c5d13d57dda5a46e89088568e0eafb7e8c909ec2",
+  "world": "finish_line",
+  "run_dir": "run-cfb0605d01ce",
+  "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/finish_line/runs/run-cfb0605d01ce/data/atom.db",
+  "configuration": "api-only; lifecycle+M1+M2 on; barrier disarmed; planner unpinned",
+  "request_key": "5780e096-cc10-4466-a696-2aab633ee604",
+  "counts": {
+    "before": {
+      "agent_executions": 8,
+      "canvas_audit": 11
+    },
+    "after_first": {
+      "agent_executions": 9,
+      "canvas_audit": 11
+    },
+    "after_replay": {
+      "agent_executions": 9,
+      "canvas_audit": 11
+    },
+    "after_changed": {
+      "agent_executions": 9,
+      "canvas_audit": 11
+    }
+  },
+  "first": {
+    "status": 200,
+    "execution_id": "aee32d68-79b8-41cd-bf23-e06e1bb0cd0a",
+    "message": "Confirmation bias is the tendency to seek out, interpret, and remember information in ways that confirm our existing beliefs while dismissing evidence that contradicts them.",
+    "replay_pin": null
+  },
+  "replay": {
+    "status": 200,
+    "execution_id": "aee32d68-79b8-41cd-bf23-e06e1bb0cd0a",
+    "message": "Confirmation bias is the tendency to seek out, interpret, and remember information in ways that confirm our existing beliefs while dismissing evidence that contradicts them."
+  },
+  "changed": {
+    "status": 409,
+    "execution_id": null,
+    "message": ""
+  },
+  "findings": [
+    {
+      "check": "first send succeeded",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "check": "first send produced an execution id",
+      "ok": true,
+      "detail": "execution_id=aee32d68-79b8-41cd-bf23-e06e1bb0cd0a"
+    },
+    {
+      "check": "first send created exactly one execution",
+      "ok": true,
+      "detail": "delta=1"
+    },
+    {
+      "check": "first send reports a durable replay pin",
+      "ok": false,
+      "detail": "replay_pin=null"
+    },
+    {
+      "check": "replay did NOT create a second execution",
+      "ok": true,
+      "detail": "execs 9 -> 9"
+    },
+    {
+      "check": "replay did NOT create a second effect",
+      "ok": true,
+      "detail": "canvas_audit 11 -> 11"
+    },
+    {
+      "check": "replay returned the SAME execution id (original semantics)",
+      "ok": true,
+      "detail": "first=aee32d68-79b8-41cd-bf23-e06e1bb0cd0a replay=aee32d68-79b8-41cd-bf23-e06e1bb0cd0a"
+    },
+    {
+      "check": "replay returned the same answer text",
+      "ok": true,
+      "detail": "identical=True"
+    },
+    {
+      "check": "replay is not an error",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "check": "replay reports the same session",
+      "ok": true,
+      "detail": "first=b77f045f-8154-4444-b22b-785c264ab8cb replay=b77f045f-8154-4444-b22b-785c264ab8cb"
+    },
+    {
+      "check": "changed payload under a live key did NOT create a new execution",
+      "ok": true,
+      "detail": "execs 9 -> 9"
+    },
+    {
+      "check": "changed payload did not silently overwrite the pinned answer",
+      "ok": true,
+      "detail": "returned execution_id=None (pinned=aee32d68-79b8-41cd-bf23-e06e1bb0cd0a)"
+    },
+    {
+      "check": "changed payload was refused or reported as the pinned turn, not a new one",
+      "ok": true,
+      "detail": "HTTP 409; replayed_original_text=False"
+    },
+    {
+      "check": "changed payload created no extra effect",
+      "ok": true,
+      "detail": "canvas_audit 11 -> 11"
+    }
+  ]
+}

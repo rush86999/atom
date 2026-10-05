@@ -1,0 +1,50 @@
+{
+  "schema": "lane3-write-path-fingerprints-v1",
+  "recorded_at": "2026-09-27T16:40:10-0400",
+  "head": "a8bc48dc13e56c93d54e3a2ba954138e7388e7d5",
+  "note": "git HEAD is unchanged; HEAD alone does not identify this source. The per-file sha256 values below are the identity of the write-path fix.",
+  "files": {
+    "backend/integrations/chat_orchestrator.py": {
+      "sha256": "441bcfa7b7c883d1278e63a45a949297e08d72672e67d43686a911db3e7ab18c",
+      "bytes": 815837,
+      "baseline_sha256": "0e78a44d5be2824f96db472c7009b4fab7cb3d522366627b52c9361cc1787b1f",
+      "changed": true
+    },
+    "backend/core/chat_canvas_editor.py": {
+      "sha256": "11c0d94e80daf106fcadde1e375b6574a7268f9367ba1aed55e4c3305b57670f",
+      "bytes": 154168,
+      "baseline_sha256": "60fc8585e63b112251f6dd8f7e8e069085ef8f349953a0e70f319a9fd575d0bc",
+      "changed": true
+    },
+    "backend/core/task_lifecycle.py": {
+      "sha256": "a49d529dc69362e9d238d8db0c40c6519af1bf45095f87286ac76b60de0738c4",
+      "bytes": 91756,
+      "baseline_sha256": "a49d529dc69362e9d238d8db0c40c6519af1bf45095f87286ac76b60de0738c4",
+      "changed": false
+    },
+    "backend/core/async_turn_continuation.py": {
+      "sha256": "13bdf668cba7832bb0064e2f257f7164a9a32fc851145d0506406cb9cb8c0b46",
+      "bytes": 54289,
+      "baseline_sha256": "13bdf668cba7832bb0064e2f257f7164a9a32fc851145d0506406cb9cb8c0b46",
+      "changed": false
+    },
+    "backend/tools/canvas_crud_tool.py": {
+      "sha256": "165654770b5dd5bb40474bdb6f4865c19a23d2af2a56085d1604eccac8a9c63c",
+      "bytes": 55134,
+      "baseline_sha256": "165654770b5dd5bb40474bdb6f4865c19a23d2af2a56085d1604eccac8a9c63c",
+      "changed": false
+    },
+    "backend/tests/test_write_path_d0_negative_control.py": {
+      "sha256": "d38ebc0417cc41e5d18a35c34a07355ff40adeb000774d0d45d97995facaaaa2",
+      "bytes": 20729,
+      "baseline_sha256": null,
+      "changed": false
+    },
+    "backend/tests/test_chat_canvas_editor.py": {
+      "sha256": "2578de4ff200685dad0d69fb6201a8bfbe98dd42d418ce38f8d77ac99ccf9787",
+      "bytes": 117059,
+      "baseline_sha256": null,
+      "changed": false
+    }
+  }
+}

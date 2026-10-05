@@ -1,0 +1,200 @@
+{
+  "schema": "lane3-streaming-contract-v1",
+  "generated_at": "2026-09-27T18:24:53-0400",
+  "world": "candidate_fix1",
+  "backend": "http://127.0.0.1:8071",
+  "source_id": "a8bc48dc13e5-dirty.e2323daaad44",
+  "effective_flags": {
+    "ATOM_ASYNC_EDIT_PLAN_MODEL": "(unpinned)",
+    "ATOM_CHAT_STREAMING": "true",
+    "ATOM_SHEET_DATASETS": "1",
+    "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+    "CHAT_FINALIZATION_M1": "1",
+    "CHAT_FINALIZATION_M2": "1",
+    "ENABLE_INGESTION_SYNC": "false",
+    "ENABLE_SCHEDULER": "false",
+    "credential_names_present": [
+      "EMBEDDING_PROVIDER",
+      "FASTEMBED_MODEL",
+      "OLLAMA_MODEL",
+      "OPENROUTER_API_KEY"
+    ]
+  },
+  "flag_finding": {
+    "flag": "ATOM_CHAT_STREAMING",
+    "launcher_sets": "true",
+    "code_requires": "the literal string 'true' (chat_orchestrator: os.getenv(..., 'true').lower() == 'true')",
+    "leg_was_running": true,
+    "note": "if the launcher sets '1' the streaming leg is skipped entirely, because '1'.lower() != 'true'. A descriptor saying ATOM_CHAT_STREAMING=1 therefore reads as 'on' to a human and is FALSE to the code."
+  },
+  "cases": {
+    "C11_token_bearing_stream": "S1",
+    "C12_deterministic_completion": "S2",
+    "C11_foreign_frame": "S3"
+  },
+  "steps": [
+    {
+      "step": "S1_llm_turn_succeeded",
+      "ok": true,
+      "detail": "status=200 err=None"
+    },
+    {
+      "step": "S1_tokens_were_actually_emitted",
+      "ok": true,
+      "detail": {
+        "chat_token_frames": 21,
+        "frame_kinds": {
+          "agent_status_change": 2,
+          "agent_step_update": 1,
+          "chat_token": 21,
+          "chat_token_done": 1
+        }
+      }
+    },
+    {
+      "step": "S1_no_token_delta_is_empty",
+      "ok": true,
+      "detail": {
+        "empty_deltas": 0
+      }
+    },
+    {
+      "step": "S1_every_token_is_bound_to_this_turn",
+      "ok": true,
+      "detail": {
+        "turn_execution_id": "cc61b009-6f84-4df2-a402-f44ebaf1b7fc",
+        "distinct_frame_execution_ids": [
+          "cc61b009-6f84-4df2-a402-f44ebaf1b7fc"
+        ]
+      }
+    },
+    {
+      "step": "S1_no_foreign_frame_was_attributed_here",
+      "ok": true,
+      "detail": {
+        "foreign": []
+      }
+    },
+    {
+      "step": "S1_streamed_text_equals_the_delivered_answer",
+      "ok": true,
+      "detail": {
+        "streamed_chars": 285,
+        "answer_chars": 285,
+        "streamed_head": "A price list documents the list prices of machinery by vendor, so quotes can be prepared quickly and consistently for cu"
+      }
+    },
+    {
+      "step": "S1_a_single_final_event_closed_the_turn",
+      "ok": true,
+      "detail": {
+        "chat_token_done_frames": 1
+      }
+    },
+    {
+      "step": "S1_final_event_carries_the_same_text",
+      "ok": true,
+      "detail": {
+        "done_chars": 285
+      }
+    },
+    {
+      "step": "S1_tokens_precede_the_final_event",
+      "ok": true,
+      "detail": {
+        "last_token_ms": 4578,
+        "done_ms": 5044
+      }
+    },
+    {
+      "step": "S1_frames_arrive_as_a_burst_not_a_sparse_drip",
+      "ok": true,
+      "detail": {
+        "frames": 21,
+        "largest_gap_ms": 98
+      }
+    },
+    {
+      "step": "S2_deterministic_turn_succeeded",
+      "ok": true,
+      "detail": "status=200 err=None"
+    },
+    {
+      "step": "S2_no_tokens_on_a_deterministic_turn_is_valid",
+      "ok": true,
+      "detail": {
+        "chat_token_frames": 0,
+        "frame_kinds": {
+          "agent_status_change": 4,
+          "agent_step_update": 1,
+          "chat_token_done": 1
+        }
+      }
+    },
+    {
+      "step": "S2_no_token_frame_claims_the_deterministic_turn",
+      "ok": true,
+      "detail": {
+        "exec2": "46889288-8b7b-494e-8c98-5ad59ca305a2",
+        "frame_execs": []
+      }
+    },
+    {
+      "step": "S2_deterministic_turn_still_delivered_a_full_answer",
+      "ok": true,
+      "detail": {
+        "answer_chars": 2233
+      }
+    },
+    {
+      "step": "S3_history_shows_the_same_final_text_as_the_stream",
+      "ok": true,
+      "detail": {
+        "history_rows": 2,
+        "answer_chars": 285
+      }
+    },
+    {
+      "step": "S3_history_kept_both_turns_separate",
+      "ok": true,
+      "detail": {
+        "rows": 2
+      }
+    }
+  ],
+  "passed": 16,
+  "total": 16,
+  "all_pass": true,
+  "frame_kind_counts": {
+    "agent_status_change": 4,
+    "agent_step_update": 1,
+    "chat_token": 21,
+    "chat_token_done": 1
+  },
+  "frames_seen": 27,
+  "s1": {
+    "session": "stream-llm-1790547872",
+    "execution_id": "cc61b009-6f84-4df2-a402-f44ebaf1b7fc",
+    "chat_token_frames": 21,
+    "chat_token_done_frames": 1,
+    "streamed_chars": 285,
+    "answer_chars": 285,
+    "answer_head": "A price list documents the list prices of machinery by vendor, so quotes can be prepared quickly and consistently for customer inquiries. Ours (the 2019 price list in Zoho WorkDrive) covers the most common formulas and machinery we sell, and gets updated as new vendor pricing arrives.",
+    "frame_kinds": {
+      "agent_status_change": 2,
+      "agent_step_update": 1,
+      "chat_token": 21,
+      "chat_token_done": 1
+    }
+  },
+  "s2": {
+    "session": "stream-workbook-1790547872",
+    "execution_id": "46889288-8b7b-494e-8c98-5ad59ca305a2",
+    "chat_token_frames": 0,
+    "answer_chars": 2233,
+    "frame_kinds": {
+      "agent_status_change": 2
+    }
+  },
+  "streaming_verdict": "TOKEN STREAMING OBSERVED and bound to the turn"
+}

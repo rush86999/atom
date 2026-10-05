@@ -834,3 +834,13 @@ docs/architecture/orchestration_migration/acceptance/results/
 # diff. Source in that directory (the farm symlinks and its next.config.js
 # wrapper) stays tracked; only the build output is ignored.
 frontend-nextjs/.preview-instance/.next-preview/
+
+# worlds storage guard: runtime registration records (not config)
+backend/config/world_storage_runners/
+
+# Preview runtime state. Regenerated on every launch and deleted on --stop, so it
+# has no archival value -- but it carried two live credentials (a JWT signing key
+# and a Fernet key) and was committed twice. Values are redacted in place rather
+# than rotating a dead world's throwaway; see the file's _redaction_note.
+docs/architecture/orchestration_migration/acceptance/preview/preview_state.json
+docs/architecture/orchestration_migration/acceptance/preview/preview_verification.json

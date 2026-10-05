@@ -49,6 +49,16 @@ _DATA_VERBS = (
 #: rescope). Kept to clear universal forms — hedged phrasing ("I could not
 #: find", "no results in the CRM search") is honest already and must not
 #: trip a regeneration.
+#: A claim ABOUT spreadsheet artifacts (rows/cells/sheets/the copy) —
+#: covered only by spreadsheet-read evidence, never by mailbox hits.
+_FILE_CLAIM_RE = re.compile(
+    r"\b(?:rows?|workbooks?|spreadsheets?|excel|sheets?|cells?|"
+    r"price\s*lists?|catalog(?:ue)?|saved\s+copy)\b", re.IGNORECASE)
+_WORKBOOK_EVIDENCE_RE = re.compile(
+    r"MATERIALIZED COPY|PER-ITEM OUTCOMES|Results from the saved copy|"
+    r"saved copy of|indexed sheets|catalogued file|Workbook read:|"
+    r"LIVE TOOL RESULTS \(datasets", re.IGNORECASE)
+
 _ABSENCE_RES: List[re.Pattern] = [
     # "No file with that name exists in the system", "no matching records"
     re.compile(r"\bno\s+(?:\w+\s+){0,4}?(?:such|matching)\b", re.IGNORECASE),
@@ -102,21 +112,87 @@ _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 _MAX_CLAIMS = 3
 
 
+#: A markdown TABLE row (or a table border). Table cells are EVIDENCE-
+#: SHAPED content — the workbook answer's honest "no match" statuses are
+#: REQUIRED rows, not prose assertions — and a table has no sentence
+#: boundaries, so sentence-splitting turned an entire table into ONE
+#: "sentence" and any single "no match" cell flagged the WHOLE table as
+#: one absence claim. The deterministic strip then replaced the table
+#: with boilerplate, deleting the answer (live 2026-10-03, the 8-machine
+#: replay: the full results table was eaten; only the caveats tail
+#: shipped). Claims are extracted from PROSE segments only; tables pass
+#: through verbatim.
+#: REPRESENTATION-INDEPENDENT TABLE DETECTION (2026-10-03 independence
+#: audit): a results table reaches the guard in whichever form its
+#: producer emitted — markdown pipes, ASCII grids, or HTML rows (the
+#: email-canvas quoting path emits HTML). All share the property that
+#: matters: cells are evidence-shaped (an honest "no match"/"out of
+#: stock"/"not carried" status is a REQUIRED row) and the form has no
+#: sentence boundaries, so sentence-splitting would fuse the whole
+#: table into one "claim". Table lines are exempt from claim
+#: extraction; prose between tables is still guarded.
+_MARKDOWN_TABLE_LINE_RE = re.compile(r"^\s*(?:\||\+[-=])")
+_HTML_TABLE_LINE_RE = re.compile(
+    r"^\s*<\s*(?:/?t(?:able|head|body|r|h|d)\b|tr\b|td\b|th\b)",
+    re.IGNORECASE,
+)
+
+
+def _is_table_line(line: str) -> bool:
+    stripped = line.lstrip()
+    return bool(
+        _MARKDOWN_TABLE_LINE_RE.match(stripped)
+        or _HTML_TABLE_LINE_RE.match(stripped))
+
+
+def _is_mostly_html_table(sentence: str) -> bool:
+    """Inline-HTML form: producers emit ``<table><tr><td>…`` as ONE line
+    with no newlines, so line classification sees a prose-prefixed blob.
+    Two or more cell tags in a "sentence" is a table (prose never does
+    that) — exempt it like any table segment."""
+    s = sentence.lower()
+    return s.count("<td") + s.count("<th") >= 2
+
+
+def _prose_and_tables(reply: str) -> List[tuple]:
+    """Split ``reply`` into (is_table, text) segments, preserving order."""
+    segments: List[tuple] = []
+    current: List[str] = []
+    current_is_table: Optional[bool] = None
+    for line in str(reply or "").splitlines(keepends=True):
+        is_table_line = _is_table_line(line)
+        if current_is_table is None or is_table_line == current_is_table:
+            current.append(line)
+            current_is_table = is_table_line
+        else:
+            segments.append((current_is_table, "".join(current)))
+            current = [line]
+            current_is_table = is_table_line
+    if current:
+        segments.append((current_is_table, "".join(current)))
+    return segments
+
+
 def universal_absence_claims(reply: str) -> List[str]:
     """Sentences in ``reply`` that assert absence universally, capped at
-    ``_MAX_CLAIMS``. Empty list = nothing to guard."""
+    ``_MAX_CLAIMS``. Empty list = nothing to guard. Markdown TABLE
+    segments are exempt (see _TABLE_LINE_RE): their "no match" cells are
+    the honest answer, not over-scope prose."""
     if not reply:
         return []
     out: List[str] = []
-    for sentence in _SENTENCE_SPLIT_RE.split(reply):
-        if len(out) >= _MAX_CLAIMS:
-            break
-        if not sentence:
+    for is_table, segment in _prose_and_tables(reply):
+        if is_table:
             continue
-        for pat in _ABSENCE_RES:
-            if pat.search(sentence):
-                out.append(sentence.strip()[:200])
-                break
+        for sentence in _SENTENCE_SPLIT_RE.split(segment):
+            if len(out) >= _MAX_CLAIMS:
+                return out
+            if not sentence or _is_mostly_html_table(sentence):
+                continue
+            for pat in _ABSENCE_RES:
+                if pat.search(sentence):
+                    out.append(sentence.strip()[:200])
+                    break
     return out
 
 
@@ -168,6 +244,16 @@ def _claims_covered(claim: str, tool_block: str) -> bool:
     if not tool_block:
         return False
     if not any(m in tool_block for m in _COVERAGE_MARKERS):
+        return False
+    # FILE-EVIDENCE SCOPE (2026-10-01 live, replay-retry2 22:43): a
+    # workbook absence claim ('no matching row in the saved copy')
+    # shipped against MAILBOX evidence — token overlap ('copy') plus
+    # generic coverage markers covered it, while the turn's reply
+    # described a workbook search that never ran. A claim naming
+    # spreadsheet artifacts is coverable only by spreadsheet-READ
+    # evidence in the block; mailbox/document lines never cover it.
+    if _FILE_CLAIM_RE.search(claim) and not _WORKBOOK_EVIDENCE_RE.search(
+            tool_block):
         return False
     block = tool_block[:4000]
     # A failed/denied/timed-out lookup cannot support absence.
@@ -234,17 +320,34 @@ def strip_uncovered_absence_claims(reply: str, tool_block: str) -> str:
     """
     if not reply:
         return reply
+    # SEGMENT-PRESERVING rebuild (2026-10-03 independence audit): the old
+    # tail — " ".join(part.strip() …) — stripped newlines, so a rewrite
+    # that touched any sentence ALSO flattened every table in the reply.
+    # Rebuild per segment instead: tables verbatim, prose with its
+    # sentences space-joined.
     out: List[str] = []
     changed = False
-    for sentence in _SENTENCE_SPLIT_RE.split(reply):
-        if sentence.strip() and uncovered_absence_claims(sentence, tool_block):
-            out.append(_SCOPED_LIMITATION)
-            changed = True
-        else:
-            out.append(sentence)
+    for is_table, segment in _prose_and_tables(reply):
+        if is_table:
+            out.append(segment)
+            continue
+        prose_parts: List[str] = []
+        for sentence in _SENTENCE_SPLIT_RE.split(segment):
+            if not sentence.strip():
+                continue
+            if _is_mostly_html_table(sentence):
+                prose_parts.append(sentence)
+                continue
+            if uncovered_absence_claims(sentence, tool_block):
+                prose_parts.append(_SCOPED_LIMITATION)
+                changed = True
+            else:
+                prose_parts.append(sentence)
+        if prose_parts:
+            out.append(" ".join(part.strip() for part in prose_parts))
     if not changed:
         return reply
-    return " ".join(part.strip() for part in out if part.strip())
+    return "\n".join(out)
 
 
 def absence_correction_message(claims: List[str],

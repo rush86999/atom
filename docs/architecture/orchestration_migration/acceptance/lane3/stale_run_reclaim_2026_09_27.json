@@ -1,0 +1,66 @@
+{
+ "generated_at": "2026-09-27T19:18:09-0400",
+ "rule": "worlds with NO live process; keep the newest run, keep fixture/ code/ and every result file",
+ "removed": [
+  {
+   "world": "search_preview",
+   "run": "run-1b81f85f28f3",
+   "kept": "run-ff4e38cf2b86"
+  },
+  {
+   "world": "search_preview",
+   "run": "run-2f1fa1167841",
+   "kept": "run-ff4e38cf2b86"
+  },
+  {
+   "world": "search_preview",
+   "run": "run-3d403bcd132d",
+   "kept": "run-ff4e38cf2b86"
+  },
+  {
+   "world": "search_preview",
+   "run": "run-7a2e11e2aea2",
+   "kept": "run-ff4e38cf2b86"
+  },
+  {
+   "world": "search_preview",
+   "run": "run-abf0d61581d9",
+   "kept": "run-ff4e38cf2b86"
+  },
+  {
+   "world": "search_preview",
+   "run": "run-ba25fede41d2",
+   "kept": "run-ff4e38cf2b86"
+  },
+  {
+   "world": "search_preview",
+   "run": "run-d0ea2a4153e7",
+   "kept": "run-ff4e38cf2b86"
+  },
+  {
+   "world": "preview_app",
+   "run": "run-343f232400e9",
+   "kept": "run-d08a0394e4a9"
+  },
+  {
+   "world": "preview_app",
+   "run": "run-5a5101d3ac57",
+   "kept": "run-d08a0394e4a9"
+  },
+  {
+   "world": "preview_app",
+   "run": "run-7269ca5252ef",
+   "kept": "run-d08a0394e4a9"
+  },
+  {
+   "world": "preview_app",
+   "run": "run-83cdda231cff",
+   "kept": "run-d08a0394e4a9"
+  },
+  {
+   "world": "consolidated_preview",
+   "run": "run-211e1535e396",
+   "kept": "run-6e88a0b0d9cb"
+  }
+ ]
+}

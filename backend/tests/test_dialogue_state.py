@@ -262,3 +262,84 @@ class TestDurableBindingAndFileFacts:
         src = inspect.getsource(orch._resolve_anaphoric_file_mention)
         assert "conversation_id" in src
         assert "LEDGER FALLBACK" in src
+
+
+class TestWorkbookBindings:
+    """2026-10-01 flagged gap (cross-session memory): a user-confirmed row
+    is a fact about the WORKBOOK revision — a NEW conversation on the same
+    file must inherit it instead of re-asking 'which row do you mean?'."""
+
+    def test_binding_crosses_conversations_within_workspace(self):
+        from core import dialogue_state as ds
+
+        c1 = f"dstest-{uuid.uuid4().hex[:8]}"
+        c2 = f"dstest-{uuid.uuid4().hex[:8]}"
+        _ws = f"ws-{uuid.uuid4().hex[:8]}"
+        _rev = f"rev-{uuid.uuid4().hex[:8]}"
+        ds.append_event(ds.BINDING_CAPTURED, c1, {
+            "item": "381", "sheet": "Tennsmith", "row": 338,
+            "content_hash": _rev}, workspace_id=_ws)
+        # visible from ANOTHER conversation id, same workspace+revision
+        got = ds.workbook_bindings(_ws, _rev, ["381", "U-22"])
+        assert [(b["item"], b["row"]) for b in got] == [("381", 338)]
+        assert got[0]["cross_conversation"] is True
+        assert got[0]["source_conversation"] == c1
+        # the session-scoped read of c2 itself stays empty (projection
+        # scope unchanged) — only the workbook tier crosses
+        assert ds.active_bindings(c2, _rev) == []
+
+    def test_workbook_binding_expires_with_revision_and_workspace(self):
+        from core import dialogue_state as ds
+
+        c1 = f"dstest-{uuid.uuid4().hex[:8]}"
+        _ws = f"ws-{uuid.uuid4().hex[:8]}"
+        _rev = f"rev-{uuid.uuid4().hex[:8]}"
+        ds.append_event(ds.BINDING_CAPTURED, c1, {
+            "item": "381", "sheet": "Tennsmith", "row": 338,
+            "content_hash": _rev}, workspace_id=_ws)
+        assert ds.workbook_bindings(_ws, f"{_rev}x", ["381"]) == []
+        assert ds.workbook_bindings(f"{_ws}x", _rev, ["381"]) == []
+
+    def test_newest_assertion_per_row_wins(self):
+        from core import dialogue_state as ds
+
+        c1 = f"dstest-{uuid.uuid4().hex[:8]}"
+        _ws = f"ws-{uuid.uuid4().hex[:8]}"
+        _rev = f"rev-{uuid.uuid4().hex[:8]}"
+        ds.append_event(ds.BINDING_CAPTURED, c1, {
+            "item": "381", "sheet": "Tennsmith", "row": 337,
+            "content_hash": _rev}, workspace_id=_ws)
+        ds.append_event(ds.BINDING_CAPTURED, c1, {
+            "item": "381", "sheet": "Tennsmith", "row": 338,
+            "content_hash": _rev}, workspace_id=_ws)
+        got = ds.workbook_bindings(_ws, _rev, ["381"])
+        assert len(got) == 2  # distinct rows are distinct bindings
+
+
+class TestItemOutcomes:
+    """2026-10-02 (the 'shouldn't have to mention them by name' gap):
+    per-item read outcomes are durable conversation state — 'the ones
+    not found' resolves through the ledger, never through the user
+    re-typing model codes."""
+
+    def test_outcomes_merge_newest_wins_and_filter(self):
+        from core import dialogue_state as ds
+
+        cid = f"outc-{uuid.uuid4().hex[:8]}"
+        ds.record_item_outcomes(cid, {
+            "381": "found", "U-22": "found", "GSL24-16": "none",
+            "SLE16-8": "none", "622": "multiple"},
+            file_name="f.xlsx")
+        ds.record_item_outcomes(cid, {"622": "found"})  # later read confirms
+        all_o = ds.active_item_outcomes(cid)
+        assert all_o["622"] == "found"          # newest wins
+        assert all_o["GSL24-16"] == "none"      # untouched statuses persist
+        not_found = ds.active_item_outcomes(cid, statuses=["none"])
+        assert sorted(not_found) == ["GSL24-16", "SLE16-8"]
+
+    def test_empty_outcomes_record_nothing(self):
+        from core import dialogue_state as ds
+
+        cid = f"outc-{uuid.uuid4().hex[:8]}"
+        ds.record_item_outcomes(cid, {})
+        assert ds.active_item_outcomes(cid) == {}

@@ -174,8 +174,16 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     const handleCanvasVisibility = useCallback((visible: boolean) => setCanvasOpen(visible), []);
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // Subscribe to workspace events
-    const { lastMessage, isConnected } = useWebSocket({
+    // Subscribe to workspace events.
+    //
+    // DELIVERY: the trace is built from the socket's `onMessage` listener, not
+    // from the `lastMessage` state slot. That slot is ONE slot — a burst of
+    // workspace frames inside one render commit produces one commit, so an
+    // effect keyed on it processes only the newest frame and silently drops the
+    // rest. A run's steps arrive as a burst, so that is exactly the frame class
+    // this panel exists to show: the trace was rendered with holes in it. The
+    // listener fires for every frame, in arrival order.
+    const { lastMessage, isConnected, onMessage } = useWebSocket({
         initialChannels: ["workspace:default"]
     });
 
@@ -217,7 +225,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     // ── Event ingestion ──────────────────────────────────────────────────
     const processedMessageRef = useRef<any>(null);
     useEffect(() => {
-        const processMessage = () => {
+        const processMessage = (lastMessage: any) => {
         if (!lastMessage) return;
         // process each message exactly once even when the effect re-runs
         // because of collapsed/callback/session identity changes
@@ -375,8 +383,8 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
             }
         }
         };
-        void processMessage();
-    }, [lastMessage, sessionId, collapsed, onAgentActivity, onRunSettled]);
+        return onMessage(processMessage);
+    }, [onMessage, sessionId, collapsed, onAgentActivity, onRunSettled]);
 
     // Auto-scroll to bottom of steps
     useEffect(() => {
@@ -911,6 +919,10 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                         <div className={canvasOpen ? "flex-1 overflow-hidden" : "h-0 overflow-hidden"}>
                             <CanvasHost
                                 lastMessage={lastMessage}
+                                // Lossless: a canvas:update landing inside a
+                                // frame burst is applied, not coalesced away
+                                // with the rest of the burst.
+                                onSocketMessage={onMessage}
                                 sessionId={sessionId}
                                 onVisibilityChange={handleCanvasVisibility}
                             />
