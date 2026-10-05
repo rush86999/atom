@@ -1118,6 +1118,38 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                     1 for s in res["statuses"].values() if s == "located")
                 notes.append(f"{fname}: " + "; ".join(res["evidence"]))
             if notes:
+                # DELIVER WHERE THE UI READS (round 61): the panel's
+                # history endpoint serves ChatMessage DB rows — a note
+                # written only to the file-store session was invisible.
+                # Append an assistant row (idempotent per cycle by
+                # content check), plus keep the file-store mirror.
+                _note_text = (
+                    "Background research update — completed while you "
+                    "were away: " + " | ".join(notes)
+                    + ". Remaining work stays on the job record.")
+                try:
+                    from core.database import get_db_session
+                    from core.models import ChatMessage as _CM
+
+                    with get_db_session() as _db:
+                        _dupe = _db.query(_CM).filter(
+                            _CM.conversation_id == conv,
+                            _CM.role == "assistant",
+                            _CM.content == _note_text[:4000],
+                        ).first()
+                        if _dupe is None:
+                            _db.add(_CM(
+                                conversation_id=conv, role="assistant",
+                                tenant_id=str(
+                                    (record.get("task_revision") or {})
+                                    .get("provenance") or {}).get(
+                                        "tenant_id") or "default",
+                                content=_note_text[:4000]))
+                            _db.commit()
+                except Exception as _cm_err:  # noqa: BLE001
+                    logger.debug(
+                        "[research-continuation] DB note skipped: %r",
+                        _cm_err)
                 try:
                     fresh_sess = chat_session_manager.get_session(conv)
                     if fresh_sess and not _session_owned_by_interactive(
@@ -1125,12 +1157,7 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                         hist = list(fresh_sess.get("history") or [])
                         hist.append({
                             "message": "",
-                            "response": (
-                                "Background research update — completed "
-                                "while you were away: "
-                                + " | ".join(notes)
-                                + ". Remaining work stays on the job "
-                                  "record."),
+                            "response": _note_text,
                             "timestamp": time.time(),
                         })
                         chat_session_manager.update_session_activity(
