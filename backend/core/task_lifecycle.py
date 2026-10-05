@@ -2628,6 +2628,29 @@ def record_read_outcome(
             str(k) for k, v in
             ((execution or {}).get("items") or {}).items()
             if str(v or "").strip()}
+        # ITEM-IDENTITY MATCH (round 47, live TK 1624): the workbook
+        # reports the matched key ("1624") while the question carries the
+        # fuller identity ("TK 1624") — exact-string matching left the
+        # completed read unresolved. Normalized containment EITHER WAY
+        # establishes it is the same item; unrelated strings still do not
+        # resolve (an adjacent row's value must not retire another
+        # item's action).
+        def _norm_id(s: Any) -> str:
+            return re.sub(r"[^a-z0-9]", "", str(s).lower())
+        if _read_items:
+            _record_now = lifecycle.get_task(run_id)
+            _q_items = {
+                str(q.get("item") or "")
+                for q in open_unresolved_questions(_record_now or {})}
+            for _q_i in _q_items:
+                if not _q_i or _q_i in _read_items:
+                    continue
+                _qn = _norm_id(_q_i)
+                if _qn and any(
+                        (_rn := _norm_id(_r)) and (
+                            _qn in _rn or _rn in _qn)
+                        for _r in _read_items):
+                    _read_items.add(_q_i)
         if _read_items:
             # VERIFICATION-KIND ONLY: an owner DECISION is settled by the
             # owner, never by a read (a successful read must not become
