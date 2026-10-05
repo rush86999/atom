@@ -421,3 +421,56 @@ class TestCalculateQueryEntry:
         assert m.group("policy") == "taught-multiply-add_freight"
         assert m.group("amount") == "1000"
         assert m.group("currency") == "CAD"
+
+
+class TestWorkbookDerivedPolicies:
+    """Round 68: every sheet has its own formula — the workbook IS the
+    policy source. Per-row derivation from the formula sidecar with the
+    sheet's OWN parameter block; sheet-scoped identity."""
+
+    def test_burrking_row_chain_sheet_scoped_with_own_params(self):
+        from core.pricing_calculation import policy_from_row_chain
+        formulas = {
+            'K25': '=SUM(I25*$AB$1)', 'L25': '=SUM(K25*$AB$8)',
+            'M25': '=SUM(L25*$AB$11)', 'U25': '=S25*$AB$36',
+            'W25': '=U25*$AB$42', 'E25': '=ROUNDUP(W25,0)'}
+        raw = {'AB1': '0.675', 'AB8': '1.45', 'AB11': '1.03',
+               'AB36': '1.1364', 'AB42': '1.25'}
+        p = policy_from_row_chain(
+            'Some Price List.xlsx', 'BurrKing', 25,
+            'unused.parquet', formulas, raw_values=raw)
+        assert p is not None
+        assert p.scope == {'file': 'Some Price List.xlsx',
+                           'sheet': 'BurrKing'}
+        assert p.provenance == (
+            'workbook:Some Price List.xlsx!BurrKing!row25')
+        muls = [s for s in p.steps if s.op == 'multiply']
+        # The SHEET's OWN factors — not the F5216 lesson's 0.9/0.87/0.86
+        assert [m.params['factor'] for m in muls] == [
+            '0.675', '1.45', '1.03', '1.1364', '1.25']
+        # Cell provenance on every step
+        assert all('BurrKing!' in s.note for s in muls)
+        # ROUNDUP in the row's formulas -> the rounding terminates
+        assert p.steps[-1].op == 'round'
+
+    def test_tennsmith_literal_row_yields_none_honestly(self):
+        """The Tennsmith sheet's values are typed literals (no formula
+        sidecar for that sheet) — there is no chain to derive and None
+        is the honest answer, never a borrowed ladder."""
+        from core.pricing_calculation import policy_from_row_chain
+        p = policy_from_row_chain(
+            'Consolidated Price List 2019.xlsx', 'Tennsmith', 106,
+            'unused.parquet', {})
+        assert p is None
+
+    def test_scope_prevents_cross_sheet_application(self):
+        """A BurrKing-derived policy must not silently price a
+        Tennsmith row: the scope names the sheet, and a caller must
+        respect it (the dataclass carries the binding)."""
+        from core.pricing_calculation import policy_from_row_chain
+        p = policy_from_row_chain(
+            'F.xlsx', 'BurrKing', 25, 'u.parquet',
+            {'K25': '=SUM(I25*$AB$1)'},
+            raw_values={'AB1': '0.675'})
+        assert p.scope['sheet'] == 'BurrKing'
+        assert 'Tennsmith' not in str(p.scope)

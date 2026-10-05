@@ -103,14 +103,24 @@ class PolicyStep:
 
 @dataclass
 class TaughtPolicy:
-    """A typed calculation recipe with provenance and version."""
+    """A typed calculation recipe with provenance and version.
+
+    ``scope`` (round 68) binds applicability: a lesson-derived policy
+    may be global, but a WORKBOOK-derived policy is scoped to its
+    sheet — 'every sheet has its own formula' is the workbook's own
+    structure (live evidence: BurrKing's ladder multiplies by $AB$1 /
+    $AB$8 / $AB$11 parameter cells; TennSmith's row uses c24/c26
+    factors; the F5216 lesson example was ONE ROW's chain, not the
+    business rule). Scope is data (file/sheet), never business
+    vocabulary."""
     policy_id: str
     name: str
     steps: List[PolicyStep]
-    provenance: str = ""       # 'lesson:4b6a11cc' / 'config:xyz'
+    provenance: str = ""       # 'lesson:...' / 'workbook:FILE!SHEET'
     version: str = "1"
     freshness_window_days: Optional[int] = None
     conditions: List[str] = field(default_factory=list)  # applicability
+    scope: Dict[str, str] = field(default_factory=dict)  # file/sheet
 
 
 @dataclass
@@ -904,3 +914,188 @@ def _grounded(body: str) -> str:
             + body)
     except Exception:  # noqa: BLE001 — grounding is additive
         return ("LIVE TOOL RESULTS (datasets.calculate):\n" + body)
+
+
+# ---------------------------------------------------------------------------
+# Workbook-derived policies: each sheet's OWN formula chain (round 68)
+# ---------------------------------------------------------------------------
+
+_CELL_RE = _re.compile(r"^([A-Z]{1,3})(\d+)$", _re.IGNORECASE)
+
+
+def _sheet_values(parquet_path: str) -> Dict[str, str]:
+    """The sheet's computed cell values by Excel ADDRESS — the
+    parameter block a ladder's $-references point at. Columns map to
+    letters by ORDER (the parquet preserves sheet column order; the
+    headers are text, not letters) and rows by __sheet_row when
+    present (the true Excel row), else by position+2."""
+    import pandas as _pd
+
+    def col_letter(idx: int) -> str:
+        n, s = idx, ""
+        while n >= 0:
+            s = chr(65 + n % 26) + s
+            n = n // 26 - 1
+        return s
+
+    df = _pd.read_parquet(parquet_path)
+    has_sr = "__sheet_row" in df.columns
+    vals: Dict[str, str] = {}
+    for ci, col in enumerate(df.columns):
+        if str(col) == "__sheet_row":
+            continue
+        letter = col_letter(ci)
+        sr = df["__sheet_row"] if has_sr else None
+        for i, v in enumerate(df[col]):
+            if v is None or (hasattr(v, "item") and _pd.isna(v)):
+                continue
+            row_no = int(sr.iloc[i]) if has_sr else i + 2
+            addr = f"{letter}{row_no}"
+            s = str(v)
+            if s and s not in vals:
+                vals[addr] = s
+    return vals
+
+
+def policy_from_row_chain(
+        file_name: str,
+        sheet_name: str,
+        row_number: int,
+        parquet_path: str,
+        formulas: Dict[str, str],
+        raw_values: Optional[Dict[str, str]] = None) -> Optional[TaughtPolicy]:
+    """Build the policy for ONE ROW from that row's OWN formula chain
+    in the workbook's formula sidecar (round 68 — the reviewer's
+    'every sheet had its own formula' finding).
+
+    The chain is read right-to-left from the row's price cell: each
+    formula's LHS cell is matched to the next formula whose RHS names
+    it; absolute $-references ($AB$1) resolve against the sheet's
+    computed values — the sheet's OWN parameter block, so the ladder's
+    factors are the sheet's, never a lesson example's. Every step
+    carries its cell provenance. Sheets without a formula sidecar (the
+    values are literals — Tennsmith's row is typed values, not
+    formulas) yield None: there is nothing to derive, and the honest
+    answer is 'this row has no formula chain', never a borrowed one.
+    """
+    row = int(row_number)
+    row_keys = {
+        _CELL_RE.match(k).group(1).upper() + str(row): k
+        for k in (formulas or {})
+        if _CELL_RE.match(k) and int(_CELL_RE.match(k).group(2)) == row}
+    if not row_keys:
+        return None
+    # Parameter resolution order (round 68): RAW grid values first
+    # (the param block often lives in Excel row 1, which the
+    # materialized frame consumed as headers), then frame-derived
+    # values (sheets whose params sit in data rows). A caller with
+    # complete raw_values may pass a nonexistent parquet path (the
+    # frame read is skipped when raw_values cover the references).
+    vals: Dict[str, str] = {}
+    try:
+        vals.update(_sheet_values(parquet_path))
+    except Exception:  # noqa: BLE001 — frame read is best-effort
+        pass
+    if raw_values:
+        vals.update({k.upper(): str(v) for k, v in raw_values.items()})
+
+    def deps(formula: str) -> List[str]:
+        return [d.replace("$", "").upper()
+                for d in _re.findall(r"\$?[A-Z]{1,3}\$?\d+", formula)]
+
+    def literal_or_none(tok: str) -> Optional[str]:
+        t = tok.replace("$", "")
+        if t in vals:
+            return vals[t]
+        try:
+            Decimal(t)
+            return t
+        except Exception:  # noqa: BLE001
+            return None
+
+    steps: List[PolicyStep] = []
+    # The row's own computed values (for same-row operand resolution in
+    # multi-operand SUMs — a PER-ROW policy may bind the row's own
+    # literals; that is the sheet's arithmetic, faithfully).
+    row_vals = {k: v for k, v in vals.items()
+                if _re.fullmatch(r"[A-Z]{1,3}" + str(row),
+                                 k, _re.IGNORECASE)}
+    # Multi-operand same-row SUMs first: S25 = M25+N25+P25+Q25+R25 —
+    # each non-base operand becomes an add with its resolved literal.
+    for addr, key in sorted(row_keys.items(),
+                            key=lambda kv: _col_order(kv[0])):
+        fs = formulas[key].replace("$", "")
+        m2 = _re.match(
+            r"=?\s*(?:SUM\()?" + r"\s*".join(
+                [r"([A-Z]{1,3}\d+)"] ) + r"((?:\s*\+\s*[A-Z]{1,3}\d+)+)"
+            r"\s*\)?\s*$", fs, _re.IGNORECASE)
+        if not m2:
+            m2 = _re.match(
+                r"=?\s*(?:SUM\()([A-Z]{1,3}\d+)((?:\s*\+\s*[A-Z]{1,3}\d+)+)\s*\)",
+                fs, _re.IGNORECASE)
+        if m2:
+            for tok in _re.findall(r"[A-Z]{1,3}\d+", m2.group(2)):
+                lit = vals.get(tok.upper())
+                if lit is not None:
+                    steps.append(PolicyStep(
+                        "add_freight", {"amount": lit},
+                        note=f"{sheet_name}!{addr} operand {tok}"))
+    # Walk the chain: binary products with inline literal or $-param.
+    ordered = sorted(
+        row_keys.items(),
+        key=lambda kv: _col_order(kv[0]))
+    for addr, key in ordered:
+        f = formulas[key]
+        m = _re.search(
+            r"([A-Z]{1,3}\d+|\$[A-Z]{1,3}\$\d+)\s*\*\s*([0-9.]+"
+            r"|[A-Z]{1,3}\$?\d+|\$[A-Z]{1,3}\$\d+)"
+            r"|([0-9.]+|[A-Z]{1,3}\$?\d+|\$[A-Z]{1,3}\$\d+)\s*\*\s*"
+            r"([A-Z]{1,3}\d+|\$[A-Z]{1,3}\$\d+)",
+            f.replace("$", ""), _re.IGNORECASE)
+        if not m:
+            continue
+        g = [g for g in m.groups() if g]
+        # The FACTOR is the operand that resolves to a literal VALUE —
+        # a bare number OR a $-param cell (the sheet's own parameter
+        # block: AB1 etc.). The same-row operand (I25/K25...) stays the
+        # value carrier and is never the factor.
+        fac = None
+        for t in g:
+            lit = literal_or_none(t)
+            if lit is None:
+                continue
+            same_row = _re.fullmatch(
+                r"([A-Z]{1,3})(" + str(row) + r")$", t, _re.IGNORECASE)
+            if same_row:
+                continue
+            fac = lit
+            break
+        if fac is None:
+            continue
+        steps.append(PolicyStep(
+            "multiply", {"factor": fac},
+            note=f"{sheet_name}!{addr} = {f}"))
+    if not steps:
+        return None
+    if any("ROUNDUP" in str(formulas[k]) for k in row_keys.values()):
+        steps.append(PolicyStep(
+            "round", {"mode": "up", "places": 0},
+            note=f"{sheet_name} row {row}: taught ROUNDUP in the sheet"))
+    scope = {"file": file_name, "sheet": sheet_name}
+    pid = "wb-" + file_name[:12].replace(" ", "_") + "-" + \
+        sheet_name.strip().replace(" ", "_") + f"-r{row}"
+    return TaughtPolicy(
+        policy_id=pid[:80],
+        name=f"{sheet_name.strip()} row {row} formula chain",
+        steps=steps,
+        provenance=f"workbook:{file_name}!{sheet_name.strip()}!row{row}",
+        version="sidecar-1",
+        scope=scope)
+
+
+def _col_order(addr: str) -> int:
+    letters = _re.sub(r"\d", "", addr).upper()
+    n = 0
+    for ch in letters:
+        n = n * 26 + (ord(ch) - 64)
+    return n
