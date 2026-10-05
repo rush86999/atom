@@ -963,3 +963,56 @@ class TestValueTraceProductionHandoff:
         work3 = next_unfinished_work(lifecycle.get_task(run_id))
         assert any("TK 1624" in str(a) for a in work3["actions"]), (
             "search success does not retire")
+
+    def test_saved_copy_resolution_spawns_freshness_obligation(
+            self, lifecycle):
+        """Round 48: freshness is a DISTINCT blocked obligation, not
+        wording on a completed read."""
+        from core.task_lifecycle import (
+            begin_retrieval_turn, next_unfinished_work, record_read_outcome)
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-fresh", "verify pricing", "e1")
+        _, op2 = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-fresh", "read workbook", "e2")
+        record_read_outcome(
+            lifecycle, run_id, op2, structured_result=None, freshness=None,
+            execution={"invoked": True, "outcome": "read_succeeded",
+                       "served_basis": "saved_copy",
+                       "items": {"Manual Flanger": "single"}})
+        w = next_unfinished_work(lifecycle.get_task(run_id))
+        assert any(
+            "freshness" in str(a.get("question") or "").lower()
+            for a in w["actions"]), (
+            "the saved-copy read leaves a selectable freshness obligation")
+
+    def test_ambiguous_containment_resolves_neither(self, lifecycle):
+        """Round 48: two question items containment-matching the same read
+        key are AMBIGUOUS — neither resolves."""
+        from core.task_lifecycle import (
+            begin_retrieval_turn, next_unfinished_work, record_read_outcome)
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-amb", "verify pricing", "e1")
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=[
+                {"item": "TK 1624", "kind": "verification",
+                 "question": "TK 1624 not yet read",
+                 "evidence": "value_trace",
+                 "next_action": "read X for TK 1624"},
+                {"item": "1624 A", "kind": "verification",
+                 "question": "1624 A not yet read",
+                 "evidence": "value_trace",
+                 "next_action": "read X for 1624 A"}])
+        _, op2 = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-amb", "read workbook", "e2")
+        record_read_outcome(
+            lifecycle, run_id, op2, structured_result=None, freshness=None,
+            execution={"invoked": True, "outcome": "read_succeeded",
+                       "served_basis": "saved_copy",
+                       "items": {"1624": "single"}})
+        w = next_unfinished_work(lifecycle.get_task(run_id))
+        items_open = [str(a.get("item")) for a in w["actions"]]
+        assert "TK 1624" in items_open and "1624 A" in items_open, (
+            "ambiguous candidates resolve neither")

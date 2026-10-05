@@ -2616,6 +2616,7 @@ def record_read_outcome(
                 source_operation=operation_id)
     except Exception as exc:  # noqa: BLE001 — bookkeeping, not status
         errors.append(f"questions: {exc!r}")
+    _freshness_questions: List[Dict[str, Any]] = []
     # COMPLETION RULE → RETIREMENT (round 45): an open question whose
     # item received an EXPLICIT status from a read_succeeded settle is
     # resolved — the targeted read executed and its evidence is on the
@@ -2638,18 +2639,34 @@ def record_read_outcome(
         def _norm_id(s: Any) -> str:
             return re.sub(r"[^a-z0-9]", "", str(s).lower())
         if _read_items:
+            # CONTEXT + AMBIGUITY (round 48 reviewer): containment is a
+            # PLAUSIBILITY heuristic valid only inside a verified read
+            # context (the question's own next_action targets the document
+            # this read executed against). Ambiguous candidates — two
+            # question items containment-matching the same read key, or a
+            # question matching two read keys — resolve NEITHER.
             _record_now = lifecycle.get_task(run_id)
-            _q_items = {
-                str(q.get("item") or "")
-                for q in open_unresolved_questions(_record_now or {})}
-            for _q_i in _q_items:
-                if not _q_i or _q_i in _read_items:
-                    continue
+            _q_open = [
+                q for q in open_unresolved_questions(_record_now or {})
+                if str(q.get("item") or "")
+                and str(q.get("item") or "") not in _read_items]
+            for _q in _q_open:
+                _q_i = str(_q.get("item") or "")
                 _qn = _norm_id(_q_i)
-                if _qn and any(
-                        (_rn := _norm_id(_r)) and (
-                            _qn in _rn or _rn in _qn)
-                        for _r in _read_items):
+                if not _qn:
+                    continue
+                _hits = [
+                    _r for _r in _read_items
+                    if (_rn := _norm_id(_r)) and (
+                        _qn in _rn or _rn in _qn)]
+                if len(_hits) == 1 and not any(
+                        _norm_id(str(o.get("item") or "")) and
+                        _norm_id(str(o.get("item") or "")) != _qn and
+                        (_norm_id(str(o.get("item") or "")) in _norm_id(
+                            _hits[0])
+                         or _norm_id(_hits[0]) in _norm_id(
+                             str(o.get("item") or "")))
+                        for o in _q_open):
                     _read_items.add(_q_i)
         if _read_items:
             # VERIFICATION-KIND ONLY: an owner DECISION is settled by the
@@ -2676,6 +2693,27 @@ def record_read_outcome(
                     "detail": _detail,
                 },
             })
+            if _basis == "saved_copy":
+                # FRESHNESS IS AN OBLIGATION, NOT WORDING (round 48): the
+                # saved-copy read resolves the READ question and OPENLY
+                # spawns its successor — current-source freshness remains
+                # unverified and stays on the queue as a distinct,
+                # selectable obligation (blocked until a live refresh is
+                # authorized/possible). DEFERRED past the resolution loop
+                # so the item-scoped resolution cannot consume it.
+                _freshness_questions.extend({
+                    "item": _it,
+                    "kind": "verification",
+                    "question": (
+                        f"{_it}: saved-copy value read; freshness "
+                        "against the live source unverified"),
+                    "evidence": (
+                        "served_basis=saved_copy; the copy's save "
+                        "date bounds the claim"),
+                    "next_action": (
+                        f"re-verify {_it} against the live source "
+                        "when access is available"),
+                } for _it in sorted(_read_items))
     for resolution in derived["resolutions"]:
         try:
             resolve_unresolved_questions(
@@ -2686,6 +2724,13 @@ def record_read_outcome(
         except Exception as exc:  # noqa: BLE001
             errors.append(f"resolution: {exc!r}")
             break
+    if _freshness_questions:
+        try:
+            add_unresolved_questions(
+                lifecycle, run_id, _freshness_questions,
+                source_operation=operation_id)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"freshness: {exc!r}")
     record = lifecycle.get_task(run_id)
     work = next_unfinished_work(record or {})
     if errors:
