@@ -520,3 +520,41 @@ later turns.
 Required work completed without steering: partial (both sources
 attempted; no targeted reads). The divergence is deterministic, not
 model quality.
+
+## Round-50: first-turn job initialization + measured autonomous run (auto3)
+
+**Delivered** (all pinned, 97 tests green):
+1. **Scope initialized BEFORE planning**: when the message names no items,
+   the request resolves against the attached canvas via the EXISTING
+   target-set mechanism (extract_items_from_text + resolve_target_set)
+   at the pre-lookup site; ONE blackboard stash (job_scope_items) feeds
+   the seam's persisted entities, the source chain, and the read loop.
+   The REQUEST establishes scope; the canvas supplies candidates.
+2. **Explicit unresolved scope**: missing/ambiguous context records a
+   scope question — never a sweep presented as progress.
+3. **Scoped-intent upgrade**: a datasets SEARCH with a persisted scope
+   runs as value_trace over the scoped items (the sweep matches junk
+   filenames; the trace produces coverage receipts).
+4. **Freshness successor cannot loop**: repeated saved-copy reads → ONE
+   freshness question; the freshness action targets the LIVE source
+   (never dispatched as a saved-copy reread); failures preserve
+   outcomes. Read cap recorded as PER-CYCLE and BUDGET-BOUND (≤4, each
+   ≥18s remaining).
+
+**AUTORUN3 (fresh session, original prompt, ZERO continuations, 95.3s)**:
+scope initialized pre-lookup (entities persisted) → primary plan
+upgraded to value_trace over the scoped items → pending read created →
+**the targeted read EXECUTED IN-TURN** (read_succeeded, Manual Flanger,
+applied with per-item status) → honest reply distinguishing
+carried-but-unread from single-source. Draft SHA-identical; no sends; no
+permission asks.
+
+**Honest remaining gaps for the milestone**: (a) canvas item extraction
+completeness — extract_items_from_text returned 3 of the 8 quotation
+rows, so rows 4–8 were outside the initialized scope (the reply honestly
+notes they were "not returned by this trace" — true, but the cause is
+scope extraction, and it must be stated as such); (b) the turn budget
+after planning+trace+mailbox permitted only ONE targeted read; (c) the
+response's open_work snapshot can predate the final settle (the Flanger
+action still shows in actions while the ledger records it resolved).
+The resumable milestone remains closed and unregressed.
