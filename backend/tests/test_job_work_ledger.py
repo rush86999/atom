@@ -904,3 +904,62 @@ class TestValueTraceProductionHandoff:
             restarted, run_id,
             record=restarted.get_task(run_id)) == 0, (
             "the marker survives restart; no third reset")
+
+    def test_read_succeeded_retires_the_targeted_question(self, lifecycle):
+        """Round 45 completion rule: an open targeted-read question whose
+        item receives an explicit status from a read_succeeded settle is
+        RESOLVED (retired) — search success resolves nothing."""
+        from core.task_lifecycle import (
+            begin_retrieval_turn, finish_retrieval_turn,
+            next_unfinished_work, record_read_outcome)
+        from integrations.chat_orchestrator import (
+            _value_trace_pending_reads)
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-retire", "verify pricing", "e1")
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None,
+            extra_questions=_value_trace_pending_reads({
+                "receipt": {"value_trace_coverage": {
+                    "Manual Flanger": [
+                        "Consolidated Price List 2019.xlsx"]}}}))
+        work = next_unfinished_work(lifecycle.get_task(run_id))
+        assert any("Flanger" in str(a) for a in work["actions"])
+
+        _, op2 = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-retire",
+            "read Consolidated Price List 2019.xlsx for Manual Flanger",
+            "e2")
+        finish_retrieval_turn(
+            lifecycle, run_id, op2, {}, "e2", True,
+            execution={"invoked": True, "outcome": "read_succeeded",
+                       "served_basis": "live",
+                       "items": {"Manual Flanger": "single"}})
+        record_read_outcome(
+            lifecycle, run_id, op2, structured_result=None, freshness=None,
+            execution={"invoked": True, "outcome": "read_succeeded",
+                       "served_basis": "live",
+                       "items": {"Manual Flanger": "single"}})
+        work2 = next_unfinished_work(lifecycle.get_task(run_id))
+        assert not any("Flanger" in str(a) for a in work2["actions"]), (
+            "the completed targeted read retires its action")
+        # A SEARCH success retires nothing (create the question first).
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None,
+            extra_questions=[{
+                "item": "TK 1624", "kind": "verification",
+                "question": "TK 1624 is carried by X — not yet read",
+                "evidence": "value_trace coverage",
+                "next_action": "read X for TK 1624"}])
+        _, op3 = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-retire", "search", "e3")
+        record_read_outcome(
+            lifecycle, run_id, op3, structured_result=None, freshness=None,
+            execution={"invoked": True, "outcome": "search_succeeded",
+                       "served_basis": "live",
+                       "items": {"TK 1624": ""}})
+        work3 = next_unfinished_work(lifecycle.get_task(run_id))
+        assert any("TK 1624" in str(a) for a in work3["actions"]), (
+            "search success does not retire")

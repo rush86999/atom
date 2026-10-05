@@ -2616,6 +2616,32 @@ def record_read_outcome(
                 source_operation=operation_id)
     except Exception as exc:  # noqa: BLE001 — bookkeeping, not status
         errors.append(f"questions: {exc!r}")
+    # COMPLETION RULE → RETIREMENT (round 45): an open question whose
+    # item received an EXPLICIT status from a read_succeeded settle is
+    # resolved — the targeted read executed and its evidence is on the
+    # operation. Search success or a bare receipt resolves nothing
+    # (only reads or explicit statuses do).
+    if (execution is not None and operation_id
+            and str((execution or {}).get("outcome") or "")
+            == "read_succeeded"):
+        _read_items = {
+            str(k) for k, v in
+            ((execution or {}).get("items") or {}).items()
+            if str(v or "").strip()}
+        if _read_items:
+            # VERIFICATION-KIND ONLY: an owner DECISION is settled by the
+            # owner, never by a read (a successful read must not become
+            # automatic approval — reviewer round 45).
+            derived["resolutions"].append({
+                "items": sorted(_read_items),
+                "kinds": ["verification"],
+                "resolution": {
+                    "how": "targeted read executed",
+                    "detail": (
+                        "read_succeeded with an explicit per-item status; "
+                        "evidence on the operation"),
+                },
+            })
     for resolution in derived["resolutions"]:
         try:
             resolve_unresolved_questions(
