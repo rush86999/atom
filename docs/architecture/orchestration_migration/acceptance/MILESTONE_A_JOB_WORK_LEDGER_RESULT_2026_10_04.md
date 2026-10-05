@@ -875,3 +875,47 @@ trace-then-queue chain depends on planner cooperation; the worker
 completes whatever is queued), and U-22-style policy narrowing runs at
 row-read time (pre-wiring questions need the recorded one-shot check
 demonstrated here). Draft SHA-identical throughout; nothing sent.
+
+## Round-60: RELEASE ACCEPTANCE CHECK (accept1) — capability published
+
+**Run**: fresh session, real trained agent, original instruction, the
+disposable fork, ZERO user continuations, no pre-seeded answers.
+Interactive turn (95.1s): 8/8 entities scoped pre-lookup, value_trace
+over the full scope, targeted reads queued (authoritative response
+state). Automatic execution then completed without any operator input:
+taught No. 381 lead executed (served from the 2019 workbook, raw sheet
+'Tennsmith ', entry cdd6df7e, CONTENT HASH now recorded — PRICE=3297,
+U.S. LIST=1845 et al. with policy consulted); U-22's duplicate rows
+read with per-copy identity and the POLICY APPLIED LIVE in the fresh
+job (lesson-engaged: US NET narrowed out; the remaining question is
+the duplicate-copy choice). Final open items are exactly the necessary
+business decisions; freshness obligations open; draft SHA-identical
+(f028613c…); nothing sent.
+
+**UI-after-reload**: blocked at the app's OAuth login boundary (Google/
+GitHub only; no in-session owner credentials — guessing credentials is
+out of bounds). First concrete divergence = authentication, not product
+behavior. The equivalent post-reload verification was done through the
+exact API the panel fetches on reload (canvas read: content identical,
+all eight rows and prices unchanged). The visual pass remains a
+one-minute owner action on the same URL.
+
+**Published capability (with the three standing qualifications)**:
+
+> The trained employee investigates the quotation across its configured
+> sources, automatically completes queued research, preserves approved
+> prices, and identifies remaining freshness limits and business
+> decisions. It does not send the email or claim unverified prices are
+> current.
+
+Qualifications retained: (1) research-complete ≠ current prices —
+freshness obligations remain open; (2) the job is not "all questions
+closed" — U-22's duplicate-copy choice and No. 622's identity still
+require resolution; (3) a worker completing queued actions does not
+prove reliable autonomous completion of every fresh request — planner
+variance can still prevent required work from being queued (accept1's
+interactive turn succeeded; prior runs show the variance honestly).
+
+Baseline: release f338fefe4, 189-test focused suite; this round adds
+the content-hash provenance (entry column, parquet-dir fallback) and
+the acceptance evidence above.
