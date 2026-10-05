@@ -391,6 +391,19 @@ def apply_transition(
                         "resolution": resolution,
                     })
                     existing[index] = settled
+        for cl in (transition.get("claims") or []):
+            if not isinstance(cl, dict):
+                continue
+            for index, entry in enumerate(existing):
+                if (entry.get("status") == "open"
+                        and entry.get("question_id") == cl.get(
+                            "question_id")):
+                    merged = dict(entry)
+                    merged["exec_claim"] = {
+                        "by": _bounded_text(cl.get("by"), 60),
+                        "at": str(cl.get("at") or ""),
+                    }
+                    existing[index] = merged
         if transition.get("budget_migration"):
             # Durable one-time marker IN THE TASK REVISION (get_task
             # surfaces task_revision; decision_log is NOT surfaced there —
@@ -2300,6 +2313,53 @@ def next_unfinished_work(
     }
 
 
+def claim_questions_for_execution(
+        lifecycle: "TaskLifecycle",
+        run_id: str,
+        question_ids: List[str],
+        *,
+        by: str,
+        ttl_seconds: float = 120.0,
+) -> List[str]:
+    """DURABLE EXECUTION CLAIMS (round 53): attempt counters are retry
+    bounds, not locks. A claim is written onto the question itself
+    (durable, restart-surviving) with a TTL; a fresh claim by another
+    worker refuses. Returns the ids actually claimed."""
+    import time as _time
+
+    record = lifecycle.get_task(run_id)
+    if record is None:
+        return []
+    now = _time.time()
+    claimable: List[Dict[str, Any]] = []
+    for q in open_unresolved_questions(record):
+        qid = str(q.get("question_id") or "")
+        if qid not in set(map(str, question_ids or [])):
+            continue
+        prev = q.get("exec_claim") or {}
+        prev_at = prev.get("at")
+        try:
+            fresh = (now - float(prev_at)) < ttl_seconds
+        except (TypeError, ValueError):
+            fresh = False
+        if prev and fresh and str(prev.get("by")) != by:
+            continue
+        claimable.append({
+            "question_id": qid, "by": by,
+            "at": now,
+        })
+    if not claimable:
+        return []
+    lifecycle.apply_transition(run_id, {
+        "kind": "record_unresolved",
+        "requested_change": (
+            f"{len(claimable)} execution claim(s) by {by}"),
+        "claims": claimable,
+        "source_operation": None,
+    })
+    return [c["question_id"] for c in claimable]
+
+
 def migrate_attempt_budgets(
         lifecycle: "TaskLifecycle",
         run_id: str,
@@ -2625,10 +2685,17 @@ def record_read_outcome(
     if (execution is not None and operation_id
             and str((execution or {}).get("outcome") or "")
             == "read_succeeded"):
+        # PER-ITEM EVIDENCE (round 53): only price-bearing statuses
+        # resolve — "matched"/"single"/"confirmed" mean the item's own
+        # value/price was read; "located" means the identity was found
+        # WITHOUT its price (the cell read remains); anything else is not
+        # evidence. A document-level receipt never retires every grouped
+        # item.
+        _RESOLVED_ITEM_STATUSES = {"matched", "single", "confirmed"}
         _read_items = {
             str(k) for k, v in
             ((execution or {}).get("items") or {}).items()
-            if str(v or "").strip()}
+            if str(v or "").strip().lower() in _RESOLVED_ITEM_STATUSES}
         # ITEM-IDENTITY MATCH (round 47, live TK 1624): the workbook
         # reports the matched key ("1624") while the question carries the
         # fuller identity ("TK 1624") — exact-string matching left the

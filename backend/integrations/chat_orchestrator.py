@@ -2190,6 +2190,10 @@ def _value_trace_pending_reads(
                     "not yet read"),
                 "evidence": "value_trace coverage",
                 "next_action": f"read {doc} for {item}",
+                # STRUCTURED INPUTS (round 53): stable action identity —
+                # the worker dispatches from these, never from prose.
+                "inputs": {"item": str(item), "file": str(doc),
+                           "service": "datasets", "intent": "find_all"},
             })
     return questions
 
