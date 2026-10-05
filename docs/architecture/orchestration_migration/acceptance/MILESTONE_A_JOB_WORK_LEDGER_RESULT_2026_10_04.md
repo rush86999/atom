@@ -634,3 +634,43 @@ live-verified (worker). Remaining run-to-run variance: the primary plan
 sometimes takes the sweep path via the canvas-edit leg (bypasses the
 seam upgrade) — the trace-then-queue chain then needs the planner's
 cooperation; the worker completes whatever is queued either way.
+
+## Round-53: worker completion accounting corrected (the count withdrawn)
+
+**WITHDRAWN**: the round-52 "7 items completed" figure — it was produced
+by the defective rule (any document receipt stamped every grouped item
+resolved). It is not re-evaluated against the new rule; it is gone.
+
+**Corrected worker** (all reviewer points):
+- PER-ITEM EVIDENCE: each item matched against its own structured
+  find_all results; only price-bearing matches resolve (pinned
+  classification: Unit Price column / $-shaped value = matched; Part
+  Number / description = located). A document receipt retires nothing
+  by itself.
+- DURABLE CLAIMS on the questions (TTL-bounded, cross-worker exclusive,
+  same-worker refresh); attempt counters remain retry bounds.
+  Eligibility re-checked immediately before execution; sessions ending
+  in an unanswered user message are skipped.
+- GLOBAL per-cycle budget (≤4 document executions across all jobs).
+- STRUCTURED INPUTS ({item, file, service, intent}) on pending reads;
+  prose is the legacy fallback only.
+- DELIVERY appends to a freshly re-read history.
+- LOCATED-ONLY outcomes consume an attempt — identical rediscovery is
+  bounded by the cap, not repeated forever.
+
+**Negative controls pinned**: located-without-price stays open;
+no-match-at-all stays open; classification rules; claim exclusivity.
+
+**RC1 acceptance run (fresh 8-item session, interactive + automatic
+continuation, ZERO user continues)**: 8/8 entities scoped pre-lookup;
+value_trace queued No. 381 + U-22 against the Linmac update workbook;
+the worker executed, classified BOTH items **located** (identity cells;
+prices not read) — questions remain OPEN with the exact cells on the
+operation evidence, attempts bounding rediscovery, durable claims
+visible, draft SHA-identical, nothing sent. This is the truthful
+terminal state under the corrected rule: the adjacent price-cell read
+is the genuine remaining step (it requires a row-context read the
+current find_all classification does not perform — recorded as the
+exact outstanding condition, not papered over).
+
+Tests: 110 green (7 worker + 49 ledger + 54 chain).
