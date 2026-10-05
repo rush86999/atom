@@ -14343,12 +14343,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         if _pf_tl2 is not None:
                             from core import task_lifecycle as _tlm
 
+                            # SCOPE PERSISTS EVEN WHEN PLANNING FAILS
+                            # (round 51): the computed job scope binds the
+                            # task here too — a planning timeout must not
+                            # leave the authoritative job entity-less.
+                            _pf2_scope = (
+                                shared_tool_state.get("job_scope_items")
+                                if isinstance(shared_tool_state, dict)
+                                else None) or []
                             _pf2_run, _pf2_op = _tlm.begin_retrieval_turn(
                                 _pf_tl2,
                                 session if isinstance(session, dict) else {},
                                 session_id or "",
                                 "required research lookups (planning failed)",
                                 execution_id,
+                                items=[str(i) for i in _pf2_scope
+                                       if str(i).strip()],
                                 canvas_id=(
                                     (canvas_context or {}).get("canvas_id")
                                     or (canvas_context or {}).get("id")))
