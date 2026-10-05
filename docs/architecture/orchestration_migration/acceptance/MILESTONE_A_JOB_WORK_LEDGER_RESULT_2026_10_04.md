@@ -267,3 +267,31 @@ investigation reproducible from durable state; autonomous action-level
 continuation (pending read → invocation → persisted → disposition →
 not re-selected) remains the unmet acceptance requirement.** Draft
 untouched; nothing sent; original canvas untouched across ALL runs.
+
+## Round-42 receipt-to-action failure: reproduced and fixed at the boundary
+
+**Deterministic root cause (reproduced in a scratch-DB regression, not
+inferred)**: the per-item questions were gated behind settle
+completeness — `[] if _complete else (...)` — and a value_trace receipt
+locating a workbook IS complete (retrieved=True), so the located document
+silently produced no pending action. Discovery was treated as completion.
+
+**Fix**: `_value_trace_pending_reads(receipt)` — a module-level helper —
+derives one executable question per covered item ('read <document> for
+<item>') on EVERY settle, at BOTH paths (primary seam + chain), ungated.
+`add_unresolved_questions`' (item, text) idempotency prevents duplicates;
+a fresh-evidence exhaustion reset re-selects questions exhausted during
+the broken-loop era. **Regression (scratch DB, real settlement path)**:
+cont14 fixture → 3 pending reads → selected by `next_unfinished_work` →
+repeated receipt adds nothing → targeted read executes (read_succeeded +
+explicit status) → resolved → not selected again; irrelevant discovery
+creates no false obligation. 29 ledger tests green.
+
+**Live status (cont16–17)**: the primary-plan value_trace runs still show
+`added=0 / open(actions=0)` — the coverage questions are not yet reaching
+the persisted record on those settles; the next diagnosis step is the
+value_trace meta attachment on the PRIMARY plan's `_result_meta` at the
+exact execution path (the chain path is proven by the regression). This
+is the single remaining boundary; everything upstream (durable entities,
+role-annotated scope, both-directions gate) is live. Draft untouched;
+nothing sent; canvas untouched.
