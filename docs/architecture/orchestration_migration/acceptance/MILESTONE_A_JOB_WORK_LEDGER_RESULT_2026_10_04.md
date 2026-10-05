@@ -821,3 +821,57 @@ manual $2,902 stands as the quoted price, untouched. Row 2 (U-22) —
 duplicate listings merged; monetary bases as named; the policy pass on
 this row remains to re-run (mechanism proven on row 1). Draft
 SHA-identical; nothing sent. 118 tests green.
+
+## Round-59 CLOSEOUT: the remaining work finished; final comparison and verdict
+
+1. **U-22 policy check run on the EXISTING question** (no unrelated
+   research): 12 lessons consulted (0 shared-scope — the agent's own);
+   lesson 348aa943 engaged, taught basis "list price" matched 2 columns
+   — NOT selective; US NET narrowed out as a different basis; the
+   remaining ambiguity recorded on the question as exactly the
+   duplicate-sheet disagreement (List Price=1431@LINMAC/22 vs List
+   Price_2=1393@LINMAC (2)/29) — the one genuine owner choice.
+2. **Teaching scope**: the acting agent now persists on EVERY task-
+   creation lane (the edit lane — the first creator on canvas turns —
+   was the last; verified live: RC6's job carries the agent at creation
+   and after restart, and the worker reads it from the record).
+   Workspace lessons remain the documented fallback for pre-wiring
+   jobs, never a silent replacement.
+3. **Source versions kept separate**: every successful row read records
+   its serving identity (file, RAW sheet name incl. whitespace, entry
+   id, parquet path/size/mtime); evidence states that matching cell
+   addresses in different copies are DISTINCT observations — $3,297
+   (2019 workbook, Tennsmith R338, saved copy) and the earlier $3,254
+   (training note) are different observations, both preserved as such.
+   Whitespace-normalized sheet matching REJECTS collisions (candidates
+   listed, never silently chosen).
+4. **No. 381 asked nothing unnecessary**: the decision resolved
+   INFORMATIONALLY — the workbook's labeled values (PRICE=3297, U.S.
+   LIST=1845, U.S. COST=1476, FULL COST CDN=2320.504) reported
+   alongside the already-approved $2,902 manual price; a basis choice
+   is required only if a later calculation depends on it. The stale
+   D67 question resolved by supersession (its successor taught read
+   executed with values).
+
+### FINAL EIGHT-ITEM COMPARISON
+| # | Item | Disposition |
+|---|------|-------------|
+| 1 | No. 381 | **Research complete (informational)**: taught R338 read live (source identity recorded); four labeled values alongside the approved $2,902; freshness OPEN (saved copy) |
+| 2 | U-22 | **Owner decision (narrowed by policy)**: duplicates merged; List Price 1431 vs List Price_2 1393 — which copy is authoritative; freshness OPEN |
+| 3 | Manual Flanger | Workbook read complete (D42=1,631/H42=950); freshness OPEN |
+| 4 | No. 622 | Owner decision (identity, 8 candidates) — unchanged |
+| 5 | SLE24-16 | Vendor-verified as quoted Sept 18, 2026; workbook 8,984 discrepancy named; freshness OPEN |
+| 6 | TK 1624 | Workbook read complete (D101=8,143); freshness OPEN |
+| 7 | TK Multi | Vendor-verified Sept 18; 10%-off offer condition recorded |
+| 8 | GSL48-16 | Workbook read complete (E106=14,318); July historical alternative preserved; freshness OPEN |
+
+**Verdict**: completed research = workbook + vendor evidence for rows
+1, 3, 5-8 with per-source identity; freshness limits = every saved-copy
+finding (live re-verification not performed — distinct obligation,
+open); necessary owner decisions = U-22's duplicate-copy choice, No.
+622 identity, GSL48-16 basis-vs-September (if a calculation demands);
+implementation gaps (named) = interactive-turn planner variance (the
+trace-then-queue chain depends on planner cooperation; the worker
+completes whatever is queued), and U-22-style policy narrowing runs at
+row-read time (pre-wiring questions need the recorded one-shot check
+demonstrated here). Draft SHA-identical throughout; nothing sent.
