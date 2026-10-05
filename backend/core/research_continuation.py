@@ -1074,9 +1074,10 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                     out["items_matched"] += sum(
                         1 for s in res["statuses"].values()
                         if s == "matched")
+                    _c0 = ((group[0].get("candidates") or [{}])[0])
                     notes.append(
-                        f"row read ({group[0].get('sheet')} row "
-                        f"{group[0].get('row')}): "
+                        f"row read ({_c0.get('sheet')} row "
+                        f"{_c0.get('row')}): "
                         + "; ".join(res["evidence"]))
                     continue
                 res = await _execute_document_read(
@@ -1138,12 +1139,16 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                             _CM.content == _note_text[:4000],
                         ).first()
                         if _dupe is None:
+                            _prov = (
+                                record.get("task_revision") or {}
+                            ).get("provenance")
+                            _tenant = (
+                                _prov.get("tenant_id")
+                                if isinstance(_prov, dict) else None
+                            ) or "default"
                             _db.add(_CM(
                                 conversation_id=conv, role="assistant",
-                                tenant_id=str(
-                                    (record.get("task_revision") or {})
-                                    .get("provenance") or {}).get(
-                                        "tenant_id") or "default",
+                                tenant_id=str(_tenant),
                                 content=_note_text[:4000]))
                             _db.commit()
                 except Exception as _cm_err:  # noqa: BLE001
