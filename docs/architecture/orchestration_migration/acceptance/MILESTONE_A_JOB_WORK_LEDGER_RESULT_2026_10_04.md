@@ -674,3 +674,29 @@ current find_all classification does not perform — recorded as the
 exact outstanding condition, not papered over).
 
 Tests: 110 green (7 worker + 49 ledger + 54 chain).
+
+## Round-54/55: row-context successors — RC1 completed automatically
+
+**The chain, live on RC1 with ZERO user continues** (the reviewer's
+required proof): located cell → persisted row-read action (structured
+inputs: file/sheet/row/identity column/requested fields) → actual read
+(read_succeeded) → evidence-bound disposition → completed action no
+longer selected.
+
+**Final RC1 durable state**: No. 381 and U-22 both `matched` via row
+reads (No. 381 at RoperWhitney/D67; U-22 at LINMAC/A22 — the true rows,
+`__sheet_row`-mapped); AMBIGUOUS price columns PRESERVED as owner
+business decisions — "No. 381: PRICE=794 vs DEALER CODE=K…" and "U-22:
+List Price=1431 vs US NET=625" — never chosen by proximity; freshness
+obligations open (saved-copy, live unverified); draft SHA-identical;
+nothing sent.
+
+**Mechanics**: read_sheet_row_sync (business-neutral row+headers read);
+FIELD_SYNONYMS bind requested FIELD names to header meaning (price is
+this job's field; another business passes its own); identity verified
+against the identity column; located cells resolve their document-read
+question and spawn the successor (re-location neither duplicates nor
+reopens); claims are CAS-atomic with TTL leases (two-worker + expiry +
+stale-settle tests); retirement resolves read-shaped questions only.
+One decision-logged migration repaired jobs exhausted by the pre-
+successor burn rule. 114 tests green.
