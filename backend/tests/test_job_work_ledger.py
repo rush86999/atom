@@ -742,3 +742,51 @@ class TestValueTraceProductionHandoff:
         work = next_unfinished_work(lifecycle.get_task(run_id))
         assert any("read Consolidated Price List 2019.xlsx" in
                    (a.get("next_action") or "") for a in work["actions"])
+
+    def test_migration_runs_on_settle_without_new_questions(self, lifecycle):
+        """Round 43 live finding: the migration lived inside
+        add_unresolved_questions — a settle with no derived questions
+        never ran it, leaving broken-era exhaustion unrepairable exactly
+        where no fresh evidence existed. The migration is now invoked by
+        record_read_outcome itself."""
+        from core.task_lifecycle import (
+            UNRESOLVED_ATTEMPT_CAP, begin_retrieval_turn, next_unfinished_work,
+            record_read_outcome)
+        from integrations.chat_orchestrator import (
+            _value_trace_pending_reads)
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-mig", "verify pricing", "e1")
+        qs = _value_trace_pending_reads({
+            "receipt": {"value_trace_coverage": {
+                "Manual Flanger": [
+                    "Consolidated Price List 2019.xlsx"]}}})
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=qs)
+        # Age the question past the cap WITHOUT new evidence (the
+        # broken-loop era shape).
+        from core.task_lifecycle import add_unresolved_questions
+        add_unresolved_questions(lifecycle, run_id, [], source_operation=None)
+        rec = lifecycle.get_task(run_id)
+        bump = [{"question_id": q["question_id"],
+                 "increment": UNRESOLVED_ATTEMPT_CAP}
+                for q in rec["task_revision"].get("unresolved") or []]
+        lifecycle.apply_transition(run_id, {
+            "kind": "record_unresolved",
+            "requested_change": "age to exhausted",
+            "attempts": bump,
+        })
+        work = next_unfinished_work(lifecycle.get_task(run_id))
+        assert work["exhausted"], "precondition: question exhausted"
+
+        # A settle with NO new questions still repairs the budget.
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=None)
+        work2 = next_unfinished_work(lifecycle.get_task(run_id))
+        assert not work2["exhausted"], (
+            "the migration must run on every settle, not only when fresh "
+            "questions are derived")
+        assert any("Consolidated Price List 2019.xlsx" in
+                   (a.get("next_action") or "") for a in work2["actions"])
