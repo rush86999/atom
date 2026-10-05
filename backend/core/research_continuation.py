@@ -301,6 +301,28 @@ def _item_code_tokens(item: str) -> List[str]:
 def _identity_supported(
         row: Dict[str, Any], identity_column: str, item: str,
         identity_context: str) -> bool:
+    # CORROBORATION MODE (round 58): a taught-location read carries no
+    # identity COLUMN — identity is established when ANY cell equals a
+    # code token of the item AND the row's text shares distinctive
+    # context tokens (brand/machine-type words) with the item's fuller
+    # identity.
+    if not str(identity_column or "").strip():
+        codes = {_norm_token(t) for t in _item_code_tokens(item)}
+        if not codes:
+            return False
+        row_text = " ".join(str(v) for v in row.values()).lower()
+        if not any(
+                re.search(r"(?<![0-9a-z])" + re.escape(c)
+                          + r"(?![0-9a-z])", row_text)
+                for c in codes if c):
+            return False
+        ctx_toks = {
+            _norm_token(t) for t in re.findall(
+                r"[A-Za-z]{4,}", str(identity_context or ""))}
+        row_toks = {
+            _norm_token(t) for t in re.findall(
+                r"[A-Za-z]{4,}", row_text)}
+        return bool(ctx_toks & row_toks)
     """STRICT identity (round 56): the identity cell must EQUAL a
     code-shaped token of the item — not merely contain it. A BARE
     NUMERIC token ('381') additionally requires CORROBORATION: another
@@ -327,6 +349,55 @@ def _identity_supported(
                 r"[A-Za-z]{4,}", row_text)}
         return bool(ctx_toks & row_toks)
     return True
+
+
+def apply_taught_policy(
+        field: str,
+        candidates: List[Any],
+        lessons: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Apply the TAUGHT pricing policy to monetary candidates (round
+    58): teaching that names the applicable basis ('the workbook has
+    the formulas for list price') SELECTS the matching column. Returns
+    {applied, selected, basis_lesson, reason, remaining} — remaining is
+    the post-policy candidate set; a decision is asked only when a
+    MATERIAL difference survives the policy."""
+    if not candidates:
+        return {"applied": False, "selected": None, "basis_lesson": None,
+                "reason": "no candidates", "remaining": []}
+    field_l = str(field).lower()
+    for l in lessons or []:
+        text = " ".join(str(l.get("lesson") or l.get("summary")
+                             or "").split()).lower()
+        if field_l not in text:
+            continue
+        for basis in ("list price", "net price", "cost", "dealer net",
+                      "cdn list", "us list"):
+            if basis in text:
+                sel = [
+                    c for c in candidates
+                    if basis.replace(" ", "") in
+                    re.sub(r"[^a-z0-9]", "", str(c[0]).lower())]
+                if len(sel) == 1:
+                    return {
+                        "applied": True, "selected": sel[0],
+                        "basis_lesson": str(
+                            l.get("id") or l.get("lesson_id") or "?"),
+                        "reason": (
+                            f"taught basis '{basis}' selects "
+                            f"{sel[0][0]}"),
+                        "remaining": candidates}
+                if sel:
+                    return {
+                        "applied": False, "selected": None,
+                        "basis_lesson": str(
+                            l.get("id") or l.get("lesson_id") or "?"),
+                        "reason": (
+                            f"taught basis '{basis}' matches "
+                            f"{len(sel)} columns — not selective"),
+                        "remaining": sel}
+    return {"applied": False, "selected": None, "basis_lesson": None,
+            "reason": "no taught policy names a selective basis",
+            "remaining": candidates}
 
 
 def _bind_row_fields(
@@ -369,7 +440,8 @@ async def _execute_row_read(
         lifecycle: Any, run_id: str,
         user_id: str, workspace_id: str,
         act: Dict[str, Any],
-        qids: List[str]) -> Dict[str, Any]:
+        qids: List[str],
+        agent_lessons: List[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Row-context read over EVERY candidate location under STRICT
     identity: corroborated single-support rows bind fields (monetary
     only, identifier columns excluded); multiple supporting rows or
@@ -389,6 +461,7 @@ async def _execute_row_read(
     evidence: List[str] = []
     decision_questions: List[Dict[str, Any]] = []
     supporting: List[Dict[str, Any]] = []
+    _policy: Dict[str, Any] = {}
     from core.sheet_dataset_service import find_entries_sync
 
     _act_file = str(act.get("file") or "")
@@ -430,6 +503,25 @@ async def _execute_row_read(
         bound = supporting[0]["bound"]
         cand = supporting[0]["cand"]
         for field, cands in bound["bindings"].items():
+            # POLICY FIRST (round 58): the taught policy selects the
+            # basis when it can; the owner is asked ONLY about what
+            # materially survives it.
+            pol = apply_taught_policy(field, cands, agent_lessons or [])
+            _policy[field] = pol
+            if pol["applied"]:
+                col, val = pol["selected"]
+                statuses[item] = "matched"
+                evidence.append(
+                    f"{item}: {field} = {val} ({col}; policy: "
+                    f"{pol['reason']}; lesson {pol['basis_lesson']}; "
+                    f"{cand.get('sheet')} row {cand.get('row')})")
+                continue
+            if pol["remaining"] and len(pol["remaining"]) < len(cands):
+                cands = pol["remaining"]
+                evidence.append(
+                    f"{item}: {field} policy narrowed candidates to "
+                    + "; ".join(f"{c}={v}" for c, v in cands)
+                    + f" ({pol['reason']})")
             if len(cands) == 1:
                 col, val = cands[0]
                 statuses[item] = "matched"
@@ -440,7 +532,7 @@ async def _execute_row_read(
             elif len(cands) > 1:
                 statuses[item] = "matched"
                 evidence.append(
-                    f"{item}: {field} AMBIGUOUS (monetary candidates) — "
+                    f"{item}: {field} AMBIGUOUS after policy — "
                     + "; ".join(f"{c}={v}" for c, v in cands))
                 decision_questions.append({
                     "item": item,
@@ -451,10 +543,11 @@ async def _execute_row_read(
                     "evidence": (
                         f"corroborated row {cand.get('row')} of "
                         f"{cand.get('sheet')} in {act.get('file')}; "
-                        "taught pricing policy applies first"),
+                        f"policy applied ({pol['reason']}); these "
+                        "differences survive the policy"),
                     "next_action": (
-                        f"apply taught {field} policy, else owner picks "
-                        f"the basis for {item}"),
+                        f"owner picks among the policy-surviving bases "
+                        f"for {item}"),
                 })
             else:
                 statuses[item] = "matched"
@@ -500,6 +593,20 @@ async def _execute_row_read(
                    if col_diffs else ""))
             bound = merged["bound"]
             for field, cands2 in bound["bindings"].items():
+                pol2 = apply_taught_policy(
+                    field, cands2, agent_lessons or [])
+                _policy[field] = pol2
+                if pol2["applied"]:
+                    col, val = pol2["selected"]
+                    statuses[item] = "matched"
+                    evidence.append(
+                        f"{item}: {field} = {val} ({col}; policy: "
+                        f"{pol2['reason']}; lesson "
+                        f"{pol2['basis_lesson']})")
+                    continue
+                if pol2["remaining"] and len(
+                        pol2["remaining"]) < len(cands2):
+                    cands2 = pol2["remaining"]
                 if len(cands2) == 1:
                     col, val = cands2[0]
                     statuses[item] = "matched"
@@ -557,8 +664,10 @@ async def _execute_row_read(
     # owner question (supply the referenced workbook version, or confirm
     # the preserved manual value).
     _taught_prov = (act.get("provenance") or {})
-    if (_taught_prov.get("source") == "lesson" and not supporting
-            and evidence):
+    _true_absence = supporting == [] and any(
+        "absent" in e or "not readable" in e or "unresolvable" in e
+        for e in evidence)
+    if (_taught_prov.get("source") == "lesson" and _true_absence):
         from core.task_lifecycle import add_unresolved_questions
 
         try:
@@ -566,7 +675,11 @@ async def _execute_row_read(
                 lifecycle, run_id, question_ids=qids, by=_WORKER_ID,
                 ttl_seconds=_CLAIM_TTL_SECONDS,
                 resolution={
-                    "how": "taught location executed — scoped absence",
+                    "how": (
+                        "taught location executed — row absent from "
+                        "every current saved copy (sheet resolution "
+                        "whitespace-insensitive; scan coverage "
+                        "recorded)"),
                     "detail": ("; ".join(evidence))[:350],
                 })
             add_unresolved_questions(lifecycle, run_id, [{
@@ -876,7 +989,7 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                 if group[0].get("intent") == "row_read":
                     res = await _execute_row_read(
                         lifecycle, run_id, user_id, workspace_id,
-                        group[0], qids)
+                        group[0], qids, agent_lessons=_lessons)
                     out["items_matched"] += sum(
                         1 for s in res["statuses"].values()
                         if s == "matched")

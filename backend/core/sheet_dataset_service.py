@@ -2924,14 +2924,20 @@ def read_sheet_row_sync(
         from core.models import DatasetEntry
 
         with _catalog_session() as db:
+            # SHEET RESOLUTION IS WHITESPACE-INSENSITIVE (round 58,
+            # live): catalog entity names carry trailing spaces ('Tennsmith '
+            # in the 2019 workbook) — an exact filter silently missed the
+            # sheet and reported the row ABSENT. Trim-compare instead.
             q = db.query(DatasetEntry).filter(
                 DatasetEntry.file_name == file_name,
-                DatasetEntry.entity_name == sheet_name,
                 DatasetEntry.status == "active")
             if workspace_id:
                 q = q.filter(
                     DatasetEntry.workspace_id == workspace_id)
-            entry = q.first()
+            entry = next(
+                (e for e in q.all()
+                 if str(e.entity_name or "").strip().lower()
+                 == str(sheet_name or "").strip().lower()), None)
             if entry is None or not entry.parquet_path:
                 return None
             parquet_path = entry.parquet_path
