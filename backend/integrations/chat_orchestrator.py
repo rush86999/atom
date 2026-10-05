@@ -12568,9 +12568,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # seam, the source chain and the targeted-read loop all
                 # consume. Unresolved scope is EXPLICIT (a recorded
                 # question), never a generic sweep.
+                # MESSAGE-NAMED vs TITLE-MINED (round 51 release): the
+                # extractor above mines the canvas TITLE identity too —
+                # title-derived tokens are NOT message-named scope. Only
+                # items the MESSAGE itself names short-circuit the canvas
+                # resolution; otherwise the full table-row candidate set
+                # resolves the request (a 3-of-8 title fragment must
+                # never silently become the job scope).
+                _msg_only = extract_targets(_gate_msg, [])
                 _scope_items, _scope_origin = _job_scope_items(
-                    message, canvas_context, _requested_targets)
-                if _scope_items and _scope_origin != "message":
+                    message, canvas_context, _msg_only)
+                if _scope_items and _scope_origin not in (
+                        "message", "unresolved", "unresolved-clarify"):
                     _requested_targets = _scope_items
                     logger.info(
                         "[job-scope] initialized %d item(s), origin=%s "
