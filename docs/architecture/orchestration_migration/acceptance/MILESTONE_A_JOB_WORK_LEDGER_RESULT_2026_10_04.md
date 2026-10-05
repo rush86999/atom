@@ -960,3 +960,36 @@ content hashes.
 **Milestone CLOSED.** Capability statement stands with its three
 qualifications; planner variance (accept2's turn failed to queue) is
 retained as a reliability limitation.
+
+## FINAL CLOSEOUT (owner-accepted, 2026-10-05)
+
+**Release baseline: e70343259.**
+
+**Complementary results, precisely worded (not one end-to-end run on
+the final commit)**:
+- **accept1**: automatic research completion demonstrated (fresh
+  request, zero continuations, worker finished the queued chain with
+  content-hash provenance and live policy application).
+- **accept3**: background-result delivery and browser reload
+  demonstrated AFTER the delivery fix (signed-in UI, note visible,
+  counts stable across reload).
+- **accept2**: planner failure retained as a reliability limitation.
+
+**Backlog (recorded, not blocking)**: message deduplication is by
+CONTENT, not job/event identity — identical legitimate updates can
+collide while differently worded retries can duplicate. The stable
+reload count proves the observed case, not general delivery
+idempotency. Next delivery-logic work should key on a stable
+job/event id.
+
+**Supported capability (final wording)**:
+
+> The trained employee can investigate this quotation across
+> configured sources, automatically execute queued research, preserve
+> approved prices, and present durable results in the app.
+> Current-price freshness, unresolved business choices and planner
+> reliability remain explicit limits.
+
+**Milestone CLOSED.** Next product work: a chosen business capability
+(pricing calculations, alternatives, or authorized drafting) — not
+further extension of this investigation.
