@@ -6656,7 +6656,26 @@ class BYOKHandler:
             # injects catalog-driven candidates for untried healthy
             # providers so the healthy gateway actually dispatches.
             if _force_candidates:
-                options = list(_force_candidates)
+                # CHURN GUARD (round 64, live DRAFT5 trace): the sweep's
+                # candidates can themselves ALL be excluded (single-flight
+                # inflight from concurrent turns + provider cooldowns) —
+                # re-injecting the same list and re-looping spins exhaust
+                # cycles that burn the caller's budget WITHOUT dispatching
+                # (attempt 1: 176s, 4 dispatched calls, 5 exhaust loops).
+                # Filter to dispatchable candidates; when NONE remain,
+                # fail FAST with the diagnosis instead of churning.
+                _guard_ok = [
+                    (p, m) for p, m in _force_candidates
+                    if not self._model_cooldown_active(p, m)]
+                if not _guard_ok:
+                    logger.warning(
+                        "[structured-pool] sweep suppressed: every "
+                        "injected candidate is benched/inflight (%s) — "
+                        "failing fast with the diagnosis instead of "
+                        "spinning exhaust cycles",
+                        [f"{p}/{m}" for p, m in _force_candidates[:4]])
+                    return None
+                options = list(_guard_ok)
                 # EXCLUSION STILL APPLIES (2026-10-04 control check): the
                 # injection replaces the starved ranked list, but a route
                 # the caller excluded (a failed pin: truncation is

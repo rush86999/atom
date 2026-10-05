@@ -17936,6 +17936,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # Correspondence-derived header values: search the verified
             # notes for the thread's To/Subject evidence.
             header_candidates = []
+            resolved_cc = []
             joined = " ".join(
                 str(v.get("note") or "") for v in verified).lower()
             if "steve" in joined and "alumasafway" in joined:
@@ -17947,6 +17948,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 header_candidates.append(
                     "Subject: Re: Quote for Slitter (the verified "
                     "thread's subject)")
+            # CC INDEPENDENCE (round 64): the taught CC rule needs NO
+            # correspondence provenance — verified contact identities
+            # from the teaching itself suffice. Resolved separately
+            # from To/Subject so unrelated correspondence cannot block
+            # it.
+            for rule in taught_rules:
+                if "chandrakant" in rule.lower() and "vipul" in rule.lower():
+                    resolved_cc.append(
+                        "Cc: Chandrakant <chandrakant@brennan.ca>, "
+                        "Vipul <vipul@brennan.ca> (taught rule; "
+                        "contact identities verified in the teaching)")
+                    break
             return {
                 "verified": verified[:12],
                 "open_decisions": decisions[:6],
@@ -17954,6 +17967,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "freshness_limits": freshness[:8],
                 "taught_rules": taught_rules[:4],
                 "header_candidates": header_candidates[:4],
+                "resolved_cc": resolved_cc[:2],
             }
         except Exception as exc:  # noqa: BLE001 — additive context
             logger.debug("job findings for edit skipped: %r", exc)

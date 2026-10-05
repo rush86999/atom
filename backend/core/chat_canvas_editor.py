@@ -1573,6 +1573,10 @@ def _job_findings_section(
     for hc in findings.get("header_candidates") or []:
         if str(hc).strip():
             lines.append(f"- HEADER (provenance-established): {hc}")
+    for rc in findings.get("resolved_cc") or []:
+        if str(rc).strip():
+            lines.append(f"- {rc} — PRE-RESOLVED: set the cc field to "
+                         "exactly these contacts")
     if not lines:
         return ""
     return (
