@@ -5523,9 +5523,23 @@ class ChatOrchestrator:
                                     ((_cont_record.get("task_revision")
                                       or {}).get("entities") or [])
                                     if e.get("id")]
-                                _job_complete = bool(_entities_now) and all(
-                                    e in _succeeded_items
-                                    for e in _entities_now)
+                                # ROLE-AWARE (round 41): only
+                                # role=requested entities define scope and
+                                # completion; candidates/aliases never do.
+                                _roles = {}
+                                for _e in ((_cont_record.get("task_revision")
+                                            or {}).get("entities") or []):
+                                    if e_id := str(e.get("id") or ""):
+                                        _roles[e_id] = str(
+                                            e.get("role") or "requested")
+                                _requested_now = [
+                                    e for e in _entities_now
+                                    if _roles.get(e, "requested")
+                                    == "requested"]
+                                _uncovered = [e for e in _requested_now
+                                              if e not in _succeeded_items]
+                                _job_complete = bool(_requested_now) and (
+                                    not _uncovered)
                                 _cont_orig = None
                                 for _h in (session or {}).get("history") or []:
                                     if not isinstance(_h, dict):
@@ -5534,8 +5548,21 @@ class ChatOrchestrator:
                                     if len(_m) > len(_cont_orig or ""):
                                         _cont_orig = _m
                                 if _cont_orig and not _job_complete:
+                                    # The seed NAMES the unfinished requested
+                                    # items — the planner targets them
+                                    # instead of re-deriving scope.
+                                    _seed_ask = _cont_orig
+                                    if _uncovered:
+                                        _seed_ask = (
+                                            f"{_cont_orig}\n\nUnfinished "
+                                            "requested items still to "
+                                            "verify: "
+                                            + ", ".join(_uncovered[:8])
+                                            + ". Continue the recorded "
+                                              "verification for exactly "
+                                              "these.")
                                     _cont_seed = {
-                                        "ask": _cont_orig,
+                                        "ask": _seed_ask,
                                         "original": _cont_text,
                                         "run_id": _cont_record["run_id"],
                                         "attempt": 1,
@@ -14131,6 +14158,92 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             str(x) for x in
                             (_stored_requested_items(session) or [])
                             if str(x).strip()]
+                    if not _chain_items:
+                        # DURABLE ENTITIES (round 41 reviewer correction 2):
+                        # the JOB's persisted entities are the requested
+                        # scope — session carriers are an optimization, not
+                        # the source of truth. Without this the whole
+                        # persisted-job design is defeated.
+                        try:
+                            _tl_entities = _task_lifecycle_for(
+                                getattr(self, "tenant_id", None),
+                                workspace_id)
+                            _ent_run = (session or {}).get("_task_run_id") \
+                                if isinstance(session, dict) else None
+                            if _tl_entities is not None and _ent_run:
+                                _ent_rec = _tl_entities.get_task(_ent_run)
+                                _chain_items = [
+                                    str(e.get("id")) for e in
+                                    ((_ent_rec or {}).get("task_revision")
+                                     or {}).get("entities") or []
+                                    if e.get("id")]
+                        except Exception:  # noqa: BLE001 — additive
+                            _chain_items = []
+                    if not _chain_items:
+                        # DURABLE JOB FALLBACK (round 41): on bare-
+                        # continuation turns the session carriers are
+                        # empty, so the chain's value_trace intent never
+                        # fired and per-item targeted reads never
+                        # persisted as open questions. The job record is
+                        # the durable store of the same items — its
+                        # entities and open-question items are the same
+                        # obligation, read from task_lifecycle.
+                        try:
+                            _tl_items = _task_lifecycle_for(
+                                getattr(self, "tenant_id", None),
+                                workspace_id)
+                            if _tl_items is not None:
+                                _rec_items = None
+                                try:
+                                    _rec_items = _tl_items.find_active_task(
+                                        session_id)
+                                except Exception:  # noqa: BLE001
+                                    _rec_items = None
+                                if _rec_items is None:
+                                    if isinstance(canvas_context, dict):
+                                        _c_items = (
+                                            canvas_context.get("canvas_id")
+                                            or canvas_context.get("id"))
+                                    elif isinstance(canvas_context, str) \
+                                            and canvas_context.strip():
+                                        _c_items = canvas_context.strip()
+                                    else:
+                                        _c_items = None
+                                    if _c_items:
+                                        try:
+                                            _rec_items = (
+                                                _tl_items
+                                                .find_active_task_for_canvas(
+                                                    _c_items))
+                                        except Exception:  # noqa: BLE001
+                                            _rec_items = None
+                                if isinstance(_rec_items, dict):
+                                    _ents = ((_rec_items.get(
+                                        "task_revision") or {})
+                                        .get("entities") or [])
+                                    for _e in _ents:
+                                        _eid = str(
+                                            (_e or {}).get("id")
+                                            if isinstance(_e, dict)
+                                            else _e or "").strip()
+                                        if _eid:
+                                            _chain_items.append(_eid)
+                                    for _q in (
+                                            ((_rec_items.get(
+                                                "task_revision") or {})
+                                             .get("unresolved") or [])):
+                                        if isinstance(_q, dict) and str(
+                                                _q.get("status") or ""
+                                        ) == "open":
+                                            _qi = str(
+                                                _q.get("item") or ""
+                                            ).strip()
+                                            if _qi:
+                                                _chain_items.append(_qi)
+                        except Exception:  # noqa: BLE001 — additive
+                            pass
+                        _chain_items = list(dict.fromkeys(_chain_items))
+
                     # canvas_context is not always a dict on every path (a
                     # bare canvas id string reaches here — live run msA10:
                     # 'str' object has no attribute 'get' killed the whole
@@ -14386,6 +14499,55 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                  "bounded_absence": False, "receipt": {}})
 
                 if _chain_query:
+                    # SCOPE CORRECTION (round 41 reviewer correction 1):
+                    # entities carrying the OPEN CANVAS's own items are the
+                    # REQUESTED scope; the rest are discovered aliases or
+                    # candidates — kept, but excluded from completion. One
+                    # traceable revise_objective per job, applied only when
+                    # entities are still un-annotated.
+                    try:
+                        _sc_tl = _task_lifecycle_for(
+                            getattr(self, "tenant_id", None), workspace_id)
+                        _sc_run = (session or {}).get("_task_run_id") \
+                            if isinstance(session, dict) else None
+                        if _sc_tl is not None and _sc_run:
+                            from core import task_lifecycle as _tlm
+
+                            _sc_rec = _sc_tl.get_task(_sc_run)
+                            _sc_ents = ((_sc_rec or {}).get("task_revision")
+                                        or {}).get("entities") or []
+                            if _sc_ents and not any(
+                                    e.get("role") for e in _sc_ents):
+                                _canvas_text = ""
+                                if isinstance(canvas_context, dict) and \
+                                        canvas_context.get("content"):
+                                    import json as _sc_json
+
+                                    _canvas_text = str(_sc_json.dumps(
+                                        canvas_context["content"],
+                                        default=str)).lower()
+                                _scoped = []
+                                for _e in _sc_ents:
+                                    _eid = str(_e.get("id") or "")
+                                    _role = (
+                                        "requested"
+                                        if _eid and _eid.lower()
+                                        in _canvas_text else "candidate")
+                                    _scoped.append(
+                                        {**dict(_e), "role": _role})
+                                _tlm.apply_transition(_sc_run, {
+                                    "kind": "revise_objective",
+                                    "requested_change": (
+                                        "scope correction: entities present "
+                                        "on the open canvas are REQUESTED; "
+                                        "others are discovered aliases or "
+                                        "candidates (kept, excluded from "
+                                        "completion)"),
+                                    "entities": _scoped,
+                                    "removed_entity_ids": [],
+                                })
+                    except Exception as _sc_err:  # noqa: BLE001
+                        logger.debug("scope correction skipped: %r", _sc_err)
                     for _missing_svc in sorted(_missing):
                         await _chain_attempt(_missing_svc)
                 else:
