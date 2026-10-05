@@ -253,3 +253,31 @@ class TestJobFindingsSection:
         sig = inspect.signature(plan_canvas_edit)
         assert "job_findings" in sig.parameters
         assert sig.parameters["job_findings"].default is None
+
+
+class TestUserGroundedEditDirective:
+    """Round 62: a first-time explicitly-authorized edit directive that
+    starves at the interactive bound forks the background continuation —
+    hints and teaching directives never do."""
+
+    def test_directive_shapes(self):
+        from integrations.chat_orchestrator import (
+            _user_grounded_edit_directive)
+        assert _user_grounded_edit_directive(
+            "The research is done. Prepare the email draft now: apply "
+            "the verified findings and your taught formatting. Don't "
+            "send it.")
+        assert _user_grounded_edit_directive(
+            "please update the email with the new prices")
+        assert _user_grounded_edit_directive("draft the email now")
+
+    def test_hints_and_negations_are_not_directives(self):
+        from integrations.chat_orchestrator import (
+            _user_grounded_edit_directive)
+        assert not _user_grounded_edit_directive(
+            "Don't change the draft yet")
+        assert not _user_grounded_edit_directive(
+            "learn to include the tennsmith sheet for searches")
+        assert not _user_grounded_edit_directive(
+            "what does the draft say about lead times")
+        assert not _user_grounded_edit_directive("")

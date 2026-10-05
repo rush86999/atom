@@ -1859,6 +1859,33 @@ except Exception:  # noqa: BLE001 — version stamp optional
     _TARGET_EXTRACTION_VERSION_NOW = None
 
 
+# USER-GROUNDED EDIT DIRECTIVE (round 62): an explicit first-person
+# imperative to edit/draft — the authorization standard the async fork
+# accepts for a FIRST-TIME starved edit (previously only retries of
+# already-forked edits forked). A hint ("maybe include...") or a
+# teaching directive is NOT a directive.
+_USER_EDIT_DIRECTIVE_RE = re.compile(
+    r"\b(?:prepare|apply|update|edit|revise|draft|fix|change)\b"
+    r"[^.]{0,60}\b(?:the\s+)?(?:email|draft|quote|canvas|it)\b"
+    r"|\b(?:draft|email)\b[^.]{0,40}\b(?:now|please)\b",
+    re.IGNORECASE,
+)
+
+
+def _user_grounded_edit_directive(message: str) -> bool:
+    t = (message or "").strip()
+    if not t:
+        return False
+    # Negated forms withhold authorization ("don't send" is about
+    # SENDING, not editing; "don't change the draft" WITHHOLDS the edit).
+    if re.search(
+            r"\b(?:don'?t|do\s+not|never)\s+"
+            r"(?:change|edit|modify|update|prepare|draft)\b",
+            t, re.IGNORECASE):
+        return False
+    return bool(_USER_EDIT_DIRECTIVE_RE.search(t))
+
+
 def _canvas_edit_shaped(
     message: str, context: Optional[Dict[str, Any]] = None
 ) -> bool:
@@ -9478,7 +9505,21 @@ class ChatOrchestrator:
                                 # …' matched 'include' and forked a doomed
                                 # edit while every reasoning route was
                                 # skipped pre-dispatch).
-                                if _edit_retry is not None:
+                                # FIRST-TIME DIRECTIVE FORK (round 62):
+                                # an explicitly user-grounded edit
+                                # directive ("prepare the email draft
+                                # now") that starved at the interactive
+                                # bound also continues in the background
+                                # — previously only retries of already-
+                                # forked edits did, so a first authorized
+                                # draft request could never complete on a
+                                # slow plan. Authority standard
+                                # unchanged: the user's own imperative
+                                # words; hints/teaching fork nothing.
+                                if _edit_retry is not None or (
+                                        _edit_leg_timed_out
+                                        and _user_grounded_edit_directive(
+                                            message)):
                                     try:
                                         from core.async_turn_continuation import (
                                             fork_canvas_edit_continuation,
