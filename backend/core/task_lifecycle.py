@@ -2368,6 +2368,78 @@ def claim_questions_for_execution(
     return [c["question_id"] for c in claimable]
 
 
+def resolve_unresolved_questions_fenced(
+        lifecycle: "TaskLifecycle",
+        run_id: str,
+        *,
+        question_ids: List[str],
+        by: str,
+        ttl_seconds: float,
+        resolution: Optional[Dict[str, Any]] = None,
+        keep_open_detail: Optional[str] = None,
+) -> List[str]:
+    """FENCED settlement (round 56): ownership validation runs INSIDE
+    the CAS mutation — a takeover between an external check and this
+    write fails the write (compute re-runs on version conflict and
+    re-validates the claim). Resolves the questions when ``resolution``
+    is given; with ``keep_open_detail`` the questions stay open with the
+    detail recorded on a bounded bump of evidence (no resolution)."""
+    import time as _time
+
+    def compute(record):
+        now = _time.time()
+        ids = {str(q) for q in (question_ids or [])}
+        unresolved = list(
+            (record.get("task_revision") or {}).get("unresolved") or [])
+        target_indexes = []
+        for i, q in enumerate(unresolved):
+            if str(q.get("question_id")) in ids \
+                    and q.get("status") == "open":
+                claim = q.get("exec_claim") or {}
+                try:
+                    fresh = (now - float(claim.get("at"))) < ttl_seconds
+                except (TypeError, ValueError):
+                    fresh = False
+                if not (claim and str(claim.get("by")) == by and fresh):
+                    raise TaskLifecycleConcurrencyError(
+                        "settlement fence: question ownership changed "
+                        f"before the write ({q.get('question_id')})")
+                target_indexes.append(i)
+        if not target_indexes:
+            return [], None, None
+        for i in target_indexes:
+            q = unresolved[i]
+            if resolution:
+                unresolved[i] = {
+                    **q, "status": "resolved",
+                    "resolved_at": _utc_now_iso(),
+                    "resolution": _bounded_text(resolution, 400),
+                }
+            elif keep_open_detail:
+                unresolved[i] = {
+                    **q,
+                    "evidence": _bounded_text(
+                        f"{q.get('evidence') or ''}; {keep_open_detail}",
+                        500),
+                }
+        new_task = dict(record["task_revision"])
+        new_task["unresolved"] = unresolved
+        lifecycle_payload = {
+            "task_revision": new_task,
+            "operations": list(record.get("operations") or []),
+            "conversation_id": record.get("conversation_id"),
+        }
+        return ([unresolved[i]["question_id"]
+                 for i in target_indexes], lifecycle_payload, {
+            "kind": "record_unresolved",
+            "rationale": ("fenced resolution" if resolution
+                          else "fenced keep-open detail"),
+            "question_ids": question_ids,
+        })
+
+    return lifecycle._mutate(run_id, compute)
+
+
 def verify_question_claims(
         lifecycle: "TaskLifecycle",
         run_id: str,
