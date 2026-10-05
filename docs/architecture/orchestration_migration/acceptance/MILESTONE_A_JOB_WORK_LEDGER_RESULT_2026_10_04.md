@@ -558,3 +558,36 @@ after planning+trace+mailbox permitted only ONE targeted read; (c) the
 response's open_work snapshot can predate the final settle (the Flanger
 action still shows in actions while the ledger records it resolved).
 The resumable milestone remains closed and unregressed.
+
+## RELEASE (round 51): scoped fixes verified and pushed
+
+**Acceptance run rel5** (fresh session, original prompt, disposable fork,
+ZERO continuations, 68.8s): all EIGHT items scoped and persisted before
+execution (title-fragment scope bug found and fixed: canvas-title-mined
+tokens are not message-named scope); the value_trace ran over the full
+scope and returned richer coverage than any prior run (No. 381 in THREE
+workbooks incl. "Copy of Consolidated Price List 2019 - Linmac Update";
+U-22 in two); targeted reads created with document identities
+("read Copy of Consolidated Price List 2019 - Linmac Update.xlsx for No.
+381", …); response open_work recomputed from the authoritative task
+revision. Draft SHA-identical (f028613c…); nothing sent; no permission
+questions. Runs rel1–rel4 recorded honestly en route: planner-timeout
+variance (scope now persists through it), read-starvation by sequencing
+(reads now run immediately after the datasets settle), and the silent
+partial-scope defect (fixed).
+
+**Honest release boundary (named, per the release instruction)**: the
+95s interactive turn budget fits scope+trace+mailbox but not always the
+targeted reads after them — the reads are durably queued, listed in the
+authoritative response state, and execute on the proven one-word
+continue or in-turn when planning is fast (AUTORUN3 demonstrated the
+full in-turn chain once). No automatic background research continuation
+exists; the edit-specific async path was NOT assumed to support
+research. Multi-read jobs therefore complete over a small number of
+one-word continuations, not one turn.
+
+**Tests (final source)**: 262 focused tests green across target-set,
+job scope, ledger, chain, teaching, canvas-repair, zero-effect,
+action-program; the 7 pending-file refresh failures reproduce
+identically at clean HEAD (controlled worktree baseline) — out of
+release scope, exact scope recorded.
