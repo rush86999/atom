@@ -353,3 +353,47 @@ seam settle — the execution meta attachment at the primary path is the
 single recorded boundary between the current generic-question loop and
 the per-item targeted reads. Draft untouched; nothing sent; canvas
 untouched.
+
+## Round-45/46: THE TARGETED-READ TRANSITION, LIVE (cont21–27, pid 87133)
+
+**Migration one-time, verified and pinned**: get_task does not surface
+decision_log — the original done-marker read an always-empty list and the
+migration would have re-applied on every settle at cap (the reviewer's
+exact concern). The marker now lives in the task revision
+(attempt_budget_migrated). Pinned: repeated settles leave a normally
+exhausted question exhausted; identical rediscovery replenishes nothing;
+a fresh TaskLifecycle over the same store (restart) sees the marker.
+
+**Handoff traced, disappearance point fixed**: cont19/20's value_trace
+executed in the canvas-edit leg and reached settlement ONLY through the
+singleflight/reuse arm — which never derived questions. The reuse settle
+now derives pending reads from the blackboard's ORIGINAL receipt
+(primary_receipt); regression covers the reuse handoff shape. Retry
+machinery untouched thereafter, per instruction.
+
+**Retirement wired with the right semantics**: read_succeeded with an
+explicit per-item status resolves VERIFICATION-kind questions only —
+owner DECISIONS are never settled by a read (pinned both directions;
+search success retires nothing).
+
+**THE LIVE TRANSITION (the reviewer's success criterion)**:
+1. cont21: value_trace (canvas-edit leg → singleflight) → reuse settle
+   persisted three targeted reads ("read Consolidated Price List
+   2019.xlsx for {Manual Flanger, TK 1624, GSL48-16}").
+2. cont23–24: the generic re-run question climbed to cap.
+3. cont25: **the cap held** (no reset — the marker works); selection
+   moved to targeted reads; the workbook read executed and surfaced a
+   REAL discrepancy with cell provenance: SLE24-16, Tennsmith sheet,
+   row 101, PRICE $8,984 vs the draft's $8,880 — flagged for owner
+   confirmation, not auto-applied.
+4. cont26: the Flanger targeted read EXECUTED FROM DURABLE STATE:
+   "Manual Flanger — 1,631 'Price' (Tinknocker sheet, row 42, cell D42;
+   also 950 'Factory Price' H42) — from the saved copy (2026-10-03),
+   searched all 46 sheets; a newer version may differ" (honest freshness
+   scoping). Ledger: read_succeeded, items {"Manual Flanger": "single"}.
+5. cont27: the Flanger question is **resolved** ("targeted read
+   executed — evidence on the operation") and NO LONGER SELECTED; TK 1624
+   and GSL48-16 remain as the next targeted reads.
+
+Draft SHA-identical throughout (f028613c…); nothing sent; original
+canvas untouched. 35 ledger tests green.
