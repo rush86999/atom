@@ -2632,14 +2632,25 @@ def record_read_outcome(
             # VERIFICATION-KIND ONLY: an owner DECISION is settled by the
             # owner, never by a read (a successful read must not become
             # automatic approval — reviewer round 45).
+            # RESOLUTION SCOPE (round 47, reviewer semantic check): the
+            # resolution records WHAT the read established. A saved-copy
+            # lookup resolves the READ obligation (the cell/figure was
+            # read) — it does NOT establish current-price verification,
+            # and the resolution says so explicitly rather than letting
+            # "verification-kind" absorb both meanings.
+            _basis = str((execution or {}).get("served_basis") or "")
+            _detail = ("read_succeeded with an explicit per-item status; "
+                       "evidence on the operation")
+            if _basis == "saved_copy":
+                _detail += ("; served from the SAVED COPY — freshness "
+                            "against the live source is NOT established")
             derived["resolutions"].append({
                 "items": sorted(_read_items),
                 "kinds": ["verification"],
                 "resolution": {
                     "how": "targeted read executed",
-                    "detail": (
-                        "read_succeeded with an explicit per-item status; "
-                        "evidence on the operation"),
+                    "basis": _basis or None,
+                    "detail": _detail,
                 },
             })
     for resolution in derived["resolutions"]:
