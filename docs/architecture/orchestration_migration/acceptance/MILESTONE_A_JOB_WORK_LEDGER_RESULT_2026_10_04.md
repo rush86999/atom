@@ -919,3 +919,44 @@ interactive turn succeeded; prior runs show the variance honestly).
 Baseline: release f338fefe4, 189-test focused suite; this round adds
 the content-hash provenance (entry column, parquet-dir fallback) and
 the acceptance evidence above.
+
+## Round-61: BROWSER ACCEPTANCE COMPLETED — presentation gap found and fixed live
+
+**Authentication corrected**: "OAuth-only" was wrong — the app's own
+credentials login exists; the configured ADMIN_PASSWORD (repo .env)
+verified against /api/auth/login, and the browser signed in through
+the real form. (Session minting via the dev NextAuth secret was
+unnecessary once credentials were found.)
+
+**UI verification (signed in, real panel, after reload)**:
+- Draft renders with ALL EIGHT rows and prices (Roper Whitney
+  $2,902.00 first) — unchanged.
+- The acceptance conversation is present with the interactive reply.
+- **Presentation gap found**: the background-research note was INVISIBLE
+  — the worker wrote it to the file-store session, but the panel's
+  history endpoint serves ChatMessage DB rows. FIXED: delivery now
+  appends a ChatMessage row (idempotent by content) plus the file
+  mirror. Two live bugs fixed en route: a silent AttributeError in the
+  note write (non-dict provenance, swallowed at DEBUG — found by a
+  loud-except probe) and stale key reads in the note formatting.
+- After the fix: the note IS visible in the panel (verified in the
+  browser), reload persists it without duplication (row counts stable
+  across re-fetch), and the only Send control is the draft editor's
+  own — nothing was sent.
+- Screenshots archived: acceptance/ui_canvas_final_2026_10_05.png,
+  acceptance/ui_background_note_2026_10_05.png.
+- The note's item-level detail (3,297 etc.) lives in the ledger record
+  and the note's evidence text; the panel shows the note summary —
+  full dispositions remain one click away in the job record (Goal Runs
+  view). Item-disposition text in the chat itself is a UI-depth
+  improvement, noted, not claimed.
+
+**Focused validation of the content-hash addition** (separate from the
+189-test baseline, which predates it): the source-identity fields are
+exercised by the worker regression suite (15 tests, green) and by the
+live accept1/accept3 reads whose evidence lines carry entry ids and
+content hashes.
+
+**Milestone CLOSED.** Capability statement stands with its three
+qualifications; planner variance (accept2's turn failed to queue) is
+retained as a reliability limitation.
