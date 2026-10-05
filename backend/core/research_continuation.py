@@ -484,23 +484,38 @@ async def _execute_row_read(
         _file = _act_file
         if not _file:
             # TAUGHT LEAD without a file: resolve the sheet against the
-            # catalog (freshest copy carrying that sheet name).
+            # catalog — trying EVERY copy carrying the sheet until one
+            # actually materializes the taught row (the freshest copy's
+            # sheet may end before the taught row; a None read there
+            # must NOT masquerade as identity-unsupported).
             _hits = await asyncio.to_thread(
                 find_entries_sync, str(cand.get("sheet") or ""),
                 user_id, workspace_id, 6)
-            _file = str(
-                (_hits[0] or {}).get("file_name") or ""
-            ) if _hits else ""
-            if not _file:
+            row_result = None
+            for _h in _hits[:3]:
+                _file = str(_h.get("file_name") or "")
+                if not _file:
+                    continue
+                row_result = await asyncio.to_thread(
+                    read_sheet_row_sync, _file,
+                    cand.get("sheet") or "",
+                    cand.get("row") or 0, user_id, workspace_id)
+                if row_result is not None:
+                    cand = {**cand, "_resolved_file": _file}
+                    break
+                row_result = None
+            if row_result is None:
                 evidence.append(
-                    f"{item}: taught sheet "
-                    f"'{cand.get('sheet')}' not in the catalog — lead "
-                    "unresolvable against current copies")
+                    f"{item}: taught row {cand.get('row')} of sheet "
+                    f"'{cand.get('sheet')}' is ABSENT from every "
+                    "cataloged copy carrying that sheet ("
+                    + "; ".join(str(h.get("file_name"))[:44]
+                                for h in _hits[:3]) + ")")
                 continue
-            cand = {**cand, "_resolved_file": _file}
-        row_result = await asyncio.to_thread(
-            read_sheet_row_sync, _file, cand.get("sheet") or "",
-            cand.get("row") or 0, user_id, workspace_id)
+        else:
+            row_result = await asyncio.to_thread(
+                read_sheet_row_sync, _file, cand.get("sheet") or "",
+                cand.get("row") or 0, user_id, workspace_id)
         if row_result is None:
             continue
         bound = _bind_row_fields(
