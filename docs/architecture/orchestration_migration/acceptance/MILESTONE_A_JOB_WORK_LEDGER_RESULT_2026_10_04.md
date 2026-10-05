@@ -1285,3 +1285,28 @@ turn as the run (the agent correctly refused to claim it had); one
 reply hand-computed the chain in narration when the tool path stalled;
 the draft-change step stays unexercised because the freight decision
 is still open — the correct boundary, not a completion.
+
+## Round-68: the workbook IS a policy source (the owner's every-sheet-its-own-formula finding)
+
+**Honest answer to the independence question**: the arithmetic core and
+typed-input layer were domain-independent; the POLICY LAYER was not —
+the lesson-text parser had promoted ONE worked example (F5216's row)
+into a global recipe, while the workbook's own 5,008 formula cells
+across 11 sheets (each sheet its own ladder: BurrKing multiplies by a
+$-parameter block AB1/AB8/AB11/AB36/AB42) sat disconnected in the
+formula sidecar.
+
+**Delivered**: TaughtPolicy.scope (file/sheet) +
+policy_from_row_chain — the typed policy for ONE ROW derived from that
+row's own formula chain, $-references resolved against the sheet's own
+parameter block, cell provenance on every step, ROUNDUP terminating,
+and None (honest) for sheets whose values are typed literals.
+Verified live: BurrKing row 25 derives the sheet's OWN five factors —
+not the lesson example's.
+
+**Remaining fidelity gap (named)**: the walker covers binary products
+and same-row multi-adds; additive cells that are literal VALUES need
+binding as inputs for byte-exact row replay (live check: from the row's
+cost the derived chain reaches 6,896 vs the sheet's 7,409 — the
+difference is the row's freight/handling literals, bindable but not
+yet auto-resolved).
