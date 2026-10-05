@@ -13412,6 +13412,34 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         "[job-work-ledger] multi-source "
                                         "begin failed (lookup proceeds "
                                         "unrecorded): %r", _ms_begin_err)
+                            # SCOPED-INTENT UPGRADE (round 50): a
+                            # datasets SEARCH with a persisted job scope
+                            # runs as value_trace over the scoped items —
+                            # the sweep already proved it matches junk
+                            # filenames; the trace produces the coverage
+                            # receipts that drive the targeted reads.
+                            try:
+                                _scope_stash = (
+                                    shared_tool_state.get(
+                                        "job_scope_items")
+                                    if isinstance(shared_tool_state, dict)
+                                    else None) or []
+                                if (getattr(_plan, "service", "")
+                                        == "datasets"
+                                        and (getattr(
+                                            _plan, "intent", "search")
+                                            in ("search", None))
+                                        and [i for i in _scope_stash
+                                             if str(i).strip()]):
+                                    _plan.intent = "value_trace"
+                                    _plan.query = ", ".join(
+                                        str(i) for i in _scope_stash[:8])
+                                    logger.info(
+                                        "[job-scope] primary datasets plan "
+                                        "upgraded to value_trace (%d "
+                                        "items)", len(_scope_stash))
+                            except Exception:  # noqa: BLE001 — additive
+                                pass
                             try:
                                 _live_block = await asyncio.wait_for(
                                     execute_tool_plan(
