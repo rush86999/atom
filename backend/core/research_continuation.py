@@ -138,6 +138,8 @@ def _read_actions(actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                         inputs.get("identity_context") or item),
                     "requested_fields": list(
                         inputs.get("requested_fields") or []),
+                    "provenance": dict(
+                        inputs.get("provenance") or {}),
                     "intent": "row_read",
                     "question_id": a.get("question_id")})
                 continue
@@ -549,6 +551,43 @@ async def _execute_row_read(
             "question stays open (located cells may be parts-number "
             "noise)")
 
+    # TAUGHT-LEAD ABSENCE (round 57): every taught candidate row is
+    # absent from the current copies -> the lead was executed and the
+    # finding is scoped: resolve with the absence + open the precise
+    # owner question (supply the referenced workbook version, or confirm
+    # the preserved manual value).
+    _taught_prov = (act.get("provenance") or {})
+    if (_taught_prov.get("source") == "lesson" and not supporting
+            and evidence):
+        from core.task_lifecycle import add_unresolved_questions
+
+        try:
+            resolve_unresolved_questions_fenced(
+                lifecycle, run_id, question_ids=qids, by=_WORKER_ID,
+                ttl_seconds=_CLAIM_TTL_SECONDS,
+                resolution={
+                    "how": "taught location executed — scoped absence",
+                    "detail": ("; ".join(evidence))[:350],
+                })
+            add_unresolved_questions(lifecycle, run_id, [{
+                "item": item,
+                "kind": "business_decision",
+                "question": (
+                    f"the taught location for {item} is absent from the "
+                    "current saved copies — supply the workbook version "
+                    "the teaching references, or confirm the preserved "
+                    "manual value"),
+                "evidence": ("; ".join(evidence))[:400],
+                "next_action": (
+                    f"owner supplies the referenced workbook version or "
+                    f"confirms {item}'s manual price"),
+            }], source_operation=None)
+            return {"statuses": {item: "matched"},
+                    "evidence": evidence + [
+                        "taught lead resolved as scoped absence + "
+                        "owner question"]}
+        except Exception:  # noqa: BLE001 — fence or add failed
+            pass
     op = lifecycle.create_operation(
         run_id, op_type="retrieve",
         requested_change=(
@@ -622,9 +661,19 @@ def _taught_location_successors(
                       or "").split()))
         for idx, l in enumerate(agent_lessons)]
     for item, q in open_qs.items():
-        if any((q.get("inputs") or {}).get("intent") == "row_read"
-               for q in [q]):
-            continue  # already has a row successor
+        if (q.get("inputs") or {}).get("intent") == "row_read":
+            ev = str(q.get("evidence") or "")
+            _exhausted = (
+                "identity unsupported" in ev
+                or "no candidate row" in ev
+                or "not readable" in ev
+                or "absent" in ev)
+            if not _exhausted:
+                continue  # an active row successor exists
+            _has_taught = "taught" in str(
+                (q.get("inputs") or {}).get("provenance") or {})
+            if _has_taught:
+                continue  # the taught lead already ran
         codes = _item_code_tokens(item)
         if not codes:
             continue
