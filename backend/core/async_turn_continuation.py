@@ -1131,6 +1131,12 @@ async def _reconcile_authorized_proposal(
                          "review-state transition only — no canvas write"),
             }
             row.details_json = details
+            try:
+                from sqlalchemy.orm.attributes import flag_modified
+
+                flag_modified(row, "details_json")
+            except Exception:  # noqa: BLE001 — best-effort hint
+                pass
             db.commit()
             logger.info(
                 "[async-continuation] %s reconciled authorized proposal "
