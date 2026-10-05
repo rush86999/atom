@@ -2934,10 +2934,21 @@ def read_sheet_row_sync(
             if workspace_id:
                 q = q.filter(
                     DatasetEntry.workspace_id == workspace_id)
-            entry = next(
-                (e for e in q.all()
-                 if str(e.entity_name or "").strip().lower()
-                 == str(sheet_name or "").strip().lower()), None)
+            # COLLISION REJECTION (round 59): whitespace-normalized
+            # matching must not silently choose between two DISTINCT
+            # matching sheets — list the candidates and refuse.
+            matches = [
+                e for e in q.all()
+                if str(e.entity_name or "").strip().lower()
+                == str(sheet_name or "").strip().lower()]
+            if len(matches) > 1:
+                return {
+                    "ambiguous_sheet": [
+                        {"file_name": file_name,
+                         "sheet_raw": str(e.entity_name or ""),
+                         "entry_id": str(e.id)}
+                        for e in matches]}
+            entry = matches[0] if matches else None
             if entry is None or not entry.parquet_path:
                 return None
             parquet_path = entry.parquet_path
@@ -2965,6 +2976,21 @@ def read_sheet_row_sync(
             if isinstance(row[str(col)], float) and \
                     row[str(col)] == int(row[str(col)]):
                 row[str(col)] = int(row[str(col)])
-        return {"headers": headers, "row": row}
+        # SOURCE IDENTITY (round 59): the successful read names the
+        # exact resource it served from — distinct copies are distinct
+        # observations even at matching cell addresses.
+        import os as _os
+        _st = _os.stat(parquet_path)
+        return {
+            "headers": headers, "row": row,
+            "source": {
+                "file_name": file_name,
+                "sheet_raw": str(entry.entity_name or ""),
+                "sheet_requested": sheet_name,
+                "entry_id": str(entry.id),
+                "parquet_path": str(parquet_path),
+                "parquet_size": _st.st_size,
+                "parquet_mtime": int(_st.st_mtime),
+            }}
     except Exception:  # noqa: BLE001 — a row read degrades to None
         return None

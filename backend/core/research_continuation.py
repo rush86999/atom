@@ -516,8 +516,24 @@ async def _execute_row_read(
             row_result = await asyncio.to_thread(
                 read_sheet_row_sync, _file, cand.get("sheet") or "",
                 cand.get("row") or 0, user_id, workspace_id)
+        if isinstance(row_result, dict) and row_result.get(
+                "ambiguous_sheet"):
+            evidence.append(
+                f"{item}: sheet resolution COLLISION in {_file} — "
+                + "; ".join(
+                    c["sheet_raw"] for c in
+                    row_result["ambiguous_sheet"])
+                + "; refused to choose; question stays open")
+            continue
         if row_result is None:
             continue
+        _src = row_result.get("source") or {}
+        if _src:
+            evidence.append(
+                f"{item}: served from {_src.get('file_name')} sheet "
+                f"{_src.get('sheet_raw')!r} (entry "
+                f"{str(_src.get('entry_id'))[:8]}, parquet mtime "
+                f"{_src.get('parquet_mtime')})")
         bound = _bind_row_fields(
             row_result, cand.get("identity_column") or "", item,
             fields, identity_context=context)
@@ -558,7 +574,9 @@ async def _execute_row_read(
                 evidence.append(
                     f"{item}: {field} = {val} ({col} — basis/currency "
                     f"as the column names it; {cand.get('sheet')} row "
-                    f"{cand.get('row')})")
+                    f"{cand.get('row')}; observation bound to the "
+                    "serving copy above — matching cell addresses in "
+                    "different copies are DISTINCT observations)")
             elif len(cands) > 1:
                 statuses[item] = "matched"
                 evidence.append(

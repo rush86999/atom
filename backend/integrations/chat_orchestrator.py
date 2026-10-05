@@ -5568,6 +5568,11 @@ class ChatOrchestrator:
             session_id = session_id or str(uuid.uuid4())
             _execution_id: Optional[str] = None  # chat-trace run (set below)
             session = self._get_or_create_session(user_id, session_id, context)
+            # TURN-SCOPED AGENT (round 59): every task-creation lane
+            # persists the acting agent on the job — durable workers'
+            # taught-lesson source. Set once at turn entry.
+            self._turn_agent_id = (
+                (context or {}).get("agent_id") or agent_id or None)
             if isinstance(session, dict):
                 # JOB-WORK LEDGER staleness guard: the open-work snapshot is
                 # turn-scoped; an early-return path that never reached the
@@ -7038,6 +7043,7 @@ class ChatOrchestrator:
                             _execution_id,
                             items=list(
                                 _ask_task.get("requested_targets") or []),
+                            agent_id=getattr(self, "_turn_agent_id", None),
                             canvas_id=_canvas_id_from_context(context))
                     except Exception as _tl_err:  # noqa: BLE001
                         # FAIL-CLOSED: the operation could not be
@@ -8243,6 +8249,8 @@ class ChatOrchestrator:
                                         items=list(
                                             (_direct_task or {}).get(
                                                 "requested_targets") or []),
+                                        agent_id=getattr(
+                                            self, "_turn_agent_id", None),
                                         canvas_id=_canvas_id_from_context(
                                             context))
                                 except Exception as _tl_err:  # noqa: BLE001
