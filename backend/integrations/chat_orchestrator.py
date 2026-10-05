@@ -17866,6 +17866,36 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     record = find_active_task_for_canvas(tl, canvas_id)
                 except Exception:  # noqa: BLE001
                     record = None
+            if record is None and canvas_id:
+                # FORK LINEAGE (round 64, live DRAFT6): a disposable fork
+                # starts a NEW job with an empty ledger — the research the
+                # draft must apply lives on the SOURCE canvas's job. The
+                # fork's audit row carries source_canvas_id; follow it (one
+                # hop) so drafting on a fork applies the lineage's verified
+                # findings instead of declining for lack of provenance.
+                try:
+                    from core.models import CanvasAudit as _CA
+
+                    with get_db_session() as _db2:
+                        _fork_row = _db2.query(_CA).filter(
+                            _CA.canvas_id == str(canvas_id),
+                            _CA.action_type == "fork",
+                        ).order_by(_CA.created_at.desc()).first()
+                        _parent = str(
+                            (_fork_row.details_json
+                             if hasattr(_fork_row, "details_json")
+                             else _fork_row.metadata_json
+                             or {}).get("source_canvas_id") or ""
+                    ) if _fork_row else ""
+                    if _parent and _parent != str(canvas_id):
+                        record = find_active_task_for_canvas(tl, _parent)
+                        if record is not None:
+                            logger.info(
+                                "[job-findings] fork %s inherits the "
+                                "source canvas %s research record",
+                                str(canvas_id)[:8], _parent[:8])
+                except Exception as _fl_err:  # noqa: BLE001 — additive
+                    logger.debug("fork lineage lookup skipped: %r", _fl_err)
             if record is None and isinstance(session, dict):
                 conv = session.get("id")
                 if conv:
