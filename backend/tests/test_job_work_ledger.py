@@ -8,6 +8,8 @@ the ledger must not know quotation vocabulary to be correct.
 import os
 from unittest.mock import MagicMock
 
+import types
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -648,3 +650,95 @@ class TestValueTraceCoverageCreatesPendingReads:
             "bounded_absence": False,
             "receipt": {"value_trace_coverage": {}}}) == []
         assert _value_trace_pending_reads(None) == []
+
+
+class TestValueTraceProductionHandoff:
+    """Round 43: the regression runs UPSTREAM — the real
+    execute_tool_plan value_trace branch produces the receipt, which is
+    carried through the production question derivation into settlement.
+    No manual receipt attachment at the point under test."""
+
+    @pytest.mark.asyncio
+    async def test_real_value_trace_execution_creates_pending_reads(
+            self, lifecycle, monkeypatch):
+        import asyncio
+
+        import integrations.chat_orchestrator as orch
+        from core.task_lifecycle import (
+            begin_retrieval_turn, finish_retrieval_turn,
+            next_unfinished_work, record_read_outcome)
+
+        def fake_trace(items, **kw):
+            # The real executor calls this on a thread with the real
+            # signature; the fixture supplies the per-item bindings.
+            return {"Manual Flanger": ["Consolidated Price List 2019.xlsx"],
+                    "TK 1624": ["Consolidated Price List 2019.xlsx"]}
+
+        monkeypatch.setattr(
+            "core.value_provenance.trace_items_across_catalog", fake_trace)
+
+        from core.chat_tool_planner import ToolPlan, execute_tool_plan
+
+        plan = ToolPlan(use_tool=True, service="datasets",
+                        intent="value_trace",
+                        query="Manual Flanger, TK 1624")
+        block = await asyncio.wait_for(
+            execute_tool_plan(plan, "u1", tenant_id="t1",
+                              context={"history": []},
+                              llm_service=None),
+            timeout=30)
+
+        # The receipt lives on the plan the executor returned — the
+        # production handoff, not a manual attachment.
+        questions = orch._value_trace_pending_reads(
+            orch._search_execution_receipt(plan, block))
+        assert len(questions) == 2
+        assert all("Consolidated Price List 2019.xlsx" in
+                   q["next_action"] for q in questions)
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-handoff", "verify pricing", "e1")
+        finish_retrieval_turn(
+            lifecycle, run_id, op, {}, "e1", False,
+            execution={"invoked": True, "outcome": "search_succeeded",
+                       "served_basis": "live", "items": {}})
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=questions)
+        work = next_unfinished_work(lifecycle.get_task(run_id))
+        assert any("read Consolidated Price List 2019.xlsx" in
+                   (a.get("next_action") or "") for a in work["actions"])
+
+    def test_plan_absent_execution_settles_from_blackboard_meta(
+            self, lifecycle):
+        """The receipt belongs to the EXECUTION: a reused/plan-absent
+        settlement reads the blackboard's recorded result meta — the
+        production fallback installed at the seam."""
+        from core.task_lifecycle import (
+            begin_retrieval_turn, next_unfinished_work, record_read_outcome)
+        from integrations.chat_orchestrator import (
+            _search_execution_receipt, _value_trace_pending_reads)
+
+        # The blackboard the singleflight arm records (execution-bound).
+        blackboard = {"primary_result_meta": {"value_trace": {
+            "Manual Flanger": ["Consolidated Price List 2019.xlsx"]}}}
+        # No plan object survives — the receipt comes from the meta.
+        receipt = _search_execution_receipt(None, "prose block")
+        questions = _value_trace_pending_reads(receipt)
+        # The plan-absent receipt carries NO value_trace (it was on the
+        # original plan) — the blackboard meta is the settlement source:
+        meta = blackboard["primary_result_meta"]
+        receipt2 = _search_execution_receipt(
+            types.SimpleNamespace(_result_meta=meta), "prose block")
+        questions2 = _value_trace_pending_reads(receipt2)
+        assert len(questions2) == 1
+        assert "Manual Flanger" in questions2[0]["item"]
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-absent", "verify pricing", "e1")
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=questions2)
+        work = next_unfinished_work(lifecycle.get_task(run_id))
+        assert any("read Consolidated Price List 2019.xlsx" in
+                   (a.get("next_action") or "") for a in work["actions"])

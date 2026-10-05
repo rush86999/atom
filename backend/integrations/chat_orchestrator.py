@@ -12735,6 +12735,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 shared_tool_state["primary_receipt"] = (
                                     _search_execution_receipt(
                                         _prefetch_plan, _tool_block))
+                                # RECEIPT BOUND TO THE EXECUTION (round 43
+                                # reviewer correction 2): the FULL result
+                                # meta rides the blackboard, so settlement
+                                # never depends on a planner object
+                                # surviving — a reused/alternate execution
+                                # settles from its own recorded meta.
+                                shared_tool_state["primary_result_meta"] = (
+                                    dict(_prefetch_result_meta))
                         except Exception:
                             _prefetch_meta = {}
                     if _plan_mentions:
@@ -13486,9 +13494,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             try:
                                 from core import task_lifecycle as _tlm
 
+                                # EXECUTION-BOUND RECEIPT (round 43):
+                                # the plan object's meta first; on a
+                                # reused/plan-absent execution, the
+                                # blackboard's recorded meta — the
+                                # receipt belongs to the EXECUTION, not
+                                # to a planner object's survival.
                                 _ms_meta_all = (
                                     getattr(_plan, "_result_meta", None)
                                     or {})
+                                if not _ms_meta_all and isinstance(
+                                        shared_tool_state, dict):
+                                    _ms_meta_all = dict(
+                                        shared_tool_state.get(
+                                            "primary_result_meta") or {})
                                 _ms_planning = dict(
                                     _ms_meta_all.get("planning") or {})
                                 _ms_is_file = bool(_storage_read_meta)

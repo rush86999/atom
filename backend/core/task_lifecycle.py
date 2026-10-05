@@ -2306,29 +2306,68 @@ def add_unresolved_questions(
         return []
     already_open = {_question_key(q)
                     for q in open_unresolved_questions(record)}
-    # FRESH-EVIDENCE RESET (round 42): an EXHAUSTED question re-derived by
-    # a NEW receipt is not a retry of a failed attempt — it is new
-    # justification. Without this reset, questions exhausted during the
-    # broken-loop era stayed unselectable forever, even with fresh
-    # coverage naming the exact read.
-    _reset_exhausted = []
-    for q in open_unresolved_questions(record):
-        if int(q.get("attempts") or 0) >= UNRESOLVED_ATTEMPT_CAP:
-            _reset_exhausted.append(q)
-    if _reset_exhausted:
+    # RETRY SEMANTICS (round 43 reviewer correction): an EXHAUSTED
+    # question re-derived by another receipt is reset ONLY on MATERIAL
+    # CHANGE — the re-derived question names a DIFFERENT next action
+    # (new source, new read) than the exhausted one. Identical
+    # rediscovery neither duplicates nor replenishes: the attempt budget
+    # stays spent. Historical exhaustion is repaired once per job as a
+    # RECORDED MIGRATION (a decision-log entry), never by an
+    # unlimited-retry rule.
+    _open_qs = open_unresolved_questions(record)
+    _exhausted = {str(q.get("question_id")): q for q in _open_qs
+                  if int(q.get("attempts") or 0) >= UNRESOLVED_ATTEMPT_CAP}
+    _migration_done = any(
+        str(e.get("kind") or "") == "attempt_budget_migration"
+        for e in (record.get("decision_log") or []))
+    if _exhausted and _migration_done:
+        # MATERIAL-CHANGE RULE (standing): an exhausted question is
+        # reset only when a re-derived read targets a DIFFERENT
+        # source/action than the exhausted attempt. Identical
+        # rediscovery neither duplicates nor replenishes.
+        _mc = []
+        for q in questions:
+            q = q if isinstance(q, dict) else {}
+            _norm_next = " ".join(str(q.get("next_action") or "")
+                                  .split()).lower()
+            if not _norm_next:
+                continue
+            for _qid, _old in _exhausted.items():
+                _old_next = " ".join(str(_old.get("next_action") or "")
+                                     .split()).lower()
+                if _norm_next != _old_next and all(
+                    b.get("question_id") != _qid for b in _mc):
+                    _mc.append({"question_id": _qid, "set": 0})
+        if _mc:
+            try:
+                lifecycle.apply_transition(run_id, {
+                    "kind": "record_unresolved",
+                    "requested_change": (
+                        "material change: re-derived read targets a "
+                        "different source/action; budget reset"),
+                    "attempts": _mc,
+                    "source_operation": None,
+                })
+            except Exception:
+                pass
+    if _exhausted and not _migration_done:
+        # One-time recorded migration: exhaustion accrued while the
+        # coverage→action boundary was broken is not legitimate retry
+        # history. Applied once per job; material-change resets handle
+        # everything after.
+        _reset_ids = list(_exhausted.keys())
         try:
             lifecycle.apply_transition(run_id, {
                 "kind": "record_unresolved",
                 "requested_change": (
-                    "fresh receipt re-derived exhausted question(s); "
-                    "attempt budget resets"),
-                "questions": [
-                    {**q, "attempts": 0} for q in _reset_exhausted],
+                    "attempt-budget migration: exhaustion accrued before "
+                    "the receipt-to-action fix (round 42); budgets reset "
+                    "once, recorded here"),
+                "attempts": [
+                    {"question_id": _qid, "set": 0}
+                    for _qid in _exhausted],
                 "source_operation": None,
             })
-            already_open = {_question_key(q)
-                            for q in open_unresolved_questions(
-                                lifecycle.get_task(run_id))}
         except Exception:
             pass
     fresh: List[Dict[str, Any]] = []
