@@ -109,8 +109,8 @@ def _read_actions(actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         # ROW-READ FIRST (round 54): row successors also carry "file" —
         # the intent must be checked before the document branch consumes
         # them.
-        if str(inputs.get("intent") or "") == "row_read" and \
-                inputs.get("file"):
+        if str(inputs.get("intent") or "") == "row_read" and (
+                inputs.get("file") or inputs.get("candidates")):
             if inputs.get("candidates"):
                 cands = [
                     {"sheet": str(c.get("sheet") or ""),
@@ -132,7 +132,7 @@ def _read_actions(actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 cands = []
             if cands:
                 out.append({
-                    "item": item, "file": str(inputs["file"]),
+                    "item": item, "file": str(inputs.get("file") or ""),
                     "candidates": cands,
                     "identity_context": str(
                         inputs.get("identity_context") or item),
