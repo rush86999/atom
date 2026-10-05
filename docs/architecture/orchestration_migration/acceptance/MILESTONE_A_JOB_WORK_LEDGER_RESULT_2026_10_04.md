@@ -736,3 +736,47 @@ the corrected verdicts**:
   the recorded next step. The false "PRICE=794" is not in the record.
 - Draft SHA-identical; nothing sent; both questions carry their exact
   blocking reasons durably.
+
+## Round-57: the two pending actions advanced — final RC2 dispositions
+
+**No. 381 — the taught lead executed automatically** (zero user
+continues): the worker seeded the row-read successor from the teaching
+that names the location (lesson provenance recorded: "Tennsmith sheet …
+row 338"; sheet resolved against the catalog; the failed RoperWhitney
+match did not block it), executed it, and the row is ABSENT from both
+current saved copies (rows 336–340 empty; no 381 in any Tennsmith
+sheet) → resolved as a SCOPED ABSENCE with the precise owner question:
+"supply the workbook version the teaching references, or confirm the
+preserved manual value." The approved $2,902 manual price is preserved
+(draft untouched). Known cosmetic: the resolution detail carries the
+prior evidence text rather than the absence wording — the disposition
+shape and owner question are correct.
+
+**U-22 — duplicate-listing comparison**: the two supporting rows
+(LINMAC/A22 and LINMAC (2)/A29, same workbook copy = same version,
+identical descriptions) MERGED as one machine with the single genuine
+difference recorded ("List Price: LINMAC/22=1431 vs LINMAC (2)/29=1393");
+the surviving owner question lists only MONETARY bases as named —
+"List Price=1431 vs US NET=625 vs List Price_2=1393" — currency is NOT
+inferred beyond the header text, and the duplicate-merge reasoning is
+in the evidence. This is a genuine choice (the two duplicate sheets
+disagree on one column), so the owner question is justified.
+
+**Coverage honesty**: successors now record candidates_total and
+candidates_omitted — the ≤3 sample never implies uniqueness or absence.
+**Agent identity** persists on the job's provenance (the durable
+taught-lesson source for workers). 118 tests green (15 worker incl.
+fencing + real-row controls). Draft SHA-identical; nothing sent.
+
+### Updated eight-item comparison (delta from round-47)
+- Row 1 (No. 381): owner decision REFINED — manual $2,902 preserved;
+  the taught workbook location is absent from current copies (scoped
+  absence recorded); owner supplies the referenced version or confirms
+  the manual price.
+- Row 2 (U-22): owner decision REFINED — duplicate listings merged;
+  genuine choice among monetary bases only (List Price 1431 [differs
+  across duplicates] / List Price_2 1393 [consistent] / US NET 625),
+  currency as the headers name it.
+- Rows 3, 6, 8: unchanged (workbook reads complete, freshness open).
+- Rows 5–8 vendor-verified as of Sept 18, 2026 (quoted-then wording).
+- Rows 4 (No. 622): unchanged (identity owner decision).
