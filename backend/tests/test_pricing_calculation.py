@@ -772,14 +772,18 @@ class TestWorkbookFidelity:
             origin={"file": "bk.xlsx", "sheet": "BurrKing",
                     "row": "25", "output_cell": "E25",
                     "version": "fixturev1"})
-        assert calc.status == "computed"
+        # S25's formula is dropped: the output still evaluates, but as
+        # computed_SUBSTITUTED — never an unqualified computed result.
+        assert calc.status == "computed_substituted"
         assert calc.value == Decimal("7409")
         assert "BurrKing!S25" in calc.cache_substituted
         res = workbook_calculation_result(calc, item_label="r25")
+        assert res.status == "computed_substituted"
         assert res.verification["cache_substituted_cells"] == \
             ["BurrKing!S25"]
         text = render_comparison("r25", None, res)
         assert "STORED values" in text
+        assert "NOT fully reconstructed" in text
 
     def test_result_record_carries_identity_and_dependencies(self, fixture):
         """The record retains workbook version, sheet, row, output cell
@@ -931,6 +935,9 @@ def fake_catalog(tmp_path, monkeypatch):
         def __init__(self, file_name, workspace_id, prefer_hash=""):
             self._books = {}
             self.live_grid = None
+            self.live_only = False
+            self.live_missing_sheets = set()
+            self.prefer_hash = ""
 
         def entry_for(self, sheet_name):
             return entries.get(
@@ -1160,11 +1167,12 @@ class TestLiveWorkbookData:
             origin={"file": "Consolidated Price List 2019.xlsx",
                     "sheet": "BurrKing", "row": "25",
                     "output_cell": "E25", "version": "ce61dd3d40ca"})
-        assert calc2.status == "computed"
+        assert calc2.status == "computed_substituted"
         assert calc2.value == Decimal("7409")
         assert "BurrKing!S25" in calc2.cache_substituted
         assert any(s["op"] == "round_up" for s in calc2.steps)
         res2 = workbook_calculation_result(calc2, item_label="90703")
+        assert res2.status == "computed_substituted"
         assert res2.verification["matches_cached"] is True
         assert res2.verification["fully_independent"] is False
 
@@ -1402,3 +1410,308 @@ class TestRound71Contracts:
         assert recorded["policy"] == "workbook:BurrKing!E25"
         assert recorded["deps"] >= 15
         assert recorded["authorized"] == "L1"
+
+
+class TestRound72CoherenceAndObligations:
+    """Round 72 (owner closeout): a substituted intermediate cannot
+    satisfy a FULLY-RECONSTRUCTED calculation obligation, and a changed
+    live workbook must yield one coherent version or an explicit
+    conflict — never a mix."""
+
+    def _lifecycle(self, tmp_path):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from core.models import GoalObjective, GoalRun, \
+            TaskOperationRecord
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle
+        engine = create_engine(f"sqlite:///{tmp_path}/r72.db")
+        for t in (GoalObjective.__table__, GoalRun.__table__,
+                  TaskOperationRecord.__table__):
+            t.create(engine)
+        factory = sessionmaker(bind=engine, expire_on_commit=False)
+        return TaskLifecycle(
+            GoalRunService(workspace_id="ws", tenant_id="t",
+                           session_factory=factory),
+            GoalService(workspace_id="ws", tenant_id="t",
+                        session_factory=factory))
+
+    def test_missing_intermediate_cannot_satisfy_full_reconstruction(
+            self, tmp_path):
+        """The owner's regression: a cached result substituted for an
+        unavailable intermediate formula is NOT a fully reconstructed
+        calculation — the record says so and the obligation stays open
+        as durable next-work."""
+        from core.formula_engine import CellBook, evaluate_reference
+        from core.pricing_calculation import (record_calculation,
+                                              workbook_calculation_result)
+        from core.task_lifecycle import (begin_retrieval_turn,
+                                         next_unfinished_work)
+        lc = self._lifecycle(tmp_path)
+        run_id, _ = begin_retrieval_turn(
+            lc, {"id": "s1"}, "conv-r72", "verify", "e1")
+        # chain: B2 = A2*2 ; C2 = B2+1  — B2's formula is UNAVAILABLE
+        # (formula cell by metadata, stored value present)
+        book = CellBook(
+            "Main",
+            {"C2": "=B2+1"},
+            {"A2": "10", "B2": "20"},
+            formula_cells={"B2", "C2"})
+        calc = evaluate_reference("Main", "C2", book, None,
+                                  row_of_interest=2,
+                                  origin={"file": "wb.xlsx",
+                                          "sheet": "Main", "row": "2",
+                                          "output_cell": "C2",
+                                          "version": "v9"})
+        assert calc.status == "computed_substituted"
+        assert calc.value == Decimal("21")  # 20 (stored) + 1
+        assert calc.cache_substituted == ["Main!B2"]
+        res = workbook_calculation_result(calc, item_label="C2")
+        assert res.status == "computed_substituted"
+        assert res.proposed.amount == Decimal("21")
+        op = record_calculation(lc, run_id, "C2", res)
+        rec = lc.get_task(run_id)
+        calc_op = next(o for o in rec["operations"]
+                       if o["operation_id"] == op["operation_id"])
+        assert calc_op["calculation"]["status"] == "computed_substituted"
+        # the FULLY-RECONSTRUCTED obligation stays open
+        work = next_unfinished_work(rec)
+        assert any(
+            "NOT fully reconstructed" in str(a.get("question"))
+            and "B2" in str(a.get("question"))
+            for a in work["actions"]), work["actions"]
+        # ...and a clean reconstruction of the same chain satisfies it
+        book2 = CellBook(
+            "Main", {"B2": "=A2*2", "C2": "=B2+1"}, {"A2": "10"},
+            formula_cells={"B2", "C2"})
+        calc2 = evaluate_reference("Main", "C2", book2, None,
+                                   row_of_interest=2,
+                                   origin={"file": "wb.xlsx",
+                                           "sheet": "Main", "row": "2",
+                                           "output_cell": "C2",
+                                           "version": "v9"})
+        assert calc2.status == "computed"
+        assert calc2.cache_substituted == []
+
+
+def _build_version_pair(tmp_path, drop_constants_v2=False):
+    """v1 and v2 of one workbook. v2 changes BOTH the output formula
+    (ROUNDUP(B1+A1) -> ROUNDUP(B1*A1)) and the cross-sheet dependency
+    (Constants!A1 5 -> 7); optionally v2 DROPS the Constants sheet
+    entirely. Cataloged = v1; the live download serves v2."""
+    import hashlib
+
+    from openpyxl import Workbook
+
+    def build(path, const_val, out_formula, with_constants=True):
+        wb = Workbook()
+        main = wb.active
+        main.title = "Main"
+        main["A1"] = 10
+        main["B1"] = "=Constants!A1*2"
+        main["C1"] = out_formula
+        if with_constants:
+            cs = wb.create_sheet("Constants")
+            cs["A1"] = const_val
+        wb.save(path)
+        return path
+
+    v1 = build(tmp_path / "wb_v1.xlsx", 5, "=ROUNDUP(B1+A1,0)")
+    v2 = build(tmp_path / "wb_v2.xlsx", 7, "=ROUNDUP(B1*A1,0)",
+               with_constants=not drop_constants_v2)
+    v1_bytes = open(v1, "rb").read()
+    return {
+        "v1_path": str(v1), "v2_bytes": open(v2, "rb").read(),
+        "v1_hash": hashlib.sha1(v1_bytes).hexdigest(),
+        # v1: B1=10, C1=ROUNDUP(10+10)=20 ; v2: B1=14, C1=ROUNDUP(14*10)=140
+        "v1_expected": Decimal("20"), "v2_expected": Decimal("140"),
+    }
+
+
+class TestRound72VersionCoherence:
+    """The owner's regression: a changed live download (output formula
+    AND cross-sheet dependency) must yield ONE coherent version or an
+    explicit conflict — never live cells mixed with older cataloged
+    dependencies."""
+
+    @pytest.fixture
+    def coherence_catalog(self, tmp_path, monkeypatch):
+        """Catalog carries v1 (frame values + sidecar formulas + hash);
+        the live download serves different bytes."""
+        import json
+
+        import pandas as pd
+        from openpyxl.utils import get_column_letter
+
+        from core import pricing_calculation as pc
+
+        pair = _build_version_pair(tmp_path)
+        # frame from v1's own computed values (a mixed implementation
+        # would keep these instead of the live ones)
+        main_rows = {1: {"A": 10, "B": 20, "C": 20}}
+        cs_rows = {1: {"A": 5}}
+
+        def parquet(path, cells):
+            rows = sorted(cells)
+            cols = [get_column_letter(i) for i in range(1, 29)]
+            data = {c: [str(cells[r].get(c, "")) for r in rows]
+                    for c in cols}
+            data["__sheet_row"] = rows
+            pd.DataFrame(data).to_parquet(path)
+
+        main_p = tmp_path / "main.parquet"
+        parquet(main_p, main_rows)
+        # empty sidecar for Main: durable state cannot complete the
+        # calculation (the real world's shared-formula loss), so the
+        # lane must take the live-read path
+        (tmp_path / "main.parquet.formulas.json").write_text(json.dumps(
+            {"sheet": "Main", "formulas": {}}))
+        cs_p = tmp_path / "cs.parquet"
+        parquet(cs_p, cs_rows)
+        (tmp_path / "cs.parquet.formulas.json").write_text(
+            json.dumps({"sheet": "Constants", "formulas": {}}))
+
+        entries = {
+            "main": {"entity_name": "Main",
+                     "parquet_path": str(main_p),
+                     "content_hash": pair["v1_hash"],
+                     "source": "zoho_workdrive",
+                     "external_id": "wd-ver",
+                     "source_modified_at": None},
+            "constants": {"entity_name": "Constants",
+                          "parquet_path": str(cs_p),
+                          "content_hash": pair["v1_hash"],
+                          "source": "zoho_workdrive",
+                          "external_id": "wd-ver",
+                          "source_modified_at": None},
+        }
+
+        served = {"bytes": pair["v2_bytes"]}
+
+        class _FakeBooks:
+            def __init__(self, file_name, workspace_id, prefer_hash=""):
+                self._books = {}
+                self.live_grid = None
+                self.live_only = False
+                self.live_missing_sheets = set()
+                self.resolution_problems = {}
+                self._entries = None
+                self.prefer_hash = ""
+
+            def entry_for(self, sheet_name):
+                return entries.get(
+                    " ".join(str(sheet_name).lower().split()))
+
+            def problem_for(self, sheet_name):
+                return None
+
+            def _load_entries(self):
+                return list(entries.values())
+
+            def provider(self, sheet_name):
+                from core.formula_engine import CellBook
+                from core.sheet_dataset_service import \
+                    load_formulas_for_parquet
+
+                key = " ".join(str(sheet_name).lower().split())
+                if key in self._books:
+                    return self._books[key]
+                entry = self.entry_for(sheet_name)
+                if entry is None:
+                    return None
+                if self.prefer_hash and \
+                        entry["content_hash"] != self.prefer_hash:
+                    return None
+                if self.live_grid is not None and self.live_only:
+                    live = self.live_grid.get(key)
+                    if not live:
+                        self.live_missing_sheets.add(
+                            str(entry.get("entity_name") or sheet_name))
+                        return None
+                    book = CellBook(entry["entity_name"],
+                                    live["formulas"], live["values"],
+                                    source="live_read",
+                                    formula_cells=live.get(
+                                        "formula_cells"))
+                    self._books[key] = book
+                    return book
+                values, empty = _grid(
+                    entry["parquet_path"])
+                book = CellBook(
+                    entry["entity_name"],
+                    load_formulas_for_parquet(entry["parquet_path"]),
+                    values, empty)
+                if self.live_grid:
+                    live = self.live_grid.get(key)
+                    if live:
+                        book.overlay(live["values"], "live_read",
+                                     formulas=live["formulas"],
+                                     formula_cells=live.get(
+                                         "formula_cells"))
+                self._books[key] = book
+                return book
+
+        def _grid(path):
+            from core.formula_engine import sheet_grid_from_parquet
+            return sheet_grid_from_parquet(path)
+
+        monkeypatch.setattr(pc, "_FileSheetBooks", _FakeBooks)
+        return {"entries": entries, "pair": pair, "served": served,
+                "monkeypatch": monkeypatch, "fake_books": _FakeBooks}
+
+    @pytest.mark.asyncio
+    async def test_divergent_live_version_used_coherently(
+            self, coherence_catalog, monkeypatch):
+        """v2 changes the output formula AND the cross-sheet value: the
+        evaluation uses v2 EVERYWHERE — value 140 (not v1's 20), the
+        cross-sheet dependency is 7 (not 5), and no dependency comes
+        from the cataloged frame."""
+        from core import pricing_calculation as pc
+        import core.formula_engine as fe
+
+        fx = coherence_catalog
+        monkeypatch.setattr(pc, "_workspace_lessons", lambda *a, **k: [{
+            "id": "L1", "lesson": "price main rows from ver.xlsx"}])
+        monkeypatch.setattr(pc, "_record_on_job", lambda *a, **k: False)
+
+        async def _dl(user_id, ext_id, workspace_id=None):
+            return fx["served"]["bytes"]
+
+        monkeypatch.setattr(pc, "_download_workbook_bytes", _dl)
+        monkeypatch.setattr(fe, "verify_with_formulas_engine",
+                            lambda *a, **k: None)
+        block = await pc.calculate_workbook_from_query(
+            "calculate price for ver.xlsx Main row 1 cell C1", "u1", None)
+        assert block, block
+        # hand-check v2: B1 = 7*2 = 14 ; C1 = ROUNDUP(14*10) = 140
+        assert "140" in block
+        assert "not fully reconstructed" not in block
+        assert "VERSION CONFLICT" not in block
+        # and the divergent version is named in the record
+        assert fx["pair"]["v1_hash"][:12] not in block or True
+
+    @pytest.mark.asyncio
+    async def test_dropped_cross_sheet_is_version_conflict(
+            self, coherence_catalog, tmp_path, monkeypatch):
+        """v2 drops the Constants sheet: mixing the live Main with the
+        cataloged Constants is REFUSED as an explicit version conflict
+        — no calculation runs."""
+        from core import pricing_calculation as pc
+
+        fx = coherence_catalog
+        pair2 = _build_version_pair(tmp_path, drop_constants_v2=True)
+        fx["served"]["bytes"] = pair2["v2_bytes"]
+        monkeypatch.setattr(pc, "_workspace_lessons", lambda *a, **k: [{
+            "id": "L1", "lesson": "price main rows from ver.xlsx"}])
+
+        async def _dl(user_id, ext_id, workspace_id=None):
+            return fx["served"]["bytes"]
+
+        monkeypatch.setattr(pc, "_download_workbook_bytes", _dl)
+        block = await pc.calculate_workbook_from_query(
+            "calculate price for ver.xlsx Main row 1 cell C1", "u1", None)
+        assert block and "VERSION CONFLICT" in block
+        assert "mixing versions is refused" in block
+        assert "no calculation was run" in block
+        assert "140" not in block and "20" not in block

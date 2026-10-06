@@ -1368,3 +1368,25 @@ Five directives, delivered:
 - The Tennsmith basis lesson (`4ab35f5860b0436799fe510cd9440f85`) was taught through the app's teach API for the authorization demo; before it, the same ask was correctly refused as NOT AUTHORIZED.
 
 83 tests green (engine + pricing batteries, including the new pins: stored-value-cannot-satisfy-obligation on a real lifecycle, ambiguous-version refusal, expression lane compute + missing-input naming, lane-records-on-active-job, verification independence). Demo fork `2233f463-6fad-443a-959d-e6088e1bb784` left clearly labeled disposable (carries the job-record evidence); original canvas untouched; nothing sent.
+
+## Round 72: the owner's verification gaps — closed, and the record corrected
+
+> "'All five directives delivered' overstates the verification."
+
+Accepted. This round corrects the support statement, closes the two open semantics, finishes the browser checks, and diagnoses the blank page concretely.
+
+**Support statement (corrected, per-case verification labels):**
+- Workbook full computation — **browser-verified** (round 71 UI turn; reply: CAD 7,409, 20 recorded cells, cross-check, freshness limitation).
+- Named-input expression — **round 71: API-verified only** (the browser attempt was cut off by the blank page). **Round 72: browser-verified** on the fork-canvas chat (visible reply: "→ 2,625 — Steps from the formula engine: 17.5 × 150 = 2,625.0; + 0 = 2,625.0; ROUNDUP = 2,625"), persisted across reload, and recorded on the job (`a71e5e5f applied | expression:ROUNDUP(hours*rate…) | 2625`).
+- Stored value — **round 71: API-verified only. Round 72: browser-verified** on the same canvas (H25 reply: "typed literal input; no stored formula, so nothing was evaluated … could not be carried forward to a confirmed final price"), persisted across reload, and recorded on the job as THREE waiting stored_value operations with the open question "cannot be satisfied: the output cell holds a STORED VALUE (4777)".
+- No combined claims: each result above is tied to its own request and operation id.
+
+**Blank-page diagnosis (concrete, not dismissed):** `GET /chat` returns **HTTP 307 → /login?callbackUrl=…** when unauthenticated (curl-verified); `/login` itself serves a full sign-in page (90 KB, Email/Password form). The blank render was the **expired session in the automation tab** — corroborated by the `JWT decode error during user lookup` websocket 403s logged during the interrupted checks. Not an app defect; remedy was re-authenticating through the login form, after which every page and both remaining checks completed.
+
+**Coherent-version semantics (regression-pinned):** on live-hash divergence the ENTIRE dependency graph is rebuilt from the live bytes alone (`live_only`) — the cataloged frame/sidecar contributes nothing; a sheet the live version no longer carries is an explicit **VERSION CONFLICT** ("mixing versions is refused; no calculation was run"), whether it is the target sheet or a cross-sheet dependency. Pinned with the owner's exact scenario: v2 changes BOTH the output formula (ROUNDUP(B1+A1)→ROUNDUP(B1*A1)) and the cross-sheet constant (5→7) → the evaluation yields v2's 140 everywhere (never v1's 20); v2 dropping the Constants sheet → conflict, no calculation.
+
+**Substituted-intermediate semantics (regression-pinned):** a stored value standing in for an unavailable intermediate formula yields `computed_substituted` — never an unqualified `computed` — and `record_calculation` keeps the fully-reconstructed obligation OPEN as durable next-work ("computed but NOT fully reconstructed: … B2 …; a live read can restore the formulas"). Pinned: a B2-substituted chain does not satisfy the obligation; the same chain with B2's formula present does (`computed`, zero substitutions).
+
+**Kept explicit (usability follow-up, unchanged):** the demonstrated `calculate expression … with …` syntax proves an ENTRY POINT. It does **not yet prove that the trained employee can choose and invoke the formula from an ordinary business request.**
+
+90 tests green across the engine and pricing batteries. Original canvas untouched; nothing sent.

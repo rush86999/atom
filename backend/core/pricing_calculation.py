@@ -127,7 +127,12 @@ class TaughtPolicy:
 @dataclass
 class CalculationResult:
     """The full, replayable outcome. `status` in
-    {'succeeded','stored_value','unresolved','rejected','incomplete'} —
+    {'succeeded','computed_substituted','stored_value','unresolved',
+    'rejected','incomplete'} — COMPUTED_SUBSTITUTED (round 72) means
+    the output formula was evaluated but intermediate formulas were
+    unavailable (stored values stand in): the value is proposed WITH
+    that qualification and a fully-reconstructed obligation stays
+    open;
     unresolved keeps the missing input named; succeeded-with-stale-source
     carries the limitation; INCOMPLETE (round 69) means the WORKBOOK
     calculation itself could not be reconstructed completely (an
@@ -526,6 +531,13 @@ def render_comparison(item_label: str, draft_price: Optional[Money],
         lines.append(f"- Proposed price (computed): "
                      f"{result.proposed.currency} {result.proposed.amount} "
                      f"per {result.proposed.unit}")
+    elif result.status == "computed_substituted" \
+            and result.proposed is not None:
+        lines.append(
+            f"- Proposed price (computed WITH SUBSTITUTED OPERANDS — "
+            f"NOT fully reconstructed): "
+            f"{result.proposed.currency} {result.proposed.amount} "
+            f"per {result.proposed.unit}")
     elif result.status == "stored_value":
         wb0 = result.workbook or {}
         lines.append(
@@ -837,6 +849,13 @@ def record_calculation(
                 f"(v{result.policy_version})"))
         status_map = {
             "succeeded": "applied",
+            # COMPUTED WITH SUBSTITUTIONS (round 72): the arithmetic ran
+            # and a value exists, but one or more intermediate formulas
+            # were unavailable — the calculation is NOT fully
+            # reconstructed and cannot satisfy a fully-reconstructed
+            # obligation; the op records as applied WITH the gap kept
+            # open as durable next-work below.
+            "computed_substituted": "applied",
             "unresolved": "waiting",
             "rejected": "failed",
             # INCOMPLETE (round 69): the workbook calculation itself is
@@ -871,6 +890,26 @@ def record_calculation(
         # action or a precise owner question — never a silent choice,
         # never a partial published price, and never a stored value
         # mistaken for a satisfied calculation.
+        if result.status == "computed_substituted":
+            from core.task_lifecycle import add_unresolved_questions
+
+            add_unresolved_questions(lifecycle, run_id, [{
+                "item": item_label,
+                "kind": "verification",
+                "question": (
+                    f"the calculation for {item_label} is computed but "
+                    f"NOT fully reconstructed: intermediate formula(s) "
+                    f"{', '.join(result.verification.get(
+                        'cache_substituted_cells', []))} were "
+                    f"unavailable and their stored values stand in"),
+                "evidence": (
+                    f"policy {result.policy_id} v{result.policy_version}; "
+                    "computed_substituted — a fully-reconstructed "
+                    "obligation is not satisfied"),
+                "next_action": (
+                    "a live read of the workbook can restore the "
+                    "missing formulas and complete the reconstruction"),
+            }], source_operation=op["operation_id"])
         if result.status == "stored_value":
             from core.task_lifecycle import add_unresolved_questions
 
@@ -1087,6 +1126,7 @@ def workbook_calculation_result(
     }
     result = CalculationResult(
         status={"computed": "succeeded",
+                "computed_substituted": "computed_substituted",
                 "stored_value": "stored_value",
                 "incomplete": "incomplete"}.get(calc.status, "incomplete"),
         policy_id=f"workbook:{origin.get('sheet', '').strip()}!" \
@@ -1117,7 +1157,7 @@ def workbook_calculation_result(
             "typed literal — stored value, observed, NOT computed; "
             "it cannot satisfy a calculation obligation")
         return result
-    if calc.status != "computed":
+    if calc.status not in ("computed", "computed_substituted"):
         result.missing_dependency = (
             calc.missing or calc.unsupported or
             "the calculation could not be evaluated completely")
@@ -1241,6 +1281,14 @@ class _FileSheetBooks:
         self._books: Dict[str, "CellBook"] = {}
         self._entries: Optional[List[Dict[str, Any]]] = None
         self.resolution_problems: Dict[str, str] = {}
+        #: True when the live download's hash DIVERGED from the
+        # cataloged version: every book then comes from the LIVE grid
+        # alone (round 72 — one coherent version or an explicit
+        # conflict, never frame/live mixing).
+        self.live_only = False
+        #: Sheets a DIVERGENT live version no longer carries — the lane
+        # turns these into an explicit VERSION CONFLICT.
+        self.live_missing_sheets: set = set()
         #: A live workbook grid (workbook_grid_from_bytes) applied to
         #: every book AS IT IS BUILT — order-independent, so a sibling
         #: sheet first touched DURING a re-evaluation still receives the
@@ -1328,6 +1376,24 @@ class _FileSheetBooks:
                 and entry.get("content_hash")
                 and entry["content_hash"] != self.prefer_hash):
             return None
+        if self.live_grid is not None and self.live_only:
+            # DIVERGENT LIVE VERSION: siblings come from the LIVE grid
+            # alone. A sheet the live workbook no longer carries is
+            # recorded for the explicit VERSION CONFLICT the lane
+            # reports — the cataloged version must not fill in.
+            live = self.live_grid.get(key)
+            if not live:
+                self.live_missing_sheets.add(
+                    str(entry.get("entity_name") or sheet_name))
+                return None
+            from core.formula_engine import CellBook
+
+            book = CellBook(
+                entry["entity_name"], live["formulas"],
+                live["values"], source="live_read",
+                formula_cells=live.get("formula_cells"))
+            self._books[key] = book
+            return book
         from core.sheet_dataset_service import load_formulas_for_parquet
 
         try:
@@ -1464,41 +1530,85 @@ async def calculate_workbook_from_query(
             content = await _download_workbook_bytes(
                 user_id, ext_id, workspace_id)
             if content:
-                from core.formula_engine import workbook_grid_from_bytes
+                from core.formula_engine import (CellBook,
+                                                 workbook_grid_from_bytes)
 
                 live = workbook_grid_from_bytes(content)
-                # Order-independent: the grid rides the books object and
-                # every book built from here on (target re-evaluation AND
-                # sibling sheets first touched mid-walk) receives it.
-                # The TARGET book itself must join the cache first — it
-                # was built locally from the frame and is the one book
-                # the overlay loop would otherwise miss (live 2026-10-05:
-                # turn ran 'no formula, stored value only' exactly here).
-                books.live_grid = live
-                books._books.setdefault(  # noqa: SLF001
-                    " ".join(sheet_name.lower().split()), target_book)
-                for key, book in list(  # noqa: SLF001
-                        books._books.items()):
-                    if key in live:
-                        book.overlay(
-                            live[key]["values"], "live_read",
-                            formulas=live[key]["formulas"],
-                            formula_cells=live[key].get("formula_cells"))
-                # VERSION DIVERGENCE HONESTY: the live bytes are their
-                # own workbook version — when they differ from the
-                # cataloged snapshot, the record says so (the cataloged
-                # version is the stale one; the calculation ran on the
-                # live bytes).
                 import hashlib as _hl
 
                 live_hash = _hl.sha1(content).hexdigest()
-                if entry.get("content_hash") and \
-                        live_hash != entry.get("content_hash"):
+                catalog_hash = entry.get("content_hash") or ""
+                same_version = (not catalog_hash
+                                or live_hash == catalog_hash)
+                # ORDER-INDEPENDENT SAME-VERSION MERGE: the grid rides
+                # the books object and every book built from here on
+                # (target re-evaluation AND sibling sheets first touched
+                # mid-walk) receives it. The TARGET book itself must
+                # join the cache first — it was built locally from the
+                # frame and is the one book the overlay loop would
+                # otherwise miss (live 2026-10-05).
+                books.live_grid = live
+                target_key = " ".join(sheet_name.lower().split())
+                if same_version:
+                    books.live_only = False
+                    books._books.setdefault(  # noqa: SLF001
+                        target_key, target_book)
+                    for key, book in list(  # noqa: SLF001
+                            books._books.items()):
+                        if key in live:
+                            book.overlay(
+                                live[key]["values"], "live_read",
+                                formulas=live[key]["formulas"],
+                                formula_cells=live[key].get(
+                                    "formula_cells"))
+                else:
+                    # ONE COHERENT VERSION OR AN EXPLICIT CONFLICT
+                    # (round 72): the live bytes are a DIFFERENT
+                    # workbook version — the cataloged frame/sidecar
+                    # must contribute NOTHING. The entire dependency
+                    # graph is rebuilt from the live grid alone; a
+                    # sheet the live version no longer carries is a
+                    # version conflict, refused, never filled from the
+                    # older cataloged version.
+                    books.live_only = True
+                    live_target = live.get(target_key)
+                    if not live_target:
+                        return _grounded(
+                            "LIVE TOOL RESULTS (datasets.calculate — "
+                            "workbook) — VERSION CONFLICT: the live "
+                            f"workbook (version {live_hash[:12]}) "
+                            "differs from the cataloged version "
+                            f"({catalog_hash[:12]}) and does not carry "
+                            f"sheet '{sheet_name}' — mixing versions is "
+                            "refused; no calculation was run. Re-ingest "
+                            "the workbook to catalog the live version.")
+                    target_book = CellBook(
+                        entry["entity_name"],
+                        live_target["formulas"],
+                        live_target["values"], source="live_read",
+                        formula_cells=live_target.get("formula_cells"))
+                    books._books = {target_key: target_book}
                     _live_version_divergence = live_hash
                 calc = evaluate_reference(
                     entry["entity_name"], cell, target_book,
                     books.provider, row_of_interest=row_number,
                     cached_value=values.get(cell), origin=_origin())
+                if books.live_only and books.live_missing_sheets:
+                    # EXPLICIT VERSION CONFLICT (round 72): the live
+                    # version lacks a sheet the calculation needs —
+                    # refuse rather than mix versions.
+                    return _grounded(
+                        "LIVE TOOL RESULTS (datasets.calculate — "
+                        "workbook) — VERSION CONFLICT: the live "
+                        f"workbook (version {live_hash[:12]}) differs "
+                        f"from the cataloged version "
+                        f"({catalog_hash[:12]}) and does not carry "
+                        "sheet(s) "
+                        + ", ".join(sorted(books.live_missing_sheets))
+                        + " that the calculation depends on — mixing "
+                        "versions is refused; no calculation was run. "
+                        "Re-ingest the workbook to catalog the live "
+                        "version.")
                 live_cells = sorted({
                     f"{d.sheet}!{d.cell}"
                     for d in calc.dependencies
