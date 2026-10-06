@@ -857,9 +857,16 @@ def record_calculation(
         _snap = result.inputs_snapshot or {}
         _key_inputs = {str(k): str(v) for k, v in
                        (_snap.get("inputs") or {}).items()}
+        # The computed VALUE is part of the identity: policy paths that
+        # carry no inputs snapshot still differ by their result (8h×150
+        # vs 12h×150 must never collapse into one operation).
+        _prop = result.proposed
+        _key_value = ("" if _prop is None else
+                      f"{_prop.amount}|{_prop.currency}|{_prop.unit}")
         _idem = "calc:" + _calc_hash.sha256("|".join((
             str(result.policy_id), str(result.policy_version),
             str(result.status), str(_snap.get("item") or item_label),
+            _key_value,
             _calc_json.dumps(_key_inputs, sort_keys=True,
                              default=str))).encode()).hexdigest()[:40]
         op = lifecycle.create_operation(
