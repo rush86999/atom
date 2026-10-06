@@ -121,13 +121,18 @@ candidate. Three trials per case, same candidate; every trial reported.
      boundary/pricing/engine/orchestrator/verbatim suites.
   4. LIVE STATUS: the served dev candidate is f02996f65 (B's
      finalization-envelope fix; pid 47746, restarted 16:35 UTC
-     uncoordinated — predates the repair by minutes). The served code
-     therefore still fails bare recalculation the old way. NO counted
-     live recalc has run on aba7d67f5. Gate: the specific reproducer
-     (bare T3 "Recalculate — 12 hours." with a planner plan that is
-     NOT datasets.calculate → own applied op with own inputs, no
-     narration-only figure) must pass ON THE SERVED CANDIDATE before
-     any three-trial batch. No batch until then.
+     uncoordinated — 2 commits stale, predates the calc repair). The
+     failing baseline is pinned with IDs (release-owner verified
+     read-only): session `verify-202f8dc5` (calc-lane owner's live
+     probe, 16:37–16:40 UTC), job
+     5869e776-4ac7-4dfb-87fc-a74068f35df3 — T2 calculate applied 2625
+     with own inputs, but bare T3 recalc left only a `retrieve
+     running` op (`datasets.calculate:Recalculate — 12 hours.`) and a
+     narrated $1,800 with NO calculate op. (A `web_search:capital of
+     France` retrieve in the same job correctly stayed calc-free.)
+     Gate: this probe shape (T1 ask → bare T2 → bare T3 ⇒ TWO applied
+     calc ops with own inputs) must pass ON THE SERVED CANDIDATE
+     before any three-trial batch. No batch until then.
 
 ### Case 4 — Ambiguous item, conflicting source versions, approved manual value
 - Input: an item code carried by multiple files/versions; one row holds an
