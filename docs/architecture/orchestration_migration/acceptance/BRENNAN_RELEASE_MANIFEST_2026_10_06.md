@@ -252,6 +252,18 @@ candidate. Three trials per case, same candidate; every trial reported.
   job/operation/source ids, timings, cost when available, interventions,
   evidence link, verdict.
 - One current support table; earlier artifacts remain as history only.
+- Proof layers (not interchangeable): the history API proves PERSISTENCE
+  (what a fresh client receives); the signed-in browser proves VISIBLE
+  UI DELIVERY (what the owner actually sees, incl. reload). Cases whose
+  contract requires product delivery (1, 5, and every reload leg) need
+  the browser leg — history-API match alone does not pass them.
+- Manual cells (cases 1, 4) designate from DOCUMENTED owner approvals in
+  the product flow only. 2026-10-06 probe: no existing manual-price
+  approvals on fork 2233f463 (hitl_actions: 0 approved; pending
+  proposals unrelated). Owner action pre-freeze: approve + designate one
+  manual cell per case in-flow; test-only annotations are not
+  substitutes. Until then the manual-preservation check stays NOT RUN
+  by construction.
 
 ## Known state at manifest creation
 
