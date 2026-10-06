@@ -893,14 +893,15 @@ def record_calculation(
         if result.status == "computed_substituted":
             from core.task_lifecycle import add_unresolved_questions
 
+            _sub_cells = ", ".join(
+                result.verification.get("cache_substituted_cells", []) or [])
             add_unresolved_questions(lifecycle, run_id, [{
                 "item": item_label,
                 "kind": "verification",
                 "question": (
                     f"the calculation for {item_label} is computed but "
                     f"NOT fully reconstructed: intermediate formula(s) "
-                    f"{', '.join(result.verification.get(
-                        'cache_substituted_cells', []))} were "
+                    f"{_sub_cells} were "
                     f"unavailable and their stored values stand in"),
                 "evidence": (
                     f"policy {result.policy_id} v{result.policy_version}; "
@@ -953,6 +954,8 @@ def record_calculation(
                 and result.proposed.amount != draft_price.amount):
             from core.task_lifecycle import add_unresolved_questions
 
+            _src_ref = (result.inputs_snapshot.get("source", {}) or {}).get(
+                "reference", "")
             add_unresolved_questions(lifecycle, run_id, [{
                 "item": item_label,
                 "kind": "business_decision",
@@ -963,8 +966,7 @@ def record_calculation(
                     f"{item_label}"),
                 "evidence": (
                     f"policy {result.policy_id} v{result.policy_version}; "
-                    f"source {result.inputs_snapshot.get('source', {})
-                               .get('reference')}"),
+                    f"source {_src_ref}"),
                 "next_action": (
                     "owner chooses: keep the draft price or adopt the "
                     "computed one"),
@@ -1066,16 +1068,231 @@ async def calculate_from_query(
     return _grounded(body)
 
 
-def _grounded(body: str) -> str:
+#: Structured calculation registry (round 76): result_id -> envelope.
+#: The registry is LOOKUP ONLY — it is never narration authority on its
+#: own. Narration authority comes ONLY from the current request's
+#: evidence: the result_id(s) embedded in THIS turn's tool block (or an
+#: explicit records list passed by the caller). Cross-conversation or
+#: cross-operation reuse by recency is refused.
+_LAST_CALC_RECORDS: Dict[str, Dict[str, Any]] = {}
+
+#: Machine-readable result marker embedded in every grounded calculate
+#: block so validation can bind to THIS operation's record(s).
+_CALC_RESULT_ID_RE = _re.compile(
+    r"\[calc:result_id=([0-9a-fA-F-]{8,36})\]")
+
+
+def _calc_operation_key(
+        user_id: Optional[str],
+        conversation_id: Optional[str],
+        canvas_id: Optional[str],
+        query: Optional[str]) -> str:
+    """Stable operation identity for dedup + evidence binding.
+
+    Uses sha256 (never Python hash(): salted per process) over validated
+    context + normalized query. Different users/conversations/canvases
+    never share; a changed ask is a different key."""
+    import hashlib as _hl
+
+    def _clean(v: Optional[str]) -> str:
+        return " ".join(str(v or "").strip().split())[:200].lower()
+
+    q = " ".join(str(query or "").strip().split())[:400].lower()
+    raw = "|".join([
+        _clean(user_id), _clean(conversation_id),
+        _clean(canvas_id), q])
+    return _hl.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def _publish_calc_record(
+        result: "CalculationResult",
+        *,
+        user_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
+        canvas_id: Optional[str] = None,
+        query: Optional[str] = None,
+        operation_key: Optional[str] = None) -> str:
+    """Register the structured record with its request identity.
+
+    Returns the operation key. Bounded (newest 64); publishing never
+    raises and never confers authority — authority requires the caller
+    to reference these result_id(s) from the current tool block."""
+    try:
+        op = (operation_key or _calc_operation_key(
+            user_id, conversation_id, canvas_id, query))
+        _LAST_CALC_RECORDS[result.result_id] = {
+            "record": result.to_record(),
+            "user_id": str(user_id or "").strip(),
+            "conversation_id": str(conversation_id or "").strip(),
+            "canvas_id": str(canvas_id or "").strip(),
+            "query": str(query or "")[:400],
+            "operation_key": op,
+        }
+        while len(_LAST_CALC_RECORDS) > 64:
+            _LAST_CALC_RECORDS.pop(next(iter(_LAST_CALC_RECORDS)))
+        return op
+    except Exception:  # noqa: BLE001 — publishing is additive
+        return operation_key or ""
+
+
+def _calc_records_for_tool_block(
+        tool_block: Optional[str],
+        *,
+        expected_conversation_id: Optional[str] = None,
+        expected_user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """The CURRENT request's records: only result_id(s) referenced by
+    THIS tool block. Identity-filtered when the caller supplies the
+    expected conversation/user — a record from another context never
+    qualifies, even if its id was copied across."""
+    if not tool_block:
+        return []
+    try:
+        ids = _CALC_RESULT_ID_RE.findall(str(tool_block))
+    except Exception:  # noqa: BLE001
+        return []
+    out: List[Dict[str, Any]] = []
+    seen = set()
+    for rid in ids:
+        if rid in seen:
+            continue
+        seen.add(rid)
+        env = _LAST_CALC_RECORDS.get(rid)
+        if not isinstance(env, dict):
+            continue
+        rec = env.get("record")
+        if not isinstance(rec, dict):
+            # Back-compat: very old entries stored the record directly.
+            rec = env if "proposed" in env else None
+            if rec is None:
+                continue
+            env = {"record": rec}
+        if expected_conversation_id:
+            exp_c = str(expected_conversation_id).strip()
+            got_c = str((env.get("conversation_id") or "")).strip()
+            if got_c and got_c != exp_c:
+                continue
+        if expected_user_id:
+            exp_u = str(expected_user_id).strip()
+            got_u = str((env.get("user_id") or "")).strip()
+            if got_u and got_u != exp_u:
+                continue
+        out.append(rec)
+    return out
+
+
+def _calc_narration_allowance(
+        tool_block: Optional[str] = None,
+        records: Optional[List[Dict[str, Any]]] = None,
+        *,
+        expected_conversation_id: Optional[str] = None,
+        expected_user_id: Optional[str] = None) -> Dict[str, Any]:
+    """Structured authority for the CURRENT narration.
+
+    Built ONLY from the current request's records (explicit list, or
+    result_id(s) parsed from the current tool block). No-arg / empty
+    calls return {} — process-global recency is never authority, so a
+    later reply cannot inherit unrelated evidence.
+    """
+    import itertools  # noqa: F401 — kept for call-site compat
+
+    recs: List[Dict[str, Any]] = []
+    if records is not None:
+        recs = [r for r in records if isinstance(r, dict)]
+    elif tool_block:
+        recs = _calc_records_for_tool_block(
+            tool_block,
+            expected_conversation_id=expected_conversation_id,
+            expected_user_id=expected_user_id)
+    else:
+        return {}
+    if not recs:
+        return {}
+
+    def _norm_num(s: Any) -> str:
+        t = str(s).replace(",", "")
+        if "." in t:
+            t = t.rstrip("0").rstrip(".")
+            if t in ("", "-"):
+                t = "0"
+        return t
+
+    outputs: List[Dict[str, str]] = []
+    input_norms: List[str] = []
+    step_norms: List[str] = []
+    allowed: List[str] = []
+    currency: Optional[str] = None
+    unit: Optional[str] = None
+    status: Optional[str] = None
+    for rec in recs:
+        proposed = rec.get("proposed") or {}
+        if proposed.get("amount") is not None:
+            amt = str(proposed["amount"])
+            allowed.append(amt)
+            outputs.append({
+                "amount": amt,
+                "amount_norm": _norm_num(amt),
+                "currency": str(proposed.get("currency") or ""),
+                "unit": str(proposed.get("unit") or ""),
+            })
+            currency = proposed.get("currency") or currency
+            unit = proposed.get("unit") or unit
+        status = rec.get("status") or status
+        for dep in rec.get("dependencies") or []:
+            if isinstance(dep, dict) and dep.get("value") is not None:
+                v = str(dep["value"])
+                allowed.append(v)
+                input_norms.append(_norm_num(v))
+        inp = rec.get("inputs") or {}
+        if isinstance(inp, dict):
+            for v in inp.get("inputs", {}).values() if isinstance(
+                    inp.get("inputs"), dict) else []:
+                try:
+                    _norm_num(v)
+                    allowed.append(str(v))
+                    input_norms.append(_norm_num(v))
+                except Exception:  # noqa: BLE001
+                    pass
+        for step in rec.get("steps") or []:
+            if not isinstance(step, dict):
+                continue
+            out = step.get("output_amount", step.get("output"))
+            if out is not None:
+                allowed.append(str(out))
+                step_norms.append(_norm_num(out))
+    limitations: List[str] = []
+    for rec in recs:
+        v = rec.get("verification") or {}
+        if v.get("matches_cached") is False:
+            limitations.append(
+                "the computed value differs from the workbook's own "
+                f"cached output ({v.get('cached_output')})")
+        if rec.get("freshness") in ("stale", "unknown"):
+            limitations.append(
+                "the source date is unknown — freshness could not be "
+                "established")
+    return {"allowed_figures": allowed, "currency": currency,
+            "unit": unit, "status": status, "records": recs,
+            "limitations": limitations,
+            "outputs": outputs,
+            "input_amounts_norm": sorted(set(input_norms)),
+            "step_outputs_norm": sorted(set(step_norms))}
+
+
+def _grounded(body: str, result_id: Optional[str] = None) -> str:
     try:
         from core.chat_tool_planner import _with_grounding
 
-        return _with_grounding(
-            "LIVE TOOL RESULTS (datasets.calculate — deterministic "
-            "Decimal arithmetic; the model did not compute this):\n"
-            + body)
+        block = ("LIVE TOOL RESULTS (datasets.calculate — deterministic "
+                 "Decimal arithmetic; the model did not compute this):\n"
+                 + body)
+        if result_id:
+            block += f"\n[calc:result_id={result_id}]"
+        return _with_grounding(block)
     except Exception:  # noqa: BLE001 — grounding is additive
-        return ("LIVE TOOL RESULTS (datasets.calculate):\n" + body)
+        block = ("LIVE TOOL RESULTS (datasets.calculate):\n" + body)
+        if result_id:
+            block += f"\n[calc:result_id={result_id}]"
+        return block
 
 
 # ---------------------------------------------------------------------------
@@ -1690,10 +1907,16 @@ async def calculate_workbook_from_query(
     # JOB INTEGRATION (round 71): calculation identity, inputs,
     # dependencies, result type and provenance persist on the
     # conversation's ACTUAL job run — this was required work, not an
-    # optional follow-up.
+    # optional follow-up. Evidence is request-bound: the record is
+    # registered with this turn's identity and referenced by result_id
+    # in the returned block.
+    _publish_calc_record(
+        result, user_id=user_id,
+        conversation_id=conversation_id, canvas_id=canvas_id,
+        query=query)
     _record_on_job(conversation_id, workspace_id,
                    item_label or f"{sheet_name} row {row_number}",
-                   result, canvas_id=canvas_id)
+                   result, canvas_id=canvas_id, user_id=user_id)
     body = render_comparison(
         item_label or f"{sheet_name} row {row_number}", None, result)
     label = ("workbook"
@@ -1701,7 +1924,8 @@ async def calculate_workbook_from_query(
              else "workbook — STORED VALUE, NOT COMPUTED")
     nl = chr(10)
     return _grounded(
-        f"LIVE TOOL RESULTS (datasets.calculate — {label}):{nl}" + body)
+        f"LIVE TOOL RESULTS (datasets.calculate — {label}):{nl}" + body,
+        result_id=result.result_id)
 
 
 def _record_on_job(
@@ -1709,16 +1933,16 @@ def _record_on_job(
         workspace_id: Optional[str],
         item_label: str,
         result: CalculationResult,
-        canvas_id: Optional[str] = None) -> bool:
-    """Persist a calculation onto the conversation's active job run
-    (best-effort, never blocks the turn). The operation's record
-    carries identity (result_id, policy id + version), the inputs
-    snapshot, every dependency, the RESULT TYPE (computed /
-    stored_value / incomplete — a stored value cannot satisfy the
-    calculation obligation) and provenance (workbook version,
-    authorizing teaching). Resolves the job by conversation first,
-    then by the bound canvas (goal-session turns may carry only the
-    canvas)."""
+        canvas_id: Optional[str] = None,
+        user_id: Optional[str] = None) -> bool:
+    """Persist a calculation onto the conversation's job run.
+
+    Canvas-free requests create their job on first calculation (via
+    lifecycle.create_task) so a fresh conversation survives reload —
+    finding-only would silently drop the work. Failures are observable
+    (warning with result_id + conversation) and return False; callers
+    never raise. The operation keeps its qualified status throughout
+    (stored/substituted stay open, never satisfied)."""
     if not conversation_id and not canvas_id:
         return False
     try:
@@ -1726,20 +1950,60 @@ def _record_on_job(
 
         lifecycle = _task_lifecycle_for(None, workspace_id)
         if lifecycle is None:
+            import logging as _logging
+
+            _logging.getLogger(__name__).warning(
+                "calculation job recording failed: no lifecycle "
+                "(result_id=%s conversation=%s)",
+                getattr(result, "result_id", "?"),
+                conversation_id)
             return False
         task = (lifecycle.find_active_task(conversation_id)
                 if conversation_id else None)
         if task is None and canvas_id:
             task = lifecycle.find_active_task_for_canvas(canvas_id)
+        if task is None and conversation_id:
+            # Fresh canvas-free turn: attach the job now so reload
+            # recovers it. create_task binds conversation_id; canvas
+            # rides provenance when the turn carries one.
+            try:
+                created = lifecycle.create_task(
+                    conversation_id,
+                    f"calculation for {item_label or 'item'}",
+                    provenance=(
+                        {"canvas_id": str(canvas_id)}
+                        if canvas_id else {}),
+                )
+                run_id = created.get("run_id")
+                task = lifecycle.get_task(run_id) if run_id else None
+            except Exception as _create_exc:  # noqa: BLE001
+                import logging as _logging
+
+                _logging.getLogger(__name__).warning(
+                    "calculation job creation failed "
+                    "(result_id=%s conversation=%s): %r",
+                    getattr(result, "result_id", "?"),
+                    conversation_id, _create_exc)
+                return False
         if not task:
+            import logging as _logging
+
+            _logging.getLogger(__name__).warning(
+                "calculation job recording failed: no task "
+                "(result_id=%s conversation=%s canvas=%s)",
+                getattr(result, "result_id", "?"),
+                conversation_id, canvas_id)
             return False
         record_calculation(
             lifecycle, task["run_id"], item_label, result)
         return True
     except Exception as exc:  # noqa: BLE001 — recording is best-effort
         import logging as _logging
-        _logging.getLogger(__name__).debug(
-            "calculation job recording skipped: %r", exc)
+        _logging.getLogger(__name__).warning(
+            "calculation job recording failed "
+            "(result_id=%s conversation=%s): %r",
+            getattr(result, "result_id", "?"),
+            conversation_id, exc)
         return False
 
 
@@ -1829,12 +2093,14 @@ async def calculate_expression_from_query(
         lines.append("- Note: every operand is a literal — no named "
                      "inputs were bound")
     # JOB INTEGRATION: same durable recording as the workbook path.
+    # Unknown currency stays XXX in the record (never invented here);
+    # narration must not render $, CAD or USD for it.
     result = CalculationResult(
         status=("succeeded" if calc.status == "computed"
                 else "incomplete"),
         policy_id=f"expression:{expr[:60]}",
         policy_version="engine-1",
-        proposed=(Money(calc.value, "XXX", unit="value")
+        proposed=(Money(calc.value, "XXX", unit=(calc.unit or "value"))
                   if calc.status == "computed" and calc.value is not None
                   else None),
         steps=list(calc.steps),
@@ -1847,12 +2113,17 @@ async def calculate_expression_from_query(
                      "general formula engine (core.formula_engine)",
             "inputs": {d.cell: d.value for d in named},
         })
+    _publish_calc_record(
+        result, user_id=user_id,
+        conversation_id=conversation_id, canvas_id=canvas_id,
+        query=query)
     _record_on_job(conversation_id, workspace_id, expr[:60], result,
-                   canvas_id=canvas_id)
+                   canvas_id=canvas_id, user_id=user_id)
     return _grounded(
         "LIVE TOOL RESULTS (datasets.calculate — formula engine, "
         "named inputs; the model did not compute this):\n"
-        + "\n".join(lines))
+        + "\n".join(lines),
+        result_id=result.result_id)
 
 
 # ---------------------------------------------------------------------------
@@ -2150,7 +2421,8 @@ async def calculate_natural_from_query(
                     else calc.status),
             policy_id=f"taught-expression:{e['name']}",
             policy_version=e.get("version", e["lesson_id"][:12]),
-            proposed=(Money(calc.value, "XXX", unit="value")
+            proposed=(Money(calc.value, "XXX",
+                            unit=(calc.unit or "value"))
                       if calc.value is not None else None),
             steps=list(calc.steps),
             missing_dependency=(calc.missing or calc.unsupported or "")
@@ -2164,8 +2436,12 @@ async def calculate_natural_from_query(
                 "request_supplied": sorted(mentioned),
                 "taught_defaults": sorted(e["defaults"]),
             })
+        _publish_calc_record(
+            result, user_id=user_id,
+            conversation_id=conversation_id, canvas_id=canvas_id,
+            query=query)
         _record_on_job(conversation_id, workspace_id, e["name"], result,
-                       canvas_id=canvas_id)
+                       canvas_id=canvas_id, user_id=user_id)
         lines = [f"**{e['name']} — taught formula, engine-computed**",
                  f"- Formula (taught): {e['expr']}"]
         if calc.status == "computed":
@@ -2182,7 +2458,8 @@ async def calculate_natural_from_query(
                 str(s.get("output")) for s in calc.steps))
         return _grounded(
             "LIVE TOOL RESULTS (datasets.calculate — natural language; "
-            "the model did not compute this):\n" + "\n".join(lines))
+            "the model did not compute this):\n" + "\n".join(lines),
+            result_id=result.result_id)
 
     # --- the selling-price family (authorized workbook basis) ---------
     if _NAT_PRICE_RE.search(q):

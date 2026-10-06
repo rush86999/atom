@@ -8243,6 +8243,74 @@ async def _integration_ingest_block(
     )
 
 
+#: Operation-bound calculation dedup (round 76): the COMMON execution
+#: boundary for planner + derivation paths. Keyed by stable
+#: request/operation identity (user + conversation + canvas + workspace
+#: + normalized query + lessons fingerprint), never by message hash
+#: alone. Inflight tasks share; completed blocks reuse within a short
+#: window so sequential planner+derivation calls in ONE turn execute
+#: once. Different conversations (different taught rates) never share;
+#: changed lessons change the fingerprint so a new policy version
+#: recomputes, never reuses.
+_CALC_INFLIGHT: Dict[str, Any] = {}
+_CALC_COMPLETED: Dict[str, Dict[str, Any]] = {}
+_CALC_COMPLETED_TTL_S = 120.0
+
+
+def _calc_dedup_key(
+        user_id: Optional[str],
+        conversation_id: Optional[str],
+        canvas_id: Optional[str],
+        workspace_id: Optional[str],
+        query: Optional[str],
+        lessons_fingerprint: str = "") -> Optional[str]:
+    """Stable dedup key, or None when context is unvalidated.
+
+    Validated context requires a non-empty user or conversation —
+    anonymous/empty callers never share results."""
+    import hashlib as _hl
+
+    u = " ".join(str(user_id or "").strip().split())
+    c = " ".join(str(conversation_id or "").strip().split())
+    if not u and not c:
+        return None
+    v = " ".join(str(canvas_id or "").strip().split())[:200].lower()
+    w = " ".join(str(workspace_id or "").strip().split())[:200].lower()
+    q = " ".join(str(query or "").strip().split())[:400].lower()
+    if not q:
+        return None
+    raw = "|".join([u.lower(), c.lower(), v, w, q,
+                    str(lessons_fingerprint or "")])
+    return "calc:" + _hl.sha256(raw.encode("utf-8")).hexdigest()[:24]
+
+
+def _calc_lessons_fingerprint(
+        user_id: Optional[str],
+        workspace_id: Optional[str]) -> str:
+    """Fingerprint of the teaching that authorizes calculations.
+
+    Competing lessons / changed policy versions change the fingerprint
+    so dedup never serves a stale policy's result. Best-effort: empty
+    on failure (dedup still isolates by conversation)."""
+    try:
+        from core.pricing_calculation import _workspace_lessons
+
+        lessons = _workspace_lessons(user_id, workspace_id) or []
+        import hashlib as _hl
+
+        parts = []
+        for les in lessons:
+            lid = str((les or {}).get("id") or (les or {}).get("lesson_id")
+                      or "")[:24]
+            txt = str((les or {}).get("lesson") or "")[:500]
+            parts.append(f"{lid}:{_hl.sha256(txt.encode()).hexdigest()[:8]}")
+        parts.sort()
+        joined = "|".join(parts)[:4000]
+        return _hl.sha256(joined.encode()).hexdigest()[:12]
+    except Exception:  # noqa: BLE001 — fingerprint is additive
+        return ""
+
+
 async def execute_tool_plan(
     plan: ToolPlan,
     user_id: Optional[str],
@@ -8657,14 +8725,11 @@ async def execute_tool_plan(
                 logger.warning("datasets.value_trace failed: %r", _vt_err)
         if (plan.intent or "search") == "calculate":
             # TAUGHT-PRICING CALCULATOR (round 67): the AGENT'S path to
-            # the deterministic engine. The model selects the applicable
-            # taught policy and gathers inputs (both from the query and
-            # the evidence); THIS code validates and executes — an LLM
-            # number is never the result. Query shape (the planner
-            # prompt documents it):
-            #   calculate POLICY_ID from AMOUNT CURRENCY
-            #   [param=VALUE ...] [source=REF] [override=AMOUNT]
-            try:
+            # the deterministic engine. COMMON EXECUTION BOUNDARY (round
+            # 76): planner + derivation paths converge HERE — dedup lives
+            # here, keyed by stable request/operation identity + validated
+            # context + lessons fingerprint. One request = one operation.
+            async def _run_calc_lane() -> Optional[str]:
                 import re as _calc_re
                 from decimal import Decimal as _CalcD
 
@@ -8677,48 +8742,110 @@ async def execute_tool_plan(
                 )
 
                 _calc_q = (query or "").strip()
-                if _calc_q:
-                    # WORKBOOK lane first (round 69): 'calculate price
-                    # for FILE.xlsx SHEET row N cell XN' — the workbook
-                    # defines the calculation, teaching authorizes when
-                    # that calculation applies, and the reconstruction
-                    # is dependency-complete or honestly incomplete
-                    # (never a partial price).
-                    from core.pricing_calculation import (
-                        calculate_expression_from_query as _expr_query,
-                        calculate_natural_from_query as _nl_query,
-                        calculate_workbook_from_query as _wb_query,
-                    )
+                if not _calc_q:
+                    return None
+                # WORKBOOK lane first (round 69): 'calculate price
+                # for FILE.xlsx SHEET row N cell XN' — the workbook
+                # defines the calculation, teaching authorizes when
+                # that calculation applies, and the reconstruction
+                # is dependency-complete or honestly incomplete
+                # (never a partial price).
+                from core.pricing_calculation import (
+                    calculate_expression_from_query as _expr_query,
+                    calculate_natural_from_query as _nl_query,
+                    calculate_workbook_from_query as _wb_query,
+                )
 
-                    _conv_id = (context or {}).get("conversation_id")
-                    _cv_id = (context or {}).get("canvas_id")
-                    _wb_block = await _wb_query(
-                        _calc_q, user_id,
-                        (context or {}).get("workspace_id"),
-                        conversation_id=_conv_id, canvas_id=_cv_id)
-                    if _wb_block:
-                        return _with_grounding(_wb_block)
-                    _expr_block = await _expr_query(
-                        _calc_q, user_id,
-                        (context or {}).get("workspace_id"),
-                        conversation_id=_conv_id, canvas_id=_cv_id)
-                    if _expr_block:
-                        return _with_grounding(_expr_block)
-                    # NATURAL LANGUAGE (round 73): the trained
-                    # employee's ordinary request — the tool resolves
-                    # the formula and inputs or asks precisely what is
-                    # missing; the user supplies no calculator syntax.
-                    _nl_block = await _nl_query(
-                        _calc_q, user_id,
-                        (context or {}).get("workspace_id"),
-                        conversation_id=_conv_id, canvas_id=_cv_id)
-                    if _nl_block:
-                        return _with_grounding(_nl_block)
-                    block = await _calc_query(
-                        _calc_q, user_id,
-                        (context or {}).get("workspace_id"))
-                    if block:
-                        return _with_grounding(block)
+                _conv_id = (context or {}).get("conversation_id")
+                _cv_id = (context or {}).get("canvas_id")
+                _wb_block = await _wb_query(
+                    _calc_q, user_id,
+                    (context or {}).get("workspace_id"),
+                    conversation_id=_conv_id, canvas_id=_cv_id)
+                if _wb_block:
+                    # _wb_query already grounds; _with_grounding is
+                    # idempotent for grounded blocks.
+                    return _wb_block if "LIVE TOOL RESULTS" in _wb_block \
+                        else _with_grounding(_wb_block)
+                _expr_block = await _expr_query(
+                    _calc_q, user_id,
+                    (context or {}).get("workspace_id"),
+                    conversation_id=_conv_id, canvas_id=_cv_id)
+                if _expr_block:
+                    return _expr_block if "LIVE TOOL RESULTS" in _expr_block \
+                        else _with_grounding(_expr_block)
+                # NATURAL LANGUAGE (round 73): the trained
+                # employee's ordinary request — the tool resolves
+                # the formula and inputs or asks precisely what is
+                # missing; the user supplies no calculator syntax.
+                _nl_block = await _nl_query(
+                    _calc_q, user_id,
+                    (context or {}).get("workspace_id"),
+                    conversation_id=_conv_id, canvas_id=_cv_id)
+                if _nl_block:
+                    return _nl_block if "LIVE TOOL RESULTS" in _nl_block \
+                        else _with_grounding(_nl_block)
+                block = await _calc_query(
+                    _calc_q, user_id,
+                    (context or {}).get("workspace_id"))
+                if block:
+                    return block if "LIVE TOOL RESULTS" in block \
+                        else _with_grounding(block)
+                return None
+
+            try:
+                from core.pricing_calculation import (
+                    PricingInputError as _CalcInputError,
+                )
+
+                _calc_q_key = (query or "").strip()
+                _conv_key = (context or {}).get("conversation_id")
+                _cv_key = (context or {}).get("canvas_id")
+                _ws_key = (context or {}).get("workspace_id")
+                _fp = _calc_lessons_fingerprint(user_id, _ws_key)
+                _dkey = _calc_dedup_key(
+                    user_id, _conv_key, _cv_key, _ws_key,
+                    _calc_q_key, _fp)
+                if _dkey is not None:
+                    import time as _time
+
+                    _now = _time.monotonic()
+                    _hit = _CALC_COMPLETED.get(_dkey)
+                    if isinstance(_hit, dict) and _hit.get("block"):
+                        if _now - float(_hit.get("at") or 0) \
+                                < _CALC_COMPLETED_TTL_S:
+                            logger.info(
+                                "[calc-dedup] reusing completed operation "
+                                "%s", _dkey)
+                            return _hit["block"]
+                    _inflight = _CALC_INFLIGHT.get(_dkey)
+                    if _inflight is not None:
+                        try:
+                            _shared = await asyncio.shield(_inflight)
+                            if _shared:
+                                return _shared
+                        except Exception:  # noqa: BLE001 — fall through
+                            pass
+                    _task = asyncio.ensure_future(_run_calc_lane())
+                    _CALC_INFLIGHT[_dkey] = _task
+                    try:
+                        _out = await asyncio.shield(_task)
+                    finally:
+                        _CALC_INFLIGHT.pop(_dkey, None)
+                    if _out:
+                        _CALC_COMPLETED[_dkey] = {
+                            "block": _out, "at": _time.monotonic()}
+                        while len(_CALC_COMPLETED) > 64:
+                            _CALC_COMPLETED.pop(
+                                next(iter(_CALC_COMPLETED)))
+                        # Completed blocks also carry their result_id(s);
+                        # the registry already holds the records.
+                        return _out
+                    return None
+                _out = await _run_calc_lane()
+                if _out:
+                    return _out
+                return None
             except _CalcInputError as _calc_err:
                 return _with_grounding(
                     f"LIVE TOOL RESULTS (datasets.calculate) — REJECTED: "
