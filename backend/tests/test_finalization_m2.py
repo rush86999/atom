@@ -530,3 +530,63 @@ def test_unknown_execution_preserves_truthful_error_message():
     assert finalized["success"] is False
     assert finalized["message"] == CREDIT_ENVELOPE_MESSAGE
     assert finalized["failure_reason"] == "provider_credits_exhausted"
+
+
+def test_two_consecutive_credit_failures_carry_metadata_through_http(
+        monkeypatch, app, orch, session):
+    """Case-5 counted-trial contract (2026-10-06): the POSTED response
+    body itself — not just the persisted row — must carry the verbatim
+    truthful text AND the failure metadata (error_code + failure_reason
+    + recovery_url) on EACH of two consecutive credit failures while
+    the provider stays broken. The route's final ChatMessageResponse
+    assembly passed error_code but never failure_reason/recovery_url,
+    so every credit failure through the actual HTTP boundary serialized
+    null metadata (the observed T3 envelope: error_code=no_llm_provider
+    with failure_reason null). Isolated orchestrator stub of the
+    verbatim credit envelope; no provider account involved."""
+    monkeypatch.setenv("CHAT_FINALIZATION_M1", "1")
+    monkeypatch.setenv("CHAT_FINALIZATION_M2", "1")
+    for i in (1, 2):
+        session.add(AgentExecution(
+            id=f"execution-{i}",
+            status="failed",
+            started_at=datetime.now(timezone.utc),
+            result_summary=CREDIT_ENVELOPE_MESSAGE,
+            metadata_json={"session_id": "session-1"},
+        ))
+        session.add(_assistant_row(
+            "session-1", f"execution-{i}", "Message processed successfully"))
+    session.commit()
+
+    client = TestClient(app)
+    for i in (1, 2):
+        orch.process_chat_message = AsyncMock(return_value={
+            "success": False,
+            "message": CREDIT_ENVELOPE_MESSAGE,
+            "session_id": "session-1",
+            "execution_id": f"execution-{i}",
+            "error_code": "no_llm_provider",
+            "failure_reason": "provider_credits_exhausted",
+            "recovery_url": "/settings/billing",
+            "data": {},
+        })
+        body = client.post(
+            "/api/chat/message", json={"message": "hi", "user_id": "u"}
+        ).json()
+        assert body["success"] is False
+        assert body["message"] == CREDIT_ENVELOPE_MESSAGE
+        assert body["error_code"] == "no_llm_provider"
+        assert body["failure_reason"] == "provider_credits_exhausted"
+        assert body["recovery_url"] == "/settings/billing"
+        assert body["execution_id"] == f"execution-{i}"
+
+    # Each failure stays bound to its own turn's durable row — the
+    # second failure never overwrites the first (exact per-turn
+    # binding under M2).
+    row1, meta1 = _row_for(session, "execution-1")
+    row2, meta2 = _row_for(session, "execution-2")
+    assert row1 is not None and row2 is not None
+    assert row1.content == CREDIT_ENVELOPE_MESSAGE
+    assert row2.content == CREDIT_ENVELOPE_MESSAGE
+    assert meta1["error_code"] == "no_llm_provider"
+    assert meta2["error_code"] == "no_llm_provider"
