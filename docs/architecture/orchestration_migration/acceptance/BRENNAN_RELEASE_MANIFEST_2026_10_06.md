@@ -133,6 +133,14 @@ candidate. Three trials per case, same candidate; every trial reported.
      Gate: this probe shape (T1 ask → bare T2 → bare T3 ⇒ TWO applied
      calc ops with own inputs) must pass ON THE SERVED CANDIDATE
      before any three-trial batch. No batch until then.
+  5. GATE REPRODUCER PASSES (release owner, 17:20 UTC, single trial —
+     NOT a batch): session 7930a2bc-3820-48d2-911e-28b98dc8ebca, job
+     4eb33a9a-1f2f-4a15-a023-f85d090eb76f, served pid 54785
+     (f9d1e2be3): 11/11 — T1 asks + zero ops; T2 2625 own op; T3 1800
+     SECOND own op (job holds exactly those two, no duplicates).
+     Results: `backend/data/acceptance_worlds/case3_results_20261006_172033.json`.
+     The case-3 batch is UNLOCKED but not launched: it runs on the
+     final frozen candidate after storage preflight passes.
 
 ### Case 4 — Ambiguous item, conflicting source versions, approved manual value
 - Input: an item code carried by multiple files/versions; one row holds an
