@@ -197,3 +197,161 @@ def test_two_conversations_use_their_own_teaching(world):
     ops6 = [o for o in _job_ops("c-boundary-6") if o["type"] == "calculate"]
     assert len(ops6) == 1
     assert str(ops6[0]["value"]).startswith("3500")
+
+
+def test_missing_input_follow_up_completes_and_records(world):
+    """The trial's first two turns in ONE conversation: the missing-input
+    ask records nothing (INPUT NEEDED), and the answered follow-up
+    completes the calculation and records exactly one operation bound
+    to the supplied inputs."""
+    ask = _run(_plan(Q_MISSING), "c-boundary-7")
+    assert ask and "INPUT NEEDED" in ask
+    assert _job_ops("c-boundary-7") == []
+    answer = _run(_plan(Q_175), "c-boundary-7")
+    assert answer and ("2625" in answer or "2,625" in answer)
+    calc = [o for o in _job_ops("c-boundary-7") if o["type"] == "calculate"]
+    assert len(calc) == 1
+    assert calc[0]["status"] == "applied"
+    assert str(calc[0]["value"]).startswith("2625")
+    assert calc[0]["inputs"].get("hours") == "17.5"
+    assert calc[0]["inputs"].get("materials") == "0"
+
+
+def test_both_dispatch_paths_converge_on_one_operation(world):
+    """Planner path and derivation-seam path encountering the SAME
+    request: both enter execute_tool_plan's calculate lane, whose dedup
+    key (request identity + validated context incl. workspace) must
+    serve the SAME block — one engine run, one recorded operation."""
+    from integrations.chat_orchestrator import _derivation_supplement
+    from core.chat_tool_planner import execute_tool_plan
+
+    async def _turn():
+        seam_block = await _derivation_supplement(
+            Q_175, "u-boundary", None, None, None,
+            conversation_id="c-boundary-8", workspace_id="default")
+        planner_block = await execute_tool_plan(
+            _plan(Q_175), "u-boundary", tenant_id="default",
+            context={"conversation_id": "c-boundary-8",
+                     "workspace_id": "default"})
+        return seam_block, planner_block
+
+    seam_block, planner_block = asyncio.run(_turn())
+    assert seam_block and "LIVE TOOL RESULTS" in seam_block
+    # the second dispatch reuses the SAME operation's block (dedup hit)
+    assert planner_block == seam_block
+    calc = [o for o in _job_ops("c-boundary-8") if o["type"] == "calculate"]
+    assert len(calc) == 1
+    assert str(calc[0]["value"]).startswith("2625")
+
+
+def test_persistence_failure_is_not_durable_completion(world, monkeypatch):
+    """When the job write fails, the block states it in the same breath
+    as the result, the published record carries persisted=False, and the
+    narration guard rejects 'saved/recorded' claims for that turn."""
+    import integrations.chat_orchestrator as orch
+    import core.pricing_calculation as P
+
+    monkeypatch.setattr(orch, "_task_lifecycle_for", lambda *a, **k: None)
+    block = _run(_plan(Q_175), "c-boundary-9")
+    assert block and "2625" in block.replace(",", "")
+    # the block itself refuses durable framing
+    assert "RECORDING FAILED" in block
+    assert "NOT be persisted" in block
+    # the published record carries the durable outcome
+    allowance = P._calc_narration_allowance(
+        block, expected_conversation_id="c-boundary-9",
+        expected_user_id="u-boundary")
+    assert allowance.get("persisted") is False
+    assert any("NOT recorded" in lim
+               for lim in allowance.get("limitations") or [])
+    # a durable-completion claim is a narration violation; the bare
+    # computed figure alone is not
+    from integrations.chat_orchestrator import _calc_narration_violations
+
+    claim = _calc_narration_violations(
+        "The estimate is 2625 and I have saved it to the job.",
+        allowance)
+    assert any("saved" in v for v in claim)
+    plain = _calc_narration_violations(
+        "The estimate is 2625; the recording failed, so it is not "
+        "recorded yet.", allowance)
+    assert not any("saved" in v or "recorded" in v for v in plain)
+
+
+def test_incomplete_result_records_waiting_without_value(world):
+    """Status semantics are not inflated: an engine-incomplete result
+    (unsupported function) publishes NO proposed value, its job
+    operation stays WAITING, and the block says NOT COMPUTED."""
+    block = _run(_plan("calculate expression NPV(hours, rate) "
+                       "with hours=2 rate=150"), "c-boundary-10")
+    assert block and "NOT COMPUTED" in block
+    ops = _job_ops("c-boundary-10")
+    assert len(ops) == 1
+    assert ops[0]["type"] == "calculate"
+    assert ops[0]["status"] == "waiting"
+    # no value was proposed, so nothing can be narrated as the result
+    assert ops[0]["value"] is None
+    # the block names the real gap — the unsupported function — and
+    # never a partial value
+    assert "NPV" in block
+
+
+Q_ANSWER = "17.5 hours, no materials."
+Q_RECALC = "Recalculate \u2014 12 hours."
+
+
+def _pending_question(conv):
+    from core.pricing_calculation import _pending_calc_question
+
+    return _pending_calc_question(conv, "default")
+
+
+def test_bare_answer_and_recalc_route_deterministically(world):
+    """The exact case-3 trial turns (candidate 78ba06084 trials 1-2
+    failed here): T1 asks (no calculate op — the driver contract), T2
+    is the owner's BARE answer, T3 a BARE recalculate. Both follow-ups
+    resolve from DURABLE job state — pending question, then the last
+    applied taught-expression record — each recording its OWN operation
+    with its own inputs."""
+    ask = _run(_plan(Q_MISSING), "c-boundary-11")
+    assert ask and "INPUT NEEDED" in ask
+    calc1 = [o for o in _job_ops("c-boundary-11")
+             if o["type"] == "calculate"]
+    assert calc1 == []  # the asking turn records NO calculate operation
+    pending = _pending_question("c-boundary-11")
+    assert pending and pending.get("item") == "Service estimate"
+    assert sorted(pending["inputs"]["missing"]) == ["hours", "materials"]
+
+    answer = _run(_plan(Q_ANSWER), "c-boundary-11")
+    assert answer and "2625" in answer.replace(",", "")
+    calc = [o for o in _job_ops("c-boundary-11")
+            if o["type"] == "calculate"]
+    assert len(calc) == 1
+    assert calc[0]["status"] == "applied"
+    assert str(calc[0]["value"]).startswith("2625")
+    assert calc[0]["inputs"].get("hours") == "17.5"
+    assert calc[0]["inputs"].get("materials") == "0"
+    # the question this turn answered is settled
+    assert _pending_question("c-boundary-11") is None
+
+    recalc = _run(_plan(Q_RECALC), "c-boundary-11")
+    assert recalc and "1800" in recalc.replace(",", "")
+    calc = [o for o in _job_ops("c-boundary-11")
+            if o["type"] == "calculate"]
+    assert len(calc) == 2
+    assert str(calc[1]["value"]).startswith("1800")
+    assert calc[1]["inputs"].get("hours") == "12"
+    assert calc[1]["inputs"].get("materials") == "0"
+
+
+def test_partial_answer_keeps_asking_without_new_record(world):
+    """An answer that binds only SOME missing inputs asks again for the
+    rest — no new calculate operation, the pending question stays open."""
+    _run(_plan(Q_MISSING), "c-boundary-12")
+    partial = _run(_plan("17.5 hours"), "c-boundary-12")
+    assert partial and "INPUT NEEDED" in partial
+    assert "materials" in partial
+    calc = [o for o in _job_ops("c-boundary-12")
+            if o["type"] == "calculate"]
+    assert calc == []
+    assert _pending_question("c-boundary-12") is not None

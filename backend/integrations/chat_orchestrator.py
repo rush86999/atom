@@ -1221,6 +1221,23 @@ def _calc_narration_violations(reply: str,
             violations.append(
                 f"status {status} presented as final (missing qualifier)")
 
+    # 6) DURABILITY CLAIMS (release case 3): when this request's job
+    # write FAILED, the reply must not present the result as recorded,
+    # saved, logged, or durable — a computed figure without its durable
+    # record is exactly the class the record pipeline exists to prevent.
+    # Negated forms ("not recorded", "never saved") are the truthful
+    # phrasing the block asks for, never violations.
+    if allowance.get("persisted") is False:
+        for m in _re.finditer(
+                r"\b(recorded|saved|logged|persisted|on\s+record|durable)\b",
+                reply, _re.IGNORECASE):
+            _prefix = reply[max(0, m.start() - 12):m.start()].lower()
+            if "not" in _prefix or "never" in _prefix or "n't" in _prefix:
+                continue
+            violations.append(
+                f"{m.group(0)} (job persistence FAILED — the result is "
+                "computed but NOT recorded)")
+
     seen = set()
     return [v for v in violations if not (v in seen or seen.add(v))][:8]
 
@@ -3070,6 +3087,7 @@ async def _derivation_supplement(
     tool_block: Optional[str],
     llm_service: Any = None,
     conversation_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
 ) -> Optional[str]:
     """Compose the derivation dataset block ahead of an existing tool
     block. For a derivation ask the workbook ROW is the answer (the mail
@@ -3079,7 +3097,13 @@ async def _derivation_supplement(
     the calculate lane HERE — the shared evidence-assembly point both
     the generic and the goal-session pipelines pass through. History
     (or a reused singleflight block) must never impersonate a
-    computation: the engine result becomes THE evidence block."""
+    computation: the engine result becomes THE evidence block.
+
+    ``workspace_id`` threads the turn's scope into the calculate lane's
+    context (release case 3): the dedup key that makes the planner path
+    and this seam converge on ONE execution/operation includes the
+    workspace — an omitted value made the same request dispatch twice
+    with different keys and record two operations."""
     if message:
         try:
             from core.pricing_calculation import (
@@ -3090,7 +3114,18 @@ async def _derivation_supplement(
                 execute_tool_plan as _etp,
             )
 
-            if _msg_calc(message):
+            # A DERIVATION ASK IS NOT A CALCULATION ASK (release case-3
+            # lane family): "figure out how the listed price was
+            # derived" matches the price-ask shape, and the calc lane's
+            # "WHICH ITEM?" block then displaced the matched workbook
+            # row the derivation lane exists to deliver (red regression
+            # test_derivation_supplement_leads_with_dataset since the
+            # round-74 dispatch landed). A derivation ask walks an
+            # EXISTING value's chain; only true computation asks run
+            # the engine here.
+            if _msg_calc(message) and not _derivation_ask(
+                    message,
+                    {"history": history or [], "canvas": canvas}):
                 _canvas_id = None
                 if isinstance(canvas, dict):
                     _canvas_id = (canvas.get("canvas_id")
@@ -3116,6 +3151,7 @@ async def _derivation_supplement(
                             "canvas": canvas,
                             "conversation_id": conversation_id,
                             "canvas_id": _canvas_id,
+                            "workspace_id": workspace_id,
                         },
                         llm_service=llm_service),
                     timeout=110.0)
@@ -13211,6 +13247,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             canvas_context, None,
                             llm_service=self.llm_service,
                             conversation_id=session_id,
+                            workspace_id=workspace_id,
                         )
                     )
                     # Owned by this turn: if the deadline expires, this is work
@@ -13670,6 +13707,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         canvas_context, _tool_block,
                         llm_service=self.llm_service,
                         conversation_id=session_id,
+                        workspace_id=workspace_id,
                     )
                 else:
                     # Full hydrated history for the planner (not the [-6:] main-
@@ -13771,8 +13809,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             message_requires_calculation,
                         )
 
+                        # CONVERSATION-STATE FOLLOW-UP (release case 3):
+                        # a bare ANSWER to the lane's missing-input
+                        # question ("17.5 hours, no materials.") is
+                        # calculation-shaped by DURABLE state, not by
+                        # regex — without this the turn's routing was
+                        # planner-dependent and the computation ran by
+                        # narration with no record (case-3 trials 1-2,
+                        # candidate 78ba06084).
+                        from core.pricing_calculation import (
+                            _calc_followup_dispatch,
+                        )
+
                         if (message
-                                and message_requires_calculation(message)
+                                and (message_requires_calculation(message)
+                                     or _calc_followup_dispatch(
+                                         message, session_id,
+                                         workspace_id))
                                 and not (_plan and _plan.use_tool
                                          and _plan.intent == "calculate")):
                             from core.chat_tool_planner import ToolPlan
@@ -14093,6 +14146,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                             # calculate lane's durable
                                             # calculation records).
                                             "conversation_id": session_id,
+                                            # The turn's scope: the calculate
+                                            # lane's dedup key includes it, so
+                                            # omitting it forked the key vs
+                                            # the derivation-seam dispatch of
+                                            # the same request (case 3).
+                                            "workspace_id": workspace_id,
                                             # The current ask, ahead of session
                                             # history (which is written only
                                             # after the response): the stated-
@@ -14582,6 +14641,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             canvas_context, _tool_block,
                             llm_service=self.llm_service,
                             conversation_id=session_id,
+                            workspace_id=workspace_id,
                         )
                     else:
                         # Plan is None (provider produced no decision at
@@ -14610,6 +14670,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             canvas_context, _tool_block,
                             llm_service=self.llm_service,
                             conversation_id=session_id,
+                            workspace_id=workspace_id,
                         )
             except Exception as tool_err:
                 # !r, not str: a bare asyncio.TimeoutError() stringifies to
@@ -14726,7 +14787,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         message_requires_calculation as _msg_calc,
                     )
 
-                    if _msg_calc(message):
+                    # Same derivation-ask exclusion as the derivation
+                    # seam: "figure out how this price was derived"
+                    # walks an existing value's chain — the derivation
+                    # lane answers it, the engine does not recompute.
+                    if _msg_calc(message) and not _derivation_ask(
+                            message, {"history": planner_history or history}):
                         from core.chat_tool_planner import ToolPlan as _TP
                         from core.chat_tool_planner import (
                             execute_tool_plan as _etp,
@@ -14881,6 +14947,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # calculation lanes record onto the
                                     # conversation's job (round 74)
                                     "conversation_id": session_id,
+                                    # scope parity with the other dispatch
+                                    # sites — the calculate dedup key
+                                    # includes the workspace (case 3)
+                                    "workspace_id": workspace_id,
                                 },
                                 llm_service=self.llm_service,
                             ) or ""
@@ -16038,6 +16108,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             canvas_context, None,
                             llm_service=self.llm_service,
                             conversation_id=session_id,
+                            workspace_id=workspace_id,
                         )
                     if _deriv_block:
                         # A DETERMINISTIC BLOCK SUPERSEDES A LOOKUP-FAILURE

@@ -8779,6 +8779,7 @@ async def execute_tool_plan(
                 # (never a partial price).
                 from core.pricing_calculation import (
                     calculate_expression_from_query as _expr_query,
+                    calculate_followup_from_query as _followup_query,
                     calculate_natural_from_query as _nl_query,
                     calculate_workbook_from_query as _wb_query,
                 )
@@ -8812,6 +8813,18 @@ async def execute_tool_plan(
                 if _nl_block:
                     return _nl_block if "LIVE TOOL RESULTS" in _nl_block \
                         else _with_grounding(_nl_block)
+                # CONVERSATION-STATE FOLLOW-UP (release case 3): the
+                # bare ANSWER to the lane's missing-input question and
+                # the bare RECALCULATE imperative resolve from DURABLE
+                # job state here — deterministically, not planner-
+                # dependent. Explicit asks never reach this (earlier
+                # lanes answered them); no prior state → None.
+                _followup_block = await _followup_query(
+                    _calc_q, user_id,
+                    (context or {}).get("workspace_id"),
+                    conversation_id=_conv_id, canvas_id=_cv_id)
+                if _followup_block:
+                    return _followup_block
                 block = await _calc_query(
                     _calc_q, user_id,
                     (context or {}).get("workspace_id"))

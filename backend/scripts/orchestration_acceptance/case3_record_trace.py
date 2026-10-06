@@ -75,6 +75,13 @@ Q_T2 = ("Estimate this service job using our taught rates "
 Q_T3 = ("Estimate this service job using our taught rates "
         "with hours=12 materials=0")
 
+# The BARE follow-up turns that failed routing on candidate 78ba06084
+# (trials 1-2): the owner's natural answers. The orchestrator's
+# conversation-state override dispatches these as datasets.calculate —
+# this plan is the exact shape that override builds.
+Q_BARE_ANSWER = "17.5 hours, no materials."
+Q_BARE_RECALC = "Recalculate \u2014 12 hours."
+
 TRACE: list = []
 
 
@@ -168,15 +175,25 @@ async def main() -> int:
     _instrument()
     from core.chat_tool_planner import ToolPlan, execute_tool_plan
 
-    for label, q in (("T1-missing-input", Q_T1),
-                     ("T2-answered-inputs", Q_T2),
-                     ("T3-changed-input", Q_T3)):
-        TRACE.append({"t": "turn", "label": label, "query": q})
-        plan = ToolPlan(use_tool=True, service="datasets.calculate",
-                        intent="calculate", query=q)
-        block = await execute_tool_plan(
-            plan, USER, tenant_id="default",
+    async def _calc(query: str) -> str:
+        # The exact plan shape the orchestrator's calculation override
+        # and the derivation seam build for a calculation-shaped turn.
+        return await execute_tool_plan(
+            ToolPlan(use_tool=True, service="datasets",
+                     intent="calculate", query=query[:400]),
+            USER, tenant_id="default",
             context={"conversation_id": CONV, "workspace_id": WS})
+
+    for label, q in (
+            ("T1-missing-input", Q_T1),
+            ("T2b-BARE-ANSWER (candidate-78ba06084 trial 1-2 shape)",
+             Q_BARE_ANSWER),
+            ("T3-BARE-RECALC (candidate-78ba06084 trial 1-2 shape)",
+             Q_BARE_RECALC),
+            ("T2-planner-folded", Q_T2),
+            ("T3-planner-folded", Q_T3)):
+        TRACE.append({"t": "turn", "label": label, "query": q})
+        block = await _calc(q)
         TRACE.append({"t": "block", "label": label,
                       "head": (block or "")[:220]})
     print(json.dumps(TRACE, indent=1, default=str))

@@ -113,6 +113,36 @@ candidate. Three trials per case, same candidate; every trial reported.
     identifiers/receipts across boundaries for the failing turns. All
     four trials stay on record; counted trials rerun clean after the
     repair on the new frozen candidate.
+  - REPAIRED (2026-10-06, calculation-lane owner — candidate with this
+    commit, awaiting freeze + 3 clean trials): the bare follow-up turns
+    now route deterministically on DURABLE job state, not the planner.
+    (1) The asking turn records the missing-input question as a
+    verification QUESTION on the job (kind=verification with structured
+    inputs: missing/bound/expr/policy_version) — still NO calculate
+    operation, so the driver's t1 contract is untouched. (2) The
+    orchestrator's calculation override additionally fires when the
+    conversation carries such an open question and the message binds ≥1
+    of its missing inputs (state-aware, not a wider regex). (3) The
+    calculate lane resolves the answer/recalculate turn against that
+    state (`calculate_followup_from_query`): answer → complete + own
+    applied op + question resolved; bare recalculate imperative → rebind
+    over the last applied taught-expression record, changed value ⇒ own
+    op, nothing changed ⇒ no op. Regression pins (12/12 green):
+    tests/test_calculate_toolplan_boundary.py — bare answer T2, bare
+    recalc T3, partial answer keeps asking with no new record, both
+    dispatch paths converge on one operation, persistence failure never
+    presented as durable completion, incomplete results stay waiting
+    with no proposed value. Also repaired on this lane: a persistence
+    failure now states itself in the block + record and the narration
+    guard rejects "saved/recorded" claims for it; workspace_id threads
+    to every calculate dispatch site (dedup-key parity); derivation
+    asks are no longer claimed by the calculation dispatch (red
+    test_derivation_supplement_leads_with_dataset green again). Isolated
+    rerun of the exact turns:
+    `venv314/bin/python scripts/orchestration_acceptance/case3_record_trace.py`
+    (T1 asks, bare answer $2,625 recorded, bare recalc $1,800 recorded).
+    Agent C: rerun case3_calc_trials.py (3 trials) on the new frozen
+    candidate; trial history above stays on record.
 
 ### Case 4 — Ambiguous item, conflicting source versions, approved manual value
 - Input: an item code carried by multiple files/versions; one row holds an

@@ -1111,8 +1111,15 @@ def _publish_calc_record(
         conversation_id: Optional[str] = None,
         canvas_id: Optional[str] = None,
         query: Optional[str] = None,
-        operation_key: Optional[str] = None) -> str:
+        operation_key: Optional[str] = None,
+        persisted: Optional[bool] = None) -> str:
     """Register the structured record with its request identity.
+
+    ``persisted`` carries the DURABLE outcome of the same request's
+    ``_record_on_job`` call (None = recording not attempted, e.g. a
+    no-input turn). It rides the record env so narration validation can
+    refuse "saved/recorded" claims when the job write failed — release
+    case 3: a persistence failure must never read as durable completion.
 
     Returns the operation key. Bounded (newest 64); publishing never
     raises and never confers authority — authority requires the caller
@@ -1127,6 +1134,7 @@ def _publish_calc_record(
             "canvas_id": str(canvas_id or "").strip(),
             "query": str(query or "")[:400],
             "operation_key": op,
+            "persisted": persisted,
         }
         while len(_LAST_CALC_RECORDS) > 64:
             _LAST_CALC_RECORDS.pop(next(iter(_LAST_CALC_RECORDS)))
@@ -1139,18 +1147,24 @@ def _calc_records_for_tool_block(
         tool_block: Optional[str],
         *,
         expected_conversation_id: Optional[str] = None,
-        expected_user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        expected_user_id: Optional[str] = None) -> Tuple[
+            List[Dict[str, Any]], Optional[bool]]:
     """The CURRENT request's records: only result_id(s) referenced by
     THIS tool block. Identity-filtered when the caller supplies the
     expected conversation/user — a record from another context never
-    qualifies, even if its id was copied across."""
+    qualifies, even if its id was copied across.
+
+    Also returns the records' durable `persisted` outcome (False when
+    ANY of this request's records failed its job write; None when
+    recording was not attempted or the env predates the field)."""
     if not tool_block:
-        return []
+        return [], None
     try:
         ids = _CALC_RESULT_ID_RE.findall(str(tool_block))
     except Exception:  # noqa: BLE001
-        return []
+        return [], None
     out: List[Dict[str, Any]] = []
+    persisted: Optional[bool] = None
     seen = set()
     for rid in ids:
         if rid in seen:
@@ -1176,8 +1190,10 @@ def _calc_records_for_tool_block(
             got_u = str((env.get("user_id") or "")).strip()
             if got_u and got_u != exp_u:
                 continue
+        if env.get("persisted") is False:
+            persisted = False
         out.append(rec)
-    return out
+    return out, persisted
 
 
 def _calc_narration_allowance(
@@ -1196,10 +1212,11 @@ def _calc_narration_allowance(
     import itertools  # noqa: F401 — kept for call-site compat
 
     recs: List[Dict[str, Any]] = []
+    persisted: Optional[bool] = None
     if records is not None:
         recs = [r for r in records if isinstance(r, dict)]
     elif tool_block:
-        recs = _calc_records_for_tool_block(
+        recs, persisted = _calc_records_for_tool_block(
             tool_block,
             expected_conversation_id=expected_conversation_id,
             expected_user_id=expected_user_id)
@@ -1270,12 +1287,34 @@ def _calc_narration_allowance(
             limitations.append(
                 "the source date is unknown — freshness could not be "
                 "established")
+    if persisted is False:
+        limitations.append(
+            "the job-ledger write FAILED — this result is computed but "
+            "NOT recorded; never present it as saved, logged, or durable")
     return {"allowed_figures": allowed, "currency": currency,
             "unit": unit, "status": status, "records": recs,
             "limitations": limitations,
+            "persisted": persisted,
             "outputs": outputs,
             "input_amounts_norm": sorted(set(input_norms)),
             "step_outputs_norm": sorted(set(step_norms))}
+
+
+def _persistence_note(recorded: Optional[bool]) -> str:
+    """The durable-recording honesty line for a calculate block.
+
+    Empty when the job write succeeded (or was not attempted — a
+    no-input turn publishes nothing to persist). When it FAILED, the
+    block must say so in the same breath as the result: the narration
+    reads this block, so a silent failure would let the reply present a
+    computed figure as recorded/saved (release case 3: "persistence
+    failure cannot be presented as durable completion")."""
+    if recorded is not False:
+        return ""
+    return ("- RECORDING FAILED: this result could NOT be persisted to "
+            "the job ledger. State the computed value, but NEVER call it "
+            "recorded, saved, logged, or durable — say the recording "
+            "failed instead.")
 
 
 def _grounded(body: str, result_id: Optional[str] = None) -> str:
@@ -1909,16 +1948,19 @@ async def calculate_workbook_from_query(
     # conversation's ACTUAL job run — this was required work, not an
     # optional follow-up. Evidence is request-bound: the record is
     # registered with this turn's identity and referenced by result_id
-    # in the returned block.
+    # in the returned block. The DURABLE outcome rides both the record
+    # env and the block: a failed job write can never read as durable
+    # completion (release case 3).
+    _recorded = _record_on_job(conversation_id, workspace_id,
+                               item_label or f"{sheet_name} row {row_number}",
+                               result, canvas_id=canvas_id, user_id=user_id)
     _publish_calc_record(
         result, user_id=user_id,
         conversation_id=conversation_id, canvas_id=canvas_id,
-        query=query)
-    _record_on_job(conversation_id, workspace_id,
-                   item_label or f"{sheet_name} row {row_number}",
-                   result, canvas_id=canvas_id, user_id=user_id)
+        query=query, persisted=_recorded)
     body = render_comparison(
         item_label or f"{sheet_name} row {row_number}", None, result)
+    body += _persistence_note(_recorded)
     label = ("workbook"
              if result.status != "stored_value"
              else "workbook — STORED VALUE, NOT COMPUTED")
@@ -1926,6 +1968,69 @@ async def calculate_workbook_from_query(
     return _grounded(
         f"LIVE TOOL RESULTS (datasets.calculate — {label}):{nl}" + body,
         result_id=result.result_id)
+
+
+def _conversation_job(
+        conversation_id: Optional[str],
+        workspace_id: Optional[str],
+        canvas_id: Optional[str] = None,
+        item_label: str = "item") -> Tuple[Any, Optional[str]]:
+    """Find or create the conversation's ACTIVE job task — the one
+    job-identity helper for every durable calculation write (the
+    recorded operation AND the pending-input question). Returns
+    (lifecycle, run_id) or (None, None); never raises."""
+    if not conversation_id and not canvas_id:
+        return None, None
+    try:
+        from integrations.chat_orchestrator import _task_lifecycle_for
+
+        lifecycle = _task_lifecycle_for(None, workspace_id)
+        if lifecycle is None:
+            import logging as _logging
+
+            _logging.getLogger(__name__).warning(
+                "calculation job recording failed: no lifecycle "
+                "(conversation=%s)", conversation_id)
+            return None, None
+        task = (lifecycle.find_active_task(conversation_id)
+                if conversation_id else None)
+        if task is None and canvas_id:
+            task = lifecycle.find_active_task_for_canvas(canvas_id)
+        if task is None and conversation_id:
+            # Fresh canvas-free turn: attach the job now so reload
+            # recovers it. create_task binds conversation_id; canvas
+            # rides provenance when the turn carries one.
+            try:
+                created = lifecycle.create_task(
+                    conversation_id,
+                    f"calculation for {item_label or 'item'}",
+                    provenance=(
+                        {"canvas_id": str(canvas_id)}
+                        if canvas_id else {}),
+                )
+            except Exception as _create_exc:  # noqa: BLE001
+                import logging as _logging
+
+                _logging.getLogger(__name__).warning(
+                    "calculation job creation failed (conversation=%s): %r",
+                    conversation_id, _create_exc)
+                return None, None
+            return lifecycle, created.get("run_id")
+        if not task:
+            import logging as _logging
+
+            _logging.getLogger(__name__).warning(
+                "calculation job recording failed: no task "
+                "(conversation=%s canvas=%s)", conversation_id, canvas_id)
+            return None, None
+        return lifecycle, task["run_id"]
+    except Exception as exc:  # noqa: BLE001 — recording is best-effort
+        import logging as _logging
+
+        _logging.getLogger(__name__).warning(
+            "calculation job lookup failed (conversation=%s): %r",
+            conversation_id, exc)
+        return None, None
 
 
 def _record_on_job(
@@ -1943,68 +2048,360 @@ def _record_on_job(
     (warning with result_id + conversation) and return False; callers
     never raise. The operation keeps its qualified status throughout
     (stored/substituted stay open, never satisfied)."""
-    if not conversation_id and not canvas_id:
+    lifecycle, run_id = _conversation_job(
+        conversation_id, workspace_id, canvas_id=canvas_id,
+        item_label=item_label)
+    if lifecycle is None or not run_id:
         return False
+    try:
+        record_calculation(lifecycle, run_id, item_label, result)
+        return True
+    except Exception as exc:  # noqa: BLE001 — recording is best-effort
+        import logging as _logging
+
+        _logging.getLogger(__name__).warning(
+            "calculation job recording failed "
+            "(result_id=%s conversation=%s): %r",
+            getattr(result, "result_id", "?"), conversation_id, exc)
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Conversation-state follow-up (release case 3): the estimate flow asks
+# ONE precise question; the owner's bare ANSWER turn ("17.5 hours, no
+# materials.") and bare RECALCULATE turn ("Recalculate — 12 hours.")
+# must reach the SAME lane deterministically — never depend on the
+# planner happening to route them. The pending question is durable job
+# state (an unresolved VERIFICATION question carrying the structured
+# inputs), so the answer binds even after a restart; the completed
+# calculation is the record the recalculate turn rebinds. No wider
+# regex, no second recording seam.
+# ---------------------------------------------------------------------------
+
+#: Marker carried in a verification question's structured `inputs` that
+#: identifies it as THIS lane's pending-input question (distinguishes it
+#: from every other verification question on the job).
+_PENDING_CALC_MARKER = "pending_calc_inputs"
+
+
+def _record_pending_calc_inputs(
+        conversation_id: Optional[str],
+        workspace_id: Optional[str],
+        item: str,
+        missing: List[str],
+        bound: Dict[str, str],
+        expr: str,
+        policy_version: str,
+        canvas_id: Optional[str] = None,
+        user_bound: Optional[Dict[str, str]] = None) -> bool:
+    """Record the missing-input question as DURABLE job state (no
+    calculate operation — the driver contract for the asking turn).
+
+    ``user_bound`` names the inputs the REQUEST itself stated; the rest
+    of ``bound`` are taught defaults at ask time. The distinction is
+    load-bearing on resume: user-stated values persist, taught defaults
+    re-derive from the CURRENT lesson — a changed teaching never
+    silently completes a stale calculation.
+
+    Fault-isolated: a question that cannot be recorded degrades the
+    follow-up to planner-dependent routing (the pre-fix behavior), it
+    never breaks the asking turn itself."""
+    lifecycle, run_id = _conversation_job(
+        conversation_id, workspace_id, canvas_id=canvas_id,
+        item_label=item)
+    if lifecycle is None or not run_id:
+        return False
+    try:
+        from core.task_lifecycle import add_unresolved_questions
+
+        add_unresolved_questions(lifecycle, run_id, [{
+            "item": item,
+            "kind": "verification",
+            "question": (
+                f"the calculation for {item} is waiting on inputs: "
+                f"{', '.join(missing)} (taught formula: {expr})"),
+            "evidence": (
+                f"policy taught-expression:{item} v{policy_version}; "
+                + (", ".join(f"{k}={v}" for k, v in sorted(bound.items()))
+                   or "no inputs bound yet")),
+            "next_action": (
+                "reply with the missing inputs — the calculate lane "
+                "completes and records the calculation"),
+            "inputs": {
+                _PENDING_CALC_MARKER: True,
+                "missing": list(missing),
+                "bound": dict(bound),
+                "user_bound": dict(user_bound or {}),
+                "expr": expr,
+                "policy_version": policy_version,
+            },
+        }])
+        return True
+    except Exception as exc:  # noqa: BLE001 — pending state is additive
+        import logging as _logging
+
+        _logging.getLogger(__name__).warning(
+            "pending calculation-input question not recorded "
+            "(conversation=%s): %r", conversation_id, exc)
+        return False
+
+
+def _pending_calc_question(
+        conversation_id: Optional[str],
+        workspace_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    """The conversation's NEWEST open pending-input question, or None."""
+    if not conversation_id:
+        return None
     try:
         from integrations.chat_orchestrator import _task_lifecycle_for
 
         lifecycle = _task_lifecycle_for(None, workspace_id)
         if lifecycle is None:
-            import logging as _logging
+            return None
+        task = lifecycle.find_active_task(conversation_id)
+        if task is None:
+            return None
+        questions = ((task.get("task_revision") or {}).get("unresolved")
+                     or [])
+        for question in reversed(questions):
+            if str(question.get("status") or "") != "open":
+                continue
+            inputs = question.get("inputs")
+            if (isinstance(inputs, dict)
+                    and inputs.get(_PENDING_CALC_MARKER)
+                    and question.get("kind") == "verification"):
+                return question
+        return None
+    except Exception:  # noqa: BLE001 — pending state is additive
+        return None
 
-            _logging.getLogger(__name__).warning(
-                "calculation job recording failed: no lifecycle "
-                "(result_id=%s conversation=%s)",
-                getattr(result, "result_id", "?"),
-                conversation_id)
+
+def _last_taught_calc(
+        conversation_id: Optional[str],
+        workspace_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    """The conversation's latest APPLIED taught-expression calculation
+    record (the state a recalculate turn rebinds), or None."""
+    if not conversation_id:
+        return None
+    try:
+        from integrations.chat_orchestrator import _task_lifecycle_for
+
+        lifecycle = _task_lifecycle_for(None, workspace_id)
+        if lifecycle is None:
+            return None
+        task = lifecycle.find_active_task(conversation_id)
+        if task is None:
+            return None
+        for op in reversed(task.get("operations") or []):
+            if op.get("operation_type") != "calculate":
+                continue
+            rec = op.get("calculation") or {}
+            if not str(rec.get("policy_id") or "").startswith(
+                    "taught-expression:"):
+                continue
+            if op.get("status") != "applied":
+                continue
+            return rec
+        return None
+    except Exception:  # noqa: BLE001 — pending state is additive
+        return None
+
+
+def _calc_followup_dispatch(
+        message: str,
+        conversation_id: Optional[str],
+        workspace_id: Optional[str]) -> bool:
+    """Whether THIS turn deterministically belongs to the calculate
+    lane as a pending-input ANSWER (release case 3): the conversation
+    carries an open pending-input question and the message binds at
+    least one of its missing inputs. Cheap guard for the orchestrator's
+    calculation override; the resolver re-validates everything."""
+    try:
+        question = _pending_calc_question(conversation_id, workspace_id)
+        if not question:
             return False
-        task = (lifecycle.find_active_task(conversation_id)
-                if conversation_id else None)
-        if task is None and canvas_id:
-            task = lifecycle.find_active_task_for_canvas(canvas_id)
-        if task is None and conversation_id:
-            # Fresh canvas-free turn: attach the job now so reload
-            # recovers it. create_task binds conversation_id; canvas
-            # rides provenance when the turn carries one.
-            try:
-                created = lifecycle.create_task(
-                    conversation_id,
-                    f"calculation for {item_label or 'item'}",
-                    provenance=(
-                        {"canvas_id": str(canvas_id)}
-                        if canvas_id else {}),
-                )
-                run_id = created.get("run_id")
-                task = lifecycle.get_task(run_id) if run_id else None
-            except Exception as _create_exc:  # noqa: BLE001
-                import logging as _logging
-
-                _logging.getLogger(__name__).warning(
-                    "calculation job creation failed "
-                    "(result_id=%s conversation=%s): %r",
-                    getattr(result, "result_id", "?"),
-                    conversation_id, _create_exc)
-                return False
-        if not task:
-            import logging as _logging
-
-            _logging.getLogger(__name__).warning(
-                "calculation job recording failed: no task "
-                "(result_id=%s conversation=%s canvas=%s)",
-                getattr(result, "result_id", "?"),
-                conversation_id, canvas_id)
+        inputs = question.get("inputs") or {}
+        missing = [str(m) for m in (inputs.get("missing") or [])]
+        if not missing:
             return False
-        record_calculation(
-            lifecycle, task["run_id"], item_label, result)
-        return True
-    except Exception as exc:  # noqa: BLE001 — recording is best-effort
-        import logging as _logging
-        _logging.getLogger(__name__).warning(
-            "calculation job recording failed "
-            "(result_id=%s conversation=%s): %r",
-            getattr(result, "result_id", "?"),
-            conversation_id, exc)
+        return bool(_bind_mentioned_inputs(str(message or ""), missing))
+    except Exception:  # noqa: BLE001 — additive guard
         return False
+
+
+async def calculate_followup_from_query(
+        query: str,
+        user_id: Optional[str],
+        workspace_id: Optional[str],
+        conversation_id: Optional[str] = None,
+        canvas_id: Optional[str] = None) -> Optional[str]:
+    """Complete or rebind the conversation's OWN calculation.
+
+    Two triggers, both deterministic on durable state:
+
+    * PENDING ANSWER — an open pending-input question exists and the
+      message binds >=1 of its missing inputs: bind over the question's
+      bound inputs; complete the calculation (own recorded operation)
+      or ask again for exactly what is still missing (no new record).
+    * RECALCULATE — a bare recalculate imperative plus an applied
+      taught-expression record on the job: bind the message's values
+      over the record's inputs; a changed value produces its OWN
+      operation (content-derived policy version; nothing changed →
+      nothing recomputed).
+
+    Returns None whenever neither trigger holds — explicit estimate
+    asks never reach here (earlier lanes answer them)."""
+    q = " ".join(str(query or "").split())
+    if not q or not conversation_id:
+        return None
+    lessons = _workspace_lessons(user_id, workspace_id)
+    exprs = {e["name"]: e for e in parse_taught_expressions(lessons)}
+
+    # --- trigger A: the answer to a pending-input question ------------
+    question = _pending_calc_question(conversation_id, workspace_id)
+    if question is not None:
+        inputs = question.get("inputs") or {}
+        missing = [str(m) for m in (inputs.get("missing") or [])]
+        item = str(question.get("item") or "")
+        e = exprs.get(item)
+        if e is not None and missing:
+            answered = _bind_mentioned_inputs(q, missing)
+            if answered:
+                # CHANGED TEACHING (owner counterexample): user-stated
+                # values persist across the answer turn, but taught
+                # DEFAULTS re-derive from the CURRENT lesson — resuming
+                # with the ask-time defaults would silently complete a
+                # calculation under teaching that no longer exists (and
+                # would mislabel it with the fresh policy version).
+                user_bound = {k: str(v) for k, v in
+                              (inputs.get("user_bound") or {}).items()}
+                bound = dict(e["defaults"])
+                bound.update(user_bound)
+                bound.update(answered)
+                still_missing = [i for i in e["idents"]
+                                 if i not in bound]
+                if still_missing:
+                    return _grounded(
+                        "LIVE TOOL RESULTS (datasets.calculate — "
+                        "natural) — INPUT NEEDED to use the taught "
+                        f"formula \"{e['name']}: {e['expr']}\" (lesson "
+                        f"{e['lesson_id'][:8]}): "
+                        + ", ".join(still_missing)
+                        + ". Ask the user for exactly these; do not "
+                          "guess.")
+                return _complete_taught_calculation(
+                    e, bound, newly_bound=sorted(answered),
+                    user_id=user_id, workspace_id=workspace_id,
+                    conversation_id=conversation_id, canvas_id=canvas_id,
+                    basis="taught expression (lesson "
+                          f"{e['lesson_id']}) evaluated by the general "
+                          "formula engine; missing inputs answered by "
+                          "the owner's reply")
+
+    # --- trigger B: a bare recalculate over the last computation ------
+    if _RECALC_IMPERATIVE_RE.search(q):
+        rec = _last_taught_calc(conversation_id, workspace_id)
+        if rec is not None:
+            item = str(rec.get("policy_id") or "").split(":", 1)[-1]
+            e = exprs.get(item)
+            prior = {str(k): str(v) for k, v in
+                     ((rec.get("inputs") or {}).get("inputs") or {}).items()}
+            if e is not None:
+                rebound = _bind_mentioned_inputs(q, e["idents"])
+                changed = {k: v for k, v in rebound.items()
+                           if prior.get(k) != v}
+                if changed:
+                    bound = dict(prior)
+                    bound.update(rebound)
+                    return _complete_taught_calculation(
+                        e, bound, newly_bound=sorted(changed),
+                        user_id=user_id, workspace_id=workspace_id,
+                        conversation_id=conversation_id,
+                        canvas_id=canvas_id,
+                        basis="taught expression (lesson "
+                              f"{e['lesson_id']}) evaluated by the general "
+                              "formula engine; recalculated with the "
+                              "owner's changed inputs")
+    return None
+
+
+def _complete_taught_calculation(
+        e: Dict[str, Any],
+        inputs: Dict[str, str],
+        *,
+        newly_bound: List[str],
+        user_id: Optional[str],
+        workspace_id: Optional[str],
+        conversation_id: Optional[str],
+        canvas_id: Optional[str],
+        basis: str) -> str:
+    """Evaluate the taught expression over the FINAL inputs, record the
+    result as its own operation, resolve the pending question, and
+    return the grounded block. Shared by both follow-up triggers."""
+    from core.formula_engine import evaluate_expression
+    from core.task_lifecycle import resolve_unresolved_questions
+
+    calc = evaluate_expression(e["expr"], inputs)
+    result = CalculationResult(
+        status=("succeeded" if calc.status == "computed"
+                else calc.status),
+        policy_id=f"taught-expression:{e['name']}",
+        policy_version=e.get("version", e["lesson_id"][:12]),
+        proposed=(Money(calc.value, "XXX", unit=(calc.unit or "value"))
+                  if calc.value is not None else None),
+        steps=list(calc.steps),
+        missing_dependency=(calc.missing or calc.unsupported or "")
+        if calc.status == "incomplete" else "",
+        dependencies=[d.to_dict() for d in calc.dependencies],
+        inputs_snapshot={
+            "item": e["name"],
+            "basis": basis,
+            "inputs": dict(inputs),
+            "request_supplied": sorted(newly_bound),
+            "taught_defaults": sorted(
+                k for k in e["defaults"] if k in inputs
+                and k not in newly_bound),
+        })
+    _recorded = _record_on_job(conversation_id, workspace_id,
+                               e["name"], result,
+                               canvas_id=canvas_id, user_id=user_id)
+    _publish_calc_record(
+        result, user_id=user_id,
+        conversation_id=conversation_id, canvas_id=canvas_id,
+        query=" ".join(newly_bound), persisted=_recorded)
+    # The pending question this turn answered must not stay open.
+    try:
+        lifecycle, run_id = _conversation_job(
+            conversation_id, workspace_id, canvas_id=canvas_id,
+            item_label=e["name"])
+        if lifecycle is not None and run_id:
+            resolve_unresolved_questions(
+                lifecycle, run_id, kinds=("verification",),
+                items=(e["name"],),
+                resolution=("the owner supplied the missing inputs; "
+                            f"the calculation completed ({calc.value}) "
+                            "and was recorded as its own operation"))
+    except Exception:  # noqa: BLE001 — resolution is additive
+        pass
+    lines = [f"**{e['name']} — taught formula, engine-computed**",
+             f"- Formula (taught): {e['expr']}"]
+    if calc.status == "computed":
+        lines.append(f"- Value (computed): {calc.value}")
+    else:
+        lines.append(f"- NOT COMPUTED — "
+                     f"{calc.missing or calc.unsupported}")
+    lines.append("- Inputs: " + ", ".join(
+        f"{k}={v}" + (" [from this reply]" if k in newly_bound
+                      else " [previously bound]")
+        for k, v in inputs.items()))
+    if calc.steps:
+        lines.append("- Steps: " + " → ".join(
+            str(s.get("output")) for s in calc.steps))
+    lines.extend(_persistence_note(_recorded).splitlines())
+    return _grounded(
+        "LIVE TOOL RESULTS (datasets.calculate — natural language; "
+        "the model did not compute this):\n" + "\n".join(lines),
+        result_id=result.result_id)
 
 
 async def _download_workbook_bytes(
@@ -2094,7 +2491,8 @@ async def calculate_expression_from_query(
                      "inputs were bound")
     # JOB INTEGRATION: same durable recording as the workbook path.
     # Unknown currency stays XXX in the record (never invented here);
-    # narration must not render $, CAD or USD for it.
+    # narration must not render $, CAD or USD for it. The durable
+    # outcome rides the record env and the block (release case 3).
     result = CalculationResult(
         status=("succeeded" if calc.status == "computed"
                 else "incomplete"),
@@ -2113,12 +2511,14 @@ async def calculate_expression_from_query(
                      "general formula engine (core.formula_engine)",
             "inputs": {d.cell: d.value for d in named},
         })
+    _recorded = _record_on_job(conversation_id, workspace_id, expr[:60],
+                               result, canvas_id=canvas_id,
+                               user_id=user_id)
     _publish_calc_record(
         result, user_id=user_id,
         conversation_id=conversation_id, canvas_id=canvas_id,
-        query=query)
-    _record_on_job(conversation_id, workspace_id, expr[:60], result,
-                   canvas_id=canvas_id, user_id=user_id)
+        query=query, persisted=_recorded)
+    lines.extend(_persistence_note(_recorded).splitlines())
     return _grounded(
         "LIVE TOOL RESULTS (datasets.calculate — formula engine, "
         "named inputs; the model did not compute this):\n"
@@ -2412,6 +2812,17 @@ async def calculate_natural_from_query(
         inputs.update(mentioned)
         missing = [i for i in e["idents"] if i not in inputs]
         if missing:
+            # DURABLE PENDING STATE (release case 3): the question rides
+            # the job as a verification question carrying the structured
+            # inputs — the owner's bare ANSWER turn binds from it
+            # deterministically (and after a restart), instead of the
+            # routing depending on the planner. NO calculate operation
+            # is recorded for the asking turn.
+            _record_pending_calc_inputs(
+                conversation_id, workspace_id, e["name"], missing,
+                inputs, e["expr"],
+                e.get("version", e["lesson_id"][:12]),
+                canvas_id=canvas_id, user_bound=dict(mentioned))
             return _grounded(
                 "LIVE TOOL RESULTS (datasets.calculate — natural) — "
                 f"INPUT NEEDED to use the taught formula "
@@ -2447,12 +2858,17 @@ async def calculate_natural_from_query(
                 "request_supplied": sorted(mentioned),
                 "taught_defaults": sorted(e["defaults"]),
             })
+        # DURABLE OUTCOME (release case 3): record first, then publish
+        # with the outcome and carry it on the block — a failed job
+        # write is stated in the same block as the result, and the
+        # narration guard refuses "saved/recorded" claims for it.
+        _recorded = _record_on_job(conversation_id, workspace_id,
+                                   e["name"], result,
+                                   canvas_id=canvas_id, user_id=user_id)
         _publish_calc_record(
             result, user_id=user_id,
             conversation_id=conversation_id, canvas_id=canvas_id,
-            query=query)
-        _record_on_job(conversation_id, workspace_id, e["name"], result,
-                       canvas_id=canvas_id, user_id=user_id)
+            query=query, persisted=_recorded)
         lines = [f"**{e['name']} — taught formula, engine-computed**",
                  f"- Formula (taught): {e['expr']}"]
         if calc.status == "computed":
@@ -2467,6 +2883,7 @@ async def calculate_natural_from_query(
         if calc.steps:
             lines.append("- Steps: " + " → ".join(
                 str(s.get("output")) for s in calc.steps))
+        lines.extend(_persistence_note(_recorded).splitlines())
         return _grounded(
             "LIVE TOOL RESULTS (datasets.calculate — natural language; "
             "the model did not compute this):\n" + "\n".join(lines),
@@ -2538,6 +2955,14 @@ async def calculate_natural_from_query(
     return None
 
 
+#: A bare imperative to recalculate/recompute — regardless of family.
+#: Named so the conversation-state follow-up resolver (release case 3)
+#: and the explicit-ask classifier share ONE definition of the shape.
+_RECALC_IMPERATIVE_RE = _re.compile(
+    r"\b(?:re-?calculate|recompute|run\s+the?"
+    r"\s+calculation)\b", _re.IGNORECASE)
+
+
 def message_requires_calculation(message: str) -> bool:
     """Whether the message is an EXPLICIT calculation ask — the shapes
     that must dispatch the engine (or its validated reuse) rather than
@@ -2554,7 +2979,6 @@ def message_requires_calculation(message: str) -> bool:
     if _NAT_PRICE_RE.search(m):
         return True
     # a bare imperative to recalculate/recompute — regardless of family
-    if _re.search(r"\b(?:re-?calculate|recompute|run\s+the?"
-                  r"\s+calculation)\b", m, _re.IGNORECASE):
+    if _RECALC_IMPERATIVE_RE.search(m):
         return True
     return False
