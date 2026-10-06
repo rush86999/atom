@@ -843,19 +843,24 @@ def record_calculation(
     try:
         # ONE CALCULATION OPERATION PER CALCULATED CONTENT (release case
         # 3, owner assignment: "exactly the two expected calculations"):
-        # the lifecycle's own Stripe-style idempotency, keyed on WHAT was
-        # calculated (policy + version + status + full inputs snapshot).
-        # A turn dispatched by two arms with different QUERY TEXTS but
-        # the same calculation replays to the same operation instead of
-        # writing a duplicate; a genuinely different input set (a
-        # recalculation) is a different key and records its own op.
+        # the lifecycle's own Stripe-style idempotency, keyed on the
+        # calculation's IDENTITY — policy, version, status, item and the
+        # input VALUES — never the snapshot's prose (the two dispatch
+        # arms describe the same answer with different `basis` text,
+        # which must not split the operation). A turn dispatched by two
+        # arms with different query texts but the same calculation
+        # replays to the same operation; a genuinely different input set
+        # (a recalculation) is a different key and records its own op.
         import hashlib as _calc_hash
         import json as _calc_json
 
+        _snap = result.inputs_snapshot or {}
+        _key_inputs = {str(k): str(v) for k, v in
+                       (_snap.get("inputs") or {}).items()}
         _idem = "calc:" + _calc_hash.sha256("|".join((
             str(result.policy_id), str(result.policy_version),
-            str(result.status),
-            _calc_json.dumps(result.inputs_snapshot, sort_keys=True,
+            str(result.status), str(_snap.get("item") or item_label),
+            _calc_json.dumps(_key_inputs, sort_keys=True,
                              default=str))).encode()).hexdigest()[:40]
         op = lifecycle.create_operation(
             run_id, op_type="calculate",
