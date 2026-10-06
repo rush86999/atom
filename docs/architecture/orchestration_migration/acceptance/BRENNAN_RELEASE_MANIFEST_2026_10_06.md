@@ -48,36 +48,49 @@ candidate. Three trials per case, same candidate; every trial reported.
 - Expected: ONE precise question for the missing inputs; computation via
   the engine ($2,625 then $1,800); each recorded as its OWN operation with
   inputs + content-derived policy version; distinctions preserved.
-- Verdict: [~] [ ] [ ]
-  - Trial 1 (2026-10-06, dev stack, provider deepseek-flash via API,
-    canvas-free session `c3t1-c4fb4e12`, agent 9837ec71): **SPLIT —
-    interaction PASS, durable recording FAIL.**
-    - Interaction: PASS. One precise turn naming exactly the two missing
-      inputs (hours, materials); then "$2,625 (17.5 hours × $150/hr, no
-      materials)"; then "ROUNDUP(12 × $150 + $0) = $1,800". All figures
-      correct.
-    - Durable: FAIL. The conversation's job (goal_run c5dc43ab) holds
-      three `retrieve running` operations and NO calculate operations —
-      and the session's chat rows carry NO published calc records
-      either. Root-cause evidence: these turns dispatched through the
-      LLM TOOL PLAN ("tool plan executed: datasets.calculate:…"), which
-      produced narrated figures WITHOUT either leg of the calculation
-      record pipeline (`_publish_calc_record` + `_record_on_job`): no
-      job op, no session record, no recording warning. The
-      derivation-seam lane (this morning's canvas session, job
-      e0170ffb) records both — the guarantee holds on ONE of the two
-      calculate dispatch paths. A correct-looking narrated figure with
-      no structured record is exactly the class this suite exists to
-      catch.
-    - Additional finding (bounded, correctness unaffected): on the
-      tool-plan path the figure-grounding guard flagged the CORRECT
-      engine figures ("reply states figures the evidence does not
-      contain: $0, $17.50, 2,625.00…") and ran grounded regeneration;
-      final replies stayed correct. The tool-plan path lacks the
-      structured-record grounding the derivation-seam lane publishes.
-    - Trials 2-3 PENDING: not run against a candidate with a known
-      recording defect on this path — fix first, then run all three
-      trials clean (this trial stays on record as the failure it is).
+- Verdict history (candidate a4699860a, superseded): trial 1 was SPLIT —
+  interaction PASS, durable FAIL. Root-caused via an isolated fixture
+  with the real teaching (lesson 1451b758; trace:
+  `backend/scripts/orchestration_acceptance/case3_record_trace.py`) to
+  TWO missing transitions: (1) the structured planner emits DOTTED
+  service names ("datasets.calculate") but the executor's local branches
+  dispatch on service="datasets" + intent="calculate" — dotted names
+  fell through to the generic external-integration branch, whose
+  "nothing usable" failure block let the model self-compute the figures
+  in narration (figure-grounding flagged them once; the regen
+  re-narrated); (2) the planner folds inputs into its query as compact
+  "hours=17.5 materials=0" pairs, which the input binder neither bound
+  (whitespace required around the operator) nor bound safely (the
+  word-order pattern stole "17.5 materials" adjacency). Fixed at the
+  shared boundary in candidate 78ba06084: executor normalization of
+  dotted datasets.* names onto the local dispatch + kv-first input
+  binding — one convergence point, the EXISTING recording seam, no
+  second recording call. Regressions:
+  backend/tests/test_calculate_toolplan_boundary.py (6/6: local-lane
+  routing, missing-input asks-and-records-nothing, one op per request
+  with its own inputs, changed-input recalc as its own op, duplicate
+  dispatch dedup, two conversations with different taught rates).
+- Verdict (candidate 78ba06084, dev stack restarted, 2026-10-06, API,
+  canvas-free sessions, agent 9837ec71): **[ ] [ ] [x]**
+  - Trial 1: **FAIL** — T2 recorded (calculate applied, 2625); T3
+    ("Recalculate — 12 hours.") answered with a correct narrated figure
+    but NO calculate operation (job held one calculate op).
+  - Trial 2: **FAIL** — T2 (17.5h) correct in narration ($2,625, with a
+    verification note) but UNRECORDED; T3 recorded (1800).
+  - Trial 3: **PASS** — one precise question (rate bound, asks exactly
+    hours + materials); $2,625; $1,800; job holds TWO calculate
+    operations (applied, 2625 + 1800), one per computation, each with
+    its own inputs.
+  - Residual defect (directive 3 not fully closed): routing of BARE
+    follow-up turns ("17.5 hours, no materials." / "Recalculate — 12
+    hours.") is planner-dependent — the deterministic
+    calculation-override fires only on estimate-regex messages, so a
+    follow-up whose planner plan is not datasets.calculate computes by
+    narration without a record. Fix direction: the pending-input
+    question flow must bind the ANSWER turn to the same lane
+    deterministically (conversation-state-aware override), not a wider
+    regex. All three trials stay on record; the passing trial is
+    evidence the shared boundary works when the plan routes to it.
 
 ### Case 4 — Ambiguous item, conflicting source versions, approved manual value
 - Input: an item code carried by multiple files/versions; one row holds an
