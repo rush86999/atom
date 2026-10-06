@@ -347,7 +347,26 @@ def test_m4_corrupt_metadata_is_never_rewritten(monkeypatch, exec_db):
     from integrations.chat_routes import _finalize_chat_response
 
     monkeypatch.setenv("CHAT_FINALIZATION_M1", "1")
-    _failed_row(exec_db, "execution-1", metadata="not-json{{{")
+    _failed_row(exec_db, "execution-1")
+    # The corrupt blob is written AFTER the insert: the mapper-level
+    # ownership stamp (core.models._stamp_execution_owner, finish-line
+    # d78613777) legitimately initializes insert-time metadata with the
+    # process owner block, so a corrupt string handed to the INSERT is
+    # replaced before any finalizer runs. The M4 contract under test is
+    # narrower and still load-bearing: the FINALIZATION seam must never
+    # rewrite (or "repair") a corrupt stored blob while it reads the
+    # execution record.
+    from sqlalchemy import update
+
+    from core.models import AgentExecution
+
+    with exec_db() as db:
+        db.execute(
+            update(AgentExecution)
+            .where(AgentExecution.id == "execution-1")
+            .values(metadata_json="not-json{{{")
+        )
+        db.commit()
     with exec_db() as db:
         result = _finalize_chat_response(
             db,
