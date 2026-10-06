@@ -14780,8 +14780,29 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # around the calculation and the reply narrated memory. The
             # lane is dispatched HERE, its receipt satisfies the datasets
             # obligation, and no source-chaining runs.
+            # FOLLOW-UP TURNS TOO (verify-202f8dc5, owner assignment 2):
+            # "Recalculate — 12 hours." carries none of the research
+            # words, so this arm — the one whose executor reaches the
+            # follow-up lane — never dispatched it and the turn flowed
+            # to a planner-dependent branch that narrated $1,800 with
+            # no record. Calculation-shaped is decided by MESSAGE SHAPE
+            # or DURABLE conversation state, never by _research_turn.
             _calc_lane_block: Optional[str] = None
-            if message and _research_turn:
+            _calc_shaped = False
+            try:
+                from core.pricing_calculation import (
+                    _calc_followup_dispatch as _followup_guard,
+                    message_requires_calculation as _msg_calc,
+                )
+
+                _calc_shaped = bool(
+                    message
+                    and (_msg_calc(message)
+                         or _followup_guard(message, session_id,
+                                            workspace_id)))
+            except Exception:  # noqa: BLE001 — shape check is additive
+                _calc_shaped = False
+            if message and (_research_turn or _calc_shaped):
                 try:
                     from core.pricing_calculation import (
                         message_requires_calculation as _msg_calc,
@@ -14791,7 +14812,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # seam: "figure out how this price was derived"
                     # walks an existing value's chain — the derivation
                     # lane answers it, the engine does not recompute.
-                    if _msg_calc(message) and not _derivation_ask(
+                    if _calc_shaped and not _derivation_ask(
                             message, {"history": planner_history or history}):
                         from core.chat_tool_planner import ToolPlan as _TP
                         from core.chat_tool_planner import (

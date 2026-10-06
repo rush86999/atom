@@ -2146,34 +2146,38 @@ def _record_pending_calc_inputs(
         return False
 
 
-def _pending_calc_question(
+def _open_pending_questions(
         conversation_id: Optional[str],
-        workspace_id: Optional[str]) -> Optional[Dict[str, Any]]:
-    """The conversation's NEWEST open pending-input question, or None."""
+        workspace_id: Optional[str]) -> List[Dict[str, Any]]:
+    """The conversation's open pending-input questions, oldest first."""
     if not conversation_id:
-        return None
+        return []
     try:
         from integrations.chat_orchestrator import _task_lifecycle_for
 
         lifecycle = _task_lifecycle_for(None, workspace_id)
         if lifecycle is None:
-            return None
+            return []
         task = lifecycle.find_active_task(conversation_id)
         if task is None:
-            return None
+            return []
         questions = ((task.get("task_revision") or {}).get("unresolved")
                      or [])
-        for question in reversed(questions):
-            if str(question.get("status") or "") != "open":
-                continue
-            inputs = question.get("inputs")
-            if (isinstance(inputs, dict)
-                    and inputs.get(_PENDING_CALC_MARKER)
-                    and question.get("kind") == "verification"):
-                return question
-        return None
+        return [q for q in questions
+                if str(q.get("status") or "") == "open"
+                and isinstance(q.get("inputs"), dict)
+                and q["inputs"].get(_PENDING_CALC_MARKER)
+                and q.get("kind") == "verification"]
     except Exception:  # noqa: BLE001 — pending state is additive
-        return None
+        return []
+
+
+def _pending_calc_question(
+        conversation_id: Optional[str],
+        workspace_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    """The conversation's NEWEST open pending-input question, or None."""
+    open_qs = _open_pending_questions(conversation_id, workspace_id)
+    return open_qs[-1] if open_qs else None
 
 
 def _last_taught_calc(
@@ -2212,19 +2216,37 @@ def _calc_followup_dispatch(
         conversation_id: Optional[str],
         workspace_id: Optional[str]) -> bool:
     """Whether THIS turn deterministically belongs to the calculate
-    lane as a pending-input ANSWER (release case 3): the conversation
-    carries an open pending-input question and the message binds at
-    least one of its missing inputs. Cheap guard for the orchestrator's
-    calculation override; the resolver re-validates everything."""
+    lane as a follow-up of the conversation's OWN recorded calculation
+    state (release case 3). Two triggers, both checked against durable
+    job state — the resolver re-validates everything:
+
+    * PENDING ANSWER — an open pending-input question exists and the
+      message binds at least one of its missing inputs;
+    * RECALCULATE — a bare recalculate imperative while the job carries
+      an APPLIED taught-expression calculation to rebind over (the
+      mechanism's second arm; same imperative shape
+      message_requires_calculation already matches — no new shapes).
+
+    SAME-CONVERSATION AMBIGUITY (owner assignment 4): with more than one
+    open pending-input question a bare answer cannot be attributed to
+    one of them deterministically — do NOT route; the ordinary flow asks
+    which calculation the owner is answering."""
     try:
+        text = str(message or "")
+        if not text:
+            return False
+        if len(_open_pending_questions(conversation_id, workspace_id)) > 1:
+            return False
         question = _pending_calc_question(conversation_id, workspace_id)
-        if not question:
-            return False
-        inputs = question.get("inputs") or {}
-        missing = [str(m) for m in (inputs.get("missing") or [])]
-        if not missing:
-            return False
-        return bool(_bind_mentioned_inputs(str(message or ""), missing))
+        if question is not None:
+            inputs = question.get("inputs") or {}
+            missing = [str(m) for m in (inputs.get("missing") or [])]
+            if missing and _bind_mentioned_inputs(text, missing):
+                return True
+        if _RECALC_IMPERATIVE_RE.search(text):
+            return _last_taught_calc(
+                conversation_id, workspace_id) is not None
+        return False
     except Exception:  # noqa: BLE001 — additive guard
         return False
 
@@ -2258,45 +2280,65 @@ async def calculate_followup_from_query(
     exprs = {e["name"]: e for e in parse_taught_expressions(lessons)}
 
     # --- trigger A: the answer to a pending-input question ------------
-    question = _pending_calc_question(conversation_id, workspace_id)
-    if question is not None:
-        inputs = question.get("inputs") or {}
-        missing = [str(m) for m in (inputs.get("missing") or [])]
-        item = str(question.get("item") or "")
-        e = exprs.get(item)
-        if e is not None and missing:
-            answered = _bind_mentioned_inputs(q, missing)
-            if answered:
-                # CHANGED TEACHING (owner counterexample): user-stated
-                # values persist across the answer turn, but taught
-                # DEFAULTS re-derive from the CURRENT lesson — resuming
-                # with the ask-time defaults would silently complete a
-                # calculation under teaching that no longer exists (and
-                # would mislabel it with the fresh policy version).
-                user_bound = {k: str(v) for k, v in
-                              (inputs.get("user_bound") or {}).items()}
-                bound = dict(e["defaults"])
-                bound.update(user_bound)
-                bound.update(answered)
-                still_missing = [i for i in e["idents"]
-                                 if i not in bound]
-                if still_missing:
-                    return _grounded(
-                        "LIVE TOOL RESULTS (datasets.calculate — "
-                        "natural) — INPUT NEEDED to use the taught "
-                        f"formula \"{e['name']}: {e['expr']}\" (lesson "
-                        f"{e['lesson_id'][:8]}): "
-                        + ", ".join(still_missing)
-                        + ". Ask the user for exactly these; do not "
-                          "guess.")
-                return _complete_taught_calculation(
-                    e, bound, newly_bound=sorted(answered),
-                    user_id=user_id, workspace_id=workspace_id,
-                    conversation_id=conversation_id, canvas_id=canvas_id,
-                    basis="taught expression (lesson "
-                          f"{e['lesson_id']}) evaluated by the general "
-                          "formula engine; missing inputs answered by "
-                          "the owner's reply")
+    # SAME-CONVERSATION AMBIGUITY: with several open pendings a bare
+    # answer is not attributable — leave it to the ordinary flow.
+    if len(_open_pending_questions(conversation_id, workspace_id)) <= 1:
+        question = _pending_calc_question(conversation_id, workspace_id)
+        if question is not None:
+            inputs = question.get("inputs") or {}
+            missing = [str(m) for m in (inputs.get("missing") or [])]
+            item = str(question.get("item") or "")
+            e = exprs.get(item)
+            if e is not None and missing:
+                answered = _bind_mentioned_inputs(q, missing)
+                if answered:
+                    # CHANGED TEACHING (owner counterexample): user-stated
+                    # values persist across the answer turn, but taught
+                    # DEFAULTS re-derive from the CURRENT lesson — resuming
+                    # with the ask-time defaults would silently complete a
+                    # calculation under teaching that no longer exists (and
+                    # would mislabel it with the fresh policy version).
+                    user_bound = {k: str(v) for k, v in
+                                  (inputs.get("user_bound") or {}).items()}
+                    bound = dict(e["defaults"])
+                    bound.update(user_bound)
+                    bound.update(answered)
+                    still_missing = [i for i in e["idents"]
+                                     if i not in bound]
+                    if still_missing:
+                        return _grounded(
+                            "LIVE TOOL RESULTS (datasets.calculate — "
+                            "natural) — INPUT NEEDED to use the taught "
+                            f"formula \"{e['name']}: {e['expr']}\" (lesson "
+                            f"{e['lesson_id'][:8]}): "
+                            + ", ".join(still_missing)
+                            + ". Ask the user for exactly these; do not "
+                              "guess.")
+                    # DISCLOSURE (owner assignment 5): when a taught
+                    # DEFAULT changed between the ask and the answer and
+                    # the owner did not state that input, the completion
+                    # says so — one identifiable current version, user
+                    # inputs preserved, the changed default named.
+                    ask_bound = {k: str(v) for k, v in
+                                 (inputs.get("bound") or {}).items()}
+                    disclosures = [
+                        f"taught {k} changed since the estimate was "
+                        f"requested: {ask_bound.get(k)} → {v} per hour"
+                        if k == "rate" else
+                        f"taught {k} changed since the estimate was "
+                        f"requested: {ask_bound.get(k)} → {v}"
+                        for k, v in sorted(e["defaults"].items())
+                        if k not in user_bound and k not in answered
+                        and str(ask_bound.get(k)) != str(v)]
+                    return _complete_taught_calculation(
+                        e, bound, newly_bound=sorted(answered),
+                        user_id=user_id, workspace_id=workspace_id,
+                        conversation_id=conversation_id, canvas_id=canvas_id,
+                        basis="taught expression (lesson "
+                              f"{e['lesson_id']}) evaluated by the general "
+                              "formula engine; missing inputs answered by "
+                              "the owner's reply",
+                        disclosures=disclosures)
 
     # --- trigger B: a bare recalculate over the last computation ------
     if _RECALC_IMPERATIVE_RE.search(q):
@@ -2334,7 +2376,8 @@ def _complete_taught_calculation(
         workspace_id: Optional[str],
         conversation_id: Optional[str],
         canvas_id: Optional[str],
-        basis: str) -> str:
+        basis: str,
+        disclosures: Optional[List[str]] = None) -> str:
     """Evaluate the taught expression over the FINAL inputs, record the
     result as its own operation, resolve the pending question, and
     return the grounded block. Shared by both follow-up triggers."""
@@ -2394,6 +2437,9 @@ def _complete_taught_calculation(
         f"{k}={v}" + (" [from this reply]" if k in newly_bound
                       else " [previously bound]")
         for k, v in inputs.items()))
+    for note in (disclosures or []):
+        lines.append(f"- Note: {note} — the calculation uses the "
+                      "current teaching")
     if calc.steps:
         lines.append("- Steps: " + " → ".join(
             str(s.get("output")) for s in calc.steps))

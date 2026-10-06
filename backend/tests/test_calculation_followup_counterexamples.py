@@ -224,3 +224,69 @@ def test_completion_after_changed_teaching_uses_current_policy(world):
     fresh = parse_taught_expressions([LESSON_200])[0]
     assert ver == str(fresh.get("version"))
     assert str(((rec.get("proposed") or {}).get("amount"))).startswith("3500")
+
+
+# -- 4b. two pending calculations in ONE conversation ---------------
+def test_same_conversation_two_pendings_is_ambiguous(world):
+    """Two open pending-input questions in the SAME conversation: a
+    bare answer cannot be attributed to one of them — the deterministic
+    binding must NOT route, and neither pending is consumed.
+
+    The second pending is recorded through the lane's own recording
+    function with a DISTINCT item (same-item questions dedupe by
+    (item, text) — a repeated identical ask is tracked, never a second
+    open question)."""
+    _ask("cx-amb-1")
+    from core.pricing_calculation import (_open_pending_questions,
+                                          _record_pending_calc_inputs)
+    _record_pending_calc_inputs(
+        "cx-amb-1", "default", "Freight estimate", ["weight"],
+        {"rate": "0.5"}, "weight * rate", "v-freight-1")
+    assert len(_open_pending_questions("cx-amb-1", "default")) == 2
+    msg = "17.5 hours, no materials"
+    assert _dispatch(msg, "cx-amb-1") is False
+    assert _followup("cx-amb-1", msg) is None
+    # neither pending was consumed, no calculation was recorded
+    assert len(_open_pending_questions("cx-amb-1", "default")) == 2
+    assert _job_snapshot("cx-amb-1")[0] == 0
+
+
+# -- 5b. teaching-change disclosure -----------------------------------
+def test_changed_taught_default_is_disclosed(world):
+    """One identifiable CURRENT policy version; explicit user inputs
+    preserved; when a changed taught default moved an input the owner
+    did not state, the completion DISCLOSES it — never old defaults
+    under a new version label."""
+    _ask("cx-disclose")
+    import core.database as dbmod
+    with dbmod.get_db_session() as db:
+        db.query(AgentRegistry).filter(
+            AgentRegistry.id == "cx-agent").update(
+            {"configuration": {"learning": {"log": [LESSON_200]}}})
+    block = _followup("cx-disclose", "17.5 hours, no materials")
+    assert block and "3500" in block
+    # the disclosure names the moved default and the direction
+    assert "taught rate changed" in block
+    assert "150" in block and "200" in block
+    assert "current teaching" in block
+    # user-stated inputs survived the teaching change verbatim
+    assert "hours=17.5" in block and "materials=0" in block
+    # the record carries ONE version — the CURRENT one
+    from core.goals.goal_run_service import GoalRunService
+    from core.goals.goal_service import GoalService
+    from core.task_lifecycle import TaskLifecycle
+    tl = TaskLifecycle(
+        GoalRunService(workspace_id="default", tenant_id="default",
+                       session_factory=_STATE["factory"]),
+        GoalService(workspace_id="default", tenant_id="default",
+                    session_factory=_STATE["factory"]))
+    task = tl.find_active_task("cx-disclose")
+    ops = [o for o in (task.get("operations") or [])
+           if o.get("operation_type") == "calculate"]
+    assert len(ops) == 1
+    rec = ops[0].get("calculation") or {}
+    from core.pricing_calculation import parse_taught_expressions
+    fresh = parse_taught_expressions([LESSON_200])[0]
+    assert str(rec.get("policy_version")) == str(fresh.get("version"))
+    assert str(((rec.get("proposed") or {}).get("amount"))
+               ).startswith("3500")
