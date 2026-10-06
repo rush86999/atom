@@ -841,12 +841,29 @@ def record_calculation(
     if lifecycle is None or not run_id:
         return None
     try:
+        # ONE CALCULATION OPERATION PER CALCULATED CONTENT (release case
+        # 3, owner assignment: "exactly the two expected calculations"):
+        # the lifecycle's own Stripe-style idempotency, keyed on WHAT was
+        # calculated (policy + version + status + full inputs snapshot).
+        # A turn dispatched by two arms with different QUERY TEXTS but
+        # the same calculation replays to the same operation instead of
+        # writing a duplicate; a genuinely different input set (a
+        # recalculation) is a different key and records its own op.
+        import hashlib as _calc_hash
+        import json as _calc_json
+
+        _idem = "calc:" + _calc_hash.sha256("|".join((
+            str(result.policy_id), str(result.policy_version),
+            str(result.status),
+            _calc_json.dumps(result.inputs_snapshot, sort_keys=True,
+                             default=str))).encode()).hexdigest()[:40]
         op = lifecycle.create_operation(
             run_id, op_type="calculate",
             requested_change=(
                 f"calculate proposed price for {item_label or 'item'} "
                 f"under policy {result.policy_id} "
-                f"(v{result.policy_version})"))
+                f"(v{result.policy_version})"),
+            idempotency_key=_idem)
         status_map = {
             "succeeded": "applied",
             # COMPUTED WITH SUBSTITUTIONS (round 72): the arithmetic ran
@@ -869,12 +886,18 @@ def record_calculation(
             # the distinction stated as durable next-work.
             "stored_value": "waiting",
         }
+        _final_status = status_map.get(result.status, "failed")
+        if (op.get("status") == _final_status
+                and op.get("calculation") is not None):
+            # A replayed COMPLETED operation is not re-transitioned —
+            # the record already stands; the duplicate dispatch replays
+            # to this same operation instead of writing a second one.
+            return op
         lifecycle.transition_operation(
             run_id, op["operation_id"], "running",
             execution_id=execution_id)
         lifecycle.transition_operation(
-            run_id, op["operation_id"],
-            status_map.get(result.status, "failed"),
+            run_id, op["operation_id"], _final_status,
             execution_id=execution_id)
         lifecycle.attach_operation_field(
             run_id, op["operation_id"], "calculation",
