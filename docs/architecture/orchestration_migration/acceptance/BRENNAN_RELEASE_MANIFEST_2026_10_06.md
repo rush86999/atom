@@ -49,6 +49,29 @@ candidate. Three trials per case, same candidate; every trial reported.
 - Expected: ONE precise question for the missing inputs; computation via
   the engine ($2,625 then $1,800); each recorded as its OWN operation with
   inputs + content-derived policy version; distinctions preserved.
+- Verdict (candidate af2729ec0, dev stack restarted pid 61680,
+  2026-10-06, the ORIGINAL case-3 conversation via the public endpoint,
+  3 trials): **[x] [x] [x]** — every trial recorded EXACTLY the two
+  expected calculations: applied 2625 {rate=150, hours=17.5,
+  materials=0} and applied 1800 {rate=150, hours=12, materials=0},
+  precise missing-input question first, correct figures throughout.
+  Repair chain from the failed trials: f9d1e2be3 (turn binding — the
+  goal-session arm dispatches calculation-shaped-by-durable-state turns
+  regardless of research words; the existing guard covers its own
+  recalc trigger; same-conversation ambiguity stays un-routed; changed
+  taught defaults are disclosed); f0c9bbbaa + af2729ec0 (calculate
+  operations carry a content-derived idempotency key on the lifecycle's
+  own Stripe-style idempotency — identity = policy + version + status +
+  item + input VALUES + computed value, never snapshot prose — the same
+  calculation replays to one operation, a recalculation's changed
+  inputs record their own). Interim failures preserved: f9d1e2be3's
+  trials recorded 2625 twice (two dispatch arms, different query
+  texts); f0c9bbbaa collapsed snapshot-less results until the round-75
+  pin caught it. Suites: 123/123 combined (follow-up 8/8, boundary
+  12/12, pricing 84/84, finalization 15/15). Known intermittent
+  TestRound72VersionCoherence recurred once in a combined run (passed
+  isolated and in two full-file runs) — occurrence on record, not
+  closure.
 - Verdict history (candidate a4699860a, superseded): trial 1 was SPLIT —
   interaction PASS, durable FAIL. Root-caused via an isolated fixture
   with the real teaching (lesson 1451b758; trace:
