@@ -1418,7 +1418,8 @@ async def calculate_workbook_from_query(
         query: str,
         user_id: Optional[str],
         workspace_id: Optional[str],
-        conversation_id: Optional[str] = None) -> Optional[str]:
+        conversation_id: Optional[str] = None,
+        canvas_id: Optional[str] = None) -> Optional[str]:
     """The planner lane's WORKBOOK entry (rounds 69-70):
 
         calculate price for FILE.xlsx SHEET row N cell XN [currency=CAD] [item=..]
@@ -1692,7 +1693,7 @@ async def calculate_workbook_from_query(
     # optional follow-up.
     _record_on_job(conversation_id, workspace_id,
                    item_label or f"{sheet_name} row {row_number}",
-                   result)
+                   result, canvas_id=canvas_id)
     body = render_comparison(
         item_label or f"{sheet_name} row {row_number}", None, result)
     label = ("workbook"
@@ -1707,15 +1708,18 @@ def _record_on_job(
         conversation_id: Optional[str],
         workspace_id: Optional[str],
         item_label: str,
-        result: CalculationResult) -> bool:
+        result: CalculationResult,
+        canvas_id: Optional[str] = None) -> bool:
     """Persist a calculation onto the conversation's active job run
     (best-effort, never blocks the turn). The operation's record
     carries identity (result_id, policy id + version), the inputs
     snapshot, every dependency, the RESULT TYPE (computed /
     stored_value / incomplete — a stored value cannot satisfy the
     calculation obligation) and provenance (workbook version,
-    authorizing teaching)."""
-    if not conversation_id:
+    authorizing teaching). Resolves the job by conversation first,
+    then by the bound canvas (goal-session turns may carry only the
+    canvas)."""
+    if not conversation_id and not canvas_id:
         return False
     try:
         from integrations.chat_orchestrator import _task_lifecycle_for
@@ -1723,7 +1727,10 @@ def _record_on_job(
         lifecycle = _task_lifecycle_for(None, workspace_id)
         if lifecycle is None:
             return False
-        task = lifecycle.find_active_task(conversation_id)
+        task = (lifecycle.find_active_task(conversation_id)
+                if conversation_id else None)
+        if task is None and canvas_id:
+            task = lifecycle.find_active_task_for_canvas(canvas_id)
         if not task:
             return False
         record_calculation(
@@ -1773,7 +1780,8 @@ async def calculate_expression_from_query(
         query: str,
         user_id: Optional[str],
         workspace_id: Optional[str],
-        conversation_id: Optional[str] = None) -> Optional[str]:
+        conversation_id: Optional[str] = None,
+        canvas_id: Optional[str] = None) -> Optional[str]:
     """The planner lane's NAMED-INPUT entry:
 
         calculate expression EXPR [with name=value name=value ...]
@@ -1839,7 +1847,8 @@ async def calculate_expression_from_query(
                      "general formula engine (core.formula_engine)",
             "inputs": {d.cell: d.value for d in named},
         })
-    _record_on_job(conversation_id, workspace_id, expr[:60], result)
+    _record_on_job(conversation_id, workspace_id, expr[:60], result,
+                   canvas_id=canvas_id)
     return _grounded(
         "LIVE TOOL RESULTS (datasets.calculate — formula engine, "
         "named inputs; the model did not compute this):\n"
@@ -1853,11 +1862,16 @@ async def calculate_expression_from_query(
 # and invokes deterministically, and asks ONLY necessary questions.
 # ---------------------------------------------------------------------------
 
-#: An estimate/service-job ask (the non-pricing family).
+#: An estimate/service-job ask (the non-pricing family). A
+#: RECALCULATE-that-estimate ask belongs here too — "recalculate"
+#: alone is matched by message_requires_calculation, but the family
+#: resolver must also recognize it or the ask falls through every
+#: lane and the reply narrates memory (live round 74).
 _NAT_ESTIMATE_RE = _re.compile(
     r"\b(?:estimate|quote)\b.*\b(?:job|service|work)\b"
     r"|\bservice\s+(?:job\s+)?estimate\b"
-    r"|\bjob\s+(?:estimate|cost)\b",
+    r"|\bjob\s+(?:estimate|cost)\b"
+    r"|\brecalculate\b[^.?!\n]*\bestimate\b",
     _re.IGNORECASE | _re.DOTALL)
 
 #: A selling-price ask (the workbook family).
@@ -1945,10 +1959,18 @@ def parse_taught_expressions(
                     _re.IGNORECASE)
                 if dm:
                     defaults[ident] = dm.group(1)
+            import hashlib as _hl
+
+            # CONTENT-derived version: a changed rate or formula is a
+            # different teaching even under the same lesson id — the
+            # recorded policy version must move with it (round 74).
+            version = _hl.sha256(
+                f"{lid}\x1f{expr}\x1f{sorted(defaults.items())}"
+                .encode("utf-8")).hexdigest()[:12]
             out.append({
                 "name": " ".join(str(disp or "").strip().split()),
                 "expr": expr, "idents": idents, "defaults": defaults,
-                "lesson_id": lid, "text": text})
+                "lesson_id": lid, "version": version, "text": text})
     return out
 
 
@@ -2064,7 +2086,8 @@ async def calculate_natural_from_query(
         query: str,
         user_id: Optional[str],
         workspace_id: Optional[str],
-        conversation_id: Optional[str] = None) -> Optional[str]:
+        conversation_id: Optional[str] = None,
+        canvas_id: Optional[str] = None) -> Optional[str]:
     """The natural-language entry: the trained employee's ORDINARY
     request, no calculator syntax. Two families:
 
@@ -2126,7 +2149,7 @@ async def calculate_natural_from_query(
             status=("succeeded" if calc.status == "computed"
                     else calc.status),
             policy_id=f"taught-expression:{e['name']}",
-            policy_version=e["lesson_id"][:12],
+            policy_version=e.get("version", e["lesson_id"][:12]),
             proposed=(Money(calc.value, "XXX", unit="value")
                       if calc.value is not None else None),
             steps=list(calc.steps),
@@ -2141,7 +2164,8 @@ async def calculate_natural_from_query(
                 "request_supplied": sorted(mentioned),
                 "taught_defaults": sorted(e["defaults"]),
             })
-        _record_on_job(conversation_id, workspace_id, e["name"], result)
+        _record_on_job(conversation_id, workspace_id, e["name"], result,
+                       canvas_id=canvas_id)
         lines = [f"**{e['name']} — taught formula, engine-computed**",
                  f"- Formula (taught): {e['expr']}"]
         if calc.status == "computed":
@@ -2224,3 +2248,25 @@ async def calculate_natural_from_query(
             user_id, workspace_id, conversation_id=conversation_id)
 
     return None
+
+
+def message_requires_calculation(message: str) -> bool:
+    """Whether the message is an EXPLICIT calculation ask — the shapes
+    that must dispatch the engine (or its validated reuse) rather than
+    be answered from conversation memory. Bounded to the three forms
+    the calculate lane understands; a mention of prices in an ordinary
+    search ask does NOT match."""
+    m = str(message or "").strip()
+    if not m:
+        return False
+    if _WB_QUERY_RE.search(m) or _EXPR_QUERY_RE.match(m):
+        return True
+    if _NAT_ESTIMATE_RE.search(m):
+        return True
+    if _NAT_PRICE_RE.search(m):
+        return True
+    # a bare imperative to recalculate/recompute — regardless of family
+    if _re.search(r"\b(?:re-?calculate|recompute|run\s+the?"
+                  r"\s+calculation)\b", m, _re.IGNORECASE):
+        return True
+    return False

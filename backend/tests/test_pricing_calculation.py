@@ -1863,3 +1863,122 @@ class TestRound73NaturalLanguage:
             "Calculate the selling price using the applicable workbook "
             "formula.", "u1", None)
         assert block and "WHICH ITEM?" in block
+
+
+class TestRound74ShadowingAndCompetingLessons:
+    """Round 74: an explicit calculation ask must dispatch the engine
+    (history never impersonates a computation), and competing
+    applicable lessons must produce a clarification, never first-match."""
+
+    LESSON_A = {
+        "id": "L-A",
+        "lesson": ("Service estimate: estimate = "
+                   "ROUNDUP(hours * rate + materials, 0). "
+                   "Our service rate is 150 per hour."),
+    }
+    LESSON_B = {
+        "id": "L-B",
+        "lesson": ("Rush job estimate: rush_estimate = "
+                   "ROUNDUP(hours * rate * 1.5 + materials, 0). "
+                   "Our service rate is 150 per hour."),
+    }
+
+    def test_calculation_shapes_require_dispatch(self):
+        from core.pricing_calculation import message_requires_calculation
+
+        assert message_requires_calculation(
+            "Estimate this service job using our taught rates.")
+        assert message_requires_calculation(
+            "Calculate the selling price for BurrKing 90703 using the "
+            "applicable workbook formula.")
+        assert message_requires_calculation(
+            "calculate price for c.xlsx S row 1 cell E1")
+        assert message_requires_calculation(
+            "recalculate that price with the new numbers")
+        # ordinary search/lookup asks do NOT force the engine
+        assert not message_requires_calculation(
+            "check the price of the U-22 in the quote")
+        assert not message_requires_calculation(
+            "what did the customer say about delivery?")
+
+    @pytest.mark.asyncio
+    async def test_competing_lessons_clarify_never_first_match(
+            self, monkeypatch):
+        from core import pricing_calculation as pc
+
+        monkeypatch.setattr(pc, "_workspace_lessons",
+                            lambda *a, **k: [self.LESSON_A, self.LESSON_B])
+        block = await pc.calculate_natural_from_query(
+            "Estimate this service job using our taught rates.", "u1",
+            None)
+        assert block and "SEVERAL TAUGHT FORMULAS" in block
+        # both candidates are named with their lessons
+        assert "ROUNDUP(hours * rate + materials, 0)" in block
+        assert "ROUNDUP(hours * rate * 1.5 + materials, 0)" in block
+        assert "L-A" in block and "L-B" in block
+        assert "do not guess" in block or "Ask which" in block
+
+    @pytest.mark.asyncio
+    async def test_changed_inputs_change_the_recorded_value(
+            self, tmp_path, monkeypatch):
+        """Changed hours must produce a NEW engine computation with a
+        different recorded value — the record carries the inputs that
+        produced it (never a replayed number)."""
+        from core import pricing_calculation as pc
+
+        monkeypatch.setattr(pc, "_workspace_lessons",
+                            lambda *a, **k: [self.LESSON_A])
+        recorded = []
+        monkeypatch.setattr(
+            pc, "_record_on_job",
+            lambda conv, ws, item, result, canvas_id=None: recorded.append(
+                (result.proposed.amount if result.proposed else None,
+                 result.inputs_snapshot.get("inputs"))))
+
+        await pc.calculate_natural_from_query(
+            "Estimate this service job using our taught rates — "
+            "10 hours, no materials.", "u1", None, conversation_id="c1")
+        await pc.calculate_natural_from_query(
+            "Estimate this service job using our taught rates — "
+            "20 hours, no materials.", "u1", None, conversation_id="c1")
+        assert len(recorded) == 2
+        assert recorded[0][0] != recorded[1][0]  # 1500 vs 3000
+        assert recorded[0][1]["hours"] == "10"
+        assert recorded[1][1]["hours"] == "20"
+
+    @pytest.mark.asyncio
+    async def test_changed_teaching_changes_the_policy_version(
+            self, monkeypatch):
+        """A changed lesson (new rate) changes the policy version the
+        next calculation records — the old version is never silently
+        reused."""
+        from core import pricing_calculation as pc
+
+        old_lesson = dict(self.LESSON_A)
+        new_lesson = {
+            "id": "L-A",
+            "lesson": ("Service estimate: estimate = "
+                       "ROUNDUP(hours * rate + materials, 0). "
+                       "Our service rate is 175 per hour.")}
+        seen_versions = []
+        captured = {}
+
+        def fake_record(conv, ws, item, result, canvas_id=None):
+            seen_versions.append(result.policy_version)
+            captured["value"] = (result.proposed.amount
+                                 if result.proposed else None)
+
+        monkeypatch.setattr(pc, "_workspace_lessons",
+                            lambda *a, **k: [old_lesson])
+        monkeypatch.setattr(pc, "_record_on_job", fake_record)
+        await pc.calculate_natural_from_query(
+            "Estimate this service job using our taught rates — "
+            "10 hours, no materials.", "u1", None)
+        monkeypatch.setattr(pc, "_workspace_lessons",
+                            lambda *a, **k: [new_lesson])
+        await pc.calculate_natural_from_query(
+            "Estimate this service job using our taught rates — "
+            "10 hours, no materials.", "u1", None)
+        assert len(seen_versions) == 2
+        assert seen_versions[0] != seen_versions[1]
+        assert captured["value"] == Decimal("1750")  # 10*175, not 1500

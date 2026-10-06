@@ -2789,7 +2789,56 @@ async def _derivation_supplement(
 ) -> Optional[str]:
     """Compose the derivation dataset block ahead of an existing tool
     block. For a derivation ask the workbook ROW is the answer (the mail
-    lines are its context); for any other ask this is a no-op."""
+    lines are its context); for any other ask this is a no-op.
+
+    CALCULATION DISPATCH (round 74): an explicit calculation ask runs
+    the calculate lane HERE — the shared evidence-assembly point both
+    the generic and the goal-session pipelines pass through. History
+    (or a reused singleflight block) must never impersonate a
+    computation: the engine result becomes THE evidence block."""
+    if message:
+        try:
+            from core.pricing_calculation import (
+                message_requires_calculation as _msg_calc,
+            )
+            from core.chat_tool_planner import ToolPlan as _TP
+            from core.chat_tool_planner import (
+                execute_tool_plan as _etp,
+            )
+
+            if _msg_calc(message):
+                _canvas_id = None
+                if isinstance(canvas, dict):
+                    _canvas_id = (canvas.get("canvas_id")
+                                  or canvas.get("id"))
+                _calc_block = await asyncio.wait_for(
+                    _etp(
+                        _TP(use_tool=True, service="datasets",
+                            intent="calculate", query=message[:400],
+                            reason=("explicit calculation ask — the "
+                                    "calculate lane outranks reused "
+                                    "evidence")),
+                        user_id,
+                        tenant_id="default",
+                        context={
+                            "message": message,
+                            "history": (history or [])[-6:],
+                            "canvas": canvas,
+                            "conversation_id": None,
+                            "canvas_id": _canvas_id,
+                        },
+                        llm_service=llm_service),
+                    timeout=110.0)
+                if _calc_block:
+                    logger.info(
+                        "[calc-lane] calculation ask answered by "
+                        "datasets.calculate via the derivation seam "
+                        "(%d chars)", len(_calc_block))
+                    return _calc_block
+        except Exception as _calc_err:  # noqa: BLE001 — additive lane
+            logger.warning(
+                "[calc-lane] derivation-seam dispatch failed: %r",
+                _calc_err)
     ds = await _derivation_dataset_block(
         message, user_id, {"history": history or [], "canvas": canvas},
         llm_service=llm_service)
@@ -13389,6 +13438,37 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     logger.info(
                         f"[stage-timing] tool plan (overlapped={tool_plan_task is not None}): "
                         f"{time.monotonic() - _plan_t0:.1f}s")
+                    # HISTORY-SHADOWING GUARD (round 74): an EXPLICIT
+                    # calculation ask must invoke the engine — or reuse a
+                    # prior calculation only through the lane's own
+                    # validation — never be answered from narrative
+                    # memory because the history already holds a similar
+                    # reply (live 2026-10-06: a repeated workbook ask
+                    # planned NO tool and narrated the old answer). The
+                    # engine is deterministic and cheap: dispatch wins.
+                    try:
+                        from core.pricing_calculation import (
+                            message_requires_calculation,
+                        )
+
+                        if (message
+                                and message_requires_calculation(message)
+                                and not (_plan and _plan.use_tool
+                                         and _plan.intent == "calculate")):
+                            from core.chat_tool_planner import ToolPlan
+
+                            _plan = ToolPlan(
+                                use_tool=True, service="datasets",
+                                intent="calculate", query=message[:400],
+                                reason=("explicit calculation ask — "
+                                        "the engine must run even when "
+                                        "history holds a prior result"))
+                            logger.info(
+                                "[calc-force] calculation-shaped ask "
+                                "forced to datasets.calculate despite "
+                                "planner/history")
+                    except Exception:  # noqa: BLE001 — force is additive
+                        pass
                     if _plan and _plan.use_tool:
                         _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
                         await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
@@ -14308,6 +14388,58 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 r"\b(?:research|verify|check|compare|comparison|"
                 r"workbook|quote|pricing|price|update)\b",
                 message or "", re.IGNORECASE))
+            # CALCULATION ASKS ARE NOT RESEARCH-RECOVERY TURNS (round 74):
+            # an explicit calculation ask on a goal-bound session must run
+            # the calculate lane — the research machinery's chained
+            # searches (value_trace over items, mailbox sweeps) answered
+            # around the calculation and the reply narrated memory. The
+            # lane is dispatched HERE, its receipt satisfies the datasets
+            # obligation, and no source-chaining runs.
+            _calc_lane_block: Optional[str] = None
+            if message and _research_turn:
+                try:
+                    from core.pricing_calculation import (
+                        message_requires_calculation as _msg_calc,
+                    )
+
+                    if _msg_calc(message):
+                        from core.chat_tool_planner import ToolPlan as _TP
+                        from core.chat_tool_planner import (
+                            execute_tool_plan as _etp,
+                        )
+
+                        _calc_block = await asyncio.wait_for(
+                            _etp(
+                                _TP(use_tool=True, service="datasets",
+                                    intent="calculate",
+                                    query=message[:400],
+                                    reason=("goal-session calculation "
+                                            "ask — the calculate lane "
+                                            "outranks research recovery")),
+                                user_id,
+                                tenant_id=getattr(
+                                    self, "tenant_id", "default"),
+                                context={
+                                    "agent_id": agent_id,
+                                    "conversation_id": session_id,
+                                    "message": message,
+                                    "workspace_id": workspace_id,
+                                },
+                                llm_service=self.llm_service),
+                            timeout=110.0)
+                        if _calc_block:
+                            _calc_lane_block = _calc_block
+                            _research_turn = False
+                            _required_sources = set()
+                            _tool_block = _calc_block
+                            logger.info(
+                                "[calc-lane] goal-session calculation "
+                                "ask answered by datasets.calculate "
+                                "(%d chars)", len(_calc_block))
+                except Exception as _calc_err:  # noqa: BLE001
+                    logger.warning(
+                        "[calc-lane] calculation dispatch failed: %r",
+                        _calc_err)
             _required_sources = (
                 self._required_research_sources(
                     # COORDINATION FIX (2026-10-04, logged in
@@ -14419,8 +14551,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _replan, user_id,
                                 tenant_id=getattr(
                                     self, "tenant_id", "default"),
-                                context={"history": planner_history
-                                         or history},
+                                context={
+                                    "history": planner_history
+                                    or history,
+                                    # calculation lanes record onto the
+                                    # conversation's job (round 74)
+                                    "conversation_id": session_id,
+                                },
                                 llm_service=self.llm_service,
                             ) or ""
                             logger.info(
@@ -14895,6 +15032,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # is implied — execute_tool_plan is the
                                     # read path.
                                     "agent_id": agent_id,
+                                    "conversation_id": session_id,
                                     "message": message,
                                     "history": (planner_history
                                                 or history or [])[-6:],
@@ -14992,6 +15130,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     self, "tenant_id", "default"),
                                 context={
                                     "agent_id": agent_id,
+                                    "conversation_id": session_id,
                                     "message": message,
                                     "history": (planner_history
                                                 or history or [])[-6:],
@@ -17153,9 +17292,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "[figure-grounding] NOT skipped: the workbook contradicts "
                         "the reply's arithmetic — this is a real finding"
                     )
+                # DETERMINISTIC-CALCULATE EXEMPTION (round 74): a reply
+                # grounded in a datasets.calculate block quotes figures the
+                # ENGINE computed — the block's own rendering ("1200",
+                # "rate=150") need not match the reply's money formatting
+                # ("$1,200"). A naive text-presence check then flags the
+                # correct figures and the grounded regeneration (against a
+                # cooldown-limited provider pool) produced an empty reply
+                # that never persisted — the "disappearing result" live
+                # 2026-10-06. The block IS the evidence of record: the
+                # figures were not model-generated.
+                _calc_evidence = bool(_tool_block) and (
+                    "datasets.calculate" in _tool_block
+                    and "deterministic" in _tool_block)
                 if _tool_block and _content and not (
                     _derivation_reply and not _derivation_contradicted
-                ):
+                ) and not _calc_evidence:
                     _grounding_ran = False
                     try:
                         from core.chat_tool_planner import _unsupported_figures

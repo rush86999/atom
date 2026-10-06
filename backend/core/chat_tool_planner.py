@@ -1437,6 +1437,31 @@ async def plan_tool_use(
             plan.relevance_verdict, plan.relevance_basis = (
                 _plan_relevance_basis(plan.query or "", message, history,
                                       extra_topic=_canvas_topic))
+    # CALCULATION OVERRIDE (round 74): an EXPLICIT calculation ask is
+    # planned as datasets.calculate REGARDLESS of the structured parse —
+    # history holding a similar reply must never downgrade a computation
+    # into a search (live: a repeated workbook ask was planned as
+    # datasets.search/value_trace and narrated the old answer). The
+    # engine is deterministic; the lane asks or computes.
+    try:
+        from core.pricing_calculation import (
+            message_requires_calculation as _msg_calc,
+        )
+
+        if message and _msg_calc(message) and (
+                not plan or plan.service != "datasets"
+                or plan.intent != "calculate"):
+            plan = ToolPlan(
+                use_tool=True, service="datasets", intent="calculate",
+                query=message[:400],
+                reason=("explicit calculation ask — forced over the "
+                        "structured parse so the engine runs (history "
+                        "must not impersonate a computation)"))
+            plan_meta.update(source="calculation_override",
+                             recovered=True)
+    except Exception:  # noqa: BLE001 — the override is additive
+        pass
+
     # PLANNING PROVENANCE: the meta rides the plan object to the execution
     # seam (never parsed from logs). setdefault: an executor may have
     # already stamped _result_meta for its own purposes.
@@ -8666,16 +8691,17 @@ async def execute_tool_plan(
                     )
 
                     _conv_id = (context or {}).get("conversation_id")
+                    _cv_id = (context or {}).get("canvas_id")
                     _wb_block = await _wb_query(
                         _calc_q, user_id,
                         (context or {}).get("workspace_id"),
-                        conversation_id=_conv_id)
+                        conversation_id=_conv_id, canvas_id=_cv_id)
                     if _wb_block:
                         return _with_grounding(_wb_block)
                     _expr_block = await _expr_query(
                         _calc_q, user_id,
                         (context or {}).get("workspace_id"),
-                        conversation_id=_conv_id)
+                        conversation_id=_conv_id, canvas_id=_cv_id)
                     if _expr_block:
                         return _with_grounding(_expr_block)
                     # NATURAL LANGUAGE (round 73): the trained
@@ -8685,7 +8711,7 @@ async def execute_tool_plan(
                     _nl_block = await _nl_query(
                         _calc_q, user_id,
                         (context or {}).get("workspace_id"),
-                        conversation_id=_conv_id)
+                        conversation_id=_conv_id, canvas_id=_cv_id)
                     if _nl_block:
                         return _with_grounding(_nl_block)
                     block = await _calc_query(
