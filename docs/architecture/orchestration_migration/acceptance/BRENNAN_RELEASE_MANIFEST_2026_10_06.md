@@ -119,11 +119,20 @@ candidate. Three trials per case, same candidate; every trial reported.
        failure_reason=provider_credits_exhausted and
        recovery_url=/settings/billing that the ungated reply-assembly
        path sets (message text stays truthful and names the remedy).
-       Backend-owner follow-up: unify the two paths' envelopes.
-    2. One pre-final run observed a `fixed inset-0 z-50` modal overlay
-      intercepting clicks over the composer after the failed turn; it
-      did NOT recur in the passing trial. Unexplained transient — on
-      record, consistent with the earlier unexplained post-HMR relayout.
+       QUALIFICATION (owner, 2026-10-06): truthful displayed text
+       passed, but STRUCTURED failure metadata did not survive
+       finalization — open fix: preserve the fields through
+       core/finalization.py with a focused regression.
+    2. QUALIFICATION (owner, 2026-10-06) on the modal: the driver runs
+       a dismiss-overlay probe before every send. In the PASSING trial
+       the probe found NO overlay — recovery was uninterrupted. In the
+       pre-final run (not a counted trial), a `fixed inset-0 z-50`
+       backdrop with a centered dialog DID intercept clicks over the
+       composer after the failed turn and blocked the Send button.
+       Identity and trigger of that modal are UNIDENTIFIED; whether its
+       dismissal is expected product behavior is UNRECORDED. Until it
+       is identified, the passing trial proves recovery for the
+       no-overlay case only; recovery WITH that dismissal is unproven.
 - Status (2026-10-04 update): composer submission boundary RESOLVED —
   the composer was never broken. Live evidence: Send-button click and
   Enter keypress each dispatched exactly one POST (button: 30-hour

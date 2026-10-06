@@ -8331,6 +8331,33 @@ async def execute_tool_plan(
     service = plan.service
     query = (plan.query or "").strip()
 
+    # DOTTED datasets TOOL NAMES -> LOCAL DISPATCH (case-3 trial 1,
+    # 2026-10-06): the planner's own vocabulary names tools
+    # "datasets.calculate" / "datasets.search" / "datasets.value_trace"
+    # (observed live: a repeated workbook ask planned as
+    # datasets.search/value_trace — see the calculation-override note).
+    # The local branches below dispatch on service == "datasets" with
+    # the action in plan.intent, so a dotted name matched NOTHING here
+    # and fell through to the generic EXTERNAL-integration branch,
+    # which tried `datasets.calculate.search` against Activepieces,
+    # failed, and returned a "nothing usable" block — the reply then
+    # carried a model-self-computed figure with NO engine run, NO
+    # structured record and NO job operation (release case 3, trial 1).
+    # Normalizing at THIS boundary sends every planner-shaped datasets
+    # plan down the SAME local lanes the derivation path uses — one
+    # convergence point, one recording seam per request.
+    if service and service.startswith("datasets."):
+        _ds_action = service.split(".", 1)[1].strip()
+        if _ds_action in ("calculate", "search", "value_trace", "ask"):
+            try:
+                plan = plan.model_copy(
+                    update={"service": "datasets", "intent": _ds_action})
+            except AttributeError:  # pydantic v1 fallback
+                _pd = plan.dict()
+                _pd.update({"service": "datasets", "intent": _ds_action})
+                plan = ToolPlan(**_pd)
+            service = "datasets"
+
     # DATE PIGGYBACK: every downstream lane in this execution (memory
     # figure scan, mailbox lines) reads the window from the context —
     # hand them the planner's resolved mentioned_date once, here.

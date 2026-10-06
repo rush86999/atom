@@ -405,3 +405,37 @@ def test_m2_ledger_off_records_nothing(monkeypatch, session):
     _persist_finalized_outcome(session, response, "session-1")
 
     assert "delivery" not in response["data"]
+
+
+def test_failed_provider_envelope_survives_route_serialization():
+    """Case-5 finding (2026-10-06): the orchestrator AND the M1
+    finalizer both preserve failure_reason/recovery_url on a terminal
+    provider failure, but ChatMessageResponse did not DECLARE
+    failure_reason — FastAPI's response_model silently dropped it at
+    route serialization, so the client could never render the distinct
+    retry/top-up UI. This pins the full envelope at the model boundary."""
+    from core.finalization import finalize_payload
+    from integrations.chat_routes import ChatMessageResponse
+
+    drafted = {
+        "success": False,
+        "message": "I couldn't generate a response — every configured "
+                   "provider is out of credits (opencode-go).",
+        "session_id": "s-x", "intent": "search", "confidence": 0.5,
+        "suggested_actions": [], "requires_confirmation": False,
+        "next_steps": [], "timestamp": "2026-10-06T00:00:00",
+        "execution_id": "exec-1",
+        "error_code": "no_llm_provider",
+        "failure_reason": "provider_credits_exhausted",
+        "recovery_url": "/settings/billing",
+    }
+    finalized = finalize_payload(
+        {"execution_id": "exec-1", "status": "failed",
+         "result_summary": drafted["message"], "failure_stage": "reply"},
+        drafted)
+    model = ChatMessageResponse(**finalized)
+    dumped = model.model_dump()
+    assert dumped["success"] is False
+    assert dumped["error_code"] == "no_llm_provider"
+    assert dumped["failure_reason"] == "provider_credits_exhausted"
+    assert dumped["recovery_url"] == "/settings/billing"

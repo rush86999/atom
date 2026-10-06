@@ -515,6 +515,7 @@ class ChatMessageResponse(BaseModel):
     reasoning: Optional[str] = Field(None, description="The model's chain-of-thought for this reply — rendered by the Reasoning Process drawer and captured with feedback for training")
     execution_id: Optional[str] = Field(None, description="The chat-trace run id for this turn — lets the client finalize THIS turn's streamed bubble when turns overlap (e.g. two tabs on one session)")
     error_code: Optional[str] = Field(None, description="Structured error code (e.g. no_llm_provider, budget_exceeded)")
+    failure_reason: Optional[str] = Field(None, description="Machine-readable cause for structured errors (e.g. provider_credits_exhausted). The orchestrator and the M1 finalizer both carry it — undeclared here it was silently DROPPED at route serialization (case-5 finding, 2026-10-06), so clients could never render the distinct retry/top-up UI the backend promised.")
     recovery_url: Optional[str] = Field(None, description="Recovery URL for structured errors")
 
 

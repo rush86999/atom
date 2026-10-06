@@ -2252,9 +2252,20 @@ def _bind_mentioned_inputs(text: str, idents: List[str]
     values bind here — nothing is inferred."""
     bound: Dict[str, str] = {}
     for ident in idents:
-        m = (_re.search(
-            rf"\$?([0-9][0-9,]*(?:\.[0-9]+)?)\s*"
-            rf"(?:{ _re.escape(ident)}s?)\b", text, _re.IGNORECASE)
+        m = (
+            # EXPLICIT KEY=VALUE FIRST: the tool planner folds
+            # conversation inputs into its query as compact
+            # `hours=17.5 materials=0` pairs (release case 3, trial 1).
+            # kv-first is not just about the '=' — without it, the
+            # word-order pattern below would steal "17.5 materials"
+            # adjacency and bind materials to the HOURS value.
+            _re.search(
+                rf"\b{ _re.escape(ident)}s?\s*=\s*"
+                rf"\$?([0-9][0-9,]*(?:\.[0-9]+)?)", text,
+                _re.IGNORECASE)
+            or _re.search(
+                rf"\$?([0-9][0-9,]*(?:\.[0-9]+)?)\s*"
+                rf"(?:{ _re.escape(ident)}s?)\b", text, _re.IGNORECASE)
             or _re.search(
                 rf"\b{ _re.escape(ident)}s?\s+(?:is|of|at|=)\s*"
                 rf"\$?([0-9][0-9,]*(?:\.[0-9]+)?)", text,
