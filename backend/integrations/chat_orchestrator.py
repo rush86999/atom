@@ -6691,14 +6691,17 @@ class ChatOrchestrator:
                     # the datasets calculate lane of the turn. Same
                     # shape as the teaching-cue exemption above.
                     try:
-                        from core.pricing_calculation import _WB_QUERY_RE
+                        from core.pricing_calculation import (
+                            _NAT_PRICE_RE, _WB_QUERY_RE,
+                        )
 
-                        if _WB_QUERY_RE.search(message or ""):
+                        if _WB_QUERY_RE.search(message or "") \
+                                or _NAT_PRICE_RE.search(message or ""):
                             _ask_mention = ""
                             _calc_grammar_turn = True
                             logger.info(
-                                "[file-ask] calculate-grammar ask left "
-                                "for the datasets calculate lane")
+                                "[file-ask] calculate ask left for the "
+                                "datasets calculate lane")
                     except Exception:  # noqa: BLE001 — routing only
                         pass
                     from core.plan_relevance import _is_substantive_request

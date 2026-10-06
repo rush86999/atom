@@ -1844,3 +1844,383 @@ async def calculate_expression_from_query(
         "LIVE TOOL RESULTS (datasets.calculate — formula engine, "
         "named inputs; the model did not compute this):\n"
         + "\n".join(lines))
+
+
+# ---------------------------------------------------------------------------
+# Natural-language use by the trained employee (round 73) — the owner's
+# next milestone: ordinary business requests, NO calculator syntax.
+# The AGENT selects the applicable formula; the LANE resolves, validates
+# and invokes deterministically, and asks ONLY necessary questions.
+# ---------------------------------------------------------------------------
+
+#: An estimate/service-job ask (the non-pricing family).
+_NAT_ESTIMATE_RE = _re.compile(
+    r"\b(?:estimate|quote)\b.*\b(?:job|service|work)\b"
+    r"|\bservice\s+(?:job\s+)?estimate\b"
+    r"|\bjob\s+(?:estimate|cost)\b",
+    _re.IGNORECASE | _re.DOTALL)
+
+#: A selling-price ask (the workbook family).
+_NAT_PRICE_RE = _re.compile(
+    r"\b(?:calculate|compute|work\s+out|figure)\b[^.!?\n]{0,120}"
+    r"\b(?:selling\s+)?price\b",
+    _re.IGNORECASE)
+
+#: Two taught-expression shapes: a LABELLED formula ("Service
+#: estimate: estimate = ROUNDUP(hours*rate + materials, 0)") or a
+#: bare assignment ("estimate = ..."). Both require a real
+#: assignment '=' — prose colons never match on their own.
+_TAUGHT_EXPR_LABEL_RE = _re.compile(
+    r"(?P<label>[A-Za-z][A-Za-z0-9 _%&/-]{2,40}?)\s*:\s*"
+    r"(?P<name2>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*"
+    r"(?P<expr2>[A-Za-z0-9_ +\-*/^().,$]{3,200})")
+_TAUGHT_EXPR_BARE_RE = _re.compile(
+    r"(?:^|[.!?:]\s|\s)(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*"
+    r"(?P<expr>[A-Za-z0-9_ +\-*/^().,$]{3,200})")
+
+_PRICE_HEADER_RE = _re.compile(
+    r"list\s*price|cdn\s*list|selling\s*price|^price$|price", _re.IGNORECASE)
+
+
+def parse_taught_expressions(
+        lessons: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """TAUGHT EXPRESSIONS (round 73): a lesson may carry an explicit
+    formula in the supported language — ``Name: name1 OP name2 ...`` —
+    together with taught default inputs (``rate is 150``). This is the
+    teaching layer supplying the FORMULA and its standard parameters;
+    the engine still does all arithmetic. Structural parsing only: the
+    expression must contain a real identifier (>=3 chars) and an
+    operator or supported function — prose lessons never produce one.
+    """
+    from core.formula_engine import evaluate_expression
+
+    out: List[Dict[str, Any]] = []
+    for idx, lesson in enumerate(lessons or []):
+        text = " ".join(str(lesson.get("lesson")
+                             or lesson.get("summary") or "").split())
+        if not text or "=" not in text and ":" not in text:
+            continue
+        lid = str(lesson.get("id") or lesson.get("lesson_id")
+                  or f"idx-{idx}")
+        found = []  # (display_name, raw_expr)
+        label_matches = list(_TAUGHT_EXPR_LABEL_RE.finditer(text))
+        for m in label_matches:
+            found.append((m.group("label"), m.group("expr2")))
+        labelled = [(m.start(), m.end()) for m in label_matches]
+        for m in _TAUGHT_EXPR_BARE_RE.finditer(text):
+            if any(a <= m.start("name") < b for a, b in labelled):
+                continue  # already captured with its label
+            found.append((m.group("name"), m.group("expr")))
+        for disp, raw in found:
+            # cut the captured text at the sentence boundary — the
+            # character class admits '.' for decimals, so prose after
+            # the formula must not ride along ('... 0). Our service
+            # rate is 150...' stops at '0)').
+            expr = " ".join(_re.split(r"\.\s", raw or "")[0].split())
+            expr = _re.sub(r"\.(?!\d).*$", "", expr).strip()
+            if not expr or "," not in expr and not _re.search(
+                    r"[+\-*/^]", expr):
+                continue
+            # identifiers come from the EXPRESSION TEXT (missing
+            # inputs never appear in dependencies — they are the
+            # precise question, not a resolution)
+            from core.formula_engine import SUPPORTED_FUNCTIONS
+
+            idents = sorted({
+                t for t in _re.findall(
+                    r"\b[A-Za-z_][A-Za-z0-9_]*\b", expr)
+                if t.upper() not in SUPPORTED_FUNCTIONS
+                and not _re.fullmatch(r"[A-Za-z]{1,3}\d+", t)
+                and len(t) >= 2})
+            if not any(len(i) >= 3 for i in idents):
+                continue
+            probe = evaluate_expression(expr, {})
+            if probe.unsupported:
+                continue
+            defaults: Dict[str, str] = {}
+            for ident in idents:
+                dm = _re.search(
+                    rf"\b{_re.escape(ident)}s?\s+(?:is|of|at|=|:)\s*"
+                    rf"\$?([0-9][0-9,]*(?:\.[0-9]+)?)", text,
+                    _re.IGNORECASE)
+                if dm:
+                    defaults[ident] = dm.group(1)
+            out.append({
+                "name": " ".join(str(disp or "").strip().split()),
+                "expr": expr, "idents": idents, "defaults": defaults,
+                "lesson_id": lid, "text": text})
+    return out
+
+
+def _bind_mentioned_inputs(text: str, idents: List[str]
+                           ) -> Dict[str, str]:
+    """Bind named inputs the REQUEST itself states: '17.5 hours',
+    'rate of 200', 'no materials' (an explicit zero). Only user-stated
+    values bind here — nothing is inferred."""
+    bound: Dict[str, str] = {}
+    for ident in idents:
+        m = (_re.search(
+            rf"\$?([0-9][0-9,]*(?:\.[0-9]+)?)\s*"
+            rf"(?:{ _re.escape(ident)}s?)\b", text, _re.IGNORECASE)
+            or _re.search(
+                rf"\b{ _re.escape(ident)}s?\s+(?:is|of|at|=)\s*"
+                rf"\$?([0-9][0-9,]*(?:\.[0-9]+)?)", text,
+                _re.IGNORECASE))
+        if m:
+            bound[ident] = m.group(1).replace(",", "")
+            continue
+        if _re.search(rf"\bno\s+{ _re.escape(ident)}s?\b", text,
+                      _re.IGNORECASE):
+            bound[ident] = "0"
+    return bound
+
+
+def _find_item_rows(item: str, user_id: Optional[str],
+                    workspace_id: Optional[str]) -> List[Dict[str, Any]]:
+    """The catalog's Find-All over the item code — the deterministic
+    item→row resolution (file, sheet, cell address) the NL path uses."""
+    from core.sheet_dataset_service import find_all_occurrences_sync
+
+    try:
+        out = find_all_occurrences_sync(
+            item, user_id, workspace_id, max_matches=40)
+        return list((out or {}).get("matches") or [])
+    except Exception:  # noqa: BLE001 — resolution is best-effort
+        return []
+
+
+def _price_cell_for_row(file_name: str, sheet_name: str,
+                        row: int) -> Optional[Dict[str, Any]]:
+    """The row's PRICE cell: the header whose name matches the price
+    vocabulary, mapped to its column letter by frame order. Exactly one
+    candidate or None — ambiguity is the caller's question to ask."""
+    from core.sheet_dataset_service import read_sheet_row_sync
+
+    res = read_sheet_row_sync(file_name, sheet_name, row)
+    if not res or "headers" not in res:
+        return None
+    ci = 0
+    for h in res["headers"]:
+        if str(h) == "__sheet_row":
+            continue
+        if _PRICE_HEADER_RE.search(str(h)):
+            letter = _col_letter_fn(ci)
+            value = res["row"].get(h)
+            if value is None or str(value).strip() == "":
+                return None  # the price cell is blank on this row
+            return {"cell": f"{letter}{row}", "header": str(h),
+                    "value": value}
+        ci += 1
+    return None
+
+
+def _col_letter_fn(idx: int) -> str:
+    from core.formula_engine import col_letter
+
+    return col_letter(idx)
+
+
+def _identity_tokens(text: str) -> List[str]:
+    """Identity-shaped item tokens in the request (the shared
+    keep-rule — '90703', 'GSL48-16' — never prose or bare specs)."""
+    from core.workbook_read_artifact import identity_shaped_item
+
+    out: List[str] = []
+    for tok in _re.findall(r"[A-Za-z0-9][A-Za-z0-9-]*", text or ""):
+        # Digit-bearing codes only for price asks: capitalized prose
+        # words ('Calculate', 'BurrKing') are not item codes.
+        if not _re.search(r"\d", tok):
+            continue
+        if identity_shaped_item(tok) and tok.upper() not in out:
+            out.append(tok.upper())
+    return out[:4]
+
+
+def _authorized_workbook_pairs(
+        lessons: List[Dict[str, Any]],
+        workspace_id: Optional[str]) -> set:
+    """Every cataloged (file, sheet) pair a permanent teaching
+    authorizes pricing from — teaching-as-scope for natural price
+    asks."""
+    from core.models import DatasetEntry
+    from core.database import get_db_session
+
+    pairs = set()
+    with get_db_session() as db:
+        rows = db.query(DatasetEntry).filter(
+            DatasetEntry.status == "active").all()
+        seen = set()
+        for r in rows:
+            key = (str(r.file_name or ""), str(r.entity_name or ""))
+            if key in seen:
+                continue
+            seen.add(key)
+            if authorized_workbook_basis(lessons, key[0], key[1]):
+                pairs.add(key)
+    return pairs
+
+
+async def calculate_natural_from_query(
+        query: str,
+        user_id: Optional[str],
+        workspace_id: Optional[str],
+        conversation_id: Optional[str] = None) -> Optional[str]:
+    """The natural-language entry: the trained employee's ORDINARY
+    request, no calculator syntax. Two families:
+
+    * estimate/service-job asks resolve to a TAUGHT EXPRESSION (the
+      lesson supplies the formula and standard inputs; the request
+      supplies the rest; what is still missing becomes one precise
+      question);
+    * selling-price asks resolve the ITEM to its row (catalog Find-All),
+      scope to the AUTHORIZED workbook basis (teaching-as-scope), pick
+      the row's price cell, and run the existing workbook path — which
+      preserves every result-type distinction (a stored value stays an
+      observation; a substituted computation stays qualified).
+    """
+    q = str(query or "").strip()
+    if not q:
+        return None
+    lessons = _workspace_lessons(user_id, workspace_id)
+
+    # --- the estimate family (taught expressions) ---------------------
+    if _NAT_ESTIMATE_RE.search(q) or "taught rate" in q.lower():
+        exprs = parse_taught_expressions(lessons)
+        if not exprs:
+            return _grounded(
+                "LIVE TOOL RESULTS (datasets.calculate — natural) — NO "
+                "TAUGHT FORMULA: no permanent teaching carries a "
+                "formula for this kind of request. Do not compute an "
+                "estimate by hand; state what the estimate should "
+                "include and ask for the teaching.")
+        if len(exprs) > 1:
+            return _grounded(
+                "LIVE TOOL RESULTS (datasets.calculate — natural) — "
+                "SEVERAL TAUGHT FORMULAS apply here: "
+                + "; ".join(f"{e['name']} ({e['expr']}) [lesson "
+                            f"{e['lesson_id'][:8]}]"
+                            for e in exprs[:5])
+                + ". Ask which one applies; do not guess.")
+        e = exprs[0]
+        mentioned = _bind_mentioned_inputs(q, e["idents"])
+        inputs = dict(e["defaults"])
+        inputs.update(mentioned)
+        missing = [i for i in e["idents"] if i not in inputs]
+        if missing:
+            return _grounded(
+                "LIVE TOOL RESULTS (datasets.calculate — natural) — "
+                f"INPUT NEEDED to use the taught formula "
+                f"\"{e['name']}: {e['expr']}\" (lesson "
+                f"{e['lesson_id'][:8]}): "
+                + ", ".join(missing)
+                + ". Bound so far: "
+                + (", ".join(f"{k}={v}"
+                             + (" (taught default)" if k in e["defaults"]
+                                and k not in mentioned else "")
+                             for k, v in inputs.items()) or "none")
+                + ". Ask the user for exactly these; do not guess.")
+        from core.formula_engine import evaluate_expression
+
+        calc = evaluate_expression(e["expr"], inputs)
+        result = CalculationResult(
+            status=("succeeded" if calc.status == "computed"
+                    else calc.status),
+            policy_id=f"taught-expression:{e['name']}",
+            policy_version=e["lesson_id"][:12],
+            proposed=(Money(calc.value, "XXX", unit="value")
+                      if calc.value is not None else None),
+            steps=list(calc.steps),
+            missing_dependency=(calc.missing or calc.unsupported or "")
+            if calc.status == "incomplete" else "",
+            dependencies=[d.to_dict() for d in calc.dependencies],
+            inputs_snapshot={
+                "item": e["name"],
+                "basis": (f"taught expression (lesson {e['lesson_id']})"
+                          f" evaluated by the general formula engine"),
+                "inputs": dict(inputs),
+                "request_supplied": sorted(mentioned),
+                "taught_defaults": sorted(e["defaults"]),
+            })
+        _record_on_job(conversation_id, workspace_id, e["name"], result)
+        lines = [f"**{e['name']} — taught formula, engine-computed**",
+                 f"- Formula (taught): {e['expr']}"]
+        if calc.status == "computed":
+            lines.append(f"- Value (computed): {calc.value}")
+        else:
+            lines.append(f"- NOT COMPUTED — "
+                         f"{calc.missing or calc.unsupported}")
+        lines.append("- Inputs: " + ", ".join(
+            f"{k}={v}" + (" [taught default]" if k in e["defaults"]
+                          and k not in mentioned else " [from request]")
+            for k, v in inputs.items()))
+        if calc.steps:
+            lines.append("- Steps: " + " → ".join(
+                str(s.get("output")) for s in calc.steps))
+        return _grounded(
+            "LIVE TOOL RESULTS (datasets.calculate — natural language; "
+            "the model did not compute this):\n" + "\n".join(lines))
+
+    # --- the selling-price family (authorized workbook basis) ---------
+    if _NAT_PRICE_RE.search(q):
+        tokens = _identity_tokens(q)
+        if not tokens:
+            return _grounded(
+                "LIVE TOOL RESULTS (datasets.calculate — natural) — "
+                "WHICH ITEM? the request names no item code; ask for "
+                "the item to price. Do not guess an item.")
+        # teach-as-scope: only file/sheet pairs the teaching authorizes
+        authorized_pairs = _authorized_workbook_pairs(lessons,
+                                                      workspace_id)
+        import asyncio
+
+        candidates: List[Dict[str, Any]] = []
+        for item in tokens:
+            matches = await asyncio.to_thread(
+                _find_item_rows, item, user_id, workspace_id)
+            for mmatch in matches:
+                key = (str(mmatch.get("file")), str(mmatch.get("sheet")))
+                if key not in authorized_pairs:
+                    continue
+                row = int("".join(
+                    c for c in str(mmatch.get("cell") or "") if c.isdigit())
+                          or 0)
+                if not row:
+                    continue
+                candidates.append({"item": item, "file": key[0],
+                                   "sheet": key[1], "row": row})
+        if not candidates:
+            return _grounded(
+                "LIVE TOOL RESULTS (datasets.calculate — natural) — NO "
+                "AUTHORIZED BASIS FOR THIS ITEM: the item was "
+                + (f"found in the catalog but no teaching authorizes "
+                   "pricing from the file/sheet it lives in"
+                   if tokens else "not found")
+                + ". A formula's existence does not make it the "
+                "approved pricing policy; ask for the intended basis.")
+        resolved: List[Dict[str, Any]] = []
+        for cand in candidates:
+            pc = _price_cell_for_row(cand["file"], cand["sheet"],
+                                     cand["row"])
+            if pc:
+                resolved.append({**cand, **pc})
+        if not resolved:
+            return _grounded(
+                "LIVE TOOL RESULTS (datasets.calculate — natural) — NO "
+                "PRICE CELL: the item's row carries no price column "
+                "value in the authorized workbook. Ask which price "
+                "basis applies; do not guess a cell.")
+        if len({(c["file"], c["sheet"], c["row"]) for c in resolved}) > 1:
+            return _grounded(
+                "LIVE TOOL RESULTS (datasets.calculate — natural) — "
+                "SEVERAL authorized candidates: "
+                + "; ".join(f"{c['item']} → {c['file']} {c['sheet']} "
+                            f"row {c['row']} cell {c['cell']}"
+                            for c in resolved[:5])
+                + ". Ask which one applies; do not guess.")
+        c0 = resolved[0]
+        return await calculate_workbook_from_query(
+            f"calculate price for {c0['file']} {c0['sheet']} "
+            f"row {c0['row']} cell {c0['cell']} item={c0['item']}",
+            user_id, workspace_id, conversation_id=conversation_id)
+
+    return None

@@ -1390,3 +1390,27 @@ Accepted. This round corrects the support statement, closes the two open semanti
 **Kept explicit (usability follow-up, unchanged):** the demonstrated `calculate expression … with …` syntax proves an ENTRY POINT. It does **not yet prove that the trained employee can choose and invoke the formula from an ordinary business request.**
 
 90 tests green across the engine and pricing batteries. Original canvas untouched; nothing sent.
+
+## GENERAL FORMULA-ENGINE MILESTONE — CLOSED (owner-accepted, 2026-10-06)
+
+> "Atom can evaluate its supported formula language from workbook references or named inputs, persist results and provenance, and distinguish full computation, substituted computation, stored observations and incomplete calculations. The demonstrated results survive browser reload."
+
+Baseline: **d59a72ff4**. Explicit limits carried forward: the supported language is arithmetic, references (incl. cross-sheet), named inputs, and the ROUND/SUM/MIN/MAX/INT/ABS family in Decimal — anything else returns a precise unsupported result; ambiguous workbook versions are refused; substituted computations and stored observations never masquerade as fully-verified calculations. Per-case evidence: rounds 69–72 above.
+
+**Next milestone (owner direction): natural-language use by the trained employee — not more evaluator work.** Ordinary requests ("Estimate this service job using our taught rates." / "Calculate the selling price using the applicable workbook formula.") must work without calculator syntax: the agent selects the applicable formula, obtains and validates inputs, invokes the engine, explains the result, and asks only necessary questions. `computed_substituted` must not silently count as fully verified; a stored-value request must not be forced through computation. No further engine redesign unless that workflow exposes a concrete defect.
+
+## Round 73: natural-language use by the trained employee (the next milestone, first slice)
+
+The user supplies NO calculator syntax. The planner passes the ordinary wording as the calculate query; the lane (`calculate_natural_from_query`) resolves it deterministically:
+
+- **Estimate family** — TAUGHT EXPRESSIONS: a lesson may carry an explicit formula ("Service estimate: estimate = ROUNDUP(hours * rate + materials, 0)") plus taught default inputs ("Our service rate is 150 per hour"). Selection is structural (an assignment with real identifiers and operators; prose never matches); request-stated inputs bind over taught defaults ("17.5 hours", "no materials" = 0); whatever remains missing becomes ONE precise question. Recorded with provenance (the lesson id) and input origins ([taught default] vs [from request]).
+- **Price family** — teaching-as-scope: the item code (identity-shaped, digit-bearing) resolves through the catalog's Find-All; only file/sheet pairs a permanent teaching AUTHORIZES are candidates; the row's price column (header vocabulary, frame-order letter) picks the output cell; the existing workbook path then runs with every result-type distinction intact (a stored value stays an observation; a substituted computation stays qualified). Ambiguity at any step is a question, never a guess.
+
+**Live (API-exercised, per-case):**
+- Fresh session, "Estimate this service job using our taught rates." → the agent asked for EXACTLY the two missing inputs (hours, materials), formula and taught rate already in hand; the natural reply "17.5 hours of work, and no materials needed" → **$2,625** with the taught formula quoted. (An earlier canvas-session attempt reused 17.5 hours from conversation history — legitimate input sourcing, but the necessary-question flow required the fresh session to demonstrate.)
+- Fresh session, "…calculate the selling price for it [BurrKing 90703] using the applicable workbook formula." → planner classified it as calculate FROM THE ORDINARY WORDING (log: `datasets.calculate:Calculate the selling price for BurrKing 90703 using the applicable workbook for…`) → item resolved → authorized basis → E25 computed **CAD 7,409**, cross-checked, freshness caveat, and the taught quote conventions (CAD, FOB Woodstock, terms TBD) applied unprompted.
+- **Honest defect observation (not counted as a demonstration):** re-asking the workbook case in a session whose HISTORY already contained the answer executed NO tool plan — the reply narrated prior evidence from memory ("tool plan executed: None"). History can shadow tool dispatch; the next slice should treat a calculation ask as plan-required even when history holds a prior result.
+
+**Browser status (per-case):** this round's NL cases are API-exercised; the fork canvas's co-editor panel became unusable mid-pass (composer missing after reload; earlier sends worked) — a concrete UI observation for the backlog, not dismissed. The same lanes' browser rendering was established in round 72.
+
+94 tests green (both resolver families pinned: parse/default binding, prose-never-matches, request-over-default, one-precise-question, no-taught-formula honesty, item→authorized-basis→price-cell resolution, no-basis refusal, no-item question). Service-estimate lesson `1451b758f7964e1a9d1878704b7ce054` taught through the app API. Original canvas untouched; nothing sent.

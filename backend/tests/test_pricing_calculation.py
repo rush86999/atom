@@ -1715,3 +1715,151 @@ class TestRound72VersionCoherence:
         assert "mixing versions is refused" in block
         assert "no calculation was run" in block
         assert "140" not in block and "20" not in block
+
+
+class TestRound73NaturalLanguage:
+    """The owner's next milestone: ordinary requests, no calculator
+    syntax. The lane selects the formula, binds inputs, asks only what
+    is necessary, and preserves every result-type distinction."""
+
+    LESSON = {
+        "id": "L-EST",
+        "lesson": ("Service estimate: estimate = "
+                   "ROUNDUP(hours * rate + materials, 0). "
+                   "Our service rate is 150 per hour."),
+    }
+
+    def test_parse_taught_expression_with_default(self):
+        from core.pricing_calculation import parse_taught_expressions
+
+        exprs = parse_taught_expressions([self.LESSON])
+        assert len(exprs) == 1
+        e = exprs[0]
+        assert e["name"] == "Service estimate"
+        assert "ROUNDUP(hours * rate + materials, 0)" in e["expr"]
+        assert e["idents"] == ["hours", "materials", "rate"]
+        assert e["defaults"] == {"rate": "150"}
+
+    def test_prose_lessons_yield_no_expressions(self):
+        from core.pricing_calculation import parse_taught_expressions
+
+        prose = [
+            {"id": "P1", "lesson": "Always CC vipul on sales quotes."},
+            {"id": "P2", "lesson": "No change: the corrected email is "
+                                   "identical to the original draft."},
+            {"id": "P3", "lesson": "Price Code: A/1 is the code."},
+        ]
+        assert parse_taught_expressions(prose) == []
+
+    @pytest.mark.asyncio
+    async def test_estimate_ask_binds_request_inputs_over_defaults(
+            self, monkeypatch):
+        from core import pricing_calculation as pc
+
+        monkeypatch.setattr(pc, "_workspace_lessons",
+                            lambda *a, **k: [self.LESSON])
+        monkeypatch.setattr(pc, "_record_on_job",
+                            lambda *a, **k: False)
+        block = await pc.calculate_natural_from_query(
+            "Please estimate this service job using our taught rates — "
+            "17.5 hours and no materials.", "u1", None)
+        assert block and "2625" in block
+        assert "rate=150 [taught default]" in block
+        assert "hours=17.5 [from request]" in block
+        assert "materials=0" in block
+        assert "taught formula, engine-computed" in block
+
+    @pytest.mark.asyncio
+    async def test_estimate_ask_missing_input_is_one_precise_question(
+            self, monkeypatch):
+        from core import pricing_calculation as pc
+
+        monkeypatch.setattr(pc, "_workspace_lessons",
+                            lambda *a, **k: [self.LESSON])
+        block = await pc.calculate_natural_from_query(
+            "Estimate this service job using our taught rates.", "u1",
+            None)
+        assert block and "INPUT NEEDED" in block
+        assert "hours" in block and "materials" in block
+        assert "do not guess" in block
+        assert "rate=150" in block  # the taught default is already bound
+
+    @pytest.mark.asyncio
+    async def test_no_taught_formula_is_honest(self, monkeypatch):
+        from core import pricing_calculation as pc
+
+        monkeypatch.setattr(pc, "_workspace_lessons",
+                            lambda *a, **k: [])
+        block = await pc.calculate_natural_from_query(
+            "Estimate this service job using our taught rates.", "u1",
+            None)
+        assert block and "NO TAUGHT FORMULA" in block
+
+    @pytest.mark.asyncio
+    async def test_price_ask_resolves_item_via_authorized_basis(
+            self, fake_catalog, monkeypatch):
+        """NL selling-price ask: item → authorized file/sheet → the
+        row's price cell → the existing workbook path (which preserves
+        stored-value and substituted distinctions)."""
+        from core import pricing_calculation as pc
+
+        monkeypatch.setattr(pc, "_workspace_lessons", lambda *a, **k: [{
+            "id": "L1", "lesson": "price burrking rows from bk.xlsx"}])
+
+        def fake_find(item, user_id, ws):
+            assert item == "90703"
+            return [{"file": "bk.xlsx", "sheet": "BurrKing",
+                     "cell": "A25", "column": "PART", "value": "90703",
+                     "formula": ""},
+                    {"file": "bk.xlsx", "sheet": "BurrKing",
+                     "cell": "H25", "column": "c8", "value": "90703",
+                     "formula": ""}]
+
+        monkeypatch.setattr(pc, "_find_item_rows", fake_find)
+        monkeypatch.setattr(
+            pc, "_authorized_workbook_pairs",
+            lambda lessons, ws: {("bk.xlsx", "BurrKing")})
+
+        # read_sheet_row_sync must resolve the price header → letter E
+        def fake_row_read(file_name, sheet_name, row_number,
+                          user_id=None, workspace_id=None):
+            assert (file_name, sheet_name, row_number) == (
+                "bk.xlsx", "BurrKing", 25)
+            return {"headers": ["Part", "Desc", "Date", "Wt",
+                                "CdnList Price", "c6", "c8", "c11"],
+                    "row": {"Part": "90703", "CdnList Price": "7409",
+                            "c8": "4777", "c11": "3224.475"}}
+
+        import core.sheet_dataset_service as sds
+        monkeypatch.setattr(sds, "read_sheet_row_sync", fake_row_read)
+        block = await pc.calculate_natural_from_query(
+            "Calculate the selling price for item 90703 using the "
+            "applicable workbook formula.", "u1", None)
+        assert block and "CAD 7409" in block
+        assert "authorized by teaching" in block
+
+    @pytest.mark.asyncio
+    async def test_price_ask_without_authorized_basis_refuses(
+            self, monkeypatch):
+        from core import pricing_calculation as pc
+
+        monkeypatch.setattr(pc, "_workspace_lessons", lambda *a, **k: [])
+
+        def fake_find(item, user_id, ws):
+            return [{"file": "Other.xlsx", "sheet": "S", "cell": "A1",
+                     "column": "P", "value": item, "formula": ""}]
+
+        monkeypatch.setattr(pc, "_find_item_rows", fake_find)
+        block = await pc.calculate_natural_from_query(
+            "Calculate the selling price for item 90703 using the "
+            "applicable workbook formula.", "u1", None)
+        assert block and "NO AUTHORIZED BASIS" in block
+
+    @pytest.mark.asyncio
+    async def test_price_ask_no_item_is_a_question(self):
+        from core.pricing_calculation import calculate_natural_from_query
+
+        block = await calculate_natural_from_query(
+            "Calculate the selling price using the applicable workbook "
+            "formula.", "u1", None)
+        assert block and "WHICH ITEM?" in block
