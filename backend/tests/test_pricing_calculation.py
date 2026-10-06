@@ -2456,3 +2456,82 @@ class TestRound76RequestBoundEvidence:
         assert v2, "substituted presented as final must fail"
         out2 = _deterministic_calc_fallback(b, v2)
         assert "SUBSTITUT" in out2 or "NOT fully" in out2
+
+
+class TestCalculationIdempotencyIdentity:
+    """The idempotency key is the calculation's IDENTITY (policy +
+    version + status + item + computed value + input values) — never
+    the snapshot's prose. Pins both directions of the release contract
+    ('exactly the two expected calculations'):
+    1. policy paths that carry NO inputs snapshot still differ by their
+       computed result (8h×150 vs 12h×150 never collapse into one op);
+    2. identical calculated content replays to the SAME operation
+       (the two dispatch arms describe the same answer with different
+       basis text — the operation must not split)."""
+
+    def _lifecycle(self, tmp_path):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from core.models import GoalObjective, GoalRun, TaskOperationRecord
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle, begin_retrieval_turn
+
+        engine = create_engine(f"sqlite:///{tmp_path}/idem.db")
+        for t in (GoalObjective.__table__, GoalRun.__table__,
+                  TaskOperationRecord.__table__):
+            t.create(engine)
+        factory = sessionmaker(bind=engine, expire_on_commit=False)
+        lc = TaskLifecycle(
+            GoalRunService(workspace_id="ws", tenant_id="t",
+                           session_factory=factory),
+            GoalService(workspace_id="ws", tenant_id="t",
+                        session_factory=factory))
+        run_id, _ = begin_retrieval_turn(
+            lc, {"id": "s1"}, "conv-idem", "verify", "e1")
+        return lc, run_id
+
+    def _result(self, amount, snapshot=None):
+        from core.pricing_calculation import CalculationResult
+        return CalculationResult(
+            status="succeeded",
+            proposed=Money(Decimal(amount), "CAD"),
+            dependencies=[], steps=[],
+            policy_id="taught-multiply.factor150",
+            policy_version="v1",
+            inputs_snapshot=snapshot or {})
+
+    def test_no_snapshot_results_differ_by_their_value(self, tmp_path):
+        from core.pricing_calculation import record_calculation
+
+        lc, run_id = self._lifecycle(tmp_path)
+        op_8h = record_calculation(lc, run_id, "svc", self._result("1200"))
+        op_12h = record_calculation(lc, run_id, "svc", self._result("1800"))
+        assert op_8h["operation_id"] != op_12h["operation_id"], \
+            "two different computed values under one policy are two operations"
+        ops = [o for o in lc.get_task(run_id)["operations"]
+               if o["operation_type"] == "calculate"]
+        assert len(ops) == 2
+        values = sorted(str(o["calculation"]["proposed"]["amount"])
+                        for o in ops)
+        assert values == ["1200", "1800"]
+
+    def test_identical_content_replays_to_one_operation(self, tmp_path):
+        from core.pricing_calculation import record_calculation
+
+        lc, run_id = self._lifecycle(tmp_path)
+        first = record_calculation(
+            lc, run_id, "svc",
+            self._result("2625", {"inputs": {"hours": "17.5",
+                                             "materials": "0"}}))
+        # The second dispatch arm describes the same answer with
+        # different snapshot prose — the operation must not split.
+        replay = record_calculation(
+            lc, run_id, "svc",
+            self._result("2625", {"inputs": {"hours": "17.5",
+                                             "materials": "0"},
+                                  "basis": "answered by the owner's reply"}))
+        assert replay["operation_id"] == first["operation_id"]
+        ops = [o for o in lc.get_task(run_id)["operations"]
+               if o["operation_type"] == "calculate"]
+        assert len(ops) == 1

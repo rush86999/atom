@@ -2238,6 +2238,14 @@ async def send_chat_message(
             reasoning=response.get("reasoning"),
             execution_id=response.get("execution_id"),
             error_code=response.get("error_code"),
+            # The established failure metadata rides the envelope the
+            # orchestrator + M1 finalizer preserved — omitting it here
+            # serialized null failure_reason/recovery_url through the
+            # actual HTTP response on EVERY credit failure (case-5 T3
+            # envelope), leaving the client unable to render the
+            # distinct retry/top-up UI the fields exist for.
+            failure_reason=response.get("failure_reason"),
+            recovery_url=response.get("recovery_url"),
         )
         # A BLANK user-facing reply is never acceptable. With no model
         # provider configured the reply leg yields nothing, the
