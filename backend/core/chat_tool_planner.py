@@ -229,7 +229,7 @@ _SERVICE_DESCRIPTIONS = {
     # routed to documents.grep, which found nothing — the workbook's rows
     # live HERE; the planner had no signal that filename asks route to
     # datasets).
-    "datasets": "dataset catalog — EVERY ingested spreadsheet (xlsx/xls/csv) as searchable rows. To OPEN a named spreadsheet ('PRICE VIPUL (6).xlsx', any '*.xlsx/csv' ask): search its filename HERE — returns that workbook's sheets, rows and formulas. Also for a specific value/code/model/part number: returns the exact rows plus the file and sheet they live in; `find_all` intent: Excel-style Find All — query is the value ALONE (or 'VALUE in FILE.xlsx' to scope to one workbook); returns EVERY cell containing it (file, sheet, cell address, value, formula) with exact counts, so 'where does X appear / which cells hold X / does X occur anywhere' are one lookup; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns; `value_trace` intent: give item codes/model numbers (comma-separated, optionally 'ITEMS excluding FILE.xlsx') and it reports which OTHER cataloged documents (attachments, price lists, letters, worksheets) carry each item — use it to check whether a value was manually calculated in an attachment before calling it unsourced",
+    "datasets": "dataset catalog — EVERY ingested spreadsheet (xlsx/xls/csv) as searchable rows. To OPEN a named spreadsheet ('PRICE VIPUL (6).xlsx', any '*.xlsx/csv' ask): search its filename HERE — returns that workbook's sheets, rows and formulas. Also for a specific value/code/model/part number: returns the exact rows plus the file and sheet they live in; `find_all` intent: Excel-style Find All — query is the value ALONE (or 'VALUE in FILE.xlsx' to scope to one workbook); returns EVERY cell containing it (file, sheet, cell address, value, formula) with exact counts, so 'where does X appear / which cells hold X / does X occur anywhere' are one lookup; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns; `value_trace` intent: give item codes/model numbers (comma-separated, optionally 'ITEMS excluding FILE.xlsx') and it reports which OTHER cataloged documents (attachments, price lists, letters, worksheets) carry each item — use it to check whether a value was manually calculated in an attachment before calling it unsourced; `calculate` intent: run a calculation deterministically — three forms. NAMED-INPUT form (the general formula engine, no workbook needed): 'calculate expression EXPR with name=value ...' e.g. 'calculate expression ROUNDUP(hours*rate + materials, 0) with hours=17.5 rate=150 materials=0' — the supported language is arithmetic, ROUNDUP/ROUND/ROUNDDOWN/INT/ABS/MIN/MAX/SUM and named inputs; anything else returns the exact unsupported construct. WORKBOOK form (the workbook defines the calculation; teaching authorizes when it applies): 'calculate price for FILE.xlsx SHEET row N cell XN' — the file/sheet/row/cell come from the dataset search result's own addresses; the tool reconstructs the cell's full formula chain (inputs, parameter cells, rounding) and computes it, or returns an incomplete calculation naming the exact missing dependency. TAUGHT form: the query names the taught policy id, the base amount+currency, and k=v bindings: 'calculate taught-multiply-divide from 7627 CAD freight_amount=800 source=ROW106'. The available taught policy ids appear in the tool result on a miss. Use it whenever a price should be computed from the workbook's formulas or taught rules instead of guessed",
     # Knowledge VFS: the agent's file-system view over everything ingestion
     # stored. The lane that makes the grounding rule's 'full: …' citations
     # executable — open the COMPLETE line-numbered message behind a
@@ -1290,6 +1290,9 @@ async def plan_tool_use(
             # uses for the not-found escalation policy (the POLICY is a
             # taught lesson; this is only the tool)
             allowed_intents.add("value_trace")
+            # taught-pricing calculator: deterministic arithmetic
+            # over evidence-backed inputs (round 67)
+            allowed_intents.add("calculate")
         if plan.service in _STORAGE_SERVICES or plan.service == "outlook":
             allowed_intents.add("read")
         # `ingest` (pull content that is NOT in memory yet from the
@@ -8627,6 +8630,67 @@ async def execute_tool_plan(
                               "figure is the only source found).")
             except Exception as _vt_err:  # noqa: BLE001 — tool optional
                 logger.warning("datasets.value_trace failed: %r", _vt_err)
+        if (plan.intent or "search") == "calculate":
+            # TAUGHT-PRICING CALCULATOR (round 67): the AGENT'S path to
+            # the deterministic engine. The model selects the applicable
+            # taught policy and gathers inputs (both from the query and
+            # the evidence); THIS code validates and executes — an LLM
+            # number is never the result. Query shape (the planner
+            # prompt documents it):
+            #   calculate POLICY_ID from AMOUNT CURRENCY
+            #   [param=VALUE ...] [source=REF] [override=AMOUNT]
+            try:
+                import re as _calc_re
+                from decimal import Decimal as _CalcD
+
+                from core.pricing_calculation import (
+                    Money as _CalcMoney,
+                    PricingInputError as _CalcInputError,
+                    PricingInputs as _CalcInputs,
+                    SourceRef as _CalcSrc,
+                    calculate_from_query as _calc_query,
+                )
+
+                _calc_q = (query or "").strip()
+                if _calc_q:
+                    # WORKBOOK lane first (round 69): 'calculate price
+                    # for FILE.xlsx SHEET row N cell XN' — the workbook
+                    # defines the calculation, teaching authorizes when
+                    # that calculation applies, and the reconstruction
+                    # is dependency-complete or honestly incomplete
+                    # (never a partial price).
+                    from core.pricing_calculation import (
+                        calculate_expression_from_query as _expr_query,
+                        calculate_workbook_from_query as _wb_query,
+                    )
+
+                    _conv_id = (context or {}).get("conversation_id")
+                    _wb_block = await _wb_query(
+                        _calc_q, user_id,
+                        (context or {}).get("workspace_id"),
+                        conversation_id=_conv_id)
+                    if _wb_block:
+                        return _with_grounding(_wb_block)
+                    _expr_block = await _expr_query(
+                        _calc_q, user_id,
+                        (context or {}).get("workspace_id"),
+                        conversation_id=_conv_id)
+                    if _expr_block:
+                        return _with_grounding(_expr_block)
+                    block = await _calc_query(
+                        _calc_q, user_id,
+                        (context or {}).get("workspace_id"))
+                    if block:
+                        return _with_grounding(block)
+            except _CalcInputError as _calc_err:
+                return _with_grounding(
+                    f"LIVE TOOL RESULTS (datasets.calculate) — REJECTED: "
+                    f"the typed inputs failed validation ({_calc_err}). "
+                    "Do not compute a price by hand; name the missing or "
+                    "invalid input instead.")
+            except Exception as _calc_err:  # noqa: BLE001 — additive
+                logger.warning("datasets.calculate failed: %r", _calc_err)
+
         if (plan.intent or "search") == "find_all":
             # Excel-style Find All: every cell containing the value, across
             # the whole catalog or one named workbook. Query shape is the

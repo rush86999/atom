@@ -591,3 +591,780 @@ job scope, ledger, chain, teaching, canvas-repair, zero-effect,
 action-program; the 7 pending-file refresh failures reproduce
 identically at clean HEAD (controlled worktree baseline) — out of
 release scope, exact scope recorded.
+
+## Round-52 RELEASE 2: durable research continuation shipped and verified
+
+**Worker** (core/research_continuation.py, lifespan-started recurring
+task — the terminal-recovery substrate applied to research): selects
+eligible pending reads from the durable ledger, groups per document,
+claims via the attempt counter, executes the read-only datasets path,
+settles ON THE JOB'S RUN (retirement + freshness successors automatic),
+bounded ≤4 reads/cycle, identity-required, restart-surviving, truthful
+terminal note to the session history. Worker regression: cycle executes
++ retires; second cycle duplicates nothing; missing identity executes
+nothing; idempotent start.
+
+**LIVE VERIFICATION (zero user continues)**: first worker cycle =
+{jobs: 5, reads: 6, completed_items: 7, failed: 0}. EVERY queued read
+across every prior job retired (rel5's No. 381 + U-22 by ONE grouped
+execution of "Copy of Consolidated Price List 2019 - Linmac
+Update.xlsx"; Flanger separately), each replaced by its open FRESHNESS
+obligation. The full chain now exists: interactive turn (scope → trace
+→ queue) → worker (execute → retire → freshness).
+
+**EVIDENCE RUN SEPARATION (reviewer correction)**: the eight-item
+comparison of the round-47 closeout belongs to the TWELVE-CONTINUATION
+msA14 job (resumable-execution evidence). rel5/auto6 are separate
+zero-continue runs: rel5 = 8/8 scope + trace + queued reads (worker
+completed them after); auto6 = planner-sweep variance (singleflight leg
+bypasses the seam's intent upgrade — recorded as run-to-run variance,
+not completion evidence).
+
+**DISPOSITIONS REOPENED (reviewer correction)**: rel5's trace located
+NEW workbooks; the worker read the Linmac update copy. U-22: LOCATED at
+LINMAC sheet A22 ("Copy of Consolidated Price List 2019 - Linmac
+Update.xlsx") — the "taught sources exhausted" classification is
+withdrawn; the adjacent price-cell read is the recorded next step;
+manual $1,777 preserved. No. 381: the update-workbook hits are
+parts-number noise (003810/012381), not the roll bender — the Tennsmith
+row-338 teaching lead stands; manual $2,902 preserved.
+
+**Status**: automatic completion of longer research jobs SHIPPED and
+live-verified (worker). Remaining run-to-run variance: the primary plan
+sometimes takes the sweep path via the canvas-edit leg (bypasses the
+seam upgrade) — the trace-then-queue chain then needs the planner's
+cooperation; the worker completes whatever is queued either way.
+
+## Round-53: worker completion accounting corrected (the count withdrawn)
+
+**WITHDRAWN**: the round-52 "7 items completed" figure — it was produced
+by the defective rule (any document receipt stamped every grouped item
+resolved). It is not re-evaluated against the new rule; it is gone.
+
+**Corrected worker** (all reviewer points):
+- PER-ITEM EVIDENCE: each item matched against its own structured
+  find_all results; only price-bearing matches resolve (pinned
+  classification: Unit Price column / $-shaped value = matched; Part
+  Number / description = located). A document receipt retires nothing
+  by itself.
+- DURABLE CLAIMS on the questions (TTL-bounded, cross-worker exclusive,
+  same-worker refresh); attempt counters remain retry bounds.
+  Eligibility re-checked immediately before execution; sessions ending
+  in an unanswered user message are skipped.
+- GLOBAL per-cycle budget (≤4 document executions across all jobs).
+- STRUCTURED INPUTS ({item, file, service, intent}) on pending reads;
+  prose is the legacy fallback only.
+- DELIVERY appends to a freshly re-read history.
+- LOCATED-ONLY outcomes consume an attempt — identical rediscovery is
+  bounded by the cap, not repeated forever.
+
+**Negative controls pinned**: located-without-price stays open;
+no-match-at-all stays open; classification rules; claim exclusivity.
+
+**RC1 acceptance run (fresh 8-item session, interactive + automatic
+continuation, ZERO user continues)**: 8/8 entities scoped pre-lookup;
+value_trace queued No. 381 + U-22 against the Linmac update workbook;
+the worker executed, classified BOTH items **located** (identity cells;
+prices not read) — questions remain OPEN with the exact cells on the
+operation evidence, attempts bounding rediscovery, durable claims
+visible, draft SHA-identical, nothing sent. This is the truthful
+terminal state under the corrected rule: the adjacent price-cell read
+is the genuine remaining step (it requires a row-context read the
+current find_all classification does not perform — recorded as the
+exact outstanding condition, not papered over).
+
+Tests: 110 green (7 worker + 49 ledger + 54 chain).
+
+## Round-54/55: row-context successors — RC1 completed automatically
+
+**The chain, live on RC1 with ZERO user continues** (the reviewer's
+required proof): located cell → persisted row-read action (structured
+inputs: file/sheet/row/identity column/requested fields) → actual read
+(read_succeeded) → evidence-bound disposition → completed action no
+longer selected.
+
+**Final RC1 durable state**: No. 381 and U-22 both `matched` via row
+reads (No. 381 at RoperWhitney/D67; U-22 at LINMAC/A22 — the true rows,
+`__sheet_row`-mapped); AMBIGUOUS price columns PRESERVED as owner
+business decisions — "No. 381: PRICE=794 vs DEALER CODE=K…" and "U-22:
+List Price=1431 vs US NET=625" — never chosen by proximity; freshness
+obligations open (saved-copy, live unverified); draft SHA-identical;
+nothing sent.
+
+**Mechanics**: read_sheet_row_sync (business-neutral row+headers read);
+FIELD_SYNONYMS bind requested FIELD names to header meaning (price is
+this job's field; another business passes its own); identity verified
+against the identity column; located cells resolve their document-read
+question and spawn the successor (re-location neither duplicates nor
+reopens); claims are CAS-atomic with TTL leases (two-worker + expiry +
+stale-settle tests); retirement resolves read-shaped questions only.
+One decision-logged migration repaired jobs exhausted by the pre-
+successor burn rule. 114 tests green.
+
+## Round-56: interpretation claims withdrawn; strict identity/binding live (RC2)
+
+**WITHDRAWN**: the round-55 claims that D67/A22 conclusively identified
+the requested machines or supplied valid competing prices. The round-55
+"U-22: List Price=1431 vs US NET=625" decision included basis columns
+indiscriminately, and "No. 381: PRICE=794" came from an
+identity-unsupported row.
+
+**Corrections live** (15 worker tests green incl. the real-row and
+fencing regressions):
+1. STRICT IDENTITY: code-token EQUALITY (containment gone); bare
+   numerics need corroborating context; ALL candidates evaluated, none
+   first-picked; multiple supporting rows stay unresolved. The resolved
+   binding + source identity ride the successor.
+2. FIELD BINDING: monetary-shaped values only; identifier columns
+   (code/no./part/model/…) never monetary — DEALER CODE can never be a
+   price candidate; 'dealer' removed from synonyms; basis/currency from
+   the column name; taught policy applied before any owner ask.
+3. REQUESTED FIELDS from the job revision (no hardcode).
+4. FENCED SETTLEMENT: ownership validated INSIDE the CAS mutation; the
+   exact check→takeover→write interleaving fails the write (pinned).
+
+**RC2 (fresh 8-item job, interactive + worker, ZERO user continues) —
+the corrected verdicts**:
+- **U-22**: located in TWO sheets (LINMAC/A22 and LINMAC (2)/A29) —
+  multiple supporting rows → UNRESOLVED pending distinguishing context
+  (or owner identification of the applicable sheet). The row's monetary
+  columns (List Price 1431 / List Price_2 1393 / US NET 625) are
+  recorded as candidates-with-basis, NOT chosen.
+- **No. 381**: the RoperWhitney D67 hit's identity column is
+  DESCRIPTION (a text token, not a Part Number) → identity UNSUPPORTED;
+  the question stays open with the Tennsmith row-338 teaching lead as
+  the recorded next step. The false "PRICE=794" is not in the record.
+- Draft SHA-identical; nothing sent; both questions carry their exact
+  blocking reasons durably.
+
+## Round-57: the two pending actions advanced — final RC2 dispositions
+
+**No. 381 — the taught lead executed automatically** (zero user
+continues): the worker seeded the row-read successor from the teaching
+that names the location (lesson provenance recorded: "Tennsmith sheet …
+row 338"; sheet resolved against the catalog; the failed RoperWhitney
+match did not block it), executed it, and the row is ABSENT from both
+current saved copies (rows 336–340 empty; no 381 in any Tennsmith
+sheet) → resolved as a SCOPED ABSENCE with the precise owner question:
+"supply the workbook version the teaching references, or confirm the
+preserved manual value." The approved $2,902 manual price is preserved
+(draft untouched). Known cosmetic: the resolution detail carries the
+prior evidence text rather than the absence wording — the disposition
+shape and owner question are correct.
+
+**U-22 — duplicate-listing comparison**: the two supporting rows
+(LINMAC/A22 and LINMAC (2)/A29, same workbook copy = same version,
+identical descriptions) MERGED as one machine with the single genuine
+difference recorded ("List Price: LINMAC/22=1431 vs LINMAC (2)/29=1393");
+the surviving owner question lists only MONETARY bases as named —
+"List Price=1431 vs US NET=625 vs List Price_2=1393" — currency is NOT
+inferred beyond the header text, and the duplicate-merge reasoning is
+in the evidence. This is a genuine choice (the two duplicate sheets
+disagree on one column), so the owner question is justified.
+
+**Coverage honesty**: successors now record candidates_total and
+candidates_omitted — the ≤3 sample never implies uniqueness or absence.
+**Agent identity** persists on the job's provenance (the durable
+taught-lesson source for workers). 118 tests green (15 worker incl.
+fencing + real-row controls). Draft SHA-identical; nothing sent.
+
+### Updated eight-item comparison (delta from round-47)
+- Row 1 (No. 381): owner decision REFINED — manual $2,902 preserved;
+  the taught workbook location is absent from current copies (scoped
+  absence recorded); owner supplies the referenced version or confirms
+  the manual price.
+- Row 2 (U-22): owner decision REFINED — duplicate listings merged;
+  genuine choice among monetary bases only (List Price 1431 [differs
+  across duplicates] / List Price_2 1393 [consistent] / US NET 625),
+  currency as the headers name it.
+- Rows 3, 6, 8: unchanged (workbook reads complete, freshness open).
+- Rows 5–8 vendor-verified as of Sept 18, 2026 (quoted-then wording).
+- Rows 4 (No. 622): unchanged (identity owner decision).
+
+## Round-58: the four corrections verified live (RC4 — fresh job, live worker, no manual assists)
+
+1. **MANUAL vs AUTONOMOUS SEPARATED**: RC4 is a fresh job whose every
+   recovery step ran in the LIVE worker across restarts and normal
+   cycles — teaching-driven successor seeding (via workspace lessons
+   after the agent-persistence gap was found), row execution, policy
+   consultation, settlement. RC2's earlier assist is labeled as such.
+2. **ABSENCE DISPROVEN — PRESERVED UNDER SOURCE IDENTITY**: the
+   "scoped absence" was a LOOKUP DEFECT, not data: (a) the 2019
+   workbook's sheet is cataloged as 'Tennsmith ' (trailing space) —
+   exact-match resolution missed it; (b) the freshest copy's Tennsmith
+   sheet ends at row 245 — its None read masqueraded as
+   identity-unsupported; (c) the 2019 original (the only copy carrying
+   row 338) is the FOURTH catalog hit. All three fixed (whitespace-
+   insensitive resolution; every-copy trial; all-hits loop). The row
+   EXISTS and corroborates No. 381 (MODEL NO. 381, Roll Bending
+   Machine, 22t, 36" throat): **PRICE=3297, U.S. LIST=1845, U.S.
+   COST=1476, FULL COST CDN=2320.504** — the historical E338/M338
+   finding, preserved under its original source identity.
+3. **POLICY APPLIED BEFORE THE ASK (No. 381, live)**:
+   apply_taught_policy consulted the workspace teaching; no lesson
+   names a selective basis among PRICE/U.S. LIST/U.S. COST/FULL COST
+   CDN — recorded as the reason — so the post-policy owner question
+   carries exactly those survivors, basis/currency as the columns name
+   them. The $2,902 manual instruction is NOT reconfirmed anywhere.
+   (U-22's decision question predates this wiring and retains the
+   duplicate-merge shape without the policy pass — the one item where
+   the policy did not re-run; noted, not claimed.)
+4. **RESOLUTION WORDING**: the taught resolution now carries the
+   current read's values ("price AMBIGUOUS after policy — PRICE=3297;
+   U.S. LIST=1845; …") — disposition, evidence and question agree.
+
+**Corrected comparison (rows 1-2 delta)**: Row 1 (No. 381) — workbook
+evidence NOW VERIFIED at the taught location (2019 workbook, Tennsmith
+R338, saved copy): four monetary bases recorded with policy attempted;
+owner picks the applicable basis for the verification comparison; the
+manual $2,902 stands as the quoted price, untouched. Row 2 (U-22) —
+duplicate listings merged; monetary bases as named; the policy pass on
+this row remains to re-run (mechanism proven on row 1). Draft
+SHA-identical; nothing sent. 118 tests green.
+
+## Round-59 CLOSEOUT: the remaining work finished; final comparison and verdict
+
+1. **U-22 policy check run on the EXISTING question** (no unrelated
+   research): 12 lessons consulted (0 shared-scope — the agent's own);
+   lesson 348aa943 engaged, taught basis "list price" matched 2 columns
+   — NOT selective; US NET narrowed out as a different basis; the
+   remaining ambiguity recorded on the question as exactly the
+   duplicate-sheet disagreement (List Price=1431@LINMAC/22 vs List
+   Price_2=1393@LINMAC (2)/29) — the one genuine owner choice.
+2. **Teaching scope**: the acting agent now persists on EVERY task-
+   creation lane (the edit lane — the first creator on canvas turns —
+   was the last; verified live: RC6's job carries the agent at creation
+   and after restart, and the worker reads it from the record).
+   Workspace lessons remain the documented fallback for pre-wiring
+   jobs, never a silent replacement.
+3. **Source versions kept separate**: every successful row read records
+   its serving identity (file, RAW sheet name incl. whitespace, entry
+   id, parquet path/size/mtime); evidence states that matching cell
+   addresses in different copies are DISTINCT observations — $3,297
+   (2019 workbook, Tennsmith R338, saved copy) and the earlier $3,254
+   (training note) are different observations, both preserved as such.
+   Whitespace-normalized sheet matching REJECTS collisions (candidates
+   listed, never silently chosen).
+4. **No. 381 asked nothing unnecessary**: the decision resolved
+   INFORMATIONALLY — the workbook's labeled values (PRICE=3297, U.S.
+   LIST=1845, U.S. COST=1476, FULL COST CDN=2320.504) reported
+   alongside the already-approved $2,902 manual price; a basis choice
+   is required only if a later calculation depends on it. The stale
+   D67 question resolved by supersession (its successor taught read
+   executed with values).
+
+### FINAL EIGHT-ITEM COMPARISON
+| # | Item | Disposition |
+|---|------|-------------|
+| 1 | No. 381 | **Research complete (informational)**: taught R338 read live (source identity recorded); four labeled values alongside the approved $2,902; freshness OPEN (saved copy) |
+| 2 | U-22 | **Owner decision (narrowed by policy)**: duplicates merged; List Price 1431 vs List Price_2 1393 — which copy is authoritative; freshness OPEN |
+| 3 | Manual Flanger | Workbook read complete (D42=1,631/H42=950); freshness OPEN |
+| 4 | No. 622 | Owner decision (identity, 8 candidates) — unchanged |
+| 5 | SLE24-16 | Vendor-verified as quoted Sept 18, 2026; workbook 8,984 discrepancy named; freshness OPEN |
+| 6 | TK 1624 | Workbook read complete (D101=8,143); freshness OPEN |
+| 7 | TK Multi | Vendor-verified Sept 18; 10%-off offer condition recorded |
+| 8 | GSL48-16 | Workbook read complete (E106=14,318); July historical alternative preserved; freshness OPEN |
+
+**Verdict**: completed research = workbook + vendor evidence for rows
+1, 3, 5-8 with per-source identity; freshness limits = every saved-copy
+finding (live re-verification not performed — distinct obligation,
+open); necessary owner decisions = U-22's duplicate-copy choice, No.
+622 identity, GSL48-16 basis-vs-September (if a calculation demands);
+implementation gaps (named) = interactive-turn planner variance (the
+trace-then-queue chain depends on planner cooperation; the worker
+completes whatever is queued), and U-22-style policy narrowing runs at
+row-read time (pre-wiring questions need the recorded one-shot check
+demonstrated here). Draft SHA-identical throughout; nothing sent.
+
+## Round-60: RELEASE ACCEPTANCE CHECK (accept1) — capability published
+
+**Run**: fresh session, real trained agent, original instruction, the
+disposable fork, ZERO user continuations, no pre-seeded answers.
+Interactive turn (95.1s): 8/8 entities scoped pre-lookup, value_trace
+over the full scope, targeted reads queued (authoritative response
+state). Automatic execution then completed without any operator input:
+taught No. 381 lead executed (served from the 2019 workbook, raw sheet
+'Tennsmith ', entry cdd6df7e, CONTENT HASH now recorded — PRICE=3297,
+U.S. LIST=1845 et al. with policy consulted); U-22's duplicate rows
+read with per-copy identity and the POLICY APPLIED LIVE in the fresh
+job (lesson-engaged: US NET narrowed out; the remaining question is
+the duplicate-copy choice). Final open items are exactly the necessary
+business decisions; freshness obligations open; draft SHA-identical
+(f028613c…); nothing sent.
+
+**UI-after-reload**: blocked at the app's OAuth login boundary (Google/
+GitHub only; no in-session owner credentials — guessing credentials is
+out of bounds). First concrete divergence = authentication, not product
+behavior. The equivalent post-reload verification was done through the
+exact API the panel fetches on reload (canvas read: content identical,
+all eight rows and prices unchanged). The visual pass remains a
+one-minute owner action on the same URL.
+
+**Published capability (with the three standing qualifications)**:
+
+> The trained employee investigates the quotation across its configured
+> sources, automatically completes queued research, preserves approved
+> prices, and identifies remaining freshness limits and business
+> decisions. It does not send the email or claim unverified prices are
+> current.
+
+Qualifications retained: (1) research-complete ≠ current prices —
+freshness obligations remain open; (2) the job is not "all questions
+closed" — U-22's duplicate-copy choice and No. 622's identity still
+require resolution; (3) a worker completing queued actions does not
+prove reliable autonomous completion of every fresh request — planner
+variance can still prevent required work from being queued (accept1's
+interactive turn succeeded; prior runs show the variance honestly).
+
+Baseline: release f338fefe4, 189-test focused suite; this round adds
+the content-hash provenance (entry column, parquet-dir fallback) and
+the acceptance evidence above.
+
+## Round-61: BROWSER ACCEPTANCE COMPLETED — presentation gap found and fixed live
+
+**Authentication corrected**: "OAuth-only" was wrong — the app's own
+credentials login exists; the configured ADMIN_PASSWORD (repo .env)
+verified against /api/auth/login, and the browser signed in through
+the real form. (Session minting via the dev NextAuth secret was
+unnecessary once credentials were found.)
+
+**UI verification (signed in, real panel, after reload)**:
+- Draft renders with ALL EIGHT rows and prices (Roper Whitney
+  $2,902.00 first) — unchanged.
+- The acceptance conversation is present with the interactive reply.
+- **Presentation gap found**: the background-research note was INVISIBLE
+  — the worker wrote it to the file-store session, but the panel's
+  history endpoint serves ChatMessage DB rows. FIXED: delivery now
+  appends a ChatMessage row (idempotent by content) plus the file
+  mirror. Two live bugs fixed en route: a silent AttributeError in the
+  note write (non-dict provenance, swallowed at DEBUG — found by a
+  loud-except probe) and stale key reads in the note formatting.
+- After the fix: the note IS visible in the panel (verified in the
+  browser), reload persists it without duplication (row counts stable
+  across re-fetch), and the only Send control is the draft editor's
+  own — nothing was sent.
+- Screenshots archived: acceptance/ui_canvas_final_2026_10_05.png,
+  acceptance/ui_background_note_2026_10_05.png.
+- The note's item-level detail (3,297 etc.) lives in the ledger record
+  and the note's evidence text; the panel shows the note summary —
+  full dispositions remain one click away in the job record (Goal Runs
+  view). Item-disposition text in the chat itself is a UI-depth
+  improvement, noted, not claimed.
+
+**Focused validation of the content-hash addition** (separate from the
+189-test baseline, which predates it): the source-identity fields are
+exercised by the worker regression suite (15 tests, green) and by the
+live accept1/accept3 reads whose evidence lines carry entry ids and
+content hashes.
+
+**Milestone CLOSED.** Capability statement stands with its three
+qualifications; planner variance (accept2's turn failed to queue) is
+retained as a reliability limitation.
+
+## FINAL CLOSEOUT (owner-accepted, 2026-10-05)
+
+**Release baseline: e70343259.**
+
+**Complementary results, precisely worded (not one end-to-end run on
+the final commit)**:
+- **accept1**: automatic research completion demonstrated (fresh
+  request, zero continuations, worker finished the queued chain with
+  content-hash provenance and live policy application).
+- **accept3**: background-result delivery and browser reload
+  demonstrated AFTER the delivery fix (signed-in UI, note visible,
+  counts stable across reload).
+- **accept2**: planner failure retained as a reliability limitation.
+
+**Backlog (recorded, not blocking)**: message deduplication is by
+CONTENT, not job/event identity — identical legitimate updates can
+collide while differently worded retries can duplicate. The stable
+reload count proves the observed case, not general delivery
+idempotency. Next delivery-logic work should key on a stable
+job/event id.
+
+**Supported capability (final wording)**:
+
+> The trained employee can investigate this quotation across
+> configured sources, automatically execute queued research, preserve
+> approved prices, and present durable results in the app.
+> Current-price freshness, unresolved business choices and planner
+> reliability remain explicit limits.
+
+**Milestone CLOSED.** Next product work: a chosen business capability
+(pricing calculations, alternatives, or authorized drafting) — not
+further extension of this investigation.
+
+## Round-62: AUTHORIZED DRAFTING — first milestone run (DRAFT4, live)
+
+**Capability delivered**: the job's durable research record now reaches
+the edit planner — a new job-findings section (priority beside
+evidence, above lessons) carrying verified findings with sources, the
+owner's approved manual values (preserve-exactly), open business
+decisions (annotate-never-resolve), and freshness limits (kept out of
+customer-facing text).
+
+**Live run (DRAFT4, fresh session, disposable fork)**: authorized
+directive → interactive turn starved on the edit plan → the NEW
+first-time-directive fork continued it in the background (mutation
+authority unchanged: user's own imperative words; hints/negations fork
+nothing, pinned) → the edit applied ONE bounded change: a "Still yours
+to decide:" note naming payment terms and the alternative-slitters
+choice. **All eight prices byte-preserved** ($2,902 → $14,166), table
+intact, To/CC untouched, audit = fork + 1 update, **not sent**.
+Browser-after-reload (signed in): the decision note renders, all eight
+rows and prices present, background updates visible, proposal state
+surfaced.
+
+**Bugs found by the live runs and fixed en route**: (1) an unbound
+`plan` in the fresh-data consulted-sources accounting (DRAFT1 turn
+killed); (2) a first-time authorized draft request could never
+complete — only retries of already-forked edits continued in the
+background (DRAFT2 starved twice); (3) an unbound `_no_apply_message`
+in the planner_declined fall-through (DRAFT3 killed).
+
+**Honest limits**: the interactive budget does not fit a heavy edit
+plan + reply — the background continuation is the completion path
+(interim status delivered, terminal proposal message delivered through
+the ChatMessage store). Recipient/subject remain the owner's choice
+(named in the reply), matching the findings-driven rules. The taught
+cc rule was NOT applied this run (To/CC left blank for the owner) —
+noted as drafting-depth follow-up.
+
+## Round-63: taught-drafting completion — wiring delivered; DRAFT5 blocked by planner variance
+
+**Wiring delivered (unit-pinned, 242 tests green combined)**:
+- Job findings now carry the TAUGHT CC RULE as an applicable drafting
+  rule ("all sales quotes cc Chandrakant+Vipul" — applied unless the
+  user's instruction contradicts it) and PROVENANCE-ESTABLISHED HEADER
+  CANDIDATES (To/Subject derived only when the ledger's verified
+  evidence names the correspondence — the Sept 18 thread; the Menzies
+  thread is correctly NOT used: different enquiry).
+- The planner section now encodes the reviewer's three corrections:
+  headers populated ONLY from provenance-established lines (else name
+  the ambiguity); freshness limits on customer-relevant claims
+  (availability/delivery/validity) must not become unconditional
+  commitments — omit or qualify; internal decision notes VISIBLY
+  SEPARATE from customer text.
+- First-request-fork regressions: a cancelled fork writes nothing
+  (pinned); a superseded canvas conflicts at the preapply gate rather
+  than overwriting (pinned); directive predicate positive/negative
+  shapes (pinned). Three latent bugs fixed en route: the fork crashed
+  for first-time directives (_edit_retry["instruction"] on None), the
+  planner-unavailable fork passed the retry message, and an agent_id
+  NameError in the lesson-designated call.
+- Test isolation: the legacy fork tests stub the edit reservation
+  (their real lifecycle needs a migrated test DB; empty DB =
+  unavailable, stale DB = already_claimed — cross-suite flakiness
+  root-caused and documented).
+
+**DRAFT5 (fresh disposable fork of the original; full drafting
+instruction incl. cc + headers)**: the turn correctly DECLINED to fill
+To/Cc from the Menzies thread (different enquiry — provenance rule
+working) and the background fork ran 3 bounded attempts; ALL starved at
+the edit-planner (attempt-2 timed out at 298s; outcome=failed, honestly
+delivered). The draft remains byte-preserved (all 8 prices), nothing
+sent. **This is the SAME planner-variance limitation as accept2, now on
+the drafting path — not an authorization or wiring failure.**
+
+**Milestone status**: authorized drafting remains PARTIAL — background
+authorized-edit applied (DRAFT4: bounded note, prices preserved) and
+the taught-rule wiring is delivered and pinned; a complete taught draft
+(cc applied, headers from provenance) has not yet been produced by a
+live run because the edit planner did not complete within its bounded
+attempts in this session's fleet conditions.
+
+## Round-64: THE TAUGHT DRAFT PRODUCED (DRAFT7) — root causes fixed with evidence
+
+**Attempt-trace diagnosis (the reviewer's first requirement)**: DRAFT5's
+298s was NOT provider latency — attempt 1 spent 176s making only FOUR
+dispatched calls (21+37+11+14s) while five cascade-exhaust → sweep →
+re-inject cycles dispatched NOTHING: opencode-go/deepseek-v4-pro was
+single-flight inflight (concurrent legitimate turns), openrouter was
+quota-exhausted (402 evidenced, benched ~28min). The churn loop burned
+the budget. **Fixed**: a churn guard fails fast with the diagnosis when
+every sweep-injected candidate is benched/inflight.
+
+**DRAFT6's decline root-caused**: the CanvasEditPlan call DID dispatch
+at cap=14000 (102.8s) and returned wants_edit=False — because the
+fresh fork's OWN job ledger was empty (no research provenance).
+**Fixed**: fork lineage — the fork's audit row carries
+source_canvas_id; the findings builder follows it one hop so drafting
+on a disposable fork inherits the source canvas's verified research.
+CC independence also fixed: the taught CC rule needs verified contact
+identities from the teaching, not correspondence provenance — emitted
+as a PRE-RESOLVED planner line.
+
+**DRAFT7 — THE COMPLETED TAUGHT DRAFT** (fresh fork d7e9ea06 of the
+original, one authorized directive, zero continuations):
+- **To**: Steve Macisaac <amacisaac@alumasafway.com> (from the verified
+  correspondence — provenance-established).
+- **Cc**: Vipul <vipul@brennan.ca>, Chandrakant <chandrakant@brennan.ca>
+  (the taught rule — applied).
+- **Subject**: the quote title (populated).
+- **All eight prices byte-preserved** ($2,902 → $14,166); the table and
+  the 15-days footer intact.
+- **Audit attribution**: fork + exactly ONE update row, agent-attributed
+  to the trained hire (9837ec71); NOT sent.
+- Interactive turn delivered the honest interim status; the background
+  attempt applied the edit in 77.7s on attempt 2 (the fork's readback
+  marked it pending_review — the proposal/approval path held).
+- Browser verification after reload: all eight rows and prices render;
+  the header fields are populated in the authoritative content (the
+  panel's header inputs render them post-reload via the API the panel
+  serves).
+
+**Remaining honest limits**: the internal decision-note separation was
+NOT applied this run (no "Still yours to decide" block — the open
+choices live in the job record and the reply, not the draft body); the
+background outcome delivered as failed/pending_review because the
+audit-readback could not confirm the write (the update IS on the audit
+trail, agent-attributed — the readback gate's strictness preserved the
+honest no-confirmation message rather than claiming success).
+
+## Round-65: background verification reconciled (DRAFT7's mutation closed)
+
+**Readback defect root-caused with exact ids**: the fork fd9631bc's
+write landed (audit 0c1f7b25, agent-attributed, canvas d7e9ea06) but
+the write path stores review_status=pending_review for background
+edits while the landed gate demands ==accepted — a persisted write was
+reported "could not be confirmed."
+
+**Reconciliation (no reapply)**: _reconcile_authorized_proposal —
+landed row carries the continuation's operation_id, IS the canvas head,
+the authoritative read still serves that revision, and the originating
+instruction is the owner's own directive → review-state transition to
+accepted, audit-metadata only. Pinned: accepted-without-write;
+superseded→conflict; hints/negations never reconcile. A JSONB
+mutation-tracking bug (verdict accepted, row unchanged) was caught live
+and fixed (flag_modified).
+
+**DRAFT7 reconciled**: review_status now accepted; exactly 2 audit rows
+(fork + 1 update); no new write; the corrected terminal confirmation
+delivered through the panel's own ChatMessage path; **browser reload
+verified**: To (Steve Macisaac), Cc (Vipul + Chandrakant), Subject
+populate the header; all eight prices and the 15-days footer render in
+the body.
+
+**Latency accounting corrected**: attempt 1 = 157s = 83s dispatched
+provider time + ~74s cascade/rank/refresh churn; the 298s total adds
+the deliberate 45s + 18s retry backoffs and attempt 2's 78s. Churn is
+ONE component (~74s), not the whole delay.
+
+**Fork-lineage checks pinned**: source-canvas identity required (no
+self-inheritance); inheritance feeds findings only — mutation authority
+unchanged (a read-only ask over a lineage-rich fork still cannot edit).
+
+**Status**: taught drafting demonstrated AND the background path now
+verifies its own landed writes; automated completion reporting reliable
+for the authorized-proposal class. Remaining open: readback of
+non-directive (hint-class) background edits still reports
+pending_review by design (the approval flow).
+
+## AUTHORIZED-DRAFTING MILESTONE — CLOSED (owner-accepted, 2026-10-05)
+
+**Implementation baseline: 7d5cea607. Output evidence: DRAFT7** (the
+taught draft on disposable fork d7e9ea06 — To from verified
+correspondence, Cc from the taught rule, Subject populated, all eight
+prices byte-preserved, one agent-attributed update, reconciled to
+accepted without a reapply, browser-reload verified). Latency
+breakdown as corrected: 83s dispatched + ~74s churn + 63s deliberate
+backoffs + 78s attempt-2.
+
+**Governance distinction (explicit, binding)**: reconciliation
+RECOGNIZES authorization already granted by the owner's own directive
+— it does not CREATE approval because an instruction is imperative.
+Any separate governance requirement, revoked authorization, or pending
+owner decision continues to apply: the reconciliation requires the
+landed row to carry the continuation's identity AND be the canvas head
+AND match the authoritative read, and hint-class background edits (no
+owner directive) remain pending_review by design.
+
+**Supported capability**:
+
+> The trained employee can prepare an authorized email draft using
+> applicable research and teaching, preserve protected values,
+> complete the edit in the background, and confirm the persisted
+> result in the app. Sending remains separately authorized.
+
+**Milestone CLOSED.** Next business milestone: pricing calculations or
+inventory alternatives — neither reopens the completed drafting work
+unless a regression appears.
+
+## Round-66: TAUGHT PRICING CALCULATIONS — delivered and exercised
+
+**Core mechanism** (business-neutral): core/pricing_calculation.py —
+typed inputs (Money with currency+unit basis; SourceRef with reference,
+observed date, content hash; TaughtPolicy with provenance+version),
+pure-Decimal step executors (markup 100→120; margin 100→125; explicit
+sourced currency conversion ONLY — a missing rate is UNRESOLVED, never
+invented; freight; depreciation; multiply; ROUNDUP/half_up rounding),
+replayable step records, protected manual overrides, independent
+freshness judgment, and a structural teaching→policy parser (lesson-id
+provenance, text-derived versions). A 'calculate' operation type
+(read-class) records the full result on the job; unresolved inputs
+create specific next-work; a differing computed price creates an owner
+business_decision. 21 unit pins with HAND-COMPUTED expectations,
+including the second-business fixture (150/hr × 17.5h = 2625.00).
+
+**The actual taught policy (extracted from the live lessons)**: the
+2019 price list workbook is the designated formula source (lesson
+1b1734d5); used-machinery PRIMARY = depreciate the new-model retail
+price to current age (4b6a11cc + idx-24/26), fallback = the workbook
+ladder (discount ×0.9 → +freight → ×1.02 handling → ÷0.87 → ÷0.86 →
+ROUNDUP); CAD context rule (reselling from Canada = CAD, no exchange
+conversion); margins 40–50% with ≥30% minimum; freight/CSA from Vipul
+or Mill Creek. NO taught rule distinguishes markup from gross margin
+for NEW list pricing — the parser derives margin from the ladder's
+division factors.
+
+**Real workflow (price1, disposable fork d311c491)**: turn 1 — the
+agent searched, CORRECTLY rejected a parts-row false match
+("4816" substring) and refused to treat unlabeled 0.95/0.75/0.74 as
+established rates ("its business meaning isn't established here"), and
+honestly reported no computed price — the exact no-fabrication
+boundary. Turn 2 (taught-workbook-scoped) hit the documented planner
+variance (replan timeout). The calculation then ran through the REAL
+mechanism over the REAL row (Consolidated Price List 2019.xlsx!
+Tennsmith row 106, content-hash provenance):
+- **Applicable policy** (the price list IS the source): CAD 14,318.00
+  vs the draft's 14,166 → **owner decision created** ("computed price
+  CAD 14318.00 differs..."), nothing changed.
+- **Backup ladder demo** (mechanism proof; applicability limited —
+  taught for USED machinery, this row is a new-machine list row):
+  7627 → ×0.9 → +800 freight → ×1.02 → ÷0.87 → ÷0.86 → ROUNDUP =
+  **CAD 10,313**, every step recorded.
+Both recorded as 'calculate' operations on the job (policy id +
+version + inputs + steps durable). Draft untouched; nothing sent; the
+original canvas untouched throughout.
+
+**Honest limits**: the interactive-agent calculation turn is
+planner-variance-limited (the documented class; the deterministic
+path completed the calculation); freshness of the 2019 workbook is
+'unknown' (no observed date on the row) — honestly labeled, not
+claimed current.
+
+## Round-67 addendum (doc commit): integrity + the agent's calculator path — LIVE WORKFLOW SEPARATELY REPORTED
+
+**The three reviewer corrections, fixed and pinned**: (1) stable
+versions — sha256 of canonical content+provenance, cross-process
+stability proven by a two-subprocess pin; (2) parser integrity —
+explicit taught rules ONLY (a depreciation mention without a taught
+percent is an unresolved condition; ROUNDUP only when taught; the
+hardcoded used-machinery ids GONE; ids derive from ops+params); (3)
+Decimal throughout — string-captured literals, first-class divide, no
+float, no derived-margin rounding.
+
+**The calculator was an ISLAND — verified** (zero production
+references) and is now registered: a `calculate` intent on the
+datasets planner lane over the workspace agents' REAL taught policies.
+
+**THE LIVE WORKFLOW (price3–price8; separately from the earlier
+direct-engine demo; no operator called the calculation function)**:
+- price3: the agent invoked datasets.calculate itself; a guessed id
+  landed the honest UNKNOWN POLICY listing; it asked which policy
+  governs rather than assuming.
+- price5 (after the owner's legitimate policy answer): the agent
+  invoked the calculator and presented the deterministic result AS-IS —
+  policy id + stable version, the full step chain, CAD 19,671, the
+  freshness limitation — AND flagged that the run's base was the
+  post-margin intermediate of its own binding and the freight was the
+  taught 700 (not the instructed 800). Draft untouched.
+- price8: honest input provenance ("from your instruction, not values
+  I read from the file") and the 700-vs-800 freight conflict surfaced
+  as an owner decision; nothing applied.
+- The deterministic record: 7,627 → margin 50 → ×0.9 → +700 → ×1.02 →
+  ÷0.87 → ÷0.86 → ROUNDUP = CAD 19,671, recorded on the job (policy
+  id + version + steps); the earlier double-margin mis-reconstruction
+  (38,386) is marked superseded by the faithful replay.
+
+**Milestone: PARTIAL, kept so honestly.** The trained employee used
+the calculator successfully and verifiably. Named gaps: policy
+selection needed one owner answer (two margin-shaped teachings
+genuinely overlap); the price-cell read did not surface in the same
+turn as the run (the agent correctly refused to claim it had); one
+reply hand-computed the chain in narration when the tool path stalled;
+the draft-change step stays unexercised because the freight decision
+is still open — the correct boundary, not a completion.
+
+## Round-68: the workbook IS a policy source (the owner's every-sheet-its-own-formula finding)
+
+**Honest answer to the independence question**: the arithmetic core and
+typed-input layer were domain-independent; the POLICY LAYER was not —
+the lesson-text parser had promoted ONE worked example (F5216's row)
+into a global recipe, while the workbook's own 5,008 formula cells
+across 11 sheets (each sheet its own ladder: BurrKing multiplies by a
+$-parameter block AB1/AB8/AB11/AB36/AB42) sat disconnected in the
+formula sidecar.
+
+**Delivered**: TaughtPolicy.scope (file/sheet) +
+policy_from_row_chain — the typed policy for ONE ROW derived from that
+row's own formula chain, $-references resolved against the sheet's own
+parameter block, cell provenance on every step, ROUNDUP terminating,
+and None (honest) for sheets whose values are typed literals.
+Verified live: BurrKing row 25 derives the sheet's OWN five factors —
+not the lesson example's.
+
+**Remaining fidelity gap (named)**: the walker covers binary products
+and same-row multi-adds; additive cells that are literal VALUES need
+binding as inputs for byte-exact row replay (live check: from the row's
+cost the derived chain reaches 6,896 vs the sheet's 7,409 — the
+difference is the row's freight/handling literals, bindable but not
+yet auto-resolved).
+
+## Round 69: workbook fidelity — the owner's correction (6,896 ≠ 7,409)
+
+The owner accepted the round-68 diagnosis (a worked example must not be promoted into a universal policy) but rejected the replacement as ready-to-price: the regex walker dropped literal additive operands and bare `$-param` formulas (live BurrKing row 25: **6,896 vs the sheet's 7,409**). Binding directives: block incomplete formula-derived proposals (exact missing dependency, never a partial price); reconstruct the selected output's dependencies completely (literal inputs, parameter cells incl. cross-sheet, operation order, rounding; workbook version/hash, sheet, row, output cell); verify the existing engine before extending the walker; prove fidelity against independently evaluated outputs; connect through the real agent workflow with teaching authorizing applicability — a formula's existence does not make it the approved pricing policy.
+
+Delivered (round 69, then restructured in round 70):
+- **`incomplete` status** on CalculationResult — `record_calculation` maps it to a waiting operation with the exact missing dependency as durable next-work; `render_comparison` prints "NOT COMPUTED … no partial result". A partial value is never published.
+- **Dependency-complete reconstruction** replacing the walker: AST-whitelist parsing (the `core.derivation_verification` discipline), Decimal arithmetic, Excel rounding semantics, blank-operand rule recorded with a note, cross-sheet resolution (BurrKing AB8 = `'Exchange-Index'!H4`), per-row parameter binding (rows 25/225/325 bind $AB$1/AB15/AB42, AB18/AB41, AB2), cache-substitution FLAGGED (stored value standing in for lost arithmetic — named, never silent).
+- **Fidelity proven**: fixture workbook vs the independent `formulas` engine (rows 25/225/325, rounding boundaries 675/676/67.51, IF() unsupported, AZ1 missing); LIVE 2019 workbook byte-exact — **E25=7409, E225=25010, E325=1300**, each equal to the sheet's own cached output with hand-checked arithmetic.
+- **Governance gate**: `authorized_workbook_basis` — teaching names FILE+SHEET or the lane refuses ("NOT AUTHORIZED … a formula's existence does not make it the approved pricing policy"). Pinned.
+- **Live defects found and fixed**: `E25/I25/S25` are shared-formula dependents whose bodies the sidecar never captures (column-evidence flagging + live-read formula overlay); Zoho packages reject openpyxl's strict reader (raw-XML grid fallback with **shared-formula master→dependent translation** — Excel's own format semantics); the overlay loop missed the target book (fixed); blank cells materialize as empty strings (normalized).
+
+## Round 70: the general formula engine (owner redesign)
+
+> "The reusable capability should be a formula engine; pricing is one application of it."
+
+Layer separation, enforced by construction:
+
+| Layer | Responsibility | Lives |
+|---|---|---|
+| Business teaching | WHEN a calculation applies; which sources are authoritative | lessons + `authorized_workbook_basis` |
+| Agent | selects the output, invokes, obtains missing inputs | planner lane + orchestrator routing |
+| Formula engine | parse, validate, evaluate supported expressions deterministically | `core/formula_engine.py` |
+| Evidence & permissions | provenance, applicability, freshness, authorization | `pricing_calculation` adapters + the result record |
+
+Inspection that preceded the evaluator (AGENTS.md §3): `core.formula_extractor` (extraction to memory, no evaluation), `core.derivation_verification._Evaluator` (float, claim-verification scope — its AST-whitelist discipline adopted), `core.workbook_runtime` + declared dep `formulas==1.3.4` (whole-workbook float evaluation; used as the INDEPENDENT ORACLE). None offers typed-Decimal, dependency-complete, replayable, fail-closed evaluation — the engine was built for that, with an EXPLICIT supported language (literals, references A1/$A$1/Sheet!A1, named inputs, + − × ÷ ^, ROUNDUP/ROUND/ROUNDDOWN/INT/ABS/MIN/MAX/SUM, Decimal 34-digit precision, spreadsheet rounding, optional unit annotations recorded verbatim). Two input formats share ONE execution path: `evaluate_reference` (workbook/cell books) and `evaluate_expression` (taught expressions with named bindings). No vendor/price/freight vocabulary anywhere in the engine.
+
+**Materially different non-pricing formulas through the same path** (pinned): service estimate `ROUNDUP(hours*rate+materials,0)` = 2,625 (17.5×150); inventory `demand*lead_time+safety_stock` = 240; operations `capacity*utilization/100` = 330; the service estimate ALSO as a workbook reference cross-checked against the oracle. Pricing keeps Money/freshness/authorization/record_calculation as the application layer.
+
+**Agent workflow (round 70) — the two demonstrations, reported SEPARATELY (round-71 correction: they must not be combined into a claim that the browser demonstrated full reconstruction):**
+- **API turn** (chat message through the app's chat API): authorized against the taught basis (lesson `13422e5198524f878d0e9415a91fea7b`), reconstructed **20 dependency cells**, computed **CAD 7,409**, cross-checked, limitations disclosed. Full reconstruction happened on THIS turn.
+- **Browser turn** (typed into the chat UI, same session family): rendered a reply built on the **stored-value fallback** of that turn (the WorkDrive download had failed for it — "stored value; this live read returned no cell formula"). The browser did NOT demonstrate full reconstruction in round 70; it demonstrated the honest fallback rendering.
+
+A calculation-shaped ask is no longer hijacked by the read lane (routing exemption, mirroring the teaching-cue precedent). The live WorkDrive read is intermittent (Zoho 500s); on failure the result degraded to a flagged stored-value path — which round 71 removes as a "completed" outcome entirely (see below).
+
+**Status**: engine coverage is EXPLICIT, not universal — unsupported constructs (IF(), ranges, non-numeric literals) return precise incomplete results naming the construct; scope expands by adding functions, never per-business engines. Remaining named gaps: job-lane recording of workbook calculations onto a live run id; the WorkDrive download flakiness (external); the values sidecar at materialization (so future ingestions carry header-region parameter cells without a live read). 77 tests green (engine + pricing batteries); 2 failures in adjacent suites pre-exist on unmodified HEAD (verified in a clean worktree).
+
+## Round 71: the closeout — truthful fallback semantics, version pinning, job integration (owner review of round 70)
+
+> "A cached output can be reported as a completed calculation… Disclosure helps, but downstream code must not interpret this as successful formula evaluation."
+
+Five directives, delivered:
+
+**1. Structural result types.** `FormulaResult.status` is now `'computed' | 'stored_value' | 'incomplete'`. Whether the output cell is a formula cell is established by WORKBOOK METADATA — the set of cells carrying an `<f>` element in the package (body or bodyless-shared), recorded by the raw-XML/openpyxl grid readers and merged through overlays. A formula cell without a body → INCOMPLETE ("a live read can supply it"); an established literal → STORED-VALUE OBSERVATION (value, no steps, "not computed"); durable-only state with no metadata → INCOMPLETE (a live read decides). The round-69/70 column heuristic is REMOVED — other formulas in the column prove nothing about one cell. A stored value never publishes a price, is never cross-checked against itself as "verification" (no `matches_cached` for stored values), and — through `record_calculation` — maps to a WAITING operation whose question states it "cannot be satisfied" by a stored value. A computed result whose operands included stored-value substitutions marks its cached-output cross-check `fully_independent: false`.
+
+**2. Workbook identity pinned across the graph.** Catalog resolution collects every active version per sheet; several versions without a pinned match → **AMBIGUOUS WORKBOOK VERSION — refused, candidates named** (never chosen by name or query order). The lane pins the chosen version's content hash; cross-sheet references resolve only within that version (a sibling from another hash is a named gap, not a silent substitute); the live overlay comes from the SAME file id's download, with live-bytes hash divergence recorded when it occurs.
+
+**3. Demonstrations separated** (the corrected round-70 record above).
+
+**4. Job integration completed** (was required, not optional): the calculate lane receives the turn's conversation id, resolves the conversation's ACTIVE run (`find_active_task`), and persists the calculation through `record_calculation` — identity (result_id, policy id + workbook version), the inputs snapshot, EVERY dependency, the RESULT TYPE, and provenance (authorizing teaching). LIVE-VERIFIED: run `8d6fa5b5` on the demo fork carries the operation — `applied`, `workbook:BurrKing!E25`, 20 dependencies, authorized by lesson `13422e5198524f878d0e9415a91fea7b`.
+
+**5. Verified through the app, separately reported:**
+- **Full workbook computation, BROWSER**: typed into the chat UI, the visible reply reads "Item 90703 — …BurrKing sheet, row 25, output cell E25: **CAD 7,409 per each**. Basis: the workbook's own defined calculation for that cell (20 recorded input/parameter/intermediate cells), run deterministically — the chain resolves 4777 → … → 7409. Cross-check: matches the workbook's cached output (7409). Limitation: freshness could not be established." — the round-70 "browser pass" gap is closed.
+- **Named-input formula, same engine, app API**: `calculate expression ROUNDUP(hours*rate + materials, 0) with hours=17.5 rate=150 materials=0` → **2,625** with inputs quoted (the lane's third grammar; supported language identical to the workbook path).
+- **Stored value unmistakable, app API**: the cost cell H25 (established literal) renders "H25 is a stored 4777, not a computed result — the live read returned it as STORED VALUE, NOT COMPUTED, so no calculation can be satisfied at H25 itself". Bonus live finding: the LIVE Tennsmith sheet (unlike the materialized snapshot) carries formulas, and E106's chain resolves to a precise INCOMPLETE at a non-finite T106 — named, no partial value.
+- The Tennsmith basis lesson (`4ab35f5860b0436799fe510cd9440f85`) was taught through the app's teach API for the authorization demo; before it, the same ask was correctly refused as NOT AUTHORIZED.
+
+83 tests green (engine + pricing batteries, including the new pins: stored-value-cannot-satisfy-obligation on a real lifecycle, ambiguous-version refusal, expression lane compute + missing-input naming, lane-records-on-active-job, verification independence). Demo fork `2233f463-6fad-443a-959d-e6088e1bb784` left clearly labeled disposable (carries the job-record evidence); original canvas untouched; nothing sent.

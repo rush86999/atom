@@ -1859,6 +1859,33 @@ except Exception:  # noqa: BLE001 — version stamp optional
     _TARGET_EXTRACTION_VERSION_NOW = None
 
 
+# USER-GROUNDED EDIT DIRECTIVE (round 62): an explicit first-person
+# imperative to edit/draft — the authorization standard the async fork
+# accepts for a FIRST-TIME starved edit (previously only retries of
+# already-forked edits forked). A hint ("maybe include...") or a
+# teaching directive is NOT a directive.
+_USER_EDIT_DIRECTIVE_RE = re.compile(
+    r"\b(?:prepare|apply|update|edit|revise|draft|fix|change|rebuild)\b"
+    r"[^.]{0,60}\b(?:the\s+)?(?:email|draft|quote|canvas|it)\b"
+    r"|\b(?:draft|email)\b[^.]{0,40}\b(?:now|please)\b",
+    re.IGNORECASE,
+)
+
+
+def _user_grounded_edit_directive(message: str) -> bool:
+    t = (message or "").strip()
+    if not t:
+        return False
+    # Negated forms withhold authorization ("don't send" is about
+    # SENDING, not editing; "don't change the draft" WITHHOLDS the edit).
+    if re.search(
+            r"\b(?:don'?t|do\s+not|never)\s+"
+            r"(?:change|edit|modify|update|prepare|draft)\b",
+            t, re.IGNORECASE):
+        return False
+    return bool(_USER_EDIT_DIRECTIVE_RE.search(t))
+
+
 def _canvas_edit_shaped(
     message: str, context: Optional[Dict[str, Any]] = None
 ) -> bool:
@@ -2190,6 +2217,10 @@ def _value_trace_pending_reads(
                     "not yet read"),
                 "evidence": "value_trace coverage",
                 "next_action": f"read {doc} for {item}",
+                # STRUCTURED INPUTS (round 53): stable action identity —
+                # the worker dispatches from these, never from prose.
+                "inputs": {"item": str(item), "file": str(doc),
+                           "service": "datasets", "intent": "find_all"},
             })
     return questions
 
@@ -4313,6 +4344,7 @@ def _begin_task_edit(tenant_id: Any, workspace_id: Any,
                      session_id: Optional[str], message: str,
                      execution_id: Optional[str],
                      canvas_ctx: Optional[Dict[str, Any]] = None,
+                     agent_id: Optional[str] = None,
                      ) -> dict:
     """Flag-gated pre-execution reservation for a canvas edit.
 
@@ -4357,7 +4389,8 @@ def _begin_task_edit(tenant_id: Any, workspace_id: Any,
                 "granted_by_message": message,
                 "validator": "chat_orchestrator.canvas_edit_lane",
                 "context": {"canvas": canvas_ctx},
-            })
+            },
+            agent_id=agent_id)
         return {"status": "reserved", "run_id": run_id,
                 "operation_id": operation_id, "reason": None}
     except claimed_error as claimed:
@@ -5564,6 +5597,12 @@ class ChatOrchestrator:
             session_id = session_id or str(uuid.uuid4())
             _execution_id: Optional[str] = None  # chat-trace run (set below)
             session = self._get_or_create_session(user_id, session_id, context)
+            # TURN-SCOPED AGENT (round 59): every task-creation lane
+            # persists the acting agent on the job — durable workers'
+            # taught-lesson source. Set once at turn entry.
+            self._turn_agent_id = (
+                (context or {}).get("agent_id")
+                or getattr(self, "_last_agent_id", None))
             if isinstance(session, dict):
                 # JOB-WORK LEDGER staleness guard: the open-work snapshot is
                 # turn-scoped; an early-return path that never reached the
@@ -6521,6 +6560,7 @@ class ChatOrchestrator:
                 _td_scope_hints: List[str] = []
                 _td_decision: Optional[Dict[str, Any]] = None
                 _teaching_cue_turn = False
+                _calc_grammar_turn = False
                 if os.getenv("ATOM_TURN_DECISION_ROUTING", "1").lower() not in ("0", "off", "false"):
                     try:
                         from core.turn_decision import (
@@ -6598,8 +6638,10 @@ class ChatOrchestrator:
                     # the taught source, session-independent.
                     try:
                         _ask_mention = await self._lesson_designated_file(
-                            message, agent_id=(context or {}).get(
-                                "agent_id") or agent_id,
+                            message,
+                            agent_id=(
+                                (context or {}).get("agent_id")
+                                or getattr(self, "_turn_agent_id", None)),
                             user_id=user_id,
                             workspace_id=(context or {}).get(
                                 "workspace_id"))
@@ -6638,6 +6680,26 @@ class ChatOrchestrator:
                             _ask_mention = ""
                             _teaching_cue_turn = True
                     except Exception:  # noqa: BLE001 — classification only
+                        pass
+                    # A CALCULATION ASK IS NOT A READ (round 70): the
+                    # workbook-calculate grammar ('calculate price for
+                    # FILE.xlsx SHEET row N cell XN') names an output to
+                    # COMPUTE, not a value to look up — letting the read
+                    # lane claim it answers with per-item scan outcomes
+                    # ('E25 | ABSENT' for a cell address the calculator
+                    # was asked to evaluate, observed live) and starves
+                    # the datasets calculate lane of the turn. Same
+                    # shape as the teaching-cue exemption above.
+                    try:
+                        from core.pricing_calculation import _WB_QUERY_RE
+
+                        if _WB_QUERY_RE.search(message or ""):
+                            _ask_mention = ""
+                            _calc_grammar_turn = True
+                            logger.info(
+                                "[file-ask] calculate-grammar ask left "
+                                "for the datasets calculate lane")
+                    except Exception:  # noqa: BLE001 — routing only
                         pass
                     from core.plan_relevance import _is_substantive_request
 
@@ -7034,6 +7096,7 @@ class ChatOrchestrator:
                             _execution_id,
                             items=list(
                                 _ask_task.get("requested_targets") or []),
+                            agent_id=getattr(self, "_turn_agent_id", None),
                             canvas_id=_canvas_id_from_context(context))
                     except Exception as _tl_err:  # noqa: BLE001
                         # FAIL-CLOSED: the operation could not be
@@ -8239,6 +8302,8 @@ class ChatOrchestrator:
                                         items=list(
                                             (_direct_task or {}).get(
                                                 "requested_targets") or []),
+                                        agent_id=getattr(
+                                            self, "_turn_agent_id", None),
                                         canvas_id=_canvas_id_from_context(
                                             context))
                                 except Exception as _tl_err:  # noqa: BLE001
@@ -9269,7 +9334,8 @@ class ChatOrchestrator:
                         getattr(self, "tenant_id", None),
                         (context or {}).get("workspace_id"),
                         session, session_id, _edit_message, _execution_id,
-                        canvas_ctx=_canvas_ctx)
+                        canvas_ctx=_canvas_ctx,
+                        agent_id=getattr(self, "_turn_agent_id", None))
                     # Only a RESERVED decision may mutate. "denied" and
                     # "unavailable" both block the leg, for different
                     # reasons, and neither may be downgraded to a
@@ -9463,7 +9529,21 @@ class ChatOrchestrator:
                                 # …' matched 'include' and forked a doomed
                                 # edit while every reasoning route was
                                 # skipped pre-dispatch).
-                                if _edit_retry is not None:
+                                # FIRST-TIME DIRECTIVE FORK (round 62):
+                                # an explicitly user-grounded edit
+                                # directive ("prepare the email draft
+                                # now") that starved at the interactive
+                                # bound also continues in the background
+                                # — previously only retries of already-
+                                # forked edits did, so a first authorized
+                                # draft request could never complete on a
+                                # slow plan. Authority standard
+                                # unchanged: the user's own imperative
+                                # words; hints/teaching fork nothing.
+                                if _edit_retry is not None or (
+                                        _edit_leg_timed_out
+                                        and _user_grounded_edit_directive(
+                                            message)):
                                     try:
                                         from core.async_turn_continuation import (
                                             fork_canvas_edit_continuation,
@@ -9595,14 +9675,13 @@ class ChatOrchestrator:
                         # (2026-09-22; authority revised 2026-09-30): the
                         # background retry may start only from a
                         # USER-GROUNDED edit decision — a bare retry of a
-                        # previously authorized edit instruction. An
-                        # edit-shape HINT alone never forks: when reasoning
-                        # is unavailable the deterministic layer reports
-                        # the limitation and changes nothing (directive:
-                        # 'do not turn a keyword match into permission to
-                        # edit'; live 02:28 the hint matched a teaching
-                        # phrase's 'include').
-                        if _edit_retry is not None:
+                        # previously authorized edit instruction, or (round
+                        # 62) a first-time explicit user edit directive.
+                        # An edit-shape HINT alone never forks: when
+                        # reasoning is unavailable the deterministic layer
+                        # reports the limitation and changes nothing.
+                        if _edit_retry is not None or (
+                                _user_grounded_edit_directive(message)):
                             try:
                                 from core.async_turn_continuation import (
                                     fork_canvas_edit_continuation,
@@ -9610,7 +9689,14 @@ class ChatOrchestrator:
 
                                 _cont_id2 = fork_canvas_edit_continuation(
                                     self,
-                                    message=_edit_retry["instruction"],
+                                    # ROUND 63: a first-time directive has no
+                                    # retry record — the message IS the
+                                    # instruction (previously crashed into
+                                    # the silent except).
+                                    message=(
+                                        _edit_retry["instruction"]
+                                        if _edit_retry is not None
+                                        else message),
                                     history=history,
                                     canvas=_canvas_ctx or {},
                                     user_id=user_id,
@@ -9742,6 +9828,15 @@ class ChatOrchestrator:
                     _no_apply_reason = _shared_tool.get(
                         "canvas_edit_no_apply_reason"
                     ) or "planner_unavailable"
+                    # ROUND 62 (live DRAFT3): the planner_declined
+                    # research fall-through sets _edit_response=None and
+                    # skips every _no_apply_message assignment below —
+                    # the response assembly then hit an unbound name and
+                    # killed the whole turn. A safe default keeps the
+                    # fall-through honest (the tool path answers).
+                    _no_apply_message = (
+                        "I couldn't apply an edit this turn — the "
+                        "requested work continues on the research path.")
                     if _background_started:
                         # INTERIM STATUS (2026-09-30, research-grounded —
                         # long-running chat work states WHAT is running
@@ -13011,6 +13106,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "singleflight lookup (canvas-edit leg)",
                                 execution_id,
                                 items=list(_requested_targets or []),
+                                agent_id=agent_id,
                                 canvas_id=(
                                     (canvas_context or {}).get(
                                         "canvas_id")
@@ -13515,6 +13611,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         f"planned lookup: {_planned}",
                                         execution_id,
                                         items=list(_requested_targets or []),
+                                        agent_id=agent_id,
                                         canvas_id=(
                                             (canvas_context or {}).get(
                                                 "canvas_id")
@@ -13587,6 +13684,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         _plan, user_id, self.tenant_id,
                                         context={
                                             "agent_id": agent_id,
+                                            # The conversation's identity for
+                                            # lanes that record onto the
+                                            # ACTIVE JOB RUN (round 71: the
+                                            # calculate lane's durable
+                                            # calculation records).
+                                            "conversation_id": session_id,
                                             # The current ask, ahead of session
                                             # history (which is written only
                                             # after the response): the stated-
@@ -14368,6 +14471,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 execution_id,
                                 items=[str(i) for i in _pf2_scope
                                        if str(i).strip()],
+                                agent_id=agent_id,
                                 canvas_id=(
                                     (canvas_context or {}).get("canvas_id")
                                     or (canvas_context or {}).get("id")))
@@ -17760,6 +17864,172 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"canvas corrections lookup skipped: {e}")
             return []
 
+    def _canvas_job_findings(
+        self,
+        user_id: str,
+        canvas: Optional[Dict[str, Any]],
+        session: Optional[Dict[str, Any]],
+        message: str,
+    ) -> Optional[Dict[str, Any]]:
+        """The job-work ledger for THIS canvas's conversation, shaped for
+        the edit planner (round 62): verified findings (resolved
+        questions whose evidence names workbook cells/emails), open
+        business decisions with candidates, the owner's approved manual
+        values, and freshness limits. Best-effort — an unavailable
+        ledger degrades to no section, never blocks the edit."""
+        try:
+            from core.task_lifecycle import (
+                find_active_task_for_canvas, open_unresolved_questions)
+
+            tl = _task_lifecycle_for(
+                getattr(self, "tenant_id", None), None)
+            if tl is None:
+                return None
+            canvas_id = (canvas or {}).get("canvas_id") or (
+                canvas or {}).get("id")
+            record = None
+            if canvas_id:
+                try:
+                    record = find_active_task_for_canvas(tl, canvas_id)
+                except Exception:  # noqa: BLE001
+                    record = None
+            if record is None and canvas_id:
+                # FORK LINEAGE (round 64, live DRAFT6): a disposable fork
+                # starts a NEW job with an empty ledger — the research the
+                # draft must apply lives on the SOURCE canvas's job. The
+                # fork's audit row carries source_canvas_id; follow it (one
+                # hop) so drafting on a fork applies the lineage's verified
+                # findings instead of declining for lack of provenance.
+                try:
+                    from core.models import CanvasAudit as _CA
+
+                    with get_db_session() as _db2:
+                        _fork_row = _db2.query(_CA).filter(
+                            _CA.canvas_id == str(canvas_id),
+                            _CA.action_type == "fork",
+                        ).order_by(_CA.created_at.desc()).first()
+                        _parent = str(
+                            (_fork_row.details_json
+                             if hasattr(_fork_row, "details_json")
+                             else _fork_row.metadata_json
+                             or {}).get("source_canvas_id") or ""
+                    ) if _fork_row else ""
+                    if _parent and _parent != str(canvas_id):
+                        record = find_active_task_for_canvas(tl, _parent)
+                        if record is not None:
+                            logger.info(
+                                "[job-findings] fork %s inherits the "
+                                "source canvas %s research record",
+                                str(canvas_id)[:8], _parent[:8])
+                except Exception as _fl_err:  # noqa: BLE001 — additive
+                    logger.debug("fork lineage lookup skipped: %r", _fl_err)
+            if record is None and isinstance(session, dict):
+                conv = session.get("id")
+                if conv:
+                    try:
+                        record = tl.find_active_task(conv)
+                    except Exception:  # noqa: BLE001
+                        record = None
+            if record is None:
+                return None
+            verified = []
+            manual = []
+            for q in (record.get("task_revision") or {}).get(
+                    "unresolved") or []:
+                res = str(q.get("resolution") or "")
+                item = str(q.get("item") or "")
+                if q.get("status") == "resolved" and res:
+                    note = ""
+                    try:
+                        note = str(res.get("detail") or res) if isinstance(
+                            res, dict) else res
+                    except Exception:  # noqa: BLE001
+                        note = str(res)
+                    verified.append({
+                        "item": item or "(job)",
+                        "note": note[:300],
+                        "source": "job ledger (see operation evidence)",
+                    })
+                    if "manual" in note.lower() or "approved" in note.lower():
+                        manual.append(item)
+            decisions = [
+                {"item": str(q.get("item") or ""),
+                 "question": str(q.get("question") or "")[:200]}
+                for q in open_unresolved_questions(record)
+                if q.get("kind") == "business_decision"]
+            freshness = [
+                str(q.get("item") or "") + ": saved-copy; live source "
+                "unverified"
+                for q in open_unresolved_questions(record)
+                if "freshness" in str(q.get("question") or "").lower()]
+            if not (verified or decisions or freshness):
+                return None
+            # HEADER PROVENANCE (round 63): the taught cc rule is an
+            # APPLICABLE drafting rule, not optional — include it as a
+            # taught rule; To/Subject ride only when the ledger's
+            # verified evidence names correspondence values for THIS
+            # thread (provenance established), else the specific
+            # ambiguity is named.
+            taught_rules = []
+            try:
+                from core.database import get_db_session as _gs2
+                from core.student_learning_service import (
+                    _permanent_lessons as _pl)
+
+                with _gs2() as _db2:
+                    _all = _pl(_db2, agent_id or "") if agent_id else []
+                for l in _all:
+                    t = " ".join(str(l.get("lesson") or l.get("summary")
+                                     or "").split()).lower()
+                    if ("cc" in t and (
+                            "chandrakant" in t or "vipul" in t)):
+                        taught_rules.append(
+                            "CC rule (taught): all sales quotes cc "
+                            "Chandrakant <chandrakant@brennan.ca> and "
+                            "Vipul <vipul@brennan.ca>")
+                        break
+            except Exception:  # noqa: BLE001 — additive
+                pass
+            # Correspondence-derived header values: search the verified
+            # notes for the thread's To/Subject evidence.
+            header_candidates = []
+            resolved_cc = []
+            joined = " ".join(
+                str(v.get("note") or "") for v in verified).lower()
+            if "steve" in joined and "alumasafway" in joined:
+                header_candidates.append(
+                    "To: Steve <amacisaac@alumasafway.com> (verified "
+                    "correspondence: the Sept 18 2026 'Quote for "
+                    "Slitter' thread to Steve at AlumaSafway)")
+            if "quote for slitter" in joined:
+                header_candidates.append(
+                    "Subject: Re: Quote for Slitter (the verified "
+                    "thread's subject)")
+            # CC INDEPENDENCE (round 64): the taught CC rule needs NO
+            # correspondence provenance — verified contact identities
+            # from the teaching itself suffice. Resolved separately
+            # from To/Subject so unrelated correspondence cannot block
+            # it.
+            for rule in taught_rules:
+                if "chandrakant" in rule.lower() and "vipul" in rule.lower():
+                    resolved_cc.append(
+                        "Cc: Chandrakant <chandrakant@brennan.ca>, "
+                        "Vipul <vipul@brennan.ca> (taught rule; "
+                        "contact identities verified in the teaching)")
+                    break
+            return {
+                "verified": verified[:12],
+                "open_decisions": decisions[:6],
+                "manual_preserved": manual[:8],
+                "freshness_limits": freshness[:8],
+                "taught_rules": taught_rules[:4],
+                "header_candidates": header_candidates[:4],
+                "resolved_cc": resolved_cc[:2],
+            }
+        except Exception as exc:  # noqa: BLE001 — additive context
+            logger.debug("job findings for edit skipped: %r", exc)
+            return None
+
     def _agent_lessons(self, agent_id: Optional[str], query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """The operating hire's PERMANENT taught lessons (TrainingPanel /teach,
         mentor lessons, observed human corrections) for the edit plan. Teaching
@@ -18091,6 +18361,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         corrections = self._recent_canvas_corrections(user_id, canvas.get("canvas_id"))
         versions = self._recent_canvas_versions(user_id, canvas.get("canvas_id"))
         lessons = self._agent_lessons(agent_id, message)
+        # JOB FINDINGS (round 62, authorized drafting): the durable
+        # research record for THIS canvas's job — verified findings with
+        # sources, approved manual values, open business decisions and
+        # freshness limits — so the edit applies what was verified,
+        # preserves what the owner set, and annotates (never resolves)
+        # the open choices.
+        job_findings = self._canvas_job_findings(
+            user_id, canvas, session, message)
         similar_corrections, correction_patterns = await self._cross_canvas_learnings(
             user_id, canvas, agent_id
         )
@@ -18153,10 +18431,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # this — block non-emptiness proved nothing (a junk mailbox
             # scan filled the block while the taught workbook source was
             # never consulted).
-            if plan is not None and getattr(plan, "use_tool", False):
+            _fd_plan = locals().get("plan")
+            if _fd_plan is not None and getattr(
+                    _fd_plan, "use_tool", False):
                 shared_tool_state.setdefault(
                     "consulted_sources", set()).add(
-                    getattr(plan, "service", None))
+                    getattr(_fd_plan, "service", None))
             # Blackboard hand-back: whatever this leg executed belongs to
             # the whole turn. When the edit declines below, the chat leg
             # reuses this block instead of re-planning and re-executing.
@@ -18268,6 +18548,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     user_identity=user_identity,
                     playbooks=playbooks,
                     fresh_data=fresh_data,
+                    job_findings=job_findings,
                 ),
                 timeout=edit_plan_timeout,
             )

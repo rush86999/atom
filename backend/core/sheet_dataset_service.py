@@ -2904,3 +2904,107 @@ async def datasets_for_file(source: str, external_id: str) -> List[Dict[str, Any
     except Exception as err:  # noqa: BLE001
         logger.debug(f"sheet datasets: lookup failed for {external_id}: {err}")
         return []
+
+
+def read_sheet_row_sync(
+    file_name: str,
+    sheet_name: str,
+    row_number: int,
+    user_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """ROW-CONTEXT READ (round 54): one row of one sheet of one cataloged
+    workbook, with its HEADER NAMES — the caller binds values to fields by
+    column meaning, never by proximity. Excel row numbers (as carried in
+    find_all cell addresses, header = row 1) map to the materialized frame
+    by subtracting the header. Returns {"headers": [...], "row": {col:
+    value}} or None when the file/sheet is not cataloged. Business-
+    neutral: no field-specific rules live here."""
+    try:
+        from core.models import DatasetEntry
+
+        with _catalog_session() as db:
+            # SHEET RESOLUTION IS WHITESPACE-INSENSITIVE (round 58,
+            # live): catalog entity names carry trailing spaces ('Tennsmith '
+            # in the 2019 workbook) — an exact filter silently missed the
+            # sheet and reported the row ABSENT. Trim-compare instead.
+            q = db.query(DatasetEntry).filter(
+                DatasetEntry.file_name == file_name,
+                DatasetEntry.status == "active")
+            if workspace_id:
+                q = q.filter(
+                    DatasetEntry.workspace_id == workspace_id)
+            # COLLISION REJECTION (round 59): whitespace-normalized
+            # matching must not silently choose between two DISTINCT
+            # matching sheets — list the candidates and refuse.
+            matches = [
+                e for e in q.all()
+                if str(e.entity_name or "").strip().lower()
+                == str(sheet_name or "").strip().lower()]
+            if len(matches) > 1:
+                return {
+                    "ambiguous_sheet": [
+                        {"file_name": file_name,
+                         "sheet_raw": str(e.entity_name or ""),
+                         "entry_id": str(e.id)}
+                        for e in matches]}
+            entry = matches[0] if matches else None
+            if entry is None or not entry.parquet_path:
+                return None
+            parquet_path = entry.parquet_path
+        import pandas as _pd
+
+        df = _pd.read_parquet(parquet_path)
+        # Row mapping: the frames carry __sheet_row (the TRUE Excel row —
+        # materialization skips blank rows, so position alone lies). Fall
+        # back to position only when the marker is absent.
+        if "__sheet_row" in df.columns:
+            hits = df.index[df["__sheet_row"] == int(row_number)]
+            idx = int(hits[0]) if len(hits) else -1
+        else:
+            idx = int(row_number) - 2  # header occupies Excel row 1
+        if idx < 0 or idx >= len(df):
+            return None
+        headers = [str(c) for c in df.columns]
+        row = {}
+        for col in df.columns:
+            val = df.iloc[idx][col]
+            row[str(col)] = (
+                None if val is None or (hasattr(val, "item")
+                                        and _pd.isna(val))
+                else (val.item() if hasattr(val, "item") else val))
+            if isinstance(row[str(col)], float) and \
+                    row[str(col)] == int(row[str(col)]):
+                row[str(col)] = int(row[str(col)])
+        # SOURCE IDENTITY (round 59): the successful read names the
+        # exact resource it served from — distinct copies are distinct
+        # observations even at matching cell addresses.
+        import os as _os
+        _st = _os.stat(parquet_path)
+        # CONTENT HASH (round 60): the entry's own content_hash column
+        # (sha1 of source bytes — the version key); the parquet version
+        # dir is the fallback. Size/mtime are operational hints only.
+        _content_hash = str(getattr(entry, "content_hash", "") or "")
+        if not _content_hash:
+            try:
+                _parts = str(parquet_path).rstrip("/").split("/")
+                for _p in reversed(_parts):
+                    if len(_p) >= 8 and re.fullmatch(r"[0-9a-f]{8,}", _p):
+                        _content_hash = _p
+                        break
+            except Exception:  # noqa: BLE001
+                pass
+        return {
+            "headers": headers, "row": row,
+            "source": {
+                "file_name": file_name,
+                "sheet_raw": str(entry.entity_name or ""),
+                "sheet_requested": sheet_name,
+                "entry_id": str(entry.id),
+                "content_hash": _content_hash,
+                "parquet_path": str(parquet_path),
+                "parquet_size": _st.st_size,
+                "parquet_mtime": int(_st.st_mtime),
+            }}
+    except Exception:  # noqa: BLE001 — a row read degrades to None
+        return None

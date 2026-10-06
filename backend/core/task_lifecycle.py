@@ -173,6 +173,10 @@ OPERATION_TYPES = (
     "outbound",
     "present",
     "stop",
+    # Round 66 (taught pricing): a deterministic calculation over
+    # evidence-backed inputs — read-class (it mutates no external
+    # system; its result rides the operation record).
+    "calculate",
 )
 
 OPERATION_STATUSES = (
@@ -391,12 +395,27 @@ def apply_transition(
                         "resolution": resolution,
                     })
                     existing[index] = settled
+        for cl in (transition.get("claims") or []):
+            if not isinstance(cl, dict):
+                continue
+            for index, entry in enumerate(existing):
+                if (entry.get("status") == "open"
+                        and entry.get("question_id") == cl.get(
+                            "question_id")):
+                    merged = dict(entry)
+                    merged["exec_claim"] = {
+                        "by": _bounded_text(cl.get("by"), 60),
+                        "at": str(cl.get("at") or ""),
+                    }
+                    existing[index] = merged
         if transition.get("budget_migration"):
             # Durable one-time marker IN THE TASK REVISION (get_task
             # surfaces task_revision; decision_log is NOT surfaced there —
             # a marker read from it never landed, and the migration would
             # have re-applied on every settle).
             new_task["attempt_budget_migrated"] = _utc_now_iso()
+        if transition.get("row_successor_migration"):
+            new_task["row_successor_migrated"] = _utc_now_iso()
         for bump in (transition.get("attempts") or []):
             if not isinstance(bump, dict):
                 continue
@@ -602,6 +621,11 @@ def _normalize_question(question: Dict[str, Any],
         "evidence": _bounded_text(question.get("evidence"), 500),
         "next_action": next_action.strip() or None,
         "decision_owner": ("owner" if kind == "business_decision" else None),
+        # STRUCTURED INPUTS (round 54): stable action inputs ride the
+        # question — workers dispatch from them, never from prose.
+        "inputs": (
+            dict(question["inputs"])
+            if isinstance(question.get("inputs"), dict) else None),
         "status": "open",
         "attempts": attempts,
         "opened_at": _utc_now_iso(),
@@ -1794,6 +1818,7 @@ def _resolve_or_create(lifecycle: "TaskLifecycle",
                        entities: Optional[List[Dict[str, Any]]] = None,
                        requested_fields: Optional[List[str]] = None,
                        canvas_id: Optional[str] = None,
+                       agent_id: Optional[str] = None,
                        ) -> Tuple[str, Optional[Dict[str, Any]], bool]:
     """Find the active task or create one, atomically: the file lock
     serializes the find→create window across processes (the version
@@ -1813,6 +1838,11 @@ def _resolve_or_create(lifecycle: "TaskLifecycle",
             provenance = {"requested_change": _bounded_text(message, 500)}
             if canvas_id:
                 provenance["canvas_id"] = str(canvas_id)
+            if agent_id:
+                # AGENT IDENTITY ON THE JOB (round 57): durable workers
+                # need the taught-lesson source; sessions do not persist
+                # it and run rows may not carry it.
+                provenance["agent_id"] = str(agent_id)
             created = lifecycle.create_task(
                 conversation_id, message,
                 entities=list(entities or []),
@@ -1837,7 +1867,7 @@ class OperationExecutionClaimed(TaskLifecycleError):
     loses this claim must wait or replay, never mutate as well."""
 
 
-READ_ONLY_ACTIONS = ("retrieve", "present")
+READ_ONLY_ACTIONS = ("retrieve", "present", "calculate")
 MUTATING_ACTIONS = ("edit", "outbound")
 _TERMINAL_AUTHORIZATION = ("cancelled", "revoked")
 # A delivery the SERVER wrote, versus a delivery the CLIENT acknowledged.
@@ -2016,6 +2046,7 @@ def begin_retrieval_turn(
     items: Optional[List[str]] = None,
     requested_fields: Optional[List[str]] = None,
     canvas_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
 ) -> tuple:
     """Persist the retrieval INTENTION before execution (Step 2).
 
@@ -2031,7 +2062,8 @@ def begin_retrieval_turn(
         lifecycle, session, conversation_id, message,
         entities=_entities_from_items(items),
         requested_fields=list(requested_fields or []),
-        canvas_id=canvas_id)
+        canvas_id=canvas_id,
+        agent_id=agent_id)
     if not was_created:
         # SHELL BACKFILL (round 39 diagnosis): the objective and entities
         # are set ONLY at creation — a task created by a denied edit lane
@@ -2262,6 +2294,7 @@ def _slim_question(question: Dict[str, Any]) -> Dict[str, Any]:
         "kind": question.get("kind"),
         "next_action": question.get("next_action"),
         "decision_owner": question.get("decision_owner"),
+        "inputs": question.get("inputs"),
         "attempts": int(question.get("attempts") or 0),
     }
 
@@ -2298,6 +2331,158 @@ def next_unfinished_work(
         "owner_decisions": owner_decisions,
         "exhausted": exhausted,
     }
+
+
+def claim_questions_for_execution(
+        lifecycle: "TaskLifecycle",
+        run_id: str,
+        question_ids: List[str],
+        *,
+        by: str,
+        ttl_seconds: float = 120.0,
+) -> List[str]:
+    """DURABLE EXECUTION CLAIMS (round 53): attempt counters are retry
+    bounds, not locks. A claim is written onto the question itself
+    (durable, restart-surviving) with a TTL; a fresh claim by another
+    worker refuses. Returns the ids actually claimed."""
+    import time as _time
+
+    record = lifecycle.get_task(run_id)
+    if record is None:
+        return []
+    now = _time.time()
+    claimable: List[Dict[str, Any]] = []
+    for q in open_unresolved_questions(record):
+        qid = str(q.get("question_id") or "")
+        if qid not in set(map(str, question_ids or [])):
+            continue
+        prev = q.get("exec_claim") or {}
+        prev_at = prev.get("at")
+        try:
+            fresh = (now - float(prev_at)) < ttl_seconds
+        except (TypeError, ValueError):
+            fresh = False
+        if prev and fresh and str(prev.get("by")) != by:
+            continue
+        claimable.append({
+            "question_id": qid, "by": by,
+            "at": now,
+        })
+    if not claimable:
+        return []
+    lifecycle.apply_transition(run_id, {
+        "kind": "record_unresolved",
+        "requested_change": (
+            f"{len(claimable)} execution claim(s) by {by}"),
+        "claims": claimable,
+        "source_operation": None,
+    })
+    return [c["question_id"] for c in claimable]
+
+
+def resolve_unresolved_questions_fenced(
+        lifecycle: "TaskLifecycle",
+        run_id: str,
+        *,
+        question_ids: List[str],
+        by: str,
+        ttl_seconds: float,
+        resolution: Optional[Dict[str, Any]] = None,
+        keep_open_detail: Optional[str] = None,
+) -> List[str]:
+    """FENCED settlement (round 56): ownership validation runs INSIDE
+    the CAS mutation — a takeover between an external check and this
+    write fails the write (compute re-runs on version conflict and
+    re-validates the claim). Resolves the questions when ``resolution``
+    is given; with ``keep_open_detail`` the questions stay open with the
+    detail recorded on a bounded bump of evidence (no resolution)."""
+    import time as _time
+
+    def compute(record):
+        now = _time.time()
+        ids = {str(q) for q in (question_ids or [])}
+        unresolved = list(
+            (record.get("task_revision") or {}).get("unresolved") or [])
+        target_indexes = []
+        for i, q in enumerate(unresolved):
+            if str(q.get("question_id")) in ids \
+                    and q.get("status") == "open":
+                claim = q.get("exec_claim") or {}
+                try:
+                    fresh = (now - float(claim.get("at"))) < ttl_seconds
+                except (TypeError, ValueError):
+                    fresh = False
+                if not (claim and str(claim.get("by")) == by and fresh):
+                    raise TaskLifecycleConcurrencyError(
+                        "settlement fence: question ownership changed "
+                        f"before the write ({q.get('question_id')})")
+                target_indexes.append(i)
+        if not target_indexes:
+            return [], None, None
+        for i in target_indexes:
+            q = unresolved[i]
+            if resolution:
+                unresolved[i] = {
+                    **q, "status": "resolved",
+                    "resolved_at": _utc_now_iso(),
+                    "resolution": _bounded_text(resolution, 400),
+                }
+            elif keep_open_detail:
+                unresolved[i] = {
+                    **q,
+                    "evidence": _bounded_text(
+                        f"{q.get('evidence') or ''}; {keep_open_detail}",
+                        500),
+                }
+        new_task = dict(record["task_revision"])
+        new_task["unresolved"] = unresolved
+        lifecycle_payload = {
+            "task_revision": new_task,
+            "operations": list(record.get("operations") or []),
+            "conversation_id": record.get("conversation_id"),
+        }
+        return ([unresolved[i]["question_id"]
+                 for i in target_indexes], lifecycle_payload, {
+            "kind": "record_unresolved",
+            "rationale": ("fenced resolution" if resolution
+                          else "fenced keep-open detail"),
+            "question_ids": question_ids,
+        })
+
+    return lifecycle._mutate(run_id, compute)
+
+
+def verify_question_claims(
+        lifecycle: "TaskLifecycle",
+        run_id: str,
+        question_ids: List[str],
+        *,
+        by: str,
+        ttl_seconds: float = 120.0,
+) -> List[str]:
+    """SETTLE OWNERSHIP (round 54): the ids this worker STILL owns — a
+    stale holder whose lease expired (another worker re-claimed) must
+    not settle. Attempt-counter bounds and CAS writes make the CLAIM
+    atomic; this check closes the settle side."""
+    import time as _time
+
+    record = lifecycle.get_task(run_id)
+    if record is None:
+        return []
+    now = _time.time()
+    owned = []
+    for q in open_unresolved_questions(record):
+        qid = str(q.get("question_id") or "")
+        if qid not in set(map(str, question_ids or [])):
+            continue
+        claim = q.get("exec_claim") or {}
+        try:
+            fresh = (now - float(claim.get("at"))) < ttl_seconds
+        except (TypeError, ValueError):
+            fresh = False
+        if claim and str(claim.get("by")) == by and fresh:
+            owned.append(qid)
+    return owned
 
 
 def migrate_attempt_budgets(
@@ -2364,11 +2549,24 @@ def add_unresolved_questions(
         return []
     already_open = {_question_key(q)
                     for q in open_unresolved_questions(record)}
+    # RESOLVED NON-RECURRENCE (round 54): a question whose identical
+    # (item, text) twin was already RESOLVED is identical rediscovery —
+    # it must not reopen (the completed action stays completed). A
+    # materially different successor has different text by construction.
+    _resolved_twins = {}
+    for q in (record.get("task_revision") or {}).get("unresolved") or []:
+        if q.get("status") == "resolved":
+            _resolved_twins[_question_key(q)] = q
     fresh: List[Dict[str, Any]] = []
     for question in questions:
         entry = _normalize_question(question, operation=source_operation)
         if _question_key(entry) in already_open:
             continue
+        _twin = _resolved_twins.get(_question_key(entry))
+        if _twin is not None and (
+                (dict(_twin.get("inputs") or {})) ==
+                (dict(entry.get("inputs") or {}))):
+            continue  # identical rediscovery of a resolved question
         already_open.add(_question_key(entry))
         fresh.append(entry)
     if not fresh:
@@ -2625,10 +2823,17 @@ def record_read_outcome(
     if (execution is not None and operation_id
             and str((execution or {}).get("outcome") or "")
             == "read_succeeded"):
+        # PER-ITEM EVIDENCE (round 53): only price-bearing statuses
+        # resolve — "matched"/"single"/"confirmed" mean the item's own
+        # value/price was read; "located" means the identity was found
+        # WITHOUT its price (the cell read remains); anything else is not
+        # evidence. A document-level receipt never retires every grouped
+        # item.
+        _RESOLVED_ITEM_STATUSES = {"matched", "single", "confirmed"}
         _read_items = {
             str(k) for k, v in
             ((execution or {}).get("items") or {}).items()
-            if str(v or "").strip()}
+            if str(v or "").strip().lower() in _RESOLVED_ITEM_STATUSES}
         # ITEM-IDENTITY MATCH (round 47, live TK 1624): the workbook
         # reports the matched key ("1624") while the question carries the
         # fuller identity ("TK 1624") — exact-string matching left the
@@ -2684,15 +2889,28 @@ def record_read_outcome(
             if _basis == "saved_copy":
                 _detail += ("; served from the SAVED COPY — freshness "
                             "against the live source is NOT established")
-            derived["resolutions"].append({
-                "items": sorted(_read_items),
-                "kinds": ["verification"],
-                "resolution": {
-                    "how": "targeted read executed",
-                    "basis": _basis or None,
-                    "detail": _detail,
-                },
-            })
+            # READ-SHAPED ONLY (round 54): the retirement resolves
+            # targeted-READ questions; the freshness successor's action
+            # ("re-verify ... live source") closes only on live-source
+            # verification, never on another saved-copy read.
+            _read_shaped_ids = set()
+            if operation_id:
+                for q in open_unresolved_questions(
+                        lifecycle.get_task(run_id) or {}):
+                    if str(q.get("next_action") or "").lower().startswith(
+                            "read "):
+                        _read_shaped_ids.add(str(q.get("question_id")))
+            if _read_shaped_ids:
+                derived["resolutions"].append({
+                    "items": sorted(_read_items),
+                    "kinds": ["verification"],
+                    "question_ids": sorted(_read_shaped_ids),
+                    "resolution": {
+                        "how": "targeted read executed",
+                        "basis": _basis or None,
+                        "detail": _detail,
+                    },
+                })
             if _basis == "saved_copy":
                 # FRESHNESS IS AN OBLIGATION, NOT WORDING (round 48): the
                 # saved-copy read resolves the READ question and OPENLY
@@ -2720,7 +2938,8 @@ def record_read_outcome(
                 lifecycle, run_id,
                 items=resolution.get("items") or None,
                 kinds=resolution.get("kinds") or None,
-                resolution=resolution["resolution"])
+                resolution=resolution["resolution"],
+                question_ids=resolution.get("question_ids") or None)
         except Exception as exc:  # noqa: BLE001
             errors.append(f"resolution: {exc!r}")
             break
@@ -2934,6 +3153,7 @@ def begin_edit_turn(
     idempotency_key: Optional[str] = None,
     *,
     scope_grant: Optional[Dict[str, str]] = None,
+    agent_id: Optional[str] = None,
 ) -> tuple:
     """Reserve a canvas ``edit`` before the mutation happens (Step 2).
 
@@ -2953,7 +3173,8 @@ def begin_edit_turn(
     Returns ``(run_id, operation_id)``.
     """
     run_id, _, _ = _resolve_or_create(
-        lifecycle, session, conversation_id, message)
+        lifecycle, session, conversation_id, message,
+        agent_id=agent_id)
     try:
         check_turn_authorization(lifecycle, run_id, "edit")
     except TaskAuthorizationError:

@@ -631,6 +631,22 @@ async def lifespan(app: FastAPI):
             logger.info(
                 "Terminal-delivery recovery task started (outside the "
                 "scheduler gate)")
+
+        # DURABLE RESEARCH CONTINUATION (round 52): the same recurring-
+        # task pattern — finishes authorized read jobs (targeted workbook
+        # reads the interactive budget could not) from the durable job
+        # ledger, survives restarts, bounded per cycle. Read-only lane.
+        try:
+            from core.research_continuation import (
+                start_research_continuation,
+            )
+
+            if start_research_continuation():
+                logger.info(
+                    "Research continuation worker started (outside the "
+                    "scheduler gate)")
+        except Exception as e:  # noqa: BLE001 — lifespan must not fail
+            logger.error(f"Failed to start research continuation: {e}")
     except Exception as e:
         logger.error(f"Failed to run continuation recovery pass: {e}")
 

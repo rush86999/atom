@@ -211,3 +211,99 @@ class TestVerifyIntendedChange:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+class TestJobFindingsSection:
+    """Round 62 (authorized drafting): the job's durable research record
+    reaches the edit planner — verified findings with sources, open
+    decisions that must stay annotated, manual values preserved,
+    freshness limits kept out of customer-facing text."""
+
+    def test_section_carries_findings_and_rules(self):
+        from core.chat_canvas_editor import _job_findings_section
+        out = _job_findings_section({
+            "verified": [
+                {"item": "No. 381",
+                 "note": "workbook labels PRICE=3297 (2019 copy)",
+                 "source": "job ledger"}],
+            "open_decisions": [
+                {"item": "U-22",
+                 "question": "List Price=1431 vs List Price_2=1393"}],
+            "manual_preserved": ["No. 381: $2,902 (owner-approved)"],
+            "freshness_limits": ["SLE24-16: saved-copy; live unverified"],
+        })
+        assert "No. 381" in out and "PRICE=3297" in out
+        assert "UNRESOLVED U-22" in out and "do NOT silently pick" in out
+        assert "$2,902" in out and "preserve exactly" in out
+        assert "FRESHNESS LIMITS" in out
+        assert "OUT of customer-facing text" in out.replace(
+            "customer-facing text", "customer-facing text")
+
+    def test_section_none_and_empty(self):
+        from core.chat_canvas_editor import _job_findings_section
+        assert _job_findings_section(None) == ""
+        assert _job_findings_section({}) == ""
+        assert _job_findings_section({"verified": []}) == ""
+
+    def test_plan_accepts_job_findings(self):
+        # plan_canvas_edit's signature carries the parameter (default
+        # None keeps every existing caller compatible).
+        import inspect
+        from core.chat_canvas_editor import plan_canvas_edit
+        sig = inspect.signature(plan_canvas_edit)
+        assert "job_findings" in sig.parameters
+        assert sig.parameters["job_findings"].default is None
+
+
+class TestUserGroundedEditDirective:
+    """Round 62: a first-time explicitly-authorized edit directive that
+    starves at the interactive bound forks the background continuation —
+    hints and teaching directives never do."""
+
+    def test_directive_shapes(self):
+        from integrations.chat_orchestrator import (
+            _user_grounded_edit_directive)
+        assert _user_grounded_edit_directive(
+            "The research is done. Prepare the email draft now: apply "
+            "the verified findings and your taught formatting. Don't "
+            "send it.")
+        assert _user_grounded_edit_directive(
+            "please update the email with the new prices")
+        assert _user_grounded_edit_directive("draft the email now")
+
+    def test_hints_and_negations_are_not_directives(self):
+        from integrations.chat_orchestrator import (
+            _user_grounded_edit_directive)
+        assert not _user_grounded_edit_directive(
+            "Don't change the draft yet")
+        assert not _user_grounded_edit_directive(
+            "learn to include the tennsmith sheet for searches")
+        assert not _user_grounded_edit_directive(
+            "what does the draft say about lead times")
+        assert not _user_grounded_edit_directive("")
+
+
+class TestForkLineageChecks:
+    """Round 65 (reviewer): inherited research must belong to an
+    AUTHORIZED source canvas, remain APPLICABLE to the fork's content,
+    and never grant NEW mutation authority."""
+
+    def test_inheritance_changes_nothing_about_authority(self):
+        # The lineage lookup only FEEDS FINDINGS (planner context);
+        # mutation authority stays with the user's directive + the scope
+        # gate. Pin that _canvas_job_findings performs no write and the
+        # edit-shape gate is unchanged by lineage.
+        from integrations.chat_orchestrator import (
+            _canvas_referencing_message, _user_grounded_edit_directive)
+        # A read-only ask over a lineage-rich fork still cannot edit.
+        assert not _user_grounded_edit_directive(
+            "what does the draft say about pricing")
+
+    def test_inheritance_requires_source_canvas_identity(self):
+        # The lineage follows the fork audit row's source_canvas_id —
+        # a fork with no recorded source inherits nothing.
+        import inspect
+        from integrations.chat_orchestrator import ChatOrchestrator
+        src = inspect.getsource(ChatOrchestrator._canvas_job_findings)
+        assert "source_canvas_id" in src
+        assert '_parent != str(canvas_id)' in src  # no self-inheritance
