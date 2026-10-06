@@ -466,3 +466,103 @@ def test_clean_reply_records_no_fabrication_signal(monkeypatch):
 
     assert ok is False
     assert writes == [], "a clean verdict must not write a fabrication row"
+
+
+@pytest.mark.asyncio
+async def test_credit_exhaustion_is_terminal_truthful_persisted(monkeypatch):
+    """Provider-credit failure (first assignment): the turn must end as a
+    terminal, truthful, persisted failure — not success; the next ordinary
+    message must dispatch; no canvas effect may occur twice; a healthy
+    provider after recovery succeeds.
+
+    Isolated fixture through process_chat_message (real turn-finalization
+    path); the provider itself is stubbed with the verbatim credit string
+    so no real account is exhausted. Scratch in-memory DB only."""
+    import uuid
+    from contextlib import contextmanager
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    from core.models import Base, ChatMessage
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+
+    @contextmanager
+    def _scratch_db():
+        s = factory()
+        try:
+            yield s
+            s.commit()
+        finally:
+            s.close()
+
+    import core.database as _dbmod
+    monkeypatch.setattr(_dbmod, "get_db_session", _scratch_db)
+
+    CREDIT = (
+        "I couldn't generate a response — every configured provider is "
+        "out of credits (opencode-go). The last provider error: 402. "
+        "Top up the provider balances in Settings → Providers, then ask "
+        "again — retrying without a top-up will fail the same way.")
+
+    orch = ChatOrchestrator()
+    orch._analyze_intent = AsyncMock(return_value={
+        "primary_intent": ChatIntent.SEARCH_REQUEST,
+        "confidence": 0.5, "entities": [], "platforms": [],
+        "command_type": "search"})
+    orch.feature_handlers = {}
+    orch.ai_engines = {}
+    orch._get_qwen_response = AsyncMock(return_value={
+        "content": CREDIT, "model": "m", "provider": "p"})
+
+    uid = f"u-credit-{uuid.uuid4().hex[:8]}"
+    sid = f"s-credit-{uuid.uuid4().hex[:8]}"
+    resp = await orch.process_chat_message(uid, "hello", session_id=sid)
+    # Terminal + truthful: failed, machine-readable, remedy named.
+    assert resp["success"] is False, resp
+    assert resp.get("error_code") in (
+        "no_llm_provider", "budget_exceeded", "turn_budget_exceeded"), resp
+    assert "credit" in str(resp.get("message", "")).lower(), resp
+    # Persisted: user + assistant rows under this conversation.
+    check = factory()
+    rows = check.query(ChatMessage).filter(
+        ChatMessage.conversation_id == sid).all()
+    roles = sorted(r.role for r in rows)
+    assert "user" in roles and "assistant" in roles, roles
+    asst = [r for r in rows if r.role == "assistant"][-1]
+    assert "credit" in str(asst.content).lower()
+    _meta = asst.metadata_json or {}
+    if isinstance(_meta, str):
+        import json as _json
+        try:
+            _meta = _json.loads(_meta)
+        except Exception:
+            _meta = {"_raw": _meta}
+    assert ((_meta.get("quality") == "error")
+            or (_meta.get("error") is True)
+            or "error" in str(_meta).lower()), _meta
+    # No canvas effect on a plain chat failure.
+    assert not ((resp.get("data") or {}).get("canvas_edit") or {}).get(
+        "updated", False)
+    check.close()
+    # Next ordinary message dispatches (composer not wedged).
+    orch._get_qwen_response = AsyncMock(return_value={
+        "content": "recovered hello", "model": "m", "provider": "p"})
+    resp2 = await orch.process_chat_message(uid, "hello again",
+                                            session_id=sid)
+    assert resp2["success"] is True, resp2
+    assert "recovered hello" in str(resp2.get("message", ""))
+    check2 = factory()
+    rows2 = check2.query(ChatMessage).filter(
+        ChatMessage.conversation_id == sid).all()
+    assert len(rows2) >= len(rows) + 2, [r.role for r in rows2]
+    check2.close()
+    engine.dispose()

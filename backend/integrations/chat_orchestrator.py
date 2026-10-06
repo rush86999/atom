@@ -10771,6 +10771,21 @@ class ChatOrchestrator:
                 )
 
                 main_message = ai_response["content"]
+                # PROVIDER-FAILURE TERMINAL (first assignment): the LLM
+                # layer surfaces credit/quota exhaustion AS CONTENT
+                # (byok_handler credit envelope, success=True). A turn
+                # carrying it must end failed + truthful + persisted —
+                # never success, never re-anchored as a normal answer.
+                _llm_provider_failed = False
+                try:
+                    _llm_provider_failed = bool(
+                        _is_llm_error_text(main_message))
+                    if _llm_provider_failed:
+                        logger.warning(
+                            "[provider] reply leg returned provider "
+                            "failure as content — terminal failed outcome")
+                except Exception:  # noqa: BLE001 — detection never blocks
+                    _llm_provider_failed = False
                 # HONEST EXECUTION STATUS (2026-09-24 task-continuity
                 # regression): a turn resuming an outstanding file task
                 # that executed NO lookup must not ship a promise ("I'll
@@ -10851,8 +10866,10 @@ class ChatOrchestrator:
                 # Evidence: vLLM #1439, Vercel, LLM Gateway all recommend
                 # session stickiness for multi-turn consistency.
                 if used_model and used_provider and used_model not in ("template", "auto"):
-                    session["last_known_good_model"] = used_model
-                    session["last_known_good_provider"] = used_provider
+                    # A provider-failure turn must not become last-known-good.
+                    if not locals().get("_llm_provider_failed"):
+                        session["last_known_good_model"] = used_model
+                        session["last_known_good_provider"] = used_provider
             else:
                 main_message = self._generate_main_message(message, intent_analysis, feature_responses)
                 # The response came from a template, not an LLM. Label it
@@ -11070,7 +11087,8 @@ class ChatOrchestrator:
                               or [])][:2]
 
             response = {
-                "success": not budget_failure,
+                "success": not budget_failure and not locals().get(
+                    "_llm_provider_failed"),
                 "message": budget_failure["message"] if budget_failure else main_message,
                 "session_id": session["id"],
                 # Lets the client finalize THIS turn's streamed bubble (and
@@ -11099,6 +11117,13 @@ class ChatOrchestrator:
             if budget_failure:
                 response["error_code"] = "budget_exceeded"
                 response["failure_reason"] = budget_failure.get("failure_reason")
+                response["recovery_url"] = "/settings/billing"
+            if locals().get("_llm_provider_failed"):
+                # Mirrors the no_llm_provider convention so the client
+                # renders a distinct retry/top-up UI and the turn counts
+                # as failed everywhere (ledger, status, history flag).
+                response["error_code"] = "no_llm_provider"
+                response["failure_reason"] = "provider_credits_exhausted"
                 response["recovery_url"] = "/settings/billing"
 
             # R90 turn-budget honesty: the reply leg ran out of its LLM budget
@@ -21077,7 +21102,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         _is_error_turn = bool(
             not _resp_dict.get("success", True)
             or _resp_dict.get("cancelled")
-            or _resp_dict.get("error_code") in ("no_llm_provider", "budget_exceeded")
+            or _resp_dict.get("error_code") in (
+                "no_llm_provider", "budget_exceeded", "turn_budget_exceeded")
             or (
                 _is_malformed_output is not None
                 and                 _is_malformed_output(
