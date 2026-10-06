@@ -672,6 +672,48 @@ describe("CanvasDetailPage", () => {
     }), expect.anything());
   });
 
+  test("chat: after a credit failure the Enter path also dispatches with no blocking overlay", async () => {
+    // Case-5 gap (2026-10-06): the failed turn must release submission
+    // state for BOTH input paths (Send recorded separately from Enter),
+    // and no modal may intercept the composer after the failure — the
+    // page's only dialog (AgentAttachModal) opens solely from explicit
+    // clicks, so after a failed turn the ordinary visible action is:
+    // type + Enter, and the POST dispatches.
+    const creditEnvelope = {
+      success: false,
+      error_code: "no_llm_provider",
+      failure_reason: "provider_credits_exhausted",
+      recovery_url: "/settings/billing",
+      session_id: "sess-enter",
+      message: "The AI provider could not respond: account credits are exhausted. Add credits at the billing page.",
+    };
+    mockPost.mockResolvedValueOnce({ data: creditEnvelope });
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "estimate the job" } });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
+    await waitFor(() =>
+      expect(screen.getByText(/credits are exhausted/)).toBeInTheDocument()
+    );
+
+    // No blocking overlay owns the composer now.
+    expect(input).not.toBeDisabled();
+    expect(
+      document.querySelector("div.fixed.inset-0.z-50")
+    ).toBeNull();
+
+    // The follow-up goes through the Enter path and keeps the session.
+    fireEvent.change(input, { target: { value: "retry after top-up" } });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(2));
+    expect(mockPost).toHaveBeenLastCalledWith("/api/chat/message", expect.objectContaining({
+      message: "retry after top-up",
+      session_id: "sess-enter",
+    }), expect.anything());
+  });
+
   test("chat: network error renders system message", async () => {
     mockPost.mockRejectedValue(new Error("offline"));
     render(<CanvasDetailPage />);

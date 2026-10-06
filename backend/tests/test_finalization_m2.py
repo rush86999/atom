@@ -439,3 +439,94 @@ def test_failed_provider_envelope_survives_route_serialization():
     assert dumped["error_code"] == "no_llm_provider"
     assert dumped["failure_reason"] == "provider_credits_exhausted"
     assert dumped["recovery_url"] == "/settings/billing"
+
+
+CREDIT_ENVELOPE_MESSAGE = (
+    "I couldn't generate a response — every configured provider is "
+    "out of credits (opencode-go). The last provider error: 402. "
+    "Top up the provider balances in Settings → Providers, then ask "
+    "again — retrying without a top-up will fail the same way.")
+
+
+def _credit_drafted():
+    return {
+        "success": False,
+        "message": CREDIT_ENVELOPE_MESSAGE,
+        "session_id": "s-x", "intent": "search", "confidence": 0.5,
+        "suggested_actions": [], "requires_confirmation": False,
+        "next_steps": [], "timestamp": "2026-10-06T00:00:00",
+        "execution_id": "exec-1",
+        "error_code": "no_llm_provider",
+        "failure_reason": "provider_credits_exhausted",
+        "recovery_url": "/settings/billing",
+    }
+
+
+def test_failed_credit_envelope_message_preserved_verbatim():
+    """Case-5 gap (2026-10-06): finalize_payload rebuilt the failure
+    message from the execution record even when the reply leg had
+    already drafted the specific truthful credit envelope — the live
+    T2 row persisted the generic prefix with the cause truncated and
+    the remedy cut off. The full envelope (message + fields) must
+    survive finalization verbatim. Isolated stub of the verbatim
+    failure string; no provider account involved."""
+    from core.finalization import finalize_payload
+
+    drafted = _credit_drafted()
+    finalized = finalize_payload(
+        {"execution_id": "exec-1", "status": "failed",
+         "result_summary": drafted["message"], "failure_stage": "reply"},
+        drafted)
+    assert finalized["success"] is False
+    assert finalized["message"] == CREDIT_ENVELOPE_MESSAGE
+    assert finalized["error_code"] == "no_llm_provider"
+    assert finalized["failure_reason"] == "provider_credits_exhausted"
+    assert finalized["recovery_url"] == "/settings/billing"
+    assert finalized["execution_id"] == "exec-1"
+
+
+def test_failed_execution_without_drafted_error_still_synthesizes():
+    """The M1 frozen-case contract is unchanged: a failed execution
+    with no specific drafted message still gets the generic
+    record-derived failure text (never success, never silent)."""
+    from core.finalization import finalize_payload
+
+    for blank in ("", "Message processed successfully"):
+        finalized = finalize_payload(
+            {"execution_id": "exec-9", "status": "failed",
+             "result_summary": "editor blew up", "failure_stage": "edit"},
+            {"success": True, "message": blank, "execution_id": "exec-9"})
+        assert finalized["success"] is False
+        assert "Failure at edit: editor blew up" in finalized["message"]
+        assert "exec-9" in finalized["message"]
+
+
+def test_successful_finalization_adds_no_failure_fields():
+    """Failure fields must not leak into unrelated successes: a
+    completed execution's drafted success passes through with no
+    error keys added and the message untouched."""
+    from core.finalization import finalize_payload
+
+    drafted = {"success": True, "message": "done", "execution_id": "exec-2"}
+    finalized = finalize_payload(
+        {"execution_id": "exec-2", "status": "completed",
+         "result_summary": "done", "failure_stage": ""},
+        drafted)
+    assert finalized["success"] is True
+    assert finalized["message"] == "done"
+    assert "error_code" not in finalized
+    assert "failure_reason" not in finalized
+    assert "recovery_url" not in finalized
+
+
+def test_unknown_execution_preserves_truthful_error_message():
+    """An unknown/missing execution record must not clobber a
+    specific drafted error either — the turn stays failed and the
+    truthful text (with its remedy) is what the client renders."""
+    from core.finalization import finalize_payload
+
+    drafted = _credit_drafted()
+    finalized = finalize_payload(None, drafted)
+    assert finalized["success"] is False
+    assert finalized["message"] == CREDIT_ENVELOPE_MESSAGE
+    assert finalized["failure_reason"] == "provider_credits_exhausted"
