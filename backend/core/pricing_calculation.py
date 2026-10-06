@@ -25,12 +25,13 @@ Non-negotiable semantics:
 """
 from __future__ import annotations
 
+import ast
 import copy
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
-from decimal import Decimal, ROUND_CEILING, ROUND_HALF_UP, InvalidOperation
-from typing import Any, Dict, List, Optional
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP, InvalidOperation, localcontext
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 #: Rounding modes a policy step may name (deterministic by name).
 ROUNDING_MODES = {
@@ -126,13 +127,18 @@ class TaughtPolicy:
 @dataclass
 class CalculationResult:
     """The full, replayable outcome. `status` in
-    {'succeeded','unresolved','rejected'} — unresolved keeps the missing
-    input named; succeeded-with-stale-source carries the limitation."""
+    {'succeeded','unresolved','rejected','incomplete'} — unresolved keeps
+    the missing input named; succeeded-with-stale-source carries the
+    limitation; INCOMPLETE (round 69) means the WORKBOOK calculation
+    itself could not be reconstructed completely (an unsupported
+    operation or an unresolvable dependency cell): the exact gap is
+    named in `missing_dependency` and NO partial value is published."""
     status: str
     proposed: Optional[Money] = None
     steps: List[Dict[str, Any]] = field(default_factory=list)
     unresolved_reason: str = ""
     rejection_reason: str = ""
+    missing_dependency: str = ""
     freshness: str = "unknown"   # 'current' | 'stale' | 'unknown'
     policy_id: str = ""
     policy_version: str = ""
@@ -140,9 +146,18 @@ class CalculationResult:
     result_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     computed_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    #: Workbook-grounded results (round 69): the output's identity and
+    #: the version hash of the workbook bytes it was reconstructed from.
+    workbook: Dict[str, Any] = field(default_factory=dict)
+    #: Every cell the reconstruction touched, role-tagged and ordered —
+    #: literal inputs, parameter cells (incl. cross-sheet), intermediates.
+    dependencies: List[Dict[str, Any]] = field(default_factory=list)
+    #: Independent comparisons of the computed value (the workbook's own
+    #: cached output, an engine evaluation when bytes were available).
+    verification: Dict[str, Any] = field(default_factory=dict)
 
     def to_record(self) -> Dict[str, Any]:
-        return {
+        rec = {
             "result_id": self.result_id,
             "status": self.status,
             "proposed": (None if self.proposed is None else {
@@ -158,6 +173,15 @@ class CalculationResult:
             "inputs": self.inputs_snapshot,
             "computed_at": self.computed_at,
         }
+        if self.missing_dependency:
+            rec["missing_dependency"] = self.missing_dependency
+        if self.workbook:
+            rec["workbook"] = self.workbook
+        if self.dependencies:
+            rec["dependencies"] = self.dependencies
+        if self.verification:
+            rec["verification"] = self.verification
+        return rec
 
 
 # ---------------------------------------------------------------------------
@@ -498,6 +522,12 @@ def render_comparison(item_label: str, draft_price: Optional[Money],
         lines.append(f"- Proposed price (computed): "
                      f"{result.proposed.currency} {result.proposed.amount} "
                      f"per {result.proposed.unit}")
+    elif result.status == "incomplete":
+        lines.append(f"- Proposed price: NOT COMPUTED — the workbook "
+                     f"calculation is incomplete: "
+                     f"{result.missing_dependency or 'a dependency could not be reconstructed'}")
+        lines.append("  (No partial result was published; the exact "
+                     "dependency is named above.)")
     elif result.status == "unresolved":
         lines.append(f"- Proposed price: NOT COMPUTED — "
                      f"{result.unresolved_reason}")
@@ -515,9 +545,56 @@ def render_comparison(item_label: str, draft_price: Optional[Money],
     if result.policy_id:
         lines.append(f"- Policy applied: {result.policy_id} "
                      f"(v{result.policy_version})")
+    if result.workbook:
+        wb = result.workbook
+        lines.append(f"- Calculation defined by: {wb.get('file')} — "
+                     f"{wb.get('sheet')} row {wb.get('row')}, output cell "
+                     f"{wb.get('output_cell')}; workbook version "
+                     f"{str(wb.get('version') or 'unknown')[:12]}")
+        ab = wb.get("authorized_by") or {}
+        if ab.get("lesson_id"):
+            lines.append(f"- Applicability: authorized by teaching "
+                         f"(lesson {ab.get('lesson_id')}, "
+                         f"v{ab.get('version')}) — the workbook defines "
+                         f"the calculation; the teaching authorizes its "
+                         f"use here")
+        if result.dependencies:
+            lines.append(f"- Dependencies reconstructed: "
+                         f"{len(result.dependencies)} cell(s) — literal "
+                         f"inputs, parameters and intermediates are "
+                         f"recorded with the result")
+    v = result.verification or {}
+    cs = v.get("cache_substituted_cells") or []
+    if cs:
+        lines.append(
+            "- Limitation: part of the chain was taken from the "
+            "workbook's STORED values, not reconstructed arithmetic ("
+            + ", ".join(cs[:6]) + ") — a stored value can be stale; a "
+            "live read of the workbook can replace it with the real "
+            "formula")
+    if v.get("cached_output") is not None:
+        if v.get("matches_cached"):
+            lines.append(f"- Cross-check: matches the workbook's own "
+                         f"cached output ({v.get('cached_output')})")
+        else:
+            lines.append(f"- **Your decision needed**: the computed value "
+                         f"differs from the workbook's cached output "
+                         f"({v.get('cached_output')}) — a cached value can "
+                         f"be stale, so nothing is adopted until you choose")
+    if v.get("engine") and v.get("engine_value") is not None:
+        if v.get("matches_engine"):
+            lines.append(f"- Cross-check: independently re-evaluated with "
+                         f"the {v.get('engine')} formula engine "
+                         f"({v.get('engine_value')}) — same value")
+        else:
+            lines.append(f"- **Fidelity failure**: the {v.get('engine')} "
+                         f"formula engine evaluates this output to "
+                         f"{v.get('engine_value')}, not "
+                         f"{v.get('computed')} — the reconstruction is "
+                         f"wrong and must not be used")
     if result.steps:
         chain = " → ".join(
-            f"{s.get('output_amount', s.get('status'))}"
+            f"{s.get('output_amount', s.get('output', s.get('status')))}"
             for s in result.steps if s.get("op") != "manual_override_passthrough")
         if chain:
             lines.append(f"- Calculation steps: {chain}")
@@ -749,6 +826,11 @@ def record_calculation(
             "succeeded": "applied",
             "unresolved": "waiting",
             "rejected": "failed",
+            # INCOMPLETE (round 69): the workbook calculation itself is
+            # missing a dependency or hits an unsupported operation —
+            # the operation stays open exactly like an unresolved input,
+            # and no partial value was ever proposed.
+            "incomplete": "waiting",
         }
         lifecycle.transition_operation(
             run_id, op["operation_id"], "running",
@@ -766,23 +848,25 @@ def record_calculation(
                 {"amount": str(draft_price.amount),
                  "currency": draft_price.currency,
                  "unit": draft_price.unit})
-        # Unresolved inputs become durable next-work: a research action
-        # or a precise owner question — never a silent choice.
-        if result.status == "unresolved":
+        # Unresolved inputs AND incomplete reconstructions become durable
+        # next-work: a research action or a precise owner question —
+        # never a silent choice, and never a partial published price.
+        if result.status in ("unresolved", "incomplete"):
             from core.task_lifecycle import add_unresolved_questions
 
+            gap = (result.missing_dependency or result.unresolved_reason)
             add_unresolved_questions(lifecycle, run_id, [{
                 "item": item_label,
                 "kind": "verification",
                 "question": (
                     f"the price calculation for {item_label} cannot "
-                    f"complete: {result.unresolved_reason}"),
+                    f"complete: {gap}"),
                 "evidence": (
                     f"policy {result.policy_id} v{result.policy_version}; "
-                    "no value invented"),
+                    "no value invented, no partial price published"),
                 "next_action": (
-                    f"provide or research the missing input "
-                    f"({result.unresolved_reason})"),
+                    f"provide or research the missing dependency "
+                    f"({gap})"),
             }], source_operation=op["operation_id"])
         # A computed price differing from the draft is a business
         # decision, created only when the arithmetic succeeded.
@@ -917,185 +1001,519 @@ def _grounded(body: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Workbook-derived policies: each sheet's OWN formula chain (round 68)
+# Workbook-grounded pricing (rounds 69-70): the APPLICATION layer over
+# the general formula engine
+# ---------------------------------------------------------------------------
+#
+# core.formula_engine parses, validates and evaluates the supported
+# formula language — references, named inputs, functions, Decimal
+# precision, rounding — with NO business concepts. THIS module is the
+# pricing application on top of it:
+#   * TEACHING authorizes WHEN a workbook calculation applies (a
+#     formula's existence never makes it the approved pricing policy);
+#   * the result carries money, freshness and full provenance
+#     (workbook version, sheet, row, output cell, every dependency);
+#   * the lane wires the agent's request to the engine, completes
+#     unresolvable references with ONE bounded live read when the
+#     source is downloadable, and cross-checks the value against the
+#     workbook's stored output and the independent `formulas` engine;
+#   * INCOMPLETE calculations name the exact missing dependency and
+#     publish NO price — a partial answer is never presented as
+#     complete.
+
+
+def workbook_calculation_result(
+        calc: "FormulaResult",
+        *,
+        currency: str = "CAD",
+        observed_at: Optional[str] = None,
+        item_label: str = "",
+        authorized_by: Optional[Dict[str, str]] = None,
+        freshness_window_days: Optional[int] = None,
+        live_read_cells: Optional[List[str]] = None) -> CalculationResult:
+    """Adapt an engine FormulaResult into the pricing record. INCOMPLETE
+    calculations carry NO proposed value — the blocking rule — and name
+    the exact missing dependency."""
+    from core.formula_engine import FormulaResult  # noqa: F401 — type
+
+    origin = calc.origin or {}
+    wb_meta = {
+        "file": origin.get("file", ""),
+        "sheet": origin.get("sheet", ""),
+        "row": origin.get("row"),
+        "output_cell": origin.get("output_cell", ""),
+        "version": origin.get("version", ""),
+        "authorized_by": authorized_by,
+        "live_read_cells": live_read_cells or [],
+    }
+    result = CalculationResult(
+        status="succeeded" if calc.status == "complete" else "incomplete",
+        policy_id=f"workbook:{origin.get('sheet', '').strip()}!" \
+                  f"{origin.get('output_cell', '')}",
+        policy_version=(origin.get("version", "")[:12] or "unknown"),
+        freshness=_freshness_of(
+            SourceRef(kind="workbook_cell",
+                      reference=(f"{origin.get('file', '')}!"
+                                 f"{origin.get('sheet', '').strip()}!"
+                                 f"{origin.get('output_cell', '')}"),
+                      observed_at=observed_at),
+            freshness_window_days),
+        workbook=wb_meta,
+        dependencies=[d.to_dict() for d in calc.dependencies],
+        inputs_snapshot={
+            "item": item_label,
+            "basis": ("the source's own formula chain, evaluated by the "
+                      "general formula engine (core.formula_engine); "
+                      "constants preserved as decimals"),
+            "currency": currency,
+        })
+    if calc.status != "complete":
+        result.missing_dependency = (
+            calc.missing or calc.unsupported or
+            "the calculation could not be evaluated completely")
+        return result
+    result.proposed = Money(calc.value, currency)
+    result.steps = list(calc.steps)
+    if calc.cache_substituted:
+        result.verification["cache_substituted_cells"] = \
+            list(calc.cache_substituted)
+    if calc.cached_value is not None:
+        try:
+            cached_dec = Decimal(
+                str(calc.cached_value).replace(",", ""))
+            matches = abs(cached_dec - calc.value) <= Decimal("0.01")
+            result.verification["cached_output"] = str(calc.cached_value)
+            result.verification["matches_cached"] = bool(matches)
+        except (InvalidOperation, ValueError):
+            result.verification["cached_output"] = str(calc.cached_value)
+            result.verification["matches_cached"] = None
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Teaching authorizes WHEN a workbook calculation applies
 # ---------------------------------------------------------------------------
 
-_CELL_RE = _re.compile(r"^([A-Z]{1,3})(\d+)$", _re.IGNORECASE)
+def _norm_token_text(s: Any) -> str:
+    return " ".join(_re.split(r"[\s_\-]+", str(s or "").lower())).strip()
 
 
-def _sheet_values(parquet_path: str) -> Dict[str, str]:
-    """The sheet's computed cell values by Excel ADDRESS — the
-    parameter block a ladder's $-references point at. Columns map to
-    letters by ORDER (the parquet preserves sheet column order; the
-    headers are text, not letters) and rows by __sheet_row when
-    present (the true Excel row), else by position+2."""
-    import pandas as _pd
-
-    def col_letter(idx: int) -> str:
-        n, s = idx, ""
-        while n >= 0:
-            s = chr(65 + n % 26) + s
-            n = n // 26 - 1
-        return s
-
-    df = _pd.read_parquet(parquet_path)
-    has_sr = "__sheet_row" in df.columns
-    vals: Dict[str, str] = {}
-    for ci, col in enumerate(df.columns):
-        if str(col) == "__sheet_row":
-            continue
-        letter = col_letter(ci)
-        sr = df["__sheet_row"] if has_sr else None
-        for i, v in enumerate(df[col]):
-            if v is None or (hasattr(v, "item") and _pd.isna(v)):
-                continue
-            row_no = int(sr.iloc[i]) if has_sr else i + 2
-            addr = f"{letter}{row_no}"
-            s = str(v)
-            if s and s not in vals:
-                vals[addr] = s
-    return vals
-
-
-def policy_from_row_chain(
+def authorized_workbook_basis(
+        lessons: List[Dict[str, Any]],
         file_name: str,
-        sheet_name: str,
-        row_number: int,
-        parquet_path: str,
-        formulas: Dict[str, str],
-        raw_values: Optional[Dict[str, str]] = None) -> Optional[TaughtPolicy]:
-    """Build the policy for ONE ROW from that row's OWN formula chain
-    in the workbook's formula sidecar (round 68 — the reviewer's
-    'every sheet had its own formula' finding).
+        sheet_name: str) -> Optional[Dict[str, str]]:
+    """The governance gate (round 69): the workbook DEFINES a
+    calculation; TEACHING authorizes when that calculation applies. A
+    formula's existence never makes it the approved pricing policy.
 
-    The chain is read right-to-left from the row's price cell: each
-    formula's LHS cell is matched to the next formula whose RHS names
-    it; absolute $-references ($AB$1) resolve against the sheet's
-    computed values — the sheet's OWN parameter block, so the ladder's
-    factors are the sheet's, never a lesson example's. Every step
-    carries its cell provenance. Sheets without a formula sidecar (the
-    values are literals — Tennsmith's row is typed values, not
-    formulas) yield None: there is nothing to derive, and the honest
-    answer is 'this row has no formula chain', never a borrowed one.
-    """
-    row = int(row_number)
-    row_keys = {
-        _CELL_RE.match(k).group(1).upper() + str(row): k
-        for k in (formulas or {})
-        if _CELL_RE.match(k) and int(_CELL_RE.match(k).group(2)) == row}
-    if not row_keys:
+    A lesson authorizes FILE!SHEET when its text names the workbook
+    (basename with or without extension, whitespace/underscore-
+    insensitive) AND the sheet name as its own token. Structural
+    matching only — no business vocabulary here. Returns the
+    authorizing lesson {'lesson_id','version'} or None."""
+    import os as _os
+
+    base = _os.path.basename(str(file_name or "").strip())
+    stem = _norm_token_text(_os.path.splitext(base)[0])
+    sheet_tok = _norm_token_text(sheet_name)
+    if not stem or not sheet_tok:
         return None
-    # Parameter resolution order (round 68): RAW grid values first
-    # (the param block often lives in Excel row 1, which the
-    # materialized frame consumed as headers), then frame-derived
-    # values (sheets whose params sit in data rows). A caller with
-    # complete raw_values may pass a nonexistent parquet path (the
-    # frame read is skipped when raw_values cover the references).
-    vals: Dict[str, str] = {}
-    try:
-        vals.update(_sheet_values(parquet_path))
-    except Exception:  # noqa: BLE001 — frame read is best-effort
-        pass
-    if raw_values:
-        vals.update({k.upper(): str(v) for k, v in raw_values.items()})
+    for idx, lesson in enumerate(lessons or []):
+        text = _norm_token_text(
+            " ".join(str(lesson.get("lesson") or lesson.get("summary")
+                         or "").split()))
+        if not text:
+            continue
+        if stem not in text:
+            continue
+        if not _re.search(
+                rf"(?<![a-z0-9]){_re.escape(sheet_tok)}(?![a-z0-9])",
+                text):
+            continue
+        lid = str(lesson.get("id") or lesson.get("lesson_id")
+                  or f"idx-{idx}")
+        import hashlib as _hl
 
-    def deps(formula: str) -> List[str]:
-        return [d.replace("$", "").upper()
-                for d in _re.findall(r"\$?[A-Z]{1,3}\$?\d+", formula)]
+        digest = _hl.sha256(
+            f"{lid}\x1f{text}".encode("utf-8")).hexdigest()[:12]
+        return {"lesson_id": lid, "version": digest}
+    return None
 
-    def literal_or_none(tok: str) -> Optional[str]:
-        t = tok.replace("$", "")
-        if t in vals:
-            return vals[t]
-        try:
-            Decimal(t)
-            return t
-        except Exception:  # noqa: BLE001
+
+# ---------------------------------------------------------------------------
+# The agent-facing workbook lane (rounds 69-70)
+# ---------------------------------------------------------------------------
+
+_WB_QUERY_RE = _re.compile(
+    r"calculate\s+(?:price\s+(?:for|of)\s+)?"
+    r"(?P<file>.+?\.xlsx)\s+"
+    r"(?P<sheet>.+?)\s+row\s+(?P<row>\d+)\s+cell\s+"
+    r"(?P<cell>[A-Za-z]{1,3}\d+)"
+    r"(?P<rest>.*)$", _re.IGNORECASE)
+
+
+def _workspace_lessons(user_id: Optional[str],
+                       workspace_id: Optional[str]) -> List[Dict[str, Any]]:
+    """Every workspace agent's permanent lessons (sibling-sharing is
+    the established design) — the teaching layer the lane reads."""
+    from core.database import get_db_session
+    from core.student_learning_service import _permanent_lessons
+    from core.models import AgentRegistry
+
+    lessons: List[Dict[str, Any]] = []
+    with get_db_session() as db:
+        ids = [str(r.id) for r in db.query(AgentRegistry.id)
+               .filter(AgentRegistry.status != "retired").limit(10)]
+        for aid in ids:
+            for lesson in _permanent_lessons(db, aid):
+                lesson.setdefault("id", aid)
+                lessons.append(lesson)
+    return lessons
+
+
+class _FileSheetBooks:
+    """Lazy per-sheet reference sources for one cataloged file,
+    preferring the SAME workbook version (content hash) as the target
+    sheet — cross-sheet references resolve within one workbook, never
+    across versions."""
+
+    def __init__(self, file_name: str, workspace_id: Optional[str],
+                 prefer_hash: str):
+        self.file_name = file_name
+        self.workspace_id = workspace_id
+        self.prefer_hash = prefer_hash
+        self._books: Dict[str, "CellBook"] = {}
+        self._entries: Optional[List[Dict[str, Any]]] = None
+        #: A live workbook grid (workbook_grid_from_bytes) applied to
+        #: every book AS IT IS BUILT — order-independent, so a sibling
+        #: sheet first touched DURING a re-evaluation still receives the
+        #: live values (its frame cannot supply cells above the header
+        #: region).
+        self.live_grid: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
+
+    def _load_entries(self) -> List[Dict[str, Any]]:
+        if self._entries is not None:
+            return self._entries
+        from core.database import get_db_session
+        from core.models import DatasetEntry
+
+        best: Dict[str, Dict[str, Any]] = {}
+        with get_db_session() as db:
+            q = db.query(DatasetEntry).filter(
+                DatasetEntry.file_name == self.file_name,
+                DatasetEntry.status == "active")
+            if self.workspace_id:
+                q = q.filter(DatasetEntry.workspace_id == self.workspace_id)
+            for e in q.all():
+                key = " ".join(str(e.entity_name or "").lower().split())
+                rec = {
+                    "entity_name": str(e.entity_name or ""),
+                    "parquet_path": str(e.parquet_path or ""),
+                    "content_hash": str(e.content_hash or ""),
+                    "source": str(e.source or ""),
+                    "external_id": str(e.external_id or ""),
+                    "source_modified_at": (
+                        e.source_modified_at.isoformat()
+                        if e.source_modified_at else None),
+                }
+                if key not in best:
+                    best[key] = rec
+                elif (self.prefer_hash and
+                        rec["content_hash"] == self.prefer_hash):
+                    best[key] = rec
+        self._entries = list(best.values())
+        return self._entries
+
+    def entry_for(self, sheet_name: str) -> Optional[Dict[str, Any]]:
+        want = " ".join(str(sheet_name or "").lower().split())
+        for e in self._load_entries():
+            if " ".join(str(e["entity_name"]).lower().split()) == want:
+                return e
+        return None
+
+    def provider(self, sheet_name: str) -> Optional["CellBook"]:
+        from core.formula_engine import (CellBook,
+                                         sheet_grid_from_parquet)
+
+        key = " ".join(str(sheet_name or "").lower().split())
+        if key in self._books:
+            return self._books[key]
+        entry = self.entry_for(sheet_name)
+        if entry is None or not entry.get("parquet_path"):
             return None
+        from core.sheet_dataset_service import load_formulas_for_parquet
 
-    steps: List[PolicyStep] = []
-    # The row's own computed values (for same-row operand resolution in
-    # multi-operand SUMs — a PER-ROW policy may bind the row's own
-    # literals; that is the sheet's arithmetic, faithfully).
-    row_vals = {k: v for k, v in vals.items()
-                if _re.fullmatch(r"[A-Z]{1,3}" + str(row),
-                                 k, _re.IGNORECASE)}
-    # Multi-operand same-row SUMs first: S25 = M25+N25+P25+Q25+R25 —
-    # each non-base operand becomes an add with its resolved literal.
-    for addr, key in sorted(row_keys.items(),
-                            key=lambda kv: _col_order(kv[0])):
-        fs = formulas[key].replace("$", "")
-        m2 = _re.match(
-            r"=?\s*(?:SUM\()?" + r"\s*".join(
-                [r"([A-Z]{1,3}\d+)"] ) + r"((?:\s*\+\s*[A-Z]{1,3}\d+)+)"
-            r"\s*\)?\s*$", fs, _re.IGNORECASE)
-        if not m2:
-            m2 = _re.match(
-                r"=?\s*(?:SUM\()([A-Z]{1,3}\d+)((?:\s*\+\s*[A-Z]{1,3}\d+)+)\s*\)",
-                fs, _re.IGNORECASE)
-        if m2:
-            for tok in _re.findall(r"[A-Z]{1,3}\d+", m2.group(2)):
-                lit = vals.get(tok.upper())
-                if lit is not None:
-                    steps.append(PolicyStep(
-                        "add_freight", {"amount": lit},
-                        note=f"{sheet_name}!{addr} operand {tok}"))
-    # Walk the chain: binary products with inline literal or $-param.
-    ordered = sorted(
-        row_keys.items(),
-        key=lambda kv: _col_order(kv[0]))
-    for addr, key in ordered:
-        f = formulas[key]
-        m = _re.search(
-            r"([A-Z]{1,3}\d+|\$[A-Z]{1,3}\$\d+)\s*\*\s*([0-9.]+"
-            r"|[A-Z]{1,3}\$?\d+|\$[A-Z]{1,3}\$\d+)"
-            r"|([0-9.]+|[A-Z]{1,3}\$?\d+|\$[A-Z]{1,3}\$\d+)\s*\*\s*"
-            r"([A-Z]{1,3}\d+|\$[A-Z]{1,3}\$\d+)",
-            f.replace("$", ""), _re.IGNORECASE)
-        if not m:
-            continue
-        g = [g for g in m.groups() if g]
-        # The FACTOR is the operand that resolves to a literal VALUE —
-        # a bare number OR a $-param cell (the sheet's own parameter
-        # block: AB1 etc.). The same-row operand (I25/K25...) stays the
-        # value carrier and is never the factor.
-        fac = None
-        for t in g:
-            lit = literal_or_none(t)
-            if lit is None:
-                continue
-            same_row = _re.fullmatch(
-                r"([A-Z]{1,3})(" + str(row) + r")$", t, _re.IGNORECASE)
-            if same_row:
-                continue
-            fac = lit
-            break
-        if fac is None:
-            continue
-        steps.append(PolicyStep(
-            "multiply", {"factor": fac},
-            note=f"{sheet_name}!{addr} = {f}"))
-    if not steps:
+        try:
+            formulas = load_formulas_for_parquet(entry["parquet_path"])
+            values, empty = sheet_grid_from_parquet(entry["parquet_path"])
+        except Exception:  # noqa: BLE001 — a broken sibling sheet is a
+            # named gap, not a crash
+            return None
+        book = CellBook(entry["entity_name"], formulas, values, empty)
+        if self.live_grid:
+            live = self.live_grid.get(key)
+            if live:
+                book.overlay(live["values"], "live_read",
+                             formulas=live["formulas"])
+        self._books[key] = book
+        return book
+
+
+async def calculate_workbook_from_query(
+        query: str,
+        user_id: Optional[str],
+        workspace_id: Optional[str]) -> Optional[str]:
+    """The planner lane's WORKBOOK entry (rounds 69-70):
+
+        calculate price for FILE.xlsx SHEET row N cell XN [currency=CAD] [item=..]
+
+    The agent supplies the output cell (from its dataset search
+    result); THIS code authorizes applicability against the workspace
+    teaching, evaluates the output through the general formula engine
+    (core.formula_engine), completes unresolvable references with ONE
+    live read of the source workbook when it is downloadable,
+    cross-checks against the workbook's stored output (and, when bytes
+    were fetched, against the independent `formulas` engine), and
+    returns a grounded block. Incomplete evaluations name the exact
+    missing dependency and publish NO price."""
+    from core.formula_engine import evaluate_reference
+
+    q = " ".join(str(query or "").split())
+    # search, not match: the planner may embed the grammar mid-query
+    m = _WB_QUERY_RE.search(q)
+    if m is None:
         return None
-    if any("ROUNDUP" in str(formulas[k]) for k in row_keys.values()):
-        steps.append(PolicyStep(
-            "round", {"mode": "up", "places": 0},
-            note=f"{sheet_name} row {row}: taught ROUNDUP in the sheet"))
-    scope = {"file": file_name, "sheet": sheet_name}
-    pid = "wb-" + file_name[:12].replace(" ", "_") + "-" + \
-        sheet_name.strip().replace(" ", "_") + f"-r{row}"
-    return TaughtPolicy(
-        policy_id=pid[:80],
-        name=f"{sheet_name.strip()} row {row} formula chain",
-        steps=steps,
-        provenance=f"workbook:{file_name}!{sheet_name.strip()}!row{row}",
-        version="sidecar-1",
-        scope=scope)
+    file_name = m.group("file").strip()
+    sheet_name = m.group("sheet").strip()
+    row_number = int(m.group("row"))
+    cell = m.group("cell").upper()
+    currency = "CAD"
+    item_label = ""
+    for tok in (m.group("rest") or "").split():
+        if "=" not in tok:
+            continue
+        k, v = tok.split("=", 1)
+        if k.strip().lower() in ("currency", "cur"):
+            currency = v.strip().upper()[:3] or "CAD"
+        elif k.strip().lower() == "item":
+            item_label = v.strip()
+
+    books = _FileSheetBooks(file_name, workspace_id, prefer_hash="")
+    entry = books.entry_for(sheet_name)
+    if entry is None:
+        available = [
+            str(e["entity_name"]).strip()
+            for e in books._load_entries()][:20]  # noqa: SLF001
+        return _grounded(
+            "LIVE TOOL RESULTS (datasets.calculate — workbook) — SHEET "
+            f"NOT FOUND: '{sheet_name}' is not a cataloged sheet of "
+            f"{file_name} (cataloged: {', '.join(available) or 'none'}). "
+            "Name the sheet exactly as the search result reported it.")
+    books.prefer_hash = entry.get("content_hash") or ""
+
+    # GOVERNANCE GATE: teaching authorizes when the workbook's
+    # calculation applies — never the formula's mere existence.
+    lessons = _workspace_lessons(user_id, workspace_id)
+    authorized = authorized_workbook_basis(lessons, file_name, sheet_name)
+    if authorized is None:
+        return _grounded(
+            "LIVE TOOL RESULTS (datasets.calculate — workbook) — NOT "
+            f"AUTHORIZED: no permanent teaching authorizes pricing from "
+            f"{file_name} ({sheet_name} sheet). The workbook defines a "
+            "calculation; teaching authorizes when that calculation "
+            "applies — a formula's existence does not make it the "
+            "approved pricing policy. State the intended basis and ask "
+            "for the teaching if it is missing; do not compute a price "
+            "another way.")
+
+    from core.formula_engine import sheet_grid_from_parquet
+    from core.sheet_dataset_service import load_formulas_for_parquet
+
+    try:
+        formulas = load_formulas_for_parquet(entry["parquet_path"])
+        values, empty = sheet_grid_from_parquet(entry["parquet_path"])
+    except Exception as exc:  # noqa: BLE001 — named, never silent
+        return _grounded(
+            "LIVE TOOL RESULTS (datasets.calculate — workbook) — SOURCE "
+            f"UNREADABLE: the materialized sheet for {file_name} "
+            f"{sheet_name} could not be read ({type(exc).__name__}).")
+
+    from core.formula_engine import CellBook
+
+    target_book = CellBook(entry["entity_name"], formulas, values, empty)
+
+    def _origin() -> Dict[str, str]:
+        return {"file": file_name, "sheet": entry["entity_name"],
+                "row": str(row_number), "output_cell": cell,
+                "version": entry.get("content_hash") or ""}
+
+    calc = evaluate_reference(
+        entry["entity_name"], cell, target_book,
+        books.provider, row_of_interest=row_number,
+        cached_value=values.get(cell), origin=_origin())
+
+    # LITERAL-SHEET OBSERVATION (owner's rule): a sheet whose values are
+    # typed literals has no calculation to run — the stored value is
+    # reported as an observation with its source, never a derived price.
+    if calc.status == "incomplete" and "has no formula" in calc.missing:
+        if values.get(cell) is not None:
+            return _grounded(
+                "LIVE TOOL RESULTS (datasets.calculate — workbook) — "
+                f"SOURCED VALUE (no calculation): {sheet_name}!{cell} = "
+                f"{values.get(cell)}, stored in {file_name} (workbook "
+                f"version {(entry.get('content_hash') or '')[:12]}). "
+                "This sheet's values are typed literals, not formulas: "
+                "there is no workbook calculation to reconstruct; the "
+                "stored value is an observation from its source, not a "
+                "computed price.")
+        return _grounded(
+            "LIVE TOOL RESULTS (datasets.calculate — workbook) — NO "
+            f"CALCULATION AND NO STORED VALUE at {sheet_name}!{cell}: "
+            "the sheet has no formula there and no stored value either.")
+
+    # LIVE-READ COMPLETION (bounded): references above the materialized
+    # frame (parameter blocks) AND cells whose formulas the sidecar lost
+    # (shared-formula dependents, visible as cache substitutions) are
+    # filled with ONE download of the source workbook when it is
+    # downloadable.
+    live_cells: List[str] = []
+    if ((calc.missing_references or calc.cache_substituted)
+            and str(entry.get("source") or "") == "zoho_workdrive"):
+        ext_id = str(entry.get("external_id") or "")
+        if ext_id and not ext_id.startswith("sha1:"):
+            content = await _download_workbook_bytes(
+                user_id, ext_id, workspace_id)
+            if content:
+                from core.formula_engine import workbook_grid_from_bytes
+
+                live = workbook_grid_from_bytes(content)
+                # Order-independent: the grid rides the books object and
+                # every book built from here on (target re-evaluation AND
+                # sibling sheets first touched mid-walk) receives it.
+                # The TARGET book itself must join the cache first — it
+                # was built locally from the frame and is the one book
+                # the overlay loop would otherwise miss (live 2026-10-05:
+                # turn ran 'no formula, stored value only' exactly here).
+                books.live_grid = live
+                books._books.setdefault(  # noqa: SLF001
+                    " ".join(sheet_name.lower().split()), target_book)
+                for key, book in list(  # noqa: SLF001
+                        books._books.items()):
+                    if key in live:
+                        book.overlay(live[key]["values"], "live_read",
+                                     formulas=live[key]["formulas"])
+                # VERSION DIVERGENCE HONESTY: the live bytes are their
+                # own workbook version — when they differ from the
+                # cataloged snapshot, the record says so (the cataloged
+                # version is the stale one; the calculation ran on the
+                # live bytes).
+                import hashlib as _hl
+
+                live_hash = _hl.sha1(content).hexdigest()
+                if entry.get("content_hash") and \
+                        live_hash != entry.get("content_hash"):
+                    _live_version_divergence = live_hash
+                calc = evaluate_reference(
+                    entry["entity_name"], cell, target_book,
+                    books.provider, row_of_interest=row_number,
+                    cached_value=values.get(cell), origin=_origin())
+                live_cells = sorted({
+                    f"{d.sheet}!{d.cell}"
+                    for d in calc.dependencies
+                    if d.source == "live_read"})
+                # INDEPENDENT ENGINE CHECK while the bytes are in hand
+                if calc.status == "complete":
+                    import asyncio
+
+                    from core.formula_engine import (
+                        verify_with_formulas_engine,
+                    )
+
+                    engine_val = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            verify_with_formulas_engine,
+                            content, entry["entity_name"], cell),
+                        timeout=90.0)
+                    if engine_val is not None:
+                        try:
+                            ev = Decimal(engine_val.replace(",", ""))
+                            matches = abs(
+                                ev - (calc.value or Decimal(0))) \
+                                <= Decimal("0.01")
+                        except (InvalidOperation, ValueError):
+                            matches = None
+                        if not matches and calc.value is not None:
+                            # FIDELITY FAILURE: the reconstruction is
+                            # wrong — block the price, name it.
+                            from core.formula_engine import FormulaResult
+
+                            calc = FormulaResult(
+                                reference=calc.reference,
+                                status="incomplete",
+                                missing=(
+                                    f"fidelity check failed: the "
+                                    f"independent formulas engine "
+                                    f"evaluates {sheet_name}!{cell} to "
+                                    f"{engine_val}, but the "
+                                    f"reconstruction produced "
+                                    f"{calc.value} — no price is "
+                                    f"published from a wrong "
+                                    f"reconstruction"),
+                                dependencies=calc.dependencies,
+                                steps=calc.steps,
+                                cached_value=values.get(cell),
+                                origin=_origin())
+                        else:
+                            calc._engine_check = {  # noqa: SLF001
+                                "engine": "formulas",
+                                "engine_value": engine_val,
+                                "matches_engine": bool(matches)}
+
+    if locals().get("_live_version_divergence"):
+        result_notes = {
+            "live_read_version": _live_version_divergence,
+            "cataloged_version": entry.get("content_hash"),
+            "note": ("the live workbook bytes differ from the "
+                     "cataloged snapshot — the calculation ran on the "
+                     "LIVE version; the cataloged one is stale"),
+        }
+    else:
+        result_notes = None
+    result = workbook_calculation_result(
+        calc, currency=currency,
+        observed_at=(datetime.now(timezone.utc).isoformat()
+                     if locals().get("_live_version_divergence")
+                     else entry.get("source_modified_at")),
+        item_label=item_label or f"{sheet_name} row {row_number}",
+        authorized_by=authorized,
+        live_read_cells=live_cells)
+    eng = getattr(calc, "_engine_check", None)  # noqa: SLF001
+    if isinstance(eng, dict):
+        result.verification.update(eng)
+    if result_notes:
+        result.verification.update(result_notes)
+        result.workbook["live_read_version"] = \
+            result_notes["live_read_version"]
+    body = render_comparison(
+        item_label or f"{sheet_name} row {row_number}", None, result)
+    return _grounded(body)
 
 
-def _col_order(addr: str) -> int:
-    letters = _re.sub(r"\d", "", addr).upper()
-    n = 0
-    for ch in letters:
-        n = n * 26 + (ord(ch) - 64)
-    return n
+async def _download_workbook_bytes(
+        user_id: Optional[str], external_id: str,
+        workspace_id: Optional[str]) -> Optional[bytes]:
+    """One bounded download of the source workbook (the same
+    integration the app already reads from). Never fatal."""
+    import asyncio
+
+    try:
+        from integrations.zoho_workdrive_service import (
+            zoho_workdrive_service,
+        )
+
+        return await asyncio.wait_for(
+            zoho_workdrive_service.download_file(
+                user_id, external_id, workspace_id=workspace_id),
+            timeout=75.0)
+    except Exception:  # noqa: BLE001 — download is best-effort
+        return None

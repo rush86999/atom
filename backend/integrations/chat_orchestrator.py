@@ -6560,6 +6560,7 @@ class ChatOrchestrator:
                 _td_scope_hints: List[str] = []
                 _td_decision: Optional[Dict[str, Any]] = None
                 _teaching_cue_turn = False
+                _calc_grammar_turn = False
                 if os.getenv("ATOM_TURN_DECISION_ROUTING", "1").lower() not in ("0", "off", "false"):
                     try:
                         from core.turn_decision import (
@@ -6679,6 +6680,26 @@ class ChatOrchestrator:
                             _ask_mention = ""
                             _teaching_cue_turn = True
                     except Exception:  # noqa: BLE001 — classification only
+                        pass
+                    # A CALCULATION ASK IS NOT A READ (round 70): the
+                    # workbook-calculate grammar ('calculate price for
+                    # FILE.xlsx SHEET row N cell XN') names an output to
+                    # COMPUTE, not a value to look up — letting the read
+                    # lane claim it answers with per-item scan outcomes
+                    # ('E25 | ABSENT' for a cell address the calculator
+                    # was asked to evaluate, observed live) and starves
+                    # the datasets calculate lane of the turn. Same
+                    # shape as the teaching-cue exemption above.
+                    try:
+                        from core.pricing_calculation import _WB_QUERY_RE
+
+                        if _WB_QUERY_RE.search(message or ""):
+                            _ask_mention = ""
+                            _calc_grammar_turn = True
+                            logger.info(
+                                "[file-ask] calculate-grammar ask left "
+                                "for the datasets calculate lane")
+                    except Exception:  # noqa: BLE001 — routing only
                         pass
                     from core.plan_relevance import _is_substantive_request
 

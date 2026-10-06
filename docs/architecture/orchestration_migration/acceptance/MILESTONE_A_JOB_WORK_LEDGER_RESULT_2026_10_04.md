@@ -1310,3 +1310,35 @@ binding as inputs for byte-exact row replay (live check: from the row's
 cost the derived chain reaches 6,896 vs the sheet's 7,409 — the
 difference is the row's freight/handling literals, bindable but not
 yet auto-resolved).
+
+## Round 69: workbook fidelity — the owner's correction (6,896 ≠ 7,409)
+
+The owner accepted the round-68 diagnosis (a worked example must not be promoted into a universal policy) but rejected the replacement as ready-to-price: the regex walker dropped literal additive operands and bare `$-param` formulas (live BurrKing row 25: **6,896 vs the sheet's 7,409**). Binding directives: block incomplete formula-derived proposals (exact missing dependency, never a partial price); reconstruct the selected output's dependencies completely (literal inputs, parameter cells incl. cross-sheet, operation order, rounding; workbook version/hash, sheet, row, output cell); verify the existing engine before extending the walker; prove fidelity against independently evaluated outputs; connect through the real agent workflow with teaching authorizing applicability — a formula's existence does not make it the approved pricing policy.
+
+Delivered (round 69, then restructured in round 70):
+- **`incomplete` status** on CalculationResult — `record_calculation` maps it to a waiting operation with the exact missing dependency as durable next-work; `render_comparison` prints "NOT COMPUTED … no partial result". A partial value is never published.
+- **Dependency-complete reconstruction** replacing the walker: AST-whitelist parsing (the `core.derivation_verification` discipline), Decimal arithmetic, Excel rounding semantics, blank-operand rule recorded with a note, cross-sheet resolution (BurrKing AB8 = `'Exchange-Index'!H4`), per-row parameter binding (rows 25/225/325 bind $AB$1/AB15/AB42, AB18/AB41, AB2), cache-substitution FLAGGED (stored value standing in for lost arithmetic — named, never silent).
+- **Fidelity proven**: fixture workbook vs the independent `formulas` engine (rows 25/225/325, rounding boundaries 675/676/67.51, IF() unsupported, AZ1 missing); LIVE 2019 workbook byte-exact — **E25=7409, E225=25010, E325=1300**, each equal to the sheet's own cached output with hand-checked arithmetic.
+- **Governance gate**: `authorized_workbook_basis` — teaching names FILE+SHEET or the lane refuses ("NOT AUTHORIZED … a formula's existence does not make it the approved pricing policy"). Pinned.
+- **Live defects found and fixed**: `E25/I25/S25` are shared-formula dependents whose bodies the sidecar never captures (column-evidence flagging + live-read formula overlay); Zoho packages reject openpyxl's strict reader (raw-XML grid fallback with **shared-formula master→dependent translation** — Excel's own format semantics); the overlay loop missed the target book (fixed); blank cells materialize as empty strings (normalized).
+
+## Round 70: the general formula engine (owner redesign)
+
+> "The reusable capability should be a formula engine; pricing is one application of it."
+
+Layer separation, enforced by construction:
+
+| Layer | Responsibility | Lives |
+|---|---|---|
+| Business teaching | WHEN a calculation applies; which sources are authoritative | lessons + `authorized_workbook_basis` |
+| Agent | selects the output, invokes, obtains missing inputs | planner lane + orchestrator routing |
+| Formula engine | parse, validate, evaluate supported expressions deterministically | `core/formula_engine.py` |
+| Evidence & permissions | provenance, applicability, freshness, authorization | `pricing_calculation` adapters + the result record |
+
+Inspection that preceded the evaluator (AGENTS.md §3): `core.formula_extractor` (extraction to memory, no evaluation), `core.derivation_verification._Evaluator` (float, claim-verification scope — its AST-whitelist discipline adopted), `core.workbook_runtime` + declared dep `formulas==1.3.4` (whole-workbook float evaluation; used as the INDEPENDENT ORACLE). None offers typed-Decimal, dependency-complete, replayable, fail-closed evaluation — the engine was built for that, with an EXPLICIT supported language (literals, references A1/$A$1/Sheet!A1, named inputs, + − × ÷ ^, ROUNDUP/ROUND/ROUNDDOWN/INT/ABS/MIN/MAX/SUM, Decimal 34-digit precision, spreadsheet rounding, optional unit annotations recorded verbatim). Two input formats share ONE execution path: `evaluate_reference` (workbook/cell books) and `evaluate_expression` (taught expressions with named bindings). No vendor/price/freight vocabulary anywhere in the engine.
+
+**Materially different non-pricing formulas through the same path** (pinned): service estimate `ROUNDUP(hours*rate+materials,0)` = 2,625 (17.5×150); inventory `demand*lead_time+safety_stock` = 240; operations `capacity*utilization/100` = 330; the service estimate ALSO as a workbook reference cross-checked against the oracle. Pricing keeps Money/freshness/authorization/record_calculation as the application layer.
+
+**Agent workflow (live, in-app)**: teaching delivered through the app's teach API (lesson `13422e5198524f878d0e9415a91fea7b` — "For BurrKing machinery, the approved price basis is the Consolidated Price List 2019 workbook … BurrKing sheet"); a real chat turn selected and invoked the calculator through the planner lane (`datasets.calculate`), which authorized against that teaching, reconstructed **20 dependency cells**, computed **CAD 7,409**, cross-checked against the workbook's own cached output, and disclosed every limitation (cache substitutions, freshness) — rendered in the chat UI. A calculation-shaped ask is no longer hijacked by the read lane (routing exemption, mirroring the teaching-cue precedent). The live WorkDrive read is intermittent (Zoho 500s); on failure the result degrades honestly to the flagged stored-value path — never silently.
+
+**Status**: engine coverage is EXPLICIT, not universal — unsupported constructs (IF(), ranges, non-numeric literals) return precise incomplete results naming the construct; scope expands by adding functions, never per-business engines. Remaining named gaps: job-lane recording of workbook calculations onto a live run id; the WorkDrive download flakiness (external); the values sidecar at materialization (so future ingestions carry header-region parameter cells without a live read). 77 tests green (engine + pricing batteries); 2 failures in adjacent suites pre-exist on unmodified HEAD (verified in a clean worktree).

@@ -229,7 +229,7 @@ _SERVICE_DESCRIPTIONS = {
     # routed to documents.grep, which found nothing — the workbook's rows
     # live HERE; the planner had no signal that filename asks route to
     # datasets).
-    "datasets": "dataset catalog — EVERY ingested spreadsheet (xlsx/xls/csv) as searchable rows. To OPEN a named spreadsheet ('PRICE VIPUL (6).xlsx', any '*.xlsx/csv' ask): search its filename HERE — returns that workbook's sheets, rows and formulas. Also for a specific value/code/model/part number: returns the exact rows plus the file and sheet they live in; `find_all` intent: Excel-style Find All — query is the value ALONE (or 'VALUE in FILE.xlsx' to scope to one workbook); returns EVERY cell containing it (file, sheet, cell address, value, formula) with exact counts, so 'where does X appear / which cells hold X / does X occur anywhere' are one lookup; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns; `value_trace` intent: give item codes/model numbers (comma-separated, optionally 'ITEMS excluding FILE.xlsx') and it reports which OTHER cataloged documents (attachments, price lists, letters, worksheets) carry each item — use it to check whether a value was manually calculated in an attachment before calling it unsourced; `calculate` intent: run a TAUGHT pricing calculation deterministically — the query names the taught policy id, the base amount+currency, and k=v bindings: 'calculate taught-multiply-divide from 7627 CAD freight_amount=800 source=ROW106'. The available taught policy ids appear in the tool result on a miss. Use it whenever a price should be computed from taught rules instead of guessed",
+    "datasets": "dataset catalog — EVERY ingested spreadsheet (xlsx/xls/csv) as searchable rows. To OPEN a named spreadsheet ('PRICE VIPUL (6).xlsx', any '*.xlsx/csv' ask): search its filename HERE — returns that workbook's sheets, rows and formulas. Also for a specific value/code/model/part number: returns the exact rows plus the file and sheet they live in; `find_all` intent: Excel-style Find All — query is the value ALONE (or 'VALUE in FILE.xlsx' to scope to one workbook); returns EVERY cell containing it (file, sheet, cell address, value, formula) with exact counts, so 'where does X appear / which cells hold X / does X occur anywhere' are one lookup; `ask` intent answers questions about the APP'S OWN records by natural-language SQL over allowlisted tables (canvases, chat sessions, agents, goals/runs, workflow runs, approvals, accounting) — counts, lists, per-status breakdowns; `value_trace` intent: give item codes/model numbers (comma-separated, optionally 'ITEMS excluding FILE.xlsx') and it reports which OTHER cataloged documents (attachments, price lists, letters, worksheets) carry each item — use it to check whether a value was manually calculated in an attachment before calling it unsourced; `calculate` intent: run a pricing calculation deterministically — two forms. WORKBOOK form (the workbook defines the calculation; teaching authorizes when it applies): 'calculate price for FILE.xlsx SHEET row N cell XN' — the file/sheet/row/cell come from the dataset search result's own addresses; the tool reconstructs the cell's full formula chain (inputs, parameter cells, rounding) and computes it, or returns an incomplete calculation naming the exact missing dependency. TAUGHT form: the query names the taught policy id, the base amount+currency, and k=v bindings: 'calculate taught-multiply-divide from 7627 CAD freight_amount=800 source=ROW106'. The available taught policy ids appear in the tool result on a miss. Use it whenever a price should be computed from the workbook's formulas or taught rules instead of guessed",
     # Knowledge VFS: the agent's file-system view over everything ingestion
     # stored. The lane that makes the grounding rule's 'full: …' citations
     # executable — open the COMPLETE line-numbered message behind a
@@ -8653,6 +8653,21 @@ async def execute_tool_plan(
 
                 _calc_q = (query or "").strip()
                 if _calc_q:
+                    # WORKBOOK lane first (round 69): 'calculate price
+                    # for FILE.xlsx SHEET row N cell XN' — the workbook
+                    # defines the calculation, teaching authorizes when
+                    # that calculation applies, and the reconstruction
+                    # is dependency-complete or honestly incomplete
+                    # (never a partial price).
+                    from core.pricing_calculation import (
+                        calculate_workbook_from_query as _wb_query,
+                    )
+
+                    _wb_block = await _wb_query(
+                        _calc_q, user_id,
+                        (context or {}).get("workspace_id"))
+                    if _wb_block:
+                        return _with_grounding(_wb_block)
                     block = await _calc_query(
                         _calc_q, user_id,
                         (context or {}).get("workspace_id"))
