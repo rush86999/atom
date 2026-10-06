@@ -355,3 +355,77 @@ def test_partial_answer_keeps_asking_without_new_record(world):
             if o["type"] == "calculate"]
     assert calc == []
     assert _pending_question("c-boundary-12") is not None
+
+
+class TestRequestIdentityKey:
+    """Final owner correction (2026-10-06): the durable operation key is
+    REQUEST/EXECUTION identity + calculation identity. Content alone
+    reattributed a later legitimate request to an earlier operation."""
+
+    def _run_exec(self, query, conv, execution_id, user="u-boundary"):
+        from core.chat_tool_planner import ToolPlan, execute_tool_plan
+        plan = ToolPlan(use_tool=True, service="datasets.calculate",
+                        query=query)
+        return asyncio.run(execute_tool_plan(
+            plan, user, tenant_id="default",
+            context={"conversation_id": conv, "workspace_id": "default",
+                     "execution_id": execution_id}))
+
+    def _ops_with_attribution(self, conv):
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle
+        tl = TaskLifecycle(
+            GoalRunService(workspace_id="default", tenant_id="default",
+                           session_factory=_STATE["factory"]),
+            GoalService(workspace_id="default", tenant_id="default",
+                        session_factory=_STATE["factory"]))
+        task = tl.find_active_task(conv)
+        if not task:
+            return []
+        return [{"id": o.get("operation_id"),
+                 "exec": o.get("execution_id"),
+                 "amount": (((o.get("calculation") or {})
+                             .get("proposed") or {}).get("amount"))}
+                for o in (task.get("operations") or [])
+                if o.get("operation_type") == "calculate"]
+
+    def test_same_request_two_arms_and_retry_one_operation(self, world):
+        """Both dispatch arms of ONE request (different query texts) and
+        a retry of that request replay to the SAME operation."""
+        conv = "c-reqid-1"
+        b1 = self._run_exec(
+            "Estimate this service job using our taught rates "
+            "with hours=17.5 materials=0", conv, "exec-A")
+        b2 = self._run_exec(
+            "Estimate this service job using our taught rates — 17.5 "
+            "hours, and no materials.", conv, "exec-A")
+        assert b1 and "2625" in b1
+        assert b2 and "2625" in b2
+        # RETRY of the same request: replays to the SAME operation id
+        first_id = self._ops_with_attribution(conv)[0]["id"]
+        self._run_exec(
+            "Estimate this service job using our taught rates "
+            "with hours=17.5 materials=0", conv, "exec-A")
+        ops = self._ops_with_attribution(conv)
+        assert len(ops) == 1, ops
+        assert ops[0]["id"] == first_id
+        assert ops[0]["exec"] == "exec-A"
+        assert str(ops[0]["amount"]).startswith("2625")
+
+    def test_new_request_identical_content_gets_own_operation(self, world):
+        """A LATER legitimate request with identical inputs and result
+        records its OWN separately attributed operation — the earlier
+        operation is not reused and the attribution is not lost."""
+        conv = "c-reqid-2"
+        self._run_exec(
+            "Estimate this service job using our taught rates "
+            "with hours=17.5 materials=0", conv, "exec-1")
+        self._run_exec(
+            "Estimate this service job using our taught rates "
+            "with hours=17.5 materials=0", conv, "exec-2")
+        ops = self._ops_with_attribution(conv)
+        assert len(ops) == 2, ops
+        assert {o["exec"] for o in ops} == {"exec-1", "exec-2"}
+        assert ops[0]["id"] != ops[1]["id"]
+        assert all(str(o["amount"]).startswith("2625") for o in ops)

@@ -1387,7 +1387,7 @@ class TestRound71Contracts:
         fake_lc = _FakeLifecycle()
         monkeypatch.setattr(
             pc, "record_calculation",
-            lambda lifecycle, run_id, item, result:
+            lambda lifecycle, run_id, item, result, **kw:
                 recorded.update(run_id=run_id, item=item,
                                 status=result.status,
                                 policy=result.policy_id,
@@ -2220,7 +2220,7 @@ class TestRound76RequestBoundEvidence:
         calls = {"n": 0}
 
         async def _fake_wb(q, user_id, ws, conversation_id=None,
-                           canvas_id=None):
+                           canvas_id=None, execution_id=None):
             calls["n"] += 1
             await __import__("asyncio").sleep(0.05)
             return ("LIVE TOOL RESULTS (datasets.calculate)\n"

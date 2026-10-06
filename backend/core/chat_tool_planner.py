@@ -8263,11 +8263,19 @@ def _calc_dedup_key(
         canvas_id: Optional[str],
         workspace_id: Optional[str],
         query: Optional[str],
-        lessons_fingerprint: str = "") -> Optional[str]:
+        lessons_fingerprint: str = "",
+        execution_id: Optional[str] = None) -> Optional[str]:
     """Stable dedup key, or None when context is unvalidated.
 
     Validated context requires a non-empty user or conversation —
-    anonymous/empty callers never share results."""
+    anonymous/empty callers never share results.
+
+    REQUEST SCOPING (final owner correction 2026-10-06): with an
+    execution identity the key is bound to THIS request — the same
+    request's two dispatch arms and its in-request retries share the
+    key, while a NEW request (new execution) never reuses the completed
+    block of an earlier one. Without an execution identity (legacy
+    callers) the key keeps its request-less shape."""
     import hashlib as _hl
 
     u = " ".join(str(user_id or "").strip().split())
@@ -8280,7 +8288,8 @@ def _calc_dedup_key(
     if not q:
         return None
     raw = "|".join([u.lower(), c.lower(), v, w, q,
-                    str(lessons_fingerprint or "")])
+                    str(lessons_fingerprint or ""),
+                    f"exec={str(execution_id or '').strip().lower()}"])
     return "calc:" + _hl.sha256(raw.encode("utf-8")).hexdigest()[:24]
 
 
@@ -8756,6 +8765,14 @@ async def execute_tool_plan(
             # 76): planner + derivation paths converge HERE — dedup lives
             # here, keyed by stable request/operation identity + validated
             # context + lessons fingerprint. One request = one operation.
+            # REQUEST/EXECUTION identity (final owner correction
+            # 2026-10-06): branch-scoped so BOTH the lane invocations and
+            # the dedup/singleflight wrapper below see it — the durable
+            # operation key and the completed-block cache deduplicate
+            # THIS request's two dispatch arms and its retries, while a
+            # NEW request (new execution) never reuses an earlier one.
+            _exec_id = (context or {}).get("execution_id")
+
             async def _run_calc_lane() -> Optional[str]:
                 import re as _calc_re
                 from decimal import Decimal as _CalcD
@@ -8789,7 +8806,8 @@ async def execute_tool_plan(
                 _wb_block = await _wb_query(
                     _calc_q, user_id,
                     (context or {}).get("workspace_id"),
-                    conversation_id=_conv_id, canvas_id=_cv_id)
+                    conversation_id=_conv_id, canvas_id=_cv_id,
+                    execution_id=_exec_id)
                 if _wb_block:
                     # _wb_query already grounds; _with_grounding is
                     # idempotent for grounded blocks.
@@ -8798,7 +8816,8 @@ async def execute_tool_plan(
                 _expr_block = await _expr_query(
                     _calc_q, user_id,
                     (context or {}).get("workspace_id"),
-                    conversation_id=_conv_id, canvas_id=_cv_id)
+                    conversation_id=_conv_id, canvas_id=_cv_id,
+                    execution_id=_exec_id)
                 if _expr_block:
                     return _expr_block if "LIVE TOOL RESULTS" in _expr_block \
                         else _with_grounding(_expr_block)
@@ -8809,7 +8828,8 @@ async def execute_tool_plan(
                 _nl_block = await _nl_query(
                     _calc_q, user_id,
                     (context or {}).get("workspace_id"),
-                    conversation_id=_conv_id, canvas_id=_cv_id)
+                    conversation_id=_conv_id, canvas_id=_cv_id,
+                    execution_id=_exec_id)
                 if _nl_block:
                     return _nl_block if "LIVE TOOL RESULTS" in _nl_block \
                         else _with_grounding(_nl_block)
@@ -8822,7 +8842,8 @@ async def execute_tool_plan(
                 _followup_block = await _followup_query(
                     _calc_q, user_id,
                     (context or {}).get("workspace_id"),
-                    conversation_id=_conv_id, canvas_id=_cv_id)
+                    conversation_id=_conv_id, canvas_id=_cv_id,
+                    execution_id=_exec_id)
                 if _followup_block:
                     return _followup_block
                 block = await _calc_query(
@@ -8845,7 +8866,7 @@ async def execute_tool_plan(
                 _fp = _calc_lessons_fingerprint(user_id, _ws_key)
                 _dkey = _calc_dedup_key(
                     user_id, _conv_key, _cv_key, _ws_key,
-                    _calc_q_key, _fp)
+                    _calc_q_key, _fp, execution_id=_exec_id)
                 if _dkey is not None:
                     import time as _time
 

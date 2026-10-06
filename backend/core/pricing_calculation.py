@@ -841,16 +841,18 @@ def record_calculation(
     if lifecycle is None or not run_id:
         return None
     try:
-        # ONE CALCULATION OPERATION PER CALCULATED CONTENT (release case
-        # 3, owner assignment: "exactly the two expected calculations"):
-        # the lifecycle's own Stripe-style idempotency, keyed on the
-        # calculation's IDENTITY — policy, version, status, item and the
-        # input VALUES — never the snapshot's prose (the two dispatch
-        # arms describe the same answer with different `basis` text,
-        # which must not split the operation). A turn dispatched by two
-        # arms with different query texts but the same calculation
-        # replays to the same operation; a genuinely different input set
-        # (a recalculation) is a different key and records its own op.
+        # ONE CALCULATION OPERATION PER REQUEST (release case 3, final
+        # owner correction 2026-10-06): the lifecycle's own Stripe-style
+        # idempotency, keyed on the REQUEST/EXECUTION identity PLUS the
+        # calculation's identity — policy, version, status, item, input
+        # values, computed value; never the snapshot's prose. The same
+        # request dispatched by two arms (different query texts) or
+        # retried within the request replays to the SAME operation; a
+        # NEW request — even with identical inputs and result — records
+        # its OWN separately attributed operation (a content-only key
+        # silently reattributed later legitimate requests to an earlier
+        # op). Callers without a request identity (tests, legacy paths)
+        # fall back to the content-only key.
         import hashlib as _calc_hash
         import json as _calc_json
 
@@ -864,6 +866,7 @@ def record_calculation(
         _key_value = ("" if _prop is None else
                       f"{_prop.amount}|{_prop.currency}|{_prop.unit}")
         _idem = "calc:" + _calc_hash.sha256("|".join((
+            f"exec={execution_id or ''}",
             str(result.policy_id), str(result.policy_version),
             str(result.status), str(_snap.get("item") or item_label),
             _key_value,
@@ -1710,7 +1713,8 @@ async def calculate_workbook_from_query(
         user_id: Optional[str],
         workspace_id: Optional[str],
         conversation_id: Optional[str] = None,
-        canvas_id: Optional[str] = None) -> Optional[str]:
+        canvas_id: Optional[str] = None,
+        execution_id: Optional[str] = None) -> Optional[str]:
     """The planner lane's WORKBOOK entry (rounds 69-70):
 
         calculate price for FILE.xlsx SHEET row N cell XN [currency=CAD] [item=..]
@@ -1988,7 +1992,8 @@ async def calculate_workbook_from_query(
     # completion (release case 3).
     _recorded = _record_on_job(conversation_id, workspace_id,
                                item_label or f"{sheet_name} row {row_number}",
-                               result, canvas_id=canvas_id, user_id=user_id)
+                               result, canvas_id=canvas_id, user_id=user_id,
+                               execution_id=execution_id)
     _publish_calc_record(
         result, user_id=user_id,
         conversation_id=conversation_id, canvas_id=canvas_id,
@@ -2074,7 +2079,8 @@ def _record_on_job(
         item_label: str,
         result: CalculationResult,
         canvas_id: Optional[str] = None,
-        user_id: Optional[str] = None) -> bool:
+        user_id: Optional[str] = None,
+        execution_id: Optional[str] = None) -> bool:
     """Persist a calculation onto the conversation's job run.
 
     Canvas-free requests create their job on first calculation (via
@@ -2089,7 +2095,8 @@ def _record_on_job(
     if lifecycle is None or not run_id:
         return False
     try:
-        record_calculation(lifecycle, run_id, item_label, result)
+        record_calculation(lifecycle, run_id, item_label, result,
+                           execution_id=execution_id)
         return True
     except Exception as exc:  # noqa: BLE001 — recording is best-effort
         import logging as _logging
@@ -2291,7 +2298,8 @@ async def calculate_followup_from_query(
         user_id: Optional[str],
         workspace_id: Optional[str],
         conversation_id: Optional[str] = None,
-        canvas_id: Optional[str] = None) -> Optional[str]:
+        canvas_id: Optional[str] = None,
+        execution_id: Optional[str] = None) -> Optional[str]:
     """Complete or rebind the conversation's OWN calculation.
 
     Two triggers, both deterministic on durable state:
@@ -2412,7 +2420,8 @@ def _complete_taught_calculation(
         conversation_id: Optional[str],
         canvas_id: Optional[str],
         basis: str,
-        disclosures: Optional[List[str]] = None) -> str:
+        disclosures: Optional[List[str]] = None,
+        execution_id: Optional[str] = None) -> str:
     """Evaluate the taught expression over the FINAL inputs, record the
     result as its own operation, resolve the pending question, and
     return the grounded block. Shared by both follow-up triggers."""
@@ -2442,7 +2451,8 @@ def _complete_taught_calculation(
         })
     _recorded = _record_on_job(conversation_id, workspace_id,
                                e["name"], result,
-                               canvas_id=canvas_id, user_id=user_id)
+                               canvas_id=canvas_id, user_id=user_id,
+                               execution_id=execution_id)
     _publish_calc_record(
         result, user_id=user_id,
         conversation_id=conversation_id, canvas_id=canvas_id,
@@ -2523,7 +2533,8 @@ async def calculate_expression_from_query(
         user_id: Optional[str],
         workspace_id: Optional[str],
         conversation_id: Optional[str] = None,
-        canvas_id: Optional[str] = None) -> Optional[str]:
+        canvas_id: Optional[str] = None,
+        execution_id: Optional[str] = None) -> Optional[str]:
     """The planner lane's NAMED-INPUT entry:
 
         calculate expression EXPR [with name=value name=value ...]
@@ -2594,7 +2605,8 @@ async def calculate_expression_from_query(
         })
     _recorded = _record_on_job(conversation_id, workspace_id, expr[:60],
                                result, canvas_id=canvas_id,
-                               user_id=user_id)
+                               user_id=user_id,
+                               execution_id=execution_id)
     _publish_calc_record(
         result, user_id=user_id,
         conversation_id=conversation_id, canvas_id=canvas_id,
@@ -2850,7 +2862,8 @@ async def calculate_natural_from_query(
         user_id: Optional[str],
         workspace_id: Optional[str],
         conversation_id: Optional[str] = None,
-        canvas_id: Optional[str] = None) -> Optional[str]:
+        canvas_id: Optional[str] = None,
+        execution_id: Optional[str] = None) -> Optional[str]:
     """The natural-language entry: the trained employee's ORDINARY
     request, no calculator syntax. Two families:
 
@@ -2945,7 +2958,8 @@ async def calculate_natural_from_query(
         # narration guard refuses "saved/recorded" claims for it.
         _recorded = _record_on_job(conversation_id, workspace_id,
                                    e["name"], result,
-                                   canvas_id=canvas_id, user_id=user_id)
+                                   canvas_id=canvas_id, user_id=user_id,
+                                   execution_id=execution_id)
         _publish_calc_record(
             result, user_id=user_id,
             conversation_id=conversation_id, canvas_id=canvas_id,
