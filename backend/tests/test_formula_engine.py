@@ -29,7 +29,7 @@ class TestFormulaLanguage:
 
     def test_precedence_and_constants_as_decimals(self):
         r = evaluate_expression("2 + 3 * 4")
-        assert r.status == "complete"
+        assert r.status == "computed"
         assert r.value == Decimal("14")
         # a decimal literal stays exact, never float-noised
         r = evaluate_expression("0.1 + 0.2")
@@ -111,7 +111,7 @@ class TestFormulaLanguage:
             "hours * rate", {"hours": 17.5, "rate": 150},
             units={"hours": "hour", "rate": "CAD/hour"},
             output_unit="CAD")
-        assert r.status == "complete"
+        assert r.status == "computed"
         assert r.value == Decimal("2625.0")
         assert r.unit == "CAD"
         by_name = {d.cell: d for d in r.dependencies}
@@ -121,7 +121,7 @@ class TestFormulaLanguage:
     def test_explicit_input_shadows_cell_shaped_name(self):
         # 'H1' looks like a cell reference; an explicit input wins.
         r = evaluate_expression("H1 * 2", {"H1": 21})
-        assert r.status == "complete"
+        assert r.status == "computed"
         assert r.value == Decimal("42")
 
     def test_steps_replay_the_operations(self):
@@ -146,7 +146,7 @@ class TestNonPricingFormulas:
             units={"hours": "hour", "rate": "CAD/hour",
                    "materials": "CAD"},
             output_unit="CAD")
-        assert r.status == "complete"
+        assert r.status == "computed"
         assert r.value == Decimal("2625")
 
     def test_inventory_reorder_point(self):
@@ -155,7 +155,7 @@ class TestNonPricingFormulas:
             "demand * lead_time + safety_stock",
             {"demand": 40, "lead_time": 3, "safety_stock": 120},
             output_unit="units")
-        assert r.status == "complete"
+        assert r.status == "computed"
         assert r.value == Decimal("240")
 
     def test_operations_effective_capacity(self):
@@ -164,7 +164,7 @@ class TestNonPricingFormulas:
             "capacity * utilization / 100",
             {"capacity": 400, "utilization": 82.5},
             output_unit="parts/hour")
-        assert r.status == "complete"
+        assert r.status == "computed"
         assert r.value == Decimal("330")
 
     def test_same_formula_through_the_reference_format(self):
@@ -195,7 +195,7 @@ class TestNonPricingFormulas:
             book = CellBook("Estimates", d["formulas"], d["values"])
             r = evaluate_reference("Estimates", "D1", book,
                                    row_of_interest=1)
-            assert r.status == "complete", r.missing
+            assert r.status == "computed", r.missing
             assert r.value == Decimal("2625")
             deps = {x.cell: x for x in r.dependencies}
             assert deps["A1"].role == "input"
@@ -228,7 +228,7 @@ class TestReferenceFormat:
         r = evaluate_reference("Main", "D2", book, provider,
                                row_of_interest=2)
         # 10*2 + 5 + blank(0) = 25
-        assert r.status == "complete"
+        assert r.status == "computed"
         assert r.value == Decimal("25")
         by = {(d.sheet, d.cell): d for d in r.dependencies}
         assert by[("Side", "A1")].role == "reference"
@@ -263,17 +263,38 @@ class TestReferenceFormat:
         assert r.status == "incomplete"
         assert "SUM(H2:J2)" in r.unsupported
 
-    def test_row_roles_and_cache_flag(self):
-        # B2's column carries formulas; a stored value for a row cell
-        # in that column with no formula is a flagged substitution.
-        book = CellBook("Main", {"B3": "=A3*2"}, {"A2": "10", "B2": "20"},
-                        empty=set())
-        book.overlay({"B3": "26"}, "frame")  # value, formula intact
+    def test_output_result_types_are_structural(self):
+        """A missing OUTPUT formula never yields a computed result:
+        metadata decides between incomplete (formula cell, body
+        missing), stored_value (established literal) and incomplete
+        (no metadata — a live read decides)."""
+        # metadata says formula cell, body unavailable -> INCOMPLETE
+        book = CellBook("Main", {}, {"B2": "20"}, empty=set(),
+                        formula_cells={"B2"})
         r = evaluate_reference("Main", "B2", book, None,
                                row_of_interest=2)
-        assert r.status == "complete"
-        assert r.cache_substituted == ["Main!B2"]
+        assert r.status == "incomplete"
+        assert "formula cell" in r.missing
+        assert r.value is None and r.steps == []
+        # metadata says literal -> STORED VALUE observation, no steps,
+        # no arithmetic claimed
+        book = CellBook("Main", {"B3": "=A3*2"}, {"A2": "10", "B2": "20"},
+                        empty=set(), formula_cells={"B3"})
+        r = evaluate_reference("Main", "B2", book, None,
+                               row_of_interest=2)
+        assert r.status == "stored_value"
+        assert r.value == Decimal("20")
         assert r.steps == []
+        assert r.dependencies[0].note and \
+            "not computed" in r.dependencies[0].note
+        # no metadata at all -> INCOMPLETE (never a completed
+        # calculation from the cache)
+        book = CellBook("Main", {"B3": "=A3*2"}, {"A2": "10", "B2": "20"},
+                        empty=set())
+        r = evaluate_reference("Main", "B2", book, None,
+                               row_of_interest=2)
+        assert r.status == "incomplete"
+        assert "no metadata to establish" in r.missing
 
     def test_literal_cell_has_no_calculation_and_inputs_role_in_chain(
             self):
@@ -290,7 +311,7 @@ class TestReferenceFormat:
         book2 = CellBook("Main", {"B2": "=A2*2"}, {"A2": "4777"})
         r2 = evaluate_reference("Main", "B2", book2, None,
                                 row_of_interest=2)
-        assert r2.status == "complete"
+        assert r2.status == "computed"
         assert r2.value == Decimal("9554")
         by = {d.cell: d for d in r2.dependencies}
         assert by["A2"].role == "input"
@@ -409,6 +430,6 @@ class TestSharedFormulaTranslation:
         assert d["formulas"]["E25"] == "=ROUNDUP(W25,0)"
         book = CellBook("Main", d["formulas"], d["values"])
         r = evaluate_reference("Main", "E25", book, row_of_interest=25)
-        assert r.status == "complete"
+        assert r.status == "computed"
         assert r.value == Decimal("7409")
         assert r.cache_substituted == []

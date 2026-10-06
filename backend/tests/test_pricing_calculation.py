@@ -639,7 +639,7 @@ class TestWorkbookFidelity:
         x 1.1364 x 1.25, ROUNDUP -> 7409 (hand-derived; equals the live
         workbook's cached output)."""
         calc = self._calc(fixture, 25)
-        assert calc.status == "complete", calc.missing or calc.unsupported
+        assert calc.status == "computed", calc.missing or calc.unsupported
         assert calc.value == Decimal("7409")
         assert abs(fixture.oracle("BurrKing", "E25") - 7409.0) < 0.01
 
@@ -648,7 +648,7 @@ class TestWorkbookFidelity:
         25's cells: per-row parameter binding comes from the row's OWN
         formulas."""
         calc = self._calc(fixture, 225)
-        assert calc.status == "complete", calc.missing or calc.unsupported
+        assert calc.status == "computed", calc.missing or calc.unsupported
         deps = {f"{d.sheet}!{d.cell}" for d in calc.dependencies}
         assert "BurrKing!AB18" in deps and "BurrKing!AB41" in deps
         assert "BurrKing!AB15" not in deps and "BurrKing!AB42" not in deps
@@ -660,7 +660,7 @@ class TestWorkbookFidelity:
         """Row 325 prices through $AB$2 (0.72) — the sheet's second
         discount column, reconstructed per row."""
         calc = self._calc(fixture, 325)
-        assert calc.status == "complete"
+        assert calc.status == "computed"
         deps = {f"{d.sheet}!{d.cell}" for d in calc.dependencies}
         assert "BurrKing!AB2" in deps and "BurrKing!AB1" not in deps
         oracle = round(fixture.oracle("BurrKing", "E325"), 6)
@@ -772,7 +772,7 @@ class TestWorkbookFidelity:
             origin={"file": "bk.xlsx", "sheet": "BurrKing",
                     "row": "25", "output_cell": "E25",
                     "version": "fixturev1"})
-        assert calc.status == "complete"
+        assert calc.status == "computed"
         assert calc.value == Decimal("7409")
         assert "BurrKing!S25" in calc.cache_substituted
         res = workbook_calculation_result(calc, item_label="r25")
@@ -857,109 +857,114 @@ class TestWorkbookAuthorization:
             "BurrKing") is not None
 
 
+@pytest.fixture
+def fake_catalog(tmp_path, monkeypatch):
+    """A minimal parquet+sidecar catalog the lane can read, with
+    columns at their TRUE letters (the grid maps by order): a
+    BurrKing sheet (param cells in the AB column at their own rows,
+    the row-25 inputs, the cached output) and an Exchange-Index
+    sheet (H4 = 1.45) for the cross-sheet parameter; plus a
+    Tennsmith sheet of typed literals."""
+    import json
+
+    import pandas as pd
+    from openpyxl.utils import get_column_letter
+
+    from core import pricing_calculation as pc
+
+    d = tmp_path
+    fx_ = _Fixture(d)
+
+    def parquet(path, cells):
+        # cells: {row: {letter: value}} — blanks elsewhere; all
+        # values stored as strings (mixed int/'' breaks parquet,
+        # and the grid reads Decimal from strings anyway).
+        rows = sorted(cells)
+        cols = [get_column_letter(i) for i in range(1, 29)]
+        data = {c: [str(cells[r].get(c, "")) for r in rows]
+                for c in cols}
+        data["__sheet_row"] = rows
+        pd.DataFrame(data).to_parquet(path)
+
+    bk_parquet = d / "bk.parquet"
+    parquet(bk_parquet, {
+        1: {"AB": 0.675}, 2: {"AB": 0.72}, 8: {"AB": 1.45},
+        11: {"AB": 1.03}, 15: {"AB": 150}, 36: {"AB": 1.1364},
+        42: {"AB": 1.25},
+        25: {"H": 4777, "N": 250, "P": "", "Q": "", "E": 7409}})
+    (d / "bk.parquet.formulas.json").write_text(json.dumps(
+        {"sheet": "BurrKing",
+         "formulas": fx_.sidecar("BurrKing")}))
+    xi_parquet = d / "xi.parquet"
+    parquet(xi_parquet, {4: {"H": 1.45}})
+    (d / "xi.parquet.formulas.json").write_text(
+        json.dumps({"sheet": "Exchange-Index", "formulas": {}}))
+    ts_parquet = d / "ts.parquet"
+    parquet(ts_parquet, {106: {"A": "GSL48-16", "E": 14318}})
+    (d / "ts.parquet.formulas.json").write_text(
+        json.dumps({"sheet": "Tennsmith", "formulas": {}}))
+
+    entries = {
+        "burrking": {
+            "entity_name": "BurrKing",
+            "parquet_path": str(bk_parquet),
+            "content_hash": "fakehash000001",
+            "source": "upload",
+            "external_id": "sha1:x",
+            "source_modified_at": None},
+        "exchange-index": {
+            "entity_name": "Exchange-Index",
+            "parquet_path": str(xi_parquet),
+            "content_hash": "fakehash000001",
+            "source": "upload",
+            "external_id": "sha1:x",
+            "source_modified_at": None},
+        "tennsmith": {
+            "entity_name": "Tennsmith",
+            "parquet_path": str(ts_parquet),
+            "content_hash": "fakehash000002",
+            "source": "upload",
+            "external_id": "sha1:y",
+            "source_modified_at": None}}
+
+    class _FakeBooks:
+        def __init__(self, file_name, workspace_id, prefer_hash=""):
+            self._books = {}
+            self.live_grid = None
+
+        def entry_for(self, sheet_name):
+            return entries.get(
+                " ".join(str(sheet_name).lower().split()))
+
+        def problem_for(self, sheet_name):
+            return None
+
+        def _load_entries(self):
+            return list(entries.values())
+
+        def provider(self, sheet_name):
+            from core.formula_engine import (CellBook,
+                                             sheet_grid_from_parquet)
+            from core.sheet_dataset_service import \
+                load_formulas_for_parquet
+
+            key = " ".join(str(sheet_name).lower().split())
+            if key not in entries:
+                return None
+            values, empty = sheet_grid_from_parquet(
+                entries[key]["parquet_path"])
+            return CellBook(
+                entries[key]["entity_name"],
+                load_formulas_for_parquet(
+                    entries[key]["parquet_path"]), values, empty)
+
+    monkeypatch.setattr(pc, "_FileSheetBooks", _FakeBooks)
+    return entries
+
+
 class TestWorkbookLane:
     """The planner lane's workbook entry — authorization refusal and
     the literal-sheet observation, with the catalog faked (no DB)."""
-
-    @pytest.fixture
-    def fake_catalog(self, tmp_path, monkeypatch):
-        """A minimal parquet+sidecar catalog the lane can read, with
-        columns at their TRUE letters (the grid maps by order): a
-        BurrKing sheet (param cells in the AB column at their own rows,
-        the row-25 inputs, the cached output) and an Exchange-Index
-        sheet (H4 = 1.45) for the cross-sheet parameter; plus a
-        Tennsmith sheet of typed literals."""
-        import json
-
-        import pandas as pd
-        from openpyxl.utils import get_column_letter
-
-        from core import pricing_calculation as pc
-
-        d = tmp_path
-        fx_ = _Fixture(d)
-
-        def parquet(path, cells):
-            # cells: {row: {letter: value}} — blanks elsewhere; all
-            # values stored as strings (mixed int/'' breaks parquet,
-            # and the grid reads Decimal from strings anyway).
-            rows = sorted(cells)
-            cols = [get_column_letter(i) for i in range(1, 29)]
-            data = {c: [str(cells[r].get(c, "")) for r in rows]
-                    for c in cols}
-            data["__sheet_row"] = rows
-            pd.DataFrame(data).to_parquet(path)
-
-        bk_parquet = d / "bk.parquet"
-        parquet(bk_parquet, {
-            1: {"AB": 0.675}, 2: {"AB": 0.72}, 8: {"AB": 1.45},
-            11: {"AB": 1.03}, 15: {"AB": 150}, 36: {"AB": 1.1364},
-            42: {"AB": 1.25},
-            25: {"H": 4777, "N": 250, "P": "", "Q": "", "E": 7409}})
-        (d / "bk.parquet.formulas.json").write_text(json.dumps(
-            {"sheet": "BurrKing",
-             "formulas": fx_.sidecar("BurrKing")}))
-        xi_parquet = d / "xi.parquet"
-        parquet(xi_parquet, {4: {"H": 1.45}})
-        (d / "xi.parquet.formulas.json").write_text(
-            json.dumps({"sheet": "Exchange-Index", "formulas": {}}))
-        ts_parquet = d / "ts.parquet"
-        parquet(ts_parquet, {106: {"A": "GSL48-16", "E": 14318}})
-        (d / "ts.parquet.formulas.json").write_text(
-            json.dumps({"sheet": "Tennsmith", "formulas": {}}))
-
-        entries = {
-            "burrking": {
-                "entity_name": "BurrKing",
-                "parquet_path": str(bk_parquet),
-                "content_hash": "fakehash000001",
-                "source": "upload",
-                "external_id": "sha1:x",
-                "source_modified_at": None},
-            "exchange-index": {
-                "entity_name": "Exchange-Index",
-                "parquet_path": str(xi_parquet),
-                "content_hash": "fakehash000001",
-                "source": "upload",
-                "external_id": "sha1:x",
-                "source_modified_at": None},
-            "tennsmith": {
-                "entity_name": "Tennsmith",
-                "parquet_path": str(ts_parquet),
-                "content_hash": "fakehash000002",
-                "source": "upload",
-                "external_id": "sha1:y",
-                "source_modified_at": None}}
-
-        class _FakeBooks:
-            def __init__(self, file_name, workspace_id, prefer_hash=""):
-                pass
-
-            def entry_for(self, sheet_name):
-                return entries.get(
-                    " ".join(str(sheet_name).lower().split()))
-
-            def _load_entries(self):
-                return list(entries.values())
-
-            def provider(self, sheet_name):
-                from core.formula_engine import (CellBook,
-                                                 sheet_grid_from_parquet)
-                from core.sheet_dataset_service import \
-                    load_formulas_for_parquet
-
-                key = " ".join(str(sheet_name).lower().split())
-                if key not in entries:
-                    return None
-                values, empty = sheet_grid_from_parquet(
-                    entries[key]["parquet_path"])
-                return CellBook(
-                    entries[key]["entity_name"],
-                    load_formulas_for_parquet(
-                        entries[key]["parquet_path"]), values, empty)
-
-        monkeypatch.setattr(pc, "_FileSheetBooks", _FakeBooks)
-        return entries
 
     @pytest.mark.asyncio
     async def test_refuses_without_teaching(self, fake_catalog,
@@ -991,20 +996,39 @@ class TestWorkbookLane:
         assert "workbook version fakehash000" in block
 
     @pytest.mark.asyncio
-    async def test_literal_sheet_returns_sourced_observation(
-            self, fake_catalog, monkeypatch):
+    async def test_literal_sheet_is_stored_value_not_computed(
+            self, fake_catalog, monkeypatch, tmp_path):
+        """The stored-value case renders unmistakably as STORED VALUE —
+        NOT COMPUTED. The literal status is ESTABLISHED by workbook
+        metadata (no <f> on the cell), which arrives through the live
+        read — durable-only state cannot claim it."""
         from core import pricing_calculation as pc
 
         monkeypatch.setattr(pc, "_workspace_lessons", lambda *a, **k: [{
             "id": "L2",
             "lesson": "tennsmith prices come from bk.xlsx tennsmith"}])
+        # make the source downloadable and serve the real fixture bytes
+        fake_catalog["tennsmith"]["source"] = "zoho_workdrive"
+        fake_catalog["tennsmith"]["external_id"] = "wd-1"
+        fx_ = _Fixture(tmp_path)
+        with open(fx_.path, "rb") as fh:
+            content = fh.read()
+
+        async def _fake_download(user_id, ext_id, workspace_id=None):
+            return content
+
+        monkeypatch.setattr(pc, "_download_workbook_bytes",
+                            _fake_download)
+        import core.formula_engine as fe
+        monkeypatch.setattr(fe, "verify_with_formulas_engine",
+                            lambda *a, **k: None)
         block = await pc.calculate_workbook_from_query(
             "calculate price for bk.xlsx Tennsmith row 106 cell E106",
             "u1", None)
-        assert block and "SOURCED VALUE" in block
+        assert block and "STORED VALUE, NOT COMPUTED" in block
         assert "14318" in block
-        assert "no formula" in block.lower() or \
-            "typed literals" in block
+        assert "cannot satisfy a calculation obligation" in block
+        assert "no formula was evaluated" in block
 
     def test_workbook_query_pattern(self):
         from core.pricing_calculation import _WB_QUERY_RE
@@ -1081,7 +1105,7 @@ class TestLiveWorkbookData:
             origin={"file": "Consolidated Price List 2019.xlsx",
                     "sheet": "BurrKing", "row": "25",
                     "output_cell": "E25", "version": "ce61dd3d40ca"})
-        assert calc.status == "complete", calc.missing
+        assert calc.status == "computed", calc.missing
         # byte-exact against the sheet's own computed value
         assert calc.value == Decimal("7409")
         assert calc.cached_value == "7409"
@@ -1093,12 +1117,14 @@ class TestLiveWorkbookData:
         assert ("Exchange-Index", "H4") in deps
         assert ("BurrKing", "AB8") in deps
 
-    def test_without_live_read_the_gaps_are_flagged_or_blocking(self):
-        """No live overlays: the lost formulas make the chain resolve
-        through stored values — FLAGGED as substitutions (which is what
-        triggers the lane's live read), with the ROUNDUP step GONE
-        (the output itself was substituted)."""
+    def test_without_live_read_the_output_is_never_completed(self):
+        """No live overlays: the sidecar lost E25's formula and durable
+        state has no metadata to establish the cell — the result is
+        INCOMPLETE (a live read decides), NEVER a completed calculation
+        from the stored cache. A lost INTERMEDIATE (S25) under a
+        surviving output formula still computes, with S25 flagged."""
         from core.formula_engine import CellBook, evaluate_reference
+        from core.pricing_calculation import workbook_calculation_result
 
         formulas, values, empty = self._load()
         vals = dict(values)
@@ -1112,17 +1138,18 @@ class TestLiveWorkbookData:
             origin={"file": "Consolidated Price List 2019.xlsx",
                     "sheet": "BurrKing", "row": "25",
                     "output_cell": "E25", "version": "ce61dd3d40ca"})
-        # E25 has a stored value (the sheet's own cache) — the number
-        # still comes out, but the OUTPUT was substituted (no chain is
-        # walked beneath a substituted output): no steps, no ROUNDUP,
-        # and the flag names the exact cell.
-        assert calc.status == "complete"
-        assert calc.value == Decimal("7409")
-        assert calc.cache_substituted == ["BurrKing!E25"]
-        assert calc.steps == []
+        assert calc.status == "incomplete"
+        assert calc.value is None and calc.steps == []
+        assert "no metadata to establish" in calc.missing
+        res = workbook_calculation_result(calc, item_label="90703")
+        assert res.status == "incomplete"
+        assert res.proposed is None
+        assert "7409" not in str(res.verification)  # no self-comparison
         # A lost INTERMEDIATE (S25) under a surviving output formula:
         # the chain walks, S25's stored value stands in for arithmetic
-        # we do not have — flagged, and the ROUNDUP step DOES run.
+        # we do not have — flagged, and the ROUNDUP step DOES run. The
+        # cached-output cross-check then marks itself NOT fully
+        # independent (a substituted operand appears on both sides).
         book2 = CellBook("BurrKing", formulas, vals, empty)
         book2.overlay(
             {}, "live_read",
@@ -1133,10 +1160,13 @@ class TestLiveWorkbookData:
             origin={"file": "Consolidated Price List 2019.xlsx",
                     "sheet": "BurrKing", "row": "25",
                     "output_cell": "E25", "version": "ce61dd3d40ca"})
-        assert calc2.status == "complete"
+        assert calc2.status == "computed"
         assert calc2.value == Decimal("7409")
         assert "BurrKing!S25" in calc2.cache_substituted
         assert any(s["op"] == "round_up" for s in calc2.steps)
+        res2 = workbook_calculation_result(calc2, item_label="90703")
+        assert res2.verification["matches_cached"] is True
+        assert res2.verification["fully_independent"] is False
 
     def test_row_without_frame_param_blocks_with_exact_name(self):
         """AB1/AB2 (Excel rows 1-2, consumed as the frame's headers)
@@ -1178,7 +1208,7 @@ class TestLiveWorkbookData:
                         "sheet": "BurrKing", "row": str(row),
                         "output_cell": out_cell,
                         "version": "ce61dd3d40ca"})
-            assert calc.status == "complete", calc.missing
+            assert calc.status == "computed", calc.missing
             assert calc.value == Decimal(expected), (row, calc.value)
             assert calc.cached_value == expected
         # row 225 bound ITS parameters, not row 25's
@@ -1192,3 +1222,183 @@ class TestLiveWorkbookData:
                     "output_cell": "E225", "version": "ce61dd3d40ca"})
         deps = {f"{d.sheet}!{d.cell}" for d in calc.dependencies}
         assert "BurrKing!AB18" in deps and "BurrKing!AB41" in deps
+
+
+class TestRound71Contracts:
+    """The owner's closeout contracts: structural result types on the
+    JOB (a stored value cannot satisfy a calculation obligation),
+    ambiguous-version refusal, the named-input expression lane, and
+    the lane's durable job recording."""
+
+    def _lifecycle(self, tmp_path):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from core.models import GoalObjective, GoalRun, \
+            TaskOperationRecord
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle
+        engine = create_engine(f"sqlite:///{tmp_path}/r71.db")
+        for t in (GoalObjective.__table__, GoalRun.__table__,
+                  TaskOperationRecord.__table__):
+            t.create(engine)
+        factory = sessionmaker(bind=engine, expire_on_commit=False)
+        return TaskLifecycle(
+            GoalRunService(workspace_id="ws", tenant_id="t",
+                           session_factory=factory),
+            GoalService(workspace_id="ws", tenant_id="t",
+                        session_factory=factory))
+
+    def test_stored_value_cannot_satisfy_calculation_obligation(
+            self, tmp_path):
+        """record_calculation maps a stored-value observation to a
+        WAITING operation with a question that says the obligation is
+        NOT satisfied — never 'applied'."""
+        from core.formula_engine import CellBook, evaluate_reference
+        from core.pricing_calculation import (record_calculation,
+                                              workbook_calculation_result)
+        from core.task_lifecycle import (begin_retrieval_turn,
+                                         next_unfinished_work)
+        lc = self._lifecycle(tmp_path)
+        run_id, _ = begin_retrieval_turn(
+            lc, {"id": "s1"}, "conv-r71", "verify", "e1")
+        book = CellBook("Tennsmith", {}, {"E106": "14318"},
+                        formula_cells=set())
+        calc = evaluate_reference(
+            "Tennsmith", "E106", book, None, row_of_interest=106,
+            origin={"file": "bk.xlsx", "sheet": "Tennsmith",
+                    "row": "106", "output_cell": "E106",
+                    "version": "v1"})
+        assert calc.status == "stored_value"
+        res = workbook_calculation_result(calc, item_label="GSL48-16")
+        assert res.status == "stored_value"
+        assert res.proposed is None
+        assert res.verification["stored_value"] == "14318"
+        # no self-comparison is offered as verification
+        assert "matches_cached" not in res.verification
+        op = record_calculation(lc, run_id, "GSL48-16", res)
+        rec = lc.get_task(run_id)
+        calc_op = next(o for o in rec["operations"]
+                       if o["operation_id"] == op["operation_id"])
+        assert calc_op["status"] == "waiting"  # NOT applied
+        assert calc_op["calculation"]["status"] == "stored_value"
+        work = next_unfinished_work(rec)
+        q = next(a for a in work["actions"]
+                 if "cannot be satisfied" in str(a.get("question")))
+        assert "STORED VALUE" in q["question"]
+
+    def test_clean_computation_verification_is_independent(self):
+        from core.formula_engine import CellBook, evaluate_reference
+        from core.pricing_calculation import workbook_calculation_result
+        book = CellBook("Main", {"B2": "=A2*2"}, {"A2": "10"})
+        calc = evaluate_reference("Main", "B2", book, None,
+                                  row_of_interest=2,
+                                  cached_value="20")
+        assert calc.status == "computed"
+        assert calc.cache_substituted == []
+        res = workbook_calculation_result(calc, item_label="x")
+        assert res.verification["matches_cached"] is True
+        assert res.verification["fully_independent"] is True
+
+    @pytest.mark.asyncio
+    async def test_expression_lane_computes_named_inputs(self):
+        from core.pricing_calculation import calculate_expression_from_query
+
+        block = await calculate_expression_from_query(
+            "calculate expression ROUNDUP(hours*rate + materials, 0) "
+            "with hours=17.5 rate=150 materials=0", "u1", None)
+        assert block and "2625" in block
+        assert "hours=17.5" in block and "rate=150" in block
+        assert "formula engine" in block
+
+    @pytest.mark.asyncio
+    async def test_expression_lane_missing_input_named(self):
+        from core.pricing_calculation import calculate_expression_from_query
+
+        block = await calculate_expression_from_query(
+            "calculate expression demand*lead_time + safety_stock "
+            "with demand=40 lead_time=3", "u1", None)
+        assert block and "NOT COMPUTED" in block
+        assert "'safety_stock'" in block
+
+    @pytest.mark.asyncio
+    async def test_ambiguous_version_refused(self, fake_catalog,
+                                             monkeypatch):
+        """Two ACTIVE versions of one sheet: the lane refuses and
+        names the candidates — never chooses by query order."""
+        from core import pricing_calculation as pc
+
+        fake_catalog["burrking2"] = dict(fake_catalog["burrking"],
+                                         content_hash="otherhash99")
+        # rebuild entries through a books class that exposes both
+        base_entries = dict(fake_catalog)
+
+        class _AmbiguousBooks(pc._FileSheetBooks):
+            def _load_entries(self):
+                return [base_entries["burrking"],
+                        base_entries["burrking2"]]
+
+            def entry_for(self, sheet_name):
+                self._load_entries()
+                return None
+
+            def problem_for(self, sheet_name):
+                return ("multiple active workbook versions for sheet "
+                        "'BurrKing' (fakehash000001, otherhash99)")
+
+        monkeypatch.setattr(pc, "_FileSheetBooks", _AmbiguousBooks)
+        monkeypatch.setattr(pc, "_workspace_lessons", lambda *a, **k: [{
+            "id": "L1", "lesson": "price burrking rows from bk.xlsx"}])
+        block = await pc.calculate_workbook_from_query(
+            "calculate price for bk.xlsx BurrKing row 25 cell E25",
+            "u1", None)
+        assert block and "AMBIGUOUS WORKBOOK VERSION" in block
+        assert "no calculation was run" in block
+
+    @pytest.mark.asyncio
+    async def test_lane_records_calculation_on_active_job(
+            self, fake_catalog, monkeypatch):
+        """The lane persists onto the conversation's ACTIVE job run:
+        identity, inputs, dependencies, result type and provenance."""
+        from core import pricing_calculation as pc
+
+        monkeypatch.setattr(pc, "_workspace_lessons", lambda *a, **k: [{
+            "id": "L1", "lesson": "price burrking rows from bk.xlsx"}])
+
+        recorded = {}
+
+        class _FakeLifecycle:
+            def find_active_task(self, conv):
+                recorded["conversation"] = conv
+                return {"run_id": "run-xyz"}
+
+            def get_task(self, run_id):
+                return None
+
+        import types
+        fake_lc = _FakeLifecycle()
+        monkeypatch.setattr(
+            pc, "record_calculation",
+            lambda lifecycle, run_id, item, result:
+                recorded.update(run_id=run_id, item=item,
+                                status=result.status,
+                                policy=result.policy_id,
+                                deps=len(result.dependencies),
+                                authorized=(
+                                    result.workbook.get(
+                                        "authorized_by") or {}).get(
+                                    "lesson_id")))
+        import integrations.chat_orchestrator as orch
+        monkeypatch.setattr(
+            orch, "_task_lifecycle_for",
+            lambda tenant, ws: fake_lc)
+        block = await pc.calculate_workbook_from_query(
+            "calculate price for bk.xlsx BurrKing row 25 cell E25",
+            "u1", None, conversation_id="conv-9")
+        assert block and "CAD 7409" in block
+        assert recorded["conversation"] == "conv-9"
+        assert recorded["run_id"] == "run-xyz"
+        assert recorded["status"] == "succeeded"
+        assert recorded["policy"] == "workbook:BurrKing!E25"
+        assert recorded["deps"] >= 15
+        assert recorded["authorized"] == "L1"

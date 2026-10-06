@@ -127,12 +127,16 @@ class TaughtPolicy:
 @dataclass
 class CalculationResult:
     """The full, replayable outcome. `status` in
-    {'succeeded','unresolved','rejected','incomplete'} — unresolved keeps
-    the missing input named; succeeded-with-stale-source carries the
-    limitation; INCOMPLETE (round 69) means the WORKBOOK calculation
-    itself could not be reconstructed completely (an unsupported
-    operation or an unresolvable dependency cell): the exact gap is
-    named in `missing_dependency` and NO partial value is published."""
+    {'succeeded','stored_value','unresolved','rejected','incomplete'} —
+    unresolved keeps the missing input named; succeeded-with-stale-source
+    carries the limitation; INCOMPLETE (round 69) means the WORKBOOK
+    calculation itself could not be reconstructed completely (an
+    unsupported operation or an unresolvable dependency cell): the exact
+    gap is named in `missing_dependency` and NO partial value is
+    published; STORED_VALUE (round 71) means the output cell is an
+    established typed literal — the value is an OBSERVATION
+    (`verification['stored_value']`), no price is proposed, and it
+    cannot satisfy a calculation obligation."""
     status: str
     proposed: Optional[Money] = None
     steps: List[Dict[str, Any]] = field(default_factory=list)
@@ -522,6 +526,15 @@ def render_comparison(item_label: str, draft_price: Optional[Money],
         lines.append(f"- Proposed price (computed): "
                      f"{result.proposed.currency} {result.proposed.amount} "
                      f"per {result.proposed.unit}")
+    elif result.status == "stored_value":
+        wb0 = result.workbook or {}
+        lines.append(
+            f"- STORED VALUE — NOT COMPUTED: "
+            f"{result.verification.get('stored_value')} observed at "
+            f"{wb0.get('sheet', '')}!{wb0.get('output_cell', '')} in "
+            f"{wb0.get('file', '')} (typed literal; no formula was "
+            f"evaluated — this cannot satisfy a calculation "
+            f"obligation)")
     elif result.status == "incomplete":
         lines.append(f"- Proposed price: NOT COMPUTED — the workbook "
                      f"calculation is incomplete: "
@@ -831,6 +844,11 @@ def record_calculation(
             # the operation stays open exactly like an unresolved input,
             # and no partial value was ever proposed.
             "incomplete": "waiting",
+            # STORED VALUE (round 71): the output is an observed typed
+            # literal, not a computed formula — it CANNOT satisfy the
+            # calculation obligation, so the operation stays open with
+            # the distinction stated as durable next-work.
+            "stored_value": "waiting",
         }
         lifecycle.transition_operation(
             run_id, op["operation_id"], "running",
@@ -848,9 +866,30 @@ def record_calculation(
                 {"amount": str(draft_price.amount),
                  "currency": draft_price.currency,
                  "unit": draft_price.unit})
-        # Unresolved inputs AND incomplete reconstructions become durable
-        # next-work: a research action or a precise owner question —
-        # never a silent choice, and never a partial published price.
+        # Unresolved inputs, incomplete reconstructions AND stored-
+        # value observations become durable next-work: a research
+        # action or a precise owner question — never a silent choice,
+        # never a partial published price, and never a stored value
+        # mistaken for a satisfied calculation.
+        if result.status == "stored_value":
+            from core.task_lifecycle import add_unresolved_questions
+
+            add_unresolved_questions(lifecycle, run_id, [{
+                "item": item_label,
+                "kind": "verification",
+                "question": (
+                    f"the requested calculation for {item_label} cannot "
+                    f"be satisfied: the output cell holds a STORED "
+                    f"VALUE ({result.verification.get('stored_value')}), "
+                    f"not a computed formula"),
+                "evidence": (
+                    f"policy {result.policy_id} v{result.policy_version}; "
+                    "stored value observed, not computed"),
+                "next_action": (
+                    "provide a formula-bearing output cell, or "
+                    "explicitly authorize the stored value as the "
+                    "price"),
+            }], source_operation=op["operation_id"])
         if result.status in ("unresolved", "incomplete"):
             from core.task_lifecycle import add_unresolved_questions
 
@@ -1047,7 +1086,9 @@ def workbook_calculation_result(
         "live_read_cells": live_read_cells or [],
     }
     result = CalculationResult(
-        status="succeeded" if calc.status == "complete" else "incomplete",
+        status={"computed": "succeeded",
+                "stored_value": "stored_value",
+                "incomplete": "incomplete"}.get(calc.status, "incomplete"),
         policy_id=f"workbook:{origin.get('sheet', '').strip()}!" \
                   f"{origin.get('output_cell', '')}",
         policy_version=(origin.get("version", "")[:12] or "unknown"),
@@ -1067,7 +1108,16 @@ def workbook_calculation_result(
                       "constants preserved as decimals"),
             "currency": currency,
         })
-    if calc.status != "complete":
+    if calc.status == "stored_value":
+        # A STORED VALUE IS AN OBSERVATION, NOT A CALCULATION: no
+        # proposed price is published, and the stored value is never
+        # cross-checked against itself as if that were verification.
+        result.verification["stored_value"] = str(calc.value)
+        result.verification["stored_value_note"] = (
+            "typed literal — stored value, observed, NOT computed; "
+            "it cannot satisfy a calculation obligation")
+        return result
+    if calc.status != "computed":
         result.missing_dependency = (
             calc.missing or calc.unsupported or
             "the calculation could not be evaluated completely")
@@ -1084,6 +1134,12 @@ def workbook_calculation_result(
             matches = abs(cached_dec - calc.value) <= Decimal("0.01")
             result.verification["cached_output"] = str(calc.cached_value)
             result.verification["matches_cached"] = bool(matches)
+            # VERIFICATION INDEPENDENCE (round 71): a cross-check
+            # against the workbook's own stored output is independent
+            # only when no operand was itself substituted from a
+            # stored value.
+            result.verification["fully_independent"] = \
+                not calc.cache_substituted
         except (InvalidOperation, ValueError):
             result.verification["cached_output"] = str(calc.cached_value)
             result.verification["matches_cached"] = None
@@ -1184,6 +1240,7 @@ class _FileSheetBooks:
         self.prefer_hash = prefer_hash
         self._books: Dict[str, "CellBook"] = {}
         self._entries: Optional[List[Dict[str, Any]]] = None
+        self.resolution_problems: Dict[str, str] = {}
         #: A live workbook grid (workbook_grid_from_bytes) applied to
         #: every book AS IT IS BUILT — order-independent, so a sibling
         #: sheet first touched DURING a re-evaluation still receives the
@@ -1197,7 +1254,12 @@ class _FileSheetBooks:
         from core.database import get_db_session
         from core.models import DatasetEntry
 
-        best: Dict[str, Dict[str, Any]] = {}
+        # VERSION PINNING (round 71, the owner's contract): every
+        # sheet of one workbook must resolve to the SAME identified
+        # workbook version. Ambiguous resolution (several active
+        # versions of one sheet, none matching the pinned version) is
+        # REJECTED and reported — never chosen by name or query order.
+        by_sheet: Dict[str, List[Dict[str, Any]]] = {}
         with get_db_session() as db:
             q = db.query(DatasetEntry).filter(
                 DatasetEntry.file_name == self.file_name,
@@ -1206,7 +1268,7 @@ class _FileSheetBooks:
                 q = q.filter(DatasetEntry.workspace_id == self.workspace_id)
             for e in q.all():
                 key = " ".join(str(e.entity_name or "").lower().split())
-                rec = {
+                by_sheet.setdefault(key, []).append({
                     "entity_name": str(e.entity_name or ""),
                     "parquet_path": str(e.parquet_path or ""),
                     "content_hash": str(e.content_hash or ""),
@@ -1215,12 +1277,24 @@ class _FileSheetBooks:
                     "source_modified_at": (
                         e.source_modified_at.isoformat()
                         if e.source_modified_at else None),
-                }
-                if key not in best:
-                    best[key] = rec
-                elif (self.prefer_hash and
-                        rec["content_hash"] == self.prefer_hash):
-                    best[key] = rec
+                })
+        self.resolution_problems: Dict[str, str] = {}
+        best: Dict[str, Dict[str, Any]] = {}
+        for key, recs in by_sheet.items():
+            hashes = sorted({r["content_hash"] for r in recs})
+            if len(hashes) > 1:
+                if self.prefer_hash and self.prefer_hash in hashes:
+                    best[key] = next(
+                        r for r in recs
+                        if r["content_hash"] == self.prefer_hash)
+                else:
+                    self.resolution_problems[key] = (
+                        f"multiple active workbook versions for sheet "
+                        f"'{recs[0]['entity_name']}' "
+                        f"({', '.join(h[:12] for h in hashes)}) — "
+                        f"refusing to choose by name or query order")
+                continue
+            best[key] = recs[0]
         self._entries = list(best.values())
         return self._entries
 
@@ -1231,6 +1305,13 @@ class _FileSheetBooks:
                 return e
         return None
 
+    def problem_for(self, sheet_name: str) -> Optional[str]:
+        """The ambiguity reason when entry_for returned None for a
+        sheet that IS cataloged under several active versions."""
+        self._load_entries()
+        return self.resolution_problems.get(
+            " ".join(str(sheet_name or "").lower().split()))
+
     def provider(self, sheet_name: str) -> Optional["CellBook"]:
         from core.formula_engine import (CellBook,
                                          sheet_grid_from_parquet)
@@ -1240,6 +1321,12 @@ class _FileSheetBooks:
             return self._books[key]
         entry = self.entry_for(sheet_name)
         if entry is None or not entry.get("parquet_path"):
+            return None
+        # SAME VERSION ONLY: a cross-sheet reference resolves within
+        # the identified workbook version, never across versions.
+        if (self.prefer_hash
+                and entry.get("content_hash")
+                and entry["content_hash"] != self.prefer_hash):
             return None
         from core.sheet_dataset_service import load_formulas_for_parquet
 
@@ -1253,8 +1340,10 @@ class _FileSheetBooks:
         if self.live_grid:
             live = self.live_grid.get(key)
             if live:
-                book.overlay(live["values"], "live_read",
-                             formulas=live["formulas"])
+                book.overlay(
+                    live["values"], "live_read",
+                    formulas=live["formulas"],
+                    formula_cells=live.get("formula_cells"))
         self._books[key] = book
         return book
 
@@ -1262,7 +1351,8 @@ class _FileSheetBooks:
 async def calculate_workbook_from_query(
         query: str,
         user_id: Optional[str],
-        workspace_id: Optional[str]) -> Optional[str]:
+        workspace_id: Optional[str],
+        conversation_id: Optional[str] = None) -> Optional[str]:
     """The planner lane's WORKBOOK entry (rounds 69-70):
 
         calculate price for FILE.xlsx SHEET row N cell XN [currency=CAD] [item=..]
@@ -1301,6 +1391,15 @@ async def calculate_workbook_from_query(
     books = _FileSheetBooks(file_name, workspace_id, prefer_hash="")
     entry = books.entry_for(sheet_name)
     if entry is None:
+        problem = books.problem_for(sheet_name)
+        if problem:
+            # AMBIGUOUS VERSION (round 71): several active workbook
+            # versions — refused, never chosen by name/query order.
+            return _grounded(
+                "LIVE TOOL RESULTS (datasets.calculate — workbook) — "
+                f"AMBIGUOUS WORKBOOK VERSION: {problem}. Name the exact "
+                "workbook version (or wait for the catalog to "
+                "supersede the older one); no calculation was run.")
         available = [
             str(e["entity_name"]).strip()
             for e in books._load_entries()][:20]  # noqa: SLF001
@@ -1352,25 +1451,6 @@ async def calculate_workbook_from_query(
         books.provider, row_of_interest=row_number,
         cached_value=values.get(cell), origin=_origin())
 
-    # LITERAL-SHEET OBSERVATION (owner's rule): a sheet whose values are
-    # typed literals has no calculation to run — the stored value is
-    # reported as an observation with its source, never a derived price.
-    if calc.status == "incomplete" and "has no formula" in calc.missing:
-        if values.get(cell) is not None:
-            return _grounded(
-                "LIVE TOOL RESULTS (datasets.calculate — workbook) — "
-                f"SOURCED VALUE (no calculation): {sheet_name}!{cell} = "
-                f"{values.get(cell)}, stored in {file_name} (workbook "
-                f"version {(entry.get('content_hash') or '')[:12]}). "
-                "This sheet's values are typed literals, not formulas: "
-                "there is no workbook calculation to reconstruct; the "
-                "stored value is an observation from its source, not a "
-                "computed price.")
-        return _grounded(
-            "LIVE TOOL RESULTS (datasets.calculate — workbook) — NO "
-            f"CALCULATION AND NO STORED VALUE at {sheet_name}!{cell}: "
-            "the sheet has no formula there and no stored value either.")
-
     # LIVE-READ COMPLETION (bounded): references above the materialized
     # frame (parameter blocks) AND cells whose formulas the sidecar lost
     # (shared-formula dependents, visible as cache substitutions) are
@@ -1400,8 +1480,10 @@ async def calculate_workbook_from_query(
                 for key, book in list(  # noqa: SLF001
                         books._books.items()):
                     if key in live:
-                        book.overlay(live[key]["values"], "live_read",
-                                     formulas=live[key]["formulas"])
+                        book.overlay(
+                            live[key]["values"], "live_read",
+                            formulas=live[key]["formulas"],
+                            formula_cells=live[key].get("formula_cells"))
                 # VERSION DIVERGENCE HONESTY: the live bytes are their
                 # own workbook version — when they differ from the
                 # cataloged snapshot, the record says so (the cataloged
@@ -1494,9 +1576,54 @@ async def calculate_workbook_from_query(
         result.verification.update(result_notes)
         result.workbook["live_read_version"] = \
             result_notes["live_read_version"]
+    # JOB INTEGRATION (round 71): calculation identity, inputs,
+    # dependencies, result type and provenance persist on the
+    # conversation's ACTUAL job run — this was required work, not an
+    # optional follow-up.
+    _record_on_job(conversation_id, workspace_id,
+                   item_label or f"{sheet_name} row {row_number}",
+                   result)
     body = render_comparison(
         item_label or f"{sheet_name} row {row_number}", None, result)
-    return _grounded(body)
+    label = ("workbook"
+             if result.status != "stored_value"
+             else "workbook — STORED VALUE, NOT COMPUTED")
+    nl = chr(10)
+    return _grounded(
+        f"LIVE TOOL RESULTS (datasets.calculate — {label}):{nl}" + body)
+
+
+def _record_on_job(
+        conversation_id: Optional[str],
+        workspace_id: Optional[str],
+        item_label: str,
+        result: CalculationResult) -> bool:
+    """Persist a calculation onto the conversation's active job run
+    (best-effort, never blocks the turn). The operation's record
+    carries identity (result_id, policy id + version), the inputs
+    snapshot, every dependency, the RESULT TYPE (computed /
+    stored_value / incomplete — a stored value cannot satisfy the
+    calculation obligation) and provenance (workbook version,
+    authorizing teaching)."""
+    if not conversation_id:
+        return False
+    try:
+        from integrations.chat_orchestrator import _task_lifecycle_for
+
+        lifecycle = _task_lifecycle_for(None, workspace_id)
+        if lifecycle is None:
+            return False
+        task = lifecycle.find_active_task(conversation_id)
+        if not task:
+            return False
+        record_calculation(
+            lifecycle, task["run_id"], item_label, result)
+        return True
+    except Exception as exc:  # noqa: BLE001 — recording is best-effort
+        import logging as _logging
+        _logging.getLogger(__name__).debug(
+            "calculation job recording skipped: %r", exc)
+        return False
 
 
 async def _download_workbook_bytes(
@@ -1517,3 +1644,93 @@ async def _download_workbook_bytes(
             timeout=75.0)
     except Exception:  # noqa: BLE001 — download is best-effort
         return None
+
+
+# ---------------------------------------------------------------------------
+# The named-input entry (round 71): an explicitly provided expression
+# evaluated by the SAME engine — no workbook, no money, no business
+# vocabulary. The agent supplies the expression (selected from teaching
+# or the ask) and the named inputs it gathered; the engine computes or
+# names the exact gap.
+# ---------------------------------------------------------------------------
+
+_EXPR_QUERY_RE = _re.compile(
+    r"calculate\s+expression\s+(?P<expr>.+?)(?:\s+with\s+(?P<rest>.+))?$",
+    _re.IGNORECASE)
+
+
+async def calculate_expression_from_query(
+        query: str,
+        user_id: Optional[str],
+        workspace_id: Optional[str],
+        conversation_id: Optional[str] = None) -> Optional[str]:
+    """The planner lane's NAMED-INPUT entry:
+
+        calculate expression EXPR [with name=value name=value ...]
+
+    Runs core.formula_engine.evaluate_expression — the same engine the
+    workbook path uses — and returns a grounded block. Missing inputs
+    and unsupported constructs are named precisely; nothing is
+    invented."""
+    from core.formula_engine import evaluate_expression
+
+    q = " ".join(str(query or "").split())
+    m = _EXPR_QUERY_RE.match(q)
+    if m is None:
+        return None
+    expr = (m.group("expr") or "").strip()
+    inputs: Dict[str, str] = {}
+    units: Dict[str, str] = {}
+    for tok in (m.group("rest") or "").split():
+        if "=" not in tok:
+            continue
+        k, v = tok.split("=", 1)
+        k = k.strip()
+        if k.endswith("_unit"):
+            units[k[:-5]] = v.strip()
+        else:
+            inputs[k] = v.strip()
+    calc = evaluate_expression(expr, inputs, units=units)
+    lines = [f"**{expr} — formula engine result**"]
+    if calc.status == "computed":
+        lines.append(f"- Value (computed): {calc.value}")
+    elif calc.status == "incomplete":
+        lines.append(f"- NOT COMPUTED — {calc.missing or calc.unsupported}")
+        lines.append("  (No partial value was produced.)")
+    if calc.unit:
+        lines.append(f"- Unit: {calc.unit} (recorded, not interpreted)")
+    named = [d for d in calc.dependencies if d.role == "input"]
+    if named:
+        lines.append("- Inputs: " + ", ".join(
+            f"{d.cell}={d.value}" + (f" [{d.unit}]" if d.unit else "")
+            for d in named))
+    if calc.steps:
+        chain = " → ".join(str(s.get("output")) for s in calc.steps)
+        lines.append(f"- Steps: {chain}")
+    if calc.status == "computed" and not named:
+        lines.append("- Note: every operand is a literal — no named "
+                     "inputs were bound")
+    # JOB INTEGRATION: same durable recording as the workbook path.
+    result = CalculationResult(
+        status=("succeeded" if calc.status == "computed"
+                else "incomplete"),
+        policy_id=f"expression:{expr[:60]}",
+        policy_version="engine-1",
+        proposed=(Money(calc.value, "XXX", unit="value")
+                  if calc.status == "computed" and calc.value is not None
+                  else None),
+        steps=list(calc.steps),
+        missing_dependency=(calc.missing or calc.unsupported or "")
+        if calc.status == "incomplete" else "",
+        dependencies=[d.to_dict() for d in calc.dependencies],
+        inputs_snapshot={
+            "item": expr[:80],
+            "basis": "explicitly provided expression, evaluated by the "
+                     "general formula engine (core.formula_engine)",
+            "inputs": {d.cell: d.value for d in named},
+        })
+    _record_on_job(conversation_id, workspace_id, expr[:60], result)
+    return _grounded(
+        "LIVE TOOL RESULTS (datasets.calculate — formula engine, "
+        "named inputs; the model did not compute this):\n"
+        + "\n".join(lines))

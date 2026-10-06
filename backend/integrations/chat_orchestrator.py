@@ -13684,6 +13684,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         _plan, user_id, self.tenant_id,
                                         context={
                                             "agent_id": agent_id,
+                                            # The conversation's identity for
+                                            # lanes that record onto the
+                                            # ACTIVE JOB RUN (round 71: the
+                                            # calculate lane's durable
+                                            # calculation records).
+                                            "conversation_id": session_id,
                                             # The current ask, ahead of session
                                             # history (which is written only
                                             # after the response): the stated-
