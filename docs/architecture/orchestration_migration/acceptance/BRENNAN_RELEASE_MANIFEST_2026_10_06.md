@@ -9,11 +9,11 @@ candidate. Three trials per case, same candidate; every trial reported.
 
 | Field | Value |
 | --- | --- |
-| Commit | (pending — after backend owners finish; carries e7cc7c893 + credit-failure detector + attach-or-create) |
-| Serving source | (pid, start time, restart script output) |
-| Configuration | ATOM_TASK_LIFECYCLE_ENABLED=1, model flags, provider pool state at run time |
-| Database | (dev DB identity + pre-run snapshot id) |
-| Fixtures | disposable fork canvas (not the original), trained agent 9837ec71, lessons: BurrKing basis / Tennsmith basis / Service estimate |
+| Commit | **a4699860a** (2026-10-06) — carries e7cc7c893 (round-75 calculate lane) + 81a6fd867 (composer truthful-error rendering + this manifest) + a4699860a (backend credit-failure detector, committed on owner authorization; implementation is the backend owner's). Working tree clean of tracked modifications except `frontend-nextjs/next-env.d.ts` (generated churn, excluded). |
+| Serving source | case 5: isolated acceptance world (snapshot of this tree), backend under the seatbelt profile with provider shim on 127.0.0.1; pid/ports recorded in the run's results JSON. Cases 1-4/6: dev stack, recorded per trial. |
+| Configuration | ATOM_TASK_LIFECYCLE_ENABLED=1, CHAT_FINALIZATION_M1=1, CHAT_FINALIZATION_M2=1 (world launch flags); case 5 model egress = local shim only, never the real account |
+| Database | case 5: per-run atom.db seeded from the world fixture inside `backend/data/acceptance_worlds/<world>/runs/run-*/`; identity (sha256) recorded in the results JSON. Cases 1-4/6: dev DB + pre-run snapshot. |
+| Fixtures | case 5: seeded admin user + email canvas via the app's own model path (finish_line World.seed pattern). Cases 1-4/6: disposable fork canvas (not the original), trained agent 9837ec71, lessons: BurrKing basis / Tennsmith basis / Service estimate |
 
 ## Case definitions
 
@@ -61,7 +61,40 @@ candidate. Three trials per case, same candidate; every trial reported.
   button AND Enter recorded separately); recovered provider succeeds;
   reload preserves history WITHOUT duplicates. A prior failed message
   must not permanently disable a new request.
-- Verdict: [ ] [ ] [ ]
+- Status (2026-10-06 update): **BROWSER LEG PASSED (trial 1 of 3)** on
+  the frozen candidate — trials 2-3 remain. The composer submission
+  boundary is fully resolved (the earlier BLOCKED status and the
+  2026-10-04 resolution evidence below are superseded by the passing
+  trial).
+- Verdict: [x] [ ] [ ]
+  - Trial 1 (2026-10-06): **PASS** — 10/10 records green. Isolated world
+    `case5_browser_1010` (working-tree snapshot of candidate a4699860a,
+    export sha ccdba3b11c), sandboxed backend + provider shim on
+    127.0.0.1:8097 serving the verbatim credit envelope, real frontend
+    (directory copy — the `.preview-instance` symlink farm 404s dynamic
+    routes under Next 16 and cannot host this case). Sequence: success
+    via Send button → controlled credit failure via Enter (truthful
+    terminal error visible in the panel, static "No AI provider
+    configured" text NOT shown, assistant row persisted with
+    quality=error, no canvas effect) → next message dispatched via
+    button WHILE STILL BROKEN (second failure truthful, composer not
+    wedged) → provider restored (shim phase 2) → success via Enter →
+    reload preserved all four turns exactly once. Durable-layer proof:
+    exactly 4 user + 4 assistant rows in the run DB, public history API
+    matches, zero canvas updates. Isolation: no request touched
+    :3000/:8001/:8000. Results JSON:
+    `backend/data/acceptance_worlds/case5_browser_1010/case5_results_20261006_135857.json`.
+  - Findings (recorded, not failures):
+    1. Under CHAT_FINALIZATION_M1/M2 the finalizer rebuilds the failure
+       message from the execution record and DROPS the machine fields
+       failure_reason=provider_credits_exhausted and
+       recovery_url=/settings/billing that the ungated reply-assembly
+       path sets (message text stays truthful and names the remedy).
+       Backend-owner follow-up: unify the two paths' envelopes.
+    2. One pre-final run observed a `fixed inset-0 z-50` modal overlay
+      intercepting clicks over the composer after the failed turn; it
+      did NOT recur in the passing trial. Unexplained transient — on
+      record, consistent with the earlier unexplained post-HMR relayout.
 - Status (2026-10-04 update): composer submission boundary RESOLVED —
   the composer was never broken. Live evidence: Send-button click and
   Enter keypress each dispatched exactly one POST (button: 30-hour

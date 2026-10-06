@@ -344,6 +344,12 @@ SERVER_ENV_WHITELIST = {
     "ATOM_ASYNC_CONTINUATION_RETRY_DELAY", "ATOM_ASYNC_CONTINUATION_ATTEMPTS",
     "ATOM_ACCEPTANCE_BARRIER", "ATOM_ACCEPTANCE_BARRIER_DIR",
     "ATOM_ACCEPTANCE_BARRIER_MATCH", "ATOM_ACCEPTANCE_BARRIER_TIMEOUT",
+    # Case-5 browser leg (2026-10-06): a sandboxed acceptance server must be
+    # able to ACCEPT browser calls from an isolated frontend origin. Without
+    # the CORS passthrough the browser's cross-origin XHR from the preview
+    # frontend is rejected before any case logic runs. Harness-only names —
+    # the product reads them exactly as main_api_app always has.
+    "ADDITIONAL_ALLOWED_ORIGINS", "ALLOWED_HOSTS",
 }
 
 
