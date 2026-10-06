@@ -42,7 +42,36 @@ candidate. Three trials per case, same candidate; every trial reported.
 - Expected: ONE precise question for the missing inputs; computation via
   the engine ($2,625 then $1,800); each recorded as its OWN operation with
   inputs + content-derived policy version; distinctions preserved.
-- Verdict: [ ] [ ] [ ]
+- Verdict: [~] [ ] [ ]
+  - Trial 1 (2026-10-06, dev stack, provider deepseek-flash via API,
+    canvas-free session `c3t1-c4fb4e12`, agent 9837ec71): **SPLIT —
+    interaction PASS, durable recording FAIL.**
+    - Interaction: PASS. One precise turn naming exactly the two missing
+      inputs (hours, materials); then "$2,625 (17.5 hours × $150/hr, no
+      materials)"; then "ROUNDUP(12 × $150 + $0) = $1,800". All figures
+      correct.
+    - Durable: FAIL. The conversation's job (goal_run c5dc43ab) holds
+      three `retrieve running` operations and NO calculate operations —
+      and the session's chat rows carry NO published calc records
+      either. Root-cause evidence: these turns dispatched through the
+      LLM TOOL PLAN ("tool plan executed: datasets.calculate:…"), which
+      produced narrated figures WITHOUT either leg of the calculation
+      record pipeline (`_publish_calc_record` + `_record_on_job`): no
+      job op, no session record, no recording warning. The
+      derivation-seam lane (this morning's canvas session, job
+      e0170ffb) records both — the guarantee holds on ONE of the two
+      calculate dispatch paths. A correct-looking narrated figure with
+      no structured record is exactly the class this suite exists to
+      catch.
+    - Additional finding (bounded, correctness unaffected): on the
+      tool-plan path the figure-grounding guard flagged the CORRECT
+      engine figures ("reply states figures the evidence does not
+      contain: $0, $17.50, 2,625.00…") and ran grounded regeneration;
+      final replies stayed correct. The tool-plan path lacks the
+      structured-record grounding the derivation-seam lane publishes.
+    - Trials 2-3 PENDING: not run against a candidate with a known
+      recording defect on this path — fix first, then run all three
+      trials clean (this trial stays on record as the failure it is).
 
 ### Case 4 — Ambiguous item, conflicting source versions, approved manual value
 - Input: an item code carried by multiple files/versions; one row holds an
