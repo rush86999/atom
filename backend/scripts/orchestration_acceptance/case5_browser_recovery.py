@@ -159,12 +159,22 @@ class NetWatch:
         self.console_errors: List[str] = []
         self.page_errors: List[str] = []
         self.foreign: List[str] = []
+        self.chat_posts: List[str] = []
         self.be_port = be_port
-        page.on("request", lambda req: self._check_foreign(req.url))
+        page.on("request", self._on_request)
         page.on("response", lambda r: self._check_foreign(r.url))
         page.on("console", lambda m: self.console_errors.append(str(m.text)[:200])
                 if m.type == "error" else None)
         page.on("pageerror", lambda e: self.page_errors.append(str(e)[:200]))
+
+    def _on_request(self, req: Any) -> None:
+        try:
+            url = str(req.url)
+            if req.method == "POST" and "/api/chat/message" in url:
+                self.chat_posts.append(f"{time.strftime('%FT%T')} {url}")
+        except Exception:
+            return
+        self._check_foreign(url)
 
     def _foreign(self, url: str) -> bool:
         low = str(url).lower()
@@ -195,7 +205,7 @@ def overlay_state(page: Any) -> Dict[str, Any]:
                 && s.display !== 'none' && s.visibility !== 'hidden';
         });
         return {count: real.length,
-                texts: real.map(o => (o.innerText || '').slice(0, 300))};
+                texts: real.map(o => (o.innerText || ''))};
     }""")
 
 
@@ -350,6 +360,35 @@ def canvas_update_count(db_path: str, canvas_id: str) -> int:
     return n
 
 
+def _code_identity() -> Dict[str, str]:
+    """Identify the exact code under test: the driver runs against a world
+    exported from THIS working tree, so record the commit + dirty state +
+    driver hash with every run. A trial without code identity cannot be
+    attributed to a candidate."""
+    repo = BACKEND.parent
+
+    def _run(*argv: str) -> str:
+        try:
+            out = subprocess.run(list(argv), cwd=str(repo),
+                                 capture_output=True, text=True,
+                                 timeout=15).stdout.strip()
+            return out or "unknown"
+        except Exception:
+            return "unknown"
+
+    try:
+        driver_sha = sha256_file(Path(__file__))
+    except Exception:
+        driver_sha = "unknown"
+    return {
+        "commit": _run("git", "rev-parse", "HEAD"),
+        "dirty_tracked": _run("git", "status", "--short", "--untracked-files=no"),
+        "driver_sha256": driver_sha,
+        "config": ("ATOM_TASK_LIFECYCLE_ENABLED=1, CHAT_FINALIZATION_M1=1, "
+                   "CHAT_FINALIZATION_M2=1; provider=model shim only"),
+    }
+
+
 def terminate_proc(proc: Any) -> None:
     try:
         proc.terminate()
@@ -467,6 +506,7 @@ def main() -> int:
 
     ensure_port_free(args.shim_port)
     ensure_port_free(args.port)
+    ensure_port_free(args.fe_port)
 
     # ---- 2. shim phase 1: the broken provider ----
     shim_script_1 = write_shim_script(
@@ -563,6 +603,7 @@ def main() -> int:
                 "frontend_port": args.fe_port, "frontend_pid": fe_pid,
                 "shim_port": args.shim_port, "canvas_id": canvas_id,
                 "user_id": user_id,
+                "code": _code_identity(),
             },
             "results": RESULTS,
         }, indent=2))
