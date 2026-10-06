@@ -166,16 +166,25 @@ candidate. Three trials per case, same candidate; every trial reported.
        recovery_url in the POST response body (the driver captures both);
        the earlier QUALIFICATION text above is superseded for this
        candidate.
-    2. QUALIFICATION (owner, 2026-10-06) on the modal: the driver runs
-       a dismiss-overlay probe before every send. In the PASSING trial
-       the probe found NO overlay — recovery was uninterrupted. In the
-       pre-final run (not a counted trial), a `fixed inset-0 z-50`
-       backdrop with a centered dialog DID intercept clicks over the
-       composer after the failed turn and blocked the Send button.
-       Identity and trigger of that modal are UNIDENTIFIED; whether its
-       dismissal is expected product behavior is UNRECORDED. Until it
-       is identified, the passing trial proves recovery for the
-       no-overlay case only; recovery WITH that dismissal is unproven.
+    2. RESOLVED 2026-10-06 (release-owner prep run
+       `case5_PREP_driver-validation_20261006_162034.json`, NOT counted
+       evidence): the overlay is the FIRST-RUN ONBOARDING WIZARD
+       ("Welcome to Atom / Your AI-powered automation workspace / 1
+       Welcome / 2 Profile / 3 Connect / 4 Ready / Hello, Admin! /
+       Next") — expected product behavior for the freshly-seeded admin
+       user, not a failure-triggered dialog. Dismissed via Escape with
+       the full innerText recorded; the T3 send needed no dismissal.
+       Trial-1 "no overlay" vs prep "wizard dismissed" is fresh-user
+       timing variance, recorded either way. Recovery WITH dismissal is
+       now demonstrated; dismissal (Escape/Next) is ordinary first-run
+       UX, not an operator workaround.
+- Freeze status (2026-10-06 16:25 UTC): calc-lane owner has in-flight
+  edits (chat_tool_planner, finalization, pricing_calculation,
+  chat_orchestrator, toolplan-boundary tests — all THEIR files, untouched
+  by me). The frozen candidate moves to their repair commit when it
+  lands with its regression; no counted trials until then. Fresh world
+  builds are additionally blocked by the storage/WAL alert (see
+  coordination log); prep runs reuse the existing world.
 - Status (2026-10-04 update): composer submission boundary RESOLVED —
   the composer was never broken. Live evidence: Send-button click and
   Enter keypress each dispatched exactly one POST (button: 30-hour
