@@ -972,10 +972,17 @@ export default function CanvasDetailPage() {
                     loadCanvas();
                 }
             } else if (data.error_code === "no_llm_provider") {
+                // Terminal provider failure — credit exhaustion reaches
+                // here too (failure_reason=provider_credits_exhausted,
+                // recovery_url=/settings/billing). The static "not
+                // configured" text lied for that case (wrong cause, wrong
+                // remedy): render the backend's truthful message, keeping
+                // the unconfigured fallback when none came. Parity with
+                // useChatInterface's no_llm_provider branch.
                 setMessages(prev => [...prev, {
                     id: "sys",
                     type: "system",
-                    content: "⚠️ No AI provider configured. Add an API key in Settings.",
+                    content: `⚠️ ${data.message || "No AI provider configured. Add an API key in Settings."}`,
                     timestamp: new Date(),
                 }]);
             } else {
