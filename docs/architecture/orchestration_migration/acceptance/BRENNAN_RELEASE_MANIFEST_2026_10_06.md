@@ -70,27 +70,49 @@ candidate. Three trials per case, same candidate; every trial reported.
   routing, missing-input asks-and-records-nothing, one op per request
   with its own inputs, changed-input recalc as its own op, duplicate
   dispatch dedup, two conversations with different taught rates).
-- Verdict (candidate 78ba06084, dev stack restarted, 2026-10-06, API,
-  canvas-free sessions, agent 9837ec71): **[ ] [ ] [x]**
-  - Trial 1: **FAIL** — T2 recorded (calculate applied, 2625); T3
-    ("Recalculate — 12 hours.") answered with a correct narrated figure
-    but NO calculate operation (job held one calculate op).
-  - Trial 2: **FAIL** — T2 (17.5h) correct in narration ($2,625, with a
-    verification note) but UNRECORDED; T3 recorded (1800).
-  - Trial 3: **PASS** — one precise question (rate bound, asks exactly
-    hours + materials); $2,625; $1,800; job holds TWO calculate
-    operations (applied, 2625 + 1800), one per computation, each with
-    its own inputs.
+- Verdict (current production code == 78ba06084 == frozen 8cc6f1a1d
+  production; empty diff verified 2026-10-06; dev backend pid 35415
+  started 15:44 UTC; API, canvas-free sessions, agent 9837ec71,
+  provider opencode-go/deepseek-flash): **2/4 PASS — GATE NOT MET,
+  REPETITIONS PAUSED, DEFECT RETURNED TO CALC-LANE OWNER**
+  - Trial R1 (calc-lane owner, ~15:45-15:53): **FAIL** — T2 recorded
+    (calculate applied, 2625); T3 ("Recalculate — 12 hours.") answered
+    with a correct narrated figure but NO calculate operation (job held
+    one calculate op). Session/job IDs PENDING from the owner.
+  - Trial R2 (calc-lane owner): **FAIL** — T2 (17.5h) correct in
+    narration ($2,625, with a verification note) but UNRECORDED; T3
+    recorded (1800). Session/job IDs PENDING from the owner.
+  - Trial R3 (calc-lane owner): **PASS** — one precise question (rate
+    bound, asks exactly hours + materials); $2,625; $1,800; job holds
+    TWO calculate operations (applied, 2625 + 1800), one per computation,
+    each with its own inputs.
+  - Trial R4 (release owner, 16:07 UTC, runner
+    `backend/scripts/orchestration_acceptance/case3_calc_trials.py`,
+    session 9dfd3dff-bb1e-420c-b014-119862362d44, job
+    f5ac9ab6-5c94-45e2-a26a-75cba227b9ef): **PASS 11/11** — T1 asks
+    exactly hours + materials, zero calc ops; T2 $2,625 with its OWN
+    applied op (inputs rate=150 taught-default, hours=17.5,
+    materials=0 request-supplied; policy
+    taught-expression:Service estimate vaacc361fd619); T3 $1,800 with
+    a SECOND applied op (hours=12, materials=0, same policy/version).
+    Turn timings 23.0/21.2/20.7s. Results:
+    `backend/data/acceptance_worlds/case3_results_20261006_16*.json`
+    (the 16:07 file renamed *_RUNNERBUG.json: my checker's first 9/11
+    was a runner extraction bug — record lives under op `calculation`,
+    not `extra` — verified against the live op JSON, never counted).
   - Residual defect (directive 3 not fully closed): routing of BARE
     follow-up turns ("17.5 hours, no materials." / "Recalculate — 12
     hours.") is planner-dependent — the deterministic
     calculation-override fires only on estimate-regex messages, so a
     follow-up whose planner plan is not datasets.calculate computes by
-    narration without a record. Fix direction: the pending-input
-    question flow must bind the ANSWER turn to the same lane
-    deterministically (conversation-state-aware override), not a wider
-    regex. All three trials stay on record; the passing trial is
-    evidence the shared boundary works when the plan routes to it.
+    narration without a record. R3+R4 prove the shared boundary works
+    when the plan routes to it; R1+R2 prove it does not always route.
+    REQUIRED before another edit: a regression pinning a bare-follow-up
+    turn whose plan is NOT datasets.calculate (assert record-or-ask,
+    never narrate-unrecorded), plus the traced request
+    identifiers/receipts across boundaries for the failing turns. All
+    four trials stay on record; counted trials rerun clean after the
+    repair on the new frozen candidate.
 
 ### Case 4 — Ambiguous item, conflicting source versions, approved manual value
 - Input: an item code carried by multiple files/versions; one row holds an
