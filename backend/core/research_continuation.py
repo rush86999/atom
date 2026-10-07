@@ -230,10 +230,15 @@ def _classify_match(match: Dict[str, Any],
                 if binding_passes(column, value, spec) is not None:
                     return "matched"
         return "located"
-    # LEGACY pricing fallback (no contract available)
-    if _PRICE_COLUMN_RE.search(column) or (
-            value and _PRICE_VALUE_RE.match(value)):
-        return "matched"
+    # LEGACY pricing fallback: fires ONLY when persisted legacy data
+    # explicitly establishes pricing — a bare legacy field name that
+    # maps through FIELD_SYNONYMS. A new generic job with an empty
+    # contract reaches _classify_match with specs=[] from its own
+    # resolution and stays "located" (unresolved scope), never priced.
+    if specs is None:
+        if _PRICE_COLUMN_RE.search(column) or (
+                value and _PRICE_VALUE_RE.match(value)):
+            return "matched"
     return "located"
 
 
@@ -266,10 +271,11 @@ async def _execute_document_read(
                             f"({type(exc).__name__})")
             continue
         matches = (scan or {}).get("matches") or []
-        _cls_specs = _resolve_field_specs(
-            None, list((action_inputs or {}).get(
-                "requested_fields") or []))
-        classified = [(m, _classify_match(m, _cls_specs or None))
+        _raw_rf = list((action_inputs or {}).get(
+            "requested_fields") or [])
+        _cls_specs = (_resolve_field_specs(None, _raw_rf)
+                      if _raw_rf else None)
+        classified = [(m, _classify_match(m, _cls_specs))
                       for m in matches]
         matched = [m for m, c in classified if c == "matched"]
         if matched:
