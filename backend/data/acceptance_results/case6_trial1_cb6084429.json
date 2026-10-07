@@ -1,0 +1,81 @@
+{
+  "trials": [
+    {
+      "trial": 1,
+      "session_id": "ff6eb9da-c6f7-4b11-9fff-6a158820caa0",
+      "candidate": {
+        "code": {
+          "commit": "cb608442971e2843de4642436f9841debbfb0ccf",
+          "dirty_tracked": "D frontend-nextjs/.preview-instance/299-08-execution-summary.md\n D frontend-nextjs/.preview-instance/299-11-PROGRESS.md\n D frontend-nextjs/.preview-instance/ACCESSIBILITY.md\n D frontend-nextjs/.preview-instance/DEPLOYMENT.md\n D frontend-nextjs/.preview-instance/Dockerfile\n D frontend-nextjs/.preview-instance/Dockerfile.production\n D frontend-nextjs/.preview-instance/FAILURE_CATEGORIES-299-06.md\n D frontend-nextjs/.preview-instance/LIGHTHOUSE.md\n D frontend-nextjs/.preview-instance/PERCY.md\n D frontend-nextjs/.preview-instance/README.md\n D frontend-nextjs/.preview-instance/README_TEAM_CHAT.md\n D frontend-nextjs/.preview-instance/a11y-test-results.json\n D frontend-nextjs/.preview-instance/advanced-management.js\n D frontend-nextjs/.preview-instance/analyze_coverage.js\n D frontend-nextjs/.preview-instance/components\n D frontend-nextjs/.preview-instance/components.json\n D frontend-nextjs/.preview-instance/config\n D frontend-nextjs/.preview-instance/contexts\n D frontend-nextjs/.preview-instance/coverage\n D frontend-nextjs/.preview-instance/coverage-reports\n D frontend-nextjs/.preview-instance/data\n D frontend-nextjs/.preview-instance/docs\n D frontend-nextjs/.preview-instance/e2e\n D frontend-nextjs/.preview-instance/element-not-found-patterns.md\n D frontend-nextjs/.preview-instance/enterprise-dashboard.js\n D frontend-nextjs/.preview-instance/eslint.config.mjs\n D frontend-nextjs/.preview-instance/final-implementation.js\n D frontend-nextjs/.preview-instance/find-uncovered-files.js\n D frontend-nextjs/.preview-instance/fix-eslint-errors.js\n D frontend-nextjs/.preview-instance/fix-parsing-errors.js\n D frontend-nextjs/.preview-instance/hooks\n D frontend-nextjs/.preview-instance/jest.config.js\n D frontend-nextjs/.preview-instance/jest.setup.js\n D frontend-nextjs/.preview-instance/k8s\n D frontend-nextjs/.preview-instance/layouts\n D frontend-nextjs/.preview-instance/lib\n D frontend-nextjs/.preview-instance/lighthouserc.json\n D frontend-nextjs/.preview-instance/middleware.ts\n D frontend-nextjs/.preview-instance/next-env.d.ts\n D frontend-nextjs/.preview-instance/next-steps-implementation.js\n D frontend-nextjs/.preview-instance/next.config.js\n D frontend-nextjs/.preview-instance/node_modules\n D frontend-nextjs/.preview-instance/package-lock.json\n D frontend-nextjs/.preview-instance/package.json\n D frontend-nextjs/.preview-instance/pages\n D frontend-nextjs/.preview-instance/phase1-core-infrastructure.ts\n D frontend-nextjs/.preview-instance/playwright.config.ts\n D frontend-nextjs/.preview-instance/postcss.config.js\n D frontend-nextjs/.preview-instance/postgresql_\n D frontend-nextjs/.preview-instance/production-launcher.ts\n D frontend-nextjs/.preview-instance/project\n D frontend-nextjs/.preview-instance/public\n D frontend-nextjs/.preview-instance/scripts\n D frontend-nextjs/.preview-instance/shared\n D frontend-nextjs/.preview-instance/src\n D frontend-nextjs/.preview-instance/src-tauri\n D frontend-nextjs/.preview-instance/stores\n D frontend-nextjs/.preview-instance/stryker.conf.js\n D frontend-nextjs/.preview-instance/styles\n D frontend-nextjs/.preview-instance/tailwind.config.js\n D frontend-nextjs/.preview-instance/tests\n D frontend-nextjs/.preview-instance/tsconfig.json\n D frontend-nextjs/.preview-instance/tsconfig.tests.json\n D frontend-nextjs/.preview-instance/type-reference-patterns.md\n D frontend-nextjs/.preview-instance/types\n D frontend-nextjs/.preview-instance/typescript-workflow-system.ts\n D frontend-nextjs/.preview-instance/utils\n D frontend-nextjs/.preview-instance/wdio\n D frontend-nextjs/coverage/HIGH_IMPACT_FRONTEND_COMPONENTS_v11.0.md\n D frontend-nextjs/coverage/phase_292_frontend_summary.json\n D frontend-nextjs/coverage/phase_293_combined_progress.json\n D frontend-nextjs/coverage/phase_294_combined_progress.json\n D frontend-nextjs/coverage/phase_294_component_inventory.json\n D frontend-nextjs/coverage/phase_294_coverage_baseline.json\n D frontend-nextjs/coverage/phase_294_final_progress.json\n D frontend-nextjs/coverage/phase_294_lib_inventory.json\n D frontend-nextjs/coverage/phase_294_prioritized_testing_list.json\n D frontend-nextjs/coverage/phase_294_prioritized_testing_list_corrected.json\n D frontend-nextjs/coverage/prioritized_frontend_components_v11.0.json\n D frontend-nextjs/coverage/survey_frontend.py\n M frontend-nextjs/next-env.d.ts",
+          "driver_sha256": "ac0b30aac5e21e8842ef71ff95bfd7c1d497780e1dba7765bd37da889ed7c1ae"
+        },
+        "serving": {
+          "reachable": true,
+          "status": "healthy",
+          "pid": 94461,
+          "started_at": "2026-10-07T17:16:55.542481+00:00",
+          "git_commit": "62f9302ba766",
+          "cwd": "/Users/rushiparikh/projects/atom/backend"
+        }
+      },
+      "turns": [
+        {
+          "label": "S1-investigate",
+          "request_id": "eccd0edcdbc246c88eef8a5aa403d54c",
+          "sent": "Please investigate all requested quotation items on this fork using our taught sources and procedure. Rows 1 to 5 are the requested machines: Roper Whitney No. 381 roll bender, Linmac U-22 bead roller, manual flanger, Roper Whitney No. 622, and Tennsmith SLE24-16 slitter. Don't change the draft yet. For each item produce one comparison: the draft value, the source value with source identity, date or freshness, any discrepancy, and what decision you need from me.",
+          "http": 200,
+          "seconds": 95.1,
+          "error": null,
+          "session_id": "ff6eb9da-c6f7-4b11-9fff-6a158820caa0",
+          "execution_id": "2025c048-e43a-47d2-ac00-72be8fa0a01c",
+          "message": "Investigation only \u2014 no draft changes made. Here's what the taught sources and this turn's live check produced, per requested row. **Row 1 \u2014 Roper Whitney 36\" Gauge Manual Roll Bender, No. 381 \u2014 draft $2,902.00, 10\u201311 wks**\n- Source A: workbook, **Tennsmith sheet, row 338, roll-bending section** \u2014 \"381 \u00b7 167072381 \u00b7 Roll Bending Machine \u00b7 **$3,254.00**\" (the row you flagged in training; no date attached to the workbook read). - Source B: email Chandrakant Sharma \u2192 Alvin Lee Naidoo (Tenaquip), **2026-10-05** \u2014 \"No. 0381: **$2,419.00**\" (265 lbs, 61\u00d711\u00d715 in). - Discrepancy: draft is **$352 under** the workbook figure and **$483 over** the Oct 5 Tenaquip figure. - Decision needed: which basis governs \u2014 workbook $3,254, the Oct 5 $2,419 (possibly a different spec/volume or customer-specific), or hold the manual $2,902 under your rule that a confirmed manual quote price is preserved over a workbook match? Per your second rule, please also confirm whether a body-only figure like $2,902 may be used at all without a calculation source. I did not find one in what this turn actually searched, and I can't rule out places that were not searched. Unverified. - Decision needed: authorize a targeted mailbox search for \"U-22\" / \"bead roller\" plus the vendor quote threads and attachments, or accept $1,777.00 as a manual figure. **Row 3 \u2014 Manual Flanger \u2014 draft $1,609.00, 3\u20134 wks**\n- No source found: same derivation check \u2014 nothing cataloged carries the manual flanger, and no mailbox excerpt shows a price. Unverified. - Decision needed: same as row 2 \u2014 targeted search, or confirm the $1,609.00 manual basis. **Row 4 \u2014 Roper Whitney No. I did not find one in what this turn actually searched, and I can't rule out places that were not searched. 622, and row 268 itself was not read in this turn. Unverified. - Decision needed: authorize reading workbook **row 268** (and the 622 vendor thread) to confirm $2,421.00, or leave as manual. **Row 5 \u2014 Tennsmith Single Wheel Slitter SLE24-16 \u2014 draft $8,880.00, 11\u201312 wks**\n- Source: email Chandrakant Sharma \u2192 amacisaac@AlumaSafway.com, **2026-09-18** \u2014 SLE24-16 **$8,880.00 / 11\u201312 weeks**; same figure in his 2026-09-08 email to brendenrosser88@gmail.com. - Older source: 2026-08-19 email to m.kostiuk@tuffexteriors.com shows **$8,984.00**. - Discrepancy: draft matches the most recent figure; it is $104 below the Aug 19 quote (superseded). Note the source emails state quotes are valid 15 days only, so the Sep 18 figure is past its stated window if this quote goes out now. - Decision needed: confirm $8,880.00 stands as-is, or re-confirm current pricing before sending. Tell me which of these you want chased (rows 1\u20134) and I'll have the harness run those lookups."
+        }
+      ],
+      "pre_restart": {
+        "fork_updates": 0
+      },
+      "post_restart_checks": {
+        "job_terminal_or_progressed": true,
+        "no_duplicate_effects": true,
+        "execution_ids_distinct": true
+      },
+      "post_restart_updates": 0,
+      "runner_fix_note": "distinctness now across REQUESTS (same-turn ops share the turn id by contract); unattributed rows excluded; duplicate EFFECTS checked separately (passed: 0 updates).",
+      "verdict": "PASS"
+    },
+    {
+      "trial": 1,
+      "s2_session": "00ac02e7-7714-40be-b7ff-aeb18d376cde",
+      "turns": [
+        {
+          "label": "S2-T1",
+          "request_id": "43f090bd34d340db860bd4015fbaa188",
+          "sent": "Estimate this service job using our taught rates.",
+          "http": 200,
+          "seconds": 145.8,
+          "error": null,
+          "session_id": "00ac02e7-7714-40be-b7ff-aeb18d376cde",
+          "execution_id": "6169838d-5d80-43cd-865a-89cac7a631f3",
+          "message": "I can run that with our taught formula \u2014 ROUNDUP(hours \u00d7 150 + materials, 0) \u2014 but I need two inputs from you: the labor hours on the job, and the materials cost (enter 0 if there are none)."
+        },
+        {
+          "label": "S2-T2",
+          "request_id": "deac1ec96ec44461b70dc93f8a39e6fa",
+          "sent": "20 hours, $50 materials.",
+          "http": 200,
+          "seconds": 18.4,
+          "error": null,
+          "session_id": "00ac02e7-7714-40be-b7ff-aeb18d376cde",
+          "execution_id": "e5480b63-fe01-4088-a75e-39563e531553",
+          "message": "Service estimate: **$3,050.00** \u2014 ROUNDUP(20 hrs \u00d7 $150/hr + $50 materials, 0) = 3,050, per our taught service estimate formula."
+        }
+      ],
+      "isolation_checks": {
+        "s2_figure": true,
+        "s2_own_inputs_op": true,
+        "s2_job_scoped": true
+      },
+      "verdict": "PASS"
+    }
+  ]
+}

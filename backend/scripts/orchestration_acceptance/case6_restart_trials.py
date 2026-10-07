@@ -165,8 +165,13 @@ def main() -> int:
         pre_updates = ((trial or {}).get("pre_restart") or {}).get(
             "fork_updates", -1)
         post_updates = len(L.canvas_audit_updates(db, fork, ""))
+        # distinctness across REQUESTS, not op-rows: ops of the SAME
+        # turn legitimately share its execution id (one request = one
+        # identity), and unattributed rows contribute no id at all.
+        # Duplicate EFFECTS are already checked separately.
         execs = [str(o.get("execution_id") or "")
-                 for o in (job or {}).get("ops", [])]
+                 for o in (job or {}).get("ops", [])
+                 if o.get("execution_id")]
         checks = {
             "job_terminal_or_progressed": job is not None and (
                 job.get("status") in ("completed", "terminal", "active")),
