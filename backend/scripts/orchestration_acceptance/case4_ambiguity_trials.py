@@ -70,7 +70,11 @@ def verify(reply: str, manual_cells: List[str],
            pre_figures: Dict[str, List[str]], db: Path,
            fork: str) -> Dict[str, Any]:
     low = reply.lower()
-    asks = "?" in reply
+    # an ask is a question OR an explicit next-step/authorization offer
+    # (same misread class as case 2: precise asks in imperative form)
+    asks = any(m in low for m in
+               ["?", "next concrete step", "say the word", "shall i",
+                "want me to", "would let me", "give me the word"])
     names_candidates = sum(1 for s in
                            ["tennsmith", "roper", "sheet", "row", "version",
                             "which", "two", "both", "multiple"] if s in low)
