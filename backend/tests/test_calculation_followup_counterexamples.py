@@ -412,3 +412,49 @@ def test_honest_replacement_wording_passes_the_gate():
         "again in a moment and I'll run the taught-rate calculation "
         "with your inputs.")
     assert not _reply_claims_unrecorded_teaching_figure(replacement)
+
+
+# -- parameter propagation (owner-found missing transition 2026-10-07) --
+def test_followup_completions_carry_supplied_execution_identity(world):
+    """Both follow-up triggers (answer + recalculation) invoke the REAL
+    calculate_followup_from_query and the SUPPLIED execution identity
+    must reach each persisted operation — the completion helper's
+    default was silently dropping it (owner-found: pricing_calculation
+    answer/recalc completion calls omitted execution_id)."""
+    import asyncio
+    from core import pricing_calculation as pc
+
+    conv = "cx-prop-1"
+    # ask (records pending), then ANSWER with identity exec-ans
+    asyncio.run(pc.calculate_natural_from_query(
+        "Estimate this service job using our taught rates.",
+        "u-cx", "default", conversation_id=conv))
+    block = asyncio.run(pc.calculate_followup_from_query(
+        "17.5 hours, no materials", "u-cx", "default",
+        conversation_id=conv, execution_id="exec-ans"))
+    assert block and "2625" in block
+    # RECALC with identity exec-rec
+    block2 = asyncio.run(pc.calculate_followup_from_query(
+        "Recalculate — 12 hours", "u-cx", "default",
+        conversation_id=conv, execution_id="exec-rec"))
+    assert block2 and "1800" in block2
+
+    from core.goals.goal_run_service import GoalRunService
+    from core.goals.goal_service import GoalService
+    from core.task_lifecycle import TaskLifecycle
+    tl = TaskLifecycle(
+        GoalRunService(workspace_id="default", tenant_id="default",
+                       session_factory=_STATE["factory"]),
+        GoalService(workspace_id="default", tenant_id="default",
+                    session_factory=_STATE["factory"]))
+    task = tl.find_active_task(conv)
+    ops = [o for o in (task.get("operations") or [])
+           if o.get("operation_type") == "calculate"]
+    assert len(ops) == 2, [o.get("execution_id") for o in ops]
+    by_amount = {str(((o.get("calculation") or {})
+                      .get("proposed") or {}).get("amount")): o
+                 for o in ops}
+    assert by_amount["2625"].get("execution_id") == "exec-ans", (
+        "answer completion lost the supplied identity")
+    assert by_amount["1800"].get("execution_id") == "exec-rec", (
+        "recalculation completion lost the supplied identity")

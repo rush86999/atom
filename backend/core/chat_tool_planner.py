@@ -8337,6 +8337,40 @@ async def execute_tool_plan(
     planning model's own query was."""
     if not plan or not plan.use_tool or not plan.service:
         return None
+    # PROVENANCE CAPTURE (owner directive 2026-10-07): recorded BEFORE
+    # any scheduling separates caller from task. Caller location,
+    # execution-identity presence, and conversation/job identifiers —
+    # never prompts, lessons, or secrets. Context keys alone cannot
+    # distinguish arms.
+    try:
+        import sys as _sys
+
+        _fr = _sys._getframe(1)
+        # walk past asyncio scheduling machinery — the arm is the first
+        # application frame
+        _hop = 0
+        while _fr is not None and _hop < 12 and (
+                _fr.f_code.co_filename.startswith(
+                    "/Users/rushiparikh/.local/share/uv/python")
+                or "asyncio" in _fr.f_code.co_filename):
+            _fr = _fr.f_back
+            _hop += 1
+        _prov = {
+            "caller": (f"{_fr.f_code.co_filename.rsplit('/', 1)[-1]}:"
+                       f"{_fr.f_lineno} {_fr.f_code.co_name}"
+                       if _fr else "unknown"),
+            "has_exec_id": bool((context or {}).get("execution_id")),
+            "conversation": str((context or {}).get("conversation_id")
+                                or "")[:40],
+        }
+        import logging as _plg
+
+        _plg.getLogger(__name__).info(
+            "[etp-provenance] service=%s intent=%s caller=%s "
+            "exec_id=%s conv=%s", plan.service, plan.intent,
+            _prov["caller"], _prov["has_exec_id"], _prov["conversation"])
+    except Exception:  # noqa: BLE001 — diagnostic only
+        pass
     service = plan.service
     query = (plan.query or "").strip()
 
