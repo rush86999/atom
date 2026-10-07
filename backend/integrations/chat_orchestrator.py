@@ -11162,6 +11162,27 @@ class ChatOrchestrator:
                 response["failure_reason"] = "provider_credits_exhausted"
                 response["recovery_url"] = "/settings/billing"
 
+            # TIMEOUT-TO-FOLLOW-UP BOUNDARY (owner directive
+            # 2026-10-07): a FAILED turn whose message was a
+            # calculation ask must still leave the durable
+            # pending-calculation context — otherwise the owner's next
+            # answer has nothing to bind and the reply narrates
+            # teaching-based arithmetic without an engine result (the
+            # established defect). Deterministic, no LLM,
+            # fault-isolated; skips when the lane already asked.
+            if response.get("success") is False and message:
+                try:
+                    from core.pricing_calculation import (
+                        record_pending_for_failed_calc_ask,
+                    )
+
+                    record_pending_for_failed_calc_ask(
+                        message, user_id,
+                        (context or {}).get("workspace_id"), session_id,
+                        canvas_id=(context or {}).get("canvas_id"))
+                except Exception:  # noqa: BLE001 — boundary is additive
+                    pass
+
             # R90 turn-budget honesty: the reply leg ran out of its LLM budget
             # and returned a structured error instead of a reply. Surface that
             # code (and skip the canned template text, which would read as a

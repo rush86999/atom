@@ -3058,6 +3058,56 @@ _RECALC_IMPERATIVE_RE = _re.compile(
     r"\s+calculation)\b", _re.IGNORECASE)
 
 
+def record_pending_for_failed_calc_ask(
+        message: str,
+        user_id: Optional[str],
+        workspace_id: Optional[str],
+        conversation_id: Optional[str],
+        canvas_id: Optional[str] = None) -> bool:
+    """TIMEOUT-TO-FOLLOW-UP BOUNDARY (owner directive 2026-10-07): a
+    calculation-shaped ask whose turn FAILED before the calculate lane
+    ran (provider distress, budget exhaustion, timeout) must still
+    leave the durable pending-calculation context — policy/version,
+    known inputs, unresolved fields — so the owner's NEXT message
+    ("17.5 hours, no materials.") binds to unfinished calculation work
+    and the engine executes. Without this, the failed ask left no
+    pending state and the follow-up's teaching-based arithmetic was
+    narrated without an engine result (the established defect).
+
+    Deterministic — no LLM: parse the taught expressions, bind what the
+    ask stated, record the missing-input question for the single
+    applicable expression. Skips when a pending question already exists
+    (the lane ran), when no teaching applies, or when the ask carried
+    every input (nothing to ask; an explicit retry re-asks). Fault-
+    isolated: a recording failure never breaks the failing turn."""
+    try:
+        q = str(message or "").strip()
+        if not q or not conversation_id:
+            return False
+        if not (_NAT_ESTIMATE_RE.search(q) or "taught rate" in q.lower()):
+            return False
+        if _pending_calc_question(conversation_id, workspace_id) is not None:
+            return False  # the lane already asked; its question stands
+        lessons = _workspace_lessons(user_id, workspace_id)
+        exprs = parse_taught_expressions(lessons)
+        if len(exprs) != 1:
+            return False  # ambiguity is the lane's question to ask, in turn
+        e = exprs[0]
+        mentioned = _bind_mentioned_inputs(q, e["idents"])
+        inputs = dict(e["defaults"])
+        inputs.update(mentioned)
+        missing = [i for i in e["idents"] if i not in inputs]
+        if not missing:
+            return False
+        return _record_pending_calc_inputs(
+            conversation_id, workspace_id, e["name"], missing,
+            inputs, e["expr"],
+            e.get("version", e["lesson_id"][:12]),
+            canvas_id=canvas_id, user_bound=dict(mentioned))
+    except Exception:  # noqa: BLE001 — boundary is additive
+        return False
+
+
 def message_requires_calculation(message: str) -> bool:
     """Whether the message is an EXPLICIT calculation ask — the shapes
     that must dispatch the engine (or its validated reuse) rather than

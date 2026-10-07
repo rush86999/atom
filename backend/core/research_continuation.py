@@ -782,6 +782,23 @@ async def _execute_row_read(
             return {"statuses": {}, "evidence": [
                 f"ownership lost during settlement: {_fenced!r}"],
                 "lost_ownership": True}
+    # RECEIPT-LESS BUDGET (owner directive 2026-10-07): a row read that
+    # returned NO receipt CONSUMES the question's attempt. Before this,
+    # only the locate pass bumped attempts — a receipt-less row read
+    # re-opened its question identically forever, so nothing ever hit
+    # UNRESOLVED_ATTEMPT_CAP and each pass spawned another retrieve
+    # (live: the 5,466-op and 904-op runaway loops appending
+    # "row-context read" retrieves on one workbook item to a 46GB WAL).
+    # With the bump, repeated receipt-less reads exhaust the budget,
+    # next_unfinished_work stops selecting the question, and it is
+    # reported as exhausted — truthful termination, records preserved.
+    if qids and statuses.get(item) != "matched":
+        try:
+            from core.task_lifecycle import bump_question_attempts
+
+            bump_question_attempts(lifecycle, run_id, qids)
+        except Exception:  # noqa: BLE001 — budget is additive
+            pass
     finish_retrieval_turn(
         lifecycle, run_id, op["operation_id"], {}, None,
         bool(_exec_facts["outcome"] == "read_succeeded"),

@@ -108,6 +108,11 @@ def _dispatch(message, conv, user="u-cx"):
     return _calc_followup_dispatch(message, conv, "default")
 
 
+def _open_qs(conv):
+    from core.pricing_calculation import _open_pending_questions
+    return _open_pending_questions(conv, "default")
+
+
 def _job_snapshot(conv):
     """(n_calculate_ops, n_open_pending_questions) for the conversation."""
     from core.goals.goal_run_service import GoalRunService
@@ -290,3 +295,70 @@ def test_changed_taught_default_is_disclosed(world):
     assert str(rec.get("policy_version")) == str(fresh.get("version"))
     assert str(((rec.get("proposed") or {}).get("amount"))
                ).startswith("3500")
+
+
+# -- timeout-to-follow-up boundary (owner directive 2026-10-07) --------
+def test_failed_calc_ask_retains_pending_context_for_the_answer(world):
+    """A calculation-shaped ask whose turn FAILED before the calculate
+    lane ran (provider distress / timeout) must still record the durable
+    pending-calculation context (policy/version, known inputs, missing
+    fields). The owner's NEXT message then binds to unfinished
+    calculation work and the ENGINE executes — teaching-based narrated
+    arithmetic cannot substitute."""
+    import asyncio
+    from core import pricing_calculation as pc
+
+    conv = "cx-timeout-1"
+    ok = pc.record_pending_for_failed_calc_ask(
+        "Estimate this service job using our taught rates.",
+        "u-cx", "default", conv)
+    assert ok is True
+    # the durable context: one open pending question with the taught
+    # policy/version, the known default input, and the missing fields
+    qs = _open_qs(conv)
+    assert len(qs) == 1
+    inputs = qs[0].get("inputs") or {}
+    assert sorted(inputs.get("missing") or []) == ["hours", "materials"]
+    assert (inputs.get("bound") or {}).get("rate") == "150"
+    assert inputs.get("expr") == "ROUNDUP(hours * rate + materials, 0)"
+    assert inputs.get("policy_version")
+
+    # the ANSWER turn binds and the engine executes + records
+    block = _followup(conv, "17.5 hours, no materials")
+    assert block and "2625" in block
+    assert "the model did not compute this" in block
+    from core.goals.goal_run_service import GoalRunService
+    from core.goals.goal_service import GoalService
+    from core.task_lifecycle import TaskLifecycle
+    tl = TaskLifecycle(
+        GoalRunService(workspace_id="default", tenant_id="default",
+                       session_factory=_STATE["factory"]),
+        GoalService(workspace_id="default", tenant_id="default",
+                    session_factory=_STATE["factory"]))
+    task = tl.find_active_task(conv)
+    calc_ops = [o for o in (task.get("operations") or [])
+                if o.get("operation_type") == "calculate"]
+    assert len(calc_ops) == 1
+    assert calc_ops[0].get("status") == "applied"
+    assert str((((calc_ops[0].get("calculation") or {})
+                 .get("proposed") or {}).get("amount"))).startswith("2625")
+    # the pending question closed with the completion
+    assert _open_qs(conv) == []
+
+
+def test_failed_ask_recording_is_idempotent_and_scoped(world):
+    """Re-recording on a second failed attempt does not duplicate the
+    pending question (the lane's own question stands), and an
+    unrelated-shape failed ask records nothing."""
+    from core import pricing_calculation as pc
+    conv = "cx-timeout-2"
+    assert pc.record_pending_for_failed_calc_ask(
+        "Estimate this service job using our taught rates.",
+        "u-cx", "default", conv) is True
+    assert pc.record_pending_for_failed_calc_ask(
+        "Estimate this service job using our taught rates.",
+        "u-cx", "default", conv) is False  # question already open
+    assert pc.record_pending_for_failed_calc_ask(
+        "What is the capital of France?", "u-cx", "default",
+        "cx-timeout-3") is False
+    assert _open_qs("cx-timeout-3") == []

@@ -689,3 +689,95 @@ class TestFencedSettlementInterleaving:
             "task_revision"]["unresolved"]
             if q["question_id"] == qid][0]
         assert q2["status"] == "resolved"
+
+
+@pytest.mark.asyncio
+async def test_receiptless_row_reads_exhaust_budget_and_stop(lifecycle,
+                                                             monkeypatch):
+    """Owner rule (2026-10-07): repeated receipt-less work must CONSUME
+    its retry budget and terminate truthfully — never append
+    indefinitely. A row-context read over located candidates that
+    returns NO receipt consumes the question's attempts (the live
+    loops' shape: candidates existed, reads never corroborated). The
+    one-time round-43 budget migration may reset an exhausted budget
+    ONCE per job; after that, receipt-less reads terminate the question
+    as exhausted and no further retrieve spawns. (Live counterpart: the
+    5,466-op and 904-op runaway loops, cancelled 2026-10-07, records
+    preserved.)"""
+    from core.task_lifecycle import (
+        UNRESOLVED_ATTEMPT_CAP, begin_retrieval_turn,
+        next_unfinished_work, record_read_outcome)
+    from core import research_continuation as rc
+
+    run_id, op = begin_retrieval_turn(
+        lifecycle, {"id": "s1"}, "conv-budget", "verify pricing", "e1")
+    record_read_outcome(
+        lifecycle, run_id, op, structured_result=None, freshness=None,
+        execution=None, extra_questions=[{
+            "item": "No. 381", "kind": "verification",
+            "question": "No. 381 is carried by L.xlsx — not yet read",
+            "evidence": "value_trace coverage",
+            "next_action": "read L.xlsx for No. 381",
+            "inputs": {"item": "No. 381", "file": "L.xlsx"}}])
+    task = lifecycle.get_task(run_id)
+    qid = (next_unfinished_work(task)["actions"][0]
+           .get("question_id"))
+
+    act = {"file": "L.xlsx", "item": "No. 381",
+           "candidates": [{"file": "L.xlsx", "sheet": "S", "row": 7,
+                           "cell": "E7", "column": "PRICE"}]}
+    monkeypatch.setattr(
+        "core.sheet_dataset_service.read_sheet_row_sync",
+        lambda *a, **kw: None)
+    # The cycle claims question ownership before executing; calling the
+    # read seam directly has no claim, so the settlement fence would
+    # refuse and return early. The fence is not under test here.
+    import core.task_lifecycle as _tl
+
+    def _fence_passthrough(*a, **kw):
+        return True
+
+    monkeypatch.setattr(_tl, "resolve_unresolved_questions_fenced",
+                        _fence_passthrough)
+
+    spawned = 0
+    _orig_create = lifecycle.create_operation
+
+    def counting_create(run_id_, **kw):
+        nonlocal spawned
+        spawned += 1
+        return _orig_create(run_id_, **kw)
+
+    lifecycle.create_operation = counting_create
+
+    # BOUNDED termination: within cap*3 receipt-less reads the question
+    # must leave the selected set (exhausted), allowing the one-time
+    # budget migration its single reset.
+    exhausted_in = None
+    for i in range(UNRESOLVED_ATTEMPT_CAP * 3):
+        out = await rc._execute_row_read(
+            lifecycle, run_id, "u1", "ws", act, [qid],
+            agent_lessons=[])
+        assert out.get("statuses", {}).get("No. 381") != "matched"
+        work = next_unfinished_work(lifecycle.get_task(run_id))
+        if not any("read l.xlsx" in str(a.get("next_action") or "").lower()
+                   for a in work["actions"]):
+            exhausted_in = i + 1
+            break
+    assert exhausted_in is not None, (
+        f"receipt-less reads never terminated selection in "
+        f"{UNRESOLVED_ATTEMPT_CAP * 3} reads")
+    work = next_unfinished_work(lifecycle.get_task(run_id))
+    assert any("No. 381" in str(e.get("item") or "")
+               for e in (work.get("exhausted") or [])), (
+        "terminated truthfully as exhausted")
+    # SELECTION DRIVES SPAWNING in production: the exhausted question
+    # must no longer appear in the selected action set (the cycle's
+    # spawn source), and its receipt-less shape is reported as
+    # exhausted — truthful termination, not an endless re-selection.
+    final_work = next_unfinished_work(lifecycle.get_task(run_id))
+    assert not any(
+        "read l.xlsx" in str(a.get("next_action") or "").lower()
+        for a in final_work["actions"]), "no longer selected for work"
+    assert any("No. 381" in str(e.get("item") or "")
+               for e in (final_work.get("exhausted") or []))
