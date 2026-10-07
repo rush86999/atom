@@ -1070,6 +1070,69 @@ def _session_owned_by_interactive(sess: Dict[str, Any]) -> bool:
     return False
 
 
+async def _delivery_recovery_pass(lifecycle: Any) -> None:
+    """Deliver committed results whose event row is missing.
+
+    Enumerates ALL runs (including terminal — `include_terminal=True`)
+    whose task record has findings or remaining obligations, derives the
+    current result revision, and calls the atomic delivery function when
+    no delivery_events row exists for it. Failed deliveries PROPAGATE
+    (the per-job loop logs the actual error) and remain retryable on the
+    next cycle."""
+    from core.database import get_db_session
+    from core.models import DeliveryEvent
+    from core.job_delivery import (
+        derive_result_revision, deliver_job_event, job_event_id,
+    )
+
+    lifecycle = lifecycle or _lifecycle_for_default_tenant()
+    if lifecycle is None:
+        return
+    try:
+        all_runs = lifecycle.runs.list_runs(
+            include_terminal=True, limit=200)
+    except Exception:
+        all_runs = lifecycle.runs.list_runs(include_terminal=False,
+                                            limit=200)
+    for run in all_runs or []:
+        try:
+            run_id = str(run.get("id") or run.get("run_id") or "")
+            if not run_id:
+                continue
+            record = lifecycle.get_task(run_id)
+            if record is None:
+                continue
+            # ELIGIBILITY: only jobs with actual content (findings or
+            # remaining obligations). Empty/uninitialized never deliver.
+            has_findings = any(
+                (o.get("execution") or {}).get("findings")
+                for o in record.get("operations") or [])
+            has_remaining = bool(
+                (record.get("task_revision") or {}).get("unresolved"))
+            if not (has_findings or has_remaining):
+                continue
+            revision = derive_result_revision(record)
+            event = job_event_id(run_id, revision, "research_update")
+            with get_db_session() as db:
+                existing = db.query(DeliveryEvent).filter(
+                    DeliveryEvent.event_id == event).first()
+            if existing is not None:
+                continue  # already delivered
+            conv = str(record.get("conversation_id") or "")
+            if not conv:
+                continue
+            delivered = deliver_job_event(conv, run_id, record)
+            if delivered:
+                logger.info(
+                    "[research-continuation] recovery delivered %s "
+                    "for job %s", delivered[:16], run_id[:8])
+        except Exception as exc:  # noqa: BLE001 — per-job isolation
+            logger.warning(
+                "[research-continuation] delivery recovery failed for "
+                "job %s: %r (remains retryable)",
+                str(run.get("id") or "?")[:8], exc)
+
+
 async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                                       ) -> Dict[str, int]:
     """One bounded pass. The read budget is GLOBAL across jobs."""
@@ -1329,6 +1392,17 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
             out["failed_reads"] += 1
             logger.warning("[research-continuation] job %s failed: %r",
                            str(run_id)[:8], exc)
+    # DELIVERY RECOVERY PASS (owner directive 2026-10-07): independent
+    # of the read budget and of `notes` — enumerate ALL jobs (INCLUDING
+    # terminal) whose committed result revision has no delivery_events
+    # row and deliver it. Only jobs with actual findings or remaining
+    # obligations are eligible (empty/uninitialized never deliver).
+    try:
+        await _delivery_recovery_pass(lifecycle)
+    except Exception as _dr_err:  # noqa: BLE001 — recovery is additive
+        logger.debug("[research-continuation] delivery recovery: %r",
+                     _dr_err)
+
     if out["reads"]:
         logger.info("[research-continuation] cycle: %s", out)
     return out
