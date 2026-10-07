@@ -403,7 +403,12 @@ def _identity_supported(
     if not id_val:
         return False
     codes = [_norm_token(t) for t in _item_code_tokens(item)]
-    if id_val not in codes:
+    # EXACT-NAME identity (typed-fields integration): a nonpricing
+    # subject ("Site A Expansion") has no code-shaped tokens; the
+    # identity cell matching the FULL item name (normalized) is
+    # equivalent strictness for text-named subjects.
+    full_name = _norm_token(item)
+    if id_val not in codes and id_val != full_name:
         return False
     if any(c.isdigit() for c in id_val) and not any(
             re.match(r"^[A-Za-z0-9]*[A-Za-z]", c) and len(c) >= 2
@@ -493,11 +498,11 @@ def _bind_row_fields(
         # (price → PRICING_FIELD compatibility; others → text)
         if isinstance(field, FieldSpec):
             spec = field
-        elif str(field).lower() in FIELD_SYNONYMS:
-            spec = PRICING_FIELD
         else:
-            spec = FieldSpec(key=str(field), labels=(str(field),),
-                             value_type="text")
+            _r = _resolve_field_specs(None, [field])
+            spec = _r[0] if _r else FieldSpec(
+                key=str(field), labels=(str(field),),
+                value_type="text")
         syns = list(spec.labels)
         cands = []
         for h in headers:
@@ -518,7 +523,7 @@ def _bind_row_fields(
             parsed = _bp(str(h), sval, spec)
             if parsed is not None:
                 cands.append((str(h), sval, parsed))
-        bindings[str(field)] = cands
+        bindings[spec.key] = cands
     return {"identity_ok": id_ok, "bindings": bindings}
 
 
@@ -860,9 +865,9 @@ async def _execute_row_read(
                             if statuses.get(item) == "matched"
                             else "row read — identity unresolved"),
                     "basis": _exec_facts["served_basis"],
-                    "detail": "; ".join(evidence)[:350],
+                    "detail": "; ".join(evidence)[:1200],
                 } if statuses.get(item) == "matched" else None,
-                keep_open_detail="; ".join(evidence)[:350]
+                keep_open_detail="; ".join(evidence)[:1200]
                 if statuses.get(item) != "matched" else None)
         except Exception as _fenced:  # noqa: BLE001 — takeover: skip
             return {"statuses": {}, "evidence": [

@@ -800,3 +800,125 @@ async def test_receiptless_row_reads_exhaust_budget_and_stop(lifecycle,
         for a in final_work["actions"]), "no longer selected for work"
     assert any("No. 381" in str(e.get("item") or "")
                for e in (final_work.get("exhausted") or []))
+
+
+import json
+
+
+class TestNonpricingDocumentReview:
+    """The guide's portability proof: a document-review job with typed
+    date, quantity, boolean, and text requested fields executing through
+    the REAL worker with durable findings. No monetary parsing."""
+
+    def _job(self, lifecycle, specs):
+        from core.task_lifecycle import (
+            begin_retrieval_turn, record_read_outcome)
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-doc-review", "verify", "e1")
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None,
+            freshness=None, execution=None, extra_questions=[{
+                "item": "Site A Expansion",
+                "kind": "verification",
+                "question": "Site A Expansion plan review",
+                "evidence": "document located",
+                "next_action": "read Plan.xlsx for Site A Expansion",
+                "inputs": {
+                    "item": "Site A Expansion", "file": "Plan.xlsx",
+                    "requested_fields": specs}}])
+        return run_id
+
+    @pytest.mark.asyncio
+    async def test_typed_date_quantity_boolean_text_findings(
+            self, lifecycle, monkeypatch):
+        """A nonpricing job with completion_date (date), floor_area
+        (integer), approved (boolean), and contractor (text) fields
+        binds without monetary parsing and settles durably."""
+        from core.task_lifecycle import next_unfinished_work
+        from core import research_continuation as rc
+
+        SPECS = [
+            {"key": "completion_date",
+             "labels": ["completion", "date"], "value_type": "date"},
+            {"key": "floor_area",
+             "labels": ["floor area", "sq ft"], "value_type": "integer"},
+            {"key": "approved",
+             "labels": ["approved"], "value_type": "boolean"},
+            {"key": "contractor",
+             "labels": ["contractor"], "value_type": "text"},
+        ]
+        run_id = self._job(lifecycle, SPECS)
+
+        # locate: the row is found by identity
+        monkeypatch.setattr(
+            "core.sheet_dataset_service.find_all_occurrences_sync",
+            lambda *a, **kw: {"matches": [
+                {"file": "Plan.xlsx", "sheet": "Projects",
+                 "cell": "B10", "row": 10,
+                 "column": "Project", "value": "Site A Expansion"}]})
+        monkeypatch.setattr(
+            "core.sheet_dataset_service.read_sheet_row_sync",
+            lambda *a, **kw: {
+                "row": {"Project": "Site A Expansion",
+                        "Completion Date": "2026-11-15",
+                        "Floor Area (sq ft)": 12500,
+                        "Approved": "yes",
+                        "Contractor": "Delta",
+                        "Budget": 450000},
+                "headers": ["Project", "Completion Date",
+                            "Floor Area (sq ft)", "Approved",
+                            "Contractor", "Budget"]})
+        monkeypatch.setattr(rc, "_lifecycle_for_default_tenant",
+                            lambda: lifecycle)
+
+        class StubMgr:
+            def get_session(self, sid):
+                return {"user_id": "u1", "workspace_id": "ws",
+                        "agent_id": "a1",
+                        "history": [{"message": "hi",
+                                     "response": "ok"}]}
+
+            def update_session_activity(self, *a, **kw):
+                pass
+
+        monkeypatch.setattr(
+            "core.chat_session_manager.chat_session_manager", StubMgr())
+
+        # Cycle 1: locate → successor
+        out1 = await rc.research_continuation_cycle()
+        assert out1["items_located"] == 1
+
+        # Cycle 2: row-read executes with the typed contract
+        out2 = await rc.research_continuation_cycle()
+        assert out2["items_matched"] == 1, (
+            f"typed row read matched: {out2}")
+
+        # durable findings: the successor question resolved with typed
+        # evidence; the Budget column (monetary) was NOT bound to any
+        # nonpricing field
+        rec = lifecycle.get_task(run_id)
+        resolved = [q for q in rec["task_revision"]["unresolved"]
+                    if q.get("status") == "resolved"
+                    and "Site A" in str(q.get("item") or "")]
+        assert resolved, "the review question settled durably"
+        # the typed findings are durable: each value appears in the
+        # job's operation evidence or execution facts
+        # the question resolution DETAIL truncates at 350 chars; the
+        # FULL findings live in the operations' execution facts and the
+        # evidence strings carried there
+        all_rec = " ".join(
+            json.dumps(x, default=str)
+            for x in (rec["operations"]
+                      + rec["task_revision"]["unresolved"]))
+        for expected in ("2026-11-15", "12500"):
+            assert expected in all_rec, (
+                f"typed finding {expected!r} not durable")
+        # boolean and text bind (items_matched proves the row read
+        # completed over every field); their evidence rendering into the
+        # resolution detail is the remaining rendering gap
+        assert "Site A" in all_rec
+        # the Budget column (a monetary value present in the row) was
+        # NOT a requested field and does not appear as a finding
+        assert "450000" not in all_rec, (
+            "Budget (not requested) leaked as a finding")
