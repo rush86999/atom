@@ -96,3 +96,74 @@ class TestAllCandidatesRetained:
         spec = FieldSpec(key="price", labels=("price", "cost"))
         cols = resolve_column(["Unit Price", "Cost CAD", "Model"], spec)
         assert cols == ["Unit Price", "Cost CAD"]
+
+
+class TestParserBoundaries:
+    """Owner-directed regressions (2026-10-07): separator conventions,
+    calendar validation, currency semantics, identifier safeguard."""
+
+    def setup_method(self):
+        self.dec = FieldSpec(key="a", labels=("a",), value_type="decimal")
+        self.money = FieldSpec(key="p", labels=("price",),
+                               value_type="money")
+        self.date = FieldSpec(key="d", labels=("date",),
+                              value_type="date")
+
+    # -- separators --------------------------------------------------
+    def test_decimal_comma_unambiguous(self):
+        assert parse_typed("12,34", self.dec)["value"] == Decimal("12.34")
+
+    def test_thousands_comma(self):
+        assert parse_typed("1,234", self.dec)["value"] == Decimal("1234")
+        assert parse_typed("1,234,567", self.dec)["value"] == \
+            Decimal("1234567")
+
+    def test_ambiguous_rejected(self):
+        assert parse_typed("1,23,456", self.dec) is None
+        assert parse_typed("12,345,67", self.dec) is None
+        assert parse_typed("3,14159", self.dec) is None
+
+    def test_dot_decimal_with_grouping(self):
+        assert parse_typed("2,902.50", self.dec)["value"] == \
+            Decimal("2902.50")
+
+    # -- dates ---------------------------------------------------------
+    def test_impossible_calendar_rejected(self):
+        assert parse_typed("2026-99-99", self.date) is None
+        assert parse_typed("2026-02-30", self.date) is None
+        assert parse_typed("2026-13-01", self.date) is None
+
+    def test_valid_calendar_accepted(self):
+        assert parse_typed("2026-02-28", self.date)["value"] == "2026-02-28"
+        assert parse_typed("2024-02-29", self.date) is not None  # leap
+
+    # -- currency ------------------------------------------------------
+    def test_bare_symbol_is_not_currency(self):
+        got = parse_typed("$2,902.00", self.money)
+        assert got["currency"] is None
+        assert got["currency_symbol"] == "$"
+
+    def test_explicit_code_establishes(self):
+        got = parse_typed("2902.00 CAD", self.money)
+        assert got["currency"] == "CAD"
+
+    def test_declared_vs_source_conflict_raises(self):
+        cad = FieldSpec(key="p", labels=("price",), value_type="money",
+                        currency="CAD")
+        with pytest.raises(ValueError):
+            parse_typed("$100 USD", cad)
+
+    def test_declared_matching_source_ok(self):
+        cad = FieldSpec(key="p", labels=("price",), value_type="money",
+                        currency="CAD")
+        got = parse_typed("2902.00 CAD", cad)
+        assert got["currency"] == "CAD"
+
+    # -- identifier safeguard -------------------------------------------
+    def test_price_code_never_binds_price(self):
+        assert binding_passes("Price Code", "90703", self.money) is None
+        assert binding_passes("Part No.", "U-22", self.money) is None
+
+    def test_genuine_price_column_binds(self):
+        got = binding_passes("Unit Price", "$1,200", self.money)
+        assert got is not None and got["value"] == Decimal("1200")
