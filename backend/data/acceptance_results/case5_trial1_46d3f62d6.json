@@ -1,0 +1,321 @@
+{
+  "candidate": {
+    "world": "case5_final",
+    "db_sha256_start": "9992bf71c82fa4e1ccc26f8a1776517708c4029b94839d2329ebcb2e9fbfc89b",
+    "backend_port": 8032,
+    "backend_pid": 82350,
+    "frontend_port": 3132,
+    "frontend_pid": 82396,
+    "shim_port": 8098,
+    "canvas_id": "01708399-cccc-45da-a835-7c45fa5639e9",
+    "user_id": "56781ba7-3348-4511-8f89-76f6dd7eeb75",
+    "code": {
+      "commit": "8f14569a576eaa1abe1e3c05607c603217fb7c88",
+      "dirty_tracked": "M backend/core/pricing_calculation.py\n D frontend-nextjs/.preview-instance/299-08-execution-summary.md\n D frontend-nextjs/.preview-instance/299-11-PROGRESS.md\n D frontend-nextjs/.preview-instance/ACCESSIBILITY.md\n D frontend-nextjs/.preview-instance/DEPLOYMENT.md\n D frontend-nextjs/.preview-instance/Dockerfile\n D frontend-nextjs/.preview-instance/Dockerfile.production\n D frontend-nextjs/.preview-instance/FAILURE_CATEGORIES-299-06.md\n D frontend-nextjs/.preview-instance/LIGHTHOUSE.md\n D frontend-nextjs/.preview-instance/PERCY.md\n D frontend-nextjs/.preview-instance/README.md\n D frontend-nextjs/.preview-instance/README_TEAM_CHAT.md\n D frontend-nextjs/.preview-instance/a11y-test-results.json\n D frontend-nextjs/.preview-instance/advanced-management.js\n D frontend-nextjs/.preview-instance/analyze_coverage.js\n D frontend-nextjs/.preview-instance/components\n D frontend-nextjs/.preview-instance/components.json\n D frontend-nextjs/.preview-instance/config\n D frontend-nextjs/.preview-instance/contexts\n D frontend-nextjs/.preview-instance/coverage\n D frontend-nextjs/.preview-instance/coverage-reports\n D frontend-nextjs/.preview-instance/data\n D frontend-nextjs/.preview-instance/docs\n D frontend-nextjs/.preview-instance/e2e\n D frontend-nextjs/.preview-instance/element-not-found-patterns.md\n D frontend-nextjs/.preview-instance/enterprise-dashboard.js\n D frontend-nextjs/.preview-instance/eslint.config.mjs\n D frontend-nextjs/.preview-instance/final-implementation.js\n D frontend-nextjs/.preview-instance/find-uncovered-files.js\n D frontend-nextjs/.preview-instance/fix-eslint-errors.js\n D frontend-nextjs/.preview-instance/fix-parsing-errors.js\n D frontend-nextjs/.preview-instance/hooks\n D frontend-nextjs/.preview-instance/jest.config.js\n D frontend-nextjs/.preview-instance/jest.setup.js\n D frontend-nextjs/.preview-instance/k8s\n D frontend-nextjs/.preview-instance/layouts\n D frontend-nextjs/.preview-instance/lib\n D frontend-nextjs/.preview-instance/lighthouserc.json\n D frontend-nextjs/.preview-instance/middleware.ts\n D frontend-nextjs/.preview-instance/next-env.d.ts\n D frontend-nextjs/.preview-instance/next-steps-implementation.js\n D frontend-nextjs/.preview-instance/next.config.js\n D frontend-nextjs/.preview-instance/node_modules\n D frontend-nextjs/.preview-instance/package-lock.json\n D frontend-nextjs/.preview-instance/package.json\n D frontend-nextjs/.preview-instance/pages\n D frontend-nextjs/.preview-instance/phase1-core-infrastructure.ts\n D frontend-nextjs/.preview-instance/playwright.config.ts\n D frontend-nextjs/.preview-instance/postcss.config.js\n D frontend-nextjs/.preview-instance/postgresql_\n D frontend-nextjs/.preview-instance/production-launcher.ts\n D frontend-nextjs/.preview-instance/project\n D frontend-nextjs/.preview-instance/public\n D frontend-nextjs/.preview-instance/scripts\n D frontend-nextjs/.preview-instance/shared\n D frontend-nextjs/.preview-instance/src\n D frontend-nextjs/.preview-instance/src-tauri\n D frontend-nextjs/.preview-instance/stores\n D frontend-nextjs/.preview-instance/stryker.conf.js\n D frontend-nextjs/.preview-instance/styles\n D frontend-nextjs/.preview-instance/tailwind.config.js\n D frontend-nextjs/.preview-instance/tests\n D frontend-nextjs/.preview-instance/tsconfig.json\n D frontend-nextjs/.preview-instance/tsconfig.tests.json\n D frontend-nextjs/.preview-instance/type-reference-patterns.md\n D frontend-nextjs/.preview-instance/types\n D frontend-nextjs/.preview-instance/typescript-workflow-system.ts\n D frontend-nextjs/.preview-instance/utils\n D frontend-nextjs/.preview-instance/wdio\n D frontend-nextjs/coverage/HIGH_IMPACT_FRONTEND_COMPONENTS_v11.0.md\n D frontend-nextjs/coverage/phase_292_frontend_summary.json\n D frontend-nextjs/coverage/phase_293_combined_progress.json\n D frontend-nextjs/coverage/phase_294_combined_progress.json\n D frontend-nextjs/coverage/phase_294_component_inventory.json\n D frontend-nextjs/coverage/phase_294_coverage_baseline.json\n D frontend-nextjs/coverage/phase_294_final_progress.json\n D frontend-nextjs/coverage/phase_294_lib_inventory.json\n D frontend-nextjs/coverage/phase_294_prioritized_testing_list.json\n D frontend-nextjs/coverage/phase_294_prioritized_testing_list_corrected.json\n D frontend-nextjs/coverage/prioritized_frontend_components_v11.0.json\n D frontend-nextjs/coverage/survey_frontend.py\n M frontend-nextjs/next-env.d.ts",
+      "driver_sha256": "c19b00a00ffa6f49392da7599977e3b0579f1a5a66be0e15211bd7c6af9c652c",
+      "config": "ATOM_TASK_LIFECYCLE_ENABLED=1, CHAT_FINALIZATION_M1=1, CHAT_FINALIZATION_M2=1; provider=model shim only"
+    }
+  },
+  "results": [
+    {
+      "case": "T1_success_button",
+      "status": "PASS",
+      "checks": {
+        "post_dispatched": true,
+        "http_200": true,
+        "success_flag": true,
+        "reply_visible": true
+      },
+      "notes": [],
+      "details": {
+        "response": {
+          "via": "button",
+          "t": "2026-10-07T11:29:59",
+          "status": 200,
+          "overlay_dismissed": {
+            "found": false,
+            "cleared": true,
+            "texts": []
+          },
+          "session_id": "db2ed2fa-ee28-489c-ba2f-9c29fcf07a17",
+          "execution_id": "fe5f51d2-1095-4273-9b62-f61e03a99a7f",
+          "success": true,
+          "error_code": null,
+          "failure_reason": null,
+          "recovery_url": null,
+          "message_head": "Pangolin reply from the isolated provider shim \u2014 request shim-1791386998847-25."
+        }
+      }
+    },
+    {
+      "case": "T1_db_persisted",
+      "status": "PASS",
+      "checks": {
+        "user_row": true,
+        "assistant_row": true
+      },
+      "notes": [],
+      "details": {
+        "rows": [
+          [
+            "user",
+            "Summarize what this canvas covers, in one sentence."
+          ],
+          [
+            "assistant",
+            "Pangolin reply from the isolated provider shim \u2014 request shi"
+          ]
+        ]
+      }
+    },
+    {
+      "case": "T2_provider_failure_enter",
+      "status": "PASS",
+      "checks": {
+        "post_dispatched": true,
+        "http_200": true,
+        "terminal_success_false": true,
+        "error_code": true,
+        "truthful_message_carried": true,
+        "error_visible_in_panel": true,
+        "remedy_visible_in_panel": true,
+        "static_lie_not_shown": true
+      },
+      "notes": [
+        "failure_reason='provider_credits_exhausted' recovery_url='/settings/billing' \u2014 the M1/M2 finalizer rebuilds the message from the execution record and drops these machine fields (the ungated path sets provider_credits_exhausted + /settings/billing); recorded as a case finding, message text stays truthful"
+      ],
+      "details": {
+        "response": {
+          "via": "enter",
+          "t": "2026-10-07T11:30:00",
+          "status": 200,
+          "overlay_dismissed": {
+            "found": true,
+            "cleared": true,
+            "how": "Escape",
+            "texts": [
+              "Welcome to Atom\n\nYour AI-powered automation workspace\n\n1\nWelcome\n2\nProfile\n3\nConnect\n4\nReady\nHello, Admin!\n\nAtom is here to help you automate your work with the power of AI Agents.\n\nNext",
+              "Welcome to Atom\n\nYour AI-powered automation workspace\n\n1\nWelcome\n2\nProfile\n3\nConnect\n4\nReady\nHello, Admin!\n\nAtom is here to help you automate your work with the power of AI Agents.\n\nNext"
+            ]
+          },
+          "session_id": "db2ed2fa-ee28-489c-ba2f-9c29fcf07a17",
+          "execution_id": "e397a60b-5ecc-4d4f-ae6c-3ab0aeaceecb",
+          "success": false,
+          "error_code": "no_llm_provider",
+          "failure_reason": "provider_credits_exhausted",
+          "recovery_url": "/settings/billing",
+          "message_head": "I couldn't generate a response \u2014 every configured provider is out of credits (opencode-go). The last provider error: 402. Top up the provider balances in Settings \u2192 Providers, then ask again \u2014 retrying without a top-up will fail the same way."
+        }
+      }
+    },
+    {
+      "case": "T2_db_terminal_persisted",
+      "status": "PASS",
+      "checks": {
+        "assistant_row_persisted": true,
+        "quality_error_marked": true,
+        "no_canvas_effect": true
+      },
+      "notes": [],
+      "details": {
+        "assistant_rows": [
+          "I couldn't generate a response \u2014 every configured provider is out of credits (op"
+        ],
+        "meta": {
+          "assistant_message_id": "75ab95f0-78ee-47dc-843c-3b588143cd14",
+          "execution_id": "e397a60b-5ecc-4d4f-ae6c-3ab0aeaceecb",
+          "quality": "error",
+          "model": "o4-mini",
+          "provider": "openai",
+          "_pending_file_task": null,
+          "turn_decision": {
+            "schema": "turn-decision-1",
+            "session_id": "db2ed2fa-ee28-489c-ba2f-9c29fcf07a17",
+            "created_at": 1791386999.995914,
+            "message": "Also \u2014 what machines does this quote mention? (reference credx-probe-7741)",
+            "requested_actions": [
+              {
+                "kind": "conversation",
+                "authorization": "granted"
+              }
+            ],
+            "action_program": {
+              "schema_version": "action-program-1",
+              "session_id": "db2ed2fa-ee28-489c-ba2f-9c29fcf07a17",
+              "message_excerpt": "Also \u2014 what machines does this quote mention? (reference credx-probe-7741)",
+              "compiled_from": "turn-decision-1",
+              "actions": [
+                {
+                  "action_id": "converse1",
+                  "depends_on": [],
+                  "op": "converse"
+                }
+              ]
+            },
+            "references": {
+              "sources": [],
+              "file": null
+            },
+            "task_state_view": {
+              "active_objective": null,
+              "revision_proposed": false
+            },
+            "policy": {
+              "reasoning_available": null
+            },
+            "provenance": {
+              "signals": []
+            },
+            "routed_lane": null
+          },
+          "success": false,
+          "error_code": "no_llm_provider"
+        }
+      }
+    },
+    {
+      "case": "T3_dispatch_after_failure_button",
+      "status": "PASS",
+      "checks": {
+        "post_dispatched": true,
+        "second_failure_truthful": true,
+        "composer_reachable": true
+      },
+      "notes": [
+        "sent while the provider was still broken \u2014 proves the failed turn did not wedge the composer",
+        "no overlay after the failed turn"
+      ],
+      "details": {
+        "response": {
+          "via": "button",
+          "t": "2026-10-07T11:30:00",
+          "status": 200,
+          "overlay_dismissed": {
+            "found": false,
+            "cleared": true,
+            "texts": []
+          },
+          "session_id": "db2ed2fa-ee28-489c-ba2f-9c29fcf07a17",
+          "execution_id": "b088bdfd-fcac-4251-9a1c-761efa302b4c",
+          "success": false,
+          "error_code": "no_llm_provider",
+          "failure_reason": "provider_credits_exhausted",
+          "recovery_url": "/settings/billing",
+          "message_head": "I couldn't generate a response \u2014 every configured provider is out of credits (opencode-go). The last provider error: 402. Top up the provider balances in Settings \u2192 Providers, then ask again \u2014 retrying without a top-up will fail the same way."
+        }
+      }
+    },
+    {
+      "case": "T4_recovered_enter",
+      "status": "PASS",
+      "checks": {
+        "post_dispatched": true,
+        "success_flag": true,
+        "reply_visible_after_recovery": true
+      },
+      "notes": [],
+      "details": {
+        "response": {
+          "via": "enter",
+          "t": "2026-10-07T11:30:02",
+          "status": 200,
+          "overlay_dismissed": {
+            "found": false,
+            "cleared": true,
+            "texts": []
+          },
+          "session_id": "db2ed2fa-ee28-489c-ba2f-9c29fcf07a17",
+          "execution_id": "4872387b-8f7c-416e-8e88-784d697ef841",
+          "success": true,
+          "error_code": null,
+          "failure_reason": null,
+          "recovery_url": null,
+          "message_head": "Pangolin reply from the isolated provider shim \u2014 request shim-1791387002540-0."
+        }
+      }
+    },
+    {
+      "case": "reload_history",
+      "status": "PASS",
+      "checks": {
+        "user_t1_once": true,
+        "user_t2_once": true,
+        "user_t3_once": true,
+        "user_t4_once": true,
+        "failure_error_visible": true,
+        "pangolin_replies_two": true
+      },
+      "notes": [],
+      "details": {
+        "counts": {
+          "t1": 1,
+          "t2": 1,
+          "t3": 1,
+          "t4": 1,
+          "pangolin": 2,
+          "credit": 2
+        }
+      }
+    },
+    {
+      "case": "durable_rows_and_api",
+      "status": "PASS",
+      "checks": {
+        "user_rows_exactly_4": true,
+        "assistant_rows_exactly_4": true,
+        "api_history_matches_db": true,
+        "no_canvas_effect_at_end": true
+      },
+      "notes": [],
+      "details": {
+        "db_roles": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant"
+        ],
+        "api_texts": [
+          "Pangolin reply from the isolated provider shim \u2014 r",
+          "I couldn't generate a response \u2014 every configured ",
+          "I couldn't generate a response \u2014 every configured ",
+          "Pangolin reply from the isolated provider shim \u2014 r"
+        ],
+        "execution_ids_in_meta": [
+          "4872387b-8f7",
+          "b088bdfd-fca",
+          "e397a60b-5ec",
+          "fe5f51d2-109"
+        ]
+      }
+    },
+    {
+      "case": "isolation",
+      "status": "PASS",
+      "checks": {
+        "no_foreign_origin_hits": true
+      },
+      "notes": [],
+      "details": {
+        "foreign": [],
+        "console_errors": [
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+          "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+          "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Warning: Encountered two children with the same key, `%s`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or o",
+          "Warning: Encountered two children with the same key, `%s`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or o",
+          "Warning: Encountered two children with the same key, `%s`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or o",
+          "Warning: Encountered two children with the same key, `%s`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or o",
+          "Warning: Encountered two children with the same key, `%s`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or o"
+        ],
+        "page_errors": [],
+        "db_sha256_start": "9992bf71c82fa4e1ccc26f8a1776517708c4029b94839d2329ebcb2e9fbfc89b"
+      }
+    }
+  ]
+}

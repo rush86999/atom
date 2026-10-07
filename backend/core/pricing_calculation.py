@@ -2103,12 +2103,45 @@ def _record_on_job(
         # record) — never another turn's identity, never inference.
         if not execution_id and conversation_id:
             import logging as _lg
+            import traceback as _tb
+
+            import traceback as _tb
 
             _lg.getLogger(__name__).warning(
                 "calculation recorded without exact turn attribution "
                 "(conversation=%s result_id=%s) — caller carried no "
-                "request/execution identity",
-                conversation_id, getattr(result, "result_id", "?"))
+                "request/execution identity\n%s",
+                conversation_id, getattr(result, "result_id", "?"),
+                "".join(_tb.format_stack()[-6:-1]))
+            # MISSING IDENTITY CREATES NO SECOND COMPLETION RECORD
+            # (owner correction 2026-10-07): a caller that cannot supply
+            # the request identity may open the FIRST durable record for
+            # this calculation content (tests and direct lane calls have
+            # no request concept), but NEVER a second one — when an
+            # operation with the same calculation identity already
+            # stands on the task, the unattributed duplicate is refused.
+            try:
+                _t = lifecycle.find_active_task(conversation_id)
+                _snap = result.inputs_snapshot or {}
+                _prop = result.proposed
+                _val = ("" if _prop is None
+                        else f"{_prop.amount}|{_prop.currency}")
+                _inp = {str(k): str(v) for k, v in
+                        (_snap.get("inputs") or {}).items()}
+                for _o in ((_t or {}).get("operations") or []):
+                    if _o.get("operation_type") != "calculate":
+                        continue
+                    _c = _o.get("calculation") or {}
+                    _p2 = _c.get("proposed") or {}
+                    if (str(_c.get("policy_id")) == str(result.policy_id)
+                            and str(_p2.get("amount")) + "|"
+                            + str(_p2.get("currency")) == _val
+                            and {str(k): str(v) for k, v in
+                                 (_c.get("inputs") or {}).get(
+                                     "inputs", {}).items()} == _inp):
+                        return False  # duplicate refused
+            except Exception:  # noqa: BLE001 — guard is additive
+                pass
         record_calculation(lifecycle, run_id, item_label, result,
                            execution_id=execution_id)
         return True
