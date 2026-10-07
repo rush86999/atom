@@ -17863,6 +17863,32 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "[figure-grounding] narration contradicts the "
                             "structured calculation: "
                             + ", ".join(_unsupported[:6]))
+                # STRUCTURED-RESULT DELIVERY UNDER PROVIDER FAILURE
+                # (owner directive 2026-10-07, case-3 trial 2): the
+                # engine already computed and RECORDED this turn's
+                # calculation, but the narration leg collapsed (credit
+                # envelope / template). The existing deterministic
+                # rendering fallback ships the record directly — no
+                # second model call, no lost result.
+                if (_calc_evidence and _content and message
+                        and (str(response_data.get("model") or "")
+                             in ("template",)
+                             or locals().get("_llm_provider_failed"))):
+                    try:
+                        _det_render = _deterministic_calc_fallback(
+                            _calc_allowance, [])
+                        if _det_render:
+                            _content = _det_render
+                            response_data = dict(response_data or {})
+                            response_data["content"] = _content
+                            response_data["model"] = (
+                                response_data.get("model") or "calc-lane")
+                            logger.info(
+                                "[calc-delivery] narration leg collapsed "
+                                "with a recorded result — deterministic "
+                                "rendering shipped")
+                    except Exception:  # noqa: BLE001 — additive
+                        pass
                 # TIMEOUT WORDING RULE (owner directive 2026-10-07,
                 # acceptance gate case3_timeout_regression): a turn BOUND
                 # to the calculation contract whose reply carries NO

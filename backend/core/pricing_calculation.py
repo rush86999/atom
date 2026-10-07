@@ -2103,12 +2103,29 @@ def _record_on_job(
         # the same turn). Correct by construction: no label/UUID
         # mapping, no recency guessing.
         if not execution_id and conversation_id:
+            # EXACT BINDING ONLY (owner directive 2026-10-07): adopt an
+            # identity solely from an operation STILL RUNNING on this
+            # conversation's task — an in-flight retrieve belongs to
+            # the turn now executing. Completed operations are never
+            # adopted (that would reattribute a prior turn). When no
+            # in-flight stamp exists, recording proceeds UNATTRIBUTED
+            # with an explicit warning — never another turn's identity.
             try:
                 _t = lifecycle.find_active_task(conversation_id)
                 for _o in reversed((_t or {}).get("operations") or []):
-                    if _o.get("execution_id"):
+                    if (_o.get("execution_id")
+                            and _o.get("status") == "running"):
                         execution_id = str(_o["execution_id"])
                         break
+                else:
+                    import logging as _lg
+
+                    _lg.getLogger(__name__).warning(
+                        "calculation recorded without exact turn "
+                        "attribution (conversation=%s result_id=%s) — "
+                        "no in-flight execution stamp on the task",
+                        conversation_id,
+                        getattr(result, "result_id", "?"))
             except Exception:  # noqa: BLE001 — attribution is additive
                 pass
         record_calculation(lifecycle, run_id, item_label, result,
