@@ -1036,6 +1036,64 @@ def _missing_chain_cells(reply: str, tool_block: Optional[str],
 #: sequential duplicates.
 
 
+# TIMEOUT WORDING RULE (owner directive 2026-10-07): mirror of the
+# acceptance gate's detector (scripts/orchestration_acceptance/
+# case3_timeout_regression.py) — a calculation-bound turn with NO engine
+# record must not present a figure with formula/teaching authority.
+_AUTHORITY_PHRASES = (
+    "per our taught formula", "per training guidance",
+    "training guidance", "taught formula", "taught service rate",
+    "our taught", "taught rates", "calculation engine",
+    "engine-computed", "i calculated", "i computed",
+    "ran the calculation")
+_DISCLOSURE_PHRASES = (
+    "not run through the engine", "no record", "without the engine",
+    "hand-computed", "didn't run", "could not run the calculation",
+    "no calculation was run", "not engine-computed", "unrecorded")
+_MONEY_FIGURE_RE = None  # compiled lazily to keep import-time cheap
+
+
+def _reply_claims_unrecorded_teaching_figure(text: str) -> bool:
+    """True when the reply asserts a money figure WITH teaching/formula
+    authority and WITHOUT an honest not-computed disclosure — the
+    false-result wording the acceptance gate fails on. A disclosed
+    figure ("not run through the engine…") is an honest shape and is
+    left alone."""
+    global _MONEY_FIGURE_RE
+    import re as _re
+
+    if _MONEY_FIGURE_RE is None:
+        _MONEY_FIGURE_RE = _re.compile(r"\$\s?[\d,]+(?:\.\d+)?")
+    t = str(text or "")
+    if not _MONEY_FIGURE_RE.search(t):
+        return False
+    low = t.lower()
+    if any(d in low for d in _DISCLOSURE_PHRASES):
+        return False
+    return any(p in low for p in _AUTHORITY_PHRASES)
+
+
+def _calc_bound_turn(message: str,
+                     session_id: Optional[str],
+                     workspace_id: Optional[str]) -> bool:
+    """Whether THIS turn is bound to the calculation contract — an
+    explicit calculation ask, or a follow-up of the conversation's own
+    recorded calculation state (the pending answer / recalculate
+    triggers). Cheap and fault-isolated."""
+    try:
+        from core.pricing_calculation import (
+            _calc_followup_dispatch,
+            message_requires_calculation,
+        )
+
+        if message_requires_calculation(message or ""):
+            return True
+        return _calc_followup_dispatch(message or "", session_id,
+                                       workspace_id)
+    except Exception:  # noqa: BLE001 — rule is additive
+        return False
+
+
 def _calc_narration_violations(reply: str,
                                allowance: Dict[str, Any]) -> List[str]:
     """Structured narration validation (round 76).
@@ -17768,6 +17826,33 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "[figure-grounding] narration contradicts the "
                             "structured calculation: "
                             + ", ".join(_unsupported[:6]))
+                # TIMEOUT WORDING RULE (owner directive 2026-10-07,
+                # acceptance gate case3_timeout_regression): a turn BOUND
+                # to the calculation contract whose reply carries NO
+                # engine record must not present a figure with formula/
+                # teaching authority. The recorded failures (9eeb3e15,
+                # 62c248d2) narrated "$2,625 per our taught formula"
+                # with zero calculate operations — one with a generic
+                # retrieval warning that is NOT computation disclosure.
+                # The honest replacement is deterministic (no regen: a
+                # regen is exactly what provider distress cannot afford)
+                # — refuse-with-retry, no figure, no authority claim.
+                if (not _calc_evidence and _content and message
+                        and _calc_bound_turn(
+                            message, session_id,
+                            (context or {}).get("workspace_id"))
+                        and _reply_claims_unrecorded_teaching_figure(
+                            _content)):
+                    logger.warning(
+                        "[calc-wording] calculation-bound reply asserted "
+                        "a teaching figure with no engine record — "
+                        "replaced with the honest not-computed wording")
+                    _content = (
+                        "I couldn't complete the calculation just now — "
+                        "no calculation was run, so there is no estimate "
+                        "to report yet. Please try again in a moment and "
+                        "I'll run the taught-rate calculation with your "
+                        "inputs.")
                 if _tool_block and _content and not (
                     _derivation_reply and not _derivation_contradicted
                 ) and not _calc_evidence:

@@ -362,3 +362,53 @@ def test_failed_ask_recording_is_idempotent_and_scoped(world):
         "What is the capital of France?", "u-cx", "default",
         "cx-timeout-3") is False
     assert _open_qs("cx-timeout-3") == []
+
+
+# -- timeout wording rule (owner directive 2026-10-07) -----------------
+def test_unrecorded_teaching_figure_is_the_false_shape():
+    """The detector mirrors the acceptance gate: figure + teaching/
+    formula authority with NO engine record and NO disclosure is the
+    false shape; disclosed figures and bare non-calc turns are not."""
+    from integrations.chat_orchestrator import (
+        _calc_bound_turn, _reply_claims_unrecorded_teaching_figure)
+
+    false1 = ("Using our taught service rate of $150/hr with no "
+              "materials: 17.5 hrs × $150 = $2,625.00 — estimate "
+              "**$2,625**.")
+    false2 = ("**Service estimate: $2,625.00**\n\nUsing our taught "
+              "formula — estimate = ROUNDUP(hours × rate + materials, 0) "
+              "— per training guidance.")
+    assert _reply_claims_unrecorded_teaching_figure(false1)
+    assert _reply_claims_unrecorded_teaching_figure(false2)
+    # disclosed figure — honest shape, left alone
+    assert not _reply_claims_unrecorded_teaching_figure(
+        "That would be $2,625 hand-computed — not run through the "
+        "engine, so treat it as a draft only.")
+    # refuse-with-retry — no figure, honest
+    assert not _reply_claims_unrecorded_teaching_figure(
+        "The live estimate lookup timed out and couldn't complete right "
+        "now. Please try again in a moment.")
+    # no authority claim
+    assert not _reply_claims_unrecorded_teaching_figure(
+        "The quote total is $2,902 per the vendor quote.")
+    # turn binding: explicit asks and follow-ups bind; ordinary doesn't
+    assert _calc_bound_turn(
+        "Estimate this service job using our taught rates.", None, None)
+    assert _calc_bound_turn("Recalculate — 12 hours.", "conv-x", "ws")
+    assert not _calc_bound_turn("What is the capital of France?",
+                                "conv-x", "ws")
+
+
+def test_honest_replacement_wording_passes_the_gate():
+    """The deterministic replacement the seam installs satisfies the
+    acceptance gate: refuse-with-retry, no figure, no authority claim,
+    WITH an explicit no-calculation-ran disclosure."""
+    from integrations.chat_orchestrator import (
+        _reply_claims_unrecorded_teaching_figure)
+
+    replacement = (
+        "I couldn't complete the calculation just now — no calculation "
+        "was run, so there is no estimate to report yet. Please try "
+        "again in a moment and I'll run the taught-rate calculation "
+        "with your inputs.")
+    assert not _reply_claims_unrecorded_teaching_figure(replacement)
