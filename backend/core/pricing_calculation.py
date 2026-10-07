@@ -2095,6 +2095,29 @@ def _record_on_job(
     if lifecycle is None or not run_id:
         return False
     try:
+        # ATTRIBUTION CONSOLIDATION (owner rule, 2026-10-07 — after two
+        # threading repairs the duplicated dispatch responsibility still
+        # leaves arms that carry no request identity): when the caller
+        # passed none, resolve the conversation's CURRENT execution from
+        # the durable record — the one boundary every dispatch path
+        # already shares. The operation records attributed to the turn
+        # that produced it, and the identity key dedups the arms.
+        if not execution_id and conversation_id:
+            try:
+                from core.database import get_db_session as _gs
+                from core.models import AgentExecution as _AE
+
+                with _gs() as _db:
+                    _row = (
+                        _db.query(_AE.id)
+                        .filter(_AE.metadata_json.contains(
+                            f'"session_id": "{conversation_id}"'))
+                        .order_by(_AE.started_at.desc())
+                        .first())
+                    if _row:
+                        execution_id = str(_row[0])
+            except Exception:  # noqa: BLE001 — attribution is additive
+                pass
         record_calculation(lifecycle, run_id, item_label, result,
                            execution_id=execution_id)
         return True
