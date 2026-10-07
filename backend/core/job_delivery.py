@@ -174,9 +174,17 @@ def deliver_job_event(
             job_id=job_id, result_revision=revision))
         try:
             db.flush()
-        except Exception:
+        except Exception as exc:
+            # ONLY the established duplicate-event conflict (PK
+            # IntegrityError) is "already delivered". Missing table,
+            # disk failure, or any other error PROPAGATES so delivery
+            # stays retryable — silently suppressing would lose results.
+            from sqlalchemy.exc import IntegrityError
+
             db.rollback()
-            return None  # already delivered (PK conflict)
+            if isinstance(exc, IntegrityError):
+                return None  # another writer delivered this event
+            raise  # retryable — the caller sees the failure
         db.add(ChatMessage(
             conversation_id=conversation_id, role="assistant",
             tenant_id="default", content=text[:4000],
