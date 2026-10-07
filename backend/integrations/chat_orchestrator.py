@@ -3146,6 +3146,7 @@ async def _derivation_supplement(
     llm_service: Any = None,
     conversation_id: Optional[str] = None,
     workspace_id: Optional[str] = None,
+    execution_id: Optional[str] = None,
 ) -> Optional[str]:
     """Compose the derivation dataset block ahead of an existing tool
     block. For a derivation ask the workbook ROW is the answer (the mail
@@ -3210,6 +3211,7 @@ async def _derivation_supplement(
                             "conversation_id": conversation_id,
                             "canvas_id": _canvas_id,
                             "workspace_id": workspace_id,
+                            "execution_id": execution_id,
                         },
                         llm_service=llm_service),
                     timeout=110.0)
@@ -11228,7 +11230,15 @@ class ChatOrchestrator:
             # teaching-based arithmetic without an engine result (the
             # established defect). Deterministic, no LLM,
             # fault-isolated; skips when the lane already asked.
-            if response.get("success") is False and message:
+            # TEMPLATE DELIVERY IS FAILURE FOR THIS PURPOSE (case-3
+            # suite trials): "I've processed your request…" with
+            # model=template ships as success=True, but no question was
+            # asked and no calculation ran — the boundary must fire or
+            # the ask's missing-input question is never put to the
+            # owner.
+            if ((response.get("success") is False
+                 or str(response.get("model") or "") == "template")
+                    and message):
                 try:
                     from core.pricing_calculation import (
                         record_pending_for_failed_calc_ask,
@@ -13327,6 +13337,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             llm_service=self.llm_service,
                             conversation_id=session_id,
                             workspace_id=workspace_id,
+                            execution_id=execution_id,
                         )
                     )
                     # Owned by this turn: if the deadline expires, this is work
@@ -13787,6 +13798,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         llm_service=self.llm_service,
                         conversation_id=session_id,
                         workspace_id=workspace_id,
+                        execution_id=execution_id,
                     )
                 else:
                     # Full hydrated history for the planner (not the [-6:] main-
@@ -14722,6 +14734,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             llm_service=self.llm_service,
                             conversation_id=session_id,
                             workspace_id=workspace_id,
+                            execution_id=execution_id,
                         )
                     else:
                         # Plan is None (provider produced no decision at
@@ -14751,6 +14764,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             llm_service=self.llm_service,
                             conversation_id=session_id,
                             workspace_id=workspace_id,
+                            execution_id=execution_id,
                         )
             except Exception as tool_err:
                 # !r, not str: a bare asyncio.TimeoutError() stringifies to
@@ -16214,6 +16228,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             llm_service=self.llm_service,
                             conversation_id=session_id,
                             workspace_id=workspace_id,
+                            execution_id=execution_id,
                         )
                     if _deriv_block:
                         # A DETERMINISTIC BLOCK SUPERSEDES A LOOKUP-FAILURE
