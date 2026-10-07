@@ -3081,6 +3081,36 @@ _RECALC_IMPERATIVE_RE = _re.compile(
     r"\s+calculation)\b", _re.IGNORECASE)
 
 
+def calc_pending_question_reply(
+        message: str,
+        user_id: Optional[str],
+        workspace_id: Optional[str],
+        conversation_id: Optional[str]) -> Optional[str]:
+    """The user-facing rendering of the conversation's OPEN pending
+    calculation question, re-derived from durable state — the honest
+    reply when the narration leg collapsed (template delivery). No
+    figure, no authority claim: the question and the taught formula
+    only."""
+    try:
+        if not conversation_id:
+            return None
+        q = _pending_calc_question(conversation_id, workspace_id)
+        if q is None:
+            return None
+        inputs = q.get("inputs") or {}
+        missing = [str(m) for m in (inputs.get("missing") or [])]
+        if not missing:
+            return None
+        return (
+            "To run your taught-formula calculation I still need: "
+            + ", ".join(missing)
+            + ".\n\n(Taught formula: " + str(inputs.get("expr") or "")
+            + ". The calculation did not run yet — reply with the "
+            "values and I'll compute it.)")
+    except Exception:  # noqa: BLE001 — delivery is additive
+        return None
+
+
 def record_pending_for_failed_calc_ask(
         message: str,
         user_id: Optional[str],

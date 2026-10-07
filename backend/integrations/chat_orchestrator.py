@@ -10974,34 +10974,23 @@ class ChatOrchestrator:
                 used_model = "template"
                 used_provider = "template"
                 # DETERMINISTIC CALC DELIVERY (case-3 suite): when the
-                # calculate lane produced a grounded block this turn and
-                # the reply leg collapsed to the generic template, the
-                # template must not bury the lane's question — the ask
-                # turn's INPUT NEEDED contract ships as the reply
-                # (deterministic, no LLM). Without this the owner never
-                # sees the question the durable state says was asked.
+                # reply leg collapsed to the generic template but the
+                # DURABLE state says the calculate lane asked its
+                # missing-input question this turn, the question ships
+                # as the reply — re-derived from the recorded pending
+                # state (scope-safe: no reliance on in-flight locals;
+                # the ask turn's INPUT NEEDED contract reaches the
+                # owner even under provider distress).
                 try:
-                    _calc_blk = locals().get("_tool_block") or ""
-                    if ("LIVE TOOL RESULTS (datasets.calculate"
-                            in _calc_blk
-                            and "INPUT NEEDED" in _calc_blk):
-                        _m = __import__("re").search(
-                            r"INPUT NEEDED[^\n]*", _calc_blk)
-                        _missing_m = __import__("re").search(
-                            r'formula\s+"([^"]+)"', _calc_blk)
-                        _ask = (_m.group(0) if _m else "")
-                        _expr = (_missing_m.group(1) if _missing_m
-                                 else "the taught formula")
-                        _names = __import__("re").findall(
-                            r"INPUT NEEDED.*?:\s*(.+?)\.\s*Bound",
-                            _calc_blk)
-                        _need = (_names[0].strip()
-                                 if _names else "the missing inputs")
-                        main_message = (
-                            "To run your taught-formula calculation I "
-                            f"still need: {_need}.\n\n(Taught formula: "
-                            f"{_expr}. The calculation did not run yet — "
-                            "reply with the values and I'll compute it.)")
+                    from core.pricing_calculation import (
+                        calc_pending_question_reply,
+                    )
+
+                    _ask_reply = calc_pending_question_reply(
+                        message, user_id,
+                        (context or {}).get("workspace_id"), session_id)
+                    if _ask_reply:
+                        main_message = _ask_reply
                         used_model = "calc-lane"
                         used_provider = "deterministic"
                 except Exception:  # noqa: BLE001 — delivery is additive
