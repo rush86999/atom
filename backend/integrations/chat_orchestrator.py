@@ -11266,10 +11266,42 @@ class ChatOrchestrator:
                         record_pending_for_failed_calc_ask,
                     )
 
-                    record_pending_for_failed_calc_ask(
+                    _ok = record_pending_for_failed_calc_ask(
                         message, user_id,
                         (context or {}).get("workspace_id"), session_id,
                         canvas_id=(context or {}).get("canvas_id"))
+                    if _ok:
+                        # STAGED ACKNOWLEDGEMENT (owner item 2): the
+                        # pending work IS durable (the question is on
+                        # the job); the reply names the job so the
+                        # worker can resume it.
+                        try:
+                            from core.pricing_calculation import (
+                                _pending_calc_question,
+                            )
+                            from core.job_delivery import (
+                                render_acknowledgement,
+                            )
+
+                            _pq = _pending_calc_question(
+                                session_id,
+                                (context or {}).get("workspace_id"))
+                            if _pq:
+                                _n_missing = len(
+                                    (_pq.get("inputs") or {})
+                                    .get("missing") or [])
+                                response["message"] = (
+                                    render_acknowledgement(
+                                        str(_pq.get("question_id")
+                                            or session_id),
+                                        message[:60],
+                                        _n_missing))
+                                response["data"] = response.get(
+                                    "data") or {}
+                                response["data"][
+                                    "staged_job"] = True
+                        except Exception:  # noqa: BLE001 — ack additive
+                            pass
                 except Exception:  # noqa: BLE001 — boundary is additive
                     pass
 

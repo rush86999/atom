@@ -1274,29 +1274,36 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                     1 for s in res["statuses"].values() if s == "located")
                 notes.append(f"{fname}: " + "; ".join(res["evidence"]))
             if notes:
-                # DELIVER WHERE THE UI READS (round 61): the panel's
-                # history endpoint serves ChatMessage DB rows — a note
-                # written only to the file-store session was invisible.
-                # Append an assistant row (idempotent per cycle by
-                # content check), plus keep the file-store mirror.
-                _note_text = (
-                    "Background research update — completed while you "
-                    "were away: " + " | ".join(notes)
-                    + ". Remaining work stays on the job record.")
+                # STAGED DELIVERY (guide step 4, owner items 1+3):
+                # render from the AUTHORITATIVE task record (findings +
+                # remaining), persist through ChatMessage keyed by a
+                # STABLE EVENT ID — atomic arbitration, not
+                # content-based dedup. The RESULT REVISION is the task
+                # record's own task_version: claim renewals, attempt
+                # counters and worker bookkeeping do not bump it, so
+                # they cannot produce repeated user-visible events.
                 try:
                     from core.database import get_db_session
                     from core.models import ChatMessage as _CM
+                    from core.job_delivery import (
+                        job_event_id, render_job_result,
+                    )
 
+                    _fresh = lifecycle.get_task(run_id) or {}
+                    _revision = int(_fresh.get("task_version") or 0)
+                    _evt = job_event_id(
+                        str(run_id), _revision, "research_update")
+                    _note_text = render_job_result(_fresh, str(run_id))
                     with get_db_session() as _db:
                         _dupe = _db.query(_CM).filter(
                             _CM.conversation_id == conv,
                             _CM.role == "assistant",
-                            _CM.content == _note_text[:4000],
+                            _CM.metadata_json.contains(
+                                '"delivery_event": "' + _evt + '"'),
                         ).first()
                         if _dupe is None:
-                            _prov = (
-                                record.get("task_revision") or {}
-                            ).get("provenance")
+                            _prov = (_fresh.get("task_revision")
+                                     or {}).get("provenance")
                             _tenant = (
                                 _prov.get("tenant_id")
                                 if isinstance(_prov, dict) else None
@@ -1304,8 +1311,17 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                             _db.add(_CM(
                                 conversation_id=conv, role="assistant",
                                 tenant_id=str(_tenant),
-                                content=_note_text[:4000]))
+                                content=_note_text[:4000],
+                                metadata_json=json.dumps({
+                                    "delivery_event": _evt,
+                                    "job_id": str(run_id),
+                                    "result_revision": _revision,
+                                })))
                             _db.commit()
+                        else:
+                            logger.debug(
+                                "[research-continuation] event %s "
+                                "already delivered", _evt[:16])
                 except Exception as _cm_err:  # noqa: BLE001
                     logger.debug(
                         "[research-continuation] DB note skipped: %r",

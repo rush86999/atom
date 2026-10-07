@@ -83,6 +83,24 @@ def render_job_result(task_record: Optional[Dict[str, Any]],
         {"next_action": a.get("next_action"),
          "question": a.get("question")}
         for a in (work or {}).get("actions") or []]
+    # TERMINAL considers ALL open obligations (owner directive
+    # 2026-10-07): exhausted actions and owner decisions are still
+    # open — an empty selectable action list alone cannot establish
+    # completion.
+    for q in (task_record.get("task_revision") or {}).get(
+            "unresolved") or []:
+        if q.get("status") != "open":
+            continue
+        kind = q.get("kind")
+        if kind == "business_decision":
+            remaining.append({
+                "question": str(q.get("question") or
+                                "owner decision needed"),
+                "next_action": "owner decision"})
+        elif int(q.get("attempts") or 0) >= 3:
+            remaining.append({
+                "question": str(q.get("question") or "action exhausted"),
+                "next_action": "exhausted — needs owner review"})
     parts = []
     if findings:
         parts.append(render_findings(findings, item))
