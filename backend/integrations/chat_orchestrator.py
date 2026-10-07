@@ -17902,8 +17902,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # — refuse-with-retry, no figure, no authority claim.
                 if (not _calc_evidence and _content and message
                         and _calc_bound_turn(
-                            message, session_id,
-                            (context or {}).get("workspace_id"))
+                            message, session_id, workspace_id)
                         and _reply_claims_unrecorded_teaching_figure(
                             _content)):
                     logger.warning(
