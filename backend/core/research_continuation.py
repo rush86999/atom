@@ -207,11 +207,30 @@ def _read_actions(actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
-def _classify_match(match: Dict[str, Any]) -> str:
-    """"matched" (carries the item's own value), "located" (identity
-    only — the price cell was not read), or "" (noise)."""
+def _classify_match(match: Dict[str, Any],
+                    specs: Optional[List[Any]] = None) -> str:
+    """"matched" (the match carries a value satisfying one of the job's
+    requested fields), "located" (identity only), or "" (noise).
+
+    CONTRACT-DRIVEN (owner directive 2026-10-07): when the job's field
+    specs are available, a match is "matched" only when a column
+    matching a spec's labels parses as that spec's declared type. The
+    price-shaped regexes remain ONLY as the legacy pricing fallback when
+    no contract is available (an explicitly identified legacy pricing
+    job)."""
+    from core.typed_fields import (
+        FieldSpec, PRICING_FIELD, binding_passes,
+    )
+
     column = str(match.get("column") or "")
     value = str(match.get("value") or "")
+    if specs:
+        for spec in specs:
+            if isinstance(spec, FieldSpec):
+                if binding_passes(column, value, spec) is not None:
+                    return "matched"
+        return "located"
+    # LEGACY pricing fallback (no contract available)
     if _PRICE_COLUMN_RE.search(column) or (
             value and _PRICE_VALUE_RE.match(value)):
         return "matched"
@@ -247,7 +266,11 @@ async def _execute_document_read(
                             f"({type(exc).__name__})")
             continue
         matches = (scan or {}).get("matches") or []
-        classified = [(m, _classify_match(m)) for m in matches]
+        _cls_specs = _resolve_field_specs(
+            None, list((action_inputs or {}).get(
+                "requested_fields") or []))
+        classified = [(m, _classify_match(m, _cls_specs or None))
+                      for m in matches]
         matched = [m for m, c in classified if c == "matched"]
         if matched:
             statuses[item] = "matched"
@@ -636,6 +659,7 @@ async def _execute_row_read(
             continue
         supporting.append(
             {"cand": cand, "bound": bound, "_row_result": row_result})
+    _typed_findings: List[Dict[str, Any]] = []
     if len(supporting) == 1:
         bound = supporting[0]["bound"]
         cand = supporting[0]["cand"]
@@ -661,6 +685,13 @@ async def _execute_row_read(
                     + f" ({pol['reason']})")
             if len(cands) == 1:
                 col, val = cands[0][0], cands[0][1]
+                _typed_findings.append({
+                    "field": field, "column": col, "raw": str(val),
+                    "parsed": cands[0][2] if len(cands[0]) > 2 else None,
+                    "source": (f"{cand.get('_resolved_file')
+                                   or act.get('file')}"
+                               f"!{cand.get('sheet')}"
+                               f"!row{cand.get('row')}")})
                 statuses[item] = "matched"
                 evidence.append(
                     f"{item}: {field} = {val} ({col} — basis/currency "
@@ -852,6 +883,12 @@ async def _execute_row_read(
                          else "none"),
         "failure_stage": None,
         "items": statuses,
+        # STRUCTURAL TYPED FINDINGS (owner directive 2026-10-07): every
+        # bound field's parsed value + source column persist here — the
+        # operation record IS the evidence store; the resolution detail
+        # is presentation only. Values include False and 0 (real
+        # findings, not gaps).
+        "findings": _typed_findings,
     }
     # FENCED SETTLEMENT (round 56): ownership validation runs INSIDE the
     # resolution mutation — a takeover between check and write fails it.

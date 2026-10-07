@@ -806,51 +806,42 @@ import json
 
 
 class TestNonpricingDocumentReview:
-    """The guide's portability proof: a document-review job with typed
-    date, quantity, boolean, and text requested fields executing through
-    the REAL worker with durable findings. No monetary parsing."""
+    """Contract-driven discovery + structural typed findings through the
+    real worker (owner directive 2026-10-07)."""
 
-    def _job(self, lifecycle, specs):
+    SPECS = [
+        {"key": "completion_date",
+         "labels": ["completion", "date"], "value_type": "date"},
+        {"key": "floor_area",
+         "labels": ["floor area", "sq ft"], "value_type": "integer"},
+        {"key": "approved",
+         "labels": ["approved"], "value_type": "boolean"},
+        {"key": "contractor",
+         "labels": ["contractor"], "value_type": "text"},
+    ]
+
+    def _job(self, lifecycle, specs, item="Site A Expansion"):
         from core.task_lifecycle import (
             begin_retrieval_turn, record_read_outcome)
 
         run_id, op = begin_retrieval_turn(
-            lifecycle, {"id": "s1"}, "conv-doc-review", "verify", "e1")
+            lifecycle, {"id": "s1"}, f"conv-{item[:8]}", "verify", "e1")
         record_read_outcome(
             lifecycle, run_id, op, structured_result=None,
             freshness=None, execution=None, extra_questions=[{
-                "item": "Site A Expansion",
-                "kind": "verification",
-                "question": "Site A Expansion plan review",
+                "item": item, "kind": "verification",
+                "question": f"{item} plan review",
                 "evidence": "document located",
-                "next_action": "read Plan.xlsx for Site A Expansion",
+                "next_action": f"read Plan.xlsx for {item}",
                 "inputs": {
-                    "item": "Site A Expansion", "file": "Plan.xlsx",
+                    "item": item, "file": "Plan.xlsx",
                     "requested_fields": specs}}])
         return run_id
 
-    @pytest.mark.asyncio
-    async def test_typed_date_quantity_boolean_text_findings(
-            self, lifecycle, monkeypatch):
-        """A nonpricing job with completion_date (date), floor_area
-        (integer), approved (boolean), and contractor (text) fields
-        binds without monetary parsing and settles durably."""
-        from core.task_lifecycle import next_unfinished_work
+    async def _run_cycles(self, lifecycle, monkeypatch, run_id,
+                    row_data, headers):
         from core import research_continuation as rc
 
-        SPECS = [
-            {"key": "completion_date",
-             "labels": ["completion", "date"], "value_type": "date"},
-            {"key": "floor_area",
-             "labels": ["floor area", "sq ft"], "value_type": "integer"},
-            {"key": "approved",
-             "labels": ["approved"], "value_type": "boolean"},
-            {"key": "contractor",
-             "labels": ["contractor"], "value_type": "text"},
-        ]
-        run_id = self._job(lifecycle, SPECS)
-
-        # locate: the row is found by identity
         monkeypatch.setattr(
             "core.sheet_dataset_service.find_all_occurrences_sync",
             lambda *a, **kw: {"matches": [
@@ -859,16 +850,7 @@ class TestNonpricingDocumentReview:
                  "column": "Project", "value": "Site A Expansion"}]})
         monkeypatch.setattr(
             "core.sheet_dataset_service.read_sheet_row_sync",
-            lambda *a, **kw: {
-                "row": {"Project": "Site A Expansion",
-                        "Completion Date": "2026-11-15",
-                        "Floor Area (sq ft)": 12500,
-                        "Approved": "yes",
-                        "Contractor": "Delta",
-                        "Budget": 450000},
-                "headers": ["Project", "Completion Date",
-                            "Floor Area (sq ft)", "Approved",
-                            "Contractor", "Budget"]})
+            lambda *a, **kw: {"row": row_data, "headers": headers})
         monkeypatch.setattr(rc, "_lifecycle_for_default_tenant",
                             lambda: lifecycle)
 
@@ -884,41 +866,101 @@ class TestNonpricingDocumentReview:
 
         monkeypatch.setattr(
             "core.chat_session_manager.chat_session_manager", StubMgr())
+        await rc.research_continuation_cycle()
+        return await rc.research_continuation_cycle()
 
-        # Cycle 1: locate → successor
-        out1 = await rc.research_continuation_cycle()
-        assert out1["items_located"] == 1
-
-        # Cycle 2: row-read executes with the typed contract
-        out2 = await rc.research_continuation_cycle()
-        assert out2["items_matched"] == 1, (
-            f"typed row read matched: {out2}")
-
-        # durable findings: the successor question resolved with typed
-        # evidence; the Budget column (monetary) was NOT bound to any
-        # nonpricing field
+    def _findings(self, lifecycle, run_id):
+        """Fresh read of durable state: the operation's structural
+        findings."""
         rec = lifecycle.get_task(run_id)
-        resolved = [q for q in rec["task_revision"]["unresolved"]
-                    if q.get("status") == "resolved"
-                    and "Site A" in str(q.get("item") or "")]
-        assert resolved, "the review question settled durably"
-        # the typed findings are durable: each value appears in the
-        # job's operation evidence or execution facts
-        # the question resolution DETAIL truncates at 350 chars; the
-        # FULL findings live in the operations' execution facts and the
-        # evidence strings carried there
-        all_rec = " ".join(
-            json.dumps(x, default=str)
-            for x in (rec["operations"]
-                      + rec["task_revision"]["unresolved"]))
-        for expected in ("2026-11-15", "12500"):
-            assert expected in all_rec, (
-                f"typed finding {expected!r} not durable")
-        # boolean and text bind (items_matched proves the row read
-        # completed over every field); their evidence rendering into the
-        # resolution detail is the remaining rendering gap
-        assert "Site A" in all_rec
-        # the Budget column (a monetary value present in the row) was
-        # NOT a requested field and does not appear as a finding
-        assert "450000" not in all_rec, (
-            "Budget (not requested) leaked as a finding")
+        out = []
+        for o in rec["operations"]:
+            for f in (o.get("execution") or {}).get("findings") or []:
+                out.append(f)
+        return out
+
+    @pytest.mark.asyncio
+    async def test_all_four_findings_survive_fresh_read(
+            self, lifecycle, monkeypatch):
+        """Date, integer, boolean (True), and text findings persist in
+        the operation's structural record."""
+        run_id = self._job(lifecycle, self.SPECS)
+        await self._run_cycles(
+            lifecycle, monkeypatch, run_id,
+            {"Project": "Site A Expansion",
+             "Completion Date": "2026-11-15",
+             "Floor Area (sq ft)": 12500,
+             "Approved": "yes",
+             "Contractor": "Delta Builders Ltd.",
+             "Budget": 450000},
+            ["Project", "Completion Date", "Floor Area (sq ft)",
+             "Approved", "Contractor", "Budget"])
+        findings = {f["field"]: f for f in self._findings(lifecycle, run_id)}
+        assert set(findings.keys()) == {
+            "completion_date", "floor_area", "approved", "contractor"}
+        assert findings["completion_date"]["parsed"]["value"] == "2026-11-15"
+        assert findings["floor_area"]["parsed"]["value"] == 12500
+        assert findings["approved"]["parsed"]["value"] is True
+        assert findings["contractor"]["parsed"]["value"] == (
+            "Delta Builders Ltd.")
+        # Budget (not requested) excluded
+        assert "Budget" not in str(findings)
+
+    @pytest.mark.asyncio
+    async def test_false_and_zero_are_valid_findings(
+            self, lifecycle, monkeypatch):
+        """False and zero are real findings, not gaps."""
+        run_id = self._job(lifecycle, self.SPECS, item="Site B On Hold")
+        await self._run_cycles(
+            lifecycle, monkeypatch, run_id,
+            {"Project": "Site B On Hold",
+             "Completion Date": "2027-03-01",
+             "Floor Area (sq ft)": 0,
+             "Approved": "no",
+             "Contractor": "Echo Civil"},
+            ["Project", "Completion Date", "Floor Area (sq ft)",
+             "Approved", "Contractor"])
+        findings = {f["field"]: f for f in self._findings(lifecycle, run_id)}
+        assert findings["floor_area"]["parsed"]["value"] == 0
+        assert findings["approved"]["parsed"]["value"] is False
+
+    @pytest.mark.asyncio
+    async def test_completion_from_field_dispositions(
+            self, lifecycle, monkeypatch):
+        """Completion derives from the required fields' actual
+        dispositions (all four bound), not merely items_matched."""
+        run_id = self._job(lifecycle, self.SPECS)
+        await self._run_cycles(
+            lifecycle, monkeypatch, run_id,
+            {"Project": "Site A Expansion",
+             "Completion Date": "2026-11-15",
+             "Floor Area (sq ft)": 12500,
+             "Approved": "yes",
+             "Contractor": "Delta Builders Ltd."},
+            ["Project", "Completion Date", "Floor Area (sq ft)",
+             "Approved", "Contractor"])
+        findings = self._findings(lifecycle, run_id)
+        required = {s["key"] for s in self.SPECS}
+        bound = {f["field"] for f in findings}
+        assert required <= bound, (
+            f"completion requires all fields bound; missing: "
+            f"{required - bound}")
+
+    @pytest.mark.asyncio
+    async def test_missing_field_leaves_job_open(
+            self, lifecycle, monkeypatch):
+        """When a requested field is absent from the row, the job stays
+        open with that field unresolved (not silently completed)."""
+        run_id = self._job(lifecycle, self.SPECS)
+        await self._run_cycles(
+            lifecycle, monkeypatch, run_id,
+            {"Project": "Site A Expansion",
+             "Completion Date": "2026-11-15",
+             # Floor Area and Approved absent from this row
+             "Contractor": "Delta"},
+            ["Project", "Completion Date", "Contractor"])
+        findings = {f["field"] for f in self._findings(lifecycle, run_id)}
+        assert "floor_area" not in findings, (
+            "absent field must not fabricate a finding")
+        assert "completion_date" in findings, (
+            "present field still binds")

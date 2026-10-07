@@ -669,6 +669,12 @@ def normalize_execution_facts(raw: Any) -> Dict[str, Any]:
             "source": str(planning_raw.get("source") or "")[:60] or None,
             "recovered": bool(planning_raw.get("recovered")),
         }
+    # STRUCTURAL TYPED FINDINGS passthrough (owner directive
+    # 2026-10-07): bound field values + source identity survive
+    # normalization — the operation record IS the evidence store.
+    findings_raw = raw.get("findings")
+    findings = ([f for f in findings_raw if isinstance(f, dict)]
+                if isinstance(findings_raw, list) else None)
     return {
         "invoked": invoked,
         "outcome": outcome,
@@ -678,6 +684,7 @@ def normalize_execution_facts(raw: Any) -> Dict[str, Any]:
         "items": items,
         "planning": planning,
         "raw_outcome": raw_outcome,
+        "findings": findings,
         "at": _utc_now_iso(),
     }
 
