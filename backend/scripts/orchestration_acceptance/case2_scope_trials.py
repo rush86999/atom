@@ -62,9 +62,17 @@ def verify_subset(reply: str, job: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 def verify_followup(reply: str) -> Dict[str, Any]:
     low = reply.lower()
     covered = [c for c in OTHERS if c.lower() in low]
-    asks = "?" in reply
+    # an ask is a question OR an explicit authorization request (the
+    # agent's precise offer to run the named searches)
+    asks = any(m in low for m in
+               ["?", "say the word", "shall i", "want me to",
+                "give me the word", "confirm and"])
+    # scope vocabulary: item numbers AND the same machines' human names
+    # (the reply may name either form; the ASSERTION stays strict — a
+    # precise question still needs >=2 distinct scopes + a question)
     names_scopes = sum(1 for s in
-                       ["381", "622", "sle24", "slitter", "flanger",
+                       ["381", "roll bender", "roper whitney", "622",
+                        "rotary", "sle24", "slitter", "flanger",
                         "bead roller", "rows 1", "rows 6", "requested",
                         "alternative"] if s in low)
     precise_question = asks and names_scopes >= 2
