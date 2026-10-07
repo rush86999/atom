@@ -178,7 +178,7 @@ class TestPerItemEvidenceNegativeControls:
                 "question": "U-22 is carried by WB.xlsx — not yet read",
                 "evidence": "vt",
                 "next_action": "read WB.xlsx for U-22",
-                "inputs": {"item": "U-22", "file": "WB.xlsx"}}])
+                "inputs": {"item": "U-22", "file": "WB.xlsx", "requested_fields": ["price"]}}])
 
         def fake_find_all(value, user_id, workspace_id, file_name=None,
                           max_matches=8, **kw):
@@ -331,7 +331,7 @@ class TestRowContextSuccessor:
                 "item": "U-22", "kind": "verification",
                 "question": "U-22 is carried by WB.xlsx — not yet read",
                 "evidence": "vt", "next_action": "read WB.xlsx for U-22",
-                "inputs": {"item": "U-22", "file": "WB.xlsx"}}])
+                "inputs": {"item": "U-22", "file": "WB.xlsx", "requested_fields": ["price"]}}])
 
         # Document read: identity-only match -> located + successor.
         def fake_find_all(value, user_id, workspace_id, file_name=None,
@@ -376,7 +376,10 @@ class TestRowContextSuccessor:
         cands = row_actions[0]["inputs"]["candidates"]
         assert cands and cands[0]["row"] == 22
         assert cands[0]["sheet"] == "LINMAC"
-        assert row_actions[0]["inputs"]["requested_fields"] == ["price"]
+        # legacy "price" serializes as the PRICING_FIELD spec dict
+        _rf = row_actions[0]["inputs"]["requested_fields"]
+        assert len(_rf) == 1 and _rf[0]["key"] == "price" and \
+            _rf[0]["value_type"] == "money"
 
         # Cycle 2 completes the row read (grouping keeps doc and row
         # reads distinct): the located state turns into evidence.
@@ -577,7 +580,7 @@ class TestRealRowRegressions:
             identity_context="Linmac Bead Roller 22 Gauge, 7\" Throat, "
                              "U-22")
         assert b["identity_ok"], "code-token equality holds for U-22"
-        cols = {c for c, _ in b["bindings"]["price"]}
+        cols = {c for c, _v, _p in b["bindings"]["price"]}
         assert cols == {"List Price", "List Price_2", "US NET"}, (
             "DEALER (monetary but a dealer column) and codes never "
             "appear; every legitimate monetary candidate is preserved")

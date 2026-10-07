@@ -54,6 +54,60 @@ _WORKER_ID = f"research-worker-{os.getpid()}"
 # meaning — business-neutral. "price" is THIS job's requested field;
 # another business passes its own ("lead_time", "labor_rate", ...) and
 # adds its synonyms through the same map.
+def _serialize_specs(specs):
+    """FieldSpec objects → durable dicts for action inputs and task
+    revisions (reloadable via _resolve_field_specs)."""
+    if not specs:
+        return []
+    out = []
+    for sp in specs:
+        if hasattr(sp, "key"):  # FieldSpec
+            out.append({
+                "key": sp.key, "labels": list(sp.labels),
+                "value_type": sp.value_type, "unit": sp.unit,
+                "currency": sp.currency, "basis": sp.basis,
+                "lesson_id": sp.lesson_id})
+        else:
+            out.append(sp)
+    return out
+
+
+def _resolve_field_specs(run_id, raw_fields):
+    """Resolve the job's requested-field contract into typed FieldSpecs.
+
+    Legacy pricing compatibility: a raw list of bare names (the
+    historical shape, e.g. ["price"]) maps through FIELD_SYNONYMS to
+    PRICING_FIELD when the stored contract predates typed fields. A
+    stored dict shape carries the full spec verbatim. An EMPTY list on
+    a job whose revision has no legacy pricing marker becomes unresolved
+    scope — returned as [] and the caller surfaces the question."""
+    from core.typed_fields import FieldSpec, PRICING_FIELD
+
+    if not raw_fields:
+        # legacy jobs created before typed fields carry pricing
+        # provenance in their revision text; without it, no implicit
+        # default applies
+        return []
+    out = []
+    for f in raw_fields:
+        if isinstance(f, dict):
+            try:
+                out.append(FieldSpec(
+                    key=str(f.get("key") or f.get("name") or "field"),
+                    labels=tuple(f.get("labels") or
+                                 [str(f.get("key") or "field")]),
+                    value_type=str(f.get("value_type") or "text"),
+                    unit=f.get("unit"), currency=f.get("currency"),
+                    basis=f.get("basis"), lesson_id=f.get("lesson_id")))
+            except ValueError:
+                continue  # unsupported type: skip (caller surfaces)
+        elif isinstance(f, str) and f.lower() in FIELD_SYNONYMS:
+            out.append(PRICING_FIELD)  # bare legacy name
+        elif isinstance(f, str):
+            out.append(FieldSpec(key=f, labels=(f,), value_type="text"))
+    return out
+
+
 FIELD_SYNONYMS: Dict[str, List[str]] = {
     "price": ["price", "cost", "list", "net", "cad"],
 }
@@ -136,8 +190,11 @@ def _read_actions(actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                     "candidates": cands,
                     "identity_context": str(
                         inputs.get("identity_context") or item),
-                    "requested_fields": list(
-                        inputs.get("requested_fields") or []),
+                    "requested_fields": _serialize_specs(
+                        _resolve_field_specs(
+                            None,
+                            list(inputs.get("requested_fields")
+                                 or []))),
                     "provenance": dict(
                         inputs.get("provenance") or {}),
                     "intent": "row_read",
@@ -145,7 +202,8 @@ def _read_actions(actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 continue
         if doc and item:
             out.append({"item": item, "file": doc,
-                        "question_id": a.get("question_id")})
+                        "question_id": a.get("question_id"),
+                        "inputs": inputs})
     return out
 
 
@@ -164,7 +222,8 @@ async def _execute_document_read(
         lifecycle: Any, run_id: str,
         user_id: str, workspace_id: str, file_name: str,
         items: List[str],
-        item_identity_context: str = "") -> Dict[str, Any]:
+        item_identity_context: str = "",
+        action_inputs: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """One document execution resolving EACH item against its own
     structured find_all matches. Settles on the JOB's run."""
     from core.sheet_dataset_service import find_all_occurrences_sync
@@ -221,10 +280,19 @@ async def _execute_document_read(
             cands = _all_located[:3]
             # REQUESTED FIELDS FROM THE JOB (round 56): carried from the
             # task revision — never hardcoded here.
-            _job_fields = list(
+            # FIELD SPECS FROM THE JOB (typed-fields integration): the
+            # task revision carries the job's field contract. A LEGACY
+            # pricing job (no stored contract, revision created before
+            # typed fields) gets the PRICING_FIELD compatibility spec;
+            # a NEW generic job with an EMPTY contract is unresolved
+            # scope — never an implicit price search.
+            _raw_fields = list(
+                (action_inputs or {}).get("requested_fields")
+                or []) or list(
                 ((lifecycle.get_task(run_id) or {}).get(
                     "task_revision") or {}).get("requested_fields")
-                or []) or ["price"]
+                or [])
+            _job_fields = _resolve_field_specs(run_id, _raw_fields)
             add_unresolved_questions(lifecycle, run_id, [{
                 "item": item,
                 "kind": "verification",
@@ -255,7 +323,8 @@ async def _execute_document_read(
                     "candidates_total": len(_all_located),
                     "candidates_omitted": max(
                         0, len(_all_located) - len(cands)),
-                    "requested_fields": _job_fields,
+                    "requested_fields": _serialize_specs(
+                        _job_fields),
                 },
             }], source_operation=None)
 
@@ -416,8 +485,20 @@ def _bind_row_fields(
     id_ok = _identity_supported(
         row, identity_column, item, identity_context)
     bindings: Dict[str, List[Any]] = {}
+    from core.typed_fields import FieldSpec, PRICING_FIELD
+
     for field in requested_fields or []:
-        syns = FIELD_SYNONYMS.get(str(field).lower(), [str(field)])
+        # FIELD SPECS (typed-fields integration): a FieldSpec carries
+        # its labels + declared type; a bare string is a legacy name
+        # (price → PRICING_FIELD compatibility; others → text)
+        if isinstance(field, FieldSpec):
+            spec = field
+        elif str(field).lower() in FIELD_SYNONYMS:
+            spec = PRICING_FIELD
+        else:
+            spec = FieldSpec(key=str(field), labels=(str(field),),
+                             value_type="text")
+        syns = list(spec.labels)
         cands = []
         for h in headers:
             hl = str(h).lower()
@@ -428,10 +509,15 @@ def _bind_row_fields(
             if not any(s in hl for s in syns):
                 continue
             if IDENTIFIER_COLUMN_RE.search(str(h)):
-                continue  # a CODE is never money
-            if not _MONETARY_VALUE_RE.match(sval):
-                continue  # non-monetary values are never prices
-            cands.append((str(h), sval))
+                continue  # a CODE is never a valued field
+            # TYPED BINDING: the value must parse as the field's
+            # declared type — monetary shape was the old universal
+            # rule; the spec's type is the authority now
+            from core.typed_fields import binding_passes as _bp
+
+            parsed = _bp(str(h), sval, spec)
+            if parsed is not None:
+                cands.append((str(h), sval, parsed))
         bindings[str(field)] = cands
     return {"identity_ok": id_ok, "bindings": bindings}
 
@@ -555,7 +641,7 @@ async def _execute_row_read(
             pol = apply_taught_policy(field, cands, agent_lessons or [])
             _policy[field] = pol
             if pol["applied"]:
-                col, val = pol["selected"]
+                col, val = pol["selected"][0], pol["selected"][1]
                 statuses[item] = "matched"
                 evidence.append(
                     f"{item}: {field} = {val} ({col}; policy: "
@@ -566,10 +652,10 @@ async def _execute_row_read(
                 cands = pol["remaining"]
                 evidence.append(
                     f"{item}: {field} policy narrowed candidates to "
-                    + "; ".join(f"{c}={v}" for c, v in cands)
+                    + "; ".join(f"{c}={v}" for c, v, _p in cands)
                     + f" ({pol['reason']})")
             if len(cands) == 1:
-                col, val = cands[0]
+                col, val = cands[0][0], cands[0][1]
                 statuses[item] = "matched"
                 evidence.append(
                     f"{item}: {field} = {val} ({col} — basis/currency "
@@ -581,13 +667,13 @@ async def _execute_row_read(
                 statuses[item] = "matched"
                 evidence.append(
                     f"{item}: {field} AMBIGUOUS after policy — "
-                    + "; ".join(f"{c}={v}" for c, v in cands))
+                    + "; ".join(f"{c}={v}" for c, v, _p in cands))
                 decision_questions.append({
                     "item": item,
                     "kind": "business_decision",
                     "question": (
                         f"which {field} basis applies to {item}: "
-                        + " vs ".join(f"{c}={v}" for c, v in cands)),
+                        + " vs ".join(f"{c}={v}" for c, v, _p in cands)),
                     "evidence": (
                         f"corroborated row {cand.get('row')} of "
                         f"{cand.get('sheet')} in {act.get('file')}; "
@@ -645,7 +731,7 @@ async def _execute_row_read(
                     field, cands2, agent_lessons or [])
                 _policy[field] = pol2
                 if pol2["applied"]:
-                    col, val = pol2["selected"]
+                    col, val = pol2["selected"][0], pol2["selected"][1]
                     statuses[item] = "matched"
                     evidence.append(
                         f"{item}: {field} = {val} ({col}; policy: "
@@ -656,7 +742,7 @@ async def _execute_row_read(
                         pol2["remaining"]) < len(cands2):
                     cands2 = pol2["remaining"]
                 if len(cands2) == 1:
-                    col, val = cands2[0]
+                    col, val = cands2[0][0], cands2[0][1]
                     statuses[item] = "matched"
                     evidence.append(
                         f"{item}: {field} = {val} ({col} — basis as the "
@@ -666,14 +752,14 @@ async def _execute_row_read(
                     evidence.append(
                         f"{item}: {field} AMBIGUOUS (monetary candidates "
                         "on the merged duplicate) — "
-                        + "; ".join(f"{c}={v}" for c, v in cands2))
+                        + "; ".join(f"{c}={v}" for c, v, _p in cands2))
                     decision_questions.append({
                         "item": item,
                         "kind": "business_decision",
                         "question": (
                             f"which {field} basis applies to {item}: "
                             + " vs ".join(
-                                f"{c}={v}" for c, v in cands2)),
+                                f"{c}={v}" for c, v, _p in cands2)),
                         "evidence": (
                             f"duplicate listings merged (same "
                             "description); bases differ only as named; "
@@ -1097,13 +1183,17 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                         f"{_c0.get('row')}): "
                         + "; ".join(res["evidence"]))
                     continue
+                _act_in = (group[0].get("inputs")
+                           if isinstance(group[0].get("inputs"), dict)
+                           else None)
                 res = await _execute_document_read(
                     lifecycle, run_id, user_id, workspace_id, fname,
                     [g["item"] for g in group],
                     item_identity_context=str(
                         (lifecycle.get_task(run_id) or {}).get(
                             "task_revision", {}).get(
-                            "objective_text") or ""))
+                            "objective_text") or ""),
+                    action_inputs=_act_in)
                 # LOCATED RESOLVES ITS READ QUESTION (round 55): the
                 # location WAS the read's deliverable; the successor
                 # row-read carries the remaining work. Only NO-MATCH
