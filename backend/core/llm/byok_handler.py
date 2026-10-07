@@ -8268,6 +8268,24 @@ class BYOKHandler:
                     f"Skipping {attempt_provider_id}/{model}: model cooldown active")
                 continue
 
+            # CATALOG-SERVED PAIR GATE (2026-10-07 routing repair): a
+            # model the provider does not serve (observed live:
+            # claude-haiku-5-5 on opencode-go → 400
+            # ModelProtocolUnsupported) is rejected BEFORE dispatch —
+            # the same _provider_serves_model validation the ranking
+            # uses, applied at the stream boundary. The ladder proceeds
+            # to its next catalog-served candidate.
+            try:
+                if not self._provider_serves_model(
+                        attempt_provider_id, model):
+                    logger.info(
+                        "Skipping %s/%s: model not in provider's "
+                        "discovered catalogue", attempt_provider_id,
+                        model)
+                    continue
+            except Exception:  # noqa: BLE001 — gate additive
+                pass
+
             logger.info(
                 "Attempting stream with provider: %s (requested: %s) model=%s",
                 attempt_provider_id, provider_id, model)

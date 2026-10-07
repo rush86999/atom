@@ -47,7 +47,14 @@ def verify_subset(reply: str, job: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     blob = job_blob(job)
     evidenced_only_subset = all(
         (c.lower() in blob) for c in SUBSET) if blob != "[]" else None
-    other_evidenced = [c for c in OTHERS if c.lower() in blob]
+    # token-boundary match: bare substring matching reads timestamp
+    # subsecond digits ("...32.381304+00:00") as item hits
+    import re as _re2
+
+    other_evidenced = [c for c in OTHERS
+                       if _re2.search(
+                           rf"(?<![0-9a-z]){_re2.escape(c.lower())}"
+                           rf"(?![0-9a-z])", blob)]
     return {
         "subset_covered": len(covered) == 2,
         "no_other_figures": len(leaked) == 0,
