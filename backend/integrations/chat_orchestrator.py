@@ -17900,7 +17900,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # The honest replacement is deterministic (no regen: a
                 # regen is exactly what provider distress cannot afford)
                 # — refuse-with-retry, no figure, no authority claim.
+                _pending_ask_open = False
+                try:
+                    from core.pricing_calculation import (
+                        _open_pending_questions as _opq,
+                    )
+
+                    _pending_ask_open = bool(_opq(session_id, workspace_id))
+                except Exception:  # noqa: BLE001 — additive
+                    _pending_ask_open = False
                 if (not _calc_evidence and _content and message
+                        and not _pending_ask_open
                         and _calc_bound_turn(
                             message, session_id, workspace_id)
                         and _reply_claims_unrecorded_teaching_figure(
