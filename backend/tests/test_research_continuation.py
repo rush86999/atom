@@ -754,11 +754,27 @@ async def test_receiptless_row_reads_exhaust_budget_and_stop(lifecycle,
     # must leave the selected set (exhausted), allowing the one-time
     # budget migration its single reset.
     exhausted_in = None
+    prev_attempts = 0
     for i in range(UNRESOLVED_ATTEMPT_CAP * 3):
         out = await rc._execute_row_read(
             lifecycle, run_id, "u1", "ws", act, [qid],
             agent_lessons=[])
         assert out.get("statuses", {}).get("No. 381") != "matched"
+        q_now = next(
+            (u for u in ((lifecycle.get_task(run_id).get(
+                "task_revision") or {}).get("unresolved") or [])
+             if u.get("question_id") == qid), {})
+        attempts_now = int(q_now.get("attempts") or 0)
+        # THE INTENDED BUDGET (owner clarification 2026-10-07): ONE
+        # attempt consumed per receipt-less read — exactly +1 per read,
+        # no accidental double bump. (The one-time round-43 migration
+        # may reset an EXHAUSTED budget once; that is a reset to 0, not
+        # a bump, and happens only after the cap is reached.)
+        if attempts_now > prev_attempts:
+            assert attempts_now == prev_attempts + 1, (
+                f"read {i}: attempts {prev_attempts} -> {attempts_now} "
+                "(one per receipt-less read, no double bump)")
+        prev_attempts = attempts_now
         work = next_unfinished_work(lifecycle.get_task(run_id))
         if not any("read l.xlsx" in str(a.get("next_action") or "").lower()
                    for a in work["actions"]):
