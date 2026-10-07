@@ -28,7 +28,11 @@ def derive_result_revision(task_record: Optional[Dict[str, Any]]) -> str:
     if task_record is None:
         return "0"
     h = hashlib.sha256()
-    # findings (the evidence)
+    # FINDINGS ONLY (owner correction 2026-10-07): read-attempt
+    # bookkeeping (more operations with read_returned_no_receipt) does
+    # NOT change the result revision — only actual findings, question
+    # dispositions, and terminal status do. Hashing every operation's
+    # outcome made attempt-only cycles produce identical-text events.
     for op in sorted(task_record.get("operations") or [],
                      key=lambda o: str(o.get("operation_id") or "")):
         facts = op.get("execution") or {}
@@ -37,7 +41,6 @@ def derive_result_revision(task_record: Optional[Dict[str, Any]]) -> str:
                 {"f": f.get("field"), "v": (f.get("parsed") or {})
                  .get("value"), "s": f.get("source")},
                 sort_keys=True, default=str).encode())
-        h.update(str(facts.get("outcome") or "").encode())
     # dispositions + remaining obligations (status changes matter)
     for q in sorted(
             (task_record.get("task_revision") or {}).get("unresolved")
