@@ -14225,7 +14225,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                             # calculate lane's durable
                                             # calculation records).
                                             "conversation_id": session_id,
-                                            "execution_id": _execution_id,
+                                            "execution_id": execution_id,
                                             # The turn's scope: the calculate
                                             # lane's dedup key includes it, so
                                             # omitting it forked the key vs
@@ -14913,7 +14913,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 context={
                                     "agent_id": agent_id,
                                     "conversation_id": session_id,
-                                    "execution_id": _execution_id,
+                                    "execution_id": execution_id,
                                     "message": message,
                                     "workspace_id": workspace_id,
                                 },
@@ -15049,7 +15049,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # calculation lanes record onto the
                                     # conversation's job (round 74)
                                     "conversation_id": session_id,
-                                    "execution_id": _execution_id,
+                                    "execution_id": execution_id,
                                     # scope parity with the other dispatch
                                     # sites — the calculate dedup key
                                     # includes the workspace (case 3)
@@ -15530,7 +15530,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # read path.
                                     "agent_id": agent_id,
                                     "conversation_id": session_id,
-                                    "execution_id": _execution_id,
+                                    "execution_id": execution_id,
                                     "message": message,
                                     "history": (planner_history
                                                 or history or [])[-6:],
@@ -15629,7 +15629,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 context={
                                     "agent_id": agent_id,
                                     "conversation_id": session_id,
-                                    "execution_id": _execution_id,
+                                    "execution_id": execution_id,
                                     "message": message,
                                     "history": (planner_history
                                                 or history or [])[-6:],
