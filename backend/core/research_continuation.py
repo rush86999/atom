@@ -1274,54 +1274,39 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                     1 for s in res["statuses"].values() if s == "located")
                 notes.append(f"{fname}: " + "; ".join(res["evidence"]))
             if notes:
-                # STAGED DELIVERY (guide step 4, owner items 1+3):
-                # render from the AUTHORITATIVE task record (findings +
-                # remaining), persist through ChatMessage keyed by a
-                # STABLE EVENT ID — atomic arbitration, not
-                # content-based dedup. The RESULT REVISION is the task
-                # record's own task_version: claim renewals, attempt
-                # counters and worker bookkeeping do not bump it, so
-                # they cannot produce repeated user-visible events.
+                # PRODUCTION DELIVERY (owner correction 2026-10-07):
+                # deliver_job_event — atomically arbitrated via the
+                # delivery_events PK; session mirror gated on the same
+                # outcome; result revision is derive_result_revision
+                # (findings/dispositions/status — not task_version, which
+                # claim renewals and attempt bumps also increment).
                 try:
-                    from core.database import get_db_session
-                    from core.models import ChatMessage as _CM
-                    from core.job_delivery import (
-                        job_event_id, render_job_result,
-                    )
+                    from core.job_delivery import deliver_job_event
 
                     _fresh = lifecycle.get_task(run_id) or {}
-                    _revision = int(_fresh.get("task_version") or 0)
-                    _evt = job_event_id(
-                        str(run_id), _revision, "research_update")
-                    _note_text = render_job_result(_fresh, str(run_id))
-                    with get_db_session() as _db:
-                        _dupe = _db.query(_CM).filter(
-                            _CM.conversation_id == conv,
-                            _CM.role == "assistant",
-                            _CM.metadata_json.contains(
-                                '"delivery_event": "' + _evt + '"'),
-                        ).first()
-                        if _dupe is None:
-                            _prov = (_fresh.get("task_revision")
-                                     or {}).get("provenance")
-                            _tenant = (
-                                _prov.get("tenant_id")
-                                if isinstance(_prov, dict) else None
-                            ) or "default"
-                            _db.add(_CM(
-                                conversation_id=conv, role="assistant",
-                                tenant_id=str(_tenant),
-                                content=_note_text[:4000],
-                                metadata_json=json.dumps({
-                                    "delivery_event": _evt,
-                                    "job_id": str(run_id),
-                                    "result_revision": _revision,
-                                })))
-                            _db.commit()
-                        else:
-                            logger.debug(
-                                "[research-continuation] event %s "
-                                "already delivered", _evt[:16])
+
+                    def _mirror(text):
+                        fresh_sess = chat_session_manager.get_session(
+                            conv)
+                        if fresh_sess and not _session_owned_by_interactive(
+                                fresh_sess):
+                            hist = list(
+                                fresh_sess.get("history") or [])
+                            hist.append({
+                                "message": "",
+                                "response": text,
+                                "timestamp": time.time(),
+                            })
+                            chat_session_manager.update_session_activity(
+                                conv, history=hist)
+
+                    _evt = deliver_job_event(
+                        conv, str(run_id), _fresh,
+                        session_mirror=_mirror)
+                    if _evt:
+                        logger.info(
+                            "[research-continuation] delivered event %s",
+                            _evt[:16])
                 except Exception as _cm_err:  # noqa: BLE001
                     logger.debug(
                         "[research-continuation] DB note skipped: %r",

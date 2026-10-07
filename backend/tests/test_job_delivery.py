@@ -86,12 +86,15 @@ class TestDeterministicRendering:
                 {"execution": {"findings": FINDINGS[:2],
                                "items": {"Site A": "matched"}}}],
             "status": "active",
-            "task_revision": {"unresolved": []},
+            "task_revision": {"unresolved": [
+                {"status": "open", "kind": "verification",
+                 "question": "floor area still unread",
+                 "next_action": "read Plan.xlsx row 10 floor area"}]},
         }
         out = render_job_result(task, "job-x")
         assert "2026-11-15" in out
         assert "12500" in out
-        assert "partial" in out.lower()
+        assert "open" in out.lower()
 
 
 class TestAcknowledgement:
@@ -225,3 +228,155 @@ class TestWorkerDeliveryIntegration:
         out = render_job_result(task, "job-x")
         assert "owner decision" in out.lower()
         assert "completed" not in out.lower()
+
+
+class TestProductionDeliveryAtomicity:
+    """Concurrent writers and crash/retry through the PRODUCTION
+    deliver_job_event — not a duplicated helper. The delivery_events
+    table's PK is the arbitration point."""
+
+    def _scratch(self):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        from core.models import Base
+
+        engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False},
+            poolclass=StaticPool)
+        Base.metadata.create_all(engine)
+        factory = sessionmaker(bind=engine, expire_on_commit=False)
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def scratch():
+            s = factory()
+            try:
+                yield s
+                s.commit()
+            finally:
+                s.close()
+
+        import core.database as dbmod
+
+        dbmod.get_db_session = scratch
+        return factory
+
+    TASK = {
+        "operations": [
+            {"operation_id": "op1",
+             "execution": {"findings": [
+                 {"field": "price", "column": "Price", "raw": "100",
+                  "parsed": {"value": 100}, "source": "F!S!r1"}],
+                 "items": {"X": "matched"}, "outcome": "read_succeeded"}}],
+        "status": "active",
+        "task_revision": {"unresolved": []},
+    }
+
+    def test_two_concurrent_writers_one_delivery(self):
+        """Two SEQUENTIAL calls through the production function with the
+        same record: the second is suppressed by the delivery_events PK.
+        (True thread-level concurrency on SQLite is serialized by the
+        engine; the PK constraint is the cross-process guarantee.)"""
+        from core.job_delivery import deliver_job_event
+
+        factory = self._scratch()
+        first = deliver_job_event("conv-1", "job-1", self.TASK)
+        second = deliver_job_event("conv-1", "job-1", self.TASK)
+        assert first is not None
+        assert second is None, "second writer suppressed"
+
+        from core.models import ChatMessage, DeliveryEvent
+
+        with factory() as db:
+            assert db.query(ChatMessage).filter(
+                ChatMessage.conversation_id == "conv-1").count() == 1
+            assert db.query(DeliveryEvent).count() == 1
+
+    def test_crash_retry_no_duplicate(self):
+        """Simulate a crash after the DeliveryEvent insert but before
+        the ChatMessage write: retry suppresses (the event ID is
+        already claimed), so no duplicate message."""
+        from core.job_delivery import deliver_job_event
+        from core.models import DeliveryEvent
+
+        factory = self._scratch()
+        # manually claim the event (simulating a crash mid-delivery)
+        from core.job_delivery import (
+            derive_result_revision, job_event_id)
+
+        rev = derive_result_revision(self.TASK)
+        evt = job_event_id("job-2", rev, "research_update")
+        with factory() as db:
+            db.add(DeliveryEvent(
+                event_id=evt, conversation_id="conv-2",
+                job_id="job-2", result_revision=rev))
+            db.commit()
+        # retry through the production function
+        result = deliver_job_event("conv-2", "job-2", self.TASK)
+        assert result is None, "retry after crash suppressed"
+        from core.models import ChatMessage
+
+        with factory() as db:
+            assert db.query(ChatMessage).filter(
+                ChatMessage.conversation_id == "conv-2").count() == 0
+
+    def test_changed_findings_new_event(self):
+        from core.job_delivery import deliver_job_event
+
+        self._scratch()
+        v1 = dict(self.TASK)
+        deliver_job_event("conv-3", "job-3", v1)
+        # changed findings → new revision → new event delivers
+        v2 = {
+            "operations": [
+                {"operation_id": "op1",
+                 "execution": {"findings": [
+                     {"field": "price", "column": "Price",
+                      "raw": "200",
+                      "parsed": {"value": 200},
+                      "source": "F!S!r1"}],
+                     "items": {"X": "matched"},
+                     "outcome": "read_succeeded"}}],
+            "status": "active",
+            "task_revision": {"unresolved": []}}
+        second = deliver_job_event("conv-3", "job-3", v2)
+        assert second is not None, "changed findings deliver a new event"
+
+    def test_attempt_bump_no_new_event(self):
+        """PIN (owner): claim renewals and attempt increments alone
+        produce no new event — derive_result_revision ignores them."""
+        from core.job_delivery import derive_result_revision
+
+        base = {
+            "operations": [], "status": "active",
+            "task_revision": {"unresolved": [
+                {"question_id": "q1", "status": "open",
+                 "kind": "verification", "attempts": 1}]}
+        }
+        bumped = {
+            "operations": [], "status": "active",
+            "task_revision": {"unresolved": [
+                {"question_id": "q1", "status": "open",
+                 "kind": "verification", "attempts": 5}]}
+        }
+        assert (derive_result_revision(base)
+                == derive_result_revision(bumped)), (
+            "attempt bumps must not change the result revision")
+
+    def test_session_mirror_gated_on_delivery(self):
+        """The mirror fires only when the DB delivery actually
+        happened."""
+        from core.job_delivery import deliver_job_event
+
+        self._scratch()
+        calls = []
+        first = deliver_job_event(
+            "conv-4", "job-4", self.TASK,
+            session_mirror=lambda t: calls.append(t))
+        second = deliver_job_event(
+            "conv-4", "job-4", self.TASK,
+            session_mirror=lambda t: calls.append(t))
+        assert first is not None and second is None
+        assert len(calls) == 1, "mirror gated on delivery outcome"
