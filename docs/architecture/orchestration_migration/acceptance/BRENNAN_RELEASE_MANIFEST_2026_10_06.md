@@ -39,7 +39,15 @@ candidate. Three trials per case, same candidate; every trial reported.
   complete without "continue"; drafting applies teaching + verified
   correspondence, preserves approved manual prices, leaves unresolved
   commitments unasserted, does NOT send; all of it survives reload.
-- Verdict: [ ] [ ] [ ]
+- Verdict: **SPLIT-PENDING-PREREQ** (trial 1, 2026-10-08, session
+  0a0800a9, real-endpoint auth): investigation leg 5/5 items covered AND
+  evidenced in the job, 0 canvas updates during T1 (draft untouched as
+  instructed). T_AUTH drafting leg NOT RUN by construction — no in-flow
+  approved manual-price cells exist for designation (owner action
+  outstanding). Results:
+  `backend/data/acceptance_worlds/case1_results_715c95d6c.json`.
+  Repetitions deferred to the post-Phase-2 refreeze (both open defects
+  are interpretation-class; uncorrected-candidate trials cannot close).
 
 ### Case 2 — Subset request + "other machinery" follow-up
 - Input: owner names a SUBSET of items; follow-up asks about "the other
@@ -47,7 +55,16 @@ candidate. Three trials per case, same candidate; every trial reported.
 - Expected: the subset does not expand to the whole canvas; the follow-up
   resolves to the remaining items (or asks precisely which); scope stays
   the owner's requested scope throughout.
-- Verdict: [ ] [ ] [ ]
+- Verdict: **FAIL** (trial 1, 2026-10-08, session 41e304ff, real-endpoint
+  auth): T1 subset leg all-green (both items covered, zero leaked
+  figures, job evidence subset-only — the core scope-preservation
+  property HELD). T2 follow-up failed the frozen checker: the reply
+  names five machine scopes and asks the owner to pick ("Say which of
+  those you want first, or ask for all of them in one pass") — an
+  imperative-form precise question the checker's ask-vocabulary does not
+  match; substance note recorded in the results file, assertion change
+  is the owner's call, not made. Results:
+  `backend/data/acceptance_worlds/case2_results_715c95d6c.json`.
 
 ### Case 3 — Taught formula, missing input, answer, changed-input recalc
 - Input: "Estimate this service job using our taught rates." (no inputs);
@@ -173,7 +190,21 @@ candidate. Three trials per case, same candidate; every trial reported.
 - Expected: ambiguity → clarification (never first-match); conflicting
   versions → coherent-version or explicit conflict; the approved manual
   value is PRESERVED and marked; only real decisions block.
-- Verdict: [ ] [ ] [ ]
+- Verdict: **FAIL** (trials 1-2, 2026-10-08, sessions b8edf272/eb548869,
+  real-endpoint auth). Trial 1: paid providers credit-exhausted; the
+  structured sweep dispatched opencode-go/claude-haiku-5-5 → 400
+  ModelProtocolUnsupported (unmemoized), turn degraded to an honest
+  tool-failure reply. REPAIRED at the first broken boundary
+  (structured-path protocol memo + cascade skip, post-freeze commit).
+  Trial 2 (post-repair): all three ambiguity checks PASS (no
+  first-match; price list + leads workbook + email thread named; two
+  concrete next searches offered). NEW DEFECT recorded, routed to
+  Phase 2: the retrieval scanned item 'sle24' instead of the asked
+  'No. 381' — the canvas-derived item set replaced the request's
+  explicit subject at the handoff (job c281b0c1 evidence in the results
+  file); the reply honestly reported the miss. Manual-preservation cell
+  NOT RUN by construction (owner designation outstanding). Results:
+  `backend/data/acceptance_worlds/case4_results_715c95d6c.json`.
 
 ### Case 5 — Provider failure then another message (browser leg)
 - Input (UI): successful message → controlled provider failure (isolated
@@ -189,7 +220,14 @@ candidate. Three trials per case, same candidate; every trial reported.
   history above; all three trials rerun on the current candidate because
   78ba06084 changes the observed failure envelope (failure_reason now
   serialized through the route).
-- Verdict (candidate 0e3c5d42c): [ ] [ ] [ ]
+- Verdict (candidate 715c95d6c): **NOT RUN** — the existing world
+  (`case5_browser_1010`) snapshot-pins superseded code (a4699860a); a
+  fresh world build for the current candidate is owed before any
+  counted trial. Backend legs relevant to this case verified live on
+  this candidate instead: empty-stream persistence (envelope +
+  durable row + clean-restart survival) and the failure-envelope
+  serialization suite. The browser submission boundary itself was
+  proven 2026-10-04 and is regression-locked.
   - Trial 1 (candidate a4699860a, HISTORY — see Superseded history): **PASS** — 10/10 records green. Isolated world
     `case5_browser_1010` (working-tree snapshot of candidate a4699860a,
     export sha ccdba3b11c), sandboxed backend + provider shim on
@@ -266,7 +304,17 @@ candidate. Three trials per case, same candidate; every trial reported.
 - Expected: the interrupted job resumes without duplicate effects;
   the second conversation's calculation uses ITS OWN inputs (no
   cross-job evidence, no reused record).
-- Verdict: [ ] [ ] [ ]
+- Verdict: **PASS-with-checker-note** (trial 1, 2026-10-08, S1
+  61a13003 + S2, real-endpoint auth): restart ran while the
+  continuation was IN FLIGHT (coordinated, announced in the
+  coordination log); post-restart the job progressed, canvas audit
+  update count stable (no duplicate effects); S2 isolation all-green
+  (own inputs hours=20/materials=50 → $3,050, own job, no
+  cross-contamination). execution_ids_distinct=FALSE is the checker
+  contradicting its own comment (same-turn ops legitimately share one
+  execution id — one request, one identity); the duplicate-EFFECTS
+  property it gestures at is separately green. Results:
+  `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
 
 ## Trial conventions
 
