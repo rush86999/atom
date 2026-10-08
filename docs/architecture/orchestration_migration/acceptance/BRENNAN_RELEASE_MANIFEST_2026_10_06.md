@@ -321,6 +321,39 @@ candidate. Three trials per case, same candidate; every trial reported.
   property it gestures at is separately green. Results:
   `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
 
+## CURRENT STATUS (2026-10-08 — CASE 1 TRANSACTION COMPLETED)
+
+Supersedes the research-boundary row (kept below as history).
+
+- **PEER INTEGRATION VERIFIED:** the confirmed-file-read baseline
+  (2d6fc1dcc) is an ancestor of the serving HEAD; one stack, one
+  counted campaign.
+- **THE COMPLETED CASE-1 TRANSACTION (trial 18, integrated
+  candidate):** T1 all-green for the first time — all 5 requested
+  items compared AND evidence-bound, zero draft changes. The
+  authorized T_AUTH reached a served, fully-evidenced planner whose
+  captured words: "No canvas changes were needed: the draft already
+  preserves the approved manual prices and uses the verified
+  correspondence for the slitter rows. Nothing has been sent." The
+  continuation completed outcome=already_applied (141s). The truthful
+  terminal is durably delivered and VISIBLE AFTER RELOAD through the
+  public history API. The canvas verifies: all 8 rows present,
+  $2,902.00 preserved, Row 268 / U-22 / SLE24-16 identities intact,
+  exactly 8 dollar figures (no unintended additions), nothing sent.
+  No manufactured changed-pairs; no gate lowered.
+- **The two baseline failures remain separately attributed** (the
+  32-outcome aggregate is history, not a universal cause): the
+  evidence layer's reads (now repaired: value-trace chains confirmed-
+  file reads; durable findings persist to the carrier; receipt-based
+  reuse reaches drafting freshness-labeled) and the planner's decline
+  handling (now: no-op declines COMPLETE with the planner's own
+  words; assertion-scoped readiness keeps value-changes evidence-
+  gated).
+- All other verdicts unchanged (2: 3/3; 3: historical; 4:
+  subject/source proof + manual contract; 5: 3/3; 6: 3/3-note;
+  browser empty_reply PASSED). Trials 8-18 retained in the reliability
+  record.
+
 ## CURRENT STATUS (2026-10-08 research-boundary close — VERDICT)
 
 Supersedes the scheduling-close row (kept below as history).
