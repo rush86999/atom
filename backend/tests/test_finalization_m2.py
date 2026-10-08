@@ -219,6 +219,49 @@ def test_m2_http_and_history_agree_on_failed_turn(monkeypatch, app, orch, sessio
     assert meta["execution_id"] == "execution-1"
 
 
+def test_empty_reply_rewrite_reaches_the_durable_row(monkeypatch, app, orch, session):
+    """Empty-stream persistence (owner directive 2026-10-08): when the
+    reply leg yields no content, the truthful empty_reply outcome must be
+    what the DURABLE row carries — not only the HTTP envelope. Rewriting
+    the envelope after the persist left history reloads serving the blank
+    row after a restart."""
+    monkeypatch.setenv("CHAT_FINALIZATION_M1", "1")
+    monkeypatch.setenv("CHAT_FINALIZATION_M2", "1")
+    session.add(
+        AgentExecution(
+            id="execution-empty",
+            status="completed",
+            started_at=datetime.now(timezone.utc),
+            result_summary="stream ended with no content",
+            metadata_json={"session_id": "session-empty"},
+        )
+    )
+    session.add(_assistant_row("session-empty", "execution-empty", ""))
+    session.commit()
+    orch.process_chat_message = AsyncMock(
+        return_value={
+            "success": True,
+            "message": "",
+            "session_id": "session-empty",
+            "execution_id": "execution-empty",
+            "data": {},
+        }
+    )
+
+    body = TestClient(app).post(
+        "/api/chat/message", json={"message": "hi", "user_id": "u"}).json()
+
+    assert body["success"] is False
+    assert body["error_code"] == "empty_reply"
+    assert "model returned no content" in body["message"]
+    # The DURABLE row agrees with the envelope — history reloads after a
+    # restart serve the same truthful outcome, never the blank.
+    row, meta = _row_for(session, "execution-empty")
+    assert row is not None
+    assert row.content == body["message"]
+    assert meta.get("error_code") == "empty_reply"
+
+
 def test_forced_failure_hook_armed_only_by_env_and_marker(monkeypatch):
     from integrations.chat_orchestrator import (
         _ForcedTurnFailure,
