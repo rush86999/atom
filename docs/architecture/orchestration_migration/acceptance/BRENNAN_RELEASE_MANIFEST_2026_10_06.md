@@ -321,6 +321,34 @@ candidate. Three trials per case, same candidate; every trial reported.
   property it gestures at is separately green. Results:
   `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
 
+## CURRENT STATUS (2026-10-08 evening — d39e571da)
+
+Supersedes the morning reconcile below it (kept as history).
+
+- **Research recovery REPAIRED and live-proven (case-4 trial 11):** the
+  planner-boundary recovery is task-grounded (resolved subjects,
+  required sources in teaching order, requested fields, durable
+  unresolved obligations — no business-specific wording), the executed
+  consultation is COUNTED (the 17k-char invisible-block defect), and
+  trial 11 passes no_first_match + versions-named + precise-
+  clarification together for the first time. ONE named boundary
+  remains: the recovery lookup's ITEM resolution probed 'sle24'
+  (canvas-derived scope) instead of the request's 'No. 381' — the same
+  scope-precedence family the request-scope slice addressed on the ask
+  lane; the direct lookup needs the request-bound subjects bound
+  explicitly.
+- **Drafting:** the authorized request now reaches a RESERVED edit and
+  an AUTHORIZED plan (ops=1); the remaining boundary is the readiness
+  evidence — the editor's fresh-data leg planned a MEMORY search
+  instead of the required workbook, so no comparable-changed pair
+  forms. Same subject/source-binding family as above.
+- **Frontend:** shared structured-failure handling shipped — truthful
+  backend messages with error_code reach the user (empty_reply
+  verified at the backend boundary; browser-leg verification owed with
+  the next world run).
+- **Verdicts unchanged otherwise:** 2 (3/3), 5 (3/3), 6 (3/3 note),
+  1-investigation (4/4), case 3 historical.
+
 ## CURRENT STATUS (2026-10-08 final reconcile — d3f7cc9ca)
 
 Dated rows below are retained as history; THIS row is the current truth.
