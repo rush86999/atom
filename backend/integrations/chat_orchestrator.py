@@ -19990,7 +19990,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         # preserves what the owner set, and annotates (never resolves)
         # the open choices.
         job_findings = self._canvas_job_findings(
-            user_id, canvas, session, message)
+            user_id, canvas, session, message, agent_id=agent_id)
         similar_corrections, correction_patterns = await self._cross_canvas_learnings(
             user_id, canvas, agent_id
         )

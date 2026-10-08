@@ -697,3 +697,24 @@ class TestChainToContractEndToEnd:
         assert contract.get("actions") == [], (
             "a read receipt never authorizes a value change: "
             f"{contract.get('actions')}")
+
+
+class TestAgentIdentityIsThreadedAtTheCallSite:
+    """The parameter alone is not enough. Repair 1 item 1: thread the
+    acting agent identity from _try_canvas_edit INTO the adapter. The
+    call site passed four positional args and omitted it, so the
+    parameter silently defaulted to None and no teaching ever reached the
+    drafting contract — visible as an empty Cc/To/Subject on the case-1
+    fork while the taught cc rule existed."""
+
+    def test_the_call_site_passes_the_acting_agent(self):
+        import inspect
+
+        from integrations import chat_orchestrator as co
+
+        src = inspect.getsource(co.ChatOrchestrator._try_canvas_edit)
+        at = src.index("job_findings = self._canvas_job_findings(")
+        call = src[at:at + 160]
+        assert "agent_id" in call, (
+            "the drafting evidence adapter must be given the acting "
+            f"agent identity at the call site; it currently reads: {call!r}")
