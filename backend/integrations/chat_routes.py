@@ -2261,12 +2261,14 @@ async def send_chat_message(
             _final = ChatMessageResponse(
                 success=False,
                 message=(
-                    "No model provider is configured, so I could not "
-                    "generate a reply. Add an API key in Settings → AI, "
-                    "then try again."),
+                    "I couldn't generate a response just now — the "
+                    "model returned no content. Please try again in a "
+                    "moment; your message was received and the next "
+                    "request will dispatch normally."),
                 session_id=_final.session_id,
                 intent=_final.intent or "unknown",
                 confidence=0.0,
+                error_code="empty_reply",
                 suggested_actions=[],
                 requires_confirmation=False,
                 next_steps=[],
