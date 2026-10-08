@@ -4,7 +4,11 @@ manual value preservation.
 
 Precondition (operator, via the real approval flow, RECORDED as setup —
 not assistance): one fork row carries an approved manual value, designated
-with --manual-cells (same label scheme as case 1, e.g. "row1:price").
+with --manual-cells (same label scheme as case 1 — LITERAL canvas text
+near the figure, figures_near_label's substring window; e.g. "No. 381"
+matches fork row 1's $2,902.00. "rowN:price" style labels match nothing
+and silently report the cell as not preserved). Owner designation
+2026-10-08: No. 381's $2,902.00 IS the approved manual value.
 The trial then asks (verbatim every trial), canvas context = fork:
   T1: "What is the current price for No. 381?"
 

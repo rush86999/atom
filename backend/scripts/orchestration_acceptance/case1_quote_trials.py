@@ -18,7 +18,12 @@ Invocation model (every turn logged, no invisible retries):
                  --results <f.json>   (repeatable; each is a logged turn)
   authorized draft (comparison verified by operator):
                  case1_quote_trials.py --resume SID --authorize
-                 --manual-cells "row4:price" --results <f.json>
+                 --manual-cells "No. 381" --results <f.json>
+     (manual-cell labels are LITERAL canvas text near the figure —
+      figures_near_label's substring window; "rowN:price" style labels
+      match nothing and silently report the cell as not preserved.
+      Owner designation 2026-10-08: No. 381's $2,902.00 IS the
+      approved manual value for cases 1 and 4.)
   --dry-run: fixture/contract checks with ZERO posted turns.
 
 Expected: 5/5 items compared with attributable evidence; queued reads
