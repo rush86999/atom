@@ -10463,9 +10463,32 @@ class ChatOrchestrator:
                     # the response assembly then hit an unbound name and
                     # killed the whole turn. A safe default keeps the
                     # fall-through honest (the tool path answers).
+                    # INTENT PRESERVATION (2026-10-08 owner dispatch
+                    # item 3): planner unavailability must NOT
+                    # reinterpret an authorized drafting request as
+                    # research. Distinct reasons, distinct truths: a
+                    # planner that could not RUN reports the draft as
+                    # BLOCKED (authorization stands, nothing changed,
+                    # retryable); only a served planner's own decline
+                    # carries decline wording; the research fall-through
+                    # below never claims a drafting turn.
                     _no_apply_message = (
-                        "I couldn't apply an edit this turn — the "
-                        "requested work continues on the research path.")
+                        "The draft edit is blocked right now — the model "
+                        "that plans canvas edits could not be reached, so "
+                        "nothing was changed and your authorization "
+                        "stands. Please try again in a moment.")
+                    if _no_apply_reason in (
+                            "planner_timeout", "planner_unavailable",
+                            "planner_error", "planner_returned_none"):
+                        _no_apply_message = (
+                            "The draft edit is blocked right now — the "
+                            "edit planner "
+                            + ("timed out" if _no_apply_reason ==
+                               "planner_timeout" else
+                               "could not be reached")
+                            + ", so nothing was changed and your "
+                            "authorization stands. Please try again in a "
+                            "moment.")
                     if _background_started:
                         # INTERIM STATUS (2026-09-30, research-grounded —
                         # long-running chat work states WHAT is running
@@ -10496,7 +10519,8 @@ class ChatOrchestrator:
                             r"\b(?:change|edit|update|replace)\s+(?:the\s+)?"
                             r"(?:canvas|draft|email)\b",
                             message or "", re.IGNORECASE,
-                        ):
+                        ) and not _CANVAS_DRAFTING_ACTION_RE.search(
+                            message or ""):
                             logger.info(
                                 "[canvas-edit] planner_declined on a "
                                 "research-shaped turn — falling through to "

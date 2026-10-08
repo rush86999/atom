@@ -3309,10 +3309,13 @@ async def apply_canvas_edit(
 
     def _tracked_order(text: str) -> List[str]:
         """Contract-tracked values in first-occurrence order — the
-        ASSOCIATION fingerprint. Equal bags in a different order mean
-        the values moved between subjects (a swap), which changes BOTH
-        facts even though the bag is unchanged (owner correction
-        2026-10-08: token equality is not fact equality)."""
+        ASSOCIATION fingerprint. DEMONSTRATED SCOPE (owner
+        qualification 2026-10-08): a regression safeguard that catches
+        value swaps WITHIN one op's find/replace (equal bag, different
+        order = both facts changed). It is NOT a complete subject-field
+        binding mechanism: cross-op reassociation that preserves each
+        op's internal order is not caught here — the artifact-level
+        scope guard (scope_missing/dropped_product) owns that layer."""
         # separator-insensitive scan: canonical "2902" must find the
         # formatted "$2,902.00" — strip non-alphanumerics from both
         # sides; index order in stripped space preserves occurrence
