@@ -2179,6 +2179,19 @@ _CANVAS_EDIT_SHAPE_RE = re.compile(
     r"sort|write|make it|turn it into)\b",
     re.IGNORECASE,
 )
+# DRAFTING ACTIONS (2026-10-08, the case-1 T_AUTH root cause): "Prepare
+# the draft on this fork…" is an explicitly authorized edit request, but
+# its verbs are absent from _CANVAS_EDIT_SHAPE_RE — the scope validator
+# refused the edit, no mutation ever ran, and the turn burned its budget
+# on cascades before the honest budget-exceeded reply. Verb+object form
+# keeps bare nouns safe: "what does the draft say" is NOT an edit.
+_CANVAS_DRAFTING_ACTION_RE = re.compile(
+    r"\b(?:prepare|finalize|draft|compose|put\s+together)\s+"
+    r"(?:the\s+|this\s+|that\s+|my\s+|our\s+)?"
+    r"(?:draft|quote|quotation|email|document|canvas|reply|response|"
+    r"version|it)\b",
+    re.IGNORECASE,
+)
 _CANVAS_NON_EDIT_SHAPE_RE = re.compile(
     r"\b(?:add|create|make|schedule|track|remove|delete|set)\s+"
     r"(?:a\s+|an\s+|the\s+|this\s+|that\s+|these\s+|those\s+)?"
@@ -2296,7 +2309,8 @@ def _canvas_edit_shaped(
         return False
     if _CANVAS_NON_EDIT_SHAPE_RE.search(text) and not _CANVAS_TARGET_RE.search(text):
         return False
-    if not _CANVAS_EDIT_SHAPE_RE.search(text):
+    if not (_CANVAS_EDIT_SHAPE_RE.search(text)
+            or _CANVAS_DRAFTING_ACTION_RE.search(text)):
         return False
     ctx = context or {}
     return bool(

@@ -212,9 +212,12 @@ case "$DB_STATE" in
     MANAGED)
         echo "   Existing database with migration history — applying validated upgrades..."
         alembic upgrade heads || {
-            echo "❌ Upgrade failed. Database left untouched by this installer step."
-            echo "   Inspect backend/alembic history and resolve the failing migration"
-            echo "   before retrying; do NOT run 'alembic stamp' by hand."
+            echo "❌ Upgrade failed. The database may be PARTIALLY migrated —"
+            echo "   earlier migrations may already have committed (no"
+            echo "   untouched-state guarantee; restore from a backup if you"
+            echo "   need a known state). Inspect backend/alembic history and"
+            echo "   the alembic_version table, resolve the failing migration,"
+            echo "   and retry; do NOT run 'alembic stamp' by hand."
             exit 1
         }
         echo "✅ Existing database upgraded"

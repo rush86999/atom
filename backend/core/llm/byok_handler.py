@@ -4844,10 +4844,11 @@ class BYOKHandler:
         if (provider_id, model) not in [tuple(o) for o in options] \
                 and not reasons:
             # Eligible but unranked (e.g. below BPC's quality floor):
-            # the preference is an explicit operator choice — INSERT it
-            # as primary rather than silently dropping it. Quality
-            # controls for every OTHER candidate are untouched, and the
-            # insertion is logged.
+            # inserting it as primary is an EXPLICIT QUALITY-FLOOR
+            # OVERRIDE — the operator's documented choice for THIS pair.
+            # The floor still governs every other candidate and every
+            # unpreferred call; the override is logged so it is visible
+            # in dispatch traces.
             logger.info(
                 "[preferred-route] %s/%s inserted as primary (operator "
                 "preference; was outside the ranked set)", provider_id,

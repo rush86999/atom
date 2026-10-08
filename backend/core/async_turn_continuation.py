@@ -2255,8 +2255,17 @@ async def run_canvas_edit_continuation(
             str(last_note)[:160])
 
         if attempt < _ASYNC_CONTINUATION_ATTEMPTS:
+            # ESCALATING BACKOFF (2026-10-08, case-1 T_AUTH trace): the
+            # fixed 45s cadence put all three attempts at 0/45/90s —
+            # INSIDE the 120s model-attempt inflight TTL, so when the
+            # interactive turn's own planning legs held (or leaked) the
+            # pair's claim, every continuation attempt skipped the
+            # healthy route as model_inflight and the edit planner never
+            # completed. The final attempt must be able to land BEYOND
+            # the TTL: base * attempt (45s, 90s) puts attempt 3 at
+            # ~135s. Still deadline-bounded below.
             delay = min(
-                _ASYNC_CONTINUATION_RETRY_DELAY_SECONDS,
+                _ASYNC_CONTINUATION_RETRY_DELAY_SECONDS * attempt,
                 max(0.0, deadline - time.monotonic()),
             )
             if delay > 0:

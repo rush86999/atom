@@ -88,9 +88,12 @@ SCOPE_CHANGES = ("replace", "extend", "subset", "continue", "unresolved")
 # Shared by BOTH decision paths (sync + interpretation): one policy, not
 # two. Live defect class: case-1 T1 explicitly says "Don't change the
 # draft yet" and the edit lane must not treat that as a grant.
+# NOTE: 'send' is deliberately NOT a negated-EDIT verb: "do not send"
+# withholds SHIPPING, not editing — "prepare the draft and do not send"
+# still authorizes the edit (2026-10-08 case-1 T_AUTH).
 _NEGATED_EDIT_RE = re.compile(
     r"\b(?:don'?t|do\s+not|never|please\s+not)\s+(?:change|edit|update|"
-    r"modify|touch|alter|rebuild|rewrite|revise|send|apply)\b"
+    r"modify|touch|alter|rebuild|rewrite|revise|apply)\b"
     r"|\b(?:don'?t|do\s+not|never)\s+(?:make\s+any|apply\s+any)\s+"
     r"(?:changes?|edits?|updates?|modifications?)\b"
     r"|\bwithout\s+(?:changing|editing|updating|modifying|touching)\b"
@@ -167,7 +170,7 @@ def _requested_sources(message: str) -> List[str]:
 _EDIT_VERB_RE = re.compile(
     r"\b(?:update|edit|replace|change|set|apply|fill|trim|add|remove|"
     r"delete|restore|rebuild|rewrite|revise|reformat|reword|include|"
-    r"insert|append|sort|rename|paste)\b",
+    r"insert|append|sort|rename|paste|prepare|finalize|compose)\b",
     re.IGNORECASE,
 )
 # Constructions that make a following verb an OBJECT OF A LEARNING or a
@@ -185,7 +188,8 @@ _GOVERNED_VERB_RE = re.compile(
 _ARTIFACT_TARGET_RE = re.compile(
     r"\b(?:draft|canvas|email|e-mail|document|doc|text|copy|content|"
     r"subject|body|table|sheet|slide|spreadsheet|presentation|price|"
-    r"prices|value|row|rows|entry|field|figure|footer|list)\b",
+    r"prices|value|row|rows|entry|field|figure|footer|list|quote|"
+    r"quotation)\b",
     re.IGNORECASE,
 )
 

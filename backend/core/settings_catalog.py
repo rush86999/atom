@@ -100,7 +100,9 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
       "Installation-level preferred LLM provider id (e.g. opencode-go). "
       "Reorders routing to this provider when the configured pair passes "
       "the same catalog/capability/cooldown checks the ranking applies; "
-      "an ineligible pair is ignored with a logged reason."),
+      "an ineligible pair is ignored with a logged reason. A pair ranked "
+      "below the quality floor is inserted as primary — an explicit "
+      "operator quality-floor override for this pair only."),
     S("ATOM_PREFERRED_LLM_MODEL", "", C_LLM,
       "Installation-level preferred model id for the preferred provider "
       "(e.g. a free-tier catalog-served model). Must be served by the "
