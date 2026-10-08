@@ -16170,6 +16170,81 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                 f"({ _fname }, item="
                                                 f"{_item}):\n"
                                                 + _vt_read)
+                                            # DURABLE STRUCTURED FINDINGS
+                                            # (research-to-draft guide
+                                            # Repair 2, 2026-10-08): the
+                                            # chained read's structured
+                                            # result + identity persist on
+                                            # the session's pending-result
+                                            # carrier — the SAME carrier
+                                            # the drafting turn's fresh-
+                                            # data leg reads for
+                                            # objective_evidence — so the
+                                            # rows the trace found reach
+                                            # the drafting CONTRACT, not
+                                            # only the reply text (trial
+                                            # 16: rows read,
+                                            # contract_outcomes=[]).
+                                            try:
+                                                _vt_meta = getattr(
+                                                    _attempt_plan,
+                                                    "_result_meta",
+                                                    None) or {}
+                                                _vt_sr = (
+                                                    _vt_meta.get(
+                                                        "storage_read")
+                                                    or {})
+                                                _prior_pfr = (
+                                                    session.get(
+                                                        "_pending_file_result")
+                                                    if isinstance(
+                                                        session, dict)
+                                                    else None)
+                                                if not isinstance(
+                                                        _prior_pfr, dict):
+                                                    _prior_pfr = {}
+                                                _merged = dict(_prior_pfr)
+                                                _merged.update({
+                                                    "status": "retrieved",
+                                                    "identity": {
+                                                        "file_name":
+                                                            _fname,
+                                                        "execution_id":
+                                                            execution_id,
+                                                    },
+                                                    "workbook_read": (
+                                                        _vt_sr.get(
+                                                            "workbook_read")
+                                                        or _merged.get(
+                                                            "workbook_read")),
+                                                    "structured_result": (
+                                                        _vt_sr.get(
+                                                            "structured_result")
+                                                        or _merged.get(
+                                                            "structured_result")),
+                                                    "execution_id":
+                                                        execution_id,
+                                                    "retrieved_at":
+                                                        time.time(),
+                                                    "chained_read": True,
+                                                })
+                                                session[
+                                                    "_pending_file_result"
+                                                ] = _merged
+                                                logger.info(
+                                                    "[planner-boundary] "
+                                                    "chained read persisted "
+                                                    "to the findings "
+                                                    "carrier (file=%r, "
+                                                    "structured=%s)",
+                                                    _fname,
+                                                    bool(_vt_sr.get(
+                                                        "structured_result")))
+                                            except Exception as _pfr_err:  # noqa
+                                                logger.debug(
+                                                    "chained-read carrier "
+                                                    "persist skipped: %r",
+                                                    _pfr_err)
                                             logger.info(
                                                 "[planner-boundary] "
                                                 "value-trace chained a "
@@ -19962,6 +20037,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 (shared_tool_state or {}).get("request_scope")
                 if isinstance(
                     (shared_tool_state or {}).get("request_scope"), dict)
+                else None
+            ),
+            # RECEIPT-BASED REUSE (guide Repair 2): the session's
+            # durable findings carrier (prior turn's read or the value-
+            # trace chained confirmed-file read) satisfies the evidence
+            # need without a new provider call — freshness-labeled.
+            reused_findings=(
+                session.get("_pending_file_result")
+                if isinstance(session, dict) and isinstance(
+                    session.get("_pending_file_result"), dict)
+                and session["_pending_file_result"].get("status")
+                == "retrieved"
                 else None
             ),
         )

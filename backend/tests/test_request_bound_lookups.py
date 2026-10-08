@@ -199,6 +199,61 @@ def test_nonpricing_fact_changes_require_evidence():
             f"(got {reason!r})")
 
 
+async def _run_fetch(reused, existing_block=None):
+    from core.chat_canvas_editor import fetch_fresh_data_section
+    return await fetch_fresh_data_section(
+        "prepare the draft", [], object(), "u1", canvas=None,
+        existing_block=existing_block,
+        reused_findings=reused)
+
+
+def test_durable_finding_reaches_drafting_without_narration():
+    """A valid structured receipt (observations present) satisfies the
+    edit's evidence need with NO provider call — the finding is reused,
+    freshness-labeled, even though narration is absent."""
+    import asyncio
+    from unittest.mock import patch
+
+    async def _fail_plan(*a, **k):
+        raise RuntimeError("narration unavailable — must not be needed")
+
+    reused = {
+        "status": "retrieved",
+        "rendered": "U-22 | List Price 1,799 | LINMAC sheet row 26",
+        "identity": {"file_name": "Consolidated Price List 2019.xlsx"},
+        "structured_result": {"targets": [
+            {"item": "U-22", "identity": {"status": "single"}}]},
+    }
+    with patch("core.chat_tool_planner.plan_tool_use",
+               side_effect=_fail_plan):
+        fresh = asyncio.run(_run_fetch(reused))
+    assert fresh.ok and fresh.block, (
+        "the durable receipt must satisfy the evidence need")
+    assert "REUSED FINDINGS" in fresh.section, (
+        "reuse must be freshness-labeled, never 'fetched just now'")
+
+
+def test_receiptless_prose_does_not_masquerade_as_findings():
+    """Text without a structured receipt is NOT valid reuse — the
+    planner path runs (text non-emptiness must not establish research).
+    """
+    import asyncio
+    from unittest.mock import patch
+
+    called = {"n": 0}
+
+    async def _fake_plan(*a, **k):
+        called["n"] += 1
+        return None
+
+    prose_only = {"status": "retrieved", "rendered": "some prose", "identity": {}}
+    with patch("core.chat_tool_planner.plan_tool_use",
+               side_effect=_fake_plan):
+        asyncio.run(_run_fetch(prose_only))
+    assert called["n"] >= 1, (
+        "receiptless prose must fall through to the planner, not reuse")
+
+
 def test_swapped_prices_require_ready_evidence():
     """Token equality is not fact equality: swapping two rows' prices
     preserves the value BAG but changes both associations — the
