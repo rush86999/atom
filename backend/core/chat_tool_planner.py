@@ -7293,6 +7293,30 @@ async def _datasets_search_block(
         _rs_subjects = [
             str(v).strip() for v in (_rs.get("subjects") or [])
             if str(v).strip()]
+    if not _rs_subjects:
+        # SUBJECT-BOUND LOOKUP IN PLAIN RESEARCH (2026-10-08 value-trial
+        # follow-up): a plain research turn carries no request_scope, so
+        # the sweep's candidates came from free-text token mining over
+        # the WHOLE query — and the demonstrated miss: 'What's the price
+        # basis and current lead time for the Tennsmith SLE24-16 single
+        # wheel slitter?' probed generic tokens, missed the Tennsmith
+        # row a direct subject probe finds in 1.5s, and answered
+        # 'not found in this turn's search'. The SAME extractor the ask
+        # lane uses (extract_items_from_text) supplies the subject-bound
+        # candidates here; generic mining still adds tokens beneath
+        # them. History NEVER contributes subject candidates.
+        try:
+            from core.target_set_resolution import (
+                extract_items_from_text as _eift,
+            )
+
+            _plain_subjects = [
+                i.strip() for i in _eift(
+                    _current_message_text(context) or query) if i.strip()]
+            if _plain_subjects:
+                _rs_subjects = _plain_subjects[:6]
+        except Exception:  # noqa: BLE001 — floor follows
+            pass
     if not _rs_subjects and not candidate_probe_tokens(
             [query] + history_texts):
         # No identifying code — sheet-level SQL adds nothing over memory.
