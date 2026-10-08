@@ -121,8 +121,9 @@ ANTHROPIC_API_KEY=
 BYOK_ENCRYPTION_KEY=
 JWT_SECRET_KEY=
 
-# Database paths
-SQLITE_PATH=./data/atom.db
+# Database (DATABASE_URL — the app reads this; a relative sqlite path
+# is anchored to backend/ by the app itself)
+DATABASE_URL=sqlite:///./data/atom.db
 LANCEDB_PATH=./data/lancedb
 
 # Environment
@@ -158,12 +159,23 @@ mkdir -p data
 echo "✅ Data directory created: ./data"
 echo ""
 
-# Run database migrations
-echo "🗄️  Running database migrations..."
+# Initialize the database schema.
+# 2026-10-08 fresh-install repair: `alembic upgrade head` FAILS on a
+# fresh checkout — the tree carries six unmerged branch heads and the
+# branches have cross-branch ALTER/CREATE dependencies, so no ordering
+# can build an empty database (verified on an isolated clean install).
+# The app's own startup path is the schema authority for fresh
+# databases (main_api_app: create_all + sqlite drift repair — the same
+# code every boot runs). The installer therefore initializes via that
+# path and ADOPTS the schema with alembic's supported `stamp heads`, so
+# later incremental migrations apply normally. Heads are NOT merged and
+# create_all is not substituted for upgrades on existing databases.
+echo "🗄️  Initializing database schema..."
 cd backend
 source venv/bin/activate
-alembic upgrade head
-echo "✅ Database migrations complete"
+python -c "from core.database import engine; from core.models import Base; Base.metadata.create_all(engine); print('schema created')"
+alembic stamp heads
+echo "✅ Database schema initialized (migration state stamped)"
 echo ""
 
 cd ..

@@ -3583,27 +3583,45 @@ class BYOKHandler:
             return AwaitableResult(options[0])
         
         # Absolute fallback
-        if self.clients:
-            provider_id = list(self.clients.keys())[0]
-            # FRESH-INSTALL DEFECT (2026-10-08, isolated clean-install
-            # verification): the hardcoded "gpt-4o-mini" on the first
-            # client is unservable when that client is the local
-            # provider (ollama on a keyless install) — the catalog-served
-            # pair gate correctly rejects it and the turn renders as
-            # "no provider configured" despite a healthy local runtime.
-            # Serve a model THIS provider actually serves: its tier-map
-            # default first, verified against the discovered catalogue.
-            tier_default = (
-                (COST_EFFICIENT_MODELS.get(provider_id) or {}).get(
+        # FRESH-INSTALL DEFECT (2026-10-08, isolated clean-install
+        # verification, finished the same day per owner correction): the
+        # old shape hardcoded "gpt-4o-mini" on the FIRST client — on a
+        # keyless install that client is the local provider (ollama),
+        # the catalog-served pair gate correctly rejects the name, and
+        # the turn renders as "no provider configured" despite a healthy
+        # local runtime. The finished repair walks the CONFIGURED
+        # providers in fallback order and returns the first pair that
+        # passes the EXISTING eligibility checks — catalog-served tier
+        # default (or not-known-unserved when discovery never succeeded,
+        # the same convention the structured cascade's gate documents),
+        # provider not benched, model not on cooldown. No check is
+        # bypassed; a pair that qualifies nowhere is an accurately
+        # classified unavailable-route outcome, never an unsupported
+        # pair the dispatch loop will just reject again.
+        for _fb_provider in self._get_provider_fallback_order("auto"):
+            if _fb_provider not in self.clients:
+                continue
+            if self._provider_cooldown_active(_fb_provider):
+                continue
+            _tier_default = (
+                (COST_EFFICIENT_MODELS.get(_fb_provider) or {}).get(
                     QueryComplexity.SIMPLE))
-            for candidate in (tier_default, "gpt-4o-mini"):
-                if candidate and self._provider_serves_model(
-                        provider_id, candidate):
-                    return AwaitableResult((provider_id, candidate))
-            return AwaitableResult((provider_id, "gpt-4o-mini"))
+            if not _tier_default:
+                continue
+            if self._model_cooldown_active(_fb_provider, _tier_default):
+                continue
+            if self._provider_serves_model(
+                    _fb_provider, _tier_default) or not (
+                    self._ranked_model_is_known_unserved(
+                        _fb_provider, _tier_default)):
+                return AwaitableResult((_fb_provider, _tier_default))
 
         raise NoProvidersConfiguredError(
-            "No LLM providers available. You need an AI provider to do this. Add an API key or enable local Ollama to continue."
+            "No dispatchable LLM route: every configured provider's "
+            "default model is either not served by its discovered "
+            "catalogue or on cooldown. You need an AI provider to "
+            "continue. Add an API key in Settings or enable local "
+            "Ollama to continue."
         )
 
     def _route_for_model(self, model: str) -> Optional[tuple[str, str]]:
