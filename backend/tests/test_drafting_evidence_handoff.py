@@ -444,3 +444,107 @@ class TestHandoffReachesThePlannerInput:
         # ...and nothing claims a price CHANGE that was never observed.
         assert "changed" not in section.lower() or "unresolved" in section.lower(), (
             f"no invented changed-price pair: {section}")
+
+
+class TestReusedEvidenceIsNotCalledFresh:
+    """Repair 2 (guide) + the regression for the captured failed transition.
+
+    Live case-1 trial, session 38a1c3d0, continuation de3dd9d2
+    (2026-10-08): three attempts, the served planner DECLINED
+    (wants_edit=False) twice and attempt 3 was skipped by the budget
+    floor. READBACK-DECISION on both served attempts recorded
+    ``evidence_contract=False`` — the drafting planner had NO verified
+    pairs even though this conversation had already read the workbook.
+    The turn's own reply said it plainly: "the workbook ... was retrieved
+    earlier in this conversation but was not re-returned now."
+
+    Guide Repair 2 item 3: never call an old block freshly fetched simply
+    because this turn reused it. Required pin: saved-copy reuse stays
+    freshness-qualified.
+    """
+
+    def test_a_reused_block_is_not_labelled_fetched_just_now(self):
+        import inspect
+
+        from core import chat_canvas_editor as cce
+
+        src = inspect.getsource(cce.fetch_fresh_data_section)
+        # Only the EXISTING-BLOCK reuse path is under test here: it reformats
+        # an earlier leg's block and must not advertise a fresh fetch.
+        at = src.index("if existing_block:")
+        tail = src[at:at + 700]
+        assert "fetched just now" not in tail, (
+            "the existing-block reuse path must not claim the block was "
+            f"fetched just now; it currently reads:\n{tail[:400]}")
+
+    def test_saved_copy_reuse_stays_freshness_qualified(self):
+        import inspect
+
+        from core import chat_canvas_editor as cce
+
+        src = inspect.getsource(cce.fetch_fresh_data_section)
+        at = src.index("REUSED FINDINGS")
+        window = src[at - 200:at + 700]
+        assert "not re-fetched this turn" in window, (
+            "reused findings must say they were not re-fetched this turn")
+        assert "source identity and revision" in window, (
+            "reused findings must carry their original source identity and "
+            f"revision; window reads:\n{window[:400]}")
+
+    def test_reuse_supplies_the_evidence_contract_from_the_completed_read(self):
+        """The captured transition's exact defect: evidence_contract=False
+        while a completed read existed. Receipt-based reuse must hand the
+        drafting planner the contract that read produced, or the planner
+        has nothing verified to apply and declines."""
+        import asyncio
+
+        from core import chat_canvas_editor as cce
+
+        contract = {"contract_version": 2,
+                    "coverage": {"requested_entities": ["381"],
+                                 "requested_fields": ["unit_price"],
+                                 "outcome_count": 1, "complete": True},
+                    "actions": [], "evidence_ids": ["ev-1"]}
+        reused = {
+            # Validity is the STRUCTURED RECEIPT, not text non-emptiness.
+            "source_observations": [{"item": "381", "value": 2035}],
+            "rendered": "381: E66=2035 [basis=PRICE]",
+            "identity": {"file_name": "Price List.xlsx"},
+            "objective_evidence": contract,
+        }
+
+        out = asyncio.run(cce.fetch_fresh_data_section(
+            message="prepare the draft now",
+            history=[],
+            llm_service=None,
+            user_id="u1",
+            canvas_id="cv-1",
+            reused_findings=reused,
+            existing_evidence_contract=None))
+
+        assert out.evidence_contract == contract, (
+            "the completed read's contract must reach the drafting "
+            f"planner; got {out.evidence_contract!r}")
+        assert out.ok and out.needed is False
+        assert "REUSED FINDINGS" in (out.section or ""), out.section
+
+    def test_receiptless_prose_does_not_satisfy_the_evidence_need(self):
+        """The mirror pin: text non-emptiness must NOT establish successful
+        research (guide Repair 2 item 2)."""
+        import asyncio
+
+        from core import chat_canvas_editor as cce
+
+        out = asyncio.run(cce.fetch_fresh_data_section(
+            message="prepare the draft now",
+            history=[],
+            llm_service=None,
+            user_id="u1",
+            canvas_id="cv-1",
+            reused_findings={
+                "rendered": "lots of confident prose but no receipt",
+            },
+            existing_evidence_contract=None))
+        assert out.evidence_contract is None, (
+            "receiptless prose must not mint an evidence contract: "
+            f"{out.evidence_contract!r}")

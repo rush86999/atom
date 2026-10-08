@@ -16241,7 +16241,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                     bool(_vt_sr.get(
                                                         "structured_result")))
                                             except Exception as _pfr_err:  # noqa
-                                                logger.debug(
+                                                logger.warning(
                                                     "chained-read carrier "
                                                     "persist skipped: %r",
                                                     _pfr_err)

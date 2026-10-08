@@ -1808,9 +1808,6 @@ async def fetch_fresh_data_section(
     lookup timed out, it invented 'In Stock' delivery on the real draft.
     Hence the three-state result: a data-dependent edit whose lookup failed
     must be DECLINED by the caller, never applied on guesses."""
-    if not message or llm_service is None:
-        return FreshDataResult("", False, True)
-
     async def _record(step_type: str, action: Dict[str, Any],
                       observation: str) -> None:
         if step_recorder is None:
@@ -1820,43 +1817,54 @@ async def fetch_fresh_data_section(
         except Exception as rec_err:  # noqa: BLE001 — recording never blocks
             logger.debug(f"fresh-data step recording skipped: {rec_err}")
 
+    # RECEIPT-BASED REUSE (research-to-draft guide Repair 2, 2026-10-08):
+    # durable structured findings from a prior read (same conversation
+    # carrier) satisfy the edit's evidence need WITHOUT a new provider
+    # call — and are labeled REUSED with their original source identity,
+    # never "fetched just now". Validity is the STRUCTURED RECEIPT
+    # (observations present), not text non-emptiness.
+    #
+    # This runs BEFORE the provider guard below on purpose: it needs no
+    # model at all. Required pin (Repair 2): "readable durable finding plus
+    # unavailable LLM narration still reaches drafting". Gating it on
+    # ``llm_service`` made a readable, already-paid-for finding unreachable
+    # whenever the model was unavailable — the exact shape of the captured
+    # case-1 transition (evidence_contract=False with the workbook already
+    # read earlier in the conversation).
+    if isinstance(reused_findings, dict):
+        _rf_obs = (
+            reused_findings.get("source_observations")
+            or ((reused_findings.get("structured_result") or {})
+                .get("targets"))
+            or [])
+        _rf_render = str(reused_findings.get("rendered") or "")
+        if _rf_obs and _rf_render:
+            _rf_ident = reused_findings.get("identity") or {}
+            _rf_name = str(
+                _rf_ident.get("file_name") or "the resolved file")
+            return FreshDataResult(
+                section=(
+                    "REUSED FINDINGS (durable structured evidence "
+                    "from this conversation's earlier read of "
+                    f"'{_rf_name}', source identity and revision as "
+                    "recorded — not re-fetched this turn):\n"
+                    f"{_rf_render[:12000]}\n\n"
+                ),
+                needed=False,
+                ok=True,
+                block=_rf_render[:16000],
+                evidence_contract=(
+                    dict(existing_evidence_contract)
+                    if isinstance(existing_evidence_contract, dict)
+                    else reused_findings.get("objective_evidence")),
+            )
+
+    if not message or llm_service is None:
+        return FreshDataResult("", False, True)
+
     try:
         from core.chat_tool_planner import execute_tool_plan, plan_tool_use
 
-        # RECEIPT-BASED REUSE (research-to-draft guide Repair 2,
-        # 2026-10-08): durable structured findings from a prior read
-        # (same conversation carrier) satisfy the edit's evidence need
-        # WITHOUT a new provider call — and are labeled REUSED with
-        # their original source identity, never "fetched just now".
-        # Validity is the STRUCTURED RECEIPT (observations present),
-        # not text non-emptiness.
-        if isinstance(reused_findings, dict):
-            _rf_obs = (
-                reused_findings.get("source_observations")
-                or ((reused_findings.get("structured_result") or {})
-                    .get("targets"))
-                or [])
-            _rf_render = str(reused_findings.get("rendered") or "")
-            if _rf_obs and _rf_render:
-                _rf_ident = reused_findings.get("identity") or {}
-                _rf_name = str(
-                    _rf_ident.get("file_name") or "the resolved file")
-                return FreshDataResult(
-                    section=(
-                        "REUSED FINDINGS (durable structured evidence "
-                        "from this conversation's earlier read of "
-                        f"'{_rf_name}', source identity and revision as "
-                        "recorded — not re-fetched this turn):\n"
-                        f"{_rf_render[:12000]}\n\n"
-                    ),
-                    needed=False,
-                    ok=True,
-                    block=_rf_render[:16000],
-                    evidence_contract=(
-                        dict(existing_evidence_contract)
-                        if isinstance(existing_evidence_contract, dict)
-                        else reused_findings.get("objective_evidence")),
-                )
         # REUSE: an earlier leg on this turn already planned AND executed
         # — reformat its block instead of hitting providers a second
         # (or third) time with the identical query.
