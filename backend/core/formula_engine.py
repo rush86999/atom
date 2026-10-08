@@ -465,9 +465,18 @@ class FormulaResult:
     be reported as a completed calculation):
 
     ``status``:
-      'computed'      the formula was evaluated — ``value`` is the
-                      Decimal the supported language produced and
-                      ``steps`` replays every operation;
+      'computed'      the formula was FULLY reconstructed and
+                      evaluated — ``value`` is the Decimal the
+                      supported language produced, ``steps`` replays
+                      every operation, and NO operand was substituted
+                      from a stored value;
+      'computed_substituted'
+                      the output formula was evaluated, but one or
+                      more INTERMEDIATE formulas were unavailable and
+                      their stored values stand in — the calculation
+                      is NOT fully reconstructed (``cache_substituted``
+                      names them); a fully-reconstructed obligation is
+                      not satisfied by this status;
       'stored_value'  the cell is established (by workbook metadata)
                       as a TYPED LITERAL — ``value`` is the stored
                       number, observed, NOT computed; no steps exist;
@@ -977,13 +986,18 @@ def evaluate_reference(
         result.dependencies = list(engine.dependencies)
         result.steps = list(engine.steps)
         return result
-    result.status = "computed"
     result.value = val
     result.dependencies = list(engine.dependencies)
     result.steps = list(engine.steps)
     result.cache_substituted = sorted({
         f"{d.sheet}!{d.cell}" for d in result.dependencies
         if d.source == "frame_cache"})
+    # An unavailable intermediate formula whose stored value stood in
+    # means the calculation is NOT fully reconstructed — the status
+    # itself says so; downstream code cannot read it as an unqualified
+    # computed result (round 72).
+    result.status = ("computed_substituted" if result.cache_substituted
+                     else "computed")
     result.expression = _render_expression(formula, engine)
     return result
 

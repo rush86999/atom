@@ -1029,6 +1029,289 @@ def _missing_chain_cells(reply: str, tool_block: Optional[str],
     return missing if len(missing) >= max(1, int(min_missing)) else []
 
 
+#: Calculation dedup lives at the COMMON execution boundary
+#: (core.chat_tool_planner.execute_tool_plan, round 76) — keyed by stable
+#: request/operation identity + validated context. No orchestrator-level
+#: singleflight: message-hash keys shared across contexts and missed
+#: sequential duplicates.
+
+
+def _calc_narration_violations(reply: str,
+                               allowance: Dict[str, Any]) -> List[str]:
+    """Structured narration validation (round 76).
+
+    Binds output, inputs, currency, units and result status SEPARATELY
+    against the CURRENT operation's record(s) — never flat number
+    membership. Formatting is normalized ("1200" ≡ "$1,200" ≡
+    "1,200.00"); generic "dollars" is allowed for known currencies.
+    Unknown currency (XXX) must not invent $, CAD, USD, etc.
+    Non-succeeded statuses must retain their qualifier; % / per-hour
+    attached to the output without record support fails.
+    """
+    import re as _re
+
+    if not reply or not allowance:
+        return []
+    recs = allowance.get("records") or []
+    if not recs:
+        return []
+
+    def _norm(s: Any) -> str:
+        t = str(s).replace(",", "")
+        if "." in t:
+            t = t.rstrip("0").rstrip(".")
+            if t in ("", "-"):
+                t = "0"
+        return t
+
+    allowed = allowance.get("allowed_figures") or []
+    allowed_norm = {_norm(a) for a in allowed}
+    outputs = allowance.get("outputs") or []
+    output_norms = {_norm(o.get("amount_norm", o.get("amount", "")))
+                    for o in outputs if isinstance(o, dict)}
+    # Fallback when outputs missing (old allowance shape): treat the
+    # first allowed figure as the output.
+    if not output_norms and allowed:
+        output_norms = {_norm(allowed[0])}
+    input_norms = set(allowance.get("input_amounts_norm") or [])
+    rec_cur = str(allowance.get("currency") or "").upper()
+    rec_unit = str(allowance.get("unit") or "").lower()
+    status = str(allowance.get("status") or "").lower()
+
+    violations: List[str] = []
+
+    # 1) Every money figure must be a computed/input/step value.
+    money = _re.findall(
+        r"\$\s?([0-9][0-9,]*(?:\.[0-9]{1,2})?)", reply)
+    bare = _re.findall(
+        r"(?<![\w.$])([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]{1,2})?|"
+        r"[0-9]+\.[0-9]{2}|[1-9][0-9]{2,})(?![\w%])", reply)
+    for fig in money + bare:
+        if _norm(fig) not in allowed_norm:
+            violations.append(fig)
+
+    # 2) Currency binding, both orders. Unknown (XXX) invents nothing.
+    _CUR_LIST = ("USD", "EUR", "GBP", "CAD", "AUD", "INR")
+    if rec_cur in ("XXX", ""):
+        if "$" in reply:
+            violations.append("$ (currency unknown — must not invent)")
+        for m in _re.finditer(
+                r"\b(USD|EUR|GBP|CAD|AUD|INR)\b", reply, _re.IGNORECASE):
+            violations.append(
+                f"{m.group(1).upper()} (currency unknown — must not invent)")
+        if _re.search(r"\bdollars?\b", reply, _re.IGNORECASE):
+            # Generic dollars still names a currency when none is known.
+            violations.append("dollars (currency unknown — must not invent)")
+    else:
+        # CUR before amount: "USD 3,000", "CAD $3,000".
+        for m in _re.finditer(
+                r"\b([A-Za-z]{3})\s*\$?\s*([0-9][0-9,]*(?:\.[0-9]+)?)",
+                reply):
+            cur, amt = m.group(1).upper(), _norm(m.group(2))
+            if cur in _CUR_LIST and cur != rec_cur \
+                    and amt in allowed_norm:
+                violations.append(f"{cur} {m.group(2)} (record is {rec_cur})")
+        # Amount before CUR: "3,000 USD", "3000 CAD".
+        for m in _re.finditer(
+                r"([0-9][0-9,]*(?:\.[0-9]+)?)\s*"
+                r"(USD|EUR|GBP|CAD|AUD|INR)\b",
+                reply, _re.IGNORECASE):
+            cur, amt = m.group(2).upper(), _norm(m.group(1))
+            if cur != rec_cur and amt in allowed_norm:
+                violations.append(
+                    f"{m.group(1)} {cur} (record is {rec_cur})")
+
+    # 3) Output vs input binding: an output-phrase sentence carrying an
+    # input-only figure (and no output figure) misstates the result.
+    # e.g. "The total is CAD 150." when 150 is an input and 3000 is out.
+    _OUT_WORDS = _re.compile(
+        r"\b(total|result|estimate|price|comes?\s+to|calculated|"
+        r"calculation)\b", _re.IGNORECASE)
+    for sent in _re.split(r"[.!?\n]+", reply or ""):
+        if not sent or not _OUT_WORDS.search(sent):
+            continue
+        nums = [_norm(n) for n in _re.findall(
+            r"[0-9][0-9,]*(?:\.[0-9]+)?", sent)]
+        has_out = any(n in output_norms for n in nums)
+        has_in_only = any(
+            (n in input_norms and n not in output_norms) for n in nums)
+        if has_in_only and not has_out:
+            for n in nums:
+                if n in input_norms and n not in output_norms:
+                    violations.append(
+                        f"{n} presented as total/result (it is an input)")
+                    break
+
+    # 4) Units: % / percent invented; per-hour attached to the OUTPUT.
+    reply_low = reply.lower()
+    if ("%" in reply or "percent" in reply_low):
+        # Does the record carry % anywhere (unit, steps, policy)?
+        _rec_text = " ".join([
+            str((r.get("proposed") or {}).get("unit") or "")
+            + " " + str(r.get("policy_id") or "")
+            + " " + " ".join(str(s) for s in (r.get("steps") or []))
+            for r in recs]).lower()
+        if "%" not in _rec_text and "percent" not in _rec_text:
+            # Allow % only when it is part of the authorized formula
+            # text itself; otherwise "20% discount" invents new work.
+            m_pct = _re.search(
+                r"([0-9][0-9,]*(?:\.[0-9]+)?)\s*(%|percent)", reply,
+                _re.IGNORECASE)
+            if m_pct:
+                violations.append(
+                    f"{m_pct.group(0).strip()} (no percent in the record)")
+
+    _HOUR_TOKENS = ("per hour", "per hr", "/hr", "/hour", "hourly")
+    if any(t in reply_low for t in _HOUR_TOKENS):
+        hour_ok = any(h in rec_unit for h in (
+            "hour", "hr")) or "hour" in " ".join(
+                str((r.get("proposed") or {}).get("unit") or "")
+                for r in recs).lower()
+        if not hour_ok:
+            # Only fails when the hour-unit attaches to an OUTPUT
+            # amount (inputs legitimately carry hours, e.g. "20 hours
+            # at 150/hr" for a 3000 output in `each`).
+            for o in outputs:
+                o_raw = str(o.get("amount", ""))
+                o_norm = _norm(o.get("amount_norm", o_raw))
+                # Find output occurrences with formatting variants.
+                for m in _re.finditer(
+                        r"[0-9][0-9,]*(?:\.[0-9]+)?", reply):
+                    if _norm(m.group(0)) != o_norm:
+                        continue
+                    window = reply[max(0, m.end()):m.end() + 24].lower()
+                    if any(t in window for t in _HOUR_TOKENS):
+                        violations.append(
+                            f"{m.group(0)} {window.strip()[:16].strip()} "
+                            f"(output unit is {rec_unit or 'unknown'})")
+                        break
+                if violations and "output unit is" in violations[-1]:
+                    break
+            # Fallback when outputs missing: any "3000 per hour" shape
+            # with output_norms known.
+            if not outputs and output_norms:
+                for m in _re.finditer(
+                        r"[0-9][0-9,]*(?:\.[0-9]+)?", reply):
+                    if _norm(m.group(0)) not in output_norms:
+                        continue
+                    window = reply[max(0, m.end()):m.end() + 24].lower()
+                    if any(t in window for t in _HOUR_TOKENS):
+                        violations.append(
+                            f"{m.group(0)} per-hour (output is not per-hour)")
+                        break
+
+    # 5) Status qualifier: non-succeeded results must stay qualified.
+    if status and status not in ("succeeded", "applied", "computed"):
+        need_map = {
+            "stored_value": ("stored", "not computed", "observation"),
+            "stored": ("stored", "not computed", "observation"),
+            "incomplete": ("not computed", "incomplete", "missing",
+                           "needed", "cannot", "waiting", "input needed"),
+            "unresolved": ("not computed", "incomplete", "missing",
+                           "needed", "cannot", "waiting", "input needed"),
+            "waiting": ("waiting", "not computed", "missing", "needed"),
+            "rejected": ("reject", "fail", "not computed", "invalid"),
+            "failed": ("reject", "fail", "not computed"),
+            "computed_substituted": ("substitut", "not fully", "partial",
+                                     "gap", "intermediate",
+                                     "stored values"),
+        }
+        needles = need_map.get(status, ())
+        if needles and not any(n in reply_low for n in needles):
+            violations.append(
+                f"status {status} presented as final (missing qualifier)")
+
+    seen = set()
+    return [v for v in violations if not (v in seen or seen.add(v))][:8]
+
+
+def _deterministic_calc_fallback(allowance: Dict[str, Any],
+                                 violations: List[str]) -> str:
+    """The CURRENT operation's record rendered DIRECTLY (round 76).
+
+    Only this turn's evidence is rendered — never recent-history
+    neighbours. Unknown currency (XXX) is stated as unknown, never
+    invented. Status stays qualified; limitations ride along. A failed
+    regeneration must never erase a successful calculation."""
+    recs = allowance.get("records") or []
+    lines = ["The calculated result (rendered directly from the "
+             "engine's record — the assistant's wording failed "
+             "verification against it):"]
+
+    def _money(a) -> str:
+        s = str(a)
+        if "." not in s:
+            try:
+                n = int(s)
+                return f"{n:,}"
+            except ValueError:
+                return s
+        return s
+
+    def _cur_display(cur: str) -> str:
+        c = str(cur or "").upper()
+        if c in ("XXX", ""):
+            return "(currency unknown — not stated)"
+        return c
+
+    for rec in recs[:1]:
+        proposed = rec.get("proposed") or {}
+        wb = rec.get("workbook") or {}
+        status = str(rec.get("status") or "")
+        if proposed.get("amount") is not None:
+            cur = proposed.get("currency", "")
+            unit = str(proposed.get("unit") or "")
+            lines.append(
+                f"- {_cur_display(cur)} "
+                f"{_money(proposed.get('amount'))}"
+                + (f" per {unit}" if unit and unit not in (
+                    "each", "value", "") else "")
+                + (f"  ({wb.get('file', '')} {wb.get('sheet', '')} "
+                   f"{wb.get('output_cell', '')})"
+                   if wb.get("output_cell") else ""))
+            # Qualified status, never a bare final.
+            if status == "succeeded":
+                lines.append(f"  status: {status}; "
+                             f"policy {rec.get('policy_id')} "
+                             f"v{rec.get('policy_version')}")
+            elif status == "stored_value":
+                lines.append(
+                    "  status: stored_value — STORED VALUE, NOT COMPUTED "
+                    "(observation; cannot satisfy a calculation)")
+            elif status in ("incomplete", "unresolved", "waiting"):
+                gap = (rec.get("missing_dependency")
+                       or rec.get("unresolved_reason") or "missing input")
+                lines.append(
+                    f"  status: {status} — NOT COMPUTED ({gap})")
+            elif status == "computed_substituted":
+                lines.append(
+                    "  status: computed_substituted — computed WITH "
+                    "SUBSTITUTED OPERANDS, NOT fully reconstructed")
+            else:
+                lines.append(f"  status: {status}; "
+                             f"policy {rec.get('policy_id')} "
+                             f"v{rec.get('policy_version')}")
+        else:
+            gap = (rec.get("missing_dependency")
+                   or rec.get("unresolved_reason")
+                   or rec.get("rejection_reason") or "not computed")
+            lines.append(f"- NOT COMPUTED ({status or 'incomplete'}): {gap}")
+    if violations:
+        # The REMOVED figures are quoted without currency symbols: the
+        # fallback must not carry invented $/£ formatting forward (the
+        # record's own currency renders the value).
+        import re as _vre
+
+        _clean = [_vre.sub(r"[$£€]", "", v) for v in violations[:4]]
+        lines.append("- The reply's figure(s) "
+                     + ", ".join(_clean)
+                     + " did not match the computed record and were "
+                       "removed.")
+    for lim in (allowance.get("limitations") or [])[:3]:
+        lines.append(f"- Limitation: {lim}")
+    return "\n".join(lines)
+
+
 def _reply_is_unsourced_derivation(reply: str, message: str) -> bool:
     """Derivation-shaped ASK + multi-step arithmetic presented in the reply
     + no source citation anywhere in it → one grounded regeneration."""
@@ -2786,10 +3069,66 @@ async def _derivation_supplement(
     canvas: Optional[Dict[str, Any]],
     tool_block: Optional[str],
     llm_service: Any = None,
+    conversation_id: Optional[str] = None,
 ) -> Optional[str]:
     """Compose the derivation dataset block ahead of an existing tool
     block. For a derivation ask the workbook ROW is the answer (the mail
-    lines are its context); for any other ask this is a no-op."""
+    lines are its context); for any other ask this is a no-op.
+
+    CALCULATION DISPATCH (round 74): an explicit calculation ask runs
+    the calculate lane HERE — the shared evidence-assembly point both
+    the generic and the goal-session pipelines pass through. History
+    (or a reused singleflight block) must never impersonate a
+    computation: the engine result becomes THE evidence block."""
+    if message:
+        try:
+            from core.pricing_calculation import (
+                message_requires_calculation as _msg_calc,
+            )
+            from core.chat_tool_planner import ToolPlan as _TP
+            from core.chat_tool_planner import (
+                execute_tool_plan as _etp,
+            )
+
+            if _msg_calc(message):
+                _canvas_id = None
+                if isinstance(canvas, dict):
+                    _canvas_id = (canvas.get("canvas_id")
+                                  or canvas.get("id"))
+                # COMMON-BOUNDARY DEDUP (round 76): this seam and the
+                # planner path converge in execute_tool_plan's calculate
+                # lane, which dedupes by stable request/operation identity
+                # + validated context. No local singleflight here — a
+                # message-hash key shared across contexts and missed
+                # sequential duplicates.
+                _calc_block = await asyncio.wait_for(
+                    _etp(
+                        _TP(use_tool=True, service="datasets",
+                            intent="calculate", query=message[:400],
+                            reason=("explicit calculation ask — the "
+                                    "calculate lane outranks reused "
+                                    "evidence")),
+                        user_id,
+                        tenant_id="default",
+                        context={
+                            "message": message,
+                            "history": (history or [])[-6:],
+                            "canvas": canvas,
+                            "conversation_id": conversation_id,
+                            "canvas_id": _canvas_id,
+                        },
+                        llm_service=llm_service),
+                    timeout=110.0)
+                if _calc_block:
+                    logger.info(
+                        "[calc-lane] calculation ask answered by "
+                        "datasets.calculate via the derivation seam "
+                        "(%d chars)", len(_calc_block))
+                    return _calc_block
+        except Exception as _calc_err:  # noqa: BLE001 — additive lane
+            logger.warning(
+                "[calc-lane] derivation-seam dispatch failed: %r",
+                _calc_err)
     ds = await _derivation_dataset_block(
         message, user_id, {"history": history or [], "canvas": canvas},
         llm_service=llm_service)
@@ -6691,14 +7030,17 @@ class ChatOrchestrator:
                     # the datasets calculate lane of the turn. Same
                     # shape as the teaching-cue exemption above.
                     try:
-                        from core.pricing_calculation import _WB_QUERY_RE
+                        from core.pricing_calculation import (
+                            _NAT_PRICE_RE, _WB_QUERY_RE,
+                        )
 
-                        if _WB_QUERY_RE.search(message or ""):
+                        if _WB_QUERY_RE.search(message or "") \
+                                or _NAT_PRICE_RE.search(message or ""):
                             _ask_mention = ""
                             _calc_grammar_turn = True
                             logger.info(
-                                "[file-ask] calculate-grammar ask left "
-                                "for the datasets calculate lane")
+                                "[file-ask] calculate ask left for the "
+                                "datasets calculate lane")
                     except Exception:  # noqa: BLE001 — routing only
                         pass
                     from core.plan_relevance import _is_substantive_request
@@ -12842,7 +13184,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _derivation_supplement(
                             message, user_id, planner_history or history,
                             canvas_context, None,
-                            llm_service=self.llm_service))
+                            llm_service=self.llm_service,
+                            conversation_id=session_id,
+                        )
+                    )
                     # Owned by this turn: if the deadline expires, this is work
                     # that must actually stop, not merely be stopped waiting on.
                     _owned_tasks.append(_deriv_task)
@@ -13298,7 +13643,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _tool_block = await _derivation_supplement(
                         message, user_id, planner_history or history,
                         canvas_context, _tool_block,
-                        llm_service=self.llm_service)
+                        llm_service=self.llm_service,
+                        conversation_id=session_id,
+                    )
                 else:
                     # Full hydrated history for the planner (not the [-6:] main-
                     # model window): in retry-heavy sessions the original request
@@ -13386,6 +13733,37 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     logger.info(
                         f"[stage-timing] tool plan (overlapped={tool_plan_task is not None}): "
                         f"{time.monotonic() - _plan_t0:.1f}s")
+                    # HISTORY-SHADOWING GUARD (round 74): an EXPLICIT
+                    # calculation ask must invoke the engine — or reuse a
+                    # prior calculation only through the lane's own
+                    # validation — never be answered from narrative
+                    # memory because the history already holds a similar
+                    # reply (live 2026-10-06: a repeated workbook ask
+                    # planned NO tool and narrated the old answer). The
+                    # engine is deterministic and cheap: dispatch wins.
+                    try:
+                        from core.pricing_calculation import (
+                            message_requires_calculation,
+                        )
+
+                        if (message
+                                and message_requires_calculation(message)
+                                and not (_plan and _plan.use_tool
+                                         and _plan.intent == "calculate")):
+                            from core.chat_tool_planner import ToolPlan
+
+                            _plan = ToolPlan(
+                                use_tool=True, service="datasets",
+                                intent="calculate", query=message[:400],
+                                reason=("explicit calculation ask — "
+                                        "the engine must run even when "
+                                        "history holds a prior result"))
+                            logger.info(
+                                "[calc-force] calculation-shaped ask "
+                                "forced to datasets.calculate despite "
+                                "planner/history")
+                    except Exception:  # noqa: BLE001 — force is additive
+                        pass
                     if _plan and _plan.use_tool:
                         _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
                         await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
@@ -14177,7 +14555,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _tool_block = await _derivation_supplement(
                             message, user_id, planner_history or history,
                             canvas_context, _tool_block,
-                            llm_service=self.llm_service)
+                            llm_service=self.llm_service,
+                            conversation_id=session_id,
+                        )
                     else:
                         # Plan is None (provider produced no decision at
                         # all — distinct from decline and from exception):
@@ -14203,7 +14583,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _tool_block = await _derivation_supplement(
                             message, user_id, planner_history or history,
                             canvas_context, _tool_block,
-                            llm_service=self.llm_service)
+                            llm_service=self.llm_service,
+                            conversation_id=session_id,
+                        )
             except Exception as tool_err:
                 # !r, not str: a bare asyncio.TimeoutError() stringifies to
                 # "" — the old warning printed "tool planning skipped: " and
@@ -14305,6 +14687,58 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 r"\b(?:research|verify|check|compare|comparison|"
                 r"workbook|quote|pricing|price|update)\b",
                 message or "", re.IGNORECASE))
+            # CALCULATION ASKS ARE NOT RESEARCH-RECOVERY TURNS (round 74):
+            # an explicit calculation ask on a goal-bound session must run
+            # the calculate lane — the research machinery's chained
+            # searches (value_trace over items, mailbox sweeps) answered
+            # around the calculation and the reply narrated memory. The
+            # lane is dispatched HERE, its receipt satisfies the datasets
+            # obligation, and no source-chaining runs.
+            _calc_lane_block: Optional[str] = None
+            if message and _research_turn:
+                try:
+                    from core.pricing_calculation import (
+                        message_requires_calculation as _msg_calc,
+                    )
+
+                    if _msg_calc(message):
+                        from core.chat_tool_planner import ToolPlan as _TP
+                        from core.chat_tool_planner import (
+                            execute_tool_plan as _etp,
+                        )
+
+                        _calc_block = await asyncio.wait_for(
+                            _etp(
+                                _TP(use_tool=True, service="datasets",
+                                    intent="calculate",
+                                    query=message[:400],
+                                    reason=("goal-session calculation "
+                                            "ask — the calculate lane "
+                                            "outranks research recovery")),
+                                user_id,
+                                tenant_id=getattr(
+                                    self, "tenant_id", "default"),
+                                context={
+                                    "agent_id": agent_id,
+                                    "conversation_id": session_id,
+                                    "message": message,
+                                    "workspace_id": workspace_id,
+                                },
+                                llm_service=self.llm_service),
+                            timeout=110.0)
+                        if _calc_block:
+                            _calc_lane_block = _calc_block
+                            _research_turn = False
+                            _required_sources = set()
+                            _tool_block = _calc_block
+                            logger.info(
+                                "[calc-lane] goal-session calculation "
+                                "ask answered by datasets.calculate "
+                                "(%d chars)", len(_calc_block))
+                except Exception as _calc_err:  # noqa: BLE001
+                    logger.warning(
+                        "[calc-lane] calculation dispatch failed: %r",
+                        _calc_err)
             _required_sources = (
                 self._required_research_sources(
                     # COORDINATION FIX (2026-10-04, logged in
@@ -14416,8 +14850,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _replan, user_id,
                                 tenant_id=getattr(
                                     self, "tenant_id", "default"),
-                                context={"history": planner_history
-                                         or history},
+                                context={
+                                    "history": planner_history
+                                    or history,
+                                    # calculation lanes record onto the
+                                    # conversation's job (round 74)
+                                    "conversation_id": session_id,
+                                },
                                 llm_service=self.llm_service,
                             ) or ""
                             logger.info(
@@ -14892,6 +15331,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # is implied — execute_tool_plan is the
                                     # read path.
                                     "agent_id": agent_id,
+                                    "conversation_id": session_id,
                                     "message": message,
                                     "history": (planner_history
                                                 or history or [])[-6:],
@@ -14989,6 +15429,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     self, "tenant_id", "default"),
                                 context={
                                     "agent_id": agent_id,
+                                    "conversation_id": session_id,
                                     "message": message,
                                     "history": (planner_history
                                                 or history or [])[-6:],
@@ -15570,7 +16011,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _deriv_block = await _derivation_supplement(
                             message, user_id, planner_history or history,
                             canvas_context, None,
-                            llm_service=self.llm_service)
+                            llm_service=self.llm_service,
+                            conversation_id=session_id,
+                        )
                     if _deriv_block:
                         # A DETERMINISTIC BLOCK SUPERSEDES A LOOKUP-FAILURE
                         # NOTE. When the planner timed out, `_tool_block` holds
@@ -17150,9 +17593,41 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "[figure-grounding] NOT skipped: the workbook contradicts "
                         "the reply's arithmetic — this is a real finding"
                     )
+                # CALCULATION-NARRATION VALIDATION (round 76 — request-bound):
+                # the engine's arithmetic is deterministic; the narration is
+                # NOT. Figures are validated against the CURRENT operation's
+                # structured record(s) only — result_id(s) parsed from THIS
+                # turn's tool block, identity-filtered to this conversation.
+                # Global recency is never authority: a later reply cannot
+                # inherit unrelated evidence. Unknown currency (XXX) invents
+                # nothing; non-succeeded statuses stay qualified.
+                _calc_allowance = None
+                try:
+                    from core.pricing_calculation import (
+                        _calc_narration_allowance,
+                    )
+
+                    _allow = _calc_narration_allowance(
+                        _tool_block,
+                        expected_conversation_id=session_id,
+                        expected_user_id=user_id)
+                    if _allow.get("records"):
+                        _calc_allowance = _allow
+                except Exception:  # noqa: BLE001 — validation additive
+                    _calc_allowance = None
+                _calc_evidence = _calc_allowance is not None
+                if _calc_evidence:
+                    _unsupported = _calc_narration_violations(
+                        _content, _calc_allowance)
+                    _grounding_ran = True
+                    if _unsupported:
+                        logger.warning(
+                            "[figure-grounding] narration contradicts the "
+                            "structured calculation: "
+                            + ", ".join(_unsupported[:6]))
                 if _tool_block and _content and not (
                     _derivation_reply and not _derivation_contradicted
-                ):
+                ) and not _calc_evidence:
                     _grounding_ran = False
                     try:
                         from core.chat_tool_planner import _unsupported_figures
@@ -17278,6 +17753,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 )
                         except Exception as _fab_err:  # noqa: BLE001
                             logger.debug(f"fabrication signal skipped: {_fab_err}")
+                        if _calc_allowance is not None:
+                            # DETERMINISTIC FALLBACK (round 75, the owner's
+                            # directive 2): the narration failed validation
+                            # against the structured record — render the
+                            # RECORD itself (result + limitations) as this
+                            # turn's content. No regeneration can erase a
+                            # successful calculation: the fallback exists
+                            # before any regen runs and survives its failure.
+                            _det = _deterministic_calc_fallback(
+                                _calc_allowance, _unsupported)
+                            if _det:
+                                _content = _det
+                                response_data = dict(response_data or {})
+                                response_data["content"] = _det
+                                logger.info(
+                                    "[figure-grounding] deterministic "
+                                    "calculation fallback applied (%d "
+                                    "chars)", len(_det))
                         messages.append({"role": "system", "content": (
                             "FIGURE GROUNDING FAILURE: these figures in your reply "
                             "appear in NO retrieved evidence and no user message: "
@@ -17305,7 +17798,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         if _guard_fix:
                             response_data = _guard_fix
                         _regenerated = (response_data or {}).get("content") or ""
-                        if _regenerated:
+                        # REGEN ACCEPTANCE (round 75): a corrective regen
+                        # replaces the reply only when it PASSES the same
+                        # validation the original failed — a failed or
+                        # still-violating regen must not erase the
+                        # deterministic fallback (or the original).
+                        _regen_ok = bool(_regenerated)
+                        if _regen_ok and _calc_allowance is not None:
+                            _regen_ok = not _calc_narration_violations(
+                                _regenerated, _calc_allowance)
+                        if _regen_ok and _regenerated:
                             _content = _regenerated
                 # ABSENCE COVERAGE GUARD (RCA 2026-09-17 finding 4 + the
                 # answer-quality list): the exact shipped turn asserted

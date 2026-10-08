@@ -1368,3 +1368,83 @@ Five directives, delivered:
 - The Tennsmith basis lesson (`4ab35f5860b0436799fe510cd9440f85`) was taught through the app's teach API for the authorization demo; before it, the same ask was correctly refused as NOT AUTHORIZED.
 
 83 tests green (engine + pricing batteries, including the new pins: stored-value-cannot-satisfy-obligation on a real lifecycle, ambiguous-version refusal, expression lane compute + missing-input naming, lane-records-on-active-job, verification independence). Demo fork `2233f463-6fad-443a-959d-e6088e1bb784` left clearly labeled disposable (carries the job-record evidence); original canvas untouched; nothing sent.
+
+## Round 72: the owner's verification gaps — closed, and the record corrected
+
+> "'All five directives delivered' overstates the verification."
+
+Accepted. This round corrects the support statement, closes the two open semantics, finishes the browser checks, and diagnoses the blank page concretely.
+
+**Support statement (corrected, per-case verification labels):**
+- Workbook full computation — **browser-verified** (round 71 UI turn; reply: CAD 7,409, 20 recorded cells, cross-check, freshness limitation).
+- Named-input expression — **round 71: API-verified only** (the browser attempt was cut off by the blank page). **Round 72: browser-verified** on the fork-canvas chat (visible reply: "→ 2,625 — Steps from the formula engine: 17.5 × 150 = 2,625.0; + 0 = 2,625.0; ROUNDUP = 2,625"), persisted across reload, and recorded on the job (`a71e5e5f applied | expression:ROUNDUP(hours*rate…) | 2625`).
+- Stored value — **round 71: API-verified only. Round 72: browser-verified** on the same canvas (H25 reply: "typed literal input; no stored formula, so nothing was evaluated … could not be carried forward to a confirmed final price"), persisted across reload, and recorded on the job as THREE waiting stored_value operations with the open question "cannot be satisfied: the output cell holds a STORED VALUE (4777)".
+- No combined claims: each result above is tied to its own request and operation id.
+
+**Blank-page diagnosis (concrete, not dismissed):** `GET /chat` returns **HTTP 307 → /login?callbackUrl=…** when unauthenticated (curl-verified); `/login` itself serves a full sign-in page (90 KB, Email/Password form). The blank render was the **expired session in the automation tab** — corroborated by the `JWT decode error during user lookup` websocket 403s logged during the interrupted checks. Not an app defect; remedy was re-authenticating through the login form, after which every page and both remaining checks completed.
+
+**Coherent-version semantics (regression-pinned):** on live-hash divergence the ENTIRE dependency graph is rebuilt from the live bytes alone (`live_only`) — the cataloged frame/sidecar contributes nothing; a sheet the live version no longer carries is an explicit **VERSION CONFLICT** ("mixing versions is refused; no calculation was run"), whether it is the target sheet or a cross-sheet dependency. Pinned with the owner's exact scenario: v2 changes BOTH the output formula (ROUNDUP(B1+A1)→ROUNDUP(B1*A1)) and the cross-sheet constant (5→7) → the evaluation yields v2's 140 everywhere (never v1's 20); v2 dropping the Constants sheet → conflict, no calculation.
+
+**Substituted-intermediate semantics (regression-pinned):** a stored value standing in for an unavailable intermediate formula yields `computed_substituted` — never an unqualified `computed` — and `record_calculation` keeps the fully-reconstructed obligation OPEN as durable next-work ("computed but NOT fully reconstructed: … B2 …; a live read can restore the formulas"). Pinned: a B2-substituted chain does not satisfy the obligation; the same chain with B2's formula present does (`computed`, zero substitutions).
+
+**Kept explicit (usability follow-up, unchanged):** the demonstrated `calculate expression … with …` syntax proves an ENTRY POINT. It does **not yet prove that the trained employee can choose and invoke the formula from an ordinary business request.**
+
+90 tests green across the engine and pricing batteries. Original canvas untouched; nothing sent.
+
+## GENERAL FORMULA-ENGINE MILESTONE — CLOSED (owner-accepted, 2026-10-06)
+
+> "Atom can evaluate its supported formula language from workbook references or named inputs, persist results and provenance, and distinguish full computation, substituted computation, stored observations and incomplete calculations. The demonstrated results survive browser reload."
+
+Baseline: **d59a72ff4**. Explicit limits carried forward: the supported language is arithmetic, references (incl. cross-sheet), named inputs, and the ROUND/SUM/MIN/MAX/INT/ABS family in Decimal — anything else returns a precise unsupported result; ambiguous workbook versions are refused; substituted computations and stored observations never masquerade as fully-verified calculations. Per-case evidence: rounds 69–72 above.
+
+**Next milestone (owner direction): natural-language use by the trained employee — not more evaluator work.** Ordinary requests ("Estimate this service job using our taught rates." / "Calculate the selling price using the applicable workbook formula.") must work without calculator syntax: the agent selects the applicable formula, obtains and validates inputs, invokes the engine, explains the result, and asks only necessary questions. `computed_substituted` must not silently count as fully verified; a stored-value request must not be forced through computation. No further engine redesign unless that workflow exposes a concrete defect.
+
+## Round 73: natural-language use by the trained employee (the next milestone, first slice)
+
+The user supplies NO calculator syntax. The planner passes the ordinary wording as the calculate query; the lane (`calculate_natural_from_query`) resolves it deterministically:
+
+- **Estimate family** — TAUGHT EXPRESSIONS: a lesson may carry an explicit formula ("Service estimate: estimate = ROUNDUP(hours * rate + materials, 0)") plus taught default inputs ("Our service rate is 150 per hour"). Selection is structural (an assignment with real identifiers and operators; prose never matches); request-stated inputs bind over taught defaults ("17.5 hours", "no materials" = 0); whatever remains missing becomes ONE precise question. Recorded with provenance (the lesson id) and input origins ([taught default] vs [from request]).
+- **Price family** — teaching-as-scope: the item code (identity-shaped, digit-bearing) resolves through the catalog's Find-All; only file/sheet pairs a permanent teaching AUTHORIZES are candidates; the row's price column (header vocabulary, frame-order letter) picks the output cell; the existing workbook path then runs with every result-type distinction intact (a stored value stays an observation; a substituted computation stays qualified). Ambiguity at any step is a question, never a guess.
+
+**Live (API-exercised, per-case):**
+- Fresh session, "Estimate this service job using our taught rates." → the agent asked for EXACTLY the two missing inputs (hours, materials), formula and taught rate already in hand; the natural reply "17.5 hours of work, and no materials needed" → **$2,625** with the taught formula quoted. (An earlier canvas-session attempt reused 17.5 hours from conversation history — legitimate input sourcing, but the necessary-question flow required the fresh session to demonstrate.)
+- Fresh session, "…calculate the selling price for it [BurrKing 90703] using the applicable workbook formula." → planner classified it as calculate FROM THE ORDINARY WORDING (log: `datasets.calculate:Calculate the selling price for BurrKing 90703 using the applicable workbook for…`) → item resolved → authorized basis → E25 computed **CAD 7,409**, cross-checked, freshness caveat, and the taught quote conventions (CAD, FOB Woodstock, terms TBD) applied unprompted.
+- **Honest defect observation (not counted as a demonstration):** re-asking the workbook case in a session whose HISTORY already contained the answer executed NO tool plan — the reply narrated prior evidence from memory ("tool plan executed: None"). History can shadow tool dispatch; the next slice should treat a calculation ask as plan-required even when history holds a prior result.
+
+**Browser status (per-case):** this round's NL cases are API-exercised; the fork canvas's co-editor panel became unusable mid-pass (composer missing after reload; earlier sends worked) — a concrete UI observation for the backlog, not dismissed. The same lanes' browser rendering was established in round 72.
+
+94 tests green (both resolver families pinned: parse/default binding, prose-never-matches, request-over-default, one-precise-question, no-taught-formula honesty, item→authorized-basis→price-cell resolution, no-basis refusal, no-item question). Service-estimate lesson `1451b758f7964e1a9d1878704b7ce054` taught through the app API. Original canvas untouched; nothing sent.
+
+## Round 74: the three gaps closed — persistence, shadowing, UI workflow
+
+**Gap 1 — execution and persistence proven on the actual job.** Root cause of the round-73 recording miss: `conversation_id` was threaded at only ONE of the four `execute_tool_plan` call sites, and goal-session turns reach neither the tool planner nor that site. Fixes: the id threaded at ALL call sites; a canvas fallback in `_record_on_job` (`find_active_task_for_canvas`); the calculate lane dispatched at the SHARED evidence seam (`_derivation_supplement`) both pipelines pass through. LIVE-VERIFIED per operation on job `8d6fa5b5` (fork canvas): the 20-hour estimate — `applied | taught-expression:Service estimate | v aacc361fd619 | 3000 | inputs {rate:150, hours:20, materials:0}`; the workbook ask — `applied | workbook:BurrKing!E25 | v ce61dd3d40ca | 7409`. Formula, policy version, inputs and result all persist under the job and operation.
+
+**Gap 2 — history shadowing fixed without banning reuse.** Three live findings, each fixed at its actual layer: (a) the generic planner classified a repeated workbook ask as search/value_trace — `plan_tool_use` now OVERRIDES to `datasets.calculate` whenever the message is calculation-shaped; (b) goal-session turns never call the tool planner at all — the derivation-seam dispatch covers them; (c) "Recalculate that estimate …" fell through EVERY lane (the estimate family regex required a job/service/work keyword) so the model narrated memory — the family now recognizes recalculate-estimate asks. The engine is deterministic and cheap: every explicit ask RUNS it; reuse remains permitted through the lane's own records. Verified live: "Recalculate that estimate — actually 12 hours" → NEW operation `38f67315 applied | … | 1800 | {hours:12}` (changed inputs → changed recorded value); a changed taught rate changes the CONTENT-derived policy version (pinned).
+
+**Gap 4 — competing applicable lessons (pinned).** Two taught formulas matching one ask → the lane names BOTH with their lesson ids and asks which applies — never first-match (test: LESSON_A + LESSON_B → "SEVERAL TAUGHT FORMULAS … L-A … L-B … Ask which").
+
+**Gap 3 — the UI workflow completed, with concrete diagnoses.**
+- *Blank page (round 71's interruption)*: `GET /chat` unauthenticated → 307 `/login` (curl-verified); expired session, not an app defect.
+- *"Disappearing composer"*: measurement artifact — the composer is a PLACEHOLDER on a textarea; it renders after the agent binding loads. Screenshots confirm it present.
+- *The real defect the round-73 UI attempt exposed*: the streamed reply NEVER PERSISTED — zero rows for the exchange after reload. Root cause traced: the figure-grounding guard flagged the reply's own ENGINE-computed figures ($1,200/$150/$0 — the block renders "1200"/"rate=150"; the reply renders "$1,200") and triggered a grounded regeneration that, against the cooldown-limited provider pool, shipped no persistable assistant row. Fix: blocks from the deterministic calculate lane are exempt from the naive text-presence check (the block IS the evidence of record). 
+- *Snapshot degeneration*: the in-app browser's DOM snapshot returns a 35-char tree on this heavy page — tool limitation, screenshots prove the render.
+
+**Finish line, demonstrated in the browser** (fork canvas `2233f463`, Sales Agent attached): ordinary request → taught formula → **$3,000 for 20 hours** (reply persisted), and → **CAD 7,409** via the workbook chain (reply persisted); BOTH verified in the panel after full reload ("20 hours"×2, "3,000"×1, "7,409"×8, the workbook ask×3); each turn's calculation recorded as its own operation on the job with formula version, inputs and result.
+
+101 tests green. The usability follow-up remains open and explicit: the trained employee choosing/invoke formulas from arbitrary business wording is demonstrated for these two families only. Original canvas untouched; nothing sent.
+
+## Round 75: the owner's narration-safety correction
+
+**Directive 1 — blanket exemption replaced.** The round-74 exemption (block strings ⇒ skip figure checking) is GONE. The calculate lanes now publish their STRUCTURED records (proposed values, inputs, step outputs, currency, status) to a turn-scoped carrier, and the figure gate validates the reply's narration against THAT: money formatting normalized ("1200" ≡ "$1,200" ≡ "1,200.00"), currency preserved (a CAD result narrated as USD fails), extra unsupported figures (a "250 shipping add-on" on a computed 3,000) fail. Trust derives from the engine's record, never from strings in an evidence block.
+
+**Directive 2 — deterministic fallback.** On a narration violation the gate renders the RECORDED calculation directly (result, status, policy/version, workbook identity, limitations) as the turn's content — before any regeneration runs; a corrective regen replaces it only by passing the SAME validation. A failed regeneration can no longer erase a successful calculation. Removed violations are echoed without currency symbols so invented $-formatting cannot ride along.
+
+**Directive 3 — real request-to-job binding.** The shared dispatch now threads the ACTUAL `conversation_id` (all `_derivation_supplement` call sites; `session_id` from the turn), with the canvas fallback retained for goal sessions. LIVE-VERIFIED canvas-free: a fresh session's "Estimate … 6 hours" created/bound job `0c9dd11e` and persisted the operation — `b44ee10e applied | taught-expression:Service estimate | v aacc361fd619 | 900 | inputs {rate:150, hours:6, materials:0}`.
+
+**Directive 4 — one request, one operation.** Turn-scoped singleflight dedupes the dispatch paths (derivation seam + goal-session pre-dispatch share one flight per request); changed inputs are a different request → a new operation. Pinned: two estimates (8h, 12h) → two distinct operations with distinct result ids and their own inputs (the round-74 live recalculation already demonstrated this end-to-end: `38f67315 | 1800 | hours:12` after `…| 1200 | hours:8`).
+
+**Directive 5 — focused controls (all green):** formatting variants pass ($3,000 / 3000.00 CAD / "3,000 dollars"); invented amount ($30,000 for computed 3,000) FAILS; changed currency (USD for a CAD record) FAILS; unsupported extra figure (250 add-on) FAILS; narration failure produces the durable truthful record-render; canvas-free calculation records on the job and its rows survive (API-verified; the UI retry after a mid-turn openrouter-credit failure stopped reaching the backend — the panel-send wedge under that failure mode remains open, see below).
+
+**Concurrent work noted:** a round-76 writer added `TestRound76RequestBoundEvidence` to the shared test file and `user_id` threading + `_calc_dedup_key` to the sources while this round was in flight; their tests now pass against the combined state (117 green) and their edits are preserved.
+
+**UI status, per case (honest):** round-74's two browser-verified exchanges remain persisted and reload-durable. This round's new UI attempt (25 hours) streamed but its rows did not persist — the mid-turn openrouter-credit exhaustion (402, account benched) coincided; the retry then failed to dispatch from the panel at all. Root cause of that persistence path remains open (suspected: an early-return recovery arm bypassing the persistence block under provider-failure conditions). NOT counted as a verified case; the API-path equivalents are recorded above.
