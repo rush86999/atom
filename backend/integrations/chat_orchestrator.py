@@ -20270,9 +20270,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _decline_reply = str(
                         getattr(plan, "reply", "") or "").strip()
                     if _decline_reply and re.search(
-                            r"no changes (?:were )?needed|already "
-                            r"reflects|already (?:includes|contains|"
-                            r"matches)|nothing to change",
+                            r"no\s+(?:\w+\s+){0,2}changes (?:were )?"
+                            r"needed|already (?:reflects|preserves|"
+                            r"includes|contains|matches|uses)|nothing "
+                            r"to change|no canvas changes",
                             _decline_reply, re.IGNORECASE):
                         shared_tool_state[
                             "canvas_edit_decline_noop"] = True

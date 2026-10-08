@@ -47,6 +47,30 @@ def test_do_not_send_does_not_negate_the_edit():
         canvas_id="fork-1")[0] == "granted"
 
 
+def test_noop_decline_wording_variants_complete():
+    """The no-changes-needed completion must catch real planner
+    wordings, including intervening words ('No canvas changes were
+    needed: the draft already preserves...')."""
+    import re
+    pat = re.compile(
+        r"no\s+(?:\w+\s+){0,2}changes (?:were )?needed"
+        r"|already (?:reflects|preserves|includes|contains|matches|uses)"
+        r"|nothing to change|no canvas changes",
+        re.IGNORECASE)
+    for words in (
+            "No canvas changes were needed: the draft already "
+            "preserves the approved manual prices.",
+            "The draft already reflects the approved manual prices and "
+            "verified correspondence; no changes were needed.",
+            "No changes needed.",
+            "The draft already uses the verified correspondence."):
+        assert pat.search(words), words
+    # negatives: a genuine non-noop decline must NOT complete
+    for words in ("I could not find that row on the canvas.",
+                  "The requested section is outside my editable area."):
+        assert not pat.search(words), words
+
+
 def test_negated_change_still_refuses():
     assert _canvas_edit_shaped(
         "Research this; don't change the draft yet", CTX) is False
