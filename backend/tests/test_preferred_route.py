@@ -93,6 +93,21 @@ def test_cooldown_preference_ignored(monkeypatch):
     assert "cooldown" in BYOKHandler._PREF_LAST_DIAGNOSIS
 
 
+def test_context_ineligible_preference_declined(monkeypatch):
+    """A preference whose window cannot hold the call is a no-op with
+    the precise reason (the 4096-context free model inserted for a
+    ~17k-char edit-planning call forced silent truncation)."""
+    monkeypatch.setenv("ATOM_PREFERRED_LLM_PROVIDER", "opencode-go")
+    monkeypatch.setenv("ATOM_PREFERRED_LLM_MODEL", "tiny-ctx-model")
+    h = _handler()
+    h.get_context_window = lambda m: (
+        4096 if m == "tiny-ctx-model" else 32000)
+    out = h._apply_preferred_route(
+        [("openai", "o4-mini")], estimated_tokens=9000)
+    assert out == [("openai", "o4-mini")], "context-ineligible is a no-op"
+    assert "window" in BYOKHandler._PREF_LAST_DIAGNOSIS
+
+
 def test_no_provider_configured_carries_the_diagnosis(monkeypatch):
     monkeypatch.setenv("ATOM_PREFERRED_LLM_PROVIDER", "ghost")
     monkeypatch.setenv("ATOM_PREFERRED_LLM_MODEL", "m")

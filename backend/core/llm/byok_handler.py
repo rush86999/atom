@@ -4774,7 +4774,8 @@ class BYOKHandler:
         try:
             reconciled = self._apply_preferred_route(
                 reconciled, requires_tools=requires_tools,
-                requires_structured=requires_structured)
+                requires_structured=requires_structured,
+                estimated_tokens=estimated_tokens)
         except Exception as _pref_err:  # noqa: BLE001 — preference is additive
             logger.debug("preferred-route reorder skipped: %r", _pref_err)
         return AwaitableResult(reconciled)
@@ -4803,7 +4804,7 @@ class BYOKHandler:
 
     def _apply_preferred_route(
         self, options: List[tuple], requires_tools: bool = False,
-        requires_structured: bool = False,
+        requires_structured: bool = False, **kwargs: Any,
     ) -> List[tuple]:
         pair = self._preference_pair()
         if pair is None:
@@ -4835,6 +4836,22 @@ class BYOKHandler:
                     f"'{model}' does not support the tools/structured "
                     "capability this call requires")
         except Exception:  # noqa: BLE001 — capability check advisory here
+            pass
+        # CONTEXT CAPACITY (2026-10-08 owner dispatch item 2): the
+        # preference must retain the original call's eligibility
+        # requirements — a 4096-context free model inserted for a ~17k-
+        # char edit-planning call forced silent prompt truncation and a
+        # bogus decline. The same window check the ranking applies
+        # (get_context_window clamped by the request's estimated
+        # tokens) gates the preference too.
+        try:
+            _est = int(kwargs.get("estimated_tokens") or 0)
+            _win = self.get_context_window(model)
+            if _win and _est and _est + 1000 > _win:
+                reasons.append(
+                    f"'{model}' window ({_win}) cannot hold the "
+                    f"estimated request ({_est} tokens)")
+        except Exception:  # noqa: BLE001 — window check advisory
             pass
         if requires_structured and f"{provider_id}/{model}" in (
                 _STRUCTURED_PROTOCOL_UNSUPPORTED):

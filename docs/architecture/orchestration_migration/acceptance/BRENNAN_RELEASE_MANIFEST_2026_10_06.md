@@ -321,6 +321,48 @@ candidate. Three trials per case, same candidate; every trial reported.
   property it gestures at is separately green. Results:
   `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
 
+## CURRENT STATUS (2026-10-08 dispatch close)
+
+Supersedes the prior final row (kept below as history).
+
+- **Dispatch item 1 (telemetry):** the edit-planning call's exclusion
+  causes are captured per-candidate: opencode-go models excluded by
+  MODEL_INFLIGHT (the turn's own overlapped planning legs hold the
+  single-flight claims); openrouter/deepseek by 402 cooldown. NOT pool
+  unavailability — deepseek-v4-pro demonstrably served a full-prompt
+  CanvasEditPlan (35s, trial 9). 'All candidates skipped' names the
+  stage; the causes are these.
+- **Dispatch item 2 (route check):** a configured route supports the
+  structured call. The preference mechanism was exercised; its one
+  incorrectly-omitted eligibility check — CONTEXT CAPACITY — is
+  repaired and pinned (the 4096-context free model had been inserted
+  for a ~17k-char planning call, forcing silent truncation and a bogus
+  decline). Capability, rate, and authorization controls untouched.
+- **Dispatch item 3 (intent preservation): VERIFIED LIVE.** Trial 10's
+  authorized T_AUTH answers with the truthful durable-queue status
+  ('started in the background … Nothing has been sent, and I won't
+  send anything'); planner-unavailability reasons report the draft as
+  BLOCKED with the authorization standing; the research fall-through
+  no longer claims drafting-worded turns.
+- **Dispatch item 4 (the write): DID NOT LAND — captured terminal
+  evidence.** Continuation 8560eaf1: three attempts over 301s, each
+  'the edit planner could not complete' (attempt 3 had 10s of edit
+  budget); trial 9's served planner DECLINED (wants_edit=False) on the
+  full prompt. The remaining distance — dispatch → valid patch →
+  durable write → visible confirmation — is exactly as the owner
+  framed it: none of the downstream steps is guaranteed by the
+  implemented protections. Evidenced capacity requirement (stated
+  once, no speculative funding request): edit planning needs a
+  dedicated non-contended structured route; free catalog models are
+  4096-context (ineligible), and the serving paid models contend with
+  the interactive turn's own legs within the 300s continuation budget.
+- **Ordering-rule scope qualification recorded** in its docstring: a
+  within-op swap safeguard, not a complete subject-field binding
+  (cross-op reassociation belongs to the artifact-level scope guard).
+- Prior results stand: browser empty_reply PASSED; case-4
+  subject/source proof (trial 14); cases 2/5/6 verdicts; trial 15 and
+  all drafting trials retained in the reliability record.
+
 ## CURRENT STATUS (2026-10-08 final — browser check PASSED; drafting transition captured)
 
 Supersedes the late row (kept below as history).
