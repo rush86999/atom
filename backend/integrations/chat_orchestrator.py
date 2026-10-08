@@ -643,6 +643,26 @@ def _turn_budget_error_response() -> Dict[str, Any]:
     }
 
 
+async def _background_work_in_flight(session_id: Optional[str]) -> bool:
+    """True when this conversation still has authorized work running in a
+    background continuation.
+
+    Used by the budget envelope so an exhausted reply is never reported as a
+    bare failure while the work it authorized is still in progress. Reads
+    the continuation registry rather than the reply body: on the tool-path
+    fall-through the response carries no canvas-edit block, so the body is
+    not a reliable carrier of the handoff.
+    """
+    if not session_id:
+        return False
+    try:
+        from core.async_turn_continuation import continuation_in_flight
+
+        return bool(continuation_in_flight(session_id))
+    except Exception:  # noqa: BLE001 — this probe must never break a turn
+        return False
+
+
 class FeatureType(Enum):
     """Types of ATOM features that can be accessed through chat"""
     SEARCH = "search"
@@ -11512,11 +11532,106 @@ class ChatOrchestrator:
             # code (and skip the canned template text, which would read as a
             # normal answer) so the client can offer a retry. Mirrors the
             # budget_exceeded precedence above.
+            #
+            # RECEIPT BEFORE REFUSAL (2026-10-08 owner priority 1): the edit
+            # can LAND and the reply leg can still die afterwards — the plan
+            # finishing is not what the reply budget is spent on. Forcing
+            # turn_budget_exceeded then told the owner a turn had failed while
+            # the canvas had already changed, and the honest outcome is
+            # available WITHOUT another model call: the operation/audit
+            # receipt already says whether the write landed. Consult it first
+            # and report from it. The budget is never widened to hide this.
             if _execution_id and _execution_id in self._budget_exceeded_runs:
                 self._budget_exceeded_runs.discard(_execution_id)
-                response["success"] = False
-                response["error_code"] = "turn_budget_exceeded"
-                response["message"] = _turn_budget_error_response()["message"]
+                _budget_receipt: Dict[str, Any] = {}
+                _budget_canvas_id = str(
+                    ((response.get("data") or {}).get("canvas_edit") or {})
+                    .get("canvas_id") or "")
+                try:
+                    if not _budget_canvas_id:
+                        # `_canvas_ctx` is branch-assigned upstream; a
+                        # probing lookup keeps this boundary additive.
+                        _budget_canvas_id = str(
+                            (locals().get("_canvas_ctx") or {}).get(
+                                "canvas_id") or "")
+                    if _budget_canvas_id:
+                        _budget_receipt = await self._canvas_write_for_operation(
+                            _budget_canvas_id, session_id, user_id,
+                            _execution_id) or {}
+                except Exception as _b_rcpt_err:  # noqa: BLE001
+                    logger.debug(
+                        "budget receipt probe skipped: %r", _b_rcpt_err)
+                _budget_verdict = str(_budget_receipt.get("verdict") or "")
+                _budget_review = str(
+                    _budget_receipt.get("review_status") or "")
+                if _budget_verdict in ("result_verified", "write_recorded"):
+                    # WRITE LANDED: confirmation from the receipt.
+                    response["success"] = True
+                    response.pop("error_code", None)
+                    _budget_op = str(
+                        ((response.get("data") or {}).get("canvas_edit") or {})
+                        .get("operation_id") or _execution_id)
+                    if _budget_review == "pending_review":
+                        response["message"] = (
+                            "Your update was applied and is saved as a "
+                            "proposal waiting for your approval. This "
+                            "turn ran out of reply time, so I could not "
+                            "write a summary — the change itself is on "
+                            f"the canvas (operation {_budget_op}).")
+                    elif _budget_verdict == "result_verified":
+                        response["message"] = (
+                            "Your update is applied and verified on the "
+                            "canvas. This turn ran out of reply time, so "
+                            "I could not write a summary — the change "
+                            f"itself is done (operation {_budget_op}).")
+                    else:
+                        response["message"] = (
+                            "Your update is recorded on the canvas. This "
+                            "turn ran out of reply time before I could "
+                            "verify it in full — the write is on the "
+                            f"audit trail (operation {_budget_op}).")
+                    response.setdefault("data", {})["budget_recovery"] = {
+                        "write_landed": True,
+                        "verdict": _budget_verdict,
+                        "review_status": _budget_review or None,
+                        "operation_id": _budget_op,
+                    }
+                elif await _background_work_in_flight(session_id):
+                    # AUTHORIZED WORK REMAINS UNFINISHED: it is already
+                    # handed to the continuation — say so rather than
+                    # reporting a bare failure for work in progress. The
+                    # handoff is read from DURABLE continuation state, not
+                    # from the reply body: on the tool-path fall-through
+                    # the response carries no canvas_edit block at all, so
+                    # the body is not a reliable carrier of it.
+                    response["success"] = True
+                    response.pop("error_code", None)
+                    _bg_id = ""
+                    try:
+                        from core.async_turn_continuation import (
+                            continuation_in_flight)
+
+                        _bg_id = str(continuation_in_flight(session_id) or "")
+                    except Exception:  # noqa: BLE001 — probe is additive
+                        _bg_id = ""
+                    response["message"] = (
+                        "This turn ran out of reply time, and the update "
+                        "is still finishing in the background — I will "
+                        "report the result when it lands"
+                        + (f" (task {_bg_id})." if _bg_id else "."))
+                    response.setdefault("data", {})["budget_recovery"] = {
+                        "write_landed": False,
+                        "background_started": True,
+                        "continuation_id": _bg_id or None,
+                    }
+                else:
+                    response["success"] = False
+                    response["error_code"] = "turn_budget_exceeded"
+                    response["message"] = _turn_budget_error_response()["message"]
+                    response.setdefault("data", {})["budget_recovery"] = {
+                        "write_landed": False,
+                        "verdict": _budget_verdict or "unverified",
+                    }
 
             # Same honesty when the reply leg produced nothing AND the legacy
             # fallback was not affordable: the delivery failed, so quality is
