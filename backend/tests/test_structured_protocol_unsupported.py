@@ -117,6 +117,14 @@ def _handler(ranked):
     from core.llm import byok_handler as bh
     bh._STRUCTURED_PROTOCOL_UNSUPPORTED.clear()
     bh._TOOLCHOICE_UNSUPPORTED.clear()
+    # The unified dispatch gate consults the REAL route registry for
+    # automatic candidates; synthetic pairs are unknown there and would be
+    # refused BEFORE the protocol ladder this suite exercises. Catalog
+    # admission is stubbed open — this suite pins PROTOCOL recovery; catalog
+    # policy is pinned separately (preferred-route / fallback suites).
+    handler._dispatch_catalog_admits = (
+        lambda attempt_provider_id, model, requested=None,
+        operation="text", explicit_route=None: True)
     return handler
 
 

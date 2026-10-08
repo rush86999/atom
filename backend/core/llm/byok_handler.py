@@ -111,6 +111,20 @@ _MODEL_TEMPERATURE: Dict[str, float] = {}
 # Memoized + persisted like the other pair constraints.
 _STRUCTURED_PROTOCOL_UNSUPPORTED: set = set()
 
+# OPERATION-KEYED PROTOCOL INCOMPATIBILITY (2026-10-08 owner assignment 2).
+# A protocol rejection is a fact about ONE (route, operation) combination,
+# not about the provider and not about the model as a whole: the same model
+# may still carry text while its structured output is rejected, and other
+# models on the same provider stay usable. Keying on the combination is
+# what stops a mixed failure from being read as "the provider is down" and
+# prompting a funding request. ``_STRUCTURED_PROTOCOL_UNSUPPORTED`` above
+# remains the "structured" slice for its existing readers.
+_PROTOCOL_INCOMPATIBLE: Dict[str, set] = {}
+
+
+def _protocol_key(provider_id: str, model: str) -> str:
+    return f"{provider_id}/{model}"
+
 
 # ---------------------------------------------------------------------------
 # DURABLE PAIR-CONSTRAINT MEMOS (2026-09-22). The per-(provider, model)
@@ -1500,6 +1514,114 @@ class BYOKHandler:
             logger.debug("context window lookup failed for %s/%s: %s",
                          provider_id, model, exc)
             return None
+
+    def _explicit_primary_requested(
+        self, provider_id: Any, model: Any = None,
+        explicit_route: Optional[bool] = None,
+    ) -> bool:
+        """True only when this route is an OPERATOR-CHOSEN override.
+
+        Being first in a ranked list is NOT evidence of an operator
+        override. Every internal caller passes a concrete provider id that
+        came out of ``get_ranked_providers`` / ``get_optimal_provider``, so
+        "the caller named a provider" would classify every automatic
+        primary as an override and re-open the very hole this gate closes —
+        an unserved pair reaching dispatch on some paths but not others.
+
+        The route is an override only when the caller SAYS SO
+        (``explicit_route=True`` — e.g. pinned planning, a gateway client
+        that knows its endpoint) or when it is the installation-level
+        preferred route, which is the one documented override surface.
+        Everything else is automatic and faces the same checks as every
+        fallback.
+        """
+        if explicit_route is not None:
+            return bool(explicit_route)
+        if str(provider_id or "").strip().lower() in ("auto", "none", ""):
+            return False
+        try:
+            return self._preference_pair() == (str(provider_id), str(model))
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _record_protocol_incompatible(
+        self, provider_id: str, model: str, operation: str,
+        detail: str = "",
+    ) -> None:
+        """Record that ONE (route, operation) combination is rejected by
+        the wire protocol.
+
+        A protocol rejection is not a provider outage and not a funding
+        problem: the same model may still carry text while its structured
+        output is rejected, and the provider's other models stay usable.
+        Keying on the combination is what keeps a mixed failure from being
+        reported as "the provider is down". Memoized with the other pair
+        constraints so a restart does not re-pay the discovery.
+        """
+        key = f"{provider_id}/{model}"
+        try:
+            _PROTOCOL_INCOMPATIBLE.setdefault(str(operation), set()).add(key)
+            if str(operation) in ("structured", "tools"):
+                _STRUCTURED_PROTOCOL_UNSUPPORTED.add(key)
+            logger.info(
+                "[route-gate] %s marked protocol-incompatible for "
+                "operation=%s%s", key, operation,
+                f" ({detail[:120]})" if detail else "")
+        except Exception:  # noqa: BLE001 — memo is best-effort
+            pass
+
+    def _protocol_incompatible(
+        self, provider_id: str, model: str, operation: str,
+    ) -> bool:
+        key = f"{provider_id}/{model}"
+        if key in (_PROTOCOL_INCOMPATIBLE.get(str(operation)) or set()):
+            return True
+        return str(operation) in ("structured", "tools") and key in (
+            _STRUCTURED_PROTOCOL_UNSUPPORTED)
+
+    def _dispatch_catalog_admits(
+        self, attempt_provider_id: str, model: str,
+        requested_provider_id: Any,
+        operation: str = "text",
+        explicit_route: Optional[bool] = None,
+    ) -> bool:
+        """ONE route rule for EVERY dispatch boundary — structured,
+        streaming, ordinary completion and sweep.
+
+        Evaluates the complete route immediately before the network
+        request: provider, provider-specific model identifier, the
+        requested operation, and explicit-override status.
+
+        | case                                   | behaviour                |
+        | -------------------------------------- | ------------------------ |
+        | automatic primary                      | eligibility checks       |
+        | automatic fallback / sweep candidate   | the same checks          |
+        | explicit operator-selected route       | admitted, OVERRIDE LOGGED |
+        | unknown catalog                        | refused (support is not assumed) |
+        | known unsupported route                | skipped, NO network call |
+        | recorded protocol rejection            | skipped for THIS operation only |
+        | provider quota / auth failure          | provider-scoped cooldown |
+
+        Fallbacks are always catalog-checked. The primary is exempt ONLY
+        when the caller explicitly named it: being first in a ranked list
+        is not evidence of an operator override.
+        """
+        if self._protocol_incompatible(
+                attempt_provider_id, model, operation):
+            logger.info(
+                "[route-gate] skip %s/%s for operation=%s: "
+                "protocol-incompatible (other routes unaffected)",
+                attempt_provider_id, model, operation)
+            return False
+        if (attempt_provider_id == str(requested_provider_id or "")
+                and self._explicit_primary_requested(
+                    requested_provider_id, model, explicit_route)):
+            logger.info(
+                "[route-gate] EXPLICIT OVERRIDE %s/%s for operation=%s — "
+                "operator-selected route admitted under the documented "
+                "override policy", attempt_provider_id, model, operation)
+            return True
+        return self._provider_serves_model(attempt_provider_id, model)
 
     def _provider_serves_model(self, provider_id: str, model: str) -> bool:
         """Does this provider actually serve this model identifier?
@@ -5936,7 +6058,12 @@ class BYOKHandler:
                     if not _served:
                         _served = self._provider_models_cached(p)
                     for m in _served[:2]:
-                        if self._ranked_model_is_known_unserved(p, m):
+                        # Sweep candidates are AUTOMATIC — the same gate as
+                        # every other automatic candidate. The narrow
+                        # known-unserved rule used here before let an
+                        # undiscovered catalogue through to dispatch.
+                        if not self._dispatch_catalog_admits(
+                                p, m, None, operation="text"):
                             continue
                         _sweep.append((p, m))
                 _sweep = _sweep[:4]
@@ -7122,8 +7249,9 @@ class BYOKHandler:
                     failed_providers.add(provider_id)
                     continue
                 if (provider_id, model) != _pinned_pair \
-                        and self._ranked_model_is_known_unserved(
-                            provider_id, model):
+                        and not self._dispatch_catalog_admits(
+                            provider_id, model, None,
+                            operation="structured"):
                     self._trace_structured_route(
                         route_trace_id, provider_id, model, "skip",
                         "catalog_not_in_provider")
@@ -7459,14 +7587,23 @@ class BYOKHandler:
                                             mode=instructor.Mode.JSON))
                                     _json_mode = True
                                     continue
-                                _STRUCTURED_PROTOCOL_UNSUPPORTED.add(
-                                    _logprobs_key)
+                                # Operation-keyed, not provider-keyed
+                                # (owner assignment 2): this disables
+                                # (route, structured) only. The model may
+                                # still carry text and the provider's other
+                                # models stay usable — a mixed failure must
+                                # never be reported as "the provider is
+                                # down" or prompt a funding request.
+                                self._record_protocol_incompatible(
+                                    provider_id, model, "structured",
+                                    detail=_err_txt[:160])
                                 _save_pair_memos()
                                 logger.warning(
                                     f"{provider_id}/{model} rejects BOTH "
                                     f"structured protocols (TOOLS and "
-                                    f"JSON) — memoized; structured "
-                                    f"cascades will skip this pair")
+                                    f"JSON) — memoized for operation="
+                                    f"structured; text and other routes "
+                                    f"stay available")
                                 raise
 
                             # (1c) TEMPERATURE-LOCKED endpoints (OpenCode Go,
@@ -8361,6 +8498,7 @@ class BYOKHandler:
         fallback_models: Optional[List[str]] = None,
         fallback_routes: Optional[List[tuple[str, str]]] = None,
         estimated_tokens: Optional[int] = None,
+        explicit_route: Optional[bool] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream LLM responses token-by-token with optional governance tracking.
@@ -8496,18 +8634,16 @@ class BYOKHandler:
                     logger.debug(f"window check skipped: {_win_err}")
 
 
-            # Skip fallback providers that don't serve this model — cross-
+            # Skip candidates that don't serve this model — cross-
             # provider streaming fallback previously retried the SAME model
             # name on incompatible providers (e.g. 'gpt-4o' on Anthropic),
-            # which 404s and wastes the attempt (Bug 14). The requested
-            # primary provider is always tried regardless (the caller asked
-            # for it explicitly and may know something the heuristic doesn't).
-            if attempt_provider_id != provider_id and not self._provider_serves_model(
-                attempt_provider_id, model
-            ):
-                logger.debug(
-                    f"Skipping stream fallback to {attempt_provider_id}: does not serve model '{model}'"
-                )
+            # which 404s and wastes the attempt (Bug 14). The shared
+            # dispatch gate: an EXPLICIT primary (operator override) is
+            # exempt; an AUTOMATIC primary ('auto' + ranking) is checked
+            # like every fallback (2026-10-08 systemic item 1).
+            if not self._dispatch_catalog_admits(
+                    attempt_provider_id, model, provider_id,
+                    operation="stream", explicit_route=explicit_route):
                 continue
 
             # A provider whose CREDENTIAL was just rejected (or whose quota is
@@ -8533,23 +8669,10 @@ class BYOKHandler:
                     f"Skipping {attempt_provider_id}/{model}: model cooldown active")
                 continue
 
-            # CATALOG-SERVED PAIR GATE (2026-10-07 routing repair): a
-            # model the provider does not serve (observed live:
-            # claude-haiku-5-5 on opencode-go → 400
-            # ModelProtocolUnsupported) is rejected BEFORE dispatch —
-            # the same _provider_serves_model validation the ranking
-            # uses, applied at the stream boundary. The ladder proceeds
-            # to its next catalog-served candidate.
-            try:
-                if not self._provider_serves_model(
-                        attempt_provider_id, model):
-                    logger.info(
-                        "Skipping %s/%s: model not in provider's "
-                        "discovered catalogue", attempt_provider_id,
-                        model)
-                    continue
-            except Exception:  # noqa: BLE001 — gate additive
-                pass
+            # (catalogue + protocol eligibility is enforced once by
+            # _dispatch_catalog_admits above. This used to be a SECOND
+            # strict gate, which silently defeated the documented
+            # explicit-override admission.)
 
             logger.info(
                 "Attempting stream with provider: %s (requested: %s) model=%s",
@@ -9139,7 +9262,12 @@ class BYOKHandler:
                     if not _served:
                         _served = self._provider_models_cached(p)
                     for m in _served[:2]:
-                        if self._ranked_model_is_known_unserved(p, m):
+                        # Sweep candidates are AUTOMATIC — the same gate as
+                        # every other automatic candidate. The narrow
+                        # known-unserved rule used here before let an
+                        # undiscovered catalogue through to dispatch.
+                        if not self._dispatch_catalog_admits(
+                                p, m, None, operation="text"):
                             continue
                         _sweep.append((p, m))
                 _sweep = _sweep[:4]
@@ -9207,6 +9335,7 @@ class BYOKHandler:
         agent_id: Optional[str] = None,
         extra_kwargs: Optional[Dict[str, Any]] = None,
         _allow_ladder_sweep: bool = True,  # sweep recursion guard (internal)
+        explicit_route: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """Non-streaming chat completion with fallback + self-heal (gateway).
 
@@ -9311,15 +9440,13 @@ class BYOKHandler:
                 logger.warning(f"No client available for provider: {attempt_provider_id}")
                 continue
 
-            # Skip fallback providers that don't serve this model (same
-            # catalogue rule as stream_completion). The requested primary is
-            # always tried regardless.
-            if attempt_provider_id != provider_id and not self._provider_serves_model(
-                attempt_provider_id, model
-            ):
-                logger.debug(
-                    f"Skipping fallback to {attempt_provider_id}: does not serve model '{model}'"
-                )
+            # Skip candidates that don't serve this model (same
+            # catalogue rule as stream_completion, via the shared dispatch
+            # gate). The requested primary is exempt ONLY when explicitly
+            # named (operator override); an automatic primary is checked.
+            if not self._dispatch_catalog_admits(
+                    attempt_provider_id, model, provider_id,
+                    operation="text", explicit_route=explicit_route):
                 continue
 
             if self._model_cooldown_active(attempt_provider_id, model):

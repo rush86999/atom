@@ -119,6 +119,12 @@ def _handler():
     # Reset the memo between tests (module-level, like _TOOLCHOICE_UNSUPPORTED).
     from core.llm import byok_handler as bh
     bh._REASONING_MANDATORY.clear()
+    # Unified dispatch gate: synthetic pairs are unknown to the real route
+    # registry and would be refused before the recovery ladder under test.
+    # Catalog admission stubbed open; catalog policy pinned elsewhere.
+    handler._dispatch_catalog_admits = (
+        lambda attempt_provider_id, model, requested=None,
+        operation="text", explicit_route=None: True)
     return handler
 
 
