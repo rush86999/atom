@@ -26,47 +26,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 
-@pytest.fixture(scope="module", autouse=True)
-def task_lifecycle_schema():
-    """Make the task-lifecycle ledger exist before these tests drive a turn.
-
-    Two of this module's tests run a real ``process_chat_message`` on an
-    edit-shaped request. The edit lane reserves through
-    ``_begin_task_edit`` -> ``task_lifecycle``, which reads and writes
-    ``goal_runs`` whenever ``ATOM_TASK_LIFECYCLE_ENABLED=1`` (set for the
-    dev stack in ``backend/.env``, so the flag is on in this environment).
-
-    Nothing in this module creates that schema, so on a schema-less test
-    database the reservation refused with ``no such table: goal_runs``,
-    ``_edit_leg`` came back ``None``, and the turn reported a terminal
-    "couldn't complete the canvas edit" instead of reaching the tool path
-    the test pins. The failure therefore depended on whichever earlier
-    test happened to have created tables — not on the behavior under test.
-
-    Creates the schema on the ISOLATED test engine only; refuses outright
-    if the resolved database is a development one.
-    """
-    if os.getenv("ATOM_TASK_LIFECYCLE_ENABLED") != "1":
-        yield
-        return
-    from core.database import DATABASE_URL
-
-    if any(p in DATABASE_URL for p in ("data/atom.db", "dev.db")):
-        raise RuntimeError(
-            "refusing to create schema against a development database: "
-            + DATABASE_URL)
-    import core.models  # noqa: F401 — registers tables on Base
-    from core.models_registration import Base
-    from sqlalchemy import create_engine
-
-    engine = create_engine(DATABASE_URL)
-    try:
-        Base.metadata.create_all(engine, checkfirst=True)
-    finally:
-        engine.dispose()
-    yield
-
-
 def _fresh_session_id(tag: str) -> str:
     """A session id unique to THIS run.
 
