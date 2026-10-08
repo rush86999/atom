@@ -3616,12 +3616,19 @@ class BYOKHandler:
                         _fb_provider, _tier_default)):
                 return AwaitableResult((_fb_provider, _tier_default))
 
+        # Recompute FRESH: a stale class-level diagnosis from an earlier
+        # call in this process must not speak for this one.
+        _pref_diag = ""
+        if self._preference_pair() is not None:
+            self._apply_preferred_route([])
+            _pref_diag = BYOKHandler._PREF_LAST_DIAGNOSIS
         raise NoProvidersConfiguredError(
             "No dispatchable LLM route: every configured provider's "
             "default model is either not served by its discovered "
             "catalogue or on cooldown. You need an AI provider to "
             "continue. Add an API key in Settings or enable local "
             "Ollama to continue."
+            + (f" ({_pref_diag})" if _pref_diag else "")
         )
 
     def _route_for_model(self, model: str) -> Optional[tuple[str, str]]:
@@ -4750,7 +4757,113 @@ class BYOKHandler:
         except Exception:  # noqa: BLE001 — observability only
             pass
 
-        return AwaitableResult(self._reconcile_ranked_routes(ranked_options))
+        reconciled = self._reconcile_ranked_routes(ranked_options)
+        # INSTALLATION-LEVEL PREFERENCE (2026-10-08, owner correction 2):
+        # ATOM_PREFERRED_LLM_PROVIDER / ATOM_PREFERRED_LLM_MODEL (env or
+        # the runtime-settings UI row — the cataloged, supported surface)
+        # reorder the ranking when — and ONLY when — the configured pair
+        # passes the SAME eligibility the ranking applies: client built,
+        # provider and model not on cooldown, catalog-served (or not
+        # known-unserved where discovery never succeeded), and capability
+        # compatible (tools/structured for this call). A preference is
+        # ORDER, not a bypass: quality, cooldown, authorization and plan
+        # controls are untouched, and an ineligible preference leaves
+        # the ranking unchanged with the precise reason logged and
+        # carried on ``last_preference_diagnosis`` for the
+        # unavailable-route error below it.
+        try:
+            reconciled = self._apply_preferred_route(
+                reconciled, requires_tools=requires_tools,
+                requires_structured=requires_structured)
+        except Exception as _pref_err:  # noqa: BLE001 — preference is additive
+            logger.debug("preferred-route reorder skipped: %r", _pref_err)
+        return AwaitableResult(reconciled)
+
+    _PREF_LAST_DIAGNOSIS: str = ""
+
+    def _preference_pair(self) -> Optional[tuple]:
+        """The configured installation-level (provider, model), or None."""
+        provider = str(os.getenv("ATOM_PREFERRED_LLM_PROVIDER",
+                                 "") or "").strip()
+        model = str(os.getenv("ATOM_PREFERRED_LLM_MODEL", "") or "").strip()
+        if provider and model:
+            return (provider, model)
+        try:
+            from core.runtime_settings import get_setting
+
+            provider = provider or str(
+                get_setting("ATOM_PREFERRED_LLM_PROVIDER", "") or "").strip()
+            model = model or str(
+                get_setting("ATOM_PREFERRED_LLM_MODEL", "") or "").strip()
+        except Exception:  # noqa: BLE001 — settings optional
+            pass
+        if provider and model:
+            return (provider, model)
+        return None
+
+    def _apply_preferred_route(
+        self, options: List[tuple], requires_tools: bool = False,
+        requires_structured: bool = False,
+    ) -> List[tuple]:
+        pair = self._preference_pair()
+        if pair is None:
+            BYOKHandler._PREF_LAST_DIAGNOSIS = ""
+            return options
+        provider_id, model = pair
+        if (provider_id, model) in [tuple(o) for o in options[:1]]:
+            BYOKHandler._PREF_LAST_DIAGNOSIS = ""
+            return options  # already primary — nothing to do
+        reasons: List[str] = []
+        if provider_id not in self.clients:
+            reasons.append(
+                f"no client built for provider '{provider_id}' "
+                "(credential not configured)")
+        if self._provider_cooldown_active(provider_id):
+            reasons.append(f"provider '{provider_id}' is on cooldown")
+        if self._model_cooldown_active(provider_id, model):
+            reasons.append(f"model '{provider_id}/{model}' is on cooldown")
+        if not (self._provider_serves_model(provider_id, model)
+                or not self._ranked_model_is_known_unserved(
+                    provider_id, model)):
+            reasons.append(
+                f"'{model}' is not in provider '{provider_id}'s discovered "
+                "catalogue")
+        try:
+            if (requires_tools or requires_structured) \
+                    and not self._model_supports_tools(model):
+                reasons.append(
+                    f"'{model}' does not support the tools/structured "
+                    "capability this call requires")
+        except Exception:  # noqa: BLE001 — capability check advisory here
+            pass
+        if requires_structured and f"{provider_id}/{model}" in (
+                _STRUCTURED_PROTOCOL_UNSUPPORTED):
+            reasons.append(
+                f"'{provider_id}/{model}' is memoized as rejecting the "
+                "structured protocol")
+        if (provider_id, model) not in [tuple(o) for o in options] \
+                and not reasons:
+            # Eligible but unranked (e.g. below BPC's quality floor):
+            # the preference is an explicit operator choice — INSERT it
+            # as primary rather than silently dropping it. Quality
+            # controls for every OTHER candidate are untouched, and the
+            # insertion is logged.
+            logger.info(
+                "[preferred-route] %s/%s inserted as primary (operator "
+                "preference; was outside the ranked set)", provider_id,
+                model)
+            BYOKHandler._PREF_LAST_DIAGNOSIS = ""
+            return [(provider_id, model)] + list(options)
+        if reasons:
+            BYOKHandler._PREF_LAST_DIAGNOSIS = (
+                f"preferred route {provider_id}/{model} ineligible: "
+                + "; ".join(reasons))
+            logger.info("[preferred-route] %s",
+                        BYOKHandler._PREF_LAST_DIAGNOSIS)
+            return options
+        BYOKHandler._PREF_LAST_DIAGNOSIS = ""
+        return [(provider_id, model)] + [
+            o for o in options if tuple(o) != (provider_id, model)]
 
     def _llm_taint_check(self, text: str, provider_id: str, model: str) -> Optional[str]:
         """P4 prompt-taint gate. Returns a block reason under enforce mode,

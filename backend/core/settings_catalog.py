@@ -96,6 +96,15 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     # ------------------------------------------------------------------
     # LLM provider keys — visible-but-locked in the UI
     # ------------------------------------------------------------------
+    S("ATOM_PREFERRED_LLM_PROVIDER", "", C_LLM,
+      "Installation-level preferred LLM provider id (e.g. opencode-go). "
+      "Reorders routing to this provider when the configured pair passes "
+      "the same catalog/capability/cooldown checks the ranking applies; "
+      "an ineligible pair is ignored with a logged reason."),
+    S("ATOM_PREFERRED_LLM_MODEL", "", C_LLM,
+      "Installation-level preferred model id for the preferred provider "
+      "(e.g. a free-tier catalog-served model). Must be served by the "
+      "provider's discovered catalogue."),
     S("OPENAI_API_KEY", "", C_LLM, "OpenAI API key", secret=True),
     S("ANTHROPIC_API_KEY", "", C_LLM, "Anthropic API key", secret=True),
     S("MINIMAX_API_KEY", "", C_LLM, "MiniMax API key", secret=True),
