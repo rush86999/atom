@@ -10509,6 +10509,15 @@ class ChatOrchestrator:
                             + ", so nothing was changed and your "
                             "authorization stands. Please try again in a "
                             "moment.")
+                    if (_shared_tool or {}).get(
+                            "canvas_edit_decline_noop"):
+                        _no_apply_message = (
+                            str((_shared_tool or {}).get(
+                                "canvas_edit_decline_reply")
+                                or "").strip()
+                            or "The draft already reflects the approved "
+                               "values — no changes were needed, and "
+                               "nothing was sent.")
                     if _background_started:
                         # INTERIM STATUS (2026-09-30, research-grounded —
                         # long-running chat work states WHAT is running
@@ -16101,6 +16110,79 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 f"{_tool_block}\n\nREQUIRED-SOURCE "
                                 f"CROSS-CHECK ({_missing_svc}):\n"
                                 + _attempt_block)
+                        # VALUE-TRACE → CONFIRMED-FILE READ (2026-10-08
+                        # owner research-boundary close): value_trace is a
+                        # COVERAGE map — it NAMES the file carrying each
+                        # item but reads no values (live trial 13:
+                        # value_trace_coverage named the workbook,
+                        # source_observations=0, so the comparison lacked
+                        # the workbook's prices and drafting correctly
+                        # refused). The trace itself establishes file
+                        # identity, and the ask's read authorization
+                        # stands — so chain ONE confirmed named-file read
+                        # for the covered subjects instead of leaving the
+                        # values unread.
+                        if (_missing_svc == "datasets"
+                                and _attempt_intent == "value_trace"):
+                            _vt_cov = dict(
+                                (_receipt["receipt"]
+                                 .get("value_trace_coverage") or {}))
+                            if _vt_cov and _chain_turn_left() > 25:
+                                for _item, _files in list(
+                                        _vt_cov.items())[:2]:
+                                    _fname = next(
+                                        (f for f in (_files or [])
+                                         if str(f).strip()), "")
+                                    if not _fname:
+                                        continue
+                                    try:
+                                        from core.chat_tool_planner import (
+                                            _datasets_named_file_block,
+                                        )
+
+                                        _vt_read = (
+                                            await asyncio.wait_for(
+                                                _datasets_named_file_block(
+                                                    user_id, _fname, {
+                                                        "message": message,
+                                                        "history": (
+                                                            planner_history
+                                                            or history
+                                                            or [])[-4:],
+                                                        "workspace_id":
+                                                            workspace_id,
+                                                        "request_scope": {
+                                                            "subjects":
+                                                                [_item],
+                                                            "scope_change":
+                                                                "replace",
+                                                        },
+                                                    },
+                                                    plan=_attempt_plan),
+                                                timeout=min(
+                                                    20.0,
+                                                    _chain_turn_left()
+                                                    - 15.0)))
+                                        if _vt_read:
+                                            _tool_block = (
+                                                f"{_tool_block}\n\n"
+                                                "CONFIRMED-FILE READ "
+                                                f"({ _fname }, item="
+                                                f"{_item}):\n"
+                                                + _vt_read)
+                                            logger.info(
+                                                "[planner-boundary] "
+                                                "value-trace chained a "
+                                                "confirmed-file read "
+                                                "(file=%r item=%r, "
+                                                "block=%d chars)",
+                                                _fname, _item,
+                                                len(_vt_read))
+                                    except Exception as _vt_err:  # noqa
+                                        logger.info(
+                                            "[planner-boundary] "
+                                            "value-trace chained read "
+                                            "skipped (%r)", _vt_err)
                         logger.info(
                             "[planner-boundary] chained source %s: %s "
                             "(receipt=%s)", _missing_svc,
@@ -19184,22 +19266,45 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"canvas corrections lookup skipped: {e}")
             return []
 
+    # Contact identities come from what the TEACHING actually names.
+    # This adapter never hardcodes people or addresses: an installation's
+    # contacts are installation data, not universal constants.
+    @staticmethod
+    def _contact_tokens(text: str) -> List[str]:
+        """Addressable contacts named by taught text, or []."""
+        return re.findall(r"[\w.+-]+@[\w-]+\.[\w.-]+", text or "")
+
     def _canvas_job_findings(
         self,
         user_id: str,
         canvas: Optional[Dict[str, Any]],
         session: Optional[Dict[str, Any]],
         message: str,
+        agent_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """The job-work ledger for THIS canvas's conversation, shaped for
-        the edit planner (round 62): verified findings (resolved
-        questions whose evidence names workbook cells/emails), open
-        business decisions with candidates, the owner's approved manual
-        values, and freshness limits. Best-effort — an unavailable
-        ledger degrades to no section, never blocks the edit."""
+        the edit planner (round 62; rebuilt 2026-10-08, research-to-draft
+        guide Repair 1): the job's ACTUAL durable typed findings, the
+        owner's protected manual values, open business decisions, and
+        freshness limits.
+
+        Best-effort — an unavailable ledger degrades to no section, never
+        blocks the edit.
+
+        Two hard rules this rebuild enforces:
+          - A RESOLVED QUESTION IS NOT A VERIFIED FACT. Resolution prose is
+            supplemental explanation only (`resolution_notes`). It may
+            describe scoped absence, supersession, or an informational
+            disposition. Verified values come from operations' typed
+            findings (`execution.findings`), which carry the field, the
+            parsed value with its basis/unit/currency, the source identity,
+            the operation id and the freshness qualification TOGETHER.
+          - PROTECTED VALUES COME FROM OWNER-INSTRUCTION PROVENANCE. A
+            business decision the OWNER resolved carries authority; a word
+            such as "approved" appearing in someone's note does not.
+        """
         try:
-            from core.task_lifecycle import (
-                find_active_task_for_canvas, open_unresolved_questions)
+            from core.task_lifecycle import open_unresolved_questions
 
             tl = _task_lifecycle_for(
                 getattr(self, "tenant_id", None), None)
@@ -19207,12 +19312,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 return None
             canvas_id = (canvas or {}).get("canvas_id") or (
                 canvas or {}).get("id")
+            # Lookup goes through the LIFECYCLE (find_active_task_for_canvas
+            # is a method, not a module function). The previous
+            # ``from core.task_lifecycle import find_active_task_for_canvas``
+            # raised ImportError on every call, and the surrounding
+            # best-effort handler swallowed it — so this whole adapter
+            # returned None and the drafting contract never received the
+            # job's research at all.
             record = None
             if canvas_id:
                 try:
-                    record = find_active_task_for_canvas(tl, canvas_id)
+                    record = tl.find_active_task_for_canvas(str(canvas_id))
                 except Exception:  # noqa: BLE001
                     record = None
+            inherited_from: Optional[str] = None
             if record is None and canvas_id:
                 # FORK LINEAGE (round 64, live DRAFT6): a disposable fork
                 # starts a NEW job with an empty ledger — the research the
@@ -19220,7 +19333,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # fork's audit row carries source_canvas_id; follow it (one
                 # hop) so drafting on a fork applies the lineage's verified
                 # findings instead of declining for lack of provenance.
+                #
+                # INHERITANCE IS EVIDENCE-ONLY (guide Repair 1 pin 5): the
+                # fork may READ the source's findings; it never acquires
+                # the source's mutation authority.
                 try:
+                    from core.database import get_db_session
                     from core.models import CanvasAudit as _CA
 
                     with get_db_session() as _db2:
@@ -19235,11 +19353,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                              or {}).get("source_canvas_id") or ""
                     ) if _fork_row else ""
                     if _parent and _parent != str(canvas_id):
-                        record = find_active_task_for_canvas(tl, _parent)
+                        record = tl.find_active_task_for_canvas(_parent)
                         if record is not None:
+                            inherited_from = _parent
                             logger.info(
                                 "[job-findings] fork %s inherits the "
-                                "source canvas %s research record",
+                                "source canvas %s research record "
+                                "(evidence only)",
                                 str(canvas_id)[:8], _parent[:8])
                 except Exception as _fl_err:  # noqa: BLE001 — additive
                     logger.debug("fork lineage lookup skipped: %r", _fl_err)
@@ -19252,99 +19372,182 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         record = None
             if record is None:
                 return None
-            verified = []
-            manual = []
+
+            # ---- typed findings from OPERATION EXECUTION FACTS ----------
+            # The operation record IS the evidence store
+            # (normalize_execution_facts passthrough). Subject comes from
+            # the operation's items; basis/unit/currency ride the parsed
+            # value; freshness and served basis ride the execution.
+            typed: List[Dict[str, Any]] = []
+            scoped_misses: List[str] = []
+            seen_ops: set = set()
+            for op in (record.get("operations") or []):
+                if not isinstance(op, dict):
+                    continue
+                ex = op.get("execution") or {}
+                if not isinstance(ex, dict):
+                    continue
+                op_id = str(op.get("operation_id") or "")
+                if op_id in seen_ops:
+                    continue
+                seen_ops.add(op_id)
+                findings = ex.get("findings")
+                items = ex.get("items") if isinstance(
+                    ex.get("items"), dict) else {}
+                # Subject: the operation's items map, else the record's
+                # entities, else the requested change's object.
+                subject = ""
+                if items:
+                    subject = ", ".join(sorted(items.keys())[:4])
+                if not subject:
+                    subject = ", ".join(
+                        str(e.get("label") or e.get("id") or "")
+                        for e in ((record.get("task_revision") or {}).get(
+                            "entities") or [])[:4]
+                        if str(e.get("label") or e.get("id") or "").strip())
+                for f in (findings or []):
+                    if not isinstance(f, dict):
+                        continue
+                    parsed = f.get("parsed") if isinstance(
+                        f.get("parsed"), dict) else {}
+                    typed.append({
+                        "subject": subject,
+                        "field": str(f.get("field") or ""),
+                        "column": str(f.get("column") or ""),
+                        "raw": str(f.get("raw") or ""),
+                        "parsed": parsed or None,
+                        "value": (parsed or {}).get("value",
+                                                    f.get("raw")),
+                        "basis": (parsed or {}).get("basis"),
+                        "unit": (parsed or {}).get("unit"),
+                        "currency": (parsed or {}).get("currency"),
+                        "source": str(f.get("source") or ""),
+                        "operation_id": op_id,
+                        "served_basis": ex.get("served_basis"),
+                        "freshness_status": ex.get("freshness_status"),
+                    })
+                # A read that ran and produced NO findings is a SCOPED
+                # MISS — an observation about the world. It is not
+                # verified evidence and must never be presented as one.
+                if (ex.get("invoked") and not findings
+                        and str(ex.get("outcome") or "") == "read_succeeded"):
+                    named = ", ".join(sorted(items.keys())[:4]) or "(job)"
+                    scoped_misses.append(
+                        f"{named}: read succeeded with no matching value "
+                        f"(basis: {ex.get('served_basis') or 'none'}; "
+                        f"source operation {op_id or 'unknown'})")
+
+            # ---- resolution prose: SUPPLEMENTAL only --------------------
+            resolution_notes: List[str] = []
+            manual: List[str] = []
             for q in (record.get("task_revision") or {}).get(
                     "unresolved") or []:
-                res = str(q.get("resolution") or "")
-                item = str(q.get("item") or "")
-                if q.get("status") == "resolved" and res:
-                    note = ""
-                    try:
-                        note = str(res.get("detail") or res) if isinstance(
-                            res, dict) else res
-                    except Exception:  # noqa: BLE001
-                        note = str(res)
-                    verified.append({
-                        "item": item or "(job)",
-                        "note": note[:300],
-                        "source": "job ledger (see operation evidence)",
-                    })
-                    if "manual" in note.lower() or "approved" in note.lower():
-                        manual.append(item)
+                if not isinstance(q, dict) or q.get("status") != "resolved":
+                    continue
+                res = q.get("resolution")
+                note = ""
+                value = None
+                if isinstance(res, dict):
+                    note = str(res.get("detail") or "")
+                    value = res.get("value")
+                else:
+                    note = str(res or "")
+                item = str(q.get("item") or "") or "(job)"
+                if note:
+                    resolution_notes.append(f"{item}: {note}"[:300])
+                # OWNER-INSTRUCTION PROVENANCE ONLY. A business decision
+                # the OWNER resolved carries authority over a value; a
+                # word appearing in any note does not.
+                if (str(q.get("kind") or "") == "business_decision"
+                        and str(q.get("decision_owner") or "") == "owner"):
+                    exact = str(value if value is not None else note).strip()
+                    if exact:
+                        manual.append(
+                            f"{item}"
+                            + (f" {q.get('field')}" if q.get("field") else "")
+                            + f" = {exact}")
+
             decisions = [
                 {"item": str(q.get("item") or ""),
                  "question": str(q.get("question") or "")[:200]}
                 for q in open_unresolved_questions(record)
                 if q.get("kind") == "business_decision"]
             freshness = [
-                str(q.get("item") or "") + ": saved-copy; live source "
-                "unverified"
-                for q in open_unresolved_questions(record)
-                if "freshness" in str(q.get("question") or "").lower()]
-            if not (verified or decisions or freshness):
+                f"{t.get('subject') or '(job)'} {t.get('field')}: "
+                f"{t.get('freshness_status') or 'live source unverified'} "
+                f"(served basis: {t.get('served_basis') or 'none'})"
+                for t in typed
+                if str(t.get("served_basis") or "") != "live"]
+            if not (typed or decisions or freshness or resolution_notes
+                    or manual or scoped_misses):
                 return None
-            # HEADER PROVENANCE (round 63): the taught cc rule is an
-            # APPLICABLE drafting rule, not optional — include it as a
-            # taught rule; To/Subject ride only when the ledger's
-            # verified evidence names correspondence values for THIS
-            # thread (provenance established), else the specific
-            # ambiguity is named.
-            taught_rules = []
+
+            # ---- teaching / headers: from the ACTING AGENT only ----------
+            # The agent identity is an explicit parameter (it used to be an
+            # unbound name whose NameError was swallowed, so lesson
+            # retrieval silently did nothing).
+            taught_rules: List[str] = []
+            header_candidates: List[str] = []
+            resolved_cc: List[str] = []
             try:
                 from core.database import get_db_session as _gs2
-                from core.student_learning_service import (
-                    _permanent_lessons as _pl)
+                from core.student_learning_service import get_agent_lessons
 
-                with _gs2() as _db2:
-                    _all = _pl(_db2, agent_id or "") if agent_id else []
+                _all = []
+                if agent_id:
+                    with _gs2() as _db2:
+                        _all = get_agent_lessons(
+                            _db2, agent_id, query=message or "", limit=10)
+                # Render teaching as RULES with their own wording. Contact
+                # identities come from what the teaching actually names —
+                # this adapter never hardcodes people or addresses. Where
+                # teaching or verified correspondence does not establish a
+                # header, the header stays UNRESOLVED rather than guessed.
                 for l in _all:
-                    t = " ".join(str(l.get("lesson") or l.get("summary")
-                                     or "").split()).lower()
-                    if ("cc" in t and (
-                            "chandrakant" in t or "vipul" in t)):
-                        taught_rules.append(
-                            "CC rule (taught): all sales quotes cc "
-                            "Chandrakant <chandrakant@brennan.ca> and "
-                            "Vipul <vipul@brennan.ca>")
-                        break
+                    text = " ".join(str(l.get("lesson") or l.get("summary")
+                                        or "").split())
+                    if not text:
+                        continue
+                    low = text.lower()
+                    if "cc" in low and ("@" in text or "copy" in low):
+                        taught_rules.append(f"CC rule (taught): {text[:220]}")
+                        addrs = self._contact_tokens(text)
+                        if addrs:
+                            resolved_cc.append(
+                                "Cc: " + ", ".join(addrs[:4]))
+                        else:
+                            header_candidates.append(
+                                "Cc: UNRESOLVED — the taught cc rule names "
+                                "no addressable contacts; ask the owner "
+                                "rather than guessing")
+                    elif "subject" in low or "header" in low:
+                        taught_rules.append(f"Header rule (taught): {text[:220]}")
+                    else:
+                        taught_rules.append(text[:220])
             except Exception:  # noqa: BLE001 — additive
                 pass
-            # Correspondence-derived header values: search the verified
-            # notes for the thread's To/Subject evidence.
-            header_candidates = []
-            resolved_cc = []
-            joined = " ".join(
-                str(v.get("note") or "") for v in verified).lower()
-            if "steve" in joined and "alumasafway" in joined:
-                header_candidates.append(
-                    "To: Steve <amacisaac@alumasafway.com> (verified "
-                    "correspondence: the Sept 18 2026 'Quote for "
-                    "Slitter' thread to Steve at AlumaSafway)")
-            if "quote for slitter" in joined:
-                header_candidates.append(
-                    "Subject: Re: Quote for Slitter (the verified "
-                    "thread's subject)")
-            # CC INDEPENDENCE (round 64): the taught CC rule needs NO
-            # correspondence provenance — verified contact identities
-            # from the teaching itself suffice. Resolved separately
-            # from To/Subject so unrelated correspondence cannot block
-            # it.
-            for rule in taught_rules:
-                if "chandrakant" in rule.lower() and "vipul" in rule.lower():
-                    resolved_cc.append(
-                        "Cc: Chandrakant <chandrakant@brennan.ca>, "
-                        "Vipul <vipul@brennan.ca> (taught rule; "
-                        "contact identities verified in the teaching)")
-                    break
+
             return {
-                "verified": verified[:12],
+                "typed_findings": typed[:12],
+                "verified": [
+                    {"item": t.get("subject") or t.get("field") or "(job)",
+                     "note": f"{t.get('field')} = {t.get('raw')}"
+                             + (f" ({t.get('column')})" if t.get("column")
+                                else ""),
+                     "source": t.get("source") or ""}
+                    for t in typed[:12]],
+                "scoped_misses": scoped_misses[:8],
+                "resolution_notes": resolution_notes[:8],
                 "open_decisions": decisions[:6],
                 "manual_preserved": manual[:8],
                 "freshness_limits": freshness[:8],
                 "taught_rules": taught_rules[:4],
                 "header_candidates": header_candidates[:4],
                 "resolved_cc": resolved_cc[:2],
+                # INHERITANCE IS EVIDENCE-ONLY: a fork's own revision
+                # decides what it may mutate, never the source's.
+                "inherited_from": inherited_from,
+                "mutation_authority_inherited": False,
             }
         except Exception as exc:  # noqa: BLE001 — additive context
             logger.debug("job findings for edit skipped: %r", exc)
@@ -19734,7 +19937,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 if isinstance(
                     (shared_tool_state or {}).get("objective_evidence"), dict
                 )
-                else None
+                else (
+                    # PERSISTED-FINDINGS REUSE (2026-10-08 owner step 4):
+                    # the session's prior read (T1) already produced an
+                    # objective-evidence contract — reuse it instead of
+                    # re-researching every drafting attempt. Freshness is
+                    # the workbook revision: the editor re-validates ops
+                    # against the CURRENT canvas content, and a changed
+                    # workbook revision would miss (ops_no_longer_match)
+                    # rather than silently apply stale values.
+                    ((session.get("_pending_file_result") or {})
+                     .get("structured_result") or {})
+                    .get("objective_evidence")
+                    if isinstance(session, dict) and isinstance(
+                        (session.get("_pending_file_result") or {})
+                        .get("structured_result"), dict)
+                    else None
+                )
             ),
             authorized_actions=(
                 ["edit_artifact"] if _edit_requested else []
@@ -19953,6 +20172,26 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     shared_tool_state["canvas_edit_no_apply_reason"] = "planner_returned_none"
                 else:
                     shared_tool_state["canvas_edit_no_apply_reason"] = "planner_declined"
+                    # NO-CHANGES-NEEDED DECLINE (2026-10-08 owner step 5,
+                    # live capture): a SERVED planner that declines
+                    # because "the draft already reflects the approved
+                    # prices; no changes were needed" is a COMPLETION
+                    # (nothing to change, nothing sent), not a failure —
+                    # the truthful terminal the case wants. The words ride
+                    # the shared state; the response assembly and the
+                    # continuation map them to an already-correct outcome.
+                    _decline_reply = str(
+                        getattr(plan, "reply", "") or "").strip()
+                    if _decline_reply and re.search(
+                            r"no changes (?:were )?needed|already "
+                            r"reflects|already (?:includes|contains|"
+                            r"matches)|nothing to change",
+                            _decline_reply, re.IGNORECASE):
+                        shared_tool_state[
+                            "canvas_edit_decline_noop"] = True
+                        shared_tool_state[
+                            "canvas_edit_decline_reply"] = (
+                                _decline_reply[:300])
             return None
         if not _edit_requested:
             if shared_tool_state is not None:

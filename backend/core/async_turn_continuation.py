@@ -2262,6 +2262,25 @@ async def run_canvas_edit_continuation(
         # additive -- no gate's condition is altered here.
         _gate = "no-response"
         _op_status_dbg: Any = "not-probed"
+        # NO-CHANGES-NEEDED COMPLETION (2026-10-08 owner step 5): a
+        # served planner that declined because the draft ALREADY
+        # reflects the approved values completed the authorized task —
+        # nothing to change, nothing sent. Terminal truth from the
+        # planner's own captured words; never manufactured pairs.
+        if response is None and isinstance(blackboard, dict) and (
+                blackboard.get("canvas_edit_decline_noop")):
+            _noop_words = str(
+                blackboard.get("canvas_edit_decline_reply")
+                or "").strip()
+            logger.info(
+                "[async-continuation] %s attempt %d/%d completed as "
+                "no-changes-needed (planner's words: %r)",
+                cont.continuation_id, attempt,
+                _ASYNC_CONTINUATION_ATTEMPTS, _noop_words[:160])
+            return OUTCOME_ALREADY_APPLIED, (
+                _noop_words
+                or "The draft already reflects the approved values — "
+                   "no changes were needed, and nothing was sent.")
         # A landed, HEAD, owner-authorized proposal that reconciliation
         # promoted to `accepted` is DONE — the terminal message must come
         # from that reconciled receipt, not from the stale
