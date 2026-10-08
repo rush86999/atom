@@ -179,6 +179,12 @@ class AsyncTurnContinuation:
     # as existing_block so the retry REUSES it instead of re-searching.
     evidence_block: str = ""
     evidence_contract: Optional[Dict[str, Any]] = None
+    # REQUEST CONTRACT (2026-10-08 owner final repair 2): the reserving
+    # turn's resolved subjects and required sources, persisted with the
+    # fork and reloaded at execution — the background edit's fresh-data
+    # lookup probes THE REQUEST'S subjects; canvas/history may supply
+    # context but never replaces them.
+    request_scope: Optional[Dict[str, Any]] = None
     # Terminal state.
     outcome: str = ""
     summary: str = ""
@@ -2086,6 +2092,10 @@ async def run_canvas_edit_continuation(
             "plan_task": None,
             "block": (cont.evidence_block or "") or None,
             "objective_evidence": cont.evidence_contract,
+            # RELOADED REQUEST CONTRACT (2026-10-08 owner final repair 2):
+            # the persisted subjects/sources ride the blackboard so the
+            # edit's fresh-data lookup probes THE REQUEST'S subjects.
+            "request_scope": cont.request_scope,
         }
         prior = _latest_audit((cont.canvas or {}).get("canvas_id") or "")
         expected_prior = (prior or {}).get("id")
@@ -2377,6 +2387,7 @@ def fork_canvas_edit_continuation(
     provenance: Optional[Dict[str, Any]] = None,
     evidence_block: str = "",
     evidence_contract: Optional[Dict[str, Any]] = None,
+    request_scope: Optional[Dict[str, Any]] = None,
     origin_operation_id: str = "",
 ) -> Optional[str]:
     """Fire-and-forget entry used by the orchestrator's edit-leg timeout
@@ -2398,6 +2409,9 @@ def fork_canvas_edit_continuation(
         snapshot_audit_ts=(latest or {}).get("created_at", ""),
         origin_operation_id=str(origin_operation_id or ""),
         evidence_block=evidence_block or "",
+        request_scope=(
+            dict(request_scope)
+            if isinstance(request_scope, dict) else None),
         evidence_contract=(
             dict(evidence_contract)
             if isinstance(evidence_contract, dict)

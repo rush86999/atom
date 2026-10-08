@@ -1221,6 +1221,7 @@ def search_all_datasets_sync(
     context_texts: Optional[List[str]] = None,
     name_context_texts: Optional[List[str]] = None,
     deadline: Optional[float] = None,
+    request_subjects: Optional[List[str]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Cross-file content probe: which ingested spreadsheet contains the
     question's identifying code?
@@ -1244,9 +1245,31 @@ def search_all_datasets_sync(
     _name_tokens = set(distinctive_name_tokens(_name_sources))
     # Code/figure candidates may draw on history; the NAME decision does not, so
     # suppress this helper's own name fallback (see the note above).
-    candidates = candidate_probe_tokens(
-        [query] + list(context_texts or []), allow_name_fallback=False
-    )
+    # REQUEST-BOUND SUBJECTS (2026-10-08 owner final repair): when the
+    # caller resolved THIS request's subjects, they lead the probe and
+    # HISTORY DOES NOT SUPPLEMENT the candidate set — canvas/history
+    # context may add color, never replace explicit subjects (live
+    # case-4: the request named No. 381, history carried a prior
+    # SLE24-16 read, and the probe searched sle24).
+    if request_subjects:
+        # EXPLICIT SUBJECTS ARE FIRST-CLASS CANDIDATES: the ≥4-char
+        # digit heuristic exists to stop noise mining — a subject the
+        # caller RESOLVED from the request is not noise (live case-4:
+        # 'No. 381' -> token '381' was dropped by the net and the sweep
+        # never ran). Subject tokens ≥3 chars enter verbatim, then the
+        # heuristic may add from the query.
+        _explicit: List[str] = []
+        for _subj in request_subjects:
+            for _t in re.split(r"[^a-z0-9]+", str(_subj).lower()):
+                if len(_t) >= 3 and _t not in _explicit:
+                    _explicit.append(_t)
+        candidates = (_explicit[:6] or candidate_probe_tokens(
+            [query] + [str(x) for x in request_subjects
+                       if str(x).strip()], allow_name_fallback=False))
+    else:
+        candidates = candidate_probe_tokens(
+            [query] + list(context_texts or []), allow_name_fallback=False
+        )
     if not candidates and not _name_tokens:
         return None
     entries = find_entries_sync("", user_id, workspace_id, 500)

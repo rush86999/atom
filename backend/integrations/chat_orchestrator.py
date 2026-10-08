@@ -9893,8 +9893,23 @@ class ChatOrchestrator:
                         "turn's canvas-edit clock started",
                         time.monotonic() - _plan_created_t0))
 
-            _shared_tool: Dict[str, Any] = {"plan_task": _tool_plan_task,
-                                            "block": None}
+            # REQUEST CONTRACT on the INTERACTIVE blackboard too
+            # (2026-10-08 owner final repair 2): the edit leg's
+            # fresh-data lookup and the fork below both read it from
+            # here — the turn's resolved subjects/sources ride the same
+            # carrier the evidence block uses. The ask-lane task is
+            # lane-local (unbound on edit-shaped turns), so resolve via
+            # locals().
+            _edit_request_scope = None
+            _ask_task_local = locals().get("_ask_task")
+            if isinstance(_ask_task_local, dict) and isinstance(
+                    _ask_task_local.get("request_scope"), dict):
+                _edit_request_scope = _ask_task_local["request_scope"]
+            _shared_tool: Dict[str, Any] = {
+                "plan_task": _tool_plan_task,
+                "block": None,
+                "request_scope": _edit_request_scope,
+            }
             _edit_leg_timed_out = False
             try:
                 if _canvas_ctx and not _canvas_action_bypassed and (
@@ -10185,6 +10200,17 @@ class ChatOrchestrator:
                                                     _shared_tool.get(
                                                         "objective_evidence")
                                                     ),
+                                                # REQUEST CONTRACT (2026-10-08
+                                                # owner final repair 2): the
+                                                # reserving turn's resolved
+                                                # subjects + required sources
+                                                # persist with the fork and
+                                                # reload at execution — the
+                                                # background edit probes THE
+                                                # REQUEST'S subjects, never a
+                                                # canvas/history-derived set.
+                                                request_scope=(
+                                                    _edit_request_scope),
                                             )
                                         )
                                         self._record_canvas_background_fork(
@@ -15356,6 +15382,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     f"fields={_rc_fields[:2]!r})")
                         if _replan is not None and _replan.use_tool:
                             _replanned_service = _replan.service
+                            # RECEIPT VISIBILITY (2026-10-08): dotted
+                            # service names get re-wrapped inside the
+                            # executor, and the structured receipt then
+                            # lands on the WRAPPER — the caller's plan
+                            # object stays receiptless. Normalize to the
+                            # undotted local name and pre-attach the meta
+                            # dict so the receipt stamps land on the
+                            # object this block reads.
+                            try:
+                                if "." in str(_replan.service or ""):
+                                    _svc, _intent = str(
+                                        _replan.service).split(".", 1)
+                                    _replan = ToolPlan(
+                                        use_tool=True, service=_svc,
+                                        intent=_intent or _replan.intent,
+                                        query=_replan.query)
+                                if getattr(
+                                        _replan, "_result_meta", None) \
+                                        is None:
+                                    _replan._result_meta = {}
+                            except Exception:  # noqa: BLE001 — additive
+                                pass
                             _tool_block = await execute_tool_plan(
                                 _replan, user_id,
                                 tenant_id=getattr(
@@ -15371,6 +15419,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # sites — the calculate dedup key
                                     # includes the workspace (case 3)
                                     "workspace_id": workspace_id,
+                                    # REQUEST-BOUND SCOPE on the direct
+                                    # dispatch (2026-10-08 owner final
+                                    # repair): the resolved subjects LEAD
+                                    # the probe; history may not replace
+                                    # them (case-4 searched 'sle24' while
+                                    # the request named 'No. 381').
+                                    "request_scope": {
+                                        "subjects": list(_rc_subjects),
+                                        "scope_change": "replace",
+                                    } if _rc_subjects else None,
                                 },
                                 llm_service=self.llm_service,
                             ) or ""
@@ -15379,23 +15437,46 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "%s.%s (block=%d chars)",
                                 _replan.service, _replan.intent,
                                 len(_tool_block))
-                            # CONSULTED-SOURCE ACCOUNTING (2026-10-08, the
-                            # 17k-char invisible block): the recovery
-                            # lookup above EXECUTED and returned a real
-                            # block, but _consulted_sources was read from
-                            # the blackboard BEFORE the replan — the
-                            # planning-failed guard then replaced the
-                            # successful block with the failure template
-                            # and the turn claimed no source was
-                            # consulted. Record the executed service so
-                            # the accounting matches reality and the
-                            # block reaches the reply.
-                            if _tool_block:
+                            # CONSULTED-SOURCE ACCOUNTING (2026-10-08,
+                            # final owner correction 3): a source counts
+                            # as consulted ONLY on an EXECUTION RECEIPT —
+                            # the structured record the tool layer
+                            # guarantees (storage_read / structured_result
+                            # / datasets_search / file_read; see the
+                            # RECEIPT GUARANTEE note in the planner). A
+                            # large text block alone is not evidence of
+                            # successful research (the 17k-char invisible
+                            # block: prose without a receipt was both
+                            # unaccounted AND unreliable).
+                            _rc_receipt = None
+                            try:
+                                _rc_meta = getattr(
+                                    _replan, "_result_meta", None)
+                                if isinstance(_rc_meta, dict):
+                                    _rc_receipt = next(
+                                        (k for k in (
+                                            "storage_read",
+                                            "structured_result",
+                                            "datasets_search",
+                                            "file_read")
+                                         if k in _rc_meta), None)
+                            except Exception:  # noqa: BLE001
+                                _rc_receipt = None
+                            if _tool_block and _rc_receipt:
                                 _consulted_sources.add(_replan.service)
                                 if isinstance(shared_tool_state, dict):
                                     shared_tool_state.setdefault(
                                         "consulted_sources", set()).add(
                                             _replan.service)
+                                logger.info(
+                                    "[planner-boundary] replan consultation "
+                                    "recorded (%s; receipt=%s)",
+                                    _replan.service, _rc_receipt)
+                            elif _tool_block:
+                                logger.warning(
+                                    "[planner-boundary] replan returned a "
+                                    "block WITHOUT a structured receipt — "
+                                    "not counted as a consultation")
                     except Exception as _rp_err:  # noqa: BLE001
                         logger.warning(
                             f"[planner-boundary] replan failed: {_rp_err!r}")
@@ -19519,6 +19600,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             authorized_actions=(
                 ["edit_artifact"] if _edit_requested else []
             ),
+            request_scope=(
+                (shared_tool_state or {}).get("request_scope")
+                if isinstance(
+                    (shared_tool_state or {}).get("request_scope"), dict)
+                else None
+            ),
         )
         if shared_tool_state is not None:
             if isinstance(fresh.evidence_contract, dict):
@@ -20171,6 +20258,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             plan_task=(shared_tool_state or {}).get("plan_task"),
             existing_block=(shared_tool_state or {}).get("block"),
             allow_canvas_target=False,
+            request_scope=(
+                (shared_tool_state or {}).get("request_scope")
+                if isinstance(
+                    (shared_tool_state or {}).get("request_scope"), dict)
+                else None
+            ),
         )
         if shared_tool_state is not None:
             shared_tool_state["block"] = fresh.block or None

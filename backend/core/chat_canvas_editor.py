@@ -1761,6 +1761,7 @@ async def fetch_fresh_data_section(
     allow_canvas_target: bool = True,
     existing_evidence_contract: Optional[Dict[str, Any]] = None,
     authorized_actions: Optional[List[str]] = None,
+    request_scope: Optional[Dict[str, Any]] = None,
 ) -> FreshDataResult:
     """LIVE evidence for edit requests that hinge on data the editor cannot
     see — a price "from the consolidated price list", specs from a drive
@@ -2010,6 +2011,15 @@ async def fetch_fresh_data_section(
                     # path): the stated-date window reads it from here.
                     "message": message,
                     "history": history,
+                    # REQUEST-BOUND SUBJECTS (2026-10-08 owner final
+                    # repair 2): when the caller resolved this request's
+                    # subjects (interactive turn or the reloaded
+                    # background contract), they lead the probe — canvas/
+                    # history supplies context but never replaces them
+                    # (the fresh-data leg planned a memory search while
+                    # the job required the workbook).
+                    **({"request_scope": request_scope}
+                       if isinstance(request_scope, dict) else {}),
                     **({"canvas": {
                         "title": canvas.get("title"),
                         **((canvas.get("content") or {})
@@ -3193,8 +3203,43 @@ async def apply_canvas_edit(
         and action.get("status") == "ready"
         and action.get("authorized") is True
     ]
-    if (evidence_contract or require_evidence_postconditions) and not ready_actions:
+    # PRICE-CHANGE READINESS vs DRAFTING READINESS (2026-10-08 owner
+    # final repair 4): no_ready_evidence_change exists to protect
+    # APPLYING NEWLY VERIFIED VALUES — an op that changes a price needs
+    # a ready, authorized evidence action behind it. It must NOT block
+    # separately authorized formatting/header work supported by the
+    # existing draft (live case-1 T_AUTH: "prepare the draft … preserve
+    # approved manual prices" was refused because no comparable-changed
+    # pair existed — correctly, since preserving prices changes none).
+    # An op is VALUE-CHANGING when its find/replace carry DIFFERING
+    # currency/number tokens; ops without them (greetings, subject
+    # lines, notes) proceed under the turn's authorization.
+    _value_token = re.compile(
+        r"\$\s?[\d,]+(?:\.\d+)?|\b\d[\d,]*\.\d{2}\b")
+
+    def _op_changes_value(op: Any) -> bool:
+        find = str(getattr(op, "find", "") or "")
+        replace = str(getattr(op, "replace", "") or "")
+        if find == replace:
+            return False
+        return bool(
+            (_value_token.search(find) or _value_token.search(replace)))
+
+    _value_changing_ops = [
+        op for op in (getattr(plan, "ops", None) or [])
+        if _op_changes_value(op)
+    ]
+    if (_value_changing_ops
+            and (evidence_contract or require_evidence_postconditions)
+            and not ready_actions):
         return _out(None, "no_ready_evidence_change")
+    if (evidence_contract or require_evidence_postconditions) \
+            and not ready_actions and not _value_changing_ops and (
+                getattr(plan, "ops", None) or []):
+        logger.info(
+            "canvas edit: drafting readiness satisfied without price-"
+            "change actions (%d op(s), none value-changing) — proceeding "
+            "under the turn's authorization", len(plan.ops or []))
 
     current = canvas.get("content")
     canvas_id = str(canvas.get("canvas_id"))

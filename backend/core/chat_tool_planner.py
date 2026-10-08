@@ -7278,14 +7278,30 @@ async def _datasets_search_block(
         for h in ((context or {}).get("history") or [])
         if isinstance(h, dict) and h.get("message")
     ][-6:]
-    if not candidate_probe_tokens([query] + history_texts):
+    # REQUEST-BOUND SUBJECTS ride the context (2026-10-08 owner final
+    # repair): explicit resolved subjects lead the probe; history does
+    # not supplement them (canvas-derived scope must not replace the
+    # request's own subjects). Computed BEFORE the memory delegation —
+    # a request that RESOLVED subjects has its identifying scope by
+    # definition (live case-4: 'No. 381' failed the ≥4-char heuristic
+    # net and the sweep silently became a memory search that stamped no
+    # receipt).
+    _rs_subjects: List[str] = []
+    _rs = (context or {}).get("request_scope")
+    if isinstance(_rs, dict) and _rs.get("scope_change") in (
+            "replace", "subset", "extend"):
+        _rs_subjects = [
+            str(v).strip() for v in (_rs.get("subjects") or [])
+            if str(v).strip()]
+    if not _rs_subjects and not candidate_probe_tokens(
+            [query] + history_texts):
         # No identifying code — sheet-level SQL adds nothing over memory.
         return await _memory_search_block(user_id, query, context)
-
     result = await asyncio.to_thread(
         search_all_datasets_sync, query, user_id,
         (context or {}).get("workspace_id"), 2, 200, history_texts,
         [_current_message_text(context) or query],
+        request_subjects=_rs_subjects or None,
     )
     files_searched = result.get("files_searched", 0) if result else 0
     hits = (result or {}).get("hits") or []
