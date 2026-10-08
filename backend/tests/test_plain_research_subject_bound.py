@@ -59,6 +59,41 @@ def test_demonstrated_miss_now_subject_bound():
         f"the request's own subject must lead the probe (got {subs})")
 
 
+def test_name_claiming_cannot_shadow_subject_probe():
+    """The junk-recency trap (live A2): with the FULL research message as
+    name context, generic name tokens matched 'zz-formula-e2e-check.xlsx'
+    and 'New Vendor Request Form_External.xlsx' and the name branch
+    returned them — the subject's content probe never ran. Subject-bound
+    probes bypass name-derived file claiming."""
+    captured = {}
+
+    def fake_named(files, tok, n):
+        return {"file_name": "zz-formula-e2e-check.xlsx", "rows": []}
+
+    import core.sheet_dataset_service as sds
+    from unittest.mock import patch as _patch
+
+    real_sync = sds.search_all_datasets_sync
+
+    def spy(query, *a, **k):
+        captured["request_subjects"] = k.get("request_subjects")
+        return real_sync(query, *a, **k)
+
+    msg = ("What's the price basis and current lead time for the Tennsmith "
+           "SLE24-16 single wheel slitter? Check the price list workbook "
+           "and recent vendor correspondence.")
+    with _patch.object(sds, "search_all_datasets_sync", side_effect=spy), \
+            _patch.object(sds, "sheet_datasets_enabled",
+                          return_value=True):
+        block = asyncio.run(_datasets_search_block(
+            UID, msg, {"message": msg, "history": [],
+                       "workspace_id": "default"},
+            plan=SimpleNamespace(_result_meta={})))
+    assert captured.get("request_subjects"), "subjects must reach the sweep"
+    assert "zz-formula-e2e-check" not in (block or ""), (
+        "junk name-claimed files must not shadow the subject probe")
+
+
 def test_nonpricing_subject_leads():
     """A nonpricing subject (a machine name, no code) also leads."""
     captured, fake = _capture()

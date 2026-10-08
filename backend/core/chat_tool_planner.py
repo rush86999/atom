@@ -7313,8 +7313,24 @@ async def _datasets_search_block(
             _plain_subjects = [
                 i.strip() for i in _eift(
                     _current_message_text(context) or query) if i.strip()]
-            if _plain_subjects:
-                _rs_subjects = _plain_subjects[:6]
+            # CODE-BEARING SUBJECTS FIRST (live A2 trap): the extractor
+            # yields both 'SLE24-16' and its superset 'Tennsmith
+            # SLE24-16'; the brand token 'tennsmith' then matched NEWER
+            # junk files (zz-formula-e2e-check) and the recency-ordered
+            # probe stopped before the 2019 workbook. Digit-bearing
+            # subjects probe; brand-only supersets do not add tokens.
+            _code_subjects = [
+                i for i in _plain_subjects
+                if any(ch.isdigit() for ch in i)]
+            _probe_pool = _code_subjects or _plain_subjects
+            # CONTAINMENT DEDUP: 'Tennsmith SLE24-16' strictly contains
+            # 'SLE24-16' — the superset only adds brand tokens that match
+            # newer junk files. Keep the MINIMAL subjects.
+            _rs_subjects = [
+                i for i in _probe_pool
+                if not any(
+                    i != j and i.lower().find(j.lower()) >= 0
+                    for j in _probe_pool)][:6]
         except Exception:  # noqa: BLE001 — floor follows
             pass
     if not _rs_subjects and not candidate_probe_tokens(

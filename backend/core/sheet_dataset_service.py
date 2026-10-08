@@ -1322,8 +1322,17 @@ def search_all_datasets_sync(
         """
         return deadline is not None and time.monotonic() > deadline
 
-    if _name_tokens:
-        # Numeric tokens the query already yielded (codes/amounts) are the ones
+    if _name_tokens and not request_subjects:
+        # SUBJECT-BOUND PROBES BYPASS NAME-CLAIMING (2026-10-08 value-trial
+        # seam): with the full research message as name context, generic
+        # name tokens ('check', 'vendor', 'form') matched NEWER junk files
+        # ('zz-formula-e2e-check.xlsx', 'New Vendor Request
+        # Form_External.xlsx') and the name branch returned them — the
+        # content probe for the caller's subject never ran and the
+        # workbook row a subject probe finds was reported 'not found'.
+        # When the caller resolved explicit subjects, their CONTENT probe
+        # leads; name-derived file claiming only applies to free-text
+        # queries. Numeric tokens the query already yielded (codes/amounts) are the ones
         # worth probing INSIDE the named file; fall back to the candidate itself.
         base_nums = [t for t in candidates if t.isdigit()]
         named: List[Dict[str, Any]] = []
