@@ -321,6 +321,42 @@ candidate. Three trials per case, same candidate; every trial reported.
   property it gestures at is separately green. Results:
   `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
 
+## CURRENT STATUS (2026-10-08 night — a3157905b)
+
+Supersedes the evening row (kept below as history).
+
+- **CASE 4 SUBJECT/SOURCE: CLOSED (trial 14).** The owner's headline
+  acceptance — "Case 4 actually searches No. 381" — is met: the
+  recovery dispatch carries the request's resolved subjects as
+  first-class probe candidates (the ≥4-char heuristic had silently
+  dropped '381' into a receiptless memory search), the sweep searched
+  103 ingested spreadsheets FOR '381' with a RECORDED datasets_search
+  receipt, the miss is honest and scoped (no Roper Whitney 381 row in
+  the workbook; the value lives on the canvas/email per the case
+  design), three ambiguity legs pass, and $2,902 is preserved. The
+  marked_in_reply cell fails on word choice only (the reply says the
+  canvas figure 'is not supported by these results, so I won't restate
+  it as the price' — honest handling without the literal word
+  'manual'); recorded as partial evidence, checker untouched without
+  captured examples per the case-2 precedent.
+- **CONSULTATION = RECEIPT:** blocks without structured receipts are no
+  longer counted (the 17k receiptless block is refused by name in the
+  log); dotted-name re-wrapping no longer hides receipts.
+- **DRAFTING:** T1 5/5 green again (trial 7). The chain now reaches:
+  authorized → reserved → continuation with the PERSISTED request
+  contract (reloaded at execution) → planner responds → readiness
+  correctly split (price-changing ops still require ready+authorized
+  evidence; formatting/header work proceeds under authorization). The
+  remaining boundary is NEWLY NAMED: the continuation's edit attempt
+  ends 'scope_dropped_product:268' (a product-scope guard) within its
+  budget — no blind write, honest budget-exhausted terminal. That
+  guard is the next traced repair.
+- **FRONTEND:** structured failures display truthfully (shipped
+  d39e571da); the in-browser empty_reply verification is owed with the
+  next world run.
+- Other verdicts unchanged: 2 (3/3), 5 (3/3), 6 (3/3 note),
+  1-investigation (now 5/5 trials green), case 3 historical.
+
 ## CURRENT STATUS (2026-10-08 evening — d39e571da)
 
 Supersedes the morning reconcile below it (kept as history).
