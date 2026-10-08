@@ -56,42 +56,78 @@ def test_probe_uses_request_subjects_not_history(monkeypatch):
 
 
 def test_search_all_datasets_prefers_request_subjects(monkeypatch):
-    """Inside the sync search: with request_subjects, history texts do not
-    enter the candidate pool (they may not REPLACE explicit subjects)."""
-    seen: dict = {}
+    """Inside the sync search: the request's resolved subjects ARE the
+    candidate pool. History texts never enter it, so they can neither
+    replace nor displace an explicit subject.
 
-    class _FakeCandidates:
-        def __call__(self, texts, **kwargs):
-            seen["texts"] = list(texts)
-            return ["381"]
-
+    Observable is the probe's own ``tokens_tried`` receipt — explicit
+    subjects are FIRST-CLASS candidates (they bypass the token-extraction
+    helper entirely), so asserting on that helper's arguments pins a seam
+    this path deliberately does not use.
+    """
     import core.sheet_dataset_service as sds
-    monkeypatch.setattr(sds, "candidate_probe_tokens", _FakeCandidates())
+
+    helper_calls: list = []
+
+    def _capture_helper(texts, **kwargs):
+        helper_calls.append(list(texts))
+        return ["noise-from-history"]
+
+    monkeypatch.setattr(sds, "candidate_probe_tokens", _capture_helper)
     monkeypatch.setattr(sds, "distinctive_name_tokens", lambda srcs: set())
-    import inspect
-    for name, fn in list(vars(sds).items()):
-        if name.startswith("_") and callable(fn) and not inspect.isclass(fn):
-            try:
-                import asyncio as _aio
-                if _aio.iscoroutinefunction(fn):
-                    continue
-                monkeypatch.setattr(sds, name,
-                                    lambda *a, _f=None, **k: iter([]))
-            except Exception:
-                pass
-    try:
-        search_all_datasets_sync(
-            "price for No. 381", "u1", "ws", 2, 5,
-            context_texts=["earlier SLE24-16 slitter checked"],
-            name_context_texts=["price for No. 381"],
-            request_subjects=["No. 381"])
-    except Exception:
-        pass  # probe may early-out on empty files; token capture is the pin
-    joined = " ".join(seen.get("texts") or [])
-    assert "381" in joined
-    assert "SLE24-16" not in joined, (
-        "history-derived subjects must not replace explicit request "
-        "subjects in the candidate pool")
+    # Hermetic: an empty catalog means the scan loop finds nothing and the
+    # function returns its receipt instead of touching the database.
+    monkeypatch.setattr(sds, "find_entries_sync", lambda *a, **k: [])
+
+    out = search_all_datasets_sync(
+        "price for No. 381", "u1", "ws", 2, 5,
+        context_texts=["earlier SLE24-16 slitter checked"],
+        name_context_texts=["price for No. 381"],
+        request_subjects=["No. 381"])
+
+    assert out is not None, "an explicit subject must yield a probe receipt"
+    tried = " ".join(str(t) for t in (out.get("tokens_tried") or []))
+    assert "381" in tried, (
+        f"the request's resolved subject must be probed; tokens_tried={tried!r}")
+    assert "sle24" not in tried.lower(), (
+        "history-derived subjects must not enter the candidate pool when "
+        f"explicit request subjects are bound; tokens_tried={tried!r}")
+    assert not helper_calls, (
+        "explicit subjects produced first-class tokens, so the history-"
+        "supplemented extraction helper must not run at all "
+        f"(it was called with {helper_calls})")
+
+
+def test_subjectless_request_never_supplements_from_history(monkeypatch):
+    """When explicit subjects yield no usable tokens the extraction helper
+    is the fallback — but it is fed the query and the REQUEST'S subjects
+    only. ``context_texts`` (history) still may not enter the pool."""
+    import core.sheet_dataset_service as sds
+
+    helper_calls: list = []
+
+    def _capture_helper(texts, **kwargs):
+        helper_calls.append(list(texts))
+        return ["orphan"]
+
+    monkeypatch.setattr(sds, "candidate_probe_tokens", _capture_helper)
+    monkeypatch.setattr(sds, "distinctive_name_tokens", lambda srcs: set())
+    monkeypatch.setattr(sds, "find_entries_sync", lambda *a, **k: [])
+
+    out = search_all_datasets_sync(
+        "price for No. 381", "u1", "ws", 2, 5,
+        context_texts=["earlier SLE24-16 slitter checked"],
+        name_context_texts=["price for No. 381"],
+        request_subjects=["ab"])   # too short to yield tokens
+
+    assert helper_calls, "the fallback extractor should have been consulted"
+    fed = " ".join(" ".join(c) for c in helper_calls).lower()
+    assert "sle24" not in fed, (
+        f"history must never supplement a bound request scope; fed={fed!r}")
+    assert "no. 381" in fed, (
+        f"the request's own subjects feed the fallback; fed={fed!r}")
+    assert (out or {}).get("subject_scope_unprobed") == ["ab"], (
+        "a subject that yielded no tokens is reported, not silently dropped")
 
 
 def test_background_contract_rides_blackboard():
@@ -119,6 +155,50 @@ async def _run_apply(plan, canvas, contract):
     )
 
 
+def test_unchanged_price_formatting_proceeds():
+    """Formatting that CARRIES an unchanged price is presentation, not a
+    fact change (the old monetary heuristic blocked exactly this)."""
+    import asyncio
+    with patch("tools.canvas_crud_tool.update_canvas_content",
+               new=_fake_update), \
+            patch.object(cce, "_apply_patch_ops",
+                         new=lambda content, ops: (
+                             {"body": "Unit Price: $2,902.00 (CAD)"}, None)):
+        plan = cce.CanvasEditPlan(
+            wants_edit=True, edit_mode="patch",
+            ops=[cce.CanvasPatchOp(
+                find="Unit Price: $2,902.00",
+                replace="Unit Price: $2,902.00 (CAD)")])
+        result, reason = asyncio.run(_run_apply(
+            plan,
+            {"canvas_id": "c-fmt", "canvas_type": "email",
+             "content": {"body": "Unit Price: $2,902.00"}},
+            {"actions": []}))
+    assert result is not None, (
+        f"unchanged-value formatting must proceed (reason={reason!r})")
+
+
+def test_nonpricing_fact_changes_require_evidence():
+    """Changed integers, dates and booleans are evidence-dependent facts
+    (the old heuristic missed all three)."""
+    import asyncio
+    for find, replace in (
+            ("Ships in 3-4 weeks", "Ships in 2 weeks"),
+            ("Valid until 2026-10-01", "Valid until 2026-11-15"),
+            ("Status: in stock", "Status: out of stock")):
+        plan = cce.CanvasEditPlan(
+            wants_edit=True, edit_mode="patch",
+            ops=[cce.CanvasPatchOp(find=find, replace=replace)])
+        result, reason = asyncio.run(_run_apply(
+            plan,
+            {"canvas_id": "c-fact", "canvas_type": "email",
+             "content": {"body": find}},
+            {"actions": []}))
+        assert result is None and reason == "no_ready_evidence_change", (
+            f"{find!r}->{replace!r} must require ready evidence "
+            f"(got {reason!r})")
+
+
 def test_price_changing_op_requires_ready_evidence():
     import asyncio
     plan = cce.CanvasEditPlan(
@@ -134,11 +214,13 @@ def test_price_changing_op_requires_ready_evidence():
         "an op changing a price still requires ready, authorized evidence")
 
 
+async def _fake_update(*a, **k):
+    return {"success": True, "audit_id": "a1", "write_outcome":
+            "appended"}
+
+
 def test_formatting_op_proceeds_without_price_actions():
     import asyncio
-    async def _fake_update(*a, **k):
-        return {"success": True, "audit_id": "a1", "write_outcome":
-                "appended"}
 
     with patch("tools.canvas_crud_tool.update_canvas_content",
                new=_fake_update), \

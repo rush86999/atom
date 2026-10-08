@@ -183,6 +183,7 @@ def project_events(events: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     last_program: Optional[Dict[str, Any]] = None
     file: Optional[Dict[str, Any]] = None
     item_outcomes: Dict[str, str] = {}
+    last_outcome_revision: Dict[str, str] = {}
 
     for ev in events or []:
         kind = str((ev or {}).get("kind") or "")
@@ -223,9 +224,31 @@ def project_events(events: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         elif kind == ITEM_OUTCOMES:
             _outcomes = payload.get("outcomes") or {}
             if isinstance(_outcomes, dict):
-                item_outcomes.update({
-                    str(k): str(v)
-                    for k, v in _outcomes.items() if str(v)})
+                for _k, _v in _outcomes.items():
+                    _k, _v = str(_k), str(_v)
+                    if not _v:
+                        continue
+                    # NO-DOWNGRADE MERGE (2026-10-08 owner correction 3):
+                    # a scoped miss from a LATER search must not
+                    # overwrite an ESTABLISHED finding for the same
+                    # item on the same workbook revision (live: a
+                    # RoperWhitney miss across 103 files would have
+                    # flipped the recorded Tennsmith row-338 'single'
+                    # finding to 'none'). A miss may only record where
+                    # the item had no better status yet; a different
+                    # content revision (the file changed) still
+                    # overwrites — the old evidence is stale by then.
+                    _prior = item_outcomes.get(_k)
+                    _same_rev = (
+                        (payload.get("content_hash") or "")
+                        == last_outcome_revision.get(_k))
+                    if (_prior in ("single",)
+                            and _v in ("none", "absent", "multiple")
+                            and _same_rev):
+                        continue
+                    item_outcomes[_k] = _v
+                    last_outcome_revision[_k] = (
+                        payload.get("content_hash") or "")
     return {
         "objective": objective,
         "preferences": preferences,

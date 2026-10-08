@@ -1251,21 +1251,37 @@ def search_all_datasets_sync(
     # context may add color, never replace explicit subjects (live
     # case-4: the request named No. 381, history carried a prior
     # SLE24-16 read, and the probe searched sle24).
+    _per_subject: List[List[str]] = []
+    _omitted: List[str] = []
     if request_subjects:
         # EXPLICIT SUBJECTS ARE FIRST-CLASS CANDIDATES: the ≥4-char
         # digit heuristic exists to stop noise mining — a subject the
         # caller RESOLVED from the request is not noise (live case-4:
         # 'No. 381' -> token '381' was dropped by the net and the sweep
-        # never ran). Subject tokens ≥3 chars enter verbatim, then the
-        # heuristic may add from the query.
+        # never ran). PER-SUBJECT COVERAGE (2026-10-08 owner correction
+        # 4): the first version kept only six tokens — a multi-item
+        # request silently lost its later subjects. Every subject
+        # contributes its tokens; the cap exists only as a hard bound,
+        # and anything dropped is RECORDED in the result so receipts
+        # can state the omission (a receipt alone does not prove
+        # complete scope).
         _explicit: List[str] = []
+        _per_subject: List[List[str]] = []
         for _subj in request_subjects:
-            for _t in re.split(r"[^a-z0-9]+", str(_subj).lower()):
-                if len(_t) >= 3 and _t not in _explicit:
+            _subj_tokens = [
+                _t for _t in re.split(r"[^a-z0-9]+", str(_subj).lower())
+                if len(_t) >= 3]
+            _per_subject.append(_subj_tokens)
+            for _t in _subj_tokens:
+                if _t not in _explicit:
                     _explicit.append(_t)
-        candidates = (_explicit[:6] or candidate_probe_tokens(
+        _cap = 24
+        _omitted = _explicit[_cap:]
+        candidates = (_explicit[:_cap] or candidate_probe_tokens(
             [query] + [str(x) for x in request_subjects
                        if str(x).strip()], allow_name_fallback=False))
+        _subject_omission = bool(_omitted) or any(
+            not toks for toks in _per_subject)
     else:
         candidates = candidate_probe_tokens(
             [query] + list(context_texts or []), allow_name_fallback=False
@@ -1367,6 +1383,11 @@ def search_all_datasets_sync(
                 "files_searched": len(order),
                 "hits": hits[:limit],
                 "incomplete": _out_of_time(),
+                "subject_scope_omitted": sorted(_omitted)[:12],
+                "subject_scope_unprobed": sorted(
+                    str(request_subjects[i])[:80]
+                    for i, toks in enumerate(_per_subject)
+                    if not toks)[:12],
             }
     return {
         "token": candidates[0] if candidates else ",".join(sorted(_name_tokens)),
@@ -1377,6 +1398,14 @@ def search_all_datasets_sync(
         # caller must be able to tell them apart — otherwise a truncated scan
         # reads as a definitive empty catalog.
         "incomplete": bool(_out_of_time()),
+        # PER-SUBJECT SCOPE OMISSIONS (2026-10-08 owner correction 4):
+        # tokens dropped by the hard cap, or subjects that yielded no
+        # tokens at all — stated in the receipt so "no hits" can never
+        # masquerade as complete scope.
+        "subject_scope_omitted": sorted(_omitted)[:12],
+        "subject_scope_unprobed": sorted(
+            str(request_subjects[i])[:80]
+            for i, toks in enumerate(_per_subject) if not toks)[:12],
     }
 
 

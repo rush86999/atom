@@ -7322,10 +7322,29 @@ async def _datasets_search_block(
                 "tokens_tried": [
                     str(t)[:60]
                     for t in ((result or {}).get("tokens_tried") or [])][:8],
+                # SOURCE IDENTITIES (2026-10-08 owner correction 3): the
+                # receipt names file+sheet per hit — a searched TERM is
+                # dispatch, not a read of the intended workbook; the
+                # identities make the intended-source question
+                # answerable from the receipt alone.
+                "hit_sources": sorted({
+                    f"{str((h or {}).get('file') or '')[:80]}"
+                    f"!{str((h or {}).get('sheet')
+                            or (h or {}).get('entity_name') or '')[:40]}"
+                    for h in hits if h})[:12],
                 "matched_files": sorted({
                     str((h or {}).get("file") or (h or {}).get("source")
                         or "")[:120] for h in hits if h})[:12],
                 "query": str(query)[:200],
+                # per-subject probe bound omissions, stated in-receipt
+                **({"subject_scope_omitted": sorted(
+                        (result or {}).get("subject_scope_omitted")
+                        or [])[:12]}
+                   if (result or {}).get("subject_scope_omitted") else {}),
+                **({"subject_scope_unprobed": sorted(
+                        (result or {}).get("subject_scope_unprobed")
+                        or [])[:12]}
+                   if (result or {}).get("subject_scope_unprobed") else {}),
             }
         except Exception:  # noqa: BLE001 — receipt is additive
             pass

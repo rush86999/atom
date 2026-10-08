@@ -2116,10 +2116,30 @@ async def run_canvas_edit_continuation(
             "edit_timeout=%.1fs", cont.continuation_id, attempt,
             _ASYNC_CONTINUATION_ATTEMPTS, cont.failure_stage,
             remaining, edit_timeout)
+        # BOUNDED-PATCH FEEDBACK (2026-10-08 owner correction 2): when a
+        # prior attempt was refused by the preservation guard
+        # (scope_dropped_product — protection working, not a planner
+        # black hole), the retry carries the refusal verbatim and an
+        # explicit bounded-patch instruction: surgical ops preserving
+        # every existing row identity, never a whole-table
+        # regeneration. The guard itself is never lowered.
+        _plan_message = cont.message
+        if (last_note or "").startswith("scope_dropped_product"):
+            _dropped = last_note.split(":", 1)[1][:120]
+            _plan_message = (
+                cont.message
+                + "\n\nYour previous draft was REFUSED by the scope "
+                f"guard: it dropped established identities ({_dropped}). "
+                "Produce a BOUNDED PATCH instead: one surgical "
+                "find-and-replace per intended change, copying the "
+                "existing text verbatim, preserving EVERY row and "
+                "identity already on the canvas (including row "
+                "references in descriptions). Do not regenerate the "
+                "table.")
         try:
             response = await asyncio.wait_for(
                 orchestrator._try_canvas_edit(
-                    cont.message, cont.history_snapshot, cont.canvas,
+                    _plan_message, cont.history_snapshot, cont.canvas,
                     cont.user_id, cont.session_id, cont.execution_id,
                     cont.agent_id,
                     provenance=cont.provenance,

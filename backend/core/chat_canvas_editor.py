@@ -802,6 +802,27 @@ def artifact_observations(
     return observations
 
 
+def _contract_entities(
+        evidence_contract: Optional[Dict[str, Any]]) -> List[str]:
+    """Entity identities the evidence contract tracks — the field
+    contract's own subjects, not a product-specific vocabulary."""
+    out: List[str] = []
+    seen = set()
+    for outcome in ((evidence_contract or {}).get("outcomes") or []):
+        if isinstance(outcome, dict):
+            eid = str(outcome.get("entity_id") or "").strip()
+            if eid and eid.lower() not in seen:
+                seen.add(eid.lower())
+                out.append(eid)
+    for action in ((evidence_contract or {}).get("actions") or []):
+        if isinstance(action, dict):
+            eid = str(action.get("entity_id") or "").strip()
+            if eid and eid.lower() not in seen:
+                seen.add(eid.lower())
+                out.append(eid)
+    return out[:24]
+
+
 def build_canvas_evidence_comparison(
     canvas: Dict[str, Any],
     workbook_read: Dict[str, Any],
@@ -3203,42 +3224,81 @@ async def apply_canvas_edit(
         and action.get("status") == "ready"
         and action.get("authorized") is True
     ]
-    # PRICE-CHANGE READINESS vs DRAFTING READINESS (2026-10-08 owner
-    # final repair 4): no_ready_evidence_change exists to protect
-    # APPLYING NEWLY VERIFIED VALUES — an op that changes a price needs
-    # a ready, authorized evidence action behind it. It must NOT block
-    # separately authorized formatting/header work supported by the
-    # existing draft (live case-1 T_AUTH: "prepare the draft … preserve
-    # approved manual prices" was refused because no comparable-changed
-    # pair existed — correctly, since preserving prices changes none).
-    # An op is VALUE-CHANGING when its find/replace carry DIFFERING
-    # currency/number tokens; ops without them (greetings, subject
-    # lines, notes) proceed under the turn's authorization.
-    _value_token = re.compile(
-        r"\$\s?[\d,]+(?:\.\d+)?|\b\d[\d,]*\.\d{2}\b")
+    # FACT-CHANGE READINESS vs PRESENTATION READINESS (2026-10-08
+    # owner correction 1, replacing the monetary-token heuristic):
+    # no_ready_evidence_change protects APPLYING EVIDENCE-DEPENDENT
+    # FACTS — money, integers, dates, booleans, and contract-tracked
+    # text facts — so readiness turns on whether the op's BEFORE/AFTER
+    # value tokens actually DIFFER (the old heuristic matched '$'
+    # anywhere and never compared sides: a formatting rewrite that
+    # carried an UNCHANGED price was blocked, while changed integers,
+    # dates and booleans slipped through). Presentation changes — same
+    # canonical value tokens, differently arranged — and pure prose
+    # additions proceed under the turn's authorization; authorization
+    # and preservation checks are untouched and stay separate.
+    def _canonical_fact_tokens(text: str) -> Any:
+        from collections import Counter
+        tokens = Counter()
+        for m in re.finditer(
+                r"\$\s?([\d,]+(?:\.\d+)?)|(?<![\w.])"
+                r"([\d,]+(?:\.\d+)?)(?![\w%])", text or ""):
+            raw = m.group(1) or m.group(2)
+            try:
+                from decimal import InvalidOperation
+                value = Decimal(raw.replace(",", ""))
+                key = f"num:{value.normalize()}"
+            except (InvalidOperation, ValueError):
+                key = f"raw:{raw}"
+            tokens[key] += 1
+        for m in re.finditer(
+                r"\b(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4})\b",
+                text or ""):
+            tokens[f"date:{m.group(1)}"] += 1
+        low = re.sub(r"\s+", " ", (text or "").lower())
+        for phrase in (
+                "in stock", "out of stock", "available",
+                "unavailable", "yes", "no", "true", "false"):
+            tokens[f"bool:{phrase}"] += low.count(phrase)
+        # contract-tracked TEXT facts: entity identities the evidence
+        # contract named (the field contract supplies the domain — no
+        # product-specific vocabulary here).
+        for entity in _contract_entities(evidence_contract):
+            if entity and entity.lower() in low:
+                tokens[f"entity:{entity.lower()}"] += 1
+        return tokens
 
-    def _op_changes_value(op: Any) -> bool:
+    def _op_changes_fact(op: Any) -> bool:
         find = str(getattr(op, "find", "") or "")
         replace = str(getattr(op, "replace", "") or "")
         if find == replace:
             return False
-        return bool(
-            (_value_token.search(find) or _value_token.search(replace)))
+        before = _canonical_fact_tokens(find)
+        after = _canonical_fact_tokens(replace)
+        if before == after:
+            return False  # same values, different presentation
+        changed = (before - after) + (after - before)
+        if not changed:
+            return False
+        # Distinguish fact changes from prose additions: only changed
+        # num/date/bool/entity tokens make the op evidence-dependent.
+        return any(
+            k.startswith(("num:", "date:", "bool:", "entity:"))
+            for k in changed.elements())
 
-    _value_changing_ops = [
+    _fact_changing_ops = [
         op for op in (getattr(plan, "ops", None) or [])
-        if _op_changes_value(op)
+        if _op_changes_fact(op)
     ]
-    if (_value_changing_ops
+    if (_fact_changing_ops
             and (evidence_contract or require_evidence_postconditions)
             and not ready_actions):
         return _out(None, "no_ready_evidence_change")
     if (evidence_contract or require_evidence_postconditions) \
-            and not ready_actions and not _value_changing_ops and (
+            and not ready_actions and not _fact_changing_ops and (
                 getattr(plan, "ops", None) or []):
         logger.info(
-            "canvas edit: drafting readiness satisfied without price-"
-            "change actions (%d op(s), none value-changing) — proceeding "
+            "canvas edit: drafting readiness satisfied without fact-"
+            "change actions (%d op(s), presentation-only) — proceeding "
             "under the turn's authorization", len(plan.ops or []))
 
     current = canvas.get("content")
