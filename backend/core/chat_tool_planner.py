@@ -5718,7 +5718,7 @@ def _resolve_active_items(query: str, context: Optional[Dict[str, Any]],
     # ``request_scope`` keep the full mining precedence below, unchanged.
     _rs = (context or {}).get("request_scope")
     if isinstance(_rs, dict) and _rs.get("scope_change") in (
-            "replace", "subset"):
+            "replace", "subset", "extend"):
         _rs_subjects = [
             str(v).strip() for v in (_rs.get("subjects") or [])
             if str(v).strip()]

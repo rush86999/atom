@@ -87,6 +87,46 @@ class TestReaderConsumesRequestScope:
             [])
         assert out == ["381", "U-22"]
 
+    def test_extend_retains_both_subjects_through_scan(self):
+        """'also check the Linmac U-22' with a prior 'No. 381' objective:
+        the scan must receive BOTH — the merged set, not the turn's own
+        newly-mined subject alone (the own-first mining rule would
+        otherwise drop the old subject)."""
+        out = ctp._resolve_active_items(
+            "Consolidated Price List 2019.xlsx",
+            {
+                "message": "also check the price for the Linmac U-22 "
+                           "bead roller",
+                "requested_targets": ["No. 381", "Linmac U-22"],
+                "request_scope": {
+                    "subjects": ["No. 381", "Linmac U-22"],
+                    "scope_change": "extend"},
+            },
+            ["381", "u22"])
+        assert out == ["No. 381", "Linmac U-22"], (
+            "extend merges old + new and the merged set reaches the scan "
+            "— the turn's own mining must not drop the old subject")
+
+    def test_timeout_fallback_new_subject_beats_old_objective(self):
+        """Interpretation UNAVAILABLE (timeout/unresolved) + a stored old
+        objective + a NEW explicit subject in the request: the executor
+        must scan the NEW subject — an unresolved label alone does not
+        make inheriting the old objective safe."""
+        out = ctp._resolve_active_items(
+            "Consolidated Price List 2019.xlsx",
+            {
+                "message": "What is the current price for No. 381?",
+                # stored objective from an earlier, different ask
+                "requested_targets": [
+                    "Tennsmith Single Wheel Slitter SLE24-16"],
+            },
+            ["381", "sle24"])
+        joined = " | ".join(out).lower()
+        assert "381" in joined and "sle24" not in joined, (
+            "with interpretation unavailable, the turn's own explicit "
+            "subject must still outrank the stored objective; got %r"
+            % (out,))
+
     def test_unresolved_scope_falls_through_to_legacy(self):
         out = ctp._resolve_active_items(
             "wb.xlsx",

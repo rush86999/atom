@@ -7491,6 +7491,18 @@ class ChatOrchestrator:
                             if s.lower() not in {
                                 a.lower() for a in _ask_active}]
                         _ask_task["requested_targets"] = _merged
+                        # The MERGED set is the request-established
+                        # scope: it rides request_scope so the reader
+                        # consumes it verbatim — the turn's own mining
+                        # must not be able to drop the old subject
+                        # (2026-10-08 extend-boundary verification).
+                        _ask_task["request_scope"] = {
+                            "subjects": _merged,
+                            "scope_change": "extend",
+                            "origin": _td_interpretation.get("origin"),
+                            "request_id": _td_interpretation.get(
+                                "request_id"),
+                        }
                 if not _ask_task.get("requested_targets"):
                     if _ask_active:
                         # Active-objective inheritance for vague follow-up

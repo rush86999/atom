@@ -70,18 +70,36 @@ def verify_followup(reply: str) -> Dict[str, Any]:
     low = reply.lower()
     covered = [c for c in OTHERS if c.lower() in low]
     # an ask is a question OR an explicit authorization request (the
-    # agent's precise offer to run the named searches)
+    # agent's precise offer to run the named searches). The imperative
+    # choice-question pattern was added from CAPTURED examples
+    # (2026-10-08, case2_checker_examples_20261008.json — owner
+    # directive: no vocabulary correction without captured positives
+    # AND negatives): 'Say which of those you want first, or ask for
+    # all of them in one pass' asks the owner to CHOOSE among the named
+    # scopes. The negatives stay excluded because the choice-pattern
+    # ALSO requires the >=2 named scopes below — a failed-lookup
+    # re-run offer or a result delivery does not name a choice among
+    # the remaining scopes.
     asks = any(m in low for m in
                ["?", "say the word", "shall i", "want me to",
-                "give me the word", "confirm and"])
-    # scope vocabulary: item numbers AND the same machines' human names
-    # (the reply may name either form; the ASSERTION stays strict — a
-    # precise question still needs >=2 distinct scopes + a question)
-    names_scopes = sum(1 for s in
-                       ["381", "roll bender", "roper whitney", "622",
-                        "rotary", "sle24", "slitter", "flanger",
-                        "bead roller", "rows 1", "rows 6", "requested",
-                        "alternative"] if s in low)
+                "give me the word", "confirm and",
+                "say which", "tell me which", "which of those",
+                "pick which", "want all of them", "all of them in one"])
+    # scope vocabulary: DISTINCT REMAINING-ITEM identities (evidence
+    # correction 2026-10-08, case2_checker_examples_20261008.json): a
+    # failed-lookup offer naming ONE item ('381' + 'roll bender' are the
+    # same machine) is not a choice among scopes. Each remaining item
+    # counts once for any of its identity words; the precise question
+    # needs >=2 DISTINCT remaining items + an ask.
+    _ITEM_IDENTITIES = {
+        "381": ["381", "roll bender", "roper whitney"],
+        "622": ["622", "rotary"],
+        "SLE24-16": ["sle24"],
+    }
+    distinct_items = sum(
+        1 for words in _ITEM_IDENTITIES.values()
+        if any(w in low for w in words))
+    names_scopes = distinct_items
     precise_question = asks and names_scopes >= 2
     return {
         "remaining_covered_or_precise_ask":
