@@ -77,13 +77,50 @@ def sqlite_select(db: Path, sql: str,
 
 
 def mint_admin_token(db: Path) -> Tuple[str, str]:
-    """Read the admin user row, mint a JWT locally. No DB writes."""
+    """Read the admin user row, mint a JWT locally. No DB writes.
+
+    DEPRECATED for live trials (owner directive 2026-10-08): a restarted
+    server generates a fresh SECRET_KEY, so locally minted JWTs decode
+    as 401 and invalidate the trial. Use real_admin_login."""
     os.environ["DATABASE_URL"] = f"sqlite:///{db}"
     from scripts.workbook_read_replay import mint_token
     token, uid = mint_token()
     if not token or not uid:
         raise RuntimeError("token mint failed (no admin@example.com?)")
     return token, uid
+
+
+def real_admin_login(base: str, db: Path) -> Tuple[str, str]:
+    """POST /api/auth/login as the seeded admin — the REAL endpoint, the
+    same token a browser session gets. The password comes from the
+    bootstrap file the app seeded (0600, gitignored); no credentials are
+    ever written into results files or logs."""
+    import httpx
+
+    rows = sqlite_select(
+        db, "SELECT email FROM users WHERE email LIKE 'admin%' "
+            "ORDER BY created_at LIMIT 1")
+    email = rows[0][0] if rows else "admin@example.com"
+    pw_file = db.parents[1] / "logs" / "bootstrap_admin_password.txt"
+    password = pw_file.read_text().strip() if pw_file.exists() else ""
+    if not password:
+        raise RuntimeError(
+            f"bootstrap admin password not found at {pw_file}")
+    r = httpx.post(
+        f"{base}/api/auth/login",
+        json={"email": email, "username": email, "password": password},
+        timeout=30, trust_env=False)
+    doc = r.json() if r.status_code == 200 else {}
+    token = doc.get("access_token") or doc.get("token")
+    user_id = None
+    if token:
+        uid_rows = sqlite_select(
+            db, "SELECT id FROM users WHERE email = ?", (email,))
+        user_id = uid_rows[0][0] if uid_rows else None
+    if not token or not user_id:
+        raise RuntimeError(
+            f"real login failed (http {r.status_code})")
+    return token, user_id
 
 
 def full_agent_id(db: Path, short: str = "9837ec71") -> str:
