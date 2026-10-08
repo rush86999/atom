@@ -16222,6 +16222,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                             "structured_result")
                                                         or _merged.get(
                                                             "structured_result")),
+                                                    # CARRIER COMPLETENESS
+                                                    # (2026-10-08): the
+                                                    # drafting caller's
+                                                    # receipt-based reuse
+                                                    # requires the RENDERED
+                                                    # evidence alongside the
+                                                    # structured receipt —
+                                                    # `rendered` is this
+                                                    # carrier's canonical key
+                                                    # (see _adopt_pending_file_
+                                                    # result consumers). The
+                                                    # chained read persisted
+                                                    # the receipt but not the
+                                                    # rendering, so the reuse
+                                                    # gate read "no evidence"
+                                                    # for a read that had in
+                                                    # fact produced 2,920
+                                                    # chars of it.
+                                                    "rendered": (
+                                                        _vt_sr.get(
+                                                            "rendered_answer")
+                                                        or _merged.get(
+                                                            "rendered")
+                                                        or ""),
                                                     "execution_id":
                                                         execution_id,
                                                     "retrieved_at":

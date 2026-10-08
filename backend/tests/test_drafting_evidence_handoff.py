@@ -548,3 +548,152 @@ class TestReusedEvidenceIsNotCalledFresh:
         assert out.evidence_contract is None, (
             "receiptless prose must not mint an evidence contract: "
             f"{out.evidence_contract!r}")
+
+
+class TestChainToContractEndToEnd:
+    """Guide instruction 2: chain -> stored receipt -> drafting caller ->
+    planner contract, INCLUDING unavailable narration, with subject, field,
+    value, source/version and freshness preserved together.
+
+    This is the seam the captured case-1 transition died on. The chained
+    confirmed-file read persisted its structured receipt into
+    ``_pending_file_result`` but NOT the rendered evidence, and the
+    drafting caller's receipt-based reuse requires both — so a read that
+    had produced real findings was reported to the planner as none.
+    """
+
+    CARRIER_INPUT = {
+        # The named-file reader's real ``storage_read`` shape (captured
+        # from the live workbook read).
+        "rendered_answer": (
+            "PER-ITEM OUTCOMES ... | 381 | FOUND | RoperWhitney!A66 R66 "
+            "(values: E66=2035 [basis=PRICE], M66=1172 [basis=U.S. LIST]) |"),
+        "workbook_read": {"sheets": 41},
+        "structured_result": {
+            "schema_version": 1,
+            "evidence_action": "new_read",
+            "evidence_revision":
+                "c01b108a3ca1019111f09ecf0dbda5d9996aa4c5:"
+                "2026-10-08T21:14:01.594636",
+            "source_identity": {
+                "file_name": "Copy of Consolidated Price List 2019 - "
+                             "Linmac Update.xlsx",
+                "service": "datasets",
+                "source": "zoho_workdrive",
+                "resource_id": "9ef83433837cdf6b841b6b7604d64e24dab42",
+                "content_hash": "c01b108a3ca1019111f09ecf0dbda5d9996aa4c5",
+                "ingested_at": "2026-10-08T21:14:01.594636",
+                "source_modified_at": None,
+                "live_vs_saved": "saved copy",
+                "evidence_kind": "materialized_copy",
+            },
+            "targets": [{
+                "item": "381",
+                "field": {"status": "competing", "values": [
+                    {"col": "E66", "basis": "PRICE", "kind": "number",
+                     "value": 2035.0, "display": "2,035"},
+                    {"col": "M66", "basis": "U.S. LIST", "kind": "number",
+                     "value": 1172.0, "display": "1,172"}]},
+                "identity": {"status": "single", "candidates": [
+                    {"ref": "RoperWhitney!R66"}]},
+                "retrieval": {"status": "searched", "error_category": None},
+                "scope_receipt": {"authorization": "granted"},
+            }],
+            "coverage": {"read_status": "success"},
+        },
+    }
+
+    def _carrier(self):
+        """What the chained-read persist must produce (see the merge in
+        chat_orchestrator's value-trace -> confirmed-file read)."""
+        sr = self.CARRIER_INPUT
+        return {
+            "status": "retrieved",
+            "identity": {"file_name": sr["structured_result"][
+                "source_identity"]["file_name"], "execution_id": "e1"},
+            "workbook_read": sr.get("workbook_read"),
+            "structured_result": sr.get("structured_result"),
+            "rendered": sr.get("rendered_answer") or "",
+            "execution_id": "e1",
+            "retrieved_at": 0.0,
+            "chained_read": True,
+        }
+
+    def test_the_chained_read_persists_the_rendered_evidence(self):
+        """The regression: the carrier must carry `rendered` alongside the
+        structured receipt. `rendered` is the carrier's canonical key."""
+        import inspect
+
+        from integrations import chat_orchestrator as co
+
+        src = inspect.getsource(co.ChatOrchestrator._get_qwen_response)
+        at = src.index("chained_read")
+        window = src[max(0, at - 2500):at]
+        assert '"rendered"' in window, (
+            "the chained-read carrier persist must set the canonical "
+            f"'rendered' key; the block reads:\\n{window[-700:]}")
+
+    def test_chain_receipt_reaches_the_planner_with_unavailable_narration(self):
+        """Guide instruction 2 end to end: with the LLM unavailable the
+        already-read evidence still reaches the drafting planner."""
+        import asyncio
+
+        from core import chat_canvas_editor as cce
+
+        out = asyncio.run(cce.fetch_fresh_data_section(
+            message="prepare the draft now",
+            history=[],
+            llm_service=None,          # narration unavailable
+            user_id="u1",
+            canvas_id="cv-1",
+            reused_findings=self._carrier(),
+            existing_evidence_contract=None))
+
+        assert out.needed is False and out.ok
+        assert out.evidence_contract is not None, (
+            "the chained read's contract must reach the planner with no "
+            f"model available; got {out.evidence_contract!r}")
+
+    def test_subject_field_value_source_and_freshness_survive_together(self):
+        import asyncio
+
+        from core import chat_canvas_editor as cce
+
+        out = asyncio.run(cce.fetch_fresh_data_section(
+            message="prepare the draft now",
+            history=[],
+            llm_service=None,
+            user_id="u1",
+            canvas_id="cv-1",
+            reused_findings=self._carrier(),
+            existing_evidence_contract=None))
+        section = (out.section or "").lower()
+        contract = out.evidence_contract or {}
+
+        # subject and value are visible to the planner
+        assert "381" in section, out.section
+        assert "2035" in section and "price" in section, out.section
+        # source cell identity
+        assert "roperwhitney!a66" in section, out.section
+        # the reuse never claims a fresh fetch
+        assert "not re-fetched this turn" in section, out.section
+
+        # source/version and freshness ride the CONTRACT together with
+        # the subject, field and value.
+        rows = [e for e in (contract.get("evidence") or [])
+                if e.get("entity_id") == "381"]
+        assert rows, contract.get("evidence")
+        ev = next(e for e in rows if e.get("basis") == "PRICE")
+        assert ev.get("field"), ev                       # field
+        assert ev.get("current_value") == 2035.0, ev     # value
+        assert ev.get("basis") == "PRICE", ev            # basis
+        assert ev.get("source") == "RoperWhitney!R66", ev  # source cell
+        assert ev.get("content_hash"), ev                # version
+        assert ev.get("source_version"), ev              # revision
+        assert ev.get("freshness"), ev                   # freshness
+        assert contract.get("source", {}).get("evidence_kind") == (
+            "materialized_copy"), contract.get("source")
+        # and the read authorized NO value-changing edit
+        assert contract.get("actions") == [], (
+            "a read receipt never authorizes a value change: "
+            f"{contract.get('actions')}")

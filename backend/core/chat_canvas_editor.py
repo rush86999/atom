@@ -1769,6 +1769,97 @@ class FreshDataResult(NamedTuple):
     evidence_contract: Optional[Dict[str, Any]] = None
 
 
+def _contract_from_receipt(reused: Dict[str, Any]) -> Dict[str, Any]:
+    """Derive the readiness gate's evidence contract from a structured
+    read receipt — recording only what the read OBSERVED.
+
+    A chained datasets read returns a structured result (subject, field,
+    parsed value with its basis/unit/currency, source identity and
+    revision, freshness qualification). The readiness gate reads a
+    different shape (`evidence_contract`). Rather than invent values or
+    an authorized change to satisfy that shape, this maps the receipt's
+    own fields across and states plainly that the read authorized NO
+    value-changing edit.
+
+    Required by the research-to-draft guide: preserve subject, field,
+    value, source/version and freshness TOGETHER.
+    """
+    sr = reused.get("structured_result") if isinstance(reused, dict) else None
+    sr = sr if isinstance(sr, dict) else {}
+    src = sr.get("source_identity") if isinstance(
+        sr.get("source_identity"), dict) else {}
+    targets = sr.get("targets") if isinstance(sr.get("targets"), list) else []
+
+    evidence: List[Dict[str, Any]] = []
+    for t in targets:
+        if not isinstance(t, dict):
+            continue
+        subject = str(t.get("item") or "")
+        fld = t.get("field") if isinstance(t.get("field"), dict) else {}
+        vals = fld.get("values") if isinstance(fld.get("values"), list) else []
+        ident = t.get("identity") if isinstance(t.get("identity"), dict) else {}
+        refs = []
+        for c in (ident.get("candidates") or []):
+            if isinstance(c, dict) and c.get("ref"):
+                refs.append(str(c.get("ref")))
+        for v in vals:
+            if not isinstance(v, dict):
+                continue
+            evidence.append({
+                "kind": "workbook_cell",
+                "entity_id": subject,
+                "field": str(v.get("col") or v.get("basis") or ""),
+                "current_value": v.get("value"),
+                "raw_value": v.get("display"),
+                "basis": v.get("basis"),
+                "unit": v.get("unit"),
+                "currency": v.get("currency"),
+                "source": (refs[0] if refs else ""),
+                "source_id": src.get("resource_id"),
+                "source_version": sr.get("evidence_revision"),
+                "content_hash": src.get("content_hash"),
+                "evidence_kind": src.get("evidence_kind"),
+                "live_vs_saved": src.get("live_vs_saved"),
+                "freshness": (
+                    "unknown live freshness"
+                    if not src.get("source_modified_at")
+                    else f"source_modified={src.get('source_modified_at')}"),
+                "addresses_requested": True,
+            })
+
+    return {
+        "contract_version": 2,
+        "source": {
+            "file_name": src.get("file_name"),
+            "service": src.get("service"),
+            "source": src.get("source"),
+            "resource_id": src.get("resource_id"),
+            "content_hash": src.get("content_hash"),
+            "evidence_revision": sr.get("evidence_revision"),
+            "evidence_kind": src.get("evidence_kind"),
+            "live_vs_saved": src.get("live_vs_saved"),
+            "ingested_at": src.get("ingested_at"),
+            "source_modified_at": src.get("source_modified_at"),
+        },
+        "coverage": {
+            "requested_entities": sorted({
+                str(t.get("item") or "") for t in targets
+                if isinstance(t, dict) and t.get("item")}),
+            "requested_fields": list(
+                (sr.get("requested_fields") or [])[:8]),
+            "outcome_count": len(evidence),
+            "complete": bool(sr.get("coverage", {}).get("read_status")
+                             == "success"),
+        },
+        # The read authorized NO value-changing edit. Anything that would
+        # change a currency/number still needs its own ready, authorized
+        # evidence action — this contract never supplies one.
+        "actions": [],
+        "evidence": evidence,
+        "evidence_refs": [e["source"] for e in evidence if e.get("source")],
+    }
+
+
 async def fetch_fresh_data_section(
     message: str,
     history: List[Dict[str, Any]],
@@ -1842,6 +1933,21 @@ async def fetch_fresh_data_section(
             _rf_ident = reused_findings.get("identity") or {}
             _rf_name = str(
                 _rf_ident.get("file_name") or "the resolved file")
+            # CONTRACT FROM THE RECEIPT (research-to-draft guide Repair 2):
+            # the readiness gate reads `evidence_contract`, while a chained
+            # datasets read produces a STRUCTURED RESULT (subject, field,
+            # parsed value with basis/unit/currency, source identity and
+            # revision, freshness). When no explicit contract was carried,
+            # derive one from the receipt's OWN fields — recording what the
+            # read observed, never inventing a value or an authorized
+            # change. `actions: []` is the truthful statement that this
+            # read authorized no value-changing edit.
+            _rf_contract = (
+                dict(existing_evidence_contract)
+                if isinstance(existing_evidence_contract, dict)
+                else reused_findings.get("objective_evidence"))
+            if not isinstance(_rf_contract, dict):
+                _rf_contract = _contract_from_receipt(reused_findings)
             return FreshDataResult(
                 section=(
                     "REUSED FINDINGS (durable structured evidence "
@@ -1853,10 +1959,7 @@ async def fetch_fresh_data_section(
                 needed=False,
                 ok=True,
                 block=_rf_render[:16000],
-                evidence_contract=(
-                    dict(existing_evidence_contract)
-                    if isinstance(existing_evidence_contract, dict)
-                    else reused_findings.get("objective_evidence")),
+                evidence_contract=_rf_contract,
             )
 
     if not message or llm_service is None:
