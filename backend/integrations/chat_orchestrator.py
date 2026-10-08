@@ -11626,7 +11626,14 @@ class ChatOrchestrator:
             block = await asyncio.wait_for(
                 _datasets_named_file_block(
                     user_id,
-                    original,
+                    # THE RESOLVED FILE MENTION, not the full message text:
+                    # the named-file block resolves files by name and
+                    # returns None when the query doesn't match one — the
+                    # full message never matches any catalog file (4th
+                    # Cedarberg boundary, confirmed: _resolve_active_items
+                    # at line 6363 never reached). The message rides the
+                    # context for text mining.
+                    mention or original,
                     {
                         "message": original,
                         "workspace_id": workspace_id,
