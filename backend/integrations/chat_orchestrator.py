@@ -7409,29 +7409,7 @@ class ChatOrchestrator:
                     # asks; the producer still prefers the turn's own
                     # explicit items and never unions history.
                     _ask_task["requested_targets"] = _ask_active
-                else:
-                    # CURRENT-TURN TARGETS (2026-10-08 Cedarberg defect):
-                    # a fresh conversation's FIRST file-scoped ask has no
-                    # stored objective items — the reader received an
-                    # empty items list and asked for information the user
-                    # already supplied. Stamp the turn's OWN extracted
-                    # subjects (prose or code) as requested_targets so
-                    # the reader receives them. Prior scope is NOT used:
-                    # _ask_active was empty, and the turn's own words are
-                    # the authority for what was named.
-                    try:
-                        from core.target_set_resolution import (
-                            extract_items_from_text as _eift,
-                        )
 
-                        _turn_named = [
-                            i for i in _eift(message) if i.strip()]
-                        if _turn_named:
-                            _ask_task["requested_targets"] = _turn_named
-                            _ask_task["target_set_origin"] = (
-                                "turn_named")
-                    except Exception:  # noqa: BLE001 — stamp additive
-                        pass
                     # RECOGNITION SEAM (2026-09-30): these items are
                     # INHERITED, not asked for in this turn's own words —
                     # the reader uses the flag to tell "re-run what I
@@ -11630,13 +11608,7 @@ class ChatOrchestrator:
     ) -> Dict[str, Any]:
         mention = str((pending_task or {}).get("mention") or "").strip()
         original = str((pending_task or {}).get("original_message") or "").strip()
-        import logging as _dl
 
-        _dl.getLogger(__name__).info(
-            "[file-ask-diag] targets=%r revised=%r origin=%r",
-            (pending_task or {}).get("requested_targets"),
-            (pending_task or {}).get("revised_targets"),
-            (pending_task or {}).get("target_set_origin"))
         if not mention or not original:
             return {"ok": False, "block": "", "reason": "pending task has no file identity"}
         timeout = 25.0
@@ -11659,15 +11631,7 @@ class ChatOrchestrator:
                         "message": original,
                         "workspace_id": workspace_id,
                         "history": (history or [])[-6:],
-                        # CURRENT-TURN TARGETS (2026-10-08 Cedarberg):
-                        # the named subjects stamped on the task MUST
-                        # reach the scan's item resolution — without
-                        # this key, _resolve_active_items sees no
-                        # requested_targets for a fresh conversation and
-                        # the scan runs with zero items.
-                        "requested_targets": (
-                            (pending_task or {}).get(
-                                "requested_targets") or []),
+
                         # STALE-CRITERIA GUARD (2026-10-01 consistency
                         # run T4): the stored task's disambiguation was
                         # mined from THE TURN THAT STORED IT — its text
