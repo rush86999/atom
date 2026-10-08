@@ -5721,6 +5721,29 @@ def _resolve_active_items(query: str, context: Optional[Dict[str, Any]],
         own = _named_file_targets(query, own_ctx, candidate_probe_tokens)
     except Exception:
         own = []
+    # PARTIAL-FRAGMENT GUARD (2026-10-08 Cedarberg defect): the turn's
+    # own mining can return a PARTIAL fragment ('a Cedarberg') that is a
+    # substring of a fuller named subject in requested_targets ('Cedarberg
+    # 60-ton press brake'). The fragment wins by the own-first rule and
+    # the reader receives a partial item that matches nothing. When every
+    # own-mined item is a SUBSTRING of a requested_target, the fuller
+    # requested_targets replace them — the user named the whole subject.
+    if own and active:
+        import re as _re_covers
+
+        def _covers(full, part):
+            # Strip leading articles from both sides before substring:
+            # 'a Cedarberg' must match 'Cedarberg 60-ton press brake'
+            clean = lambda x: _re_covers.sub(
+                r'^(a|an|the)[ ]+', '', x.lower().strip())
+            fp, pp = clean(full), clean(part)
+            return pp in fp or fp in pp
+
+        all_covered = all(
+            any(_covers(a, o) for a in active) for o in own)
+        if all_covered and any(len(a) > len(o) for a in active
+                                for o in own):
+            return list(active)
     if own:
         return own
     if active:
