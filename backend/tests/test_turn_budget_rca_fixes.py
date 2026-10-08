@@ -67,6 +67,20 @@ def task_lifecycle_schema():
     yield
 
 
+def _fresh_session_id(tag: str) -> str:
+    """A session id unique to THIS run.
+
+    The edit lane reserves through the task lifecycle, whose idempotency is
+    keyed on the conversation. A hardcoded id makes the second run of this
+    file find the previous run's operation still claiming the task and be
+    refused with ``already_claimed`` — again a property of the test's
+    bookkeeping, not of the turn under test.
+    """
+    import uuid
+
+    return f"sess-{tag}-{uuid.uuid4().hex[:10]}"
+
+
 # ---------------------------------------------------------------------------
 # Fix 1 — extended budget class for edit-shaped canvas turns
 # ---------------------------------------------------------------------------
@@ -278,7 +292,8 @@ async def test_action_leg_skipped_when_edit_leg_dies_at_bound(monkeypatch):
     monkeypatch.setattr(chat, "_REPLY_LEG_MIN_SECONDS", 1.0)
 
     orch = chat.ChatOrchestrator()
-    session = {"id": "sess-rca3", "history": []}
+    sid = _fresh_session_id("rca3")
+    session = {"id": sid, "history": []}
     canvas = {"canvas_id": "c1", "canvas_type": "email",
               "content": {"subject": "Draft", "body": "Unchanged"}}
 
@@ -309,7 +324,7 @@ async def test_action_leg_skipped_when_edit_leg_dies_at_bound(monkeypatch):
               return_value="cont-rca3"),
     ):
         result = await orch.process_chat_message(
-            "u1", "rebuild the draft with the quotes", "sess-rca3",
+            "u1", "rebuild the draft with the quotes", sid,
             context={"canvas_id": "c1"})
 
     action.assert_not_awaited()
@@ -327,7 +342,8 @@ async def test_action_leg_runs_when_an_action_task_is_in_flight(monkeypatch):
     monkeypatch.setattr(chat, "_REPLY_LEG_MIN_SECONDS", 1.0)
 
     orch = chat.ChatOrchestrator()
-    session = {"id": "sess-rca4", "history": []}
+    sid = _fresh_session_id("rca4")
+    session = {"id": sid, "history": []}
     canvas = {"canvas_id": "c1", "canvas_type": "email",
               "content": {"subject": "Draft", "body": "Unchanged"}}
 
@@ -361,7 +377,7 @@ async def test_action_leg_runs_when_an_action_task_is_in_flight(monkeypatch):
               return_value="cont-rca4"),
     ):
         await orch.process_chat_message(
-            "u1", "rebuild the draft with the quotes", "sess-rca4",
+            "u1", "rebuild the draft with the quotes", sid,
             context={"canvas_id": "c1"})
 
     action.assert_awaited()
