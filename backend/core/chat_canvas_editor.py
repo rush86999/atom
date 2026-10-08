@@ -3267,20 +3267,96 @@ async def apply_canvas_edit(
                 tokens[f"entity:{entity.lower()}"] += 1
         return tokens
 
+    def _contract_value_index() -> List[str]:
+        """Canonical VALUES the field contract binds to (entity, field)
+        pairs — numeric values canonicalized, text values verbatim when
+        long enough to be an identity-bearing fact. THE ASSOCIATION
+        AUTHORITY: touching one of these is touching a tracked fact."""
+        values: List[str] = []
+        seen = set()
+
+        def _add(raw: Any) -> None:
+            text = str(raw or "").strip()
+            if not text:
+                return
+            try:
+                key = f"num:{Decimal(text.replace(',', '')).normalize()}"
+            except Exception:  # noqa: BLE001 — not numeric
+                if len(text) < 3 or len(text) > 80:
+                    return
+                key = f"txt:{text.lower()}"
+            if key not in seen:
+                seen.add(key)
+                values.append(key)
+
+        for outcome in ((evidence_contract or {}).get("outcomes")
+                        or []):
+            if not isinstance(outcome, dict):
+                continue
+            _add(outcome.get("current_value"))
+            for ev in outcome.get("evidence") or []:
+                if isinstance(ev, dict):
+                    _add(ev.get("raw_value"))
+                    _add(ev.get("value"))
+        for action in ((evidence_contract or {}).get("actions")
+                       or []):
+            if isinstance(action, dict):
+                _add(action.get("current_value"))
+                _add(action.get("proposed_value"))
+        return values
+
+    _tracked_values = _contract_value_index()
+
+    def _tracked_order(text: str) -> List[str]:
+        """Contract-tracked values in first-occurrence order — the
+        ASSOCIATION fingerprint. Equal bags in a different order mean
+        the values moved between subjects (a swap), which changes BOTH
+        facts even though the bag is unchanged (owner correction
+        2026-10-08: token equality is not fact equality)."""
+        # separator-insensitive scan: canonical "2902" must find the
+        # formatted "$2,902.00" — strip non-alphanumerics from both
+        # sides; index order in stripped space preserves occurrence
+        # order, which is all the association fingerprint needs.
+        flat = re.sub(r"[^0-9a-z]", "", str(text or "").lower())
+        hits: List[str] = []
+        for key in _tracked_values:
+            needle = re.sub(r"[^0-9a-z]", "", key.split(":", 1)[1])
+            if not needle:
+                continue
+            idx = flat.find(needle)
+            if idx >= 0:
+                hits.append((idx, key))
+        hits.sort()
+        return [k for _, k in hits]
+
     def _op_changes_fact(op: Any) -> bool:
         find = str(getattr(op, "find", "") or "")
         replace = str(getattr(op, "replace", "") or "")
         if find == replace:
             return False
-        before = _canonical_fact_tokens(find)
-        after = _canonical_fact_tokens(replace)
-        if before == after:
-            return False  # same values, different presentation
-        changed = (before - after) + (after - before)
-        if not changed:
+        # ASSOCIATION RULE FIRST (the field contract is the authority):
+        # when the contract binds values, an op that changes WHICH
+        # tracked value appears — set difference OR ORDER difference —
+        # changes a subject-field-value association and is a fact
+        # change. The token heuristic below is SUPPORTING evidence and
+        # may only mark MORE ops fact-changing, never certify a
+        # presentation-only edit over the contract.
+        if _tracked_values:
+            before = _tracked_order(find)
+            after = _tracked_order(replace)
+            if before != after:
+                return True
+            if before:
+                # same tracked values, same order: the tracked
+                # associations are preserved. Only the fallback token
+                # rule can still flag an UNTRACKED value change.
+                pass
+        # SUPPORTING token heuristic (numeric/date/bool/entity).
+        tok_before = _canonical_fact_tokens(find)
+        tok_after = _canonical_fact_tokens(replace)
+        if tok_before == tok_after:
             return False
-        # Distinguish fact changes from prose additions: only changed
-        # num/date/bool/entity tokens make the op evidence-dependent.
+        changed = (tok_before - tok_after) + (tok_after - tok_before)
         return any(
             k.startswith(("num:", "date:", "bool:", "entity:"))
             for k in changed.elements())

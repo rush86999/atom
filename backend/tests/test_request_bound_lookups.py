@@ -199,6 +199,56 @@ def test_nonpricing_fact_changes_require_evidence():
             f"(got {reason!r})")
 
 
+def test_swapped_prices_require_ready_evidence():
+    """Token equality is not fact equality: swapping two rows' prices
+    preserves the value BAG but changes both associations — the
+    association rule (field-contract values in first-occurrence order)
+    must catch it."""
+    import asyncio
+    plan = cce.CanvasEditPlan(
+        wants_edit=True, edit_mode="patch",
+        ops=[cce.CanvasPatchOp(
+            find="381 roll bender $2,902.00 | U-22 bead roller "
+                 "$1,777.00",
+            replace="381 roll bender $1,777.00 | U-22 bead roller "
+                    "$2,902.00")])
+    result, reason = asyncio.run(_run_apply(
+        plan,
+        {"canvas_id": "c-swap", "canvas_type": "email",
+         "content": {"body": "381 roll bender $2,902.00 | U-22 bead "
+                              "roller $1,777.00"}},
+        {"outcomes": [
+            {"entity_id": "381", "field": "price",
+             "evidence": [{"raw_value": "2902.00"}]},
+            {"entity_id": "U-22", "field": "price",
+             "evidence": [{"raw_value": "1777.00"}]},
+        ], "actions": []}))
+    assert result is None and reason == "no_ready_evidence_change", (
+        f"a value swap must require ready evidence (got {reason!r})")
+
+
+def test_changed_tracked_text_field_requires_ready_evidence():
+    """A contract-tracked TEXT fact (e.g. a contractor name bound to an
+    entity-field) is an association change, not presentation."""
+    import asyncio
+    plan = cce.CanvasEditPlan(
+        wants_edit=True, edit_mode="patch",
+        ops=[cce.CanvasPatchOp(
+            find="Installed by Acme Mechanical Ltd.",
+            replace="Installed by Northgate Services Inc.")])
+    result, reason = asyncio.run(_run_apply(
+        plan,
+        {"canvas_id": "c-text", "canvas_type": "email",
+         "content": {"body": "Installed by Acme Mechanical Ltd."}},
+        {"outcomes": [
+            {"entity_id": "installer", "field": "contractor",
+             "evidence": [{"raw_value": "Acme Mechanical Ltd."}]},
+        ], "actions": []}))
+    assert result is None and reason == "no_ready_evidence_change", (
+        f"a tracked text-field change must require ready evidence "
+        f"(got {reason!r})")
+
+
 def test_price_changing_op_requires_ready_evidence():
     import asyncio
     plan = cce.CanvasEditPlan(
