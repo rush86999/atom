@@ -184,12 +184,30 @@ class CanvasPlanUnavailable(Exception):
     success, no audit row, no broadcast)."""
 
 
+def _small_edit_shape(message: str, prompt_len: int) -> bool:
+    """A HEADER/SMALL edit: short instruction, no fresh-data section, no
+    multi-row vocabulary. Its plan is a couple of find→replace ops — a
+    14k-token output reservation buys nothing and costs deadline (owner
+    systemic item 4, 2026-10-08: a small header change entered the
+    heavyweight path and lost its budget before producing a patch)."""
+    msg = str(message or "")
+    if prompt_len > 24000:
+        return False
+    probe = msg.lower().replace("everything else", "")
+    if any(w in probe for w in (
+            "row", "table", "all ", "every", "rebuild", "regenerate",
+            "rewrite the", "entire", "whole")):
+        return False
+    return len(msg) <= 220
+
+
 async def _plan_structured(
     llm_service: Any,
     *,
     prompt: str,
     response_model: Any,
     system_instruction: str,
+    message: str = "",
 ) -> Any:
     """Structured canvas-planning call routed by BPC (no model pin).
 
@@ -223,6 +241,15 @@ async def _plan_structured(
     _pin = {}
     _edit_plan_max_tokens = int(
         _os.getenv("ATOM_ASYNC_EDIT_PLAN_MAX_TOKENS", "14000") or 14000)
+    # WORKLOAD-AWARE ALLOWANCE (owner systemic item 4): a small/header
+    # edit plans in a 2,000-token envelope — the multi-row 14k
+    # reservation exists for whole-table patch payloads, and asking a
+    # small edit to carry it spends the interactive deadline on output
+    # space the plan will never use.
+    if _small_edit_shape(message, len(prompt or "")):
+        _edit_plan_max_tokens = min(
+            _edit_plan_max_tokens,
+            int(_os.getenv("ATOM_SMALL_EDIT_MAX_TOKENS", "2000") or 2000))
     _pin_spec = (_os.getenv("ATOM_ASYNC_EDIT_PLAN_MODEL") or "").strip()
     if _pin_spec and "/" in _pin_spec:
         _prov, _mod = _pin_spec.split("/", 1)
@@ -2578,6 +2605,7 @@ async def plan_canvas_edit(
         prompt=prompt,
         response_model=CanvasEditPlan,
         system_instruction="You return only the requested JSON object.",
+        message=message,
     )
     if plan is None:
         # The structured call failed outright (all providers/timeout) — a
