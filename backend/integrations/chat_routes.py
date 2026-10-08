@@ -2273,8 +2273,6 @@ async def send_chat_message(
                 requires_confirmation=False,
                 next_steps=[],
                 timestamp=datetime.utcnow().isoformat(),
-                error_code="no_llm_provider",
-                recovery_url="/settings/ai",
             )
         _complete_transport_request(db, _treq, _final)
         return _final
