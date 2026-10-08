@@ -3371,15 +3371,24 @@ async def apply_canvas_edit(
                 # associations are preserved. Only the fallback token
                 # rule can still flag an UNTRACKED value change.
                 pass
-        # SUPPORTING token heuristic (numeric/date/bool/entity).
+        # SUPPORTING token heuristic (numeric/date/bool/entity) —
+        # ASSERTION-scoped (2026-10-08 owner step 5, gate telemetry:
+        # fact_changing=1 for a 32-char find -> EMPTY replace): the
+        # evidence requirement protects ASSERTING evidence-dependent
+        # values. A REMOVAL asserts nothing — "leave anything
+        # unresolved unasserted" authorizes exactly that — so only
+        # tokens INTRODUCED on the after-side (new assertions) or
+        # contract-association changes require ready evidence. Deletion
+        # of identities stays guarded by the artifact-level scope rules
+        # (scope_dropped_product / scope_missing_product), not here.
         tok_before = _canonical_fact_tokens(find)
         tok_after = _canonical_fact_tokens(replace)
         if tok_before == tok_after:
             return False
-        changed = (tok_before - tok_after) + (tok_after - tok_before)
+        introduced = tok_after - tok_before
         return any(
             k.startswith(("num:", "date:", "bool:", "entity:"))
-            for k in changed.elements())
+            for k in introduced.elements())
 
     _fact_changing_ops = [
         op for op in (getattr(plan, "ops", None) or [])

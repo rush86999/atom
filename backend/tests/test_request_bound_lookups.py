@@ -249,6 +249,36 @@ def test_changed_tracked_text_field_requires_ready_evidence():
         f"(got {reason!r})")
 
 
+def test_authorized_unassertion_proceeds_without_evidence():
+    """Deleting an unverified line asserts nothing — the evidence
+    requirement protects ASSERTIONS, and the T_AUTH's own words
+    ("leave anything unresolved unasserted") authorize removals. The
+    artifact-level scope guards still police identity-dropping."""
+    import asyncio
+    async def _fake_update(*a, **k):
+        return {"success": True, "audit_id": "a9",
+                "write_outcome": "appended"}
+    with patch("tools.canvas_crud_tool.update_canvas_content",
+               new=_fake_update), \
+            patch.object(cce, "_apply_patch_ops",
+                         new=lambda content, ops: (
+                             {"body": "Row 5 price line"}, None)):
+        plan = cce.CanvasEditPlan(
+            wants_edit=True, edit_mode="patch",
+            ops=[cce.CanvasPatchOp(
+                find="Unverified: $2,902.00 pending vendor",
+                replace="")])
+        result, reason = asyncio.run(_run_apply(
+            plan,
+            {"canvas_id": "c-unassert", "canvas_type": "email",
+             "content": {"body": "Unverified: $2,902.00 pending "
+                                  "vendor"}},
+            {"actions": []}))
+    assert result is not None, (
+        f"a removal-only op must proceed under authorization "
+        f"(reason={reason!r})")
+
+
 def test_price_changing_op_requires_ready_evidence():
     import asyncio
     plan = cce.CanvasEditPlan(
