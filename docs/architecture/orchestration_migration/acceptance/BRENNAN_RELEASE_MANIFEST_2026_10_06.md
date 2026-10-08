@@ -321,6 +321,40 @@ candidate. Three trials per case, same candidate; every trial reported.
   property it gestures at is separately green. Results:
   `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
 
+## CURRENT STATUS (2026-10-08 final — browser check PASSED; drafting transition captured)
+
+Supersedes the late row (kept below as history).
+
+- **READINESS RULE (association):** the gate now decides on the
+  subject-field-value ASSOCIATION — contract-bound values compared in
+  first-occurrence order between find and replace (separator-
+  insensitive); a set OR order difference is a fact change. Pinned: a
+  price SWAP (bag-preserving) and a changed tracked TEXT field both
+  require ready evidence; the token heuristic is supporting evidence
+  only. 17 pins green.
+- **BROWSER empty_reply CHECK: PASSED (2026-10-08).** Through the REAL
+  frontend: actual login form submitted (the earlier 'bootstrap
+  defect' was PAINT SUPPRESSION in the backgrounded automation pane,
+  not a frontend auth defect — with the pane foregrounded the form
+  fills, submits, and routes), the [force-empty] turn rendered the
+  truthful 'model returned no content' message, the generic 'Failed to
+  process request' never appeared, the composer re-enabled, and reload
+  preserved the turn. Withdrawing the earlier 'frontend session
+  bootstrap' blocker — it was an automation artifact.
+- **DRAFTING — the exact captured transition preventing the write
+  (trial 8):** the edit lane OPENS (scope-validator vocabulary holds);
+  the edit-planning structured call finds ZERO dispatchable candidates
+  (gate/budget/rate exclusions under the degraded pool) and the editor
+  declines on a research-shaped reading with an honest reply. The
+  readiness and preservation guards never ran — the blocker is MODEL
+  DISPATCH for edit planning, not a gate. Bounded-patch retry feedback
+  and the request contract are in place for when dispatch serves the
+  planner.
+- **Trial 15 (case 4):** recorded as a FAILED ATTEMPT — an honest
+  planner failure that neither proves nor disproves regression
+  (reworded from the earlier 'no regression' phrasing per owner
+  correction).
+
 ## CURRENT STATUS (2026-10-08 late — correction batch applied)
 
 Supersedes the night row (kept below as history).
