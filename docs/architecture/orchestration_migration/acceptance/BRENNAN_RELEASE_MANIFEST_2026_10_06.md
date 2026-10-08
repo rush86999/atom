@@ -380,6 +380,24 @@ the taught rule, not a live-price guarantee.
 - Business portability (nonpricing domains) unvalidated — separate
   task per the completion guide.
 
+### Brennan value trial (2026-10-08, frozen candidate, full record:
+backend/data/acceptance_worlds/brennan_value_report_20261008.json)
+
+Three ordinary tasks, fresh sessions, zero developer interventions:
+
+| Task | Manual | App+review | Saved | Outcome |
+|---|---|---|---|---|
+| A research (SLE24-16 basis+lead) | ~6 min | 140 s | ~4 min | partial: mailbox table complete+qualified; workbook read missed |
+| B calculation (14h service) | ~2 min | 48 s | ~1.2 min | COMPLETE: $2,100, taught formula, durable applied op |
+| C authorized drafting (rows 1-5) | ~12.5 min | 183 s | ~9.5 min | safe no-change: correct refusal to guess; L-24/U-22 confusion avoided; triage delivered |
+
+**Net owner time saved ≈ 14 minutes across three tasks.** 1 task
+complete, 2 partial-but-safe; 0 wrong answers; 0 interventions; 1
+follow-up prompt each for A and C. The recurring defect limiting full
+value is recorded (plain-research sweep misses the Tennsmith row that
+direct probes and the value-trace chaining find) — not fixed; campaign
+closed.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
