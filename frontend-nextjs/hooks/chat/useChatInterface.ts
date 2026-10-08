@@ -411,6 +411,38 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
                 return false;
             }
 
+            // SHARED STRUCTURED-FAILURE HANDLING (2026-10-08 owner
+            // priority 3): ANY backend response with success=false and a
+            // message reaches the user as the backend's own truthful
+            // text — never the generic data.error branch below, which
+            // replaced messages like the empty-stream reply ("the model
+            // returned no content…") with an opaque "Failed to process
+            // request". Preserves the failure classification
+            // (error_code), adopts the returned conversation identity so
+            // a reload keeps the turn, keeps the composer usable (this
+            // branch returns without touching sending state), and keys
+            // the bubble by request/message identity instead of a fixed
+            // "error" id (fixed ids collide across turns and break
+            // convergence with persisted history).
+            if (data && data.success === false && data.message) {
+                if (processingTimeoutRef.current) {
+                    clearTimeout(processingTimeoutRef.current);
+                    processingTimeoutRef.current = null;
+                }
+                if (data.session_id && data.session_id !== "unknown") {
+                    onSessionCreated?.(data.session_id);
+                }
+                setMessages(prev => [...prev, {
+                    id: `failure-${data.error_code || "unknown"}-${
+                        data.execution_id || Date.now()}`,
+                    type: "error",
+                    content: data.message,
+                    errorCode: data.error_code || undefined,
+                    timestamp: new Date(),
+                }]);
+                return false;
+            }
+
             // Clear the safety-net timeout on any successful resolution.
             if (processingTimeoutRef.current) {
                 clearTimeout(processingTimeoutRef.current);

@@ -49,6 +49,10 @@ export interface ChatMessageData {
     type: "user" | "assistant" | "system" | "error";
     content: string;
     timestamp: Date | string;
+    /** Backend failure classification for error-type bubbles (e.g.
+     * empty_reply, turn_budget_exceeded) — preserved from the structured
+     * response so the UI can offer the right next action. */
+    errorCode?: string;
     /** User-submitted images (data URLs) — rendered on the user bubble and
      * routed to vision-capable models for the turn. */
     images?: string[];

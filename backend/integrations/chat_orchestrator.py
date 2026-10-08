@@ -15229,15 +15229,75 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     try:
                         from core.chat_tool_planner import plan_tool_use
 
+                        # TASK-GROUNDED RECOVERY INPUTS (2026-10-08 owner
+                        # correction 2): the obligation names the JOB'S
+                        # resolved subjects, required sources, requested
+                        # fields and unresolved obligations — never a
+                        # hardcoded business's workbook/correspondence.
+                        # Subjects come from the same extractors the
+                        # turn used; fields from the request's field
+                        # asks; obligations from the conversation's
+                        # recorded open item outcomes.
+                        _rc_subjects: List[str] = []
+                        try:
+                            from core.target_set_resolution import (
+                                extract_items_from_text as _rc_eift,
+                            )
+
+                            _rc_subjects = [
+                                i for i in _rc_eift(message)
+                                if i.strip()][:8]
+                        except Exception:  # noqa: BLE001 — floor follows
+                            _rc_subjects = []
+                        _rc_fields: List[str] = []
+                        try:
+                            from core.workbook_read_artifact import (
+                                extract_field_requests as _rc_vfr,
+                            )
+
+                            _rc_fields = [
+                                str(f) for f in (_rc_vfr([message])
+                                                 or [])][:6]
+                        except Exception:  # noqa: BLE001 — optional
+                            _rc_fields = []
+                        _rc_open: List[str] = []
+                        try:
+                            from core import dialogue_state as _rc_ds
+
+                            # OPEN OBLIGATIONS = the conversation's own
+                            # recorded item outcomes that are still
+                            # absent/ambiguous — the durable vocabulary
+                            # record_item_outcomes writes ('none'/'absent'
+                            # = not found, 'multiple'/'ambiguous' = needs
+                            # the user's pick).
+                            _rc_outcomes = _rc_ds.active_item_outcomes(
+                                str((context or {}).get(
+                                    "conversation_id") or ""),
+                                statuses=("none", "absent", "multiple",
+                                          "ambiguous"))
+                            _rc_open = sorted(
+                                _rc_outcomes or {})[:8]
+                        except Exception:  # noqa: BLE001 — optional
+                            _rc_open = []
                         _obligation = (
                             message
                             + "\n\nREQUIRED RESEARCH (prior plan "
-                            "produced no executable tool): consult the "
-                            "taught sources for this task — the "
-                            "designated price-list workbook (datasets "
-                            "search) AND the vendor correspondence "
-                            "(outlook search) as applicable. Return the "
-                            "tool call that executes the lookups.")
+                            "produced no executable tool). Consult the "
+                            "REQUIRED SOURCES for the resolved subjects "
+                            "and report the requested fields.\n"
+                            "Required sources: "
+                            + ", ".join(sorted(_required_sources))
+                            + "\nResolved subjects: "
+                            + ("; ".join(_rc_subjects) or "(as stated "
+                               "above)")
+                            + "\nRequested fields: "
+                            + ("; ".join(_rc_fields) or "(as stated "
+                               "above)")
+                            + ("\nUnresolved obligations: "
+                               + "; ".join(_rc_open)
+                               if _rc_open else "")
+                            + "\nReturn the tool call that executes "
+                              "these lookups.")
                         _replan = await asyncio.wait_for(
                             plan_tool_use(
                                 _obligation,
@@ -15262,23 +15322,38 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             # succeeded, and the model still returned
                             # use_tool=False. The obligation is already
                             # authorized — construct the deterministic
-                            # lookup for the FIRST required source
-                            # instead of asking permission for it.
-                            _fallback_svc = (
-                                sorted(_required_sources)[0]
-                                if _required_sources else None)
+                            # lookup for the FIRST UNCONSULTED required
+                            # source (recorded lesson order where the
+                            # task states one; never alphabetical-first)
+                            # with a SUBJECT-GROUNDED query (the resolved
+                            # subjects and requested fields — the raw
+                            # message slice carried conversational noise
+                            # the source search then matched nothing
+                            # against, 2026-10-08 owner correction 2).
+                            _fallback_svc = next(
+                                (svc for svc in (
+                                    self._required_source_order(
+                                        agent_id, message))
+                                if svc in _required_sources
+                                and svc not in _consulted_sources),
+                                None)
                             if _fallback_svc:
+                                _rc_query = " ".join(
+                                    _rc_subjects[:4]
+                                    + [f"{f}" for f in _rc_fields[:3]])
                                 _replan = ToolPlan(
                                     use_tool=True,
                                     service=_fallback_svc,
                                     intent="search",
-                                    query=message[:200],
+                                    query=(_rc_query or message)[:200],
                                 )
                                 logger.warning(
                                     "[planner-boundary] replan model "
                                     "returned no tool — executing the "
                                     f"required {_fallback_svc} lookup "
-                                    "directly (authorized obligation)")
+                                    "directly (authorized obligation; "
+                                    f"subjects={_rc_subjects[:3]!r} "
+                                    f"fields={_rc_fields[:2]!r})")
                         if _replan is not None and _replan.use_tool:
                             _replanned_service = _replan.service
                             _tool_block = await execute_tool_plan(
@@ -15304,6 +15379,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "%s.%s (block=%d chars)",
                                 _replan.service, _replan.intent,
                                 len(_tool_block))
+                            # CONSULTED-SOURCE ACCOUNTING (2026-10-08, the
+                            # 17k-char invisible block): the recovery
+                            # lookup above EXECUTED and returned a real
+                            # block, but _consulted_sources was read from
+                            # the blackboard BEFORE the replan — the
+                            # planning-failed guard then replaced the
+                            # successful block with the failure template
+                            # and the turn claimed no source was
+                            # consulted. Record the executed service so
+                            # the accounting matches reality and the
+                            # block reaches the reply.
+                            if _tool_block:
+                                _consulted_sources.add(_replan.service)
+                                if isinstance(shared_tool_state, dict):
+                                    shared_tool_state.setdefault(
+                                        "consulted_sources", set()).add(
+                                            _replan.service)
                     except Exception as _rp_err:  # noqa: BLE001
                         logger.warning(
                             f"[planner-boundary] replan failed: {_rp_err!r}")
@@ -21882,6 +21974,44 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
     _OUTCOME_SECTION_MAX_ITEMS = 12
     _OUTCOME_SECTION_MAX_VALUES = 6
     _OUTCOME_SECTION_MAX_CHARS = 2400
+
+    def _required_source_order(
+        self,
+        agent_id: Optional[str],
+        message: str,
+    ) -> List[str]:
+        """Required research sources in the order the teaching NAMES them.
+
+        The deterministic recovery lookup picks the first UNCONSULTED
+        required source (2026-10-08 owner correction: never alphabetical
+        first). Lesson text order is the only order the job actually
+        states: whichever store the teaching mentions first is consulted
+        first; sources the resolver also requires but the lessons order
+        later follow. Unknown orders fall back to the resolver's set
+        order-of-discovery, which is stable and not alphabetical.
+        """
+        ordered: List[str] = []
+        try:
+            lessons = self._agent_lessons(agent_id, message, limit=10)
+            text = " ".join(
+                str(l.get("lesson") or l.get("summary") or "")
+                for l in (lessons or [])).lower()
+            for word, svc in (
+                    ("workbook", "datasets"), ("price list", "datasets"),
+                    ("spreadsheet", "datasets"), ("xlsx", "datasets"),
+                    ("workdrive", "datasets"),
+                    ("email", "outlook"), ("correspondence", "outlook"),
+                    ("inbox", "outlook"), ("attachment", "outlook"),
+                    ("thread", "outlook")):
+                if word in text and svc not in ordered:
+                    ordered.append(svc)
+        except Exception:  # noqa: BLE001 — ordering is additive
+            ordered = []
+        for svc in self._required_research_sources(
+                agent_id=agent_id, message=message):
+            if svc not in ordered:
+                ordered.append(svc)
+        return ordered
 
     def _required_research_sources(
         self,
