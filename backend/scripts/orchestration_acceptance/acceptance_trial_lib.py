@@ -101,11 +101,20 @@ def real_admin_login(base: str, db: Path) -> Tuple[str, str]:
         db, "SELECT email FROM users WHERE email LIKE 'admin%' "
             "ORDER BY created_at LIMIT 1")
     email = rows[0][0] if rows else "admin@example.com"
-    pw_file = db.parents[1] / "logs" / "bootstrap_admin_password.txt"
-    password = pw_file.read_text().strip() if pw_file.exists() else ""
+    # The seeded bootstrap password goes stale once the owner rotates it;
+    # the acceptance password file (0600, gitignored alongside logs/)
+    # holds the current one. Neither is ever written into results.
+    candidates = [
+        db.parents[1] / "logs" / "acceptance_admin_password.txt",
+        db.parents[1] / "logs" / "bootstrap_admin_password.txt",
+    ]
+    password = next(
+        (p.read_text().strip() for p in candidates
+         if p.exists() and p.read_text().strip()), "")
     if not password:
         raise RuntimeError(
-            f"bootstrap admin password not found at {pw_file}")
+            "no admin password file under backend/logs/ "
+            "(acceptance_admin_password.txt or bootstrap_admin_password.txt)")
     r = httpx.post(
         f"{base}/api/auth/login",
         json={"email": email, "username": email, "password": password},

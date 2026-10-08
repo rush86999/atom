@@ -102,6 +102,15 @@ _REASONING_MANDATORY: set = set()
 # path. Memoized so the doomed call is paid ONCE per process.
 _MODEL_TEMPERATURE: Dict[str, float] = {}
 
+# (provider, model) pairs that reject BOTH structured protocols (instructor
+# tool-choice AND Mode.JSON) with 400 ModelProtocolUnsupported — the gateway
+# serves the model (it passes the catalog-served pair gate) but the model
+# itself cannot carry structured output (live 2026-10-08 case-4 trial:
+# opencode-go/claude-haiku-5-5, sweep-injected, burned the planner budget).
+# Structured cascades skip these pairs outright; streaming stays allowed.
+# Memoized + persisted like the other pair constraints.
+_STRUCTURED_PROTOCOL_UNSUPPORTED: set = set()
+
 
 # ---------------------------------------------------------------------------
 # DURABLE PAIR-CONSTRAINT MEMOS (2026-09-22). The per-(provider, model)
@@ -142,6 +151,8 @@ def _save_pair_memos() -> None:
                 "reasoning_mandatory": sorted(_REASONING_MANDATORY),
                 "logprobs_unsupported": sorted(_LOGPROBS_UNSUPPORTED),
                 "auth_failed": sorted(_AUTH_FAILED),
+                "structured_protocol_unsupported": sorted(
+                    _STRUCTURED_PROTOCOL_UNSUPPORTED),
                 "structured_latency_ewma": {
                     k: round(v, 2)
                     for k, v in _MODEL_STRUCTURED_LATENCY.items()},
@@ -184,6 +195,8 @@ def _load_pair_memos() -> None:
                                            or {}).items()})
         _TOOLCHOICE_UNSUPPORTED.update(
             payload.get("toolchoice_unsupported") or [])
+        _STRUCTURED_PROTOCOL_UNSUPPORTED.update(
+            payload.get("structured_protocol_unsupported") or [])
         _REASONING_MANDATORY.update(payload.get("reasoning_mandatory") or [])
         _LOGPROBS_UNSUPPORTED.update(payload.get("logprobs_unsupported") or [])
         _AUTH_FAILED.update(payload.get("auth_failed") or [])
@@ -6930,6 +6943,25 @@ class BYOKHandler:
                         "catalog_not_in_provider")
                     _structured_skipped += 1
                     continue
+                # STRUCTURED-PROTOCOL GATE (2026-10-08 case-4 trial): a
+                # pair memoized as rejecting BOTH instructor protocols
+                # (400 ModelProtocolUnsupported in TOOLS and JSON modes)
+                # cannot serve this cascade at all — skip it before
+                # dispatch instead of re-paying the doomed round trip on
+                # every structured sweep. Streaming cascades keep the
+                # pair: the model serves plain completions fine. Keyed
+                # "provider/model" like every other pair memo.
+                if (provider_id, model) != _pinned_pair \
+                        and f"{provider_id}/{model}" in (
+                            _STRUCTURED_PROTOCOL_UNSUPPORTED):
+                    self._trace_structured_route(
+                        route_trace_id, provider_id, model, "skip",
+                        "structured_protocol_unsupported")
+                    self._note_cascade_exclusion(
+                        _cascade_exclusions, provider_id, model,
+                        "structured_protocol_unsupported")
+                    _structured_skipped += 1
+                    continue
                 if self._model_cooldown_active(provider_id, model):
                     self._trace_structured_route(
                         route_trace_id, provider_id, model, "skip",
@@ -7204,10 +7236,52 @@ class BYOKHandler:
                                     client, mode=instructor.Mode.JSON)
                                 continue
 
-                            # (1b) TEMPERATURE-LOCKED endpoints (OpenCode Go,
+                            # (1b) MODEL-PROTOCOL-UNSUPPORTED endpoints
+                            # (2026-10-08 case-4 trial, opencode-go/
+                            # claude-haiku-5-5): the gateway serves the
+                            # model but the model rejects the STRUCTURED
+                            # protocol itself. First occurrence in TOOLS
+                            # mode retries once in JSON mode; a pair that
+                            # rejects JSON mode too is memoized into
+                            # _STRUCTURED_PROTOCOL_UNSUPPORTED and the
+                            # cascade fails over — later structured calls
+                            # skip the pair before dispatch.
+                            if (
+                                "modelprotocouunsupported"
+                                in _err_txt.replace(" ", "")
+                                or "does not support this protocol"
+                                in _err_txt
+                            ):
+                                if not _json_mode and "protocol_json" \
+                                        not in _recovered:
+                                    _recovered.add("protocol_json")
+                                    _TOOLCHOICE_UNSUPPORTED.add(
+                                        _logprobs_key)
+                                    _save_pair_memos()
+                                    logger.warning(
+                                        f"{provider_id}/{model} rejects the "
+                                        f"structured tool protocol — "
+                                        f"retrying once in JSON mode")
+                                    instructor_client = (
+                                        instructor.from_openai(
+                                            client,
+                                            mode=instructor.Mode.JSON))
+                                    _json_mode = True
+                                    continue
+                                _STRUCTURED_PROTOCOL_UNSUPPORTED.add(
+                                    _logprobs_key)
+                                _save_pair_memos()
+                                logger.warning(
+                                    f"{provider_id}/{model} rejects BOTH "
+                                    f"structured protocols (TOOLS and "
+                                    f"JSON) — memoized; structured "
+                                    f"cascades will skip this pair")
+                                raise
+
+                            # (1c) TEMPERATURE-LOCKED endpoints (OpenCode Go,
                             # 2026-09-21): "invalid temperature: only 1 is
-                            # allowed for this model" against the structured
-                            # calls' temperature=0.2. Retry once with
+                            # allowed for this model" against the
+                            # structured calls' temperature=0.2. Retry once with
                             # temperature=1 and memoize the pair so later
                             # calls send 1 from the start.
                             if (

@@ -118,7 +118,7 @@ def main() -> int:
         db = (Path.cwd() / db).resolve()
     serving = L.server_identity(args.base)
     try:
-        token, user_id = L.mint_admin_token(db)
+        token, user_id = L.real_admin_login(args.base, db)
         agent = L.full_agent_id(db)
         fork = full_canvas_id(db)
     except Exception as exc:

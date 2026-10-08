@@ -108,7 +108,7 @@ def check_fixtures(base: str, db: Path) -> Dict[str, Any]:
     serving = L.server_identity(base)
     out: Dict[str, Any] = {"serving": serving, "checks": {}}
     try:
-        token, user_id = L.mint_admin_token(db)
+        token, user_id = L.real_admin_login(base, db)
         agent = L.full_agent_id(db)
         fork = full_canvas_id(db)
         out.update({"user_id": user_id, "agent": agent, "fork": fork})
@@ -213,7 +213,7 @@ def verify_draft(db: Path, sid: str, fork: str, reply: str, since: str,
 
 
 def do_live(args: Any, db: Path, fx: Dict[str, Any]) -> int:
-    token, user_id = L.mint_admin_token(db)
+    token, user_id = L.real_admin_login(args.base, db)
     fork = fx["fork"]
     agent = fx["agent"]
     results = load_results(args.results) if args.results else {"trials": []}
