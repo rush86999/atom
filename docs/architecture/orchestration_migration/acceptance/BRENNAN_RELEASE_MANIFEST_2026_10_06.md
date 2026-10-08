@@ -321,6 +321,43 @@ candidate. Three trials per case, same candidate; every trial reported.
   property it gestures at is separately green. Results:
   `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
 
+## CURRENT STATUS (2026-10-08 scheduling close — self-starvation RULED OUT)
+
+Supersedes the dispatch-close row (kept below as history).
+
+- **SELF-CONTENTION RULED OUT (assignment 1):** holder-tagged
+  single-flight telemetry shows the turn's planning claims hold
+  1-61 seconds and RELEASE; the continuation's edit attempts are
+  SERVED in 40-75s. The app is not starving its own edit planner.
+- **SCHEDULING REPAIRS LANDED (assignment 2-3):** retries are
+  budget-aware (no attempt below the 60s viable floor — observed in
+  trials 12/13 as 'NOT started — 59.0s/25.3s remaining'), and the
+  continuation's failure note carries the per-boundary taxonomy
+  (waiting-for-capacity / dispatch timeout / provider failure /
+  malformed plan / served-decline / budget-reserve). Cross-request
+  single-flight exclusivity unchanged.
+- **THE SERVED DECLINE, SEPARATELY (assignment 4):** the planner's own
+  decline words are captured (trial 13: 140 chars, fingerprint
+  4aa9da8c3c57 — full text readable with the sanctioned capture flag),
+  and the readiness refusal logs its decision inputs.
+- **THE EXACT CALL-LEVEL BLOCKER (trials 11-13):** dispatch SERVES the
+  edit planner; the planner either declines on its own stated reason
+  or the fresh-data leg returns evidence_unavailable. Both root in the
+  DEGRADED RESEARCH-READ LAYER (mailbox-only results, providers
+  streaming zero chunks, 402s on paid research routes) — the same
+  degradation that leaves T1's comparison without verified values, so
+  the readiness gate correctly refuses value-touching plans. This is a
+  call-level diagnosis, not an aggregate capacity claim; no capacity
+  was added and none is requested.
+- **The draft has still not landed.** All drafting trials (8-13)
+  remain in the reliability record as failed attempts with their
+  per-attempt taxonomies. The remaining distance is exactly: research
+  reads that return the workbook's values → a comparison with verified
+  pairs → a served plan → the guarded apply.
+- Prior passing evidence stands: browser empty_reply; case-4
+  subject/source with receipt; cases 2/5/6; the intent-preservation
+  and budget-floor behaviors verified live.
+
 ## CURRENT STATUS (2026-10-08 dispatch close)
 
 Supersedes the prior final row (kept below as history).
