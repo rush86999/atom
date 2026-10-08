@@ -428,6 +428,41 @@ these asks). No incorrect answers observed across all five runs; C3's
 refusal prevented an identity-dropping edit. Original partials
 retained; the release campaign remains closed.
 
+### Systemic closeout (2026-10-08 — shared boundaries fixed, one transaction proven)
+
+- **ROUTING CONSISTENCY:** ONE dispatch gate at every boundary
+  (structured cascade, streaming, ordinary completion, sweep).
+  Automatic primaries face the same eligibility checks as fallbacks;
+  ONLY explicit operator routes (explicit_route=True — pinned planning,
+  gateway-known endpoints — or the installation preferred route) are
+  exempt, admitted with an OVERRIDE log line. 10-case suite pinned at
+  the PRODUCTION dispatch seams (fake clients injected into
+  chat_completion / stream_completion — asserted which routes were
+  actually attempted).
+- **CAPABILITY FAILURES, PRECISE:** protocol rejections are recorded
+  per (route, operation) and memoized with the pair constraints. Live
+  in the closeout transaction: `[route-gate] skip
+  opencode-go/claude-haiku-5-5 for operation=structured:
+  protocol-incompatible (other routes unaffected)` while the cascade
+  continued on deepseek-flash — the provider was never 'down'.
+- **EVIDENCE CONTRACT, one chain:** the 23-test handoff suite covers
+  source read → persisted carrier → drafting adapter → actual planner
+  input, including unavailable narration, missing rendered text,
+  receiptless prose refused, source version, freshness, acting-agent
+  teaching, and missing identities as obligations (never guesses).
+- **WORKLOAD-AWARE PLANNING:** header/small edits plan in a
+  2,000-token envelope (multi-row shapes keep the 14k allowance);
+  6 shape pins.
+- **THE TRANSACTION (session hdr-70ebf, 35s, zero interventions):**
+  an unchanged header-update request — "Change the subject to 'Quote –
+  Requested Machinery & Alternatives' and keep everything else exactly
+  as it is. Do not send anything." — planned AUTHORIZED (ops=1) on
+  opencode-go/deepseek-flash, applied through the guarded patch path:
+  exactly one update audit row (op da0a0102); the new subject renders
+  in the signed-in browser AND SURVIVES RELOAD; all 8 prices (incl.
+  the protected $2,902 and the taught-basis $8,984) and all 8
+  identities intact; exactly 8 dollar figures; nothing sent.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
