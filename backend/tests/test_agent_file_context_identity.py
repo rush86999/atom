@@ -138,6 +138,40 @@ class TestScoreFileMatch:
         assert afc.score_file_match("", "a.xlsx") is None
         assert afc.score_file_match("a.xlsx", "") is None
 
+    # 2026-10-08 Cedarberg, natural phrasing: an extension-less mention
+    # that names the file's stem exactly is a NAME-LEVEL match — it must
+    # outrank the strict-superset variants that share the containment
+    # tier, or a unique natural-name ask reads as ambiguity.
+    def test_extensionless_stem_equality_is_normalized(self):
+        assert afc.score_file_match(
+            "consolidated price list 2019",
+            "Consolidated Price List 2019.xlsx",
+        ) == afc.MATCH_TIER_NORMALIZED
+
+    def test_extensionless_superset_variant_stays_containment(self):
+        # The "- Linmac Update" copy must NOT tie the exact stem match:
+        # its stem is a strict superset, discovery only.
+        assert afc.score_file_match(
+            "consolidated price list 2019",
+            "Copy of Consolidated Price List 2019 - Linmac Update.xlsx",
+        ) == afc.MATCH_TIER_CONTAINMENT
+
+    def test_extensionless_weak_stem_is_not_identity(self):
+        # Same guard as every name-level tier: "2019" alone carries no
+        # strong token and must not claim identity for "2019.xlsx".
+        assert afc.score_file_match("2019", "Sales 2019 final.xlsx") is None
+        assert afc.score_file_match("2019", "2019.xlsx") is None
+
+    def test_extensionful_stem_equality_requires_same_extension(self):
+        # Equal stems with DIFFERENT extensions are different files.
+        # (Single-letter names carry no strong token and never verify
+        # at any tier — that guard predates this change.)
+        assert afc.score_file_match("a.xlsx", "a.csv") is None
+        assert afc.score_file_match(
+            "consolidated price list 2019.xlsx",
+            "Consolidated Price List 2019.xlsx",
+        ) == afc.MATCH_TIER_EXACT
+
 
 # ---------------------------------------------------------------------------
 # lookup_file_records with a fake workspace store

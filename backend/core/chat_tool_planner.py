@@ -6249,6 +6249,15 @@ async def _datasets_named_file_block(
                 "completed": False,
                 "coverage_complete": False,
                 "note": "multiple catalogued files match the named file",
+                # The candidate names ride the meta so the ASK lane can
+                # render an honest clarification question (the block text
+                # is narrator-directed; the user-facing question is built
+                # from these). 2026-10-08: the empty-item honesty block
+                # was overwriting this verdict with "the workbook was
+                # read", which never happened.
+                "candidates": [
+                    names[k] for k in sorted(exact_keys)
+                ],
             }
         return _with_grounding(
             "LIVE TOOL RESULTS (datasets.named-file) — the query names "

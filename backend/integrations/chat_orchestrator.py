@@ -6976,10 +6976,24 @@ class ChatOrchestrator:
             _ask_mention = ""
             _ask_direct = False
             try:
-                from core.agent_file_context import spreadsheet_mentions
+                from core.agent_file_context import (
+                    detect_file_task_mentions,
+                    spreadsheet_mentions,
+                )
 
                 _ask_mentions_list = spreadsheet_mentions(message)
                 _ask_mention = _ask_mentions_list[0] if _ask_mentions_list else ""
+                if not _ask_mention:
+                    # NATURAL-LANGUAGE FILE RESOLUTION (2026-10-08
+                    # Cedarberg, original phrasing): "in the Consolidated
+                    # Price List 2019 workbook" (no extension) matches
+                    # detect_file_task_mentions but not
+                    # spreadsheet_mentions. Use the existing task-phrase
+                    # resolver as the fallback — it resolves "price list
+                    # 2019" to the same canonical name the catalog
+                    # indexes under.
+                    _task_mentions = detect_file_task_mentions(message)
+                    _ask_mention = _task_mentions[0] if _task_mentions else ""
                 if not _ask_mention:
                     pass  # mention resolution continues below
                 # TURN-DECISION ROUTING (2026-09-30 full activation,
@@ -7409,6 +7423,21 @@ class ChatOrchestrator:
                     # asks; the producer still prefers the turn's own
                     # explicit items and never unions history.
                     _ask_task["requested_targets"] = _ask_active
+                elif not _ask_task.get("requested_targets"):
+                    # CURRENT-TURN TARGETS (2026-10-08 Cedarberg): a fresh
+                    # conversation's first file-scoped ask has no stored
+                    # objective items — stamp the turn's own extracted
+                    # subjects so the reader's scan receives them.
+                    try:
+                        from core.target_set_resolution import (
+                            extract_items_from_text as _eift,
+                        )
+
+                        _named = [i for i in _eift(message) if i.strip()]
+                        if _named:
+                            _ask_task["requested_targets"] = _named
+                    except Exception:  # noqa: BLE001 — stamp additive
+                        pass
 
                     # RECOGNITION SEAM (2026-09-30): these items are
                     # INHERITED, not asked for in this turn's own words —
@@ -7840,34 +7869,69 @@ class ChatOrchestrator:
                     # coverage footer with no body — that renders as a
                     # confident empty answer. Ask which items, offering
                     # the objective's list when the ledger holds one.
-                    try:
-                        _ask_items_used = (
-                            _ask_structured or {}
-                        ).get("requested_items") or []
-                        if not _ask_items_used:
-                            _offer = ""
-                            try:
-                                from core import dialogue_state as _ds
-
-                                _obj_items = _ds.active_objective_items(
-                                    session_id)
-                                if _obj_items:
-                                    _offer = (
-                                        " The conversation's current list "
-                                        "is: " + ", ".join(_obj_items[:12])
-                                        + " — say the word and I'll check "
-                                        "those.")
-                            except Exception:  # noqa: BLE001 — optional
-                                pass
+                    # GATED ON A REAL SCAN RECORD (2026-10-08 Cedarberg):
+                    # when the reader returned NO structured result it
+                    # did not scan — it returned a verdict (ambiguous
+                    # file identity, or the named file is not in the
+                    # catalog). Claiming "the workbook was read" over
+                    # that verdict is false; the verdict itself is the
+                    # answer.
+                    _ask_items_used = (
+                        _ask_structured or {}
+                    ).get("requested_items") or []
+                    if not _ask_items_used and not isinstance(
+                            _ask_structured, dict):
+                        _ask_verdict = _ask_result.get("meta") or {}
+                        _ask_note = str(
+                            _ask_verdict.get("note") or "")
+                        _ask_cands = [
+                            str(c) for c in
+                            (_ask_verdict.get("candidates") or [])
+                            if str(c).strip()]
+                        if "multiple catalogued files" in _ask_note:
                             _ask_content = (
-                                "The workbook was read, but no items were "
-                                "named to check — nothing can be "
-                                "confirmed or ruled out from an empty "
-                                "list. Which items should I check?" + _offer)
-                            _ask_handoff_block = None
-                            _ask_miss_handoff = False
-                    except Exception:  # noqa: BLE001 — honesty is a floor
-                        pass
+                                "More than one workbook in the catalog "
+                                "matches the name you gave"
+                                + (f" ({_ask_verdict.get('file_name')})"
+                                   if _ask_verdict.get("file_name")
+                                   else "")
+                                + ": "
+                                + "; ".join(_ask_cands[:6])
+                                + ". Which one should I use? Nothing was "
+                                  "read yet.")
+                        else:
+                            _ask_content = (
+                                "I could not resolve that document "
+                                "against the catalogued files — nothing "
+                                "was read. "
+                                + _ask_note.strip().capitalize()
+                                + ("." if _ask_note
+                                   and not _ask_note.strip().endswith(".")
+                                   else ""))
+                        _ask_handoff_block = None
+                        _ask_miss_handoff = False
+                    elif not _ask_items_used:
+                        _offer = ""
+                        try:
+                            from core import dialogue_state as _ds
+
+                            _obj_items = _ds.active_objective_items(
+                                session_id)
+                            if _obj_items:
+                                _offer = (
+                                    " The conversation's current list "
+                                    "is: " + ", ".join(_obj_items[:12])
+                                    + " — say the word and I'll check "
+                                    "those.")
+                        except Exception:  # noqa: BLE001 — optional
+                            pass
+                        _ask_content = (
+                            "The workbook was read, but no items were "
+                            "named to check — nothing can be "
+                            "confirmed or ruled out from an empty "
+                            "list. Which items should I check?" + _offer)
+                        _ask_handoff_block = None
+                        _ask_miss_handoff = False
                     _ask_identity = _ask_result.get("identity") or {}
                     if _ask_identity:
                         _ask_identity = {
@@ -11608,6 +11672,13 @@ class ChatOrchestrator:
     ) -> Dict[str, Any]:
         mention = str((pending_task or {}).get("mention") or "").strip()
         original = str((pending_task or {}).get("original_message") or "").strip()
+        # EXTENSION-LESS MENTIONS resolve downstream, in
+        # _datasets_named_file_block, by the catalog's own tiered
+        # resolver (score_file_match: stem equality is a name-level
+        # match — see the 2026-10-08 Cedarberg note there). No
+        # catalog-side name rewriting happens here: a second,
+        # workspace-blind resolver in front of the real one is how
+        # cross-workspace file identities leak.
 
         if not mention or not original:
             return {"ok": False, "block": "", "reason": "pending task has no file identity"}

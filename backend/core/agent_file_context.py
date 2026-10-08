@@ -270,13 +270,34 @@ def score_file_match(mention: str, source: str) -> Optional[str]:
     ca, cb = _canon(a), _canon(b)
     if ca == cb and strong_a and strong_b:
         return MATCH_TIER_NORMALIZED
+    sa, sb = _canon(a.rsplit(".", 1)[0]), _canon(b.rsplit(".", 1)[0])
+
+    def _ext(value: str) -> str:
+        parts = value.rsplit(".", 1)
+        return parts[1].lower() if len(parts) == 2 and 1 <= len(
+            parts[1]) <= 5 and parts[1].isalpha() else ""
+
+    # STEM EQUALITY (2026-10-08 Cedarberg, natural phrasing): an
+    # extension-less mention that names the file's stem exactly
+    # ("consolidated price list 2019" for "Consolidated Price List
+    # 2019.xlsx") is a NAME-LEVEL identity claim, not discovery — the
+    # user simply didn't say the extension. Without this tier the exact
+    # stem match lands in the same containment tier as strict-superset
+    # variants ("Copy of Consolidated Price List 2019 - Linmac
+    # Update.xlsx"), so a unique natural-name ask reads as ambiguity.
+    # Guards: same strong-token rule as the name-level tiers above
+    # ("2019" must not become an identity claim for "2019.xlsx"), and
+    # an extensionful mention only matches a source with the SAME
+    # extension ("a.xlsx" vs "a.csv" are different files).
+    if (sa and sa == sb and strong_a and strong_b
+            and _ext(a) in ("", _ext(b))):
+        return MATCH_TIER_NORMALIZED
     # Containment: one STEM inside the other ("price list.xlsx" vs
     # "Consolidated Price List 2019.xlsx" — the extension position breaks
     # full-name contiguity, but the stem is a strict subset). The SHORTER
     # side must carry a strong token, so "2019.xlsx" inside "Sales 2019
     # final.xlsx" does not verify. Equal stems with different extensions
     # ("a.csv" vs "a.xlsx") are different files — not containment.
-    sa, sb = _canon(a.rsplit(".", 1)[0]), _canon(b.rsplit(".", 1)[0])
     contained = (
         ca in cb or cb in ca
         or (sa and sb and sa != sb and (sa in sb or sb in sa))
