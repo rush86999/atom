@@ -7008,18 +7008,44 @@ class ChatOrchestrator:
                 # off or any error restores the resolver-only behavior.
                 _td_scope_hints: List[str] = []
                 _td_decision: Optional[Dict[str, Any]] = None
+                _td_interpretation: Optional[Dict[str, Any]] = None
                 _teaching_cue_turn = False
                 _calc_grammar_turn = False
                 if os.getenv("ATOM_TURN_DECISION_ROUTING", "1").lower() not in ("0", "off", "false"):
                     try:
                         from core.turn_decision import (
                             build_turn_decision,
+                            interpret_turn_request,
                         )
 
                         _td = build_turn_decision(
                             message, session, history or [],
                             context or {}, session_id=session_id)
                         _td_decision = _td
+                        # ONE STRUCTURED INTERPRETATION PER REQUEST
+                        # (2026-10-08 Phase-2 slice): the async entry
+                        # point proposes subjects/actions/scope-change
+                        # through the structured-generation path; every
+                        # degraded outcome is an explicit unresolved
+                        # record and this seam keeps the deterministic
+                        # floor. The accepted scope rides the task and
+                        # the reader context below (requested_targets +
+                        # request_scope) so executor inputs stop being
+                        # re-derived by independent miners.
+                        try:
+                            _td_interpretation = (
+                                await interpret_turn_request(
+                                    message, session, history or [],
+                                    context or {}, session_id=session_id,
+                                    request_id=str(
+                                        (context or {}).get("request_id")
+                                        or "")))
+                        except Exception as _interp_err:  # noqa: BLE001
+                            _td_interpretation = None
+                            logger.debug(
+                                "[turn-interpretation] invocation "
+                                "failed (floor retained): %r",
+                                _interp_err)
                         _td_sources = ((_td.get("references")
                                         or {}).get("sources")) or []
                         for _a in _td.get("requested_actions") or []:
@@ -7418,37 +7444,85 @@ class ChatOrchestrator:
                                 "origin")
                     except Exception:  # noqa: BLE001 — floor follows
                         pass
-                if _ask_active:
-                    # Active-objective inheritance for vague follow-up
-                    # asks; the producer still prefers the turn's own
-                    # explicit items and never unions history.
-                    _ask_task["requested_targets"] = _ask_active
-                elif not _ask_task.get("requested_targets"):
-                    # CURRENT-TURN TARGETS (2026-10-08 Cedarberg): a fresh
-                    # conversation's first file-scoped ask has no stored
-                    # objective items — stamp the turn's own extracted
-                    # subjects so the reader's scan receives them.
-                    try:
-                        from core.target_set_resolution import (
-                            extract_items_from_text as _eift,
-                        )
+                # TARGET PRECEDENCE (2026-10-08 Phase-2, the case-4
+                # defect): a CURRENT-REQUEST scope outranks inherited
+                # objectives — the reader used to re-derive items by
+                # mining with substring-overlap authority, which let a
+                # canvas-derived active set replace the request's
+                # explicit subject (asked 'No. 381', scanned 'sle24').
+                # Order: (0) revised targets (contrastive edits) stand;
+                # (1) the interpretation's request-bound subjects for
+                # replace/subset; (2) the turn's own extracted subjects;
+                # (3) active-objective inheritance for vague follow-ups
+                # (extend/continue keep this path too). The request-bound
+                # scope rides `request_scope` for the reader to consume
+                # VERBATIM — no re-derivation, no substring authority.
+                _interp_scope: Optional[Dict[str, Any]] = None
+                if isinstance(_td_interpretation, dict) and (
+                        _td_interpretation.get("scope_change")
+                        in ("replace", "subset")):
+                    _interp_subjects = [
+                        str(s).strip() for s in
+                        _td_interpretation.get("subjects") or []
+                        if str(s).strip()]
+                    if _interp_subjects:
+                        _interp_scope = {
+                            "subjects": _interp_subjects,
+                            "scope_change":
+                                _td_interpretation["scope_change"],
+                            "origin": _td_interpretation.get("origin"),
+                            "request_id":
+                                _td_interpretation.get("request_id"),
+                        }
+                        _ask_task["requested_targets"] = list(
+                            _interp_subjects)
+                        _ask_task["inherited_targets"] = False
+                        _ask_task["request_scope"] = dict(_interp_scope)
+                elif (isinstance(_td_interpretation, dict)
+                        and _td_interpretation.get("scope_change")
+                        == "extend"):
+                    _add_subjects = [
+                        str(s).strip() for s in
+                        _td_interpretation.get("subjects") or []
+                        if str(s).strip()]
+                    if _add_subjects and _ask_active:
+                        _merged = list(_ask_active) + [
+                            s for s in _add_subjects
+                            if s.lower() not in {
+                                a.lower() for a in _ask_active}]
+                        _ask_task["requested_targets"] = _merged
+                if not _ask_task.get("requested_targets"):
+                    if _ask_active:
+                        # Active-objective inheritance for vague follow-up
+                        # asks; the producer still prefers the turn's own
+                        # explicit items and never unions history.
+                        _ask_task["requested_targets"] = _ask_active
 
-                        _named = [i for i in _eift(message) if i.strip()]
-                        if _named:
-                            _ask_task["requested_targets"] = _named
-                    except Exception:  # noqa: BLE001 — stamp additive
-                        pass
+                        # RECOGNITION SEAM (2026-09-30): these items are
+                        # INHERITED, not asked for in this turn's own
+                        # words — the reader uses the flag to tell
+                        # "re-run what I asked before" (a reference) from
+                        # "show me the sheet" (a listing) when the turn
+                        # itself carries no item codes.
+                        _ask_task["inherited_targets"] = True
+                    else:
+                        # CURRENT-TURN TARGETS (2026-10-08 Cedarberg): a
+                        # fresh conversation's first file-scoped ask has
+                        # no stored objective items — stamp the turn's
+                        # own extracted subjects so the reader's scan
+                        # receives them.
+                        try:
+                            from core.target_set_resolution import (
+                                extract_items_from_text as _eift,
+                            )
 
-                    # RECOGNITION SEAM (2026-09-30): these items are
-                    # INHERITED, not asked for in this turn's own words —
-                    # the reader uses the flag to tell "re-run what I
-                    # asked before" (a reference) from "show me the
-                    # sheet" (a listing) when the turn itself carries no
-                    # item codes. One explicit decision at one gate
-                    # (chat_tool_planner's browse gate), instead of the
-                    # route silently depending on which carriers happen
-                    # to be populated.
-                    _ask_task["inherited_targets"] = True
+                            _named = [
+                                i for i in _eift(message) if i.strip()]
+                            if _named:
+                                _ask_task["requested_targets"] = _named
+                                _ask_task["inherited_targets"] = False
+                        except Exception:  # noqa: BLE001 — floor follows
+                            pass
                 try:
                     # OPERATION-AWARE ASK TURN (2026-09-24 review round 4):
                     # a version-refresh request that names the file lands
@@ -11728,6 +11802,12 @@ class ChatOrchestrator:
                             else None),
                         "requested_targets": (
                             pending_task.get("requested_targets") or []),
+                        # REQUEST-BOUND SCOPE (2026-10-08 Phase-2): the
+                        # one-per-request interpretation's accepted
+                        # subjects and scope-change mode — the reader
+                        # consumes these VERBATIM (no re-derivation, no
+                        # substring-overlap authority over the request).
+                        "request_scope": pending_task.get("request_scope"),
                         # Whether the targets were inherited from the
                         # conversation's objective (vs revised/own) —
                         # consumed by the reader's reference-recognition

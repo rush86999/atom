@@ -5709,6 +5709,21 @@ def _resolve_active_items(query: str, context: Optional[Dict[str, Any]],
     revised = [str(v).strip() for v in (revised or []) if str(v).strip()]
     if revised:
         return list(revised)
+    # REQUEST-BOUND SCOPE (2026-10-08 Phase-2, the case-4 defect): when
+    # the one-per-request interpretation established THIS request's
+    # subjects (scope replace/subset), they are consumed VERBATIM. The
+    # old objective cannot replace new explicit scope, and substring
+    # overlap with prior scope is never authority: a shared prefix is
+    # not evidence the old subject is intended. Legacy callers without
+    # ``request_scope`` keep the full mining precedence below, unchanged.
+    _rs = (context or {}).get("request_scope")
+    if isinstance(_rs, dict) and _rs.get("scope_change") in (
+            "replace", "subset"):
+        _rs_subjects = [
+            str(v).strip() for v in (_rs.get("subjects") or [])
+            if str(v).strip()]
+        if _rs_subjects:
+            return _rs_subjects
     active = (context or {}).get("requested_targets")
     if isinstance(active, str):
         active = [active]

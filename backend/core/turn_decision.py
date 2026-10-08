@@ -37,9 +37,15 @@ evaluation (step 3) passes on the incident transitions.
 """
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
+import os
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 SCHEMA = "turn-decision-1"
 
@@ -60,6 +66,92 @@ AUTH_NEEDS_GRANT = "needs_grant"
 _KIND_RESEARCH = "research"
 _KIND_LEARNING = "learning"
 _KIND_CANVAS_EDIT = "canvas_edit"
+
+# 2026-10-08 Phase-2 interpretation slice: the async entry point proposes
+# semantics; this schema version identifies its records beside the
+# deterministic turn-decision-1.
+INTERPRETATION_SCHEMA = "turn-interpretation-1"
+
+#: Scope-change modes an interpretation may propose. "replace" — a new
+#: explicit subject supersedes prior scope; "extend" — an addition
+#: ("also check the Flanger"); "subset" — a narrowing ("only check
+#: U-22"); "continue" — select the persisted unfinished action;
+#: "unresolved" — the interpreter could not establish the request (also
+#: the explicit outcome of every degraded path: timeout, malformed
+#: output, no available model). An unresolved interpretation NEVER
+#: authorizes guessed work — callers keep the deterministic floor.
+SCOPE_CHANGES = ("replace", "extend", "subset", "continue", "unresolved")
+
+# A negated edit command. "Research this; don't change the draft" carries
+# an edit verb + artifact and would ground an instruction by the verb
+# rule alone — the negation governs it and the edit is NOT authorized.
+# Shared by BOTH decision paths (sync + interpretation): one policy, not
+# two. Live defect class: case-1 T1 explicitly says "Don't change the
+# draft yet" and the edit lane must not treat that as a grant.
+_NEGATED_EDIT_RE = re.compile(
+    r"\b(?:don'?t|do\s+not|never|please\s+not)\s+(?:change|edit|update|"
+    r"modify|touch|alter|rebuild|rewrite|revise|send|apply)\b"
+    r"|\b(?:don'?t|do\s+not|never)\s+(?:make\s+any|apply\s+any)\s+"
+    r"(?:changes?|edits?|updates?|modifications?)\b"
+    r"|\bwithout\s+(?:changing|editing|updating|modifying|touching)\b"
+    r"|\bleave\s+(?:the\s+|my\s+|this\s+)?[\w\s]{0,30}?"
+    r"(?:draft|quote|canvas|it)\s+(?:alone|unchanged|as\s+is|"
+    r"untouched|out\s+of\s+it)\b"
+    r"|\b(?:draft|quote|canvas)\s+(?:stays|remains)\s+"
+    r"(?:as\s+is|unchanged|untouched)\b",
+    re.IGNORECASE,
+)
+
+
+def edit_authorization(
+    message: str,
+    edit_retry_instruction: str = "",
+    canvas_id: Optional[str] = None,
+) -> tuple:
+    """Deterministic edit authorization shared by BOTH decision paths.
+
+    Returns ``(authorization, instruction)``. A canvas edit is GRANTED
+    only by the user's own command in this turn (or a retry of a
+    previously authorized edit) — and a NEGATED command ("don't change
+    the draft") is not a command. Model-proposed edits from the async
+    interpreter are overwritten by this evaluation; the model never
+    authorizes anything.
+    """
+    if not canvas_id:
+        return (AUTH_NEEDS_GRANT, "")
+    instruction = edit_retry_instruction or _user_grounded_edit_instruction(
+        message)
+    if not instruction:
+        return (AUTH_NEEDS_GRANT, "")
+    if _NEGATED_EDIT_RE.search(instruction):
+        return (AUTH_NEEDS_GRANT, "")
+    return (AUTH_GRANTED, instruction)
+
+
+def _authorization_for_proposed_action(
+    action: Dict[str, Any],
+    message: str,
+    canvas_id: Optional[str],
+) -> str:
+    """Deterministic authorization for ONE model-proposed action.
+
+    The async interpreter proposes kinds; this function overwrites any
+    model-supplied authorization with the same policy the synchronous
+    decision applies. Reads/analysis are granted (they mutate nothing);
+    learning needs confirmation; a canvas edit needs the same
+    user-grounded, non-negated command the sync path requires.
+    """
+    kind = str((action or {}).get("kind") or "").strip().lower()
+    if kind in (_KIND_RESEARCH, "presentation", "conversation",
+                "calculation"):
+        return AUTH_GRANTED
+    if kind == _KIND_LEARNING:
+        return AUTH_NEEDS_CONFIRMATION
+    if kind == _KIND_CANVAS_EDIT:
+        verdict, _ = edit_authorization(
+            message, "", canvas_id=canvas_id)
+        return verdict
+    return AUTH_NEEDS_GRANT
 
 
 def _requested_sources(message: str) -> List[str]:
@@ -500,17 +592,18 @@ def build_turn_decision(
             or presentation_pref.get("field")))
     if canvas_id and (edit_nomination or user_grounded_instruction) \
             and not presentation_only:
+        # Authorization via the SHARED deterministic evaluation (the same
+        # rule the async interpreter's proposals are overwritten by):
+        # a user-grounded command grants, a NEGATED command ("don't
+        # change the draft") does not, everything else needs a grant.
+        _auth, _instruction = edit_authorization(
+            t, edit_retry_instruction, canvas_id=canvas_id)
         actions.append({
             "kind": _KIND_CANVAS_EDIT,
             "target_canvas": str(canvas_id),
             "nomination": edit_nomination,
-            "user_grounded_instruction": user_grounded_instruction or None,
-            # directive: an edit-shape hint NOMINATES; authorization
-            # requires a user-grounded instruction (this turn's explicit
-            # edit request, or the retry of a previously authorized one).
-            "authorization": (
-                AUTH_GRANTED if user_grounded_instruction
-                else AUTH_NEEDS_GRANT),
+            "user_grounded_instruction": _instruction or None,
+            "authorization": _auth,
         })
 
     if not actions:
@@ -592,3 +685,331 @@ def _scope_constraints(message: str) -> List[str]:
     if m:
         out.append(m.group(1).strip())
     return out[:3]
+
+
+# ---------------------------------------------------------------------------
+# ASYNC STRUCTURED INTERPRETATION (2026-10-08 Phase-2 slice)
+#
+# One semantic interpretation per request, through the established
+# LLMService structured-generation path (catalog-served model selection,
+# cost-priority "planning" task class) with the cheap-NLU operational
+# envelope: hard timeout, consecutive-failure breaker, telemetry, and an
+# explicit UNRESOLVED outcome for every degraded path — an unavailable
+# model never yields guessed work.
+#
+# Division of labor (unchanged from the module's design rules): the
+# interpretation PROPOSES actions/subjects/sources/fields/constraints and
+# a scope-change mode; deterministic POLICY overwrites every proposed
+# authorization (see _authorization_for_proposed_action); the catalog
+# layer (agent_file_context) stays authoritative for file identity; and
+# execution proves. The synchronous build_turn_decision interface is
+# untouched and remains the floor.
+# ---------------------------------------------------------------------------
+# 12s (not cheap-nlu's 6): the structured call can pay one 402 round
+# trip on a credit-dead ranked route BEFORE the healthy gateway answers
+# (live 2026-10-08: interpretation dispatched to opencode-go at ~6s and
+# timed out at the wall). Still far under the turn's reply budget.
+_INTERPRET_TIMEOUT_S = float(os.getenv("ATOM_TURN_INTERPRET_TIMEOUT_S", "12"))
+_INTERPRET_BREAKER_MAX = int(os.getenv("ATOM_TURN_INTERPRET_BREAKER", "3"))
+_interpret_failures = 0
+_interpret_breaker_until = 0.0
+_interpret_metrics: Dict[str, Any] = {
+    "ok": 0, "unresolved": 0, "timeout": 0, "error": 0, "skipped": 0,
+    "max_ms": 0.0, "sum_ms": 0.0}
+
+
+def interpretation_enabled() -> bool:
+    return os.getenv("ATOM_TURN_INTERPRETATION", "1").lower() not in (
+        "0", "off", "false")
+
+
+def reset_interpretation_for_tests() -> None:
+    """Clear breaker + metric state (test-only)."""
+    global _interpret_failures, _interpret_breaker_until
+    _interpret_failures = 0
+    _interpret_breaker_until = 0.0
+    for k in ("ok", "unresolved", "timeout", "error", "skipped"):
+        _interpret_metrics[k] = 0
+    _interpret_metrics.update({"max_ms": 0.0, "sum_ms": 0.0})
+
+
+def _interpretation_unresolved(
+    reason: str, message: str, request_id: str,
+    deterministic: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    return {
+        "schema": INTERPRETATION_SCHEMA,
+        "request_id": request_id,
+        "origin": "unresolved",
+        "unresolved_reason": reason,
+        "message": (message or "")[:500],
+        "actions": [],
+        "subjects": [],
+        "sources": [],
+        "requested_fields": [],
+        "output_format": "",
+        "constraints": [],
+        "scope_change": "unresolved",
+        "confidence": 0.0,
+        # The deterministic decision rides along: an unresolved
+        # interpretation leaves the existing floor fully in charge.
+        "deterministic_decision": deterministic,
+    }
+
+
+def _interpretation_prompt(
+    message: str,
+    history: Optional[List[Dict[str, Any]]],
+    session: Dict[str, Any],
+    context: Dict[str, Any],
+) -> str:
+    """Compact, structured interpretation context.
+
+    Supplies exactly what the completion guide names: recent
+    conversation, persisted unfinished work, applicable teaching
+    presence, and catalog summaries (names only — never source bodies,
+    never a flattening to the last prompt).
+    """
+    parts: List[str] = [f"REQUEST: {message or ''}"]
+    recent = [
+        {"role": str(h.get("role") or "")[:9],
+         "text": str(h.get("content") or h.get("message") or "")[:220]}
+        for h in (history or [])[-6:]
+        if str(h.get("content") or h.get("message") or "").strip()
+    ]
+    if recent:
+        parts.append("RECENT CONVERSATION: " + json.dumps(recent))
+    unfinished = _task_objective(session)
+    if unfinished:
+        parts.append(
+            "PERSISTED UNFINISHED WORK: " + json.dumps(unfinished)[:600])
+    if context.get("canvas_summary"):
+        parts.append(
+            "ACTIVE DOCUMENT (summary): "
+            + str(context["canvas_summary"])[:600])
+    if context.get("applicable_teaching"):
+        parts.append(
+            "APPLICABLE TEACHING: "
+            + str(context["applicable_teaching"])[:400])
+    if context.get("catalog_files"):
+        names = [str(n) for n in context["catalog_files"]][:40]
+        parts.append("SOURCE CATALOG (names): " + "; ".join(names))
+    parts.append(
+        "Interpret the REQUEST. Propose: actions (research / learning / "
+        "canvas_edit / calculation / presentation / conversation — more "
+        "than one allowed), the FULL subject names exactly as the user "
+        "means them, source references by the names the user used, the "
+        "data fields wanted, output format, explicit constraints "
+        "(including things the user said NOT to do), and how the "
+        "requested scope relates to the persisted unfinished work: "
+        "replace (new subject supersedes), extend (adds items), subset "
+        "(narrows to some items), continue (resume the persisted work), "
+        "or unresolved. A request that names its own subjects when "
+        "there is NO persisted unfinished work is 'replace' (it "
+        "establishes the scope). 'unresolved' is only for requests you "
+        "genuinely cannot establish. Copy constraint wording from the "
+        "request; never invent subjects.")
+    return "\n\n".join(parts)
+
+
+_INTERPRET_SYSTEM = (
+    "You interpret one user request for a work system. You propose; "
+    "policy decides authorization; you never invent subjects or sources "
+    "the user did not name or clearly mean.")
+
+
+async def interpret_turn_request(
+    message: str,
+    session: Optional[Dict[str, Any]] = None,
+    history: Optional[List[Dict[str, Any]]] = None,
+    context: Optional[Dict[str, Any]] = None,
+    session_id: str = "",
+    request_id: str = "",
+    llm_service: Any = None,
+) -> Dict[str, Any]:
+    """ONE structured semantic interpretation of this request.
+
+    Returns a turn-interpretation-1 record. Every degraded path (feature
+    off, breaker open, no model, timeout, malformed output) returns an
+    EXPLICIT ``scope_change="unresolved"`` record carrying the
+    deterministic decision — callers keep the floor and never execute
+    guessed work. Authorization on every proposed action is overwritten
+    by the deterministic policy.
+    """
+    global _interpret_failures, _interpret_breaker_until
+    deterministic: Optional[Dict[str, Any]] = None
+    try:
+        deterministic = build_turn_decision(
+            message, session, history, context, session_id=session_id)
+    except Exception:  # noqa: BLE001 — the floor is best-effort here
+        deterministic = None
+
+    def _unresolved(reason: str) -> Dict[str, Any]:
+        return _interpretation_unresolved(
+            reason, message, request_id, deterministic)
+
+    if not interpretation_enabled():
+        _interpret_metrics["skipped"] += 1
+        return _unresolved("feature_disabled")
+    if time.time() < _interpret_breaker_until:
+        _interpret_metrics["skipped"] += 1
+        return _unresolved("breaker_open")
+
+    try:
+        from pydantic import BaseModel, Field
+    except ImportError:  # pragma: no cover — pydantic always present
+        return _unresolved("pydantic_unavailable")
+
+    class _ProposedAction(BaseModel):
+        kind: str = "conversation"
+        subjects: List[str] = Field(default_factory=list)
+        note: str = ""
+
+    class _Interpretation(BaseModel):
+        actions: List[_ProposedAction] = Field(default_factory=list)
+        subjects: List[str] = Field(default_factory=list)
+        sources: List[str] = Field(default_factory=list)
+        requested_fields: List[str] = Field(default_factory=list)
+        output_format: str = ""
+        constraints: List[str] = Field(default_factory=list)
+        scope_change: str = "unresolved"
+        confidence: float = 0.0
+
+    if llm_service is None:
+        try:
+            from core.llm_service import get_llm_service
+
+            llm_service = get_llm_service()
+        except Exception as exc:  # noqa: BLE001 — unresolved, not a crash
+            logger.debug("interpretation llm service unavailable: %r", exc)
+            _interpret_metrics["unresolved"] += 1
+            return _unresolved("llm_service_unavailable")
+
+    started = time.perf_counter()
+    try:
+        result = await asyncio.wait_for(
+            llm_service.generate_structured_response(
+                prompt=_interpretation_prompt(
+                    message, history,
+                    session if isinstance(session, dict) else {},
+                    context if isinstance(context, dict) else {}),
+                response_model=_Interpretation,
+                system_instruction=_INTERPRET_SYSTEM,
+                model="fast",
+                task_type="planning",
+                temperature=0.0,
+            ),
+            timeout=_INTERPRET_TIMEOUT_S,
+        )
+    except asyncio.TimeoutError:
+        _interpret_failures += 1
+        _interpret_metrics["timeout"] += 1
+        _note_breaker()
+        _emit_interpret("timeout")
+        return _unresolved("timeout")
+    except Exception as exc:  # noqa: BLE001 — unresolved, not a crash
+        _interpret_failures += 1
+        _interpret_metrics["error"] += 1
+        _note_breaker()
+        _emit_interpret("error", error=type(exc).__name__)
+        logger.debug("turn interpretation failed: %r", exc)
+        return _unresolved("error")
+
+    latency_ms = round((time.perf_counter() - started) * 1000, 1)
+    _interpret_metrics["max_ms"] = max(
+        _interpret_metrics["max_ms"], latency_ms)
+    _interpret_metrics["sum_ms"] += latency_ms
+
+    data = result if isinstance(result, dict) else (
+        getattr(result, "model_dump", lambda: {})())
+    scope_change = str(data.get("scope_change") or "").strip().lower()
+    # Near-miss normalization (live 2026-10-08: v4-flash served
+    # "replacement"/"narrow" against the enumerated enum): map the
+    # obvious variants, everything else stays unresolved — never a
+    # guess about the request's semantics.
+    _SCOPE_NEAR_MISSES = {
+        "replaces": "replace", "replacement": "replace", "new": "replace",
+        "narrow": "subset", "narrowing": "subset", "filter": "subset",
+        "add": "extend", "adds": "extend", "extension": "extend",
+        "additional": "extend", "resume": "continue",
+        "continuation": "continue", "same": "continue",
+    }
+    if scope_change not in SCOPE_CHANGES:
+        scope_change = _SCOPE_NEAR_MISSES.get(scope_change, "unresolved")
+    raw_actions = [
+        a if isinstance(a, dict)
+        else getattr(a, "model_dump", lambda: {})()
+        for a in (data.get("actions") or [])
+    ][:8]
+    if not raw_actions or scope_change == "unresolved":
+        _interpret_metrics["unresolved"] += 1
+        _emit_interpret("unparseable" if raw_actions else "empty")
+        return _unresolved("malformed_output" if raw_actions
+                           else "no_actions_proposed")
+
+    canvas_id = (context or {}).get("canvas_id") or (
+        (context or {}).get("canvas") or {}).get("canvas_id")
+    actions_out: List[Dict[str, Any]] = []
+    for a in raw_actions:
+        kind = str(a.get("kind") or "").strip().lower() or "conversation"
+        actions_out.append({
+            "kind": kind,
+            "subjects": [
+                str(s)[:200] for s in (a.get("subjects") or [])[:12]
+                if str(s).strip()],
+            "note": str(a.get("note") or "")[:200],
+            # POLICY OVERWRITES THE MODEL: deterministic authorization
+            # only — a proposed edit never carries model-granted rights.
+            "authorization": _authorization_for_proposed_action(
+                {"kind": kind}, message, canvas_id),
+        })
+    _interpret_failures = 0
+    _interpret_metrics["ok"] += 1
+    _emit_interpret("ok", latency_ms=latency_ms)
+    origin = "llm"
+    try:
+        served = getattr(result, "_raw_response", None)
+        model = getattr(served, "model", None)
+        if model:
+            origin = f"llm:{str(model)[:80]}"
+    except Exception:  # noqa: BLE001 — origin is best-effort
+        pass
+    return {
+        "schema": INTERPRETATION_SCHEMA,
+        "request_id": request_id,
+        "origin": origin,
+        "unresolved_reason": "",
+        "message": (message or "")[:500],
+        "actions": actions_out,
+        "subjects": [
+            str(s)[:200] for s in (data.get("subjects") or [])[:16]
+            if str(s).strip()],
+        "sources": [
+            str(s)[:160] for s in (data.get("sources") or [])[:8]
+            if str(s).strip()],
+        "requested_fields": [
+            str(f)[:80] for f in (data.get("requested_fields") or [])[:8]
+            if str(f).strip()],
+        "output_format": str(data.get("output_format") or "")[:40],
+        "constraints": [
+            str(c)[:200] for c in (data.get("constraints") or [])[:8]
+            if str(c).strip()],
+        "scope_change": scope_change,
+        "confidence": max(0.0, min(1.0, float(
+            data.get("confidence") or 0.0))),
+        "deterministic_decision": deterministic,
+    }
+
+
+def _note_breaker() -> None:
+    global _interpret_breaker_until
+    if _interpret_failures >= _INTERPRET_BREAKER_MAX:
+        _interpret_breaker_until = time.time() + 60.0
+
+
+def _emit_interpret(outcome: str, **extra: Any) -> None:
+    try:
+        logger.info("[turn-interpretation] %s %s", outcome,
+                    " ".join(f"{k}={v}" for k, v in extra.items()))
+    except Exception:  # noqa: BLE001 — telemetry must never raise
+        pass
