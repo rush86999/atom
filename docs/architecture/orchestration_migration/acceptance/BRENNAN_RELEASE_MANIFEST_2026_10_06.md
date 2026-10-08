@@ -321,6 +321,42 @@ candidate. Three trials per case, same candidate; every trial reported.
   property it gestures at is separately green. Results:
   `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
 
+## CURRENT STATUS (2026-10-08 final reconcile — d3f7cc9ca)
+
+Dated rows below are retained as history; THIS row is the current truth.
+
+- **Open product defects (both precisely located, live-traced):**
+  (1) Drafting: the evidence-contract readiness gate
+  (core/chat_canvas_editor.py:3186-3197) requires edit_artifact actions
+  with status=ready AND authorized=true; the case-1 comparison does not
+  stamp them, so the authorized edit ends no_ready_evidence_change.
+  Today's repairs carried the request through three earlier boundaries
+  (scope-validator vocabulary, send-negation, inflight-outliving
+  backoff) — the lane opens, the edit is reserved, the durable
+  continuation runs, and the planner now responds.
+  (2) Ambiguity (case 4 trial 9): no_first_match + versions-named +
+  manual-preserved-and-marked all green; the planner-boundary's DIRECT
+  datasets lookup does not complete, so no source is consulted.
+- **Case verdicts (current candidate chain):** 1 — investigation 4/4
+  green, drafting blocked by defect (1). 2 — 3/3 PASS. 3 — CLOSED as
+  HISTORICAL evidence (separate note at its verdict). 4 — manual
+  contract green in every designated trial; ambiguity legs blocked by
+  defect (2). 5 — 3/3 PASS (fresh world, all legs green x3). 6 — 3/3
+  pass-with-note (the execution-ids cell contradicts its own comment).
+- **Retired conditions:** the 'external funds condition' framing is
+  RETIRED as the primary blocker — the account served paid models
+  during the afternoon trials; the persistent failures are the two
+  product defects above (and a leaked/contended inflight claim class,
+  now outlived by escalating backoff). The missing-manual-authorization
+  blocker was resolved earlier on 2026-10-08 (owner directive; No. 381
+  $2,902; designation label 'No. 381').
+- **Fresh-install status:** native route verified to backend startup +
+  real login + provider test + dispatch; installer repaired (secrets
+  preserved, empty-DB-only adoption, actionable refusals); remaining
+  journey steps blocked on the per-install model-preference being
+  CONFIGURED per deployment (feature delivered; rows were cleared after
+  verification). Migration-equivalence claim withdrawn (not verified).
+
 ## Fresh-install verification (2026-10-08, native route)
 
 Route: `installer/install-native.sh` + `start.sh` semantics — isolated
