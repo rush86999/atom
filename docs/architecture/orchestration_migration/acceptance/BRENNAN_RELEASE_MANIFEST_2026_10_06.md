@@ -403,6 +403,31 @@ sweep misses the Tennsmith row that direct probes and the
 value-trace chaining find) — targeted as a separate completion
 improvement below; the release campaign itself stays closed.
 
+### Completion-improvement rerun (A and C unchanged, 2026-10-08)
+
+The retrieval seam was fixed at its traced root and PINNED (5 pins;
+the exact task-A message now returns the Consolidated Price List 2019
+SLE24-16 row, 8984, through the production block; junk name-claiming
+bypassed; subject supersets deduped; 27 green across the retrieval
+suites). Reruns UNCHANGED, fresh sessions, zero interventions:
+
+- **A3 (95s):** the mailbox half is RICHER than the original (three
+  dated quotes incl. $8,984 on 10-08, all 15-day-validity qualified)
+  — but the planner chose memory/zoho retrieval this turn and planned
+  NO datasets.search, so the fixed sweep never ran. Workbook check
+  still absent. Still partial; 1 follow-up.
+- **C3 (166s):** T1's reads hit adjacent threads only; T2 PROPOSED an
+  edit and the preservation guard REFUSED it — it would have dropped
+  the 1624/GSL48-16 identities. The protection fired on live traffic;
+  the draft is unchanged with a precise terminal. 1 follow-up.
+
+Honest accounting: still a time-spent delta on observed attempts, not
+completion savings — the NEXT named seam is the PLANNER's routing of
+the workbook check (it does not reliably choose datasets.search for
+these asks). No incorrect answers observed across all five runs; C3's
+refusal prevented an identity-dropping edit. Original partials
+retained; the release campaign remains closed.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
