@@ -3585,6 +3585,21 @@ class BYOKHandler:
         # Absolute fallback
         if self.clients:
             provider_id = list(self.clients.keys())[0]
+            # FRESH-INSTALL DEFECT (2026-10-08, isolated clean-install
+            # verification): the hardcoded "gpt-4o-mini" on the first
+            # client is unservable when that client is the local
+            # provider (ollama on a keyless install) — the catalog-served
+            # pair gate correctly rejects it and the turn renders as
+            # "no provider configured" despite a healthy local runtime.
+            # Serve a model THIS provider actually serves: its tier-map
+            # default first, verified against the discovered catalogue.
+            tier_default = (
+                (COST_EFFICIENT_MODELS.get(provider_id) or {}).get(
+                    QueryComplexity.SIMPLE))
+            for candidate in (tier_default, "gpt-4o-mini"):
+                if candidate and self._provider_serves_model(
+                        provider_id, candidate):
+                    return AwaitableResult((provider_id, candidate))
             return AwaitableResult((provider_id, "gpt-4o-mini"))
 
         raise NoProvidersConfiguredError(
