@@ -1099,18 +1099,26 @@ async def _reconcile_authorized_proposal(
                 r"(?:change|edit|modify|update|prepare|draft)\b",
                 instruction, _re.IGNORECASE):
             return None
+        # IDENTITY (2026-10-08, live uvicorn_8001_restart.log:1404481):
+        # this lookup used to filter on ``operation_id ==
+        # cont.continuation_id`` alone, while the write path stamps the
+        # audit row with the ORIGIN operation id (the id the interactive
+        # turn owned — see `_operation_identity`). The row was therefore
+        # invisible here, reconciliation returned None, and the post-write
+        # gate reported a landed, HEAD, owner-authorized proposal as
+        # "the write could not be confirmed by audit readback".
+        # Locate the row through the SAME identity relationship every
+        # other seam in this module uses.
+        located = _matched_operation_row(cont)
+        if not located:
+            return None
         from core.database import get_db_session
         from core.models import CanvasAudit
-        from core.sql_json import json_field_equals
 
         with get_db_session() as db:
-            q = json_field_equals(
-                db, CanvasAudit.details_json, "$.operation_id",
-                cont.continuation_id)
             row = db.query(CanvasAudit).filter(
-                CanvasAudit.canvas_id == canvas_id,
-                *([q] if q is not None else []),
-            ).order_by(CanvasAudit.created_at.desc()).first()
+                CanvasAudit.id == str(located.get("audit_id") or ""),
+            ).first()
             if row is None:
                 return None
             head = db.query(CanvasAudit).filter(
@@ -1156,6 +1164,27 @@ async def _reconcile_authorized_proposal(
 
 def _operation_landed(cont: AsyncTurnContinuation) -> bool:
     return _operation_status(cont) == "accepted"
+
+
+def _landed_proposal_is_head(cont: AsyncTurnContinuation) -> bool:
+    """True when THIS operation's write landed as a proposal and is still
+    the canvas's current revision.
+
+    A proposal the reconciliation declined to accept (no owner edit
+    directive) is still FINISHED WORK awaiting a decision — not an
+    unconfirmed write. Reporting it from the receipt here is what keeps
+    the terminal message honest without spending a retry and its backoff
+    to rediscover the same row.
+    """
+    if _operation_status(cont) != "pending_review":
+        return False
+    row = _matched_operation_row(cont)
+    if not row:
+        return False
+    canvas_id = (cont.canvas or {}).get("canvas_id")
+    latest = _latest_audit(canvas_id) if canvas_id else None
+    return bool(latest and str(latest.get("id") or "")
+                == str(row.get("audit_id") or ""))
 
 
 def _classify_preapply(cont: AsyncTurnContinuation) -> Optional[str]:
@@ -2182,6 +2211,11 @@ async def run_canvas_edit_continuation(
         # additive -- no gate's condition is altered here.
         _gate = "no-response"
         _op_status_dbg: Any = "not-probed"
+        # A landed, HEAD, owner-authorized proposal that reconciliation
+        # promoted to `accepted` is DONE — the terminal message must come
+        # from that reconciled receipt, not from the stale
+        # review_status=pending_review the edit response carried.
+        _reconciled_to_accepted = False
         if response:
             edit_meta = ((response.get("data") or {}).get(
                 "canvas_edit") or {})
@@ -2219,21 +2253,34 @@ async def run_canvas_edit_continuation(
                         # "operation-not-landed" for a write that IS the
                         # canvas's current state, leaving the user uncertain
                         # whether the employee finished. When the landed row
-                        # carries THIS continuation's operation_id, is the
-                        # canvas HEAD, and the originating instruction was a
-                        # USER-GROUNDED edit directive (the owner already
-                        # authorized exactly this edit), reconcile: verify
-                        # through the authoritative read and accept the
-                        # proposal — a REVIEW-STATE transition on the audit
-                        # row only, never a canvas write, never a duplicate.
+                        # belongs to THIS continuation's operation identity,
+                        # is the canvas HEAD, and the originating instruction
+                        # was a USER-GROUNDED edit directive (the owner
+                        # already authorized exactly this edit), reconcile:
+                        # verify through the authoritative read and accept
+                        # the proposal — a REVIEW-STATE transition on the
+                        # audit row only, never a canvas write, never a
+                        # duplicate.
                         _recon = await _reconcile_authorized_proposal(cont)
                         if _recon == "accepted":
                             readback_ok = True
+                            _reconciled_to_accepted = True
                             _op_status_dbg = "accepted(reconciled)"
                         elif _recon:
                             _gate = _recon
                         if not readback_ok and _gate != _recon:
                             _gate = "operation-not-landed"
+                        if not readback_ok and _op_status_dbg == "pending_review" \
+                                and _landed_proposal_is_head(cont):
+                            # A landed HEAD proposal is finished work
+                            # awaiting a decision — report the proposal
+                            # flow now instead of retrying and reporting
+                            # "could not be confirmed" for a write that is
+                            # on the receipt.
+                            return OUTCOME_AWAITING_APPROVAL, (
+                                str(response.get("message") or "").strip()
+                                or "Your update is saved as a proposal "
+                                   "and is waiting for your approval.")
                     if readback_ok:
                         _gate = "read-canvas"
                         try:
@@ -2264,6 +2311,10 @@ async def run_canvas_edit_continuation(
                         "Canvas edit applied to "
                         f"{(cont.canvas or {}).get('canvas_type') or 'canvas'} "
                         f"{(cont.canvas or {}).get('canvas_id') or ''}".strip())
+                    if _reconciled_to_accepted:
+                        # The owner's own directive authorized this edit and
+                        # the receipt now records it accepted: report DONE.
+                        return OUTCOME_APPLIED, summary
                     if edit_meta.get("learning_mode") or edit_meta.get(
                             "review_status") == "pending_review":
                         return OUTCOME_AWAITING_APPROVAL, summary
