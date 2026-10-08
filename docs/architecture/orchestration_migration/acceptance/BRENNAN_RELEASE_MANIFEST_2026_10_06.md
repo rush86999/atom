@@ -321,6 +321,56 @@ candidate. Three trials per case, same candidate; every trial reported.
   property it gestures at is separately green. Results:
   `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
 
+## FINAL RELEASE TABLE (2026-10-08 — case 1 closes with a landed mutation)
+
+Supersedes all prior CURRENT STATUS rows (kept below as dated history).
+
+**CASE 1 — CLOSED on the current candidate.** The requirement check
+(basis: the exact T_AUTH instruction compared requirement-by-requirement
+against the saved canvas, the taught basis read EMPIRICALLY from the
+Tennsmith sheet, and the owner's manual-price authorization — not the
+planner's decline wording) found exactly ONE unsatisfied requirement:
+row 5's price. The taught Tennsmith basis (lesson 4ab35f5860) reads
+SLE24-16 PRICE=8,984 from Consolidated Price List 2019.xlsx's Tennsmith
+sheet; the draft carried 8,880, which the T1 comparison itself called
+'unconfirmed against a source', with no manual-price protection (the
+owner's authorization names only No. 381's $2,902). That ONE authorized
+change was applied through the full guarded path: **exactly one update
+audit row** (op 64db0c36), the truthful terminal delivered
+("Updated row 5's … price from $8,880.00 to $8,984.00; all other rows
+and prices are unchanged"), and the signed-in browser **after reload**
+renders row 5 at $8,984.00 with all 8 rows, $2,902.00 preserved, the
+Row 268 identity intact, exactly 8 dollar figures, nothing sent. The
+earlier no-op completion (trial 18) stands as the research-backed
+half; this mutation is the drafting half. Full record:
+case1_requirement_check_20261008.json.
+
+| Case | Current-candidate verification | Historical (separate) |
+|---|---|---|
+| 1 | **CLOSED**: T1 investigation all-green (trial 18); no-op
+completion verified (outcome=already_applied); ONE authorized mutation
+landed + browser-verified after reload | Trials 8–17 retained as
+failed attempts with per-attempt taxonomies |
+| 2 | 3/3 PASS (corrected checker, captured examples) | trial-1
+original FAIL preserved |
+| 3 | not rerun on this chain | CLOSED on its recorded repair chain
+(f9d1e2be3-line); historical |
+| 4 | subject/source proof (trial 14: '381' searched, receipt
+recorded, honest miss); manual contract green (preserved+marked) | 15
+trials retained incl. planner-degraded failures |
+| 5 | 3/3 PASS (fresh world, all legs green ×3) | a4699860a trial-1
+PASS historical |
+| 6 | 3/3 pass-with-note (checker self-contradiction recorded) | — |
+| browser empty_reply | PASSED (truthful message, composer usable,
+reload persists) | — |
+
+Failed attempts preserved: case-1 trials 8–17; case-2 trial 1; case-4
+trials 1–15 (degraded-pool honest failures); the two known pre-existing
+unit-test failures (loose_retry_shape, llm_yes_resolves — verified
+failing on the clean tree). Evidence links: results JSONs under
+backend/data/acceptance_worlds/ (gitignored data; identities recorded
+in each trial's release_owner_note).
+
 ## CURRENT STATUS (2026-10-08 — CASE 1 TRANSACTION COMPLETED)
 
 Supersedes the research-boundary row (kept below as history).
