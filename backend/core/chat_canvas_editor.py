@@ -2475,6 +2475,23 @@ async def plan_canvas_edit(
             bool((plan.updated_content_json or "").strip()),
             bool((plan.restore_audit_id or "").strip()),
             plan_contract_violation(plan))
+        # THE MODEL'S OWN DECLINE WORDS (2026-10-08 owner assignment 4):
+        # a served planner declining an authorized task must be
+        # diagnosed from its stated reason — not attributed to
+        # contention. Bounded + redacted (routine-log rule).
+        if str(plan.reply or "").strip():
+            try:
+                from core import log_redaction
+                _captured = log_redaction.capture(
+                    str(plan.reply)[:400], "canvas_edit_decline_reply")
+                logger.info(
+                    "canvas edit: decline reply | %s",
+                    _captured
+                    or log_redaction.describe(plan.reply))
+            except Exception:  # noqa: BLE001 — telemetry only
+                logger.info(
+                    "canvas edit: decline reply | <%d chars, "
+                    "unredactable>", len(str(plan.reply)))
         logger.info(
             "canvas edit: planner input identity | prompt_chars=%d "
             "canvas_type=%r history_msgs=%d "
@@ -3371,6 +3388,27 @@ async def apply_canvas_edit(
     if (_fact_changing_ops
             and (evidence_contract or require_evidence_postconditions)
             and not ready_actions):
+        # GATE TELEMETRY (2026-10-08 owner assignment 4): the refusal is
+        # diagnosable — which ops are fact-changing (shape only) and
+        # what statuses the contract's outcomes carry.
+        try:
+            from core import log_redaction
+            logger.info(
+                "canvas edit: no_ready_evidence_change | fact_changing=%d "
+                "ops_total=%d op_shapes=%s contract_outcomes=%s "
+                "tracked_values=%d",
+                len(_fact_changing_ops), len(plan.ops or []),
+                [log_redaction.shape(
+                    {"f": str(getattr(op, "find", ""))[:60],
+                     "r": str(getattr(op, "replace", ""))[:60]})
+                 for op in _fact_changing_ops[:4]],
+                [(str(o.get("entity_id"))[:24], str(o.get("field"))[:16],
+                  str(o.get("status")))
+                 for o in ((evidence_contract or {}).get("outcomes")
+                           or [])[:8]],
+                len(_tracked_values))
+        except Exception:  # noqa: BLE001 — telemetry only
+            pass
         return _out(None, "no_ready_evidence_change")
     if (evidence_contract or require_evidence_postconditions) \
             and not ready_actions and not _fact_changing_ops and (

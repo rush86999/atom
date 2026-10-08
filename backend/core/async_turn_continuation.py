@@ -2072,7 +2072,30 @@ async def run_canvas_edit_continuation(
     started = time.monotonic()
     deadline = started + max(1.0, _ASYNC_CONTINUATION_BUDGET_SECONDS - 2.0)
     last_note = "the edit planner could not complete"
+    # BUDGET-AWARE ATTEMPTS (2026-10-08 owner assignment 3): never start
+    # a full edit-planning attempt without a VIABLE budget — observed
+    # served edit-planning calls take 23-150s, so an attempt with less
+    # than the reserve floor is guaranteed waste (trial 10's attempt 3
+    # had 10s). Waiting for capacity is reported as its own failure
+    # stage, distinct from timeout/provider/malformed/decline.
+    _MIN_VIABLE_EDIT_SECONDS = float(
+        os.getenv("ATOM_ASYNC_EDIT_MIN_VIABLE_S", "60") or 60)
     for attempt in range(1, _ASYNC_CONTINUATION_ATTEMPTS + 1):
+        remaining = deadline - time.monotonic()
+        if remaining < _MIN_VIABLE_EDIT_SECONDS:
+            cont.failure_stage = "budget-reserve"
+            logger.info(
+                "[async-continuation] %s attempt %d/%d NOT started — "
+                "%.1fs remaining is below the %.0fs viable-edit floor "
+                "(observed served edit-planning calls: 23-150s)",
+                cont.continuation_id, attempt,
+                _ASYNC_CONTINUATION_ATTEMPTS, remaining,
+                _MIN_VIABLE_EDIT_SECONDS)
+            last_note = (
+                f"waiting for capacity: only {remaining:.0f}s of the "
+                "continuation budget remained — below the viable "
+                "edit-planning floor")
+            break
         if attempt > 1:
             latest = _latest_turn_evidence(orchestrator, cont)
             latest_contract = _latest_turn_contract(orchestrator, cont)
@@ -2199,11 +2222,39 @@ async def run_canvas_edit_continuation(
                 time.monotonic() - started, last_note)
             response = None
 
+        # FAILURE TAXONOMY (2026-10-08 owner assignment 3): the edit
+        # leg's own no-apply reason names WHICH boundary stopped the
+        # attempt — planner_unavailable (no model served: capacity),
+        # planner_timeout (dispatch window), planner_error (provider
+        # failure), planner_returned_none (malformed/no plan), or
+        # planner_declined (a SERVED model answered wants_edit=False).
+        # The generic aggregate note is reserved for genuinely unknown
+        # shapes.
+        _no_apply_reason = (
+            blackboard.get("canvas_edit_no_apply_reason")
+            if isinstance(blackboard, dict) else None)
+        if _no_apply_reason and response is None:
+            _taxonomy = {
+                "planner_unavailable":
+                    "waiting for capacity: no model served the edit-"
+                    "planning call",
+                "planner_timeout":
+                    "edit-planning dispatch timed out",
+                "planner_error":
+                    "provider failure during edit planning",
+                "planner_returned_none":
+                    "malformed plan: the planner returned no usable plan",
+                "planner_declined":
+                    "served planner DECLINED the edit (wants_edit=False)",
+            }.get(str(_no_apply_reason))
+            if _taxonomy:
+                last_note = _taxonomy
         logger.info(
             "[async-continuation] %s attempt %d/%d edit returned in %.1fs "
-            "stage=%s", cont.continuation_id, attempt,
+            "stage=%s reason=%s", cont.continuation_id, attempt,
             _ASYNC_CONTINUATION_ATTEMPTS,
-            time.monotonic() - attempt_started, cont.failure_stage)
+            time.monotonic() - attempt_started, cont.failure_stage,
+            _no_apply_reason or "-")
         # DIAGNOSIS (2026-09-27, acceptance c16 case 2): the write lands but the
         # attempt is reported unconfirmed, and FOUR separate gates can each say
         # so. Name the one that actually decided it and log every input, so one

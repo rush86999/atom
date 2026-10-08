@@ -901,6 +901,9 @@ _MODEL_COOLDOWN_SECONDS = 120.0
 _MODEL_OUTPUT_COOLDOWN_UNTIL: Dict[str, float] = {}
 _MODEL_OUTPUT_COOLDOWN_LOCK = threading.Lock()
 _MODEL_ATTEMPT_INFLIGHT: Dict[str, float] = {}  # pair -> claimed_at epoch
+# pair -> (holder label, claimed_at): WHO holds the single-flight claim
+# (owner assignment 1 telemetry; guarded by the same lock).
+_MODEL_ATTEMPT_HOLDERS: Dict[str, tuple] = {}
 _MODEL_ATTEMPT_INFLIGHT_LOCK = threading.Lock()
 # Claims older than this are LEAKS (a hung/crashed turn that never
 # released) and are stolen by the next caller — a structured call's own
@@ -2207,10 +2210,18 @@ class BYOKHandler:
             return None
         return {"reasoning": {"max_tokens": budget}}
 
-    def _claim_model_attempt(self, provider_id: str, model: str) -> bool:
+    def _claim_model_attempt(self, provider_id: str, model: str,
+                             holder: str = "") -> bool:
         pair = f"{provider_id}/{model}"
         with _MODEL_ATTEMPT_INFLIGHT_LOCK:
             now = time.time()
+            if _MODEL_ATTEMPT_INFLIGHT.get(pair) is not None \
+                    and now - _MODEL_ATTEMPT_INFLIGHT[pair] \
+                    >= _MODEL_ATTEMPT_INFLIGHT_TTL_SECONDS:
+                logger.info(
+                    "[inflight] %s claim by %r STEALS expired hold "
+                    "(held %.0fs)", pair, holder,
+                    now - _MODEL_ATTEMPT_INFLIGHT[pair])
             # TTL (2026-10-04, the taught-employee job): claims had no
             # expiry — a turn that hung or crashed between claim and
             # release held the pair for the PROCESS LIFETIME, and every
@@ -2225,13 +2236,24 @@ class BYOKHandler:
                 logger.warning(
                     f"{pair} inflight claim expired after "
                     f"{now - _claimed_at:.0f}s — stealing (leaked claim)")
+            # SINGLE-FLIGHT TELEMETRY (2026-10-08 owner assignment 1):
+            # who holds which pair, for how long, and when it releases —
+            # the deconfliction picture for the turn's own overlapped
+            # planning legs vs the async continuation.
+            _MODEL_ATTEMPT_HOLDERS[pair] = (holder or "?", now)
             _MODEL_ATTEMPT_INFLIGHT[pair] = now
             return True
 
-    def _release_model_attempt(self, provider_id: str, model: str) -> None:
+    def _release_model_attempt(self, provider_id: str, model: str,
+                               holder: str = "") -> None:
         pair = f"{provider_id}/{model}"
         with _MODEL_ATTEMPT_INFLIGHT_LOCK:
-            _MODEL_ATTEMPT_INFLIGHT.pop(pair, None)
+            claimed_at = _MODEL_ATTEMPT_INFLIGHT.pop(pair, None)
+            held_by = _MODEL_ATTEMPT_HOLDERS.pop(pair, (None, None))[0]
+            if claimed_at is not None:
+                logger.info(
+                    "[inflight] %s released by %r after %.1fs", pair,
+                    held_by or holder or "?", time.time() - claimed_at)
 
     def _model_cooldown_active(self, provider_id: str, model: str) -> bool:
         """True while a (provider, model) pair is benched for bad output."""
@@ -5396,7 +5418,10 @@ class BYOKHandler:
                         provider_id, model, _cap)
                     if _reasoning_body:
                         _req_kwargs["extra_body"] = _reasoning_body
-                    if not self._claim_model_attempt(provider_id, model):
+                    if not self._claim_model_attempt(
+                            provider_id, model,
+                            holder="completion:" + str(
+                                task_type or "general")):
                         logger.info(
                             "Skipping %s/%s: model attempt already in flight",
                             provider_id, model,
@@ -7306,7 +7331,9 @@ class BYOKHandler:
                             # generate_response).
                             _attempt_t0 = time.time()
                             if not self._claim_model_attempt(
-                                    provider_id, model):
+                                    provider_id, model,
+                                    holder="completion2:" + str(
+                                        task_type or "general")):
                                 raise _ModelAttemptInFlight(
                                     f"{provider_id}/{model} is already in flight")
                             _attempted_any = True
@@ -8598,7 +8625,9 @@ class BYOKHandler:
                 # provider: openrouter …` then, 115 s later, `reply generation:
                 # 115.0s` with no zero-chunk warning and no first-visible
                 # abort — neither bound could fire).
-                if not self._claim_model_attempt(attempt_provider_id, model):
+                if not self._claim_model_attempt(
+                        attempt_provider_id, model,
+                        holder="structured:" + str(task_type or "?")):
                     logger.info(
                         "Skipping %s/%s: model attempt already in flight",
                         attempt_provider_id, model,
@@ -9332,7 +9361,9 @@ class BYOKHandler:
             _attempt_cost: Optional[float] = None
             try:
                 request_start = datetime.now()
-                if not self._claim_model_attempt(attempt_provider_id, model):
+                if not self._claim_model_attempt(
+                        attempt_provider_id, model,
+                        holder="structured:" + str(task_type or "?")):
                     logger.info(
                         "Skipping %s/%s: model attempt already in flight",
                         attempt_provider_id, model,
