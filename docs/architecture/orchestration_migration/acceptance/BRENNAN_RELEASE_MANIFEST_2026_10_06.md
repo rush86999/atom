@@ -391,12 +391,17 @@ Three ordinary tasks, fresh sessions, zero developer interventions:
 | B calculation (14h service) | ~2 min | 48 s | ~1.2 min | COMPLETE: $2,100, taught formula, durable applied op |
 | C authorized drafting (rows 1-5) | ~12.5 min | 183 s | ~9.5 min | safe no-change: correct refusal to guess; L-24/U-22 confusion avoided; triage delivered |
 
-**Net owner time saved ≈ 14 minutes across three tasks.** 1 task
-complete, 2 partial-but-safe; 0 wrong answers; 0 interventions; 1
-follow-up prompt each for A and C. The recurring defect limiting full
-value is recorded (plain-research sweep misses the Tennsmith row that
-direct probes and the value-trace chaining find) — not fixed; campaign
-closed.
+**≈14 minutes LESS TIME SPENT on the observed attempts** (manual
+baselines vs app+review) — not yet net time saved on three COMPLETED
+tasks: A and C each still need a follow-up prompt plus the remaining
+review/verification work before their savings count as completion
+savings. **No observed incorrect answers in these three trials** — a
+trial observation, not a general reliability claim. 1 task complete,
+2 partial-but-safe; 0 interventions; 1 follow-up each for A and C.
+The recurring defect limiting full value is recorded (plain-research
+sweep misses the Tennsmith row that direct probes and the
+value-trace chaining find) — targeted as a separate completion
+improvement below; the release campaign itself stays closed.
 
 ### Campaign stopped; candidate frozen
 
