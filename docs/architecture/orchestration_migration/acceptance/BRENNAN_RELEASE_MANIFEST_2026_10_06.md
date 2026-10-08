@@ -321,6 +321,72 @@ candidate. Three trials per case, same candidate; every trial reported.
   property it gestures at is separately green. Results:
   `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
 
+## RELEASE CLOSEOUT (2026-10-08 — frozen at 77d331ec0)
+
+Supersedes the final-table row header (table retained below).
+
+### Terminology correction
+
+The applied row-5 value ($8,984.00) is the **TAUGHT WORKBOOK-BASIS
+PRICE**: read from the Tennsmith sheet of 'Consolidated Price List
+2019.xlsx' (content_hash ce61dd3d…, ingested 2026-10-03, source Zoho
+WorkDrive). Its authority is the teaching lesson (4ab35f5860), NOT a
+verified current supplier quote: the corroborating 2026-10-08 vendor
+email verified LEAD TIME only (11–12 weeks), and no supplier price
+confirmation for SLE24-16 was established this campaign. Freshness
+limit: the basis is the saved catalog copy of the workbook — a newer
+source revision supersedes it, and 'read prices from that sheet' is
+the taught rule, not a live-price guarantee.
+
+### Supported capabilities (evidence-backed, frozen candidate)
+
+1. Research → draft handoff: source-bound confirmed-file reads
+   (value-trace chains reads when coverage names the carrier);
+   durable structured findings; receipt-based reuse freshness-labeled.
+2. Authorized drafting: vocabulary-complete authorization (incl.
+   drafting verbs + send-negation), persistent request scope, bounded
+   singleflight telemetry, budget-aware retries with per-boundary
+   failure taxonomy, no-op declines completing truthfully with the
+   planner's own words, assertion-scoped readiness (value
+   introductions evidence-gated; removals authorized by instruction;
+   association rule catches swaps), artifact-level identity
+   preservation (scope guards), exactly-one-update verified with
+   protected manual prices intact, nothing sent.
+3. Truthful failures: structured error codes through to the browser
+   (empty_reply verified in the signed-in UI incl. reload); honest
+   scoped misses; receipts distinguish consulted sources; findings
+   merge no-downgrade across revisions.
+4. Case verdicts (see table below for per-case detail): 1 CLOSED
+   (investigation + no-op completion + one verified authorized
+   mutation); 2 3/3; 3 historical-closed; 4 partial (subject/source
+   proof + manual contract; whole-task ambiguity legs not certified);
+   5 3/3; 6 3/3-with-note; browser empty_reply PASSED.
+
+### Limitations (not certified on 77d331ec0)
+
+- NOT an all-six-cases certification: case 3 is historical on its own
+  chain; case 4's whole-task ambiguity outcome is partial evidence.
+- Edit-planning depends on a serving structured route; under sustained
+  paid-pool credit exhaustion the interactive turn budget can expire
+  before planning (truthful budget-exceeded terminal, durable queue
+  preserved).
+- The empty-narration vs source-read separation is pinned at the unit
+  seam; a live end-to-end receipt-with-empty-narration occurrence was
+  not captured this campaign.
+- Canvas-content column vs audit-projection: reads resolve the audit
+  projection (verified through the public API and browser); tooling
+  that reads the canvases.content column directly sees the fork-time
+  snapshot.
+- Business portability (nonpricing domains) unvalidated — separate
+  task per the completion guide.
+
+### Campaign stopped; candidate frozen
+
+77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
+Next measurement (separate work): Brennan's practical value — owner
+time saved per request, corrections required, and fresh-request
+completion without agent intervention.
+
 ## FINAL RELEASE TABLE (2026-10-08 — case 1 closes with a landed mutation)
 
 Supersedes all prior CURRENT STATUS rows (kept below as dated history).
