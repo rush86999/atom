@@ -9,7 +9,7 @@ candidate. Three trials per case, same candidate; every trial reported.
 
 | Field | Value |
 | --- | --- |
-| Commit | **715c95d6c** (2026-10-08, release owner freeze) — supersedes the 680c3acca/479edaefc series. Chain since 680c3acca: job-work ledger + ledger-driven continuation (8db6f9908); sweep-injection controls + stage-attributed refresh + pricing-verify cross-check (622904302); structured sweep catalog candidates (bea8bf4b5); fresh-session source resolution + inflight TTL (4c7540c20); query_knowledge_graph complexity-1 (481272682); catalog-served pair gate at stream boundary (6d3f8e965); delivery event-ID arbitration + findings-only result revision + recovery pass (c438f99ed/65866f823); item-drop chain closed incl. named-prose extraction + partial-fragment precedence + resolved-mention handoff (d1a7d61d9..341dd6a6b); natural extension-less file resolution by stem equality + verdict-honest ask lane (1d55f0920); empty-reply rewrite reaches the durable row (715c95d6c). Suite health at freeze: 185 passed across finalization/calc-boundary/identity/probe/target-set/empty-item/delivery/ledger suites (backend/tests); known pre-existing failures elsewhere: test_loose_retry_shape_still_matches_but_is_not_authoritative, test_llm_yes_resolves_unknown_generic_noun (verified failing on the clean tree before this chain). Dirty tracked files: frontend .preview-instance farm deletions (another lane's instance farm, not production code) + next-env.d.ts (generated). Prerequisite state: fork 2233f463 intact (8 rows, requested 1–5, alternatives 6–8); trained agent 9837ec71 (Sales Agent) present; lessons present; manual-price approvals: AUTHORIZED BY OWNER DIRECTIVE 2026-10-08 — No. 381's $2,902 (fork row 1 Unit Price) IS the approved manual value for cases 1 and 4; provenance = the owner's correction message of 2026-10-08 (recorded here; no re-ask, no test-only approval). Trials designate it via the runners' supported --manual-cells row1:price flow. Live verified on this candidate pre-freeze: original Cedarberg sentence (extension-less natural name) end-to-end with correct file identity + subject at the scan; empty-stream HTTP persistence (envelope + durable row + clean-restart survival). |
+| Commit | **3c9042225** (2026-10-08 refreeze) — code changed after 715c95d6c, so the candidate moves per the repair-refreeze rule: structured-protocol pair memo + cascade skip; Phase-2 request-bound scope interpretation (interpret_turn_request, request-scope precedence, verbatim reader consumption, extend merge); fresh-install absolute-fallback repair. Earlier-result APPLICABILITY on the new candidate: Cedarberg original-sentence proof (1d55f0920) and empty-stream persistence (715c95d6c) remain valid — those chains are untouched by the later commits. Case trials run BEFORE 6d86ef646 (case 1 T1, case 2 trial 1, case 4 trials 1-2) are superseded FOR SCOPE BEHAVIOR by the request-scope changes and re-run at the next batch; their defect records (routing 400, wrong-item scan) remain the evidence for the repairs that landed. Case 4 trials 5-6 (post-6d86ef646) and case 6 trial 1 (restart/isolation machinery untouched by Phase-2) carry forward but are re-run at the batch per convention. Case 3 stays CLOSED on its recorded chain (no fresh failing reproducer). Pre-freeze chain history for 715c95d6c: — supersedes the 680c3acca/479edaefc series. Chain since 680c3acca: job-work ledger + ledger-driven continuation (8db6f9908); sweep-injection controls + stage-attributed refresh + pricing-verify cross-check (622904302); structured sweep catalog candidates (bea8bf4b5); fresh-session source resolution + inflight TTL (4c7540c20); query_knowledge_graph complexity-1 (481272682); catalog-served pair gate at stream boundary (6d3f8e965); delivery event-ID arbitration + findings-only result revision + recovery pass (c438f99ed/65866f823); item-drop chain closed incl. named-prose extraction + partial-fragment precedence + resolved-mention handoff (d1a7d61d9..341dd6a6b); natural extension-less file resolution by stem equality + verdict-honest ask lane (1d55f0920); empty-reply rewrite reaches the durable row (715c95d6c). Suite health at freeze: 185 passed across finalization/calc-boundary/identity/probe/target-set/empty-item/delivery/ledger suites (backend/tests); known pre-existing failures elsewhere: test_loose_retry_shape_still_matches_but_is_not_authoritative, test_llm_yes_resolves_unknown_generic_noun (verified failing on the clean tree before this chain). Dirty tracked files: frontend .preview-instance farm deletions (another lane's instance farm, not production code) + next-env.d.ts (generated). Prerequisite state: fork 2233f463 intact (8 rows, requested 1–5, alternatives 6–8); trained agent 9837ec71 (Sales Agent) present; lessons present; manual-price approvals: AUTHORIZED BY OWNER DIRECTIVE 2026-10-08 — No. 381's $2,902 (fork row 1 Unit Price) IS the approved manual value for cases 1 and 4; provenance = the owner's correction message of 2026-10-08 (recorded here; no re-ask, no test-only approval). Trials designate it via the runners' supported --manual-cells row1:price flow. Live verified on this candidate pre-freeze: original Cedarberg sentence (extension-less natural name) end-to-end with correct file identity + subject at the scan; empty-stream HTTP persistence (envelope + durable row + clean-restart survival). |
 | Live status (~19:55 UTC) | Freeze b83d772c6-series RETAINED as historical identity; production still 479edaefc. STORAGE RECOVERED: ENOSPC emergency (100%, WAL 46GB) halted via emergency stop; parallel lane cancelled both runaway loops via the owned lifecycle path (runs now terminal); auto-checkpoint on close (WAL 0, integrity ok, 46GB free); ~1.3GB stale backups RELOCATED to Seagate (nothing deleted); server restarted pid 7256 == 0579878b (aligned); 4-min WAL watch quiet (6MB steady) — ticker does NOT resume on terminal runs. Timeout regression BUILT + VALIDATED against both probe sessions (T2 FAIL with cited authority phrases, T1/T3 refuse PASS). NO trials until pool healthy; wording fix + manual cells still open. |
 | Serving source | case 5: isolated acceptance world (snapshot of this tree), backend under the seatbelt profile with provider shim on 127.0.0.1; pid/ports recorded in the run's results JSON. Cases 1-4/6: dev stack, recorded per trial. Backend/frontend code identity verified per trial (no farm/checkout name accepted as serving identity). |
 | Configuration | ATOM_TASK_LIFECYCLE_ENABLED=1, CHAT_FINALIZATION_M1=1, CHAT_FINALIZATION_M2=1 (world launch flags); case 5 model egress = local shim only, never the real account. Cases 1-4/6 use the configured real planner + available authorized connectors; model, flags, source versions, server identity recorded per trial. |
@@ -315,6 +315,38 @@ candidate. Three trials per case, same candidate; every trial reported.
   execution id — one request, one identity); the duplicate-EFFECTS
   property it gestures at is separately green. Results:
   `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
+
+## Fresh-install verification (2026-10-08, native route)
+
+Route: `installer/install-native.sh` + `start.sh` semantics — isolated
+worktree of 6d86ef646, fresh venv (`requirements-py314.txt`),
+installer-semantics `.env` with generated `BYOK_ENCRYPTION_KEY` /
+`JWT_SECRET_KEY`, empty data dir, `--reload` launch per start.sh on
+:8017. No dev DB / keys / lessons / catalog borrowed; admin bootstrapped
+by the app (0600 password file); REAL `/api/auth/login` verified.
+
+Verified working: app startup + `/api/health` on the candidate commit;
+schema created by the app's own create_all; admin bootstrap + real login;
+`/api/ai/providers/ollama/test` OK through the Settings API (5 pulled
+models); after the fallback repair, dispatch reaches
+`ollama/llama3.1:8b`.
+
+Findings (full detail:
+`backend/data/acceptance_worlds/fresh_install_findings_20261008.json`):
+(1) `alembic upgrade head` FAILS on a fresh checkout — six unmerged
+heads; the installer's documented migration step is broken as shipped.
+(2) The installer .env's `SQLITE_PATH=./data/atom.db` is ignored — the
+DB lands at `backend/dev.db`. (3) `/api/ai/providers` lists EMPTY with a
+healthy local provider. (4) Keyless chat turns rendered as "You need an
+AI provider" — REPAIRED this session (absolute fallback hardcoded
+gpt-4o-mini onto the local client; now serves the tier default; pinned
+in test_fresh_install_fallback_model.py). (5) OPEN: even repaired, a
+keyless local-only install cannot chat end-to-end — llama3.1:8b streams
+no tokens and sits below BPC's quality floor (0 ranked candidates). A
+servable key or a floor-clearing local model is a setup INPUT the owner
+supplies; journey steps 3-7 (teaching, ingestion, NL question, restart
+durability, authorized draft) are blocked on it. No credit top-up
+requested — the working-gateway question is recorded here instead.
 
 ## Trial conventions
 
