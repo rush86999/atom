@@ -2535,3 +2535,48 @@ class TestCalculationIdempotencyIdentity:
         ops = [o for o in lc.get_task(run_id)["operations"]
                if o["operation_type"] == "calculate"]
         assert len(ops) == 1
+
+
+class TestNamedProseSubject:
+    """Item-drop regression (2026-10-08 Cedarberg defect): the user's
+    named subject must survive item extraction even when it carries no
+    code-shaped tokens. The code extractor's partial fragment ('a
+    Cedarberg') was filtered out by identity rules, leaving [] — the
+    agent then asked for information the user already supplied."""
+
+    def test_cedarberg_prose_subject_survives(self):
+        from core.target_set_resolution import extract_items_from_text
+
+        items = extract_items_from_text(
+            "Please find the price for a Cedarberg 60-ton press brake "
+            "in the Consolidated Price List 2019 workbook")
+        assert items == ["Cedarberg 60-ton press brake"]
+
+    def test_non_machinery_prose_subject_survives(self):
+        from core.target_set_resolution import extract_items_from_text
+
+        items = extract_items_from_text(
+            "What is the review date for the Site A Expansion plan "
+            "in the project document?")
+        assert items == ["Site A Expansion plan"]
+
+    def test_code_shaped_still_extracts(self):
+        from core.target_set_resolution import extract_items_from_text
+
+        items = extract_items_from_text(
+            "find the price for U-22 in the workbook")
+        assert "U-22" in items
+
+    def test_no_subject_query_stays_empty(self):
+        from core.target_set_resolution import extract_items_from_text
+
+        items = extract_items_from_text("show me the workbook")
+        assert items == []
+
+    def test_generic_lookup_patterns(self):
+        from core.target_set_resolution import extract_items_from_text
+
+        # "look up" pattern
+        items = extract_items_from_text(
+            "look up the review status for the Harmon Transmission audit")
+        assert items == ["Harmon Transmission audit"]
