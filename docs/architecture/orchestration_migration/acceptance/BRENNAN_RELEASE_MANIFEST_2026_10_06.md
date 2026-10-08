@@ -321,6 +321,49 @@ candidate. Three trials per case, same candidate; every trial reported.
   property it gestures at is separately green. Results:
   `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
 
+## CURRENT STATUS (2026-10-08 late — correction batch applied)
+
+Supersedes the night row (kept below as history).
+
+- **Correction 1 (readiness rule):** the monetary-token heuristic is
+  REPLACED by a before/after canonical fact-token comparison (numbers/
+  money, dates, boolean phrases, contract-tracked entity identities):
+  unchanged prices carried by formatting proceed; changed integers,
+  dates and booleans require ready evidence; the comparison is on
+  actual old-vs-new tokens. Pinned: unchanged-price formatting,
+  changed amount, three nonpricing fact changes.
+- **Correction 2 (bounded patch):** the preservation guard is intact;
+  the continuation's retry now carries the refusal verbatim plus a
+  bounded-patch instruction (surgical ops, every identity preserved,
+  no whole-table regeneration).
+- **Correction 3 (source scope):** receipts carry per-hit file!sheet
+  identities and per-subject scope omissions; item-outcome findings
+  merge NO-DOWNGRADE on the same workbook revision (a scoped miss
+  cannot flip an established 'single').
+- **Correction 4 (probe coverage):** every explicit subject's tokens
+  are kept (cap 24) with omissions recorded in the receipt
+  (subject_scope_omitted / subject_scope_unprobed).
+- **Case-4 wording check:** corrected from captured examples
+  (case4_marked_examples_20261008.json) to the owner-approved-value
+  MEANING — the reply must name the value AND mark it approved/manual
+  OR explicitly decline to present it as verified without source;
+  silence fails (both negatives stay failing).
+- **Browser empty_reply check: BLOCKED, recorded precisely.** Backend
+  persistence verified earlier (real HTTP, durable row, restart
+  survival); the frontend structured-failure branch is shipped and
+  typed. The in-browser leg could not complete: the dev frontend's
+  login page renders body{display:none} and bounces every route to
+  /login even with a freshly minted real-login token in token/
+  auth_token/cookies — /api/auth/me returns 200 with the same token,
+  so the API path is healthy and the block is the frontend's own
+  session bootstrap in the automation pane. Filed as a frontend
+  follow-up; not a backend seam.
+- **Trial state:** case-4 trial 14 stands as the subject/source proof
+  (searched '381', receipt recorded, honest miss, value preserved);
+  trial 15 hit planner-degradation (honest reply, flow unchanged).
+  95+98 tests green across the touched suites; the two known
+  pre-existing failures unchanged.
+
 ## CURRENT STATUS (2026-10-08 night — a3157905b)
 
 Supersedes the evening row (kept below as history).
