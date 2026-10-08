@@ -321,6 +321,48 @@ candidate. Three trials per case, same candidate; every trial reported.
   property it gestures at is separately green. Results:
   `backend/data/acceptance_worlds/case6_results_715c95d6c.json`.
 
+## CURRENT STATUS (2026-10-08 research-boundary close — VERDICT)
+
+Supersedes the scheduling-close row (kept below as history).
+
+**REPAIRED WORKBOOK-READ TRANSITION (verified live, trials 14/16):**
+T1's planner had dispatched datasets.value_trace — a COVERAGE map
+that NAMED the workbook carrying each item but read no values
+(source_observations=0). The trace receipt now chains ONE confirmed
+named-file read per covered subject (identity from the trace,
+authorization from the ask): trial 14 returned 5,362 + 4,759 chars of
+actual rows for 381 and U-22 from 'Copy of Consolidated Price List
+2019 - Linmac Update.xlsx'. Persisted findings are reused by the
+drafting turn's fresh-data leg (revision-guarded).
+
+**THE SERVED DECLINE, READ IN FULL (sanctioned capture):** "The draft
+already reflects the approved manual prices and verified
+correspondence; no changes were needed." The no-changes-needed decline
+is now a COMPLETION with the planner's own words as the terminal
+(interactive message + OUTCOME_ALREADY_APPLIED) — no manufactured
+changed-pairs. A second decline captured (253 chars, fp c9791c53f0bb).
+
+**ASSERTION-SCOPED READINESS (gate telemetry-driven):** removal-only
+ops (unassertions — 'leave anything unresolved unasserted') proceed
+under the instruction's authorization; ops that INTRODUCE a value
+token still require ready evidence (trial 16's 60→36 op was correctly
+refused under an empty contract). Pinned both ways.
+
+**CASE 1 VERDICT (current chain):** T1 investigation 7/7 trials green
+on evidence-binding and zero-draft-mutation; T_AUTH completes
+truthfully as no-changes-needed OR is correctly refused when it would
+assert values without contract evidence. THE ONE REMAINING SEAM,
+exactly named: the chained confirmed-file read's structured findings
+reach the reply text but are not yet persisted into the drafting
+turn's evidence contract (trial 16: contract_outcomes=[] while the
+rows were read) — wiring that persistence closes value-asserting
+drafts the same way the no-op path is closed. Drafting trials 8-16
+all retained in the reliability record.
+
+All other verdicts unchanged (2: 3/3; 3: historical; 4: subject/
+source proof + manual contract; 5: 3/3; 6: 3/3-note; browser
+empty_reply PASSED).
+
 ## CURRENT STATUS (2026-10-08 scheduling close — self-starvation RULED OUT)
 
 Supersedes the dispatch-close row (kept below as history).
