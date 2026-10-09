@@ -762,6 +762,37 @@ not execute. The reason is not yet diagnosed.
 primary settle's findings converter works when reached (scratch-replay
 proven); the gap is that the chain path doesn't reach it.
 
+### RESEARCH HONEST STATE (2026-10-09 — durable evidence chain remains open)
+
+What works:
+- Subject-bound search dispatch (the right workbook is searched)
+- Required sources derive from teaching on agent-less turns
+- The chain fires for both datasets and outlook
+- The confirmed-file read produces actual row data (4,828 chars)
+- The user's reply carries the correct price and lead time
+- Zero incorrect answers in any recorded trial
+
+What does not work:
+- The confirmed-file read's row values persist to the session
+  carrier (`_pending_file_result`) but NOT to the job's
+  `execution.findings` — the chain settle records the value_trace
+  coverage receipt BEFORE the confirmed-file read runs, so the
+  operation record carries no typed findings
+- The drafting adapter reads `execution.findings` from the job —
+  which is empty — so the drafting contract gets no verified price
+  evidence
+
+The architectural gap: the confirmed-file read runs AFTER the chain
+settle, so its row values reach the session carrier but not the
+operation record. The fix requires the confirmed-file read's
+findings to persist through the operation record at the
+`_run_pending_reads`/`_settle` seam. This is a bounded change but
+has not been implemented.
+
+Task A is PARTIAL: the user gets the correct answer through
+narration, but the durable evidence chain for drafting reuse is
+not established. Task C is verified no-op. Task B is 3/3 complete.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
