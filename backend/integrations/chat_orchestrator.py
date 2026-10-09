@@ -2677,7 +2677,9 @@ def _search_execution_receipt(
 
 
 def _value_trace_pending_reads(
-        receipt: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        receipt: Optional[Dict[str, Any]],
+        requested_fields: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
     """Per-item PENDING READ actions from a value_trace receipt (round 42).
 
     Discovery is not completion: each item the trace located in a
@@ -2686,7 +2688,9 @@ def _value_trace_pending_reads(
     continuation can dispatch the targeted read without rediscovery.
     Irrelevant discoveries (no coverage) create nothing; dedupe by
     (item, document) — repeated receipts must not multiply actions, and
-    add_unresolved_questions re-dedupes durably by (item, text)."""
+    add_unresolved_questions re-dedupes durably by (item, text).
+    When ``requested_fields`` is given, each question's inputs carry
+    them so the successor row read can bind values (2026-10-09)."""
     coverage = ((receipt or {}).get("receipt") or {}).get(
         "value_trace_coverage") or {}
     questions: List[Dict[str, Any]] = []
@@ -2705,6 +2709,8 @@ def _value_trace_pending_reads(
                     "not yet read"),
                 "evidence": "value_trace coverage",
                 "next_action": f"read {doc} for {item}",
+                **({"requested_fields": list(requested_fields)[:6]}
+                   if requested_fields else {}),
                 # STRUCTURED INPUTS (round 53): stable action identity —
                 # the worker dispatches from these, never from prose.
                 "inputs": {"item": str(item), "file": str(doc),
@@ -14749,10 +14755,6 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # asks keep the empty contract, which
                                     # stays unresolved scope by design.)
                                     _ask_fields: list = []
-                                    if isinstance(shared_tool_state, dict):
-                                        shared_tool_state[
-                                            "ask_requested_fields"
-                                        ] = _ask_fields
                                     try:
                                         from core.workbook_read_artifact import (
                                             extract_field_requests,
@@ -14765,6 +14767,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                             if str(f).strip()][:6]
                                     except Exception:  # noqa: BLE001
                                         _ask_fields = []
+                                    # STASH AFTER DERIVATION: the shared
+                                    # tool state carries the derived fields
+                                    # so the value_trace question spawner
+                                    # and the successor row reads can
+                                    # bind values (2026-10-09).
+                                    if isinstance(shared_tool_state, dict):
+                                        shared_tool_state[
+                                            "ask_requested_fields"
+                                        ] = list(_ask_fields)
                                     _ms_tl_begin = _tlm.begin_retrieval_turn(
                                         _ms_tl,
                                         session if isinstance(
