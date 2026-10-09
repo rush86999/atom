@@ -11658,9 +11658,69 @@ class ChatOrchestrator:
             # NOT evaluated — the canned template text must not be presented as
             # an answer (item 5 of the objective).
             if _legacy_skipped_reason:
-                response["success"] = False
-                response["error_code"] = "turn_budget_exceeded"
-                response["message"] = _turn_budget_error_response()["message"]
+                # SAME receipt/handoff reporting as the R90 envelope
+                # (owner assignment 5.5): when the interactive budget
+                # cannot accommodate the work, the authorized continuation
+                # that was persisted must be the terminal the user sees —
+                # not a bare budget failure for work that is still running.
+                # Observed live 2026-10-09: planning burned 62.9s of a 115s
+                # budget against a quota-exhausted route, the continuation
+                # df04b19c was forked with a 300s budget, and the user was
+                # still told only "ran past its time budget".
+                _ls_background = await _background_work_in_flight(session_id)
+                _ls_receipt: Dict[str, Any] = {}
+                _ls_canvas = str(
+                    ((response.get("data") or {}).get("canvas_edit") or {})
+                    .get("canvas_id") or "")
+                if _ls_canvas and _execution_id:
+                    try:
+                        _ls_receipt = await self._canvas_write_for_operation(
+                            _ls_canvas, session_id, user_id, _execution_id) or {}
+                    except Exception:  # noqa: BLE001 — probe is additive
+                        _ls_receipt = {}
+                _ls_verdict = str(_ls_receipt.get("verdict") or "")
+                if _ls_verdict in ("result_verified", "write_recorded"):
+                    response["success"] = True
+                    response.pop("error_code", None)
+                    response["message"] = (
+                        "Your update is applied on the canvas. This turn "
+                        "ran out of reply time before I could write a "
+                        "summary — the change itself is done.")
+                    response.setdefault("data", {})["budget_recovery"] = {
+                        "write_landed": True, "verdict": _ls_verdict,
+                        "review_status": _ls_receipt.get("review_status"),
+                    }
+                elif _ls_background:
+                    _ls_bg_id = ""
+                    try:
+                        from core.async_turn_continuation import (
+                            continuation_in_flight)
+
+                        _ls_bg_id = str(
+                            continuation_in_flight(session_id) or "")
+                    except Exception:  # noqa: BLE001 — probe is additive
+                        _ls_bg_id = ""
+                    response["success"] = True
+                    response.pop("error_code", None)
+                    response["message"] = (
+                        "This turn ran out of reply time, and the update "
+                        "is still finishing in the background — I will "
+                        "report the result when it lands"
+                        + (f" (task {_ls_bg_id})." if _ls_bg_id else "."))
+                    response.setdefault("data", {})["budget_recovery"] = {
+                        "write_landed": False,
+                        "background_started": True,
+                        "continuation_id": _ls_bg_id or None,
+                    }
+                else:
+                    response["success"] = False
+                    response["error_code"] = "turn_budget_exceeded"
+                    response["message"] = (
+                        _turn_budget_error_response()["message"])
+                    response.setdefault("data", {})["budget_recovery"] = {
+                        "write_landed": False,
+                        "verdict": _ls_verdict or "unverified",
+                    }
                 response["failure_reason"] = _legacy_skipped_reason
                 response["deadline"] = {
                     "elapsed_s": round(_deadline.elapsed(), 1),
@@ -19709,6 +19769,69 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug("job findings for edit skipped: %r", exc)
             return None
 
+    def _lessons_from_taught_agents(
+        self, db: Any, query: str, limit: int,
+    ) -> List[Dict[str, Any]]:
+        """The agent-less teaching fallback body, injectable for tests:
+        read the workspace's agents that carry lessons and merge their
+        teaching (deduped, bounded)."""
+        from core.models import AgentRegistry
+        from core.student_learning_service import get_agent_lessons
+
+        _taught = [
+            str(a.id) for a in (
+                db.query(AgentRegistry).limit(20).all())
+            if ChatOrchestrator._config_has_lessons(a.configuration)
+        ]
+        if not _taught:
+            return []
+        _merged: List[Dict[str, Any]] = []
+        _seen = set()
+        for _aid in _taught[:3]:
+            for _l in get_agent_lessons(db, _aid, query=query, limit=limit):
+                _k = str(_l.get("id") or _l.get("lesson") or "")
+                if _k and _k not in _seen:
+                    _seen.add(_k)
+                    _merged.append(_l)
+        return _merged[:limit + 5]
+
+    @staticmethod
+    def _config_has_lessons(configuration: Any) -> bool:
+        """Does this agent's configuration carry teaching? Takes the
+        CONFIG VALUE (the registry stores it as a JSON string), so the
+        taught-agent scan does not re-query per id."""
+        try:
+            import json as _json
+            _cfg = configuration
+            if isinstance(_cfg, str):
+                _cfg = _json.loads(_cfg)
+            _log = ((_cfg or {}).get("learning") or {}).get("log") or []
+            return bool(_log)
+        except Exception:  # noqa: BLE001 — probe is best-effort
+            return False
+
+    @staticmethod
+    def _agent_has_lessons(agent_id: str) -> bool:
+        """Cheap existence check for the agent-less teaching fallback."""
+        try:
+            import json as _json
+            from core.database import get_db_session
+            from core.models import AgentRegistry
+
+            with get_db_session() as db:
+                row = db.query(
+                    AgentRegistry.configuration).filter(
+                    AgentRegistry.id == agent_id).first()
+            if not row or not row[0]:
+                return False
+            _cfg = row[0]
+            if isinstance(_cfg, str):
+                _cfg = _json.loads(_cfg)
+            _log = ((_cfg or {}).get("learning") or {}).get("log") or []
+            return bool(_log)
+        except Exception:  # noqa: BLE001 — fallback probe is best-effort
+            return False
+
     def _agent_lessons(self, agent_id: Optional[str], query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """The operating hire's PERMANENT taught lessons (TrainingPanel /teach,
         mentor lessons, observed human corrections) for the edit plan. Teaching
@@ -19717,7 +19840,26 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         every canvas app. Fault-isolated like the corrections lookup: [] on
         any failure, never blocks the edit."""
         if not agent_id:
-            return []
+            # TEACHING FALLBACK FOR AGENT-LESS TURNS (2026-10-09 value
+            # trial): a plain chat request carries no agent_id, so the
+            # lessons lookup returned [] — and with it the required-
+            # source derivation ('price list 2019 in zoho workdrive…')
+            # returned EMPTY, the planner-boundary chaining never fired,
+            # and the free planner routed the workbook check to memory/
+            # zoho instead of the subject-bound catalog lookup (live
+            # A3: required=[] while taught lessons name both sources).
+            # The fallback reads the hire's teaching from the agents
+            # that HAVE lessons in this workspace — scoped, read-only,
+            # and only when the turn names no hire of its own.
+            try:
+                from core.database import get_db_session
+
+                with get_db_session() as db:
+                    return self._lessons_from_taught_agents(
+                        db, query, limit)
+            except Exception as e:
+                logger.debug(f"agent lessons fallback skipped: {e}")
+                return []
         try:
             from core.database import get_db_session
             from core.student_learning_service import get_agent_lessons

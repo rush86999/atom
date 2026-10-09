@@ -299,6 +299,73 @@ def test_findings_without_actions_carry_no_mutation_authority():
         "into an applicable action")
 
 
+def test_agent_less_turn_still_derives_required_sources():
+    """The value-trial seam: a plain chat request carries NO agent_id —
+    the lessons lookup used to return [] (and required-sources stayed
+    empty, so the planner-boundary chaining never fired and the
+    workbook check routed to memory). The teaching fallback reads from
+    the workspace's agents WITH lessons. Pinned against an INJECTED
+    registry session (test DB has no teaching)."""
+    import json
+    import integrations.chat_orchestrator as orch_mod
+
+    orch = orch_mod.ChatOrchestrator.__new__(orch_mod.ChatOrchestrator)
+
+    class _Agent:
+        def __init__(self, aid, cfg):
+            self.id = aid
+            self.configuration = cfg
+
+    _LESSON = {"id": "l1", "lesson": "price list 2019 in zoho workdrive "
+               "has the most common formulas"}
+
+    class _Query:
+        def __init__(self, agents):
+            self._agents = agents
+
+        def limit(self, n):
+            return self
+
+        def all(self):
+            return self._agents
+
+    class _DB:
+        def __init__(self, agents):
+            self._agents = agents
+
+        def query(self, *a, **k):
+            return _Query(self._agents)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    db = _DB([
+        _Agent("hire-1", json.dumps({"learning": {"log": [_LESSON]}})),
+        _Agent("hire-2", json.dumps({"learning": {"log": []}})),
+    ])
+
+    def _fake_gl(db, aid, query=None, limit=5):
+        return ([_LESSON] if aid == "hire-1" else [])
+
+    import core.student_learning_service as sls
+    orig_gl = sls.get_agent_lessons
+    sls.get_agent_lessons = _fake_gl
+    try:
+        out = orch._lessons_from_taught_agents(db, "price basis", 5)
+    finally:
+        sls.get_agent_lessons = orig_gl
+    assert out, "the fallback must read teaching from agents that have it"
+    assert "price list" in str(out[0].get("lesson"))
+
+    # and the required-source derivation consumes it
+    req = orch._required_research_sources(
+        agent_id=None, message="check the price list workbook")
+    assert isinstance(req, set)
+
+
 def test_swapped_prices_require_ready_evidence():
     """Token equality is not fact equality: swapping two rows' prices
     preserves the value BAG but changes both associations — the
