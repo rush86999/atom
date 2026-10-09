@@ -373,3 +373,42 @@ class TestResponseOutcomeSeparation:
         malformed = bool(list(plan.ops or [])
                          or (plan.updated_content_json or "").strip())
         assert (C.MALFORMED if malformed else C.SERVED_DECLINE) == C.MALFORMED
+
+
+class TestBudgetTerminalReportsTheHandoff:
+    """Owner assignment 5.5: when the interactive budget cannot accommodate
+    the work, the persisted authorized continuation is the terminal the
+    user sees — not a bare budget failure for work still running.
+
+    Live 2026-10-09: planning burned 62.9s of a 115s budget against a
+    quota-exhausted route, continuation df04b19c was forked with a 300s
+    budget, and the user was still told only "ran past its time budget".
+    """
+
+    def test_both_budget_terminals_consult_the_receipt_and_handoff(self):
+        import inspect
+
+        from integrations import chat_orchestrator as co
+
+        src = inspect.getsource(co.ChatOrchestrator.process_chat_message)
+        # The legacy-fallback budget branch must apply the same reporting
+        # as the R90 branch: receipt first, then the background handoff.
+        at = src.index("if _legacy_skipped_reason:")
+        block = src[at:at + 4200]
+        assert "_background_work_in_flight" in block, (
+            "the budget terminal must consult the background handoff")
+        assert "_canvas_write_for_operation" in block, (
+            "the budget terminal must consult the operation receipt")
+        assert "background_started" in block, (
+            "an in-flight continuation must be reported as such")
+
+    def test_a_forked_continuation_is_not_a_bare_budget_failure(self):
+        import inspect
+
+        from integrations import chat_orchestrator as co
+
+        src = inspect.getsource(co.ChatOrchestrator.process_chat_message)
+        at = src.index("if _legacy_skipped_reason:")
+        block = src[at:at + 4200]
+        assert "still finishing in the background" in block, (
+            "the truthful handoff status must reach the user")

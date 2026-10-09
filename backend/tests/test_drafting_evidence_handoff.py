@@ -718,3 +718,64 @@ class TestAgentIdentityIsThreadedAtTheCallSite:
         assert "agent_id" in call, (
             "the drafting evidence adapter must be given the acting "
             f"agent identity at the call site; it currently reads: {call!r}")
+
+
+class TestHeaderEvidenceReachesThePlannerWithoutAJOB:
+    """Guide direction 1 + 4: header evidence is a TEACHING artifact, not a
+    job-ledger artifact. Verified separately:
+      - CC from applicable teaching + established contact identities
+      - To/Subject from the relevant verified correspondence
+      - missing identities stay UNRESOLVED (never guessed)
+    The demonstrated reason the planner declined was that required header
+    changes were ABSENT FROM ITS INPUT: the adapter returned None before
+    gathering teaching whenever no task record bound the canvas (and no
+    task in the ledger binds any canvas).
+    """
+
+    def _findings(self, lessons):
+        orch = chat.ChatOrchestrator.__new__(chat.ChatOrchestrator)
+        orch.tenant_id = "default"
+
+        def fake(db, aid, **kw):
+            return list(lessons)
+
+        with patch.object(chat, "_task_lifecycle_for",
+                          return_value=_tl_returning(None)), \
+             patch("core.student_learning_service.get_agent_lessons",
+                   fake):
+            return orch._canvas_job_findings(
+                "u1", {"canvas_id": "cv-n"}, {"id": "s"},
+                "prepare the draft", agent_id="agent-alpha")
+
+    def test_cc_rule_and_identified_contacts_resolve(self):
+        out = self._findings([
+            {"lesson": "all sales quote should cc with chandrakant and vipul"},
+            {"lesson": 'Supervisor corrected my work: {"to": "Wayne Knott '
+                       '<wayne.knott@belden.com>", "cc": "Vipul '
+                       '<vipul@brennan.ca>, Chandrakant '
+                       '<chandrakant@brennan.ca>", "subject": "Quote"}'},
+        ])
+        assert out is not None, (
+            "teaching must reach the planner even with no job record")
+        cc = " ".join(out.get("resolved_cc") or [])
+        assert "vipul@brennan.ca" in cc and "chandrakant@brennan.ca" in cc, (
+            f"established contact identities must resolve: {cc!r}")
+        assert any("cc rule" in str(r).lower()
+                   for r in (out.get("taught_rules") or [])), out
+
+    def test_missing_identities_are_an_obligation_not_a_guess(self):
+        out = self._findings([
+            {"lesson": "all sales quote should cc with chandrakant and vipul"},
+        ])
+        assert not (out.get("resolved_cc") or []), (
+            "no address may be invented: "
+            f"{out.get('resolved_cc')}")
+        obligation = " ".join(out.get("header_candidates") or [])
+        assert "UNRESOLVED" in obligation, (
+            f"a missing identity is a precise obligation: {obligation!r}")
+        assert "vipul" not in obligation.split("UNRESOLVED")[0].lower() or (
+            "@" not in obligation), (
+            f"the obligation must not carry a guessed address: {obligation!r}")
+
+    def test_no_teaching_means_no_section(self):
+        assert self._findings([]) is None

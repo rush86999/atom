@@ -104,9 +104,27 @@ def figures_near_label(content: str, label: str,
 
 
 def canvas_content(db: Path, canvas_id: str) -> str:
-    rows = L.sqlite_select(
-        db, "SELECT content FROM canvases WHERE id=?", (canvas_id,))
-    return rows[0][0] if rows else ""
+    """The canvas body as the operator SEES it.
+
+    Was: ``SELECT content FROM canvases`` — the ACCEPTED snapshot column.
+    That column is not the rendered state. ``update_canvas_content``
+    deliberately does not mirror a ``pending_review`` row into it, so on a
+    canvas whose newest write is still under review the snapshot holds the
+    PRE-edit body and reports the edit as missing while the browser renders
+    it. Every preservation assertion built on it was proving the wrong
+    thing (fork 2233f463, 2026-10-08: snapshot $8,880.00 + empty header,
+    API $8,984.00 + subject/cc filled).
+
+    Now reads the authoritative projection the public canvas API serves.
+    See ``acceptance_trial_lib.canvas_projection``.
+    """
+    return L.canvas_projection(db, canvas_id)["text"]
+
+
+def canvas_projection(db: Path, canvas_id: str) -> Dict[str, Any]:
+    """Same projection plus the review-state semantics (review_status,
+    source, and whether the accepted snapshot has fallen behind)."""
+    return L.canvas_projection(db, canvas_id)
 
 
 def check_fixtures(base: str, db: Path) -> Dict[str, Any]:
@@ -139,7 +157,53 @@ def check_fixtures(base: str, db: Path) -> Dict[str, Any]:
         "operator designates --manual-cells at --authorize time; "
         "unresolved-commitment check is textual (TBD/TBC/unasserted "
         "markers preserved, no new definitive claims without evidence)")
+    out["checks"].update(_projection_checks(base, db, token, fork))
     return out
+
+
+def _projection_checks(base: str, db: Path, token: str,
+                       fork: str) -> Dict[str, Any]:
+    """Snapshot-versus-projection pin, and a live agreement check against
+    the public canvas API.
+
+    Both exist so a preservation assertion can never again be computed
+    against the wrong body without the runner saying so.
+    """
+    import re as _re
+
+    proj = canvas_projection(db, fork)
+    money = _re.findall(r"\$\s?[\d,]+(?:\.\d+)?", proj.get("body") or "")
+    snap_money = _re.findall(r"\$\s?[\d,]+(?:\.\d+)?",
+                             proj.get("snapshot_text") or "")
+    checks: Dict[str, Any] = {
+        "projection_source": proj.get("source"),
+        "projection_review_status": proj.get("review_status"),
+        "snapshot_vs_projection_diverge": bool(
+            proj.get("diverges_from_snapshot")),
+        "snapshot_money": snap_money,
+        "projection_money": money,
+        "preservation_reads_the_projection": proj.get("source") != "snapshot",
+    }
+    # The projection is only trustworthy if it IS the public projection.
+    try:
+        import httpx
+        r = httpx.get(f"{base}/api/canvas/{fork}",
+                      headers={"Authorization": f"Bearer {token}"},
+                      timeout=30, trust_env=False)
+        doc = r.json() if r.status_code == 200 else {}
+        c = doc.get("content") or {}
+        api_body = (c.get("body") or "") if isinstance(c, dict) else str(c)
+        checks["projection_matches_public_api"] = bool(
+            r.status_code == 200
+            and api_body == (proj.get("body") or "")
+            and (c.get("cc") or "") == proj.get("cc")
+            and (c.get("subject") or "") == proj.get("subject")
+            and doc.get("review_status") == proj.get("review_status"))
+        checks["public_api_review_status"] = doc.get("review_status")
+    except Exception as exc:  # noqa: BLE001 — reported, never swallowed
+        checks["projection_matches_public_api"] = (
+            f"{type(exc).__name__}: {exc}")
+    return checks
 
 
 def load_results(path: str) -> Dict[str, Any]:

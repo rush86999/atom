@@ -237,6 +237,28 @@ def _bounded_text(value: Any, limit: int) -> str:
     return str(value or "")[:limit]
 
 
+def _bounded_nested(value: Any, *, depth: int = 0) -> Any:
+    """Bound a nested diagnostic payload without minting a log dump.
+
+    Lists keep at most 12 entries, dicts at most 20 keys, strings 200
+    chars, and nesting stops at depth 3. Anything cut is cut — this
+    helper does not try to summarize, because a summary would be a
+    claim the record cannot support."""
+    if depth > 3:
+        return "…"
+    if isinstance(value, dict):
+        return {
+            str(k)[:40]: _bounded_nested(v, depth=depth + 1)
+            for k, v in list(value.items())[:20]}
+    if isinstance(value, (list, tuple)):
+        return [_bounded_nested(v, depth=depth + 1) for v in list(value)[:12]]
+    if isinstance(value, str):
+        return value[:200]
+    if value is None or isinstance(value, (int, float, bool)):
+        return value
+    return str(value)[:200]
+
+
 def new_task_revision(
     *,
     objective_text: str,
@@ -693,6 +715,39 @@ def normalize_execution_facts(raw: Any) -> Dict[str, Any]:
     requested_fields = ([str(f)[:120] for f in rf_raw[:12]]
                         if isinstance(rf_raw, list) else None)
     idc = raw.get("identity_context")
+    # FOUR-LAYER ROW-READ CAPTURE (2026-10-09 owner assignment): a
+    # first-failed boundary is a DIFFERENCE BETWEEN LAYERS, so every
+    # layer has to be on the record. The CLAIMED layer already rides
+    # above (attempted_candidates / requested_fields /
+    # identity_context — the dispatch projection). What was missing:
+    #   stored   — the question's ``inputs`` dict exactly as persisted,
+    #              before any dispatch projection rewrites it;
+    #   executor — what the read ACTUALLY received after resolution
+    #              (the file the catalog resolved to, the identity
+    #              context after entity enrichment, the resolved
+    #              FieldSpecs, and the serving copy's identity).
+    # The RECEIPT is this whole dict. Bounded like every other
+    # diagnostic: the record states observed facts, never a log dump.
+    stored_raw = raw.get("stored_inputs")
+    stored = None
+    if isinstance(stored_raw, list):
+        stored = []
+        for s in stored_raw[:12]:
+            if isinstance(s, dict):
+                stored.append({
+                    str(k)[:40]: (str(v)[:200] if not isinstance(
+                        v, (dict, list)) else _bounded_nested(v))
+                    for k, v in list(s.items())[:20]})
+    exec_raw = raw.get("executor_inputs")
+    executor = None
+    if isinstance(exec_raw, dict):
+        executor = {}
+        for k, v in list(exec_raw.items())[:20]:
+            key = str(k)[:40]
+            if isinstance(v, (dict, list)):
+                executor[key] = _bounded_nested(v)
+            else:
+                executor[key] = str(v)[:200] if v is not None else None
     return {
         "invoked": invoked,
         "outcome": outcome,
@@ -707,6 +762,8 @@ def normalize_execution_facts(raw: Any) -> Dict[str, Any]:
         "attempted_candidates": attempted,
         "requested_fields": requested_fields,
         "identity_context": str(idc)[:200] if idc else None,
+        "stored_inputs": stored,
+        "executor_inputs": executor,
         "at": _utc_now_iso(),
     }
 

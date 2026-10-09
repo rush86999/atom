@@ -249,3 +249,183 @@ def history_texts(base: str, token: str, sid: str) -> List[str]:
 
 def utcnow() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())
+
+
+# ---------------------------------------------------------------------------
+# Authoritative canvas projection
+# ---------------------------------------------------------------------------
+# `canvases.content` is NOT the state a user sees. It is the ACCEPTED
+# snapshot: update_canvas_content deliberately does not mirror a
+# pending_review row into it (docstring: "Pending content remains readable
+# from the audit trail but is not mirrored into the accepted
+# `canvases.content` snapshot"). The audit trail IS the source of truth —
+# tools.canvas_crud_tool.read_canvas says so and builds the public
+# GET /api/canvas/{id} response from it.
+#
+# A preservation assertion computed from `canvases.content` therefore proves
+# nothing about what the operator sees: on a canvas whose newest write is
+# still under review the snapshot holds the pre-edit body and reports the
+# edit as "not preserved", while the browser renders the edit correctly.
+# Observed live on fork 2233f463 (2026-10-08): the accepted snapshot still
+# read $8,880.00 with an empty header while the API served $8,984.00 with
+# subject + cc filled.
+#
+# Everything below reads sqlite in mode=ro only. No ORM, no writes.
+
+CANVAS_EVENT_ACTIONS = ("email_send", "email_send_attempt")
+
+
+def canvas_projection(db: Path, canvas_id: str) -> Dict[str, Any]:
+    """The authoritative canvas state: the same projection the public canvas
+    API serves (``tools.canvas_crud_tool.read_canvas``), reimplemented as
+    read-only sqlite SELECTs.
+
+    Projection order, mirroring read_canvas exactly:
+
+      1. newest ``canvas_audit`` row (``created_at DESC, id DESC``)
+      2. if that row carries no ``content``/``data`` key it is an EVENT
+         stamp (send attempt, attach, …): scan back over the 10 rows
+         beneath it for the newest one that does carry a body
+      3. only if NO content-bearing row exists fall back to the
+         ``canvases.content`` column (legacy canvases predating the trail)
+      4. email draft-state read: a served dict whose ``body`` is blank while
+         ``details["draft"]["body"]`` is not means the draft IS the body
+      5. ``coerce_email_canvas`` unless the type is user-pinned
+
+    Also carries the review-state: ``review_status`` from the row that
+    supplied the body, so a caller can tell "the accepted snapshot moved"
+    from "a proposal is readable but not yet accepted".
+    """
+    import json as _json
+
+    from core.chat_draft_classifier import coerce_email_canvas
+
+    rows = sqlite_select(
+        db, "SELECT id, action_type, canvas_type, details_json, created_at "
+            "FROM canvas_audit WHERE canvas_id=? "
+            "ORDER BY created_at DESC, id DESC LIMIT 11", (canvas_id,))
+    if not rows:
+        return {"success": False, "error": f"Canvas {canvas_id} not found",
+                "canvas_id": canvas_id}
+
+    def _details(raw: Any) -> Dict[str, Any]:
+        if isinstance(raw, dict):
+            return raw
+        if not raw:
+            return {}
+        try:
+            return _json.loads(raw)
+        except Exception:  # noqa: BLE001 — a malformed row must not kill a read
+            return {}
+
+    newest_id, newest_action, newest_type, newest_raw, newest_at = rows[0]
+    if newest_action == "delete":
+        return {"success": False, "deleted": True,
+                "error": "Canvas has been deleted", "canvas_id": canvas_id}
+
+    details = _details(newest_raw)
+    audit_canvas_type = newest_type
+    content_audit_id, content_at = newest_id, newest_at
+
+    def _body_of(d: Dict[str, Any]) -> tuple:
+        if "content" in d:
+            return d.get("content"), True
+        if "data" in d:
+            return d.get("data"), True
+        return None, False
+
+    raw_content, has_key = _body_of(details)
+    if raw_content is None and not has_key:
+        # EVENT stamp — walk back to the newest row that carries a body.
+        for rid, ract, rtype, rraw, rat in rows[1:11]:
+            rd = _details(rraw)
+            cand, cand_has = _body_of(rd)
+            if not cand_has:
+                continue
+            if details.get("type_pinned"):
+                rd = {**rd, "type_pinned": details["type_pinned"]}
+            details = rd
+            raw_content = cand
+            audit_canvas_type = rtype
+            content_audit_id, content_at = rid, rat
+            break
+
+    source = "audit"
+    if raw_content is None and not has_key:
+        # LEGACY: no content-bearing row anywhere in the recent trail.
+        snap = sqlite_select(
+            db, "SELECT content FROM canvases WHERE id=?", (canvas_id,))
+        if snap and snap[0][0] is not None:
+            raw = snap[0][0]
+            try:
+                raw_content = _json.loads(raw) if isinstance(raw, str) else raw
+            except Exception:  # noqa: BLE001
+                raw_content = raw
+            source = "snapshot"
+        content_audit_id, content_at = None, None
+
+    content = raw_content if raw_content is not None else details
+
+    # EMAIL DRAFT-STATE READ (mirrors read_canvas): a blank served body with
+    # a non-empty details["draft"]["body"] means the draft IS the content.
+    try:
+        draft = details.get("draft")
+        if (
+            isinstance(content, dict)
+            and isinstance(draft, dict)
+            and isinstance(content.get("body"), str)
+            and not content.get("body").strip()
+            and str(draft.get("body") or "").strip()
+        ):
+            content = {
+                **content,
+                "body": draft.get("body"),
+                "subject": content.get("subject") or draft.get("subject") or "",
+                "to": content.get("to") or ", ".join(draft.get("to_emails") or []),
+            }
+            source = "audit+draft"
+    except Exception:  # noqa: BLE001 — read normalization only
+        pass
+
+    pinned = bool(details.get("type_pinned"))
+    if pinned:
+        canvas_type = audit_canvas_type
+    else:
+        canvas_type, content = coerce_email_canvas(audit_canvas_type, content)
+
+    body = content.get("body") if isinstance(content, dict) else str(content or "")
+    text = content if isinstance(content, str) else _json.dumps(content)
+
+    snap_row = sqlite_select(
+        db, "SELECT content FROM canvases WHERE id=?", (canvas_id,))
+    snapshot_raw = snap_row[0][0] if snap_row else ""
+    try:
+        snapshot_obj = (_json.loads(snapshot_raw)
+                        if isinstance(snapshot_raw, str) and snapshot_raw
+                        else snapshot_raw)
+    except Exception:  # noqa: BLE001
+        snapshot_obj = snapshot_raw
+    snapshot_text = (snapshot_raw if isinstance(snapshot_raw, str)
+                     else _json.dumps(snapshot_obj))
+
+    return {
+        "success": True,
+        "canvas_id": canvas_id,
+        "content": content,
+        "text": text,
+        "body": body or "",
+        "to": (content.get("to") if isinstance(content, dict) else "") or "",
+        "cc": (content.get("cc") if isinstance(content, dict) else "") or "",
+        "subject": (content.get("subject") if isinstance(content, dict) else "") or "",
+        "canvas_type": canvas_type,
+        "title": details.get("title"),
+        "action_type": newest_action,
+        "audit_id": content_audit_id,
+        "operation_id": details.get("operation_id"),
+        "review_status": details.get("review_status", "unknown"),
+        "created_at": content_at,
+        "source": source,
+        "type_pinned": pinned,
+        "snapshot_text": snapshot_text,
+        "diverges_from_snapshot": snapshot_text != text,
+    }
