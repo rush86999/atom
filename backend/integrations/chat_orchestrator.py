@@ -2506,6 +2506,52 @@ def _job_scope_items(
         return [], "unresolved"
 
 
+def _findings_from_datasets_receipt(
+        receipt: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Typed findings from a datasets sweep receipt (owner correction
+    2026-10-09, boundary 1-2: dispatch is not retrieval, and a
+    successful retrieval that never persists leaves the job
+    findings-less — the drafting adapter then reads nothing and the
+    turn answers from narration memory). Each hit's rows become
+    findings carrying item, field, value, source file/sheet, content
+    hash and ingested timestamp — the exact association the evidence
+    contract requires."""
+    out: List[Dict[str, Any]] = []
+    try:
+        for hit in (receipt.get("datasets_search") or {}).get("_hits") or []:
+            for row in (hit or {}).get("rows") or []:
+                if not isinstance(row, dict):
+                    continue
+                item = ""
+                value = ""
+                for k, v in row.items():
+                    kl = str(k).upper()
+                    if "MODEL" in kl and not item and str(v).strip():
+                        item = str(v).strip()
+                    if "PRICE" in kl and not value and str(v).strip():
+                        value = str(v).strip()
+                if not item or not value:
+                    continue
+                out.append({
+                    "item": item[:120],
+                    "field": "price",
+                    "value": value[:40],
+                    "source_file_name": str(
+                        (hit or {}).get("file_name") or "")[:160],
+                    "sheet": str((hit or {}).get("entity_name")
+                                  or (hit or {}).get("sheet") or "")[:80],
+                    "content_hash": str(
+                        (hit or {}).get("content_hash") or "")[:64],
+                    "ingested_at": str(
+                        (hit or {}).get("ingested_at") or "")[:40],
+                })
+                if len(out) >= 12:
+                    return out
+    except Exception:  # noqa: BLE001 — findings are additive
+        return []
+    return out
+
+
 def _search_execution_receipt(
         plan: Any, block: Optional[str]) -> Dict[str, Any]:
     """Separate DISPATCH and RETRIEVAL facts for a search-shaped execution
@@ -14932,6 +14978,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     or _ms_meta_all.get("workbook_read"))
                                 if not isinstance(_ms_structured, dict):
                                     _ms_structured = None
+                                _ms_findings = (
+                                    _findings_from_datasets_receipt(
+                                        _ms_receipt.get("receipt") or {}))
                                 _ms_execution = {
                                     "invoked": _ms_invoked,
                                     "outcome": _ms_outcome,
@@ -14942,6 +14991,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         else "none"),
                                     "failure_stage": _ms_stage,
                                     "planning": _ms_planning,
+                                    "findings": _ms_findings,
                                     "items": {
                                         str((t or {}).get("item") or ""):
                                             str(((t or {}).get("identity")
@@ -19785,6 +19835,55 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         ]
         if not _taught:
             return []
+        # AUTHORITY SCOPE (owner correction 2026-10-09): merging teaching
+        # from "top taught agents" is NOT a general authority rule —
+        # different hires may carry conflicting protocols. An agent-less
+        # turn uses ONE deterministic scope: the workspace's SINGLE
+        # agent with teaching when only one exists; when several do, the
+        # teaching of the hire whose lessons DESIGNATE the sources this
+        # derivation needs is used only if exactly one such hire exists;
+        # otherwise ambiguity stays explicit (no merged rules).
+        if len(_taught) > 1:
+            _designating: List[str] = []
+            for _aid in _taught:
+                _text = " ".join(
+                    str(l.get("lesson") or l.get("content") or "")
+                    for l in get_agent_lessons(
+                        db, _aid, query=query, limit=30))
+                if re.search(
+                        r"\b(?:workbook|price\s+lists?|spreadsheet|"
+                        r"xlsx?|workdrive)\b|\b(?:e-?mail|correspondence|"
+                        r"inbox|thread)s?\b",
+                        _text, re.IGNORECASE):
+                    _designating.append(_aid)
+            if len(_designating) == 1:
+                _taught = _designating
+            else:
+                # Several hires designate — merge only if their teaching
+                # is the SAME corpus (shared training), which is one
+                # authority under several names. Genuinely DIFFERENT
+                # teachings stay explicit: no silent merge of unrelated
+                # business rules (owner correction 2026-10-09).
+                _corpora = set()
+                for _aid in _designating:
+                    _ids = tuple(sorted(
+                        str(l.get("id") or "")[:16]
+                        for l in get_agent_lessons(
+                            db, _aid, query=query, limit=30)))
+                    _corpora.add(_ids)
+                if len(_corpora) == 1:
+                    logger.info(
+                        "[teaching-fallback] %d designating hires share "
+                        "ONE teaching corpus — single authority",
+                        len(_designating))
+                    _taught = _designating[:1]
+                else:
+                    logger.info(
+                        "[teaching-fallback] %d taught agents designate "
+                        "sources with DIFFERENT corpora — ambiguity "
+                        "stays explicit; teaching not merged",
+                        len(_corpora))
+                    return []
         _merged: List[Dict[str, Any]] = []
         _seen = set()
         for _aid in _taught[:3]:

@@ -366,6 +366,93 @@ def test_agent_less_turn_still_derives_required_sources():
     assert isinstance(req, set)
 
 
+def test_datasets_receipt_findings_persist_association():
+    """B1 (owner correction 2026-10-09): dispatch is not retrieval, and
+    retrieval that never persists leaves the job findings-less. The
+    receipt's hit digest converts to typed findings carrying the full
+    association (item, field, value, file, sheet, hash, ingested)."""
+    from integrations.chat_orchestrator import (
+        _findings_from_datasets_receipt)
+
+    receipt = {"datasets_search": {"_hits": [{
+        "file_name": "Consolidated Price List 2019.xlsx",
+        "entity_name": "Tennsmith",
+        "content_hash": "ce61dd3d40cac",
+        "ingested_at": "2026-10-03T01:34:18",
+        "rows": [{"MODEL NO.": "SLE24-16", "PRICE": "8984"}],
+    }]}}
+    fnd = _findings_from_datasets_receipt(receipt)
+    assert fnd and fnd[0]["item"] == "SLE24-16"
+    assert fnd[0]["value"] == "8984"
+    assert fnd[0]["source_file_name"] == "Consolidated Price List 2019.xlsx"
+    assert fnd[0]["sheet"] == "Tennsmith"
+    assert fnd[0]["content_hash"] == "ce61dd3d40cac"
+    assert fnd[0]["field"] == "price"
+    # no digest / prose-only -> no findings fabricated
+    assert _findings_from_datasets_receipt({"datasets_search": {}}) == []
+    assert _findings_from_datasets_receipt({}) == []
+
+
+def test_teaching_fallback_authority_rules():
+    """B2 (owner correction 2026-10-09): agent-less turns use ONE
+    deterministic scope — a single designating hire, or several hires
+    sharing ONE corpus (same training); genuinely different corpora stay
+    explicit (no silent merge)."""
+    import json
+    import integrations.chat_orchestrator as orch_mod
+
+    orch = orch_mod.ChatOrchestrator.__new__(orch_mod.ChatOrchestrator)
+
+    class _Agent:
+        def __init__(self, aid, lessons):
+            self.id = aid
+            self.configuration = json.dumps(
+                {"learning": {"log": lessons}})
+
+    class _Query:
+        def __init__(self, agents):
+            self._a = agents
+        def limit(self, n):
+            return self
+        def all(self):
+            return self._a
+
+    class _DB:
+        def __init__(self, agents):
+            self._a = agents
+        def query(self, *a, **k):
+            return _Query(self._a)
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            return False
+
+    L_A = [{"id": "a1", "lesson": "price list workbook is the basis"}]
+    L_B = [{"id": "b1", "lesson": "NEVER use the price list; email only"}]
+
+    def run(agents):
+        db = _DB(agents)
+        def gl(db, aid, query=None, limit=30):
+            m = {"h1": L_A, "h2": L_A, "h3": L_B}
+            return m.get(aid, [])
+        import core.student_learning_service as sls
+        orig = sls.get_agent_lessons
+        sls.get_agent_lessons = gl
+        try:
+            return orch._lessons_from_taught_agents(db, "price", 5)
+        finally:
+            sls.get_agent_lessons = orig
+
+    # several hires, SAME corpus -> single authority, teaching returned
+    out = run([_Agent("h1", L_A), _Agent("h2", L_A)])
+    assert out, "same-corpus designating hires are one authority"
+    # genuinely different corpora -> explicit ambiguity, nothing merged
+    out2 = run([_Agent("h1", L_A), _Agent("h3", L_B)])
+    assert out2 == [], (
+        "different teachings must stay explicit — no silent merge of "
+        "conflicting business rules")
+
+
 def test_swapped_prices_require_ready_evidence():
     """Token equality is not fact equality: swapping two rows' prices
     preserves the value BAG but changes both associations — the

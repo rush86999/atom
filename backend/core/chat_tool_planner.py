@@ -7359,6 +7359,19 @@ async def _datasets_search_block(
             _meta["datasets_search"] = {
                 "files_searched": int(files_searched or 0),
                 "hits": len(hits),
+                # HIT DIGEST (owner correction 2026-10-09): the receipt
+                # carried only a COUNT — retrieval success could not
+                # persist as findings because the hit objects never rode
+                # the receipt. Bounded, association-complete rows only.
+                "_hits": [
+                    {"file_name": (h or {}).get("file_name"),
+                     "entity_name": (h or {}).get("entity_name")
+                       or (h or {}).get("sheet"),
+                     "content_hash": (h or {}).get("content_hash"),
+                     "ingested_at": (h or {}).get("ingested_at"),
+                     "rows": (h or {}).get("rows") or []}
+                    for h in (hits or [])[:3]
+                ],
                 "tokens_tried": [
                     str(t)[:60]
                     for t in ((result or {}).get("tokens_tried") or [])][:8],
