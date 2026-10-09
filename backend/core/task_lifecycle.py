@@ -1917,6 +1917,22 @@ def _resolve_or_create(lifecycle: "TaskLifecycle",
     with _creation_guard():
         record = _resolve_for_turn(lifecycle, session or {},
                                    conversation_id)
+        # FIELD DERIVATION FROM THE ASK (2026-10-09 owner assignment):
+        # when the caller passes no fields and the message is field-
+        # shaped (pricing, lead time, etc.), derive them HERE — at the
+        # point of creation OR at the point of resolution. Every begin
+        # gets the same contract derivation, so no begin "forgets".
+        if not requested_fields:
+            try:
+                from core.workbook_read_artifact import (
+                    extract_field_requests,
+                )
+                requested_fields = [
+                    str(f) for f in (
+                        extract_field_requests([message]) or [])
+                    if str(f).strip()][:6]
+            except Exception:  # noqa: BLE001
+                requested_fields = []
         if record is not None:
             run_id = record["run_id"]
             was_created = False
