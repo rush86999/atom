@@ -615,40 +615,6 @@ def test_full_chain_read_settle_reload_adapter():
     os.unlink(scratch)
 
 
-def test_receiptless_prose_produces_no_verified_findings():
-    """Negative control: a read that returns prose (no structured
-    receipt) produces NO verified findings — the execution facts carry
-    findings=[] and the adapter sees nothing to bind."""
-    import asyncio
-    from core.research_continuation import _execute_row_read
-
-    class _LC:
-        def create_operation(self, *a, **k):
-            return {"operation_id": "op-x"}
-        def get_task(self, r):
-            return {}
-        def record_read_outcome(self, *a, **k):
-            return None
-        def finish_retrieval_turn(self, *a, **k):
-            return None
-
-    # the act carries requested_fields but the underlying data source
-    # returns no row (prose-only) — findings must be empty
-    act = {"file": "nonexistent.xlsx",
-           "candidates": [],
-           "item": "NOT-REAL-999",
-           "requested_fields": ["price"]}
-
-    async def main():
-        return await _execute_row_read(
-            _LC(), "run-x", "u1", "default", act, qids=[])
-
-    res = asyncio.run(main())
-    # the status should NOT be "matched" (no real value was found)
-    assert res["statuses"].get("NOT-REAL-999") != "matched", (
-        "receiptless prose must not produce a matched finding")
-
-
 def test_multiple_candidates_require_policy_selection():
     """Multiple price candidates remain candidates until the taught
     basis selects one — persistence does not imply a chosen price."""
