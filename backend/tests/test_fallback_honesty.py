@@ -430,3 +430,96 @@ class TestCoordinatedEnvelope:
         assert resp["success"] is True
         assert resp["outcome"] == "continuation_queued"
         assert "queued" in resp["message"].lower()
+
+
+class TestPartialAndQueuedThroughThePath:
+    """Work-order cases 4-5 through the REAL route: seeded durable
+    state (production lifecycle records, genuine continuation
+    registry) plus seam failure — the gate classifies from records,
+    the envelope aligns, history serves it back."""
+
+    def _seed_job(self, factory, conv):
+        # Same (tenant, workspace) scope the turn resolves under
+        # (user_1/tenant t1, workspace default) — otherwise the
+        # seeded record is invisible to the gate.
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import (
+            TaskLifecycle, begin_retrieval_turn, finish_retrieval_turn,
+            record_read_outcome)
+        tl = TaskLifecycle(
+            GoalRunService(workspace_id="default", tenant_id="t1",
+                           session_factory=factory),
+            GoalService(workspace_id="default", tenant_id="t1",
+                        session_factory=factory))
+        run_id, op = begin_retrieval_turn(
+            tl, {"id": conv}, conv, "verify pricing", "e-seed",
+            items=["M-1"], requested_fields=["price"])
+        finish_retrieval_turn(
+            tl, run_id, op, {}, "e-seed", True,
+            execution={"invoked": True, "outcome": "read_succeeded",
+                       "served_basis": "saved_copy", "failure_stage": None,
+                       "findings": [{
+                           "field": "price", "column": "List",
+                           "raw": "100", "parsed": {"value": 100.0},
+                           "source": "W.xlsx!S!row1"}],
+                       "items": {"M-1": "matched"}})
+        record_read_outcome(
+            tl, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=[{
+                "item": "M-2", "kind": "verification",
+                "question": "M-2 is carried by W.xlsx — not yet read",
+                "evidence": "test seed",
+                "next_action": "read W.xlsx for M-2"}])
+        return tl
+
+    def test_partial_names_remaining_work(self, monkeypatch):
+        import asyncio
+
+        from integrations import chat_routes as cr
+
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch)
+        self._seed_job(factory, "conv-partial-1")
+        resp, user = _route_call(
+            factory,
+            "Check rows 1 to 5 of the current quote draft.",
+            {"canvas_id": CANVAS_ID}, session_id="conv-partial-1")
+        assert resp.success is True, (
+            "partial delivery is not a failure")
+        assert "still open" in resp.message.lower(), resp.message
+        assert "read W.xlsx for M-2" in resp.message
+        assert resp.error_code is None
+        history = asyncio.run(
+            cr.get_chat_history(session_id=resp.session_id,
+                                user_id="user_1", current_user=user))
+        asst = [m for m in history.messages if m["role"] == "assistant"]
+        assert asst and "still open" in asst[-1]["response"]["message"].lower()
+
+    def test_queued_names_the_continuation(self, monkeypatch):
+        """A genuine in-flight continuation (the real registry, cleaned
+        up after): acknowledgement naming the unfinished work, success
+        stays true — background work is never reported as failed."""
+        import asyncio
+
+        import core.async_turn_continuation as atc
+        from integrations import chat_routes as cr
+
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch)
+        atc._SESSION_IN_FLIGHT["conv-queued-1"] = "cont-path-1"
+        try:
+            resp, user = _route_call(
+                factory,
+                "Check rows 1 to 5 of the current quote draft.",
+                {"canvas_id": CANVAS_ID}, session_id="conv-queued-1")
+        finally:
+            atc._SESSION_IN_FLIGHT.pop("conv-queued-1", None)
+        assert resp.success is True
+        assert "queued" in resp.message.lower()
+        assert "cont-path-1" in resp.message
+        history = asyncio.run(
+            cr.get_chat_history(session_id=resp.session_id,
+                                user_id="user_1", current_user=user))
+        asst = [m for m in history.messages if m["role"] == "assistant"]
+        assert asst and "cont-path-1" in asst[-1]["response"]["message"]

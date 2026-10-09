@@ -4464,8 +4464,10 @@ def _fallback_turn_outcome(
         # Genuine async continuation ONLY: the in-process claim or a
         # durable running continuation execution for this session. Open
         # questions and pending tasks resume next turn — they are not
-        # background work.
+        # background work. The continuation id rides the state so the
+        # acknowledgement names the unfinished work.
         continuation = False
+        continuation_id: Optional[str] = None
         try:
             _sess_id = ((session or {}).get("id")
                         or (session or {}).get("session_id"))
@@ -4474,8 +4476,10 @@ def _fallback_turn_outcome(
                     continuation_in_flight,
                 )
 
-                if continuation_in_flight(str(_sess_id)):
+                _cid = continuation_in_flight(str(_sess_id))
+                if _cid:
                     continuation = True
+                    continuation_id = str(_cid)
         except Exception:  # noqa: BLE001 — additive
             pass
         # Map to the state. A canvas that WAS read (or a durable task
@@ -4494,6 +4498,8 @@ def _fallback_turn_outcome(
         else:
             state["state"] = "unconfirmed"
         state["open_work"] = open_work[:4]
+        if continuation_id:
+            state["continuation_id"] = continuation_id
         state["delivered"] = delivered
     except Exception:  # noqa: BLE001 — the gate never blocks the turn
         state = {"state": "unconfirmed", "open_work": [],
@@ -4520,9 +4526,11 @@ def _fallback_outcome_text(outcome: Dict[str, Any],
                 + (f" ({work})" if work else "") + "."
                 + read_note + " Tell me to continue and I will.")
     if state == "continuation_queued":
+        _cid = str(outcome.get("continuation_id") or "")
         return ("I couldn't finish this turn — "
                 + (work or "the work") + " is still queued and "
                 "nothing has been delivered yet."
+                + (f" (task {_cid})." if _cid else ".")
                 + read_note + " Send another message to pick it up.")
     if state == "completed":
         return ("Your request completed this turn."
