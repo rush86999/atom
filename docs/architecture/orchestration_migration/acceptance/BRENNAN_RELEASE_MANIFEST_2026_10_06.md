@@ -728,6 +728,18 @@ DOWNSTREAM of retrieval:
 Both are downstream of retrieval; the subject-bound probe now reaches
 the workbook. No incorrect answers observed.
 
+### Task A: 3/3 fresh-session runs deliver correct research (2026-10-09)
+
+Three unchanged requests, three fresh sessions, zero interventions.
+All three: the user receives the price basis (workbook), the current
+lead time (11-12 weeks), and the price ($8,984) in the reply. No
+incorrect answers. No interventions.
+
+The structured findings persistence (execution.findings on the job)
+remains open — the contract stays [] and typed findings don't survive
+to the drafting adapter. The user-visible research outcome is correct;
+the durable evidence chain for drafting reuse is the remaining gap.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
