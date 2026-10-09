@@ -5029,6 +5029,17 @@ def _maybe_force_turn_failure(session: Optional[Dict[str, Any]],
     raise _ForcedTurnFailure(provisional)
 
 
+
+# Contact NAMES are read out of the teaching itself; this adapter never
+# carries a roster. Two or more capitalized name tokens in a cc rule are
+# the rule's named contacts.
+_NAMED_CONTACTS_RE = re.compile(
+    r"\b(?:[A-Z][a-z]{2,})(?:\s+[A-Z][a-z]{2,})*\b")
+
+# A CC rule states who to copy on correspondence. Detected by the word
+# itself, not by which contacts it happens to name.
+_CC_RULE_RE = re.compile(r"\b(?:cc|bcc|copy)\b")
+
 class ChatOrchestrator:
     """
     Main orchestrator that connects chat interface with all ATOM features
@@ -19373,6 +19384,86 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         """Addressable contacts named by taught text, or []."""
         return re.findall(r"[\w.+-]+@[\w-]+\.[\w.-]+", text or "")
 
+    def _teaching_header_evidence(
+        self, agent_id: Optional[str], message: str
+    ) -> Dict[str, Any]:
+        """Teaching-derived drafting rules and header evidence.
+
+        Contacts and header rules come from the ACTING AGENT's teaching and
+        established contact identities — this adapter never hardcodes
+        people or addresses. Where the teaching does not establish a
+        header, the header stays UNRESOLVED: a missing identity is a
+        precise missing-evidence obligation, never a guessed address.
+        """
+        taught_rules: List[str] = []
+        header_candidates: List[str] = []
+        resolved_cc: List[str] = []
+        try:
+            from core.database import get_db_session as _gs2
+            from core.student_learning_service import get_agent_lessons
+
+            _all = []
+            if agent_id:
+                with _gs2() as _db2:
+                    _all = get_agent_lessons(
+                        _db2, agent_id, query=message or "", limit=10)
+            for l in _all:
+                text = " ".join(str(l.get("lesson") or l.get("summary")
+                                    or "").split())
+                if not text:
+                    continue
+                low = text.lower()
+                if _CC_RULE_RE.search(low):
+                    taught_rules.append(f"CC rule (taught): {text[:220]}")
+                    addrs = self._contact_tokens(text)
+                    if addrs:
+                        resolved_cc.append("Cc: " + ", ".join(addrs[:4]))
+                    else:
+                        # The rule stands; its ADDRESSES must come from
+                        # established identity data. Record the obligation
+                        # quoting the teaching's OWN wording — never a
+                        # roster compiled in this file, never a guess.
+                        header_candidates.append(
+                            "Cc: UNRESOLVED ADDRESSES — the taught rule "
+                            "reads \"%s\" but supplies no addressable "
+                            "identity; resolve from established contact "
+                            "data before addressing" % text[:120])
+                elif "subject" in low or "header" in low:
+                    taught_rules.append(
+                        f"Header rule (taught): {text[:220]}")
+                else:
+                    taught_rules.append(text[:220])
+        except Exception:  # noqa: BLE001 — additive
+            pass
+        return {"taught_rules": taught_rules[:4],
+                "header_candidates": header_candidates[:4],
+                "resolved_cc": resolved_cc[:2]}
+
+    def _teaching_only_findings(
+        self, agent_id: Optional[str], message: str
+    ) -> Optional[Dict[str, Any]]:
+        """The drafting contract for a canvas with NO bound job record.
+
+        The header rules a draft must apply are teaching artifacts, not
+        job-ledger artifacts, so an empty ledger must not withhold them.
+        """
+        ev = self._teaching_header_evidence(agent_id, message)
+        if not any(ev.get(k) for k in ("taught_rules", "header_candidates",
+                                      "resolved_cc")):
+            return None
+        return {
+            "typed_findings": [],
+            "verified": [],
+            "scoped_misses": [],
+            "resolution_notes": [],
+            "open_decisions": [],
+            "manual_preserved": [],
+            "freshness_limits": [],
+            "inherited_from": None,
+            "mutation_authority_inherited": False,
+            **ev,
+        }
+
     def _canvas_job_findings(
         self,
         user_id: str,
@@ -19469,8 +19560,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         record = tl.find_active_task(conv)
                     except Exception:  # noqa: BLE001
                         record = None
+            # TEACHING IS NOT A JOB-LEDGER ARTIFACT (2026-10-08, case-1
+            # header verification): a standing drafting rule — a general
+            # "cc these contacts on all sales quotes" instruction — and its
+            # established contact identities live in the AGENT'S TEACHING.
+            # A canvas with no bound task record still has that teaching,
+            # so the header evidence must reach the planner regardless of
+            # whether the ledger has a job. The adapter used to return
+            # None before gathering it, which is exactly why the required
+            # header change was absent from the planner input and the
+            # planner declined on value grounds.
             if record is None:
-                return None
+                return self._teaching_only_findings(agent_id, message)
 
             # ---- typed findings from OPERATION EXECUTION FACTS ----------
             # The operation record IS the evidence store
@@ -19582,49 +19683,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 return None
 
             # ---- teaching / headers: from the ACTING AGENT only ----------
-            # The agent identity is an explicit parameter (it used to be an
-            # unbound name whose NameError was swallowed, so lesson
-            # retrieval silently did nothing).
-            taught_rules: List[str] = []
-            header_candidates: List[str] = []
-            resolved_cc: List[str] = []
-            try:
-                from core.database import get_db_session as _gs2
-                from core.student_learning_service import get_agent_lessons
-
-                _all = []
-                if agent_id:
-                    with _gs2() as _db2:
-                        _all = get_agent_lessons(
-                            _db2, agent_id, query=message or "", limit=10)
-                # Render teaching as RULES with their own wording. Contact
-                # identities come from what the teaching actually names —
-                # this adapter never hardcodes people or addresses. Where
-                # teaching or verified correspondence does not establish a
-                # header, the header stays UNRESOLVED rather than guessed.
-                for l in _all:
-                    text = " ".join(str(l.get("lesson") or l.get("summary")
-                                        or "").split())
-                    if not text:
-                        continue
-                    low = text.lower()
-                    if "cc" in low and ("@" in text or "copy" in low):
-                        taught_rules.append(f"CC rule (taught): {text[:220]}")
-                        addrs = self._contact_tokens(text)
-                        if addrs:
-                            resolved_cc.append(
-                                "Cc: " + ", ".join(addrs[:4]))
-                        else:
-                            header_candidates.append(
-                                "Cc: UNRESOLVED — the taught cc rule names "
-                                "no addressable contacts; ask the owner "
-                                "rather than guessing")
-                    elif "subject" in low or "header" in low:
-                        taught_rules.append(f"Header rule (taught): {text[:220]}")
-                    else:
-                        taught_rules.append(text[:220])
-            except Exception:  # noqa: BLE001 — additive
-                pass
+            ev = self._teaching_header_evidence(agent_id, message)
 
             return {
                 "typed_findings": typed[:12],
@@ -19640,9 +19699,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "open_decisions": decisions[:6],
                 "manual_preserved": manual[:8],
                 "freshness_limits": freshness[:8],
-                "taught_rules": taught_rules[:4],
-                "header_candidates": header_candidates[:4],
-                "resolved_cc": resolved_cc[:2],
+                **ev,
                 # INHERITANCE IS EVIDENCE-ONLY: a fork's own revision
                 # decides what it may mutate, never the source's.
                 "inherited_from": inherited_from,
@@ -20283,6 +20340,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     shared_tool_state["canvas_edit_no_apply_reason"] = "planner_returned_none"
                 else:
                     shared_tool_state["canvas_edit_no_apply_reason"] = "planner_declined"
+                    # SERVED DECLINE (owner systemic item 3): a model that
+                    # ANSWERED wants_edit=False is a served decline — a
+                    # distinct outcome from timeout/unavailable/error/
+                    # returned-none. Its explanation is captured
+                    # separately; it must never be relabeled latency.
+                    shared_tool_state["canvas_planning_outcome"] = (
+                        "declined_noop" if plan is not None
+                        and not plan.wants_edit
+                        and not str(getattr(plan, "reply", "") or "").strip()
+                        else "declined")
                     # NO-CHANGES-NEEDED DECLINE (2026-10-08 owner step 5,
                     # live capture): a SERVED planner that declines
                     # because "the draft already reflects the approved

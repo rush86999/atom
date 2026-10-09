@@ -254,6 +254,51 @@ def test_receiptless_prose_does_not_masquerade_as_findings():
         "receiptless prose must fall through to the planner, not reuse")
 
 
+def test_findings_without_actions_carry_no_mutation_authority():
+    """A read receipt's actions:[] stays intact: FINDING a value does not
+    AUTHORIZE changing it. The comparison builder marks edit actions
+    authorized ONLY from the caller's explicit authorization list — the
+    owner's instruction, never the receipt itself."""
+    from core.workbook_read_artifact import build_source_comparison
+    obs = [{
+        "entity_id": "SLE24-16", "field": "price",
+        "raw_value": "8,984", "verification": "verified",
+        "currency": "CAD", "basis": "list",
+        "source": {"source_id": "wb", "source_type": "workbook",
+                   "temporal_role": "decision"},
+    }, {
+        "entity_id": "SLE24-16", "field": "price",
+        "raw_value": "8,880", "verification": "verified",
+        "currency": "CAD", "basis": "list",
+        "source": {"source_id": "canvas", "source_type": "artifact",
+                   "temporal_role": "current"},
+    }]
+    # NO authorized_actions: findings exist, actions stay blocked
+    contract = build_source_comparison(
+        obs, requested_entities=["SLE24-16"],
+        requested_fields=["price"],
+        artifact_source_ids=["canvas"],
+        decision_source_ids=["wb"], authorized_actions=[])
+    blocked = contract.get("blocked_actions") or []
+    assert blocked and all(
+        a.get("authorized") is not True for a in blocked), (
+        "a receipt without owner authorization must not mark any edit "
+        "action authorized")
+    # WITH the owner's authorization: the same evidence yields a ready action
+    contract2 = build_source_comparison(
+        obs, requested_entities=["SLE24-16"],
+        requested_fields=["price"],
+        artifact_source_ids=["canvas"],
+        decision_source_ids=["wb"],
+        authorized_actions=["edit_artifact"])
+    ready = [a for a in (contract2.get("actions") or [])
+             if a.get("status") == "ready"
+             and a.get("authorized") is True]
+    assert ready, (
+        "the owner's explicit authorization is what turns the finding "
+        "into an applicable action")
+
+
 def test_swapped_prices_require_ready_evidence():
     """Token equality is not fact equality: swapping two rows' prices
     preserves the value BAG but changes both associations — the
