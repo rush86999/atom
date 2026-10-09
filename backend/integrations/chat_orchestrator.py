@@ -2506,6 +2506,41 @@ def _job_scope_items(
         return [], "unresolved"
 
 
+def _findings_from_structured_result(
+        receipt: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Typed findings from a named-file read's structured result (the
+    targets carry item + identity + per-field evidence)."""
+    out: List[Dict[str, Any]] = []
+    try:
+        sr = receipt.get("structured_result") or receipt.get(
+            "storage_read") or {}
+        if not isinstance(sr, dict):
+            return []
+        for t in (sr.get("targets") or [])[:12]:
+            if not isinstance(t, dict):
+                continue
+            item = str(t.get("item") or (t.get("identity") or {})
+                       .get("matched") or "").strip()
+            if not item:
+                continue
+            out.append({
+                "item": item[:120],
+                "field": "price",
+                "value": str(
+                    (t.get("evidence") or [{}])[0].get("raw_value")
+                    or "")[:40],
+                "source_file_name": str(
+                    sr.get("file_name") or "")[:160],
+                "sheet": str(
+                    (t.get("identity") or {}).get("sheet") or "")[:80],
+                "content_hash": str(
+                    sr.get("content_hash") or "")[:64],
+            })
+    except Exception:  # noqa: BLE001 — additive
+        return []
+    return [f for f in out if f["value"]]
+
+
 def _findings_from_datasets_receipt(
         receipt: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Typed findings from a datasets sweep receipt (owner correction
@@ -16112,6 +16147,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         "live" if _receipt["dispatched"]
                                         else "none"),
                                     "failure_stage": _stage,
+                                    # CHAINED-READ FINDINGS (2026-10-09
+                                    # owner B1): a chained confirmed-file
+                                    # read's structured result carries the
+                                    # row values — persist them as typed
+                                    # findings alongside the settle so the
+                                    # drafting adapter reads them.
+                                    "findings": (
+                                        _findings_from_structured_result(
+                                            _receipt.get("receipt") or {})),
                                     "items": {
                                         item: "" for item in _chain_items},
                                 })
