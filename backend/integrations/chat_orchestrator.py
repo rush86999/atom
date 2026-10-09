@@ -15911,7 +15911,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     if _primary_svc and isinstance(_primary_receipt, dict) \
                             and (_primary_receipt.get("retrieved")
                                  or _primary_receipt.get("bounded_absence")):
-                        _consulted.add(_primary_svc)
+                        # COVERAGE IS NOT RETRIEVAL (2026-10-09 owner
+                        # correction: dispatch does not prove retrieval):
+                        # a value_trace primary produces a COVERAGE map
+                        # (which documents carry the item) with ZERO
+                        # source observations — marking the source
+                        # consulted here skipped the chained confirmed-
+                        # file read (the actual retrieval) and the job
+                        # stayed findings-less. Credit consultation only
+                        # when retrieval facts exist for this service.
+                        _pr = _primary_receipt.get("receipt") or {}
+                        _retrieval_facts = bool(
+                            (_pr.get("source_observations") or [])
+                            or (_pr.get("read_outcomes") or [])
+                            or (_pr.get("searched_threads") or [])
+                            or ((_pr.get("datasets_search") or {})
+                                .get("_hits")))
+                        if _retrieval_facts or _primary_svc != "datasets":
+                            _consulted.add(_primary_svc)
+                        else:
+                            logger.info(
+                                "[planner-boundary] datasets primary was "
+                                "coverage-only — NOT counted as "
+                                "consulted; the confirmed-file read "
+                                "chains")
                 _missing = _required_sources - _consulted
                 try:
                     if deadline is not None:
