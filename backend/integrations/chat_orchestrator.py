@@ -15097,6 +15097,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _ms_findings = (
                                     _findings_from_datasets_receipt(
                                         _ms_receipt.get("receipt") or {}))
+                                logger.info(
+                                    "[settle-probe] primary: receipt_keys=%s "
+                                    "ds_keys=%s hits_count=%d findings=%d",
+                                    sorted((_ms_receipt.get("receipt") or {}).keys()),
+                                    sorted((_ms_receipt.get("receipt") or {})
+                                           .get("datasets_search", {}).keys()),
+                                    len((_ms_receipt.get("receipt") or {})
+                                        .get("datasets_search", {})
+                                        .get("_hits", [])),
+                                    len(_ms_findings))
                                 _ms_execution = {
                                     "invoked": _ms_invoked,
                                     "outcome": _ms_outcome,
@@ -16263,6 +16273,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # drafting adapter reads them.
                                     "findings": (
                                         _findings_from_structured_result(
+                                            _receipt.get("receipt") or {})
+                                        or _findings_from_datasets_receipt(
                                             _receipt.get("receipt") or {})),
                                     "items": {
                                         item: "" for item in _chain_items},
