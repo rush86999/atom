@@ -507,19 +507,26 @@ def test_minimal_identity_preserving_patch_is_valid():
     the production validation path."""
     import asyncio
     from core.chat_canvas_editor import CanvasEditPlan, CanvasPatchOp
-    plan = cce.CanvasEditPlan(
-        wants_edit=True, edit_mode="patch",
-        ops=[cce.CanvasPatchOp(
-            find='4 | Roper Whitney No. 622 Rotary Machine (Row 268 is '
-                 'the quoted machine)',
-            replace='4 | Roper Whitney No. 622 Rotary Machine (Row 268 '
-                    'is the quoted machine) — confirmed available')])
-    result, reason = asyncio.run(cce.apply_canvas_edit(
-        plan, "u1",
-        {"canvas_id": "c-min", "canvas_type": "email",
-         "content": {"body": '4 | Roper Whitney No. 622 Rotary Machine '
-                             '(Row 268 is the quoted machine)'}},
-        return_reason=True))
+    async def _fake_update(*a, **k):
+        return {"success": True, "audit_id": "a-min",
+                "write_outcome": "appended"}
+
+    with patch("tools.canvas_crud_tool.update_canvas_content",
+               new=_fake_update):
+        plan = cce.CanvasEditPlan(
+            wants_edit=True, edit_mode="patch",
+            ops=[cce.CanvasPatchOp(
+                field="body",
+                find='Roper Whitney No. 622 Rotary Machine (Row 268 is '
+                     'the quoted machine)',
+                replace='Roper Whitney No. 622 Rotary Machine (Row 268 '
+                        'is the quoted machine) — confirmed available')])
+        result, reason = asyncio.run(cce.apply_canvas_edit(
+            plan, "u1",
+            {"canvas_id": "c-min", "canvas_type": "email",
+             "content": {"body": 'Roper Whitney No. 622 Rotary Machine '
+                                 '(Row 268 is the quoted machine)'}},
+            return_reason=True))
     assert result is not None, (
         f"an identity-preserving bounded patch must pass validation "
         f"(reason={reason!r})")
