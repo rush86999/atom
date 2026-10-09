@@ -21809,9 +21809,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         logger.info(f"Feature handling complete. Handled: {handled}, Intent: {primary_intent}")
 
-        # Fallback to ComputerUseAgent if no specific feature handled it successfully
-        # OR if the intention was explicitly AGENT_REQUEST
-        if not handled or primary_intent == ChatIntent.AGENT_REQUEST:
+        # Fallback to ComputerUseAgent only when no feature handled the turn.
+        # A successful Atom/LLM agent response is already the user-facing answer;
+        # starting a background ComputerUse task here overwrites it with a
+        # generic "Task ID" status bubble.
+        if not handled:
              try:
                 # Use the General Agent (ComputerUseAgent) for unhandled queries
                 # Identity and size, not the goal text. The user's own words do
