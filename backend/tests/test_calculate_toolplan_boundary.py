@@ -429,3 +429,132 @@ class TestRequestIdentityKey:
         assert {o["exec"] for o in ops} == {"exec-1", "exec-2"}
         assert ops[0]["id"] != ops[1]["id"]
         assert all(str(o["amount"]).startswith("2625") for o in ops)
+
+
+# -- practical-value run pv-B (2026-10-09): natural-phrasing binding ----
+# The live run bound hours=9 but LOST materials to the connector in
+# "$120 in materials", so the engine never ran and the reply narrated a
+# model-computed figure. These pins hold the full chain: natural inputs
+# bind, ONE durable operation records, the block carries the operation
+# reference, and the unrecorded-figure guard cannot be exempted by an
+# open pending ask.
+
+Q_PV = ("Estimate this service job using our taught rates: "
+        "9 hours, $120 in materials.")
+Q_COLON = ("Estimate this service job using our taught rates. "
+           "hours: 12, materials: $40")
+
+
+def test_natural_connector_phrasing_binds_and_records(world):
+    """'$120 in materials' binds materials — the engine runs, exactly
+    ONE durable calculate operation records with ALL THREE inputs, and
+    the grounded block carries the operation reference the reply can
+    cite (owner assignment step 3)."""
+    block = _run(_plan(Q_PV), "c-pv-1")
+    assert block and ("1470" in block.replace(",", ""))
+    assert "engine-computed" in block
+    assert "[calc:result_id=" in block
+    calc = [o for o in _job_ops("c-pv-1") if o["type"] == "calculate"]
+    assert len(calc) == 1
+    assert calc[0]["status"] == "applied"
+    assert str(calc[0]["value"]).startswith("1470")
+    ins = calc[0]["inputs"]
+    assert ins.get("hours") == "9"
+    assert ins.get("materials") == "120"
+    assert ins.get("rate") == "150"  # the taught default, still the engine's
+
+
+def test_taught_rates_colon_idiom_does_not_capture(world):
+    """The idiomatic opener 'using our taught rates: 14 hours' is
+    PHRASING, not a key:value input — the colon must not bind
+    rate=<next number> when that number is immediately followed by
+    another input name (the mis-bind computed 9*9+120=201; the pin
+    caught it before it could ship)."""
+    block = _run(_plan(
+        "Estimate this service job using our taught rates: 14 hours, "
+        "no materials."), "c-pv-2")
+    assert block and "2100" in block.replace(",", "")
+    calc = [o for o in _job_ops("c-pv-2") if o["type"] == "calculate"]
+    assert len(calc) == 1
+    ins = calc[0]["inputs"]
+    assert ins.get("hours") == "14"
+    assert ins.get("materials") == "0"
+    assert ins.get("rate") == "150"  # taught default — NOT 14
+
+
+def test_true_colon_pairs_bind_their_own_values(world):
+    """Owner release-close step 2, correct-binding branch: a REAL
+    key:value list ('hours: 12, materials: $40') binds each input to
+    ITS OWN value — never the phrasational colon mis-bind."""
+    block = _run(_plan(
+        "Estimate this service job using our taught rates. "
+        "hours: 12, materials: $40"), "c-pv-2b")
+    assert block and "1840" in block.replace(",", "")
+    calc = [o for o in _job_ops("c-pv-2b") if o["type"] == "calculate"]
+    assert len(calc) == 1
+    ins = calc[0]["inputs"]
+    assert ins.get("hours") == "12"
+    assert ins.get("materials") == "40"
+    assert ins.get("rate") == "150"  # taught default — untouched
+
+
+def test_same_inputs_two_conversations_two_owned_operations(world):
+    """Owner release-close step 4: repeated identical inputs in
+    DIFFERENT conversations each record their own correctly attributed
+    operation (per-conversation idempotency), while a retry inside one
+    conversation does not duplicate (pinned above)."""
+    _run(_plan(Q_PV), "c-iso-A")
+    _run(_plan(Q_PV), "c-iso-B")
+    ops_a = [o for o in _job_ops("c-iso-A") if o["type"] == "calculate"]
+    ops_b = [o for o in _job_ops("c-iso-B") if o["type"] == "calculate"]
+    assert len(ops_a) == 1 and len(ops_b) == 1
+    assert str(ops_a[0]["value"]).startswith("1470")
+    assert str(ops_b[0]["value"]).startswith("1470")
+    for o in (ops_a[0], ops_b[0]):
+        assert o["inputs"].get("hours") == "9"
+        assert o["inputs"].get("materials") == "120"
+
+
+def test_missing_input_block_has_no_computed_figure(world):
+    """Negative boundary (owner assignment step 4), block level: when
+    inputs are missing the ask records NO operation and presents NO
+    computed figure — nothing that could be narrated as an engine
+    result."""
+    block = _run(_plan(Q_MISSING), "c-pv-3")
+    assert block and "INPUT NEEDED" in block
+    assert "do not guess" in block.lower() or "do not\n                              guess" in block
+    assert _job_ops("c-pv-3") == []
+    # no engine value anywhere in the ask block
+    import re as _re
+    assert not _re.search(r"[Vv]alue \(computed\)", block)
+    assert "engine-computed" not in block
+
+
+def test_authority_figure_detector_flags_pvB_shape(world):
+    """Negative boundary (owner assignment step 4), guard level: the
+    pv-B reply — money figure + 'taught formula' authority + a soft
+    flag that is NOT a disclosure phrase — must be flagged, while an
+    honestly disclosed figure and a plain ask are not. The orchestrator
+    replacement condition consumes this detector; the pv-B escape
+    (pending-ask-open exemption) is removed at the call site."""
+    from integrations.chat_orchestrator import (
+        _reply_claims_unrecorded_teaching_figure as detect,
+    )
+
+    pvb_reply = (
+        "Using the taught formula Service estimate: ROUNDUP(hours * rate "
+        "+ materials, 0):\n\n9 \u00d7 150 = 1,350 \u2192 1,350 + 120 = "
+        "1,470 \u2192 estimated service job: $1,470\n\nOne flag for "
+        "transparency: the calculator run on my side bound hours = 9 and "
+        "rate = 150 but returned \u201cmaterials: INPUT NEEDED\u201d "
+        "\u2014 it did not independently bind the $120. So the $1,470 "
+        "follows from applying the taught formula to the materials "
+        "figure you supplied.")
+    assert detect(pvb_reply), "the pv-B shape must be flagged"
+
+    disclosed = ("$1,470 is the model's arithmetic, not run through the "
+                 "engine \u2014 no record exists.")
+    assert not detect(disclosed), "honest disclosure must pass"
+
+    plain_ask = ("Which materials cost should I use for the estimate?")
+    assert not detect(plain_ask), "ask-only replies carry no figure"

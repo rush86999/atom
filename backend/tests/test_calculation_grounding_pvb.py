@@ -151,3 +151,116 @@ def test_engine_record_supplies_calc_evidence_for_the_same_figure(world):
     # _calc_evidence is truthy exactly when records resolve — the
     # production wiring's replacement branch is not taken.
     assert allowance is not None
+
+
+class TestColonFormBindingIsCalculationCorrect:
+    """Owner release condition: the colon-form misbinding is a
+    calculation-correctness defect. `hours: 12, materials: $40` binds
+    materials=40 (and hours=12); a value the contract cannot attribute
+    stays unbound so the lane asks instead of computing with a stolen
+    figure (the comma-adjacency steal bound materials=12)."""
+
+    COLON_ASK = ("Estimate this service job using our taught rates. "
+                 "hours: 12, materials: $40")
+    AMBIGUOUS_ASK = ("Estimate this service job using our taught rates. "
+                     "hours: 12, materials.")
+
+    def test_colon_labeled_values_bind_to_their_own_labels(self):
+        from core.pricing_calculation import _bind_mentioned_inputs
+        bound = _bind_mentioned_inputs(
+            self.COLON_ASK, ["hours", "rate", "materials"])
+        assert bound.get("hours") == "12", bound
+        assert bound.get("materials") == "40", (
+            "materials must bind its own labeled $40 — never hours' 12")
+
+    def test_colon_idiom_with_trailing_input_name_binds_nothing(self):
+        """"rates: 14 hours" must not bind rate=14 (the 9*9+120=201
+        mis-compute): the colon was phrasing, so the value stays
+        unbound and the taught default stands."""
+        from core.pricing_calculation import _bind_mentioned_inputs
+        bound = _bind_mentioned_inputs(
+            "Estimate this service job using our taught rates: 14 hours, "
+            "no materials.", ["hours", "rate", "materials"])
+        assert "rate" not in bound, bound
+        assert bound.get("hours") == "14", bound
+
+    def test_unattributable_value_asks_instead_of_computing(self, world):
+        """The lane-level consequence: materials with no attributable
+        value records NO calculate operation and asks (INPUT NEEDED) —
+        it must not compute with a stolen figure."""
+        from core.chat_tool_planner import ToolPlan, execute_tool_plan
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle
+
+        async def _run():
+            plan = ToolPlan(use_tool=True,
+                            service="datasets.calculate",
+                            query=self.AMBIGUOUS_ASK)
+            return await execute_tool_plan(
+                plan, "u-pvb", tenant_id="default",
+                context={"conversation_id": "conv-colon-ask",
+                         "workspace_id": "default"})
+
+        block = asyncio.run(_run())
+        assert block and "INPUT NEEDED" in block, (
+            "materials has no attributable value — the lane must ask")
+        assert "materials" in block
+        tl = TaskLifecycle(
+            GoalRunService(workspace_id="default", tenant_id="default",
+                           session_factory=_STATE["factory"]),
+            GoalService(workspace_id="default", tenant_id="default",
+                        session_factory=_STATE["factory"]))
+        ops = [o for run in tl.runs.list_runs(include_terminal=True,
+                                              limit=50)
+               for o in ((tl.get_task(run["id"]) or {}).get("operations")
+                         or [])
+               if o.get("operation_type") == "calculate"]
+        assert ops == [], (
+            "no figure may compute while an input is unattributed")
+
+    def test_colon_request_records_one_durable_operation(self, world):
+        """The full chain for the pinned shape: the colon-form request
+        runs the engine once and records ONE durable operation carrying
+        materials=40 (12x150+40=1840)."""
+        from core.chat_tool_planner import ToolPlan, execute_tool_plan
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle
+
+        async def _run():
+            plan = ToolPlan(use_tool=True,
+                            service="datasets.calculate",
+                            query=self.COLON_ASK)
+            return await execute_tool_plan(
+                plan, "u-pvb", tenant_id="default",
+                context={"conversation_id": "conv-colon-op",
+                         "workspace_id": "default"})
+
+        block = asyncio.run(_run())
+        assert block and "1840" in block.replace(",", "")
+        assert "[calc:result_id=" in block
+        tl = TaskLifecycle(
+            GoalRunService(workspace_id="default", tenant_id="default",
+                           session_factory=_STATE["factory"]),
+            GoalService(workspace_id="default", tenant_id="default",
+                        session_factory=_STATE["factory"]))
+        task = tl.find_active_task("conv-colon-op")
+        assert task, "the colon request must open a job"
+        calc = [o for o in (task.get("operations") or [])
+                if o.get("operation_type") == "calculate"]
+        assert len(calc) == 1, calc
+        assert calc[0]["status"] == "applied"
+        # attach_operation_field merges the record flat onto the
+        # operation (op["calculation"]); to_record() serializes the
+        # inputs snapshot as "inputs" whose own "inputs" carries the
+        # name->value bindings.
+        record = calc[0].get("calculation") or {}
+        proposed = record.get("proposed") or {}
+        value = (proposed.get("amount") if isinstance(proposed, dict)
+                 else getattr(proposed, "amount", proposed))
+        assert str(value).startswith("1840"), record
+        snap = record.get("inputs") or {}
+        ins = snap.get("inputs") or snap
+        assert ins.get("hours") == "12", ins
+        assert ins.get("materials") == "40", ins

@@ -2766,9 +2766,15 @@ def parse_taught_expressions(
 def _bind_mentioned_inputs(text: str, idents: List[str]
                            ) -> Dict[str, str]:
     """Bind named inputs the REQUEST itself states: '17.5 hours',
-    'rate of 200', 'no materials' (an explicit zero). Only user-stated
-    values bind here — nothing is inferred."""
+    'rate of 200', '$120 in materials', 'hours: 12, materials: $40',
+    'no materials' (an explicit zero). Only user-stated values bind
+    here — nothing is inferred."""
     bound: Dict[str, str] = {}
+    # The labeled-value alternation for the colon branch below: a
+    # "name: 12" label binds its own number, never a number that
+    # belongs to another input ("rates: 14 hours" must not bind
+    # rate=14).
+    _labeled_alts = "|".join(_re.escape(_i) for _i in idents)
     for ident in idents:
         m = (
             # EXPLICIT KEY=VALUE FIRST: the tool planner folds
@@ -2779,14 +2785,34 @@ def _bind_mentioned_inputs(text: str, idents: List[str]
             # adjacency and bind materials to the HOURS value.
             _re.search(
                 rf"\b{ _re.escape(ident)}s?\s*=\s*"
-                rf"\$?([0-9][0-9,]*(?:\.[0-9]+)?)", text,
+                rf"\$?([0-9]+(?:,[0-9]{{3}})*(?:\.[0-9]+)?)", text,
                 _re.IGNORECASE)
+            # EXPLICIT KEY: VALUE (colon form): "hours: 12, materials:
+            # $40" labels each value — bind it. Two guards: the number
+            # is thousands-aware so a trailing comma can never join it
+            # ("12, materials" must not bind materials=12), and the
+            # anti-name lookahead refuses a number followed by another
+            # input's name (genuinely ambiguous: ask, don't compute).
             or _re.search(
-                rf"\$?([0-9][0-9,]*(?:\.[0-9]+)?)\s*"
+                rf"\b{ _re.escape(ident)}s?\s*:\s*"
+                rf"\$?([0-9]+(?:,[0-9]{{3}})*(?:\.[0-9]+)?)\b"
+                rf"(?!\s*(?:{_labeled_alts})s?\b)",
+                text, _re.IGNORECASE)
+            or _re.search(
+                rf"\$?([0-9]+(?:,[0-9]{{3}})*(?:\.[0-9]+)?)\s*"
                 rf"(?:{ _re.escape(ident)}s?)\b", text, _re.IGNORECASE)
+            # AMOUNT + CONNECTOR + NAME: the natural phrasing
+            # "$120 in materials" (practical-value run pv-B 2026-10-09
+            # bound hours but lost materials to the 'in', so the engine
+            # never ran) — the connector between the amount and the
+            # input name must not break the binding.
+            or _re.search(
+                rf"\$?([0-9][0-9,]*(?:\.[0-9]+)?)\s+"
+                rf"(?:in|of)\s+(?:{ _re.escape(ident)}s?)\b",
+                text, _re.IGNORECASE)
             or _re.search(
                 rf"\b{ _re.escape(ident)}s?\s+(?:is|of|at|=)\s*"
-                rf"\$?([0-9][0-9,]*(?:\.[0-9]+)?)", text,
+                rf"\$?([0-9]+(?:,[0-9]{{3}})*(?:\.[0-9]+)?)", text,
                 _re.IGNORECASE))
         if m:
             bound[ident] = m.group(1).replace(",", "")

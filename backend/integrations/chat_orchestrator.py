@@ -15686,6 +15686,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _research_turn = False
                             _required_sources = set()
                             _tool_block = _calc_block
+                            # BLACKBOARD DELIVERY: the outer flow's
+                            # grounding/delivery guard reads the tool
+                            # block from ITS scope — carry this block out
+                            # so a recorded engine result can ship
+                            # deterministically when the reply leg's
+                            # providers fail (pv-B3, 2026-10-09).
+                            if isinstance(shared_tool_state, dict):
+                                shared_tool_state["calc_lane_block"] = \
+                                    _calc_block
                             logger.info(
                                 "[calc-lane] goal-session calculation "
                                 "ask answered by datasets.calculate "
@@ -18978,6 +18987,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # Global recency is never authority: a later reply cannot
                 # inherit unrelated evidence. Unknown currency (XXX) invents
                 # nothing; non-succeeded statuses stay qualified.
+                if not _tool_block and isinstance(shared_tool_state, dict):
+                    # CALC-FORCE BLOCK DELIVERY (owner assignment
+                    # 2026-10-09, pv-B3): when providers are down the
+                    # planner never runs and the calc-force lane answers
+                    # INSIDE _get_qwen_response — its block was captured
+                    # and dropped, so this guard saw no evidence and a
+                    # RECORDED engine result shipped as a raw provider
+                    # error. The blackboard carries it out.
+                    _tool_block = shared_tool_state.get("calc_lane_block") \
+                        or _tool_block
                 _calc_allowance = None
                 try:
                     from core.pricing_calculation import (
@@ -19039,17 +19058,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # The honest replacement is deterministic (no regen: a
                 # regen is exactly what provider distress cannot afford)
                 # — refuse-with-retry, no figure, no authority claim.
-                _pending_ask_open = False
-                try:
-                    from core.pricing_calculation import (
-                        _open_pending_questions as _opq,
-                    )
-
-                    _pending_ask_open = bool(_opq(session_id, workspace_id))
-                except Exception:  # noqa: BLE001 — additive
-                    _pending_ask_open = False
+                # PENDING-ASK TIGHTENING (owner assignment 2026-10-09,
+                # pv-B): an open pending-input question does NOT license
+                # a figure — a reply that both asks and narrates a
+                # teaching-authority total ("$1,470 … taught formula",
+                # no honest disclosure) is the false-complete shape the
+                # guard exists for. Ask-only replies carry no money
+                # figure and are untouched; disclosed figures are left
+                # alone by the detector itself.
                 if (not _calc_evidence and _content and message
-                        and not _pending_ask_open
                         and _calc_bound_turn(
                             message, session_id, workspace_id)
                         and _reply_claims_unrecorded_teaching_figure(
