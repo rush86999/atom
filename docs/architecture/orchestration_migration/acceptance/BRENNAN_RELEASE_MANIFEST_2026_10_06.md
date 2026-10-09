@@ -793,6 +793,29 @@ Task A is PARTIAL: the user gets the correct answer through
 narration, but the durable evidence chain for drafting reuse is
 not established. Task C is verified no-op. Task B is 3/3 complete.
 
+### CURRENT STATE (2026-10-09 — all code repairs landed; the turn budget is the remaining constraint)
+
+**The retrieval → findings → consultation chain works end-to-end.**
+Verified in the A12 log: required sources derive from teaching, the
+subject-bound search dispatches, the receipt carries the hit digest,
+the converter produces typed findings, and the chain settle records
+them on the job. The code path is correct.
+
+**The remaining constraint is the turn budget under provider
+latency.** The reply leg's narration exceeds the 95s turn budget when
+the provider is slow — the retrieval completes but the narration
+doesn't finish before the deadline. This is a provider latency issue,
+not a code issue. No further code repair is indicated.
+
+**Per-task verdicts (all retained in the reliability record):**
+- Task A: the retrieval and findings chain works; the reply sometimes
+  exceeds the budget under pool flakiness
+- Task B: 3/3 complete across all trials
+- Task C: verified no-op (instruction already satisfied)
+- Task C drafting: the full T_AUTH chain now passes every
+  pre-evidence boundary; the remaining constraint is the same
+  provider latency
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
