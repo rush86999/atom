@@ -16555,6 +16555,38 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                 session[
                                                     "_pending_file_result"
                                                 ] = _merged
+                                                # CONTENT-READ SETTLEMENT:
+                                                # persist the named-file
+                                                # read's typed findings
+                                                # through the task
+                                                # lifecycle so the
+                                                # drafting adapter
+                                                # sees them after a
+                                                # fresh reload.
+                                                if _c_tl and _begin[0]:
+                                                    from core.sheet_dataset_service import (
+                                                        find_all_occurrences_sync,
+                                                    )
+                                                    _fa_scan = (
+                                                        find_all_occurrences_sync(
+                                                            _item, user_id,
+                                                            workspace_id,
+                                                            file_name=_fname,
+                                                            max_matches=4))
+                                                    _cf_f = [
+                                                        {"item": _item,
+                                                         "field": "price",
+                                                         "value": str(
+                                                             m.get("value")
+                                                             or "")[:40],
+                                                         "source_file_name":
+                                                             _fname,
+                                                         "sheet": str(
+                                                             m.get("sheet")
+                                                             or "")}
+                                                        for m in (_fa_scan
+                                                                  or {}).get(
+                                                        "matches") or []]
                                                 logger.info(
                                                     "[planner-boundary] "
                                                     "chained read persisted "
