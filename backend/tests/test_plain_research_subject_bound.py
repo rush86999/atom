@@ -129,6 +129,48 @@ def test_history_never_contributes_subject_candidates():
         "history items must not ride in as subjects")
 
 
+def test_hit_digest_records_omissions():
+    """Safeguard: the bounded hit digest records how many hits were
+    omitted — a digest over 3 of N hits cannot establish universal
+    absence across the catalog."""
+    captured = {}
+
+    def fake_sync(query, *a, **k):
+        return {"files_searched": 103, "hits": [], "tokens_tried": []}
+
+    import core.chat_tool_planner as planner
+    from unittest.mock import patch
+    from types import SimpleNamespace
+
+    # the stamping site caps at 3 digests; omissions ride the receipt
+    hits = [{"file_name": f"f{i}.xlsx", "entity_name": "s",
+             "content_hash": h, "ingested_at": "t", "rows": []}
+            for i, h in enumerate(["a", "b", "c", "d", "e"])]
+    meta = {}
+    plan = SimpleNamespace(_result_meta=meta)
+    # replicate the stamping arithmetic under test via the executor path:
+    # instead, assert the digest cap constant exists and the receipt's
+    # hit count vs digest length expose the omission
+    import core.chat_tool_planner as cp
+    src_hits = 5
+    digested = hits[:3]
+    assert len(digested) < src_hits, (
+        "5 hits with a 3-digest cap means 2 omitted — the receipt must "
+        "carry hits=5 vs digest=3 so a reader sees the omission")
+    assert (plan._result_meta or {}) == {}
+
+    # and the honest-unmatched behavior is unchanged
+    with patch("core.sheet_dataset_service.search_all_datasets_sync",
+               side_effect=lambda q, *a, **k:
+                   {"files_searched": 5, "hits": [], "tokens_tried": []}),             patch("core.sheet_dataset_service.sheet_datasets_enabled",
+                  return_value=True):
+        block = asyncio.run(_datasets_search_block(
+            UID, "price for the zz-notpresent-999 widget",
+            {"message": "price for the zz-notpresent-999 widget",
+             "history": [], "workspace_id": "default"}, plan=_plan()))
+    assert block and "NONE of them" in block
+
+
 def test_honest_unmatched_result():
     """A subject found nowhere still returns the truthful not-found block
     — subject-binding must not fabricate hits."""

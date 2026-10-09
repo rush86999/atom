@@ -14714,6 +14714,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 try:
                                     from core import task_lifecycle as _tlm
 
+                                    # FIELD CONTRACT FROM THE ASK
+                                    # (2026-10-09 owner assignment: the
+                                    # stored contract was [] because the
+                                    # job was created from the PLANNER's
+                                    # dispatch — the owner's own words
+                                    # never contributed. Pricing-shaped
+                                    # asks carry their requested fields
+                                    # into the contract so successor row
+                                    # reads can bind values; nonpricing
+                                    # asks keep the empty contract, which
+                                    # stays unresolved scope by design.)
+                                    _ask_fields: list = []
+                                    try:
+                                        from core.workbook_read_artifact import (
+                                            extract_field_requests,
+                                        )
+
+                                        _ask_fields = [
+                                            str(f) for f in (
+                                                extract_field_requests(
+                                                    [message]) or [])
+                                            if str(f).strip()][:6]
+                                    except Exception:  # noqa: BLE001
+                                        _ask_fields = []
                                     _ms_tl_begin = _tlm.begin_retrieval_turn(
                                         _ms_tl,
                                         session if isinstance(
@@ -14722,6 +14746,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         f"planned lookup: {_planned}",
                                         execution_id,
                                         items=list(_requested_targets or []),
+                                        requested_fields=_ask_fields,
                                         agent_id=agent_id,
                                         canvas_id=(
                                             (canvas_context or {}).get(

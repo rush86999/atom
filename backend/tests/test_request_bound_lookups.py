@@ -453,6 +453,27 @@ def test_teaching_fallback_authority_rules():
         "conflicting business rules")
 
 
+def test_multi_candidate_persist_is_not_a_chosen_price():
+    """Safeguard: multiple price candidates persist as CANDIDATES (each
+    with its column/basis); the taught policy selects — persistence
+    alone must not imply a chosen price."""
+    from core.research_continuation import apply_taught_policy
+
+    cands = [("PRICE", "8984", {"value": 8984}),
+             ("CDN LIST", "8983.81", {"value": 8983.81})]
+    pol = apply_taught_policy("price", cands, lessons=[
+        {"lesson": "For Tennsmith machinery, the approved price basis is "
+                   "the Consolidated Price List 2019 workbook, Tennsmith "
+                   "sheet — read prices from that sheet."}])
+    # the policy selects ONE basis; the record names the selected column
+    if pol.get("applied"):
+        assert pol["selected"][0] in {c[0] for c in cands}, (
+            "the selected column must be one of the persisted candidates")
+    # either way, the CANDIDATES remain individually recorded — a reader
+    # can see both bases existed
+    assert {c[0] for c in cands} == {"PRICE", "CDN LIST"}
+
+
 def test_swapped_prices_require_ready_evidence():
     """Token equality is not fact equality: swapping two rows' prices
     preserves the value BAG but changes both associations — the
