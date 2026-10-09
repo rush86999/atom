@@ -618,6 +618,43 @@ with the exact per-run reasons captured:**
 'one follow-up away' remains unproven for C. Original partials
 retained.
 
+### C-repair final state (2026-10-09 — call-level diagnosis complete; transaction NOT closed)
+
+After inspecting C7's decline explanation and C8's receipt transition
+as directed, one replay (C9, same instruction, capture armed) produced
+the call-level sequence:
+
+1. Attempt 1: plan AUTHORIZED, ops=1, presentation-only (the
+   assertion-scoped readiness rule fired correctly); the apply ran and
+   the PRESERVATION GUARD refused it — scope_dropped_product:268 (the
+   patch dropped the Row-268 identity). No partial write.
+2. Attempt 2: the bounded-patch feedback WAS injected (the guard
+   refusal carried verbatim into the retry message) but the edit-
+   planning dispatch TIMED OUT at 150s under pool latency. No plan
+   returned.
+3. Attempt 3: correctly NOT started — 0s above the 60s viable floor.
+
+Outcome: failed, truthful terminal, canvas audit clean. **The
+remaining boundary is planner patch quality under provider latency** —
+the model regenerates row 4's description without the Row-268
+identity, and the retry's dispatch timed out. NOT authorization, NOT
+readiness, NOT scheduling, NOT capacity. The same transaction
+succeeded for the subject+CC pair earlier (22:09/23:53 audits) when
+the pool served planning within budget.
+
+**No incorrect answers in any recorded run.** Safeguards verified
+live: preservation guard, budget floor, per-boundary taxonomy. C7's
+decline explanation was read verbatim from capture (it declined a
+DIFFERENT earlier message shape, 'No canvas changes were needed' —
+for the exact T_AUTH the planner authorizes and the guard refuses).
+Full sequence: brennan_value_report_2026_10_08.json
+(c9_replay_after_inspection).
+
+**This transaction does NOT pass and is left open truthfully.** The
+next repair belongs at planner patch quality (identity-preserving
+bounded patches) with a healthy dispatch route — explicitly deferred;
+no further campaign now.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
