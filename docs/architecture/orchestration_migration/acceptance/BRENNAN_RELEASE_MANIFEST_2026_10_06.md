@@ -655,6 +655,30 @@ next repair belongs at planner patch quality (identity-preserving
 bounded patches) with a healthy dispatch route — explicitly deferred;
 no further campaign now.
 
+### CASE C CLOSED — instruction already satisfied (2026-10-09, verified)
+
+The requirement check the owner directed (compare the EXACT T_AUTH
+instruction against the saved canvas, not the planner's wording):
+
+| Requirement | Verdict |
+|---|---|
+| Apply corrections the taught basis requires | ALREADY SATISFIED — the one required correction (row 5 → the workbook-basis price) was applied and verified in the earlier authorized transaction |
+| Keep the approved manual price on row 1 | $2,902 present, unchanged |
+| Leave unverified items unchanged | rows 2-4 unchanged; nothing unverified asserted |
+| Do not send | no send op; draft canvas |
+| Row 268 identity | PRESERVED (the one lossy patch was refused by the guard) |
+
+Verified through the public canvas read (what a browser reload
+serves): all 8 rows, 8 dollar figures, both identities, the subject,
+nothing sent.
+
+**C's terminal verdict: instruction already satisfied; no change
+required.** The served planner declines were CORRECT judgments,
+captured verbatim; the C9 attempt-1 lossy patch was correctly refused
+by the identity guard and is retained as a prevented mutation. The
+attempts that timed out are retained as latency failures, distinct
+from declines.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
