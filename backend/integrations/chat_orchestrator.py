@@ -21561,9 +21561,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             CommandType.BUSINESS_HEALTH: ChatIntent.BUSINESS_HEALTH,
             CommandType.TRIGGER: ChatIntent.AUTOMATION_TRIGGER,
             CommandType.WORKFLOW_CREATION: ChatIntent.WORKFLOW_CREATION,
+            CommandType.UNKNOWN: ChatIntent.AGENT_REQUEST,
         }
 
-        return intent_mapping.get(command_type, ChatIntent.SEARCH_REQUEST)
+        return intent_mapping.get(command_type, ChatIntent.AGENT_REQUEST)
 
     def _fallback_intent_analysis(self, message: str) -> Dict[str, Any]:
         """Fallback intent analysis when NLP is unavailable"""
@@ -21591,14 +21592,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         elif any(word in message_lower for word in ["deal", "lead", "pipeline", "sales", "prospect", "forecast"]):
             intent = ChatIntent.CRM
         else:
-            intent = ChatIntent.SEARCH_REQUEST
+            intent = ChatIntent.AGENT_REQUEST
 
         return {
             "primary_intent": intent,
             "confidence": 0.6,
             "entities": [],
             "platforms": [],
-            "command_type": "search"
+            "command_type": "agent"
         }
 
     def _continuation_decision(
