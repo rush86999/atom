@@ -360,6 +360,11 @@ and if so produce the edit.
 Preservation rules — the canvas may hold MANUAL EDITS by the user that are
 newer than anything in the conversation. The current content shown below is
 the authority, NOT your memory of earlier drafts:
+- PRESERVE PRODUCT IDENTITIES VERBATIM: descriptions carry identity
+  markers (e.g. "(Row 268 is the quoted machine)"). When your find text
+  includes such a marker, the replace text MUST include it too — copy
+  it verbatim. A patch that drops an identity marker will be rejected
+  by the scope validator; there is no retry for identity loss.
 - Default to edit_mode="patch": return ops, each an exact find→replace.
   Copy "find" VERBATIM from the current content (every character and
   newline); the first match is replaced by "replace". Text the ops don't

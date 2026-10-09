@@ -474,6 +474,57 @@ def test_multi_candidate_persist_is_not_a_chosen_price():
     assert {c[0] for c in cands} == {"PRICE", "CDN LIST"}
 
 
+def test_rejected_identity_dropping_patch_is_pinned():
+    """The C9 rejected patch, reproduced: a subject-only instruction, the
+    planner's op rewrote row 4's description and DROPPED the '(Row 268
+    is the quoted machine)' identity — the guard refused
+    (scope_dropped_product:268). Pinned through the production
+    validation path so the prevented mutation stays in the record."""
+    import asyncio
+    from core.chat_canvas_editor import CanvasEditPlan, CanvasPatchOp
+    body = ('Roper Whitney No. 622 Rotary Machine '
+            '(Row 268 is the quoted machine) | $2,421.00 | In Stock')
+    plan = cce.CanvasEditPlan(
+        wants_edit=True, edit_mode="patch",
+        ops=[cce.CanvasPatchOp(
+            field="body",
+            find='Roper Whitney No. 622 Rotary Machine '
+                 '(Row 268 is the quoted machine)',
+            replace='Roper Whitney No. 622 Rotary Machine '
+                    '(identity preserved)')])
+    result, reason = asyncio.run(cce.apply_canvas_edit(
+        plan, "u1",
+        {"canvas_id": "c-pin", "canvas_type": "email",
+         "content": {"body": body}},
+        return_reason=True, request_message="Set the quote subject."))
+    assert result is None
+    assert reason == "scope_dropped_product:268", reason
+
+
+def test_minimal_identity_preserving_patch_is_valid():
+    """The same body, a bounded patch that PRESERVES the Row-268
+    identity and changes only the subject-adjacent text: accepted by
+    the production validation path."""
+    import asyncio
+    from core.chat_canvas_editor import CanvasEditPlan, CanvasPatchOp
+    plan = cce.CanvasEditPlan(
+        wants_edit=True, edit_mode="patch",
+        ops=[cce.CanvasPatchOp(
+            find='4 | Roper Whitney No. 622 Rotary Machine (Row 268 is '
+                 'the quoted machine)',
+            replace='4 | Roper Whitney No. 622 Rotary Machine (Row 268 '
+                    'is the quoted machine) — confirmed available')])
+    result, reason = asyncio.run(cce.apply_canvas_edit(
+        plan, "u1",
+        {"canvas_id": "c-min", "canvas_type": "email",
+         "content": {"body": '4 | Roper Whitney No. 622 Rotary Machine '
+                             '(Row 268 is the quoted machine)'}},
+        return_reason=True))
+    assert result is not None, (
+        f"an identity-preserving bounded patch must pass validation "
+        f"(reason={reason!r})")
+
+
 def test_swapped_prices_require_ready_evidence():
     """Token equality is not fact equality: swapping two rows' prices
     preserves the value BAG but changes both associations — the
