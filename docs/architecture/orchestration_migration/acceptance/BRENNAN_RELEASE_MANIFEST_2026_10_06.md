@@ -591,6 +591,33 @@ Full record: brennan_value_report_20261008.json
 - Frozen candidate: 761df9c47 + the retrieval/contract fixes through
   this pass (code tip f60758b8a, docs 376e23835 + this).
 
+### Completion reruns after the dispatch/intent fixes (2026-10-09)
+
+**A (research): COMPLETE.** With the ask-derived contract + backfill,
+the chain ran live: contract ['price','lead_time'] carried; the
+row-context read MATCHED (SLE24-16 bound from the Tennsmith sheet); the
+follow-up worker cycle bound the price with no owner prompt. ~140s
+app+review vs ~360s manual.
+
+**C (authorized drafting): still does not complete on this pool —
+with the exact per-run reasons captured:**
+- C7: T2's edit leg starved at the bound; the FORK FIRED (the
+  apply-corrections directive gate fix — previously the whole turn
+  died with no queue). Attempt 2 was SERVED a plan that DECLINED
+  (wants_edit=False); attempt 3 correctly not started (35.7s below
+  the viable floor); outcome=failed, truthful terminal.
+- C8 (rerun with capture): attempt 2 reason=evidence_unavailable; the
+  canvas audit shows NO new writes — nothing partial or wrong landed.
+- The declined plans' captured words (fp-recorded) and the
+  evidence_unavailable reason are the material for the next repair;
+  the first failed boundary per run is now in the log by name. Not a
+  capacity claim: served plans declined; served evidence reads
+  returned no receipt.
+
+**Scope label unchanged:** no incorrect answers in any recorded run;
+'one follow-up away' remains unproven for C. Original partials
+retained.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
