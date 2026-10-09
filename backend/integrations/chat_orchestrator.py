@@ -14731,6 +14731,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # asks keep the empty contract, which
                                     # stays unresolved scope by design.)
                                     _ask_fields: list = []
+                                    if isinstance(shared_tool_state, dict):
+                                        shared_tool_state[
+                                            "ask_requested_fields"
+                                        ] = _ask_fields
                                     try:
                                         from core.workbook_read_artifact import (
                                             extract_field_requests,
@@ -14838,6 +14842,25 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                             # the derivation-seam dispatch of
                                             # the same request (case 3).
                                             "workspace_id": workspace_id,
+                                            # REQUEST-BOUND SCOPE on the
+                                            # PRIMARY dispatch (2026-10-09
+                                            # owner assignment): the
+                                            # resolved subjects lead the
+                                            # probe; without them the free-
+                                            # text sweep misses the
+                                            # Tennsmith row (case-4, A12).
+                                            "request_scope": {
+                                                "subjects": [
+                                                    str(t.get("item")
+                                                        if isinstance(t, dict)
+                                                        else str(t))
+                                                    for t in (
+                                                        _requested_targets
+                                                        or []) if t
+                                                ],
+                                                "scope_change": "replace",
+                                            } if _requested_targets
+                                            else None,
                                             # The current ask, ahead of session
                                             # history (which is written only
                                             # after the response): the stated-
@@ -15112,7 +15135,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # read actions, not just the chain's.
                                     extra_questions=(
                                         _value_trace_pending_reads(
-                                            _ms_receipt)))
+                                            _ms_receipt,
+                                            requested_fields=list(
+                                                (shared_tool_state or {}).get(
+                                                    "ask_requested_fields")
+                                                or []))))
                                 if isinstance(session, dict):
                                     session["_last_open_work"] = _ms_open
                             except Exception as _ms_settle_err:  # noqa: BLE001
@@ -16243,7 +16270,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         # coverage.
                                         extra_questions=(
                                             _value_trace_pending_reads(
-                                                _receipt)
+                                                _receipt,
+                                                requested_fields=list(
+                                                    (shared_tool_state or {}).get(
+                                                        "ask_requested_fields")
+                                                    or []))
                                             or ([] if _complete else (
                                                 # PER-ITEM NEXT ACTIONS
                                                 # (round 39): coverage from

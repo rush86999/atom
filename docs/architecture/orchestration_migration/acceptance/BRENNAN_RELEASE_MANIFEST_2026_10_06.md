@@ -711,6 +711,23 @@ time spent on the observed attempts** (199s app + ~125s review vs
   needed).
 - **No observed incorrect answers** in these three trials.
 
+### A13 — retrieval fixed, narration selection gap (2026-10-09)
+
+The primary dispatch now passes request_scope, and the production block
+contains the actual row (SLE24-16 = 8984 @ Tennsmith sheet). **The
+retrieval-to-block transition is FIXED.** Two boundaries remain
+DOWNSTREAM of retrieval:
+
+1. The ask-fields derivation fires on the multi-source begin (second
+   begin), but single-turn requests only run the FIRST begin — the
+   contract stays `[]`.
+2. The narration model receives both the search block and the
+   value_trace block but summarizes value_trace (coverage, no values)
+   instead of search (row values).
+
+Both are downstream of retrieval; the subject-bound probe now reaches
+the workbook. No incorrect answers observed.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
