@@ -90,5 +90,24 @@ def test_teaching_cue_still_not_an_edit():
         "searches", CTX) is False
 
 
+def test_apply_corrections_directive_forks_background_edit():
+    """Case C: 'Apply any corrections the taught basis requires' carries
+    the edit intent in the verb+object 'apply ... corrections' — the
+    directive gate must recognize it so the starved edit leg forks a
+    durable background continuation instead of dying at the interactive
+    bound."""
+    from integrations.chat_orchestrator import _user_grounded_edit_directive
+    msg = ("Approved. Apply any corrections the taught basis requires, "
+           "keep the approved manual price on row 1, leave anything you "
+           "couldn't verify unchanged, and do not send anything.")
+    assert _user_grounded_edit_directive(msg) is True
+
+
+def test_unrelated_correction_mention_does_not_fork():
+    from integrations.chat_orchestrator import _user_grounded_edit_directive
+    assert _user_grounded_edit_directive(
+        "What corrections were applied last time?") is False
+
+
 def test_canvas_required_for_edit_shape():
     assert _canvas_edit_shaped(T_AUTH, {}) is False

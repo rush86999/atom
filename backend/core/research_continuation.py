@@ -473,19 +473,6 @@ def apply_taught_policy(
         return {"applied": False, "selected": None, "basis_lesson": None,
                 "reason": "no candidates", "remaining": []}
     field_l = str(field).lower()
-    # SELLING-PRICE SCOPE (2026-10-09, A11): a 'price' field asks what
-    # the CUSTOMER pays — cost-side columns (COST, NET after discount,
-    # FACTORY) are not answers to it. This is domain-general field
-    # semantics, not a business rule: it only excludes columns whose
-    # NAMES say cost/net/factory, and never overrides a taught basis.
-    if field_l == "price":
-        _cost_marked = [c for c in candidates
-                        if any(w in str(c[0]).lower()
-                               for w in ("cost", "net", "factory"))]
-        _sell = [c for c in candidates
-                 if c not in _cost_marked]
-        if _sell and len(_sell) < len(candidates):
-            candidates = _sell
     for l in lessons or []:
         text = " ".join(str(l.get("lesson") or l.get("summary")
                              or "").split()).lower()
@@ -516,6 +503,24 @@ def apply_taught_policy(
                             f"taught basis '{basis}' matches "
                             f"{len(sel)} columns — not selective"),
                         "remaining": sel}
+    # SELLING-PRICE SCOPE (2026-10-09, owner correction: this belongs in
+    # the PRICING ADAPTER, not the generic field binder — cost/net/
+    # factory columns can be valid answers to other requests). For a
+    # 'price' field with no taught basis naming a selective column, a
+    # customer-price question excludes columns whose NAMES say cost/net/
+    # factory: those are inputs to the price, not the price. The
+    # remaining spread is then the material business decision.
+    if field_l == "price":
+        _cost_marked = [c for c in candidates
+                        if any(w in str(c[0]).lower()
+                               for w in ("cost", "net", "factory"))]
+        _sell = [c for c in candidates if c not in _cost_marked]
+        if _sell and len(_sell) < len(candidates):
+            return {"applied": False, "selected": None,
+                    "basis_lesson": None,
+                    "reason": ("cost-side columns excluded — the selling "
+                               "basis is the owner's call"),
+                    "remaining": _sell}
     return {"applied": False, "selected": None, "basis_lesson": None,
             "reason": "no taught policy names a selective basis",
             "remaining": candidates}

@@ -2258,7 +2258,12 @@ except Exception:  # noqa: BLE001 — version stamp optional
 _USER_EDIT_DIRECTIVE_RE = re.compile(
     r"\b(?:prepare|apply|update|edit|revise|draft|fix|change|rebuild)\b"
     r"[^.]{0,60}\b(?:the\s+)?(?:email|draft|quote|canvas|it)\b"
-    r"|\b(?:draft|email)\b[^.]{0,40}\b(?:now|please)\b",
+    r"|\b(?:draft|email)\b[^.]{0,40}\b(?:now|please)\b"
+    # 2026-10-09 (case C): "Apply any corrections the taught basis
+    # requires" — the object is carried by 'corrections', not by a
+    # document noun. A user-grounded APPLY with corrections named in
+    # the same sentence is an edit directive on the open draft.
+    r"|\bapply\b[^.]{0,80}\bcorrections?\b",
     re.IGNORECASE,
 )
 

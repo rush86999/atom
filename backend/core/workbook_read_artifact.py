@@ -106,6 +106,8 @@ _FIELD_ALIASES: Dict[str, Sequence[str]] = {
     "category": ("category", "type", "class", "classification"),
     "location": ("location", "region", "site", "facility", "branch"),
     "status": ("status", "state", "condition"),
+    "warranty": ("warranty", "warranty terms", "guarantee"),
+    "material": ("material", "materials"),
 }
 _UNIT_TOKENS = {
     "kg", "g", "mg", "lb", "lbs", "oz", "cm", "mm", "m", "in", "ft",
@@ -133,7 +135,13 @@ _FIELD_REQUEST_GROUPS = {
     "price", "quantity", "weight", "lead_time", "date",
     "certification_date", "expiration_date", "required_version", "version",
     "category", "location", "status",
+    # 2026-10-09 (owner correction): nonpricing asks derive their fields
+    # through this general contract mechanism — leaving them empty would
+    # preserve domain dependence. These groups are domain-general
+    # business fields, not pricing-specific vocabulary.
+    "warranty", "material",
 }
+
 
 
 def _field_base_and_unit(header: Any) -> tuple[str, Optional[str]]:
