@@ -740,6 +740,28 @@ remains open — the contract stays [] and typed findings don't survive
 to the drafting adapter. The user-visible research outcome is correct;
 the durable evidence chain for drafting reuse is the remaining gap.
 
+### Live path probe (2026-10-09 — the exact live sequence captured)
+
+A settle-probe at the primary settle revealed the exact live path for a
+plain-research turn when the primary plan fails (planned=False):
+
+1. Chain fires for datasets → dispatches value_trace → gets coverage
+   (SLE24-16 → [2019 workbook, Leads, VIPUL])
+2. Chain settle records the receipt — but **no findings** (the
+   converter `_findings_from_datasets_receipt` is only called at the
+   PRIMARY settle, which didn't run because the primary plan failed)
+3. Chain fires for outlook → gets 6 threads
+4. `tool plan executed: None` — no narration evidence delivered
+
+The confirmed-file read chaining code (which reads actual rows from
+the covered files) exists at the value_trace chaining gate but did
+not execute. The reason is not yet diagnosed.
+
+**This is the one remaining boundary: the chain's value_trace coverage
+→ confirmed-file read → typed findings → drafting adapter.** The
+primary settle's findings converter works when reached (scratch-replay
+proven); the gap is that the chain path doesn't reach it.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
