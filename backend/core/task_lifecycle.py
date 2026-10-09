@@ -27,6 +27,7 @@ import threading
 import time
 import uuid
 from contextlib import contextmanager
+from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -235,6 +236,30 @@ def _contract_version() -> int:
 
 def _bounded_text(value: Any, limit: int) -> str:
     return str(value or "")[:limit]
+
+
+def _json_safe(value: Any, *, depth: int = 0) -> Any:
+    """Make a diagnostic payload JSON-safe without losing its shape.
+
+    The operation record is persisted as JSON: a money-typed binding's
+    ``parsed.value`` is a Decimal (typed_fields.parse_typed), and the
+    store's serializer rejects it — the attach failed with
+    'Object of type Decimal is not JSON serializable' and the typed
+    findings were silently lost. Decimals become floats (numbers stay
+    numbers for the drafting adapter); everything else passes through
+    bounded."""
+    if depth > 3:
+        return "…"
+    if isinstance(value, dict):
+        return {str(k)[:40]: _json_safe(v, depth=depth + 1)
+                for k, v in list(value.items())[:20]}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v, depth=depth + 1) for v in list(value)[:12]]
+    if isinstance(value, Decimal):
+        return float(value)
+    if value is None or isinstance(value, (int, float, bool)):
+        return value
+    return str(value)[:200]
 
 
 def _bounded_nested(value: Any, *, depth: int = 0) -> Any:
@@ -694,8 +719,10 @@ def normalize_execution_facts(raw: Any) -> Dict[str, Any]:
     # STRUCTURAL TYPED FINDINGS passthrough (owner directive
     # 2026-10-07): bound field values + source identity survive
     # normalization — the operation record IS the evidence store.
+    # JSON-safe: a Decimal parsed value must not fail the record's
+    # serializer (the attach error silently dropped the findings).
     findings_raw = raw.get("findings")
-    findings = ([f for f in findings_raw if isinstance(f, dict)]
+    findings = ([_json_safe(f) for f in findings_raw if isinstance(f, dict)]
                 if isinstance(findings_raw, list) else None)
     # READ DIAGNOSTICS passthrough (2026-10-09): the per-attempt evidence
     # and the inputs that produced it. They used to be dropped here, so a

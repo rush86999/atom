@@ -2514,13 +2514,43 @@ def _job_scope_items(
 def _findings_from_structured_result(
         receipt: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Typed findings from a named-file read's structured result (the
-    targets carry item + identity + per-field evidence)."""
+    targets carry item + identity + per-field evidence).
+
+    Input shape (the converter's contract): a dict carrying the
+    structured record under ``structured_result`` — or the read's
+    ``storage_read`` meta, whose ``structured_result`` is that record.
+    The record's targets carry each bound value under ``field.values``
+    (column/basis, parsed value, display) with the row locator on
+    ``identity`` and the file identity on ``source_identity``.
+
+    Output: one finding per bound value in the ledger's documented
+    shape ({field, column, raw, parsed, source}) — what
+    ``_canvas_job_findings`` reads to keep subject/field/value/basis/
+    source together — alongside the legacy association keys. A target
+    with no values yields nothing: receipt-less prose is never a
+    finding, and a value with no display is dropped."""
     out: List[Dict[str, Any]] = []
     try:
         sr = receipt.get("structured_result") or receipt.get(
             "storage_read") or {}
         if not isinstance(sr, dict):
             return []
+        # The named-file read stamps the record INSIDE storage_read —
+        # accept the record itself, the storage meta, or a meta whose
+        # storage_read holds it.
+        if not sr.get("targets") and isinstance(
+                sr.get("structured_result"), dict):
+            sr = sr["structured_result"]
+        if not isinstance(sr, dict):
+            return []
+        src = sr.get("source_identity") if isinstance(
+            sr.get("source_identity"), dict) else {}
+        file_name = str(
+            src.get("file_name") or sr.get("file_name") or "")[:160]
+        content_hash = str(
+            src.get("content_hash") or sr.get("content_hash") or "")[:64]
+        requested = [str(f) for f in (sr.get("requested_fields") or [])
+                     if str(f).strip()]
         for t in (sr.get("targets") or [])[:12]:
             if not isinstance(t, dict):
                 continue
@@ -2528,19 +2558,67 @@ def _findings_from_structured_result(
                        .get("matched") or "").strip()
             if not item:
                 continue
-            out.append({
-                "item": item[:120],
-                "field": "price",
-                "value": str(
-                    (t.get("evidence") or [{}])[0].get("raw_value")
-                    or "")[:40],
-                "source_file_name": str(
-                    sr.get("file_name") or "")[:160],
-                "sheet": str(
-                    (t.get("identity") or {}).get("sheet") or "")[:80],
-                "content_hash": str(
-                    sr.get("content_hash") or "")[:64],
-            })
+            ident = t.get("identity") if isinstance(
+                t.get("identity"), dict) else {}
+            sheet = str(ident.get("sheet") or "").strip()
+            row = ident.get("row")
+            for cand in (ident.get("candidates")
+                         or ident.get("references") or []):
+                if not isinstance(cand, dict):
+                    continue
+                ref = str(cand.get("ref") or "")
+                if ref and "!R" in ref:
+                    _sh, _rn = ref.rsplit("!R", 1)
+                    sheet = sheet or _sh
+                    row = row if row is not None else (
+                        int(_rn) if str(_rn).isdigit() else None)
+                    break
+                if cand.get("sheet") and not sheet:
+                    sheet = str(cand.get("sheet"))
+                if cand.get("row") is not None and row is None:
+                    row = cand.get("row")
+            locator = f"{file_name}!{sheet}!row{row}" if sheet and row \
+                is not None else (f"{file_name}!{sheet}" if sheet
+                                  else file_name)
+            fld = t.get("field") if isinstance(t.get("field"), dict) else {}
+            values = fld.get("values") if isinstance(
+                fld.get("values"), list) else []
+            for v in values:
+                if not isinstance(v, dict):
+                    continue
+                display = str(v.get("display") if v.get("display")
+                              is not None else v.get("raw")
+                              if v.get("raw") is not None
+                              else v.get("value") or "").strip()
+                if not display:
+                    continue
+                parsed: Dict[str, Any] = {
+                    "value": v.get("value") if v.get("value") is not None
+                    else display,
+                    "raw": display,
+                }
+                if v.get("basis"):
+                    parsed["basis"] = str(v.get("basis"))
+                if v.get("unit"):
+                    parsed["unit"] = v.get("unit")
+                if v.get("currency"):
+                    parsed["currency"] = v.get("currency")
+                field_name = requested[0] if requested else str(
+                    v.get("basis") or "value")
+                out.append({
+                    "item": item[:120],
+                    "field": field_name[:60],
+                    "column": str(v.get("basis") or v.get("col") or "")[:80],
+                    "raw": display[:40],
+                    "parsed": parsed,
+                    "value": display[:40],
+                    "source": locator[:160],
+                    "source_file_name": file_name,
+                    "sheet": sheet[:80],
+                    "content_hash": content_hash,
+                })
+                if len(out) >= 12:
+                    return out
     except Exception:  # noqa: BLE001 — additive
         return []
     return [f for f in out if f["value"]]
@@ -2689,8 +2767,10 @@ def _value_trace_pending_reads(
     Irrelevant discoveries (no coverage) create nothing; dedupe by
     (item, document) — repeated receipts must not multiply actions, and
     add_unresolved_questions re-dedupes durably by (item, text).
-    When ``requested_fields`` is given, each question's inputs carry
-    them so the successor row read can bind values (2026-10-09)."""
+    When ``requested_fields`` is given, they ride INSIDE ``inputs`` —
+    the one carrier ``_normalize_question`` persists and the executors
+    read (a question-level key is dropped at normalization, so the
+    content read received an empty contract and bound nothing)."""
     coverage = ((receipt or {}).get("receipt") or {}).get(
         "value_trace_coverage") or {}
     questions: List[Dict[str, Any]] = []
@@ -2709,12 +2789,16 @@ def _value_trace_pending_reads(
                     "not yet read"),
                 "evidence": "value_trace coverage",
                 "next_action": f"read {doc} for {item}",
-                **({"requested_fields": list(requested_fields)[:6]}
-                   if requested_fields else {}),
                 # STRUCTURED INPUTS (round 53): stable action identity —
                 # the worker dispatches from these, never from prose.
+                # The requested-value obligation rides here too: ``inputs``
+                # is the one key set normalization persists, so the content
+                # read's field contract depends on its placement (a
+                # question-level key is dropped by ``_normalize_question``).
                 "inputs": {"item": str(item), "file": str(doc),
-                           "service": "datasets", "intent": "find_all"},
+                           "service": "datasets", "intent": "find_all",
+                           **({"requested_fields": list(requested_fields)[:6]}
+                              if requested_fields else {})},
             })
     return questions
 
@@ -16216,6 +16300,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # first receipt-bearing attempt died on
                     # UnboundLocalError (live run msA13).
                     nonlocal _tool_block
+                    # The confirmed-file read's RECEIPT (its storage_read
+                    # meta) — captured as the read runs so the settle's
+                    # findings converter receives the read's own evidence
+                    # instead of the pre-read search receipt snapshot.
+                    _read_receipt_metas: List[Dict[str, Any]] = []
                     _attempt_wait = min(
                         20.0, max(0.0, _chain_turn_left() - 15.0))
                     if _attempt_wait < 8.0:
@@ -16226,6 +16315,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         return
                     _c_tl = _task_lifecycle_for(
                         getattr(self, "tenant_id", None), workspace_id)
+                    # THE REQUESTED-VALUE OBLIGATION (2026-10-09): the
+                    # chain begin runs on the FALLBACK path (planned=False),
+                    # where the primary begin's ask-fields stash never fires
+                    # — derive the contract from the ask HERE (the existing
+                    # derivation) so the job's revision and the pending
+                    # reads carry it into the content read. Discovery names
+                    # the document; it never resolves the requested value.
+                    _chain_fields: List[str] = list(
+                        (shared_tool_state or {}).get(
+                            "ask_requested_fields") or [])
+                    if not _chain_fields:
+                        try:
+                            from core.workbook_read_artifact import (
+                                extract_field_requests,
+                            )
+
+                            _chain_fields = [
+                                str(f) for f in (
+                                    extract_field_requests([message])
+                                    or []) if str(f).strip()][:6]
+                        except Exception:  # noqa: BLE001
+                            _chain_fields = []
                     _begin = (None, None)
                     if _c_tl is not None:
                         try:
@@ -16239,6 +16350,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 f"{_missing_svc} ({_chain_query[:120]})",
                                 execution_id,
                                 items=_chain_items,
+                                requested_fields=list(_chain_fields),
                                 canvas_id=_chain_canvas_id())
                         except Exception as _cb_err:  # noqa: BLE001
                             _begin = (None, None)
@@ -16281,9 +16393,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # read's structured result carries the
                                     # row values — persist them as typed
                                     # findings alongside the settle so the
-                                    # drafting adapter reads them.
+                                    # drafting adapter reads them. The
+                                    # converter's input is the READ'S OWN
+                                    # receipt (storage_read meta); the
+                                    # search-receipt sub-dict never carries
+                                    # structured_result/storage_read keys,
+                                    # so feeding it produced zero findings
+                                    # even when the read had returned rows.
                                     "findings": (
-                                        _findings_from_structured_result(
+                                        [f for m in _read_receipt_metas
+                                         for f in
+                                         _findings_from_structured_result(m)]
+                                        or _findings_from_structured_result(
                                             _receipt.get("receipt") or {})
                                         or _findings_from_datasets_receipt(
                                             _receipt.get("receipt") or {})),
@@ -16313,9 +16434,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                             _value_trace_pending_reads(
                                                 _receipt,
                                                 requested_fields=list(
-                                                    (shared_tool_state or {}).get(
-                                                        "ask_requested_fields")
-                                                    or []))
+                                                    _chain_fields))
                                             or ([] if _complete else (
                                                 # PER-ITEM NEXT ACTIONS
                                                 # (round 39): coverage from
@@ -16556,37 +16675,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                     "_pending_file_result"
                                                 ] = _merged
                                                 # CONTENT-READ SETTLEMENT:
-                                                # persist the named-file
-                                                # read's typed findings
-                                                # through the task
-                                                # lifecycle so the
-                                                # drafting adapter
-                                                # sees them after a
-                                                # fresh reload.
-                                                if _c_tl and _begin[0]:
-                                                    from core.sheet_dataset_service import (
-                                                        find_all_occurrences_sync,
-                                                    )
-                                                    _fa_scan = (
-                                                        find_all_occurrences_sync(
-                                                            _item, user_id,
-                                                            workspace_id,
-                                                            file_name=_fname,
-                                                            max_matches=4))
-                                                    _cf_f = [
-                                                        {"item": _item,
-                                                         "field": "price",
-                                                         "value": str(
-                                                             m.get("value")
-                                                             or "")[:40],
-                                                         "source_file_name":
-                                                             _fname,
-                                                         "sheet": str(
-                                                             m.get("sheet")
-                                                             or "")}
-                                                        for m in (_fa_scan
-                                                                  or {}).get(
-                                                        "matches") or []]
+                                                # the read's own receipt
+                                                # (storage_read meta) rides
+                                                # to the settle's findings
+                                                # converter below — the
+                                                # operation record is the
+                                                # evidence store the
+                                                # drafting adapter reads
+                                                # after a fresh reload.
+                                                if isinstance(_vt_sr, dict) \
+                                                        and _vt_sr:
+                                                    _read_receipt_metas.append(
+                                                        _vt_sr)
                                                 logger.info(
                                                     "[planner-boundary] "
                                                     "chained read persisted "
@@ -16711,6 +16811,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _pa_read_ok = bool(
                             _pa_receipt["receipt"]
                             .get("structured_keys"))
+                        # CONTENT-READ FINDINGS (2026-10-09): the in-turn
+                        # content read's structured result carries the row
+                        # values — convert and settle them like the
+                        # chained read's, so BOTH scheduling paths leave
+                        # typed findings on the operation record.
+                        _pa_findings = _findings_from_structured_result(
+                            getattr(_pa_plan, "_result_meta", None) or {})
                         if _pa_block:
                             _tool_block = (
                                 f"{_tool_block}\n\nTARGETED READ "
@@ -16734,6 +16841,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         "saved_copy" if _pa_read_ok
                                         else "live"),
                                     "failure_stage": None,
+                                    "findings": _pa_findings,
                                     "items": (
                                         {_pa_item: "single"}
                                         if (_pa_read_ok and _pa_item)
