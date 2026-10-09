@@ -370,6 +370,11 @@ async def _execute_document_read(
         "served_basis": ("saved_copy" if any_executed else "none"),
         "failure_stage": None,
         "items": statuses,
+        # Same observability as the row-context read: the per-item
+        # evidence was returned to the caller and dropped before the
+        # ledger write, so a receipt-less document read recorded only an
+        # outcome string. Persist it.
+        "evidence": list(evidence),
     }
     finish_retrieval_turn(
         lifecycle, run_id, op["operation_id"], {}, None,
@@ -468,6 +473,19 @@ def apply_taught_policy(
         return {"applied": False, "selected": None, "basis_lesson": None,
                 "reason": "no candidates", "remaining": []}
     field_l = str(field).lower()
+    # SELLING-PRICE SCOPE (2026-10-09, A11): a 'price' field asks what
+    # the CUSTOMER pays — cost-side columns (COST, NET after discount,
+    # FACTORY) are not answers to it. This is domain-general field
+    # semantics, not a business rule: it only excludes columns whose
+    # NAMES say cost/net/factory, and never overrides a taught basis.
+    if field_l == "price":
+        _cost_marked = [c for c in candidates
+                        if any(w in str(c[0]).lower()
+                               for w in ("cost", "net", "factory"))]
+        _sell = [c for c in candidates
+                 if c not in _cost_marked]
+        if _sell and len(_sell) < len(candidates):
+            candidates = _sell
     for l in lessons or []:
         text = " ".join(str(l.get("lesson") or l.get("summary")
                              or "").split()).lower()
@@ -646,6 +664,18 @@ async def _execute_row_read(
                 + "; refused to choose; question stays open")
             continue
         if row_result is None:
+            # Named-file read returned nothing. This used to `continue`
+            # SILENTLY, so a row-context read whose candidates never
+            # materialized recorded only `read_returned_no_receipt` with
+            # an empty items map and no reason — live A9 (val-A9-c4b73)
+            # showed 10 such reads with items:{} and findings:[] and no
+            # way to tell a wrong row from a wrong sheet from a wrong
+            # file. Name the attempted location.
+            evidence.append(
+                f"{item}: row {cand.get('row')} of sheet "
+                f"{cand.get('sheet')!r} returned NOTHING from {_file} "
+                f"(identity cell {cand.get('identity_cell')!r}) — "
+                "question stays open")
             continue
         _src = row_result.get("source") or {}
         if _src:
@@ -694,8 +724,10 @@ async def _execute_row_read(
                 _typed_findings.append({
                     "field": field, "column": col, "raw": str(val),
                     "parsed": cands[0][2] if len(cands[0]) > 2 else None,
-                    "source": (f"{cand.get('_resolved_file')
-                                   or act.get('file')}"
+                    # single-line f-string expression: a multi-line one is
+                    # a SyntaxError on Python < 3.12, and the 3.11 test
+                    # interpreter could not import this module at all.
+                    "source": (f"{cand.get('_resolved_file') or act.get('file')}"
                                f"!{cand.get('sheet')}"
                                f"!row{cand.get('row')}")})
                 statuses[item] = "matched"
@@ -877,6 +909,65 @@ async def _execute_row_read(
                         "owner question"]}
         except Exception:  # noqa: BLE001 — fence or add failed
             pass
+    # EMPTY FIELD CONTRACT (2026-10-09 — the live A9 root cause).
+    # `_bind_row_fields` binds PER REQUESTED FIELD, so a job whose field
+    # contract resolves to [] binds nothing no matter how well the row
+    # reads. Every A-series job carried requested_fields: [] and its row
+    # successor carried requested_fields: [], so 10 row reads of the
+    # CORRECT row (Tennsmith /A101, MODEL NO.) reported
+    # read_returned_no_receipt with items:{} and findings:[] — while the
+    # isolated drive of the same row, which names its fields, binds 6
+    # price candidates. The divergence was never the candidates.
+    #
+    # `_resolve_field_specs` documents the intent: an empty contract is
+    # UNRESOLVED SCOPE, "returned as [] and the caller surfaces the
+    # question". The caller did not surface it, so an impossible read was
+    # dispatched and reported as receipt-less. Surface it now, and name
+    # the cause instead of letting the outcome string hide it.
+    if not fields and supporting:
+        # `supporting` non-empty: the row WAS located and its identity
+        # corroborated — so the only reason nothing bound is the missing
+        # contract. When nothing is supported at all, the identity
+        # evidence above already names the real cause and must not be
+        # masked by a scope verdict.
+        _loc = ", ".join(
+            f"{s['cand'].get('sheet')!r} row {s['cand'].get('row')}"
+            f" ({s['cand'].get('identity_cell')})"
+            for s in supporting)
+        statuses[item] = "scope_missing_fields"
+        evidence.append(
+            f"{item}: row read CANNOT BIND — the job's field contract is "
+            f"EMPTY (0 requested fields), so no value read from {_loc} "
+            "can be attributed to a field. The location itself resolved; "
+            "the gap is scope, not retrieval.")
+        from core.task_lifecycle import add_unresolved_questions as _add_q
+        try:
+            # ONCE PER ITEM: a missing field contract is a fact about the
+            # JOB, not about each attempt. Re-asking on every retry is the
+            # runaway-loop shape this ledger has already been bitten by.
+            # kind must be one of UNRESOLVED_KINDS — "scope" is not one;
+            # choosing the fields is the OWNER's decision.
+            _task_now = lifecycle.get_task(run_id) or {}
+            _already = any(
+                str(q.get("item") or "") == item
+                and str(q.get("question") or "").startswith("which fields")
+                for q in ((_task_now.get("task_revision") or {})
+                          .get("unresolved") or []))
+            if not _already:
+                _add_q(lifecycle, run_id, [{
+                    "item": item,
+                    "kind": "business_decision",
+                    "question": (
+                        f"which fields should the {item} read bind? the "
+                        "job declared none, so a value read from the "
+                        "located row could not be attributed"),
+                    "evidence": ("; ".join(evidence))[:400],
+                    "next_action": (
+                        "name the fields for this read (or restate the "
+                        "ask as a field-scoped request)"),
+                }], source_operation=None)
+        except Exception:  # noqa: BLE001 — question is bookkeeping
+            pass
     op = lifecycle.create_operation(
         run_id, op_type="retrieve",
         requested_change=(
@@ -889,6 +980,18 @@ async def _execute_row_read(
                          else "none"),
         "failure_stage": None,
         "items": statuses,
+        # DIAGNOSTIC EVIDENCE + THE INPUTS THAT PRODUCED IT (2026-10-09):
+        # `evidence` used to be returned to the caller and dropped before
+        # the ledger write, so a receipt-less row read recorded only an
+        # outcome string and an empty items map — the first-failed
+        # boundary was invisible (live A9: 10 reads, items:{}, no
+        # reason). Persist what was attempted and what each attempt said,
+        # so a receipt-less read can be compared against an isolated
+        # drive of the same row instead of guessed at.
+        "evidence": list(evidence),
+        "attempted_candidates": list(act.get("candidates") or []),
+        "requested_fields": list(act.get("requested_fields") or []),
+        "identity_context": act.get("identity_context"),
         # STRUCTURAL TYPED FINDINGS (owner directive 2026-10-07): every
         # bound field's parsed value + source column persist here — the
         # operation record IS the evidence store; the resolution detail
