@@ -569,6 +569,28 @@ incorrect answers in any recorded trial. Task C not rerun this pass.
 Full record: brennan_value_report_20261008.json
 (owner_correction_pair_2026_10_09).
 
+### Value-trial completion measurement (2026-10-09 final)
+
+- **Task A (research): effectively complete.** The full chain ran live
+  (A11): datasets.search → outlook chain → row-context read SUCCEEDED
+  — SLE24-16 matched with the contract ['price'] consumed (the
+  field-contract backfill + selling-price scope landed for it). The
+  reply named the workbook, the playbook basis, and the $8,984 /
+  10-08 vendor quote; the follow-up worker cycle bound the price
+  without an owner prompt. App+review ≈ 138s vs ~360s manual.
+- **Task C (authorized drafting): T1 complete (full row-by-row
+  mailbox comparison, 96s); T2 budget-exhausted (115s) under paid-pool
+  flakiness — truthful terminal, canvas unchanged, nothing sent, no
+  wrong edit.** The drafting turn's budget under pool flakiness is the
+  remaining constraint (unchanged from the systemic closeout); the
+  retrieval, contract, guard, and authorization layers all completed
+  correctly.
+- **No incorrect answers in any run.** Safeguards pinned: candidates
+  persist as candidates (the policy selects); bounded digests record
+  omissions. Original partials (A1/A3, C4/C5) retained for comparison.
+- Frozen candidate: 761df9c47 + the retrieval/contract fixes through
+  this pass (code tip f60758b8a, docs 376e23835 + this).
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
