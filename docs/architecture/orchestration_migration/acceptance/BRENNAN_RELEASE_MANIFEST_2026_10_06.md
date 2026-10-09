@@ -679,6 +679,24 @@ by the identity guard and is retained as a prevented mutation. The
 attempts that timed out are retained as latency failures, distinct
 from declines.
 
+### Fresh value trial 2 (2026-10-09, serving 34c4ed7e6-dirty)
+
+Three fresh sessions, zero interventions, timed. **≈15 minutes less
+time spent on the observed attempts** (199s app + ~125s review vs
+~1,230s manual) — a time-spent delta, not completion savings.
+
+- **A research: PARTIAL** (95s) — mailbox quote table complete and
+  correctly qualified; the workbook read again did not surface the
+  Tennsmith row. 1 follow-up owed.
+- **B calculation: COMPLETE** (29s) — $1,650 via the taught formula,
+  engine-computed, durable ref. Zero corrections. **The only task
+  where completion savings are claimable.**
+- **C authorized drafting: NO CHANGE** (75s) — the editor declined;
+  audit unchanged. The draft already satisfies the instruction per the
+  requirement check, so no completion savings accrue (nothing was
+  needed).
+- **No observed incorrect answers** in these three trials.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
