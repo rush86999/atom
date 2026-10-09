@@ -178,7 +178,7 @@ class TestPerItemEvidenceNegativeControls:
                 "question": "U-22 is carried by WB.xlsx — not yet read",
                 "evidence": "vt",
                 "next_action": "read WB.xlsx for U-22",
-                "inputs": {"item": "U-22", "file": "WB.xlsx"}}])
+                "inputs": {"item": "U-22", "file": "WB.xlsx", "requested_fields": ["price"]}}])
 
         def fake_find_all(value, user_id, workspace_id, file_name=None,
                           max_matches=8, **kw):
@@ -331,7 +331,7 @@ class TestRowContextSuccessor:
                 "item": "U-22", "kind": "verification",
                 "question": "U-22 is carried by WB.xlsx — not yet read",
                 "evidence": "vt", "next_action": "read WB.xlsx for U-22",
-                "inputs": {"item": "U-22", "file": "WB.xlsx"}}])
+                "inputs": {"item": "U-22", "file": "WB.xlsx", "requested_fields": ["price"]}}])
 
         # Document read: identity-only match -> located + successor.
         def fake_find_all(value, user_id, workspace_id, file_name=None,
@@ -376,7 +376,10 @@ class TestRowContextSuccessor:
         cands = row_actions[0]["inputs"]["candidates"]
         assert cands and cands[0]["row"] == 22
         assert cands[0]["sheet"] == "LINMAC"
-        assert row_actions[0]["inputs"]["requested_fields"] == ["price"]
+        # legacy "price" serializes as the PRICING_FIELD spec dict
+        _rf = row_actions[0]["inputs"]["requested_fields"]
+        assert len(_rf) == 1 and _rf[0]["key"] == "price" and \
+            _rf[0]["value_type"] == "money"
 
         # Cycle 2 completes the row read (grouping keeps doc and row
         # reads distinct): the located state turns into evidence.
@@ -577,7 +580,7 @@ class TestRealRowRegressions:
             identity_context="Linmac Bead Roller 22 Gauge, 7\" Throat, "
                              "U-22")
         assert b["identity_ok"], "code-token equality holds for U-22"
-        cols = {c for c, _ in b["bindings"]["price"]}
+        cols = {c for c, _v, _p in b["bindings"]["price"]}
         assert cols == {"List Price", "List Price_2", "US NET"}, (
             "DEALER (monetary but a dealer column) and codes never "
             "appear; every legitimate monetary candidate is preserved")
@@ -689,3 +692,275 @@ class TestFencedSettlementInterleaving:
             "task_revision"]["unresolved"]
             if q["question_id"] == qid][0]
         assert q2["status"] == "resolved"
+
+
+@pytest.mark.asyncio
+async def test_receiptless_row_reads_exhaust_budget_and_stop(lifecycle,
+                                                             monkeypatch):
+    """Owner rule (2026-10-07): repeated receipt-less work must CONSUME
+    its retry budget and terminate truthfully — never append
+    indefinitely. A row-context read over located candidates that
+    returns NO receipt consumes the question's attempts (the live
+    loops' shape: candidates existed, reads never corroborated). The
+    one-time round-43 budget migration may reset an exhausted budget
+    ONCE per job; after that, receipt-less reads terminate the question
+    as exhausted and no further retrieve spawns. (Live counterpart: the
+    5,466-op and 904-op runaway loops, cancelled 2026-10-07, records
+    preserved.)"""
+    from core.task_lifecycle import (
+        UNRESOLVED_ATTEMPT_CAP, begin_retrieval_turn,
+        next_unfinished_work, record_read_outcome)
+    from core import research_continuation as rc
+
+    run_id, op = begin_retrieval_turn(
+        lifecycle, {"id": "s1"}, "conv-budget", "verify pricing", "e1")
+    record_read_outcome(
+        lifecycle, run_id, op, structured_result=None, freshness=None,
+        execution=None, extra_questions=[{
+            "item": "No. 381", "kind": "verification",
+            "question": "No. 381 is carried by L.xlsx — not yet read",
+            "evidence": "value_trace coverage",
+            "next_action": "read L.xlsx for No. 381",
+            "inputs": {"item": "No. 381", "file": "L.xlsx"}}])
+    task = lifecycle.get_task(run_id)
+    qid = (next_unfinished_work(task)["actions"][0]
+           .get("question_id"))
+
+    act = {"file": "L.xlsx", "item": "No. 381",
+           "candidates": [{"file": "L.xlsx", "sheet": "S", "row": 7,
+                           "cell": "E7", "column": "PRICE"}]}
+    monkeypatch.setattr(
+        "core.sheet_dataset_service.read_sheet_row_sync",
+        lambda *a, **kw: None)
+    # The cycle claims question ownership before executing; calling the
+    # read seam directly has no claim, so the settlement fence would
+    # refuse and return early. The fence is not under test here.
+    import core.task_lifecycle as _tl
+
+    def _fence_passthrough(*a, **kw):
+        return True
+
+    monkeypatch.setattr(_tl, "resolve_unresolved_questions_fenced",
+                        _fence_passthrough)
+
+    spawned = 0
+    _orig_create = lifecycle.create_operation
+
+    def counting_create(run_id_, **kw):
+        nonlocal spawned
+        spawned += 1
+        return _orig_create(run_id_, **kw)
+
+    lifecycle.create_operation = counting_create
+
+    # BOUNDED termination: within cap*3 receipt-less reads the question
+    # must leave the selected set (exhausted), allowing the one-time
+    # budget migration its single reset.
+    exhausted_in = None
+    prev_attempts = 0
+    for i in range(UNRESOLVED_ATTEMPT_CAP * 3):
+        out = await rc._execute_row_read(
+            lifecycle, run_id, "u1", "ws", act, [qid],
+            agent_lessons=[])
+        assert out.get("statuses", {}).get("No. 381") != "matched"
+        q_now = next(
+            (u for u in ((lifecycle.get_task(run_id).get(
+                "task_revision") or {}).get("unresolved") or [])
+             if u.get("question_id") == qid), {})
+        attempts_now = int(q_now.get("attempts") or 0)
+        # THE INTENDED BUDGET (owner clarification 2026-10-07): ONE
+        # attempt consumed per receipt-less read — exactly +1 per read,
+        # no accidental double bump. (The one-time round-43 migration
+        # may reset an EXHAUSTED budget once; that is a reset to 0, not
+        # a bump, and happens only after the cap is reached.)
+        if attempts_now > prev_attempts:
+            assert attempts_now == prev_attempts + 1, (
+                f"read {i}: attempts {prev_attempts} -> {attempts_now} "
+                "(one per receipt-less read, no double bump)")
+        prev_attempts = attempts_now
+        work = next_unfinished_work(lifecycle.get_task(run_id))
+        if not any("read l.xlsx" in str(a.get("next_action") or "").lower()
+                   for a in work["actions"]):
+            exhausted_in = i + 1
+            break
+    assert exhausted_in is not None, (
+        f"receipt-less reads never terminated selection in "
+        f"{UNRESOLVED_ATTEMPT_CAP * 3} reads")
+    work = next_unfinished_work(lifecycle.get_task(run_id))
+    assert any("No. 381" in str(e.get("item") or "")
+               for e in (work.get("exhausted") or [])), (
+        "terminated truthfully as exhausted")
+    # SELECTION DRIVES SPAWNING in production: the exhausted question
+    # must no longer appear in the selected action set (the cycle's
+    # spawn source), and its receipt-less shape is reported as
+    # exhausted — truthful termination, not an endless re-selection.
+    final_work = next_unfinished_work(lifecycle.get_task(run_id))
+    assert not any(
+        "read l.xlsx" in str(a.get("next_action") or "").lower()
+        for a in final_work["actions"]), "no longer selected for work"
+    assert any("No. 381" in str(e.get("item") or "")
+               for e in (final_work.get("exhausted") or []))
+
+
+import json
+
+
+class TestNonpricingDocumentReview:
+    """Contract-driven discovery + structural typed findings through the
+    real worker (owner directive 2026-10-07)."""
+
+    SPECS = [
+        {"key": "completion_date",
+         "labels": ["completion", "date"], "value_type": "date"},
+        {"key": "floor_area",
+         "labels": ["floor area", "sq ft"], "value_type": "integer"},
+        {"key": "approved",
+         "labels": ["approved"], "value_type": "boolean"},
+        {"key": "contractor",
+         "labels": ["contractor"], "value_type": "text"},
+    ]
+
+    def _job(self, lifecycle, specs, item="Site A Expansion"):
+        from core.task_lifecycle import (
+            begin_retrieval_turn, record_read_outcome)
+
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, f"conv-{item[:8]}", "verify", "e1")
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None,
+            freshness=None, execution=None, extra_questions=[{
+                "item": item, "kind": "verification",
+                "question": f"{item} plan review",
+                "evidence": "document located",
+                "next_action": f"read Plan.xlsx for {item}",
+                "inputs": {
+                    "item": item, "file": "Plan.xlsx",
+                    "requested_fields": specs}}])
+        return run_id
+
+    async def _run_cycles(self, lifecycle, monkeypatch, run_id,
+                    row_data, headers):
+        from core import research_continuation as rc
+
+        monkeypatch.setattr(
+            "core.sheet_dataset_service.find_all_occurrences_sync",
+            lambda *a, **kw: {"matches": [
+                {"file": "Plan.xlsx", "sheet": "Projects",
+                 "cell": "B10", "row": 10,
+                 "column": "Project", "value": "Site A Expansion"}]})
+        monkeypatch.setattr(
+            "core.sheet_dataset_service.read_sheet_row_sync",
+            lambda *a, **kw: {"row": row_data, "headers": headers})
+        monkeypatch.setattr(rc, "_lifecycle_for_default_tenant",
+                            lambda: lifecycle)
+
+        class StubMgr:
+            def get_session(self, sid):
+                return {"user_id": "u1", "workspace_id": "ws",
+                        "agent_id": "a1",
+                        "history": [{"message": "hi",
+                                     "response": "ok"}]}
+
+            def update_session_activity(self, *a, **kw):
+                pass
+
+        monkeypatch.setattr(
+            "core.chat_session_manager.chat_session_manager", StubMgr())
+        await rc.research_continuation_cycle()
+        return await rc.research_continuation_cycle()
+
+    def _findings(self, lifecycle, run_id):
+        """Fresh read of durable state: the operation's structural
+        findings."""
+        rec = lifecycle.get_task(run_id)
+        out = []
+        for o in rec["operations"]:
+            for f in (o.get("execution") or {}).get("findings") or []:
+                out.append(f)
+        return out
+
+    @pytest.mark.asyncio
+    async def test_all_four_findings_survive_fresh_read(
+            self, lifecycle, monkeypatch):
+        """Date, integer, boolean (True), and text findings persist in
+        the operation's structural record."""
+        run_id = self._job(lifecycle, self.SPECS)
+        await self._run_cycles(
+            lifecycle, monkeypatch, run_id,
+            {"Project": "Site A Expansion",
+             "Completion Date": "2026-11-15",
+             "Floor Area (sq ft)": 12500,
+             "Approved": "yes",
+             "Contractor": "Delta Builders Ltd.",
+             "Budget": 450000},
+            ["Project", "Completion Date", "Floor Area (sq ft)",
+             "Approved", "Contractor", "Budget"])
+        findings = {f["field"]: f for f in self._findings(lifecycle, run_id)}
+        assert set(findings.keys()) == {
+            "completion_date", "floor_area", "approved", "contractor"}
+        assert findings["completion_date"]["parsed"]["value"] == "2026-11-15"
+        assert findings["floor_area"]["parsed"]["value"] == 12500
+        assert findings["approved"]["parsed"]["value"] is True
+        assert findings["contractor"]["parsed"]["value"] == (
+            "Delta Builders Ltd.")
+        # Budget (not requested) excluded
+        assert "Budget" not in str(findings)
+
+    @pytest.mark.asyncio
+    async def test_false_and_zero_are_valid_findings(
+            self, lifecycle, monkeypatch):
+        """False and zero are real findings, not gaps."""
+        run_id = self._job(lifecycle, self.SPECS, item="Site B On Hold")
+        await self._run_cycles(
+            lifecycle, monkeypatch, run_id,
+            {"Project": "Site B On Hold",
+             "Completion Date": "2027-03-01",
+             "Floor Area (sq ft)": 0,
+             "Approved": "no",
+             "Contractor": "Echo Civil"},
+            ["Project", "Completion Date", "Floor Area (sq ft)",
+             "Approved", "Contractor"])
+        findings = {f["field"]: f for f in self._findings(lifecycle, run_id)}
+        assert findings["floor_area"]["parsed"]["value"] == 0
+        assert findings["approved"]["parsed"]["value"] is False
+
+    @pytest.mark.asyncio
+    async def test_completion_from_field_dispositions(
+            self, lifecycle, monkeypatch):
+        """Completion derives from the required fields' actual
+        dispositions (all four bound), not merely items_matched."""
+        run_id = self._job(lifecycle, self.SPECS)
+        await self._run_cycles(
+            lifecycle, monkeypatch, run_id,
+            {"Project": "Site A Expansion",
+             "Completion Date": "2026-11-15",
+             "Floor Area (sq ft)": 12500,
+             "Approved": "yes",
+             "Contractor": "Delta Builders Ltd."},
+            ["Project", "Completion Date", "Floor Area (sq ft)",
+             "Approved", "Contractor"])
+        findings = self._findings(lifecycle, run_id)
+        required = {s["key"] for s in self.SPECS}
+        bound = {f["field"] for f in findings}
+        assert required <= bound, (
+            f"completion requires all fields bound; missing: "
+            f"{required - bound}")
+
+    @pytest.mark.asyncio
+    async def test_missing_field_leaves_job_open(
+            self, lifecycle, monkeypatch):
+        """When a requested field is absent from the row, the job stays
+        open with that field unresolved (not silently completed)."""
+        run_id = self._job(lifecycle, self.SPECS)
+        await self._run_cycles(
+            lifecycle, monkeypatch, run_id,
+            {"Project": "Site A Expansion",
+             "Completion Date": "2026-11-15",
+             # Floor Area and Approved absent from this row
+             "Contractor": "Delta"},
+            ["Project", "Completion Date", "Contractor"])
+        findings = {f["field"] for f in self._findings(lifecycle, run_id)}
+        assert "floor_area" not in findings, (
+            "absent field must not fabricate a finding")
+        assert "completion_date" in findings, (
+            "present field still binds")

@@ -441,9 +441,14 @@ def _direct_result(rec):
 
 
 class TestOrchestratorWiring:
-    def test_flag_off_records_nothing(self, isolated_db):
+    def test_flag_off_records_nothing(self, isolated_db, monkeypatch):
         import integrations.chat_orchestrator as chat
 
+        # Pin the precondition: this test is about the FLAG-OFF world, and
+        # the dev tree's backend/.env sets ATOM_TASK_LIFECYCLE_ENABLED=1.
+        # Without pinning it the assertion depends on whether the ambient
+        # environment happens to load that file.
+        monkeypatch.delenv("ATOM_TASK_LIFECYCLE_ENABLED", raising=False)
         orch = chat.ChatOrchestrator.__new__(chat.ChatOrchestrator)
         orch.tenant_id = "default"
         assert chat._task_lifecycle_for("default", "ws") is None
@@ -988,10 +993,13 @@ class TestRecordEdit:
         assert [o["operation_type"] for o in
                 record["operations"]] == ["retrieve", "edit"]
 
-    def test_record_task_edit_flag_off(self, isolated_db):
+    def test_record_task_edit_flag_off(self, isolated_db, monkeypatch):
         import integrations.chat_orchestrator as chat
 
-        # Flag off: no reservation, no record — legacy behavior.
+        # Flag off: no reservation, no record — legacy behavior. Pinned for
+        # the same reason as test_flag_off_records_nothing: the dev tree's
+        # backend/.env turns the flag on, which is not this test's world.
+        monkeypatch.delenv("ATOM_TASK_LIFECYCLE_ENABLED", raising=False)
         assert chat._begin_task_edit(
             "default", "ws", {}, "conv-1", "make it shorter", "ex-e1",
         )["status"] == "legacy"

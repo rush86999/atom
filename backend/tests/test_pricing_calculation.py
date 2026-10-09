@@ -1387,7 +1387,7 @@ class TestRound71Contracts:
         fake_lc = _FakeLifecycle()
         monkeypatch.setattr(
             pc, "record_calculation",
-            lambda lifecycle, run_id, item, result:
+            lambda lifecycle, run_id, item, result, **kw:
                 recorded.update(run_id=run_id, item=item,
                                 status=result.status,
                                 policy=result.policy_id,
@@ -2220,7 +2220,7 @@ class TestRound76RequestBoundEvidence:
         calls = {"n": 0}
 
         async def _fake_wb(q, user_id, ws, conversation_id=None,
-                           canvas_id=None):
+                           canvas_id=None, execution_id=None):
             calls["n"] += 1
             await __import__("asyncio").sleep(0.05)
             return ("LIVE TOOL RESULTS (datasets.calculate)\n"
@@ -2456,3 +2456,127 @@ class TestRound76RequestBoundEvidence:
         assert v2, "substituted presented as final must fail"
         out2 = _deterministic_calc_fallback(b, v2)
         assert "SUBSTITUT" in out2 or "NOT fully" in out2
+
+
+class TestCalculationIdempotencyIdentity:
+    """The idempotency key is the calculation's IDENTITY (policy +
+    version + status + item + computed value + input values) — never
+    the snapshot's prose. Pins both directions of the release contract
+    ('exactly the two expected calculations'):
+    1. policy paths that carry NO inputs snapshot still differ by their
+       computed result (8h×150 vs 12h×150 never collapse into one op);
+    2. identical calculated content replays to the SAME operation
+       (the two dispatch arms describe the same answer with different
+       basis text — the operation must not split)."""
+
+    def _lifecycle(self, tmp_path):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from core.models import GoalObjective, GoalRun, TaskOperationRecord
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle, begin_retrieval_turn
+
+        engine = create_engine(f"sqlite:///{tmp_path}/idem.db")
+        for t in (GoalObjective.__table__, GoalRun.__table__,
+                  TaskOperationRecord.__table__):
+            t.create(engine)
+        factory = sessionmaker(bind=engine, expire_on_commit=False)
+        lc = TaskLifecycle(
+            GoalRunService(workspace_id="ws", tenant_id="t",
+                           session_factory=factory),
+            GoalService(workspace_id="ws", tenant_id="t",
+                        session_factory=factory))
+        run_id, _ = begin_retrieval_turn(
+            lc, {"id": "s1"}, "conv-idem", "verify", "e1")
+        return lc, run_id
+
+    def _result(self, amount, snapshot=None):
+        from core.pricing_calculation import CalculationResult
+        return CalculationResult(
+            status="succeeded",
+            proposed=Money(Decimal(amount), "CAD"),
+            dependencies=[], steps=[],
+            policy_id="taught-multiply.factor150",
+            policy_version="v1",
+            inputs_snapshot=snapshot or {})
+
+    def test_no_snapshot_results_differ_by_their_value(self, tmp_path):
+        from core.pricing_calculation import record_calculation
+
+        lc, run_id = self._lifecycle(tmp_path)
+        op_8h = record_calculation(lc, run_id, "svc", self._result("1200"))
+        op_12h = record_calculation(lc, run_id, "svc", self._result("1800"))
+        assert op_8h["operation_id"] != op_12h["operation_id"], \
+            "two different computed values under one policy are two operations"
+        ops = [o for o in lc.get_task(run_id)["operations"]
+               if o["operation_type"] == "calculate"]
+        assert len(ops) == 2
+        values = sorted(str(o["calculation"]["proposed"]["amount"])
+                        for o in ops)
+        assert values == ["1200", "1800"]
+
+    def test_identical_content_replays_to_one_operation(self, tmp_path):
+        from core.pricing_calculation import record_calculation
+
+        lc, run_id = self._lifecycle(tmp_path)
+        first = record_calculation(
+            lc, run_id, "svc",
+            self._result("2625", {"inputs": {"hours": "17.5",
+                                             "materials": "0"}}))
+        # The second dispatch arm describes the same answer with
+        # different snapshot prose — the operation must not split.
+        replay = record_calculation(
+            lc, run_id, "svc",
+            self._result("2625", {"inputs": {"hours": "17.5",
+                                             "materials": "0"},
+                                  "basis": "answered by the owner's reply"}))
+        assert replay["operation_id"] == first["operation_id"]
+        ops = [o for o in lc.get_task(run_id)["operations"]
+               if o["operation_type"] == "calculate"]
+        assert len(ops) == 1
+
+
+class TestNamedProseSubject:
+    """Item-drop regression (2026-10-08 Cedarberg defect): the user's
+    named subject must survive item extraction even when it carries no
+    code-shaped tokens. The code extractor's partial fragment ('a
+    Cedarberg') was filtered out by identity rules, leaving [] — the
+    agent then asked for information the user already supplied."""
+
+    def test_cedarberg_prose_subject_survives(self):
+        from core.target_set_resolution import extract_items_from_text
+
+        items = extract_items_from_text(
+            "Please find the price for a Cedarberg 60-ton press brake "
+            "in the Consolidated Price List 2019 workbook")
+        assert items == ["Cedarberg 60-ton press brake"]
+
+    def test_non_machinery_prose_subject_survives(self):
+        from core.target_set_resolution import extract_items_from_text
+
+        items = extract_items_from_text(
+            "What is the review date for the Site A Expansion plan "
+            "in the project document?")
+        assert items == ["Site A Expansion plan"]
+
+    def test_code_shaped_still_extracts(self):
+        from core.target_set_resolution import extract_items_from_text
+
+        items = extract_items_from_text(
+            "find the price for U-22 in the workbook")
+        assert "U-22" in items
+
+    def test_no_subject_query_stays_empty(self):
+        from core.target_set_resolution import extract_items_from_text
+
+        items = extract_items_from_text("show me the workbook")
+        assert items == []
+
+    def test_generic_lookup_patterns(self):
+        from core.target_set_resolution import extract_items_from_text
+
+        # "look up" pattern
+        items = extract_items_from_text(
+            "look up the review status for the Harmon Transmission audit")
+        assert items == ["Harmon Transmission audit"]

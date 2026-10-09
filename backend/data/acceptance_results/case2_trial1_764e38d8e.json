@@ -1,0 +1,68 @@
+{
+  "trials": [
+    {
+      "trial": 1,
+      "session_id": "36be8266-8962-4af1-9c1d-2106faa45796",
+      "candidate": {
+        "code": {
+          "commit": "ee966db635f216784769c985a618025cdf65a56b",
+          "dirty_tracked": "D frontend-nextjs/.preview-instance/299-08-execution-summary.md\n D frontend-nextjs/.preview-instance/299-11-PROGRESS.md\n D frontend-nextjs/.preview-instance/ACCESSIBILITY.md\n D frontend-nextjs/.preview-instance/DEPLOYMENT.md\n D frontend-nextjs/.preview-instance/Dockerfile\n D frontend-nextjs/.preview-instance/Dockerfile.production\n D frontend-nextjs/.preview-instance/FAILURE_CATEGORIES-299-06.md\n D frontend-nextjs/.preview-instance/LIGHTHOUSE.md\n D frontend-nextjs/.preview-instance/PERCY.md\n D frontend-nextjs/.preview-instance/README.md\n D frontend-nextjs/.preview-instance/README_TEAM_CHAT.md\n D frontend-nextjs/.preview-instance/a11y-test-results.json\n D frontend-nextjs/.preview-instance/advanced-management.js\n D frontend-nextjs/.preview-instance/analyze_coverage.js\n D frontend-nextjs/.preview-instance/components\n D frontend-nextjs/.preview-instance/components.json\n D frontend-nextjs/.preview-instance/config\n D frontend-nextjs/.preview-instance/contexts\n D frontend-nextjs/.preview-instance/coverage\n D frontend-nextjs/.preview-instance/coverage-reports\n D frontend-nextjs/.preview-instance/data\n D frontend-nextjs/.preview-instance/docs\n D frontend-nextjs/.preview-instance/e2e\n D frontend-nextjs/.preview-instance/element-not-found-patterns.md\n D frontend-nextjs/.preview-instance/enterprise-dashboard.js\n D frontend-nextjs/.preview-instance/eslint.config.mjs\n D frontend-nextjs/.preview-instance/final-implementation.js\n D frontend-nextjs/.preview-instance/find-uncovered-files.js\n D frontend-nextjs/.preview-instance/fix-eslint-errors.js\n D frontend-nextjs/.preview-instance/fix-parsing-errors.js\n D frontend-nextjs/.preview-instance/hooks\n D frontend-nextjs/.preview-instance/jest.config.js\n D frontend-nextjs/.preview-instance/jest.setup.js\n D frontend-nextjs/.preview-instance/k8s\n D frontend-nextjs/.preview-instance/layouts\n D frontend-nextjs/.preview-instance/lib\n D frontend-nextjs/.preview-instance/lighthouserc.json\n D frontend-nextjs/.preview-instance/middleware.ts\n D frontend-nextjs/.preview-instance/next-env.d.ts\n D frontend-nextjs/.preview-instance/next-steps-implementation.js\n D frontend-nextjs/.preview-instance/next.config.js\n D frontend-nextjs/.preview-instance/node_modules\n D frontend-nextjs/.preview-instance/package-lock.json\n D frontend-nextjs/.preview-instance/package.json\n D frontend-nextjs/.preview-instance/pages\n D frontend-nextjs/.preview-instance/phase1-core-infrastructure.ts\n D frontend-nextjs/.preview-instance/playwright.config.ts\n D frontend-nextjs/.preview-instance/postcss.config.js\n D frontend-nextjs/.preview-instance/postgresql_\n D frontend-nextjs/.preview-instance/production-launcher.ts\n D frontend-nextjs/.preview-instance/project\n D frontend-nextjs/.preview-instance/public\n D frontend-nextjs/.preview-instance/scripts\n D frontend-nextjs/.preview-instance/shared\n D frontend-nextjs/.preview-instance/src\n D frontend-nextjs/.preview-instance/src-tauri\n D frontend-nextjs/.preview-instance/stores\n D frontend-nextjs/.preview-instance/stryker.conf.js\n D frontend-nextjs/.preview-instance/styles\n D frontend-nextjs/.preview-instance/tailwind.config.js\n D frontend-nextjs/.preview-instance/tests\n D frontend-nextjs/.preview-instance/tsconfig.json\n D frontend-nextjs/.preview-instance/tsconfig.tests.json\n D frontend-nextjs/.preview-instance/type-reference-patterns.md\n D frontend-nextjs/.preview-instance/types\n D frontend-nextjs/.preview-instance/typescript-workflow-system.ts\n D frontend-nextjs/.preview-instance/utils\n D frontend-nextjs/.preview-instance/wdio\n D frontend-nextjs/coverage/HIGH_IMPACT_FRONTEND_COMPONENTS_v11.0.md\n D frontend-nextjs/coverage/phase_292_frontend_summary.json\n D frontend-nextjs/coverage/phase_293_combined_progress.json\n D frontend-nextjs/coverage/phase_294_combined_progress.json\n D frontend-nextjs/coverage/phase_294_component_inventory.json\n D frontend-nextjs/coverage/phase_294_coverage_baseline.json\n D frontend-nextjs/coverage/phase_294_final_progress.json\n D frontend-nextjs/coverage/phase_294_lib_inventory.json\n D frontend-nextjs/coverage/phase_294_prioritized_testing_list.json\n D frontend-nextjs/coverage/phase_294_prioritized_testing_list_corrected.json\n D frontend-nextjs/coverage/prioritized_frontend_components_v11.0.json\n D frontend-nextjs/coverage/survey_frontend.py\n M frontend-nextjs/next-env.d.ts",
+          "driver_sha256": "93c994991abceda1406fda51bd7eb8bdd14cfda61fa682d3f4e137cf5875fb76"
+        },
+        "serving": {
+          "reachable": true,
+          "status": "healthy",
+          "pid": 91019,
+          "started_at": "2026-10-07T16:47:07.427215+00:00",
+          "git_commit": "764e38d8eb88",
+          "cwd": "/Users/rushiparikh/projects/atom/backend"
+        }
+      },
+      "turns": [
+        {
+          "label": "T1-subset",
+          "request_id": "752e582f0f0c466f9f607dc19e7bacf1",
+          "sent": "Just these two for now: the Linmac U-22 bead roller and the manual flanger. Same comparison as before, draft unchanged.",
+          "http": 200,
+          "seconds": 73.8,
+          "error": null,
+          "session_id": "36be8266-8962-4af1-9c1d-2106faa45796",
+          "message": "Which comparison do you want for these two \u2014 (a) each machine's workbook price-list entry set against its vendor/manual quote price, or (b) the Linmac U-22 and the manual flanger compared against each other? Draft stays unchanged either way."
+        },
+        {
+          "label": "T2-followup",
+          "request_id": "133bbadbacaa4a088c1da781ad3870e4",
+          "sent": "And what about the other machinery?",
+          "http": 200,
+          "seconds": 68.5,
+          "error": null,
+          "session_id": "36be8266-8962-4af1-9c1d-2106faa45796",
+          "message": "The only thing that came back this turn is Stefan Dirks' email of 2026-06-15 (Empire Machinery) quoting their stock 5ft 10ga hydraulic shear \u2014 it says nothing about the Roper Whitney roll bender, the Roper Whitney rotary machine, or the slitters, so I can't price \"the other machinery\" from it.\n\nI also can't re-confirm the figures sitting on the draft canvas for those rows (the $2,902.00, $2,421.00 and $8,880.00 lines) \u2014 they don't appear in any source retrieved now, so please treat them as unverified rather than quoted until the underlying list is opened. The concrete next search is the Consolidated Price List 2019 workbook, Tennsmith sheet for the slitters, plus a grep of the stored mail for the Roper Whitney and TK/GSL model numbers to see whether the alternatives were priced in an earlier thread \u2014 say the word and I'll pull those."
+        }
+      ],
+      "checks": {
+        "subset_covered": true,
+        "no_other_figures": true,
+        "evidence_subset_only": true,
+        "details": {
+          "covered": [
+            "U-22",
+            "Flanger"
+          ],
+          "leaked": [],
+          "other_evidenced": []
+        }
+      },
+      "verdict": "PASS",
+      "followup_checks": {
+        "remaining_covered_or_precise_ask": true,
+        "details": {
+          "covered": [],
+          "asks": true,
+          "named_scopes": 5
+        }
+      },
+      "runner_fix_note": "T2 verifier vocabulary extended (machines by human name + explicit authorization-request asks); assertion thresholds unchanged (>=2 scopes + ask). Product reply was scope-correct on first read."
+    }
+  ]
+}

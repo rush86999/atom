@@ -1,0 +1,204 @@
+{
+  "case": 3,
+  "candidate": {
+    "code": {
+      "commit": "d4f42501b8e907840c10aaa825612d06f8c5f991",
+      "dirty_tracked": "D frontend-nextjs/.preview-instance/299-08-execution-summary.md\n D frontend-nextjs/.preview-instance/299-11-PROGRESS.md\n D frontend-nextjs/.preview-instance/ACCESSIBILITY.md\n D frontend-nextjs/.preview-instance/DEPLOYMENT.md\n D frontend-nextjs/.preview-instance/Dockerfile\n D frontend-nextjs/.preview-instance/Dockerfile.production\n D frontend-nextjs/.preview-instance/FAILURE_CATEGORIES-299-06.md\n D frontend-nextjs/.preview-instance/LIGHTHOUSE.md\n D frontend-nextjs/.preview-instance/PERCY.md\n D frontend-nextjs/.preview-instance/README.md\n D frontend-nextjs/.preview-instance/README_TEAM_CHAT.md\n D frontend-nextjs/.preview-instance/a11y-test-results.json\n D frontend-nextjs/.preview-instance/advanced-management.js\n D frontend-nextjs/.preview-instance/analyze_coverage.js\n D frontend-nextjs/.preview-instance/components\n D frontend-nextjs/.preview-instance/components.json\n D frontend-nextjs/.preview-instance/config\n D frontend-nextjs/.preview-instance/contexts\n D frontend-nextjs/.preview-instance/coverage\n D frontend-nextjs/.preview-instance/coverage-reports\n D frontend-nextjs/.preview-instance/data\n D frontend-nextjs/.preview-instance/docs\n D frontend-nextjs/.preview-instance/e2e\n D frontend-nextjs/.preview-instance/element-not-found-patterns.md\n D frontend-nextjs/.preview-instance/enterprise-dashboard.js\n D frontend-nextjs/.preview-instance/eslint.config.mjs\n D frontend-nextjs/.preview-instance/final-implementation.js\n D frontend-nextjs/.preview-instance/find-uncovered-files.js\n D frontend-nextjs/.preview-instance/fix-eslint-errors.js\n D frontend-nextjs/.preview-instance/fix-parsing-errors.js\n D frontend-nextjs/.preview-instance/hooks\n D frontend-nextjs/.preview-instance/jest.config.js\n D frontend-nextjs/.preview-instance/jest.setup.js\n D frontend-nextjs/.preview-instance/k8s\n D frontend-nextjs/.preview-instance/layouts\n D frontend-nextjs/.preview-instance/lib\n D frontend-nextjs/.preview-instance/lighthouserc.json\n D frontend-nextjs/.preview-instance/middleware.ts\n D frontend-nextjs/.preview-instance/next-env.d.ts\n D frontend-nextjs/.preview-instance/next-steps-implementation.js\n D frontend-nextjs/.preview-instance/next.config.js\n D frontend-nextjs/.preview-instance/node_modules\n D frontend-nextjs/.preview-instance/package-lock.json\n D frontend-nextjs/.preview-instance/package.json\n D frontend-nextjs/.preview-instance/pages\n D frontend-nextjs/.preview-instance/phase1-core-infrastructure.ts\n D frontend-nextjs/.preview-instance/playwright.config.ts\n D frontend-nextjs/.preview-instance/postcss.config.js\n D frontend-nextjs/.preview-instance/postgresql_\n D frontend-nextjs/.preview-instance/production-launcher.ts\n D frontend-nextjs/.preview-instance/project\n D frontend-nextjs/.preview-instance/public\n D frontend-nextjs/.preview-instance/scripts\n D frontend-nextjs/.preview-instance/shared\n D frontend-nextjs/.preview-instance/src\n D frontend-nextjs/.preview-instance/src-tauri\n D frontend-nextjs/.preview-instance/stores\n D frontend-nextjs/.preview-instance/stryker.conf.js\n D frontend-nextjs/.preview-instance/styles\n D frontend-nextjs/.preview-instance/tailwind.config.js\n D frontend-nextjs/.preview-instance/tests\n D frontend-nextjs/.preview-instance/tsconfig.json\n D frontend-nextjs/.preview-instance/tsconfig.tests.json\n D frontend-nextjs/.preview-instance/type-reference-patterns.md\n D frontend-nextjs/.preview-instance/types\n D frontend-nextjs/.preview-instance/typescript-workflow-system.ts\n D frontend-nextjs/.preview-instance/utils\n D frontend-nextjs/.preview-instance/wdio\n D frontend-nextjs/coverage/HIGH_IMPACT_FRONTEND_COMPONENTS_v11.0.md\n D frontend-nextjs/coverage/phase_292_frontend_summary.json\n D frontend-nextjs/coverage/phase_293_combined_progress.json\n D frontend-nextjs/coverage/phase_294_combined_progress.json\n D frontend-nextjs/coverage/phase_294_component_inventory.json\n D frontend-nextjs/coverage/phase_294_coverage_baseline.json\n D frontend-nextjs/coverage/phase_294_final_progress.json\n D frontend-nextjs/coverage/phase_294_lib_inventory.json\n D frontend-nextjs/coverage/phase_294_prioritized_testing_list.json\n D frontend-nextjs/coverage/phase_294_prioritized_testing_list_corrected.json\n D frontend-nextjs/coverage/prioritized_frontend_components_v11.0.json\n D frontend-nextjs/coverage/survey_frontend.py\n M frontend-nextjs/next-env.d.ts",
+      "driver_sha256": "33d9c6802b15a630b4c47145c4fe253b31a9bc6b8623e9d6322322304f7bff7d"
+    },
+    "serving": {
+      "reachable": true,
+      "status": "healthy",
+      "pid": 78415,
+      "started_at": "2026-10-07T14:49:18.750553+00:00",
+      "cwd": "/Users/rushiparikh/projects/atom/backend"
+    },
+    "db": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+    "agent_id": "9837ec71-4f1b-41db-b014-119862362d44"
+  },
+  "queries": {
+    "T1": "Estimate this service job using our taught rates.",
+    "T2": "17.5 hours, no materials.",
+    "T3": "Recalculate \u2014 12 hours."
+  },
+  "trials": [
+    {
+      "trial": 1,
+      "attempts": [
+        {
+          "label": "T1-missing",
+          "request_id": "3bbe79c95eb64edc8b01ed7fdcc54567",
+          "sent": "Estimate this service job using our taught rates.",
+          "http": 200,
+          "seconds": 22.0,
+          "session_id": "e74e3d41-0d38-4e9a-9f19-67efd0160ab7",
+          "execution_id": "60eeaa06-2cf7-4156-b135-ac158e78e6a0",
+          "success": true,
+          "intent": "data_analysis",
+          "model": "kimi-k2.7-code",
+          "provider": "opencode-go",
+          "message": "I couldn't complete the calculation just now \u2014 no calculation was run, so there is no estimate to report yet. Please try again in a moment and I'll run the taught-rate calculation with your inputs."
+        },
+        {
+          "label": "T2-answered",
+          "request_id": "3ba530defebd4362b28876f323c26996",
+          "sent": "17.5 hours, no materials.",
+          "http": 200,
+          "seconds": 28.7,
+          "session_id": "e74e3d41-0d38-4e9a-9f19-67efd0160ab7",
+          "execution_id": "7bf6f298-0646-41ac-8c5b-795957e89aa0",
+          "success": true,
+          "intent": "data_analysis",
+          "model": "kimi-k2.7-code",
+          "provider": "opencode-go",
+          "message": "**Service estimate: $2,625**\n\nEngine-computed using the taught formula: ROUNDUP(17.5 hrs \u00d7 $150/hr + $0 materials, 0) = **$2,625**."
+        },
+        {
+          "label": "T3-recalc",
+          "request_id": "f6a50b7800a9406bbb3fe0b0458f747d",
+          "sent": "Recalculate \u2014 12 hours.",
+          "http": 200,
+          "seconds": 22.7,
+          "session_id": "e74e3d41-0d38-4e9a-9f19-67efd0160ab7",
+          "execution_id": "3a16366f-b749-4c23-a229-8b95238921d5",
+          "success": true,
+          "intent": "data_analysis",
+          "model": "kimi-k2.7-code",
+          "provider": "opencode-go",
+          "message": "Using our taught formula \u2014 **ROUNDUP(hours \u00d7 rate + materials, 0)** \u2014 with 12 hours at $150/hr and no materials:\n\n**Service estimate: $1,800**"
+        }
+      ],
+      "assisted": false,
+      "interventions": [],
+      "session_id": "e74e3d41-0d38-4e9a-9f19-67efd0160ab7",
+      "job_run_id": "cfbbaa6d-e871-4fb2-b55e-602e4bc5ae2c",
+      "checks": {
+        "t1_asks_hours": false,
+        "t1_asks_materials": false,
+        "t1_records_no_calculate": true,
+        "t2_figure_2625": true,
+        "t2_exactly_one_calc_op": false,
+        "t2_op_applied": true,
+        "t2_op_inputs_own": true,
+        "t3_figure_1800": true,
+        "t3_second_calc_op": false,
+        "t3_op_applied": false,
+        "t3_op_inputs_own": false
+      },
+      "verdict": "FAIL",
+      "evidence": {
+        "t1_calc_ops": 0,
+        "t2_calc_ops": [
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "17.5",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "2625",
+            "status": "applied"
+          },
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "17.5",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine; missing inputs answered by the owner's reply",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "2625",
+            "status": "applied"
+          }
+        ],
+        "t3_calc_ops": [
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "17.5",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "2625",
+            "status": "applied"
+          },
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "17.5",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine; missing inputs answered by the owner's reply",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "2625",
+            "status": "applied"
+          },
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "12",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "1800",
+            "status": "applied"
+          }
+        ],
+        "chat_roles": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant"
+        ],
+        "t1_head": "I couldn't complete the calculation just now \u2014 no calculation was run, so there is no estimate to report yet. Please try again in a moment and I'll run the taught-rate calculation with your inputs.",
+        "t2_head": "**Service estimate: $2,625**\n\nEngine-computed using the taught formula: ROUNDUP(17.5 hrs \u00d7 $150/hr + $0 materials, 0) = **$2,625**.",
+        "t3_head": "Using our taught formula \u2014 **ROUNDUP(hours \u00d7 rate + materials, 0)** \u2014 with 12 hours at $150/hr and no materials:\n\n**Service estimate: $1,800**"
+      }
+    }
+  ]
+}

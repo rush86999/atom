@@ -26,6 +26,20 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 
+def _fresh_session_id(tag: str) -> str:
+    """A session id unique to THIS run.
+
+    The edit lane reserves through the task lifecycle, whose idempotency is
+    keyed on the conversation. A hardcoded id makes the second run of this
+    file find the previous run's operation still claiming the task and be
+    refused with ``already_claimed`` — again a property of the test's
+    bookkeeping, not of the turn under test.
+    """
+    import uuid
+
+    return f"sess-{tag}-{uuid.uuid4().hex[:10]}"
+
+
 # ---------------------------------------------------------------------------
 # Fix 1 — extended budget class for edit-shaped canvas turns
 # ---------------------------------------------------------------------------
@@ -237,7 +251,8 @@ async def test_action_leg_skipped_when_edit_leg_dies_at_bound(monkeypatch):
     monkeypatch.setattr(chat, "_REPLY_LEG_MIN_SECONDS", 1.0)
 
     orch = chat.ChatOrchestrator()
-    session = {"id": "sess-rca3", "history": []}
+    sid = _fresh_session_id("rca3")
+    session = {"id": sid, "history": []}
     canvas = {"canvas_id": "c1", "canvas_type": "email",
               "content": {"subject": "Draft", "body": "Unchanged"}}
 
@@ -268,7 +283,7 @@ async def test_action_leg_skipped_when_edit_leg_dies_at_bound(monkeypatch):
               return_value="cont-rca3"),
     ):
         result = await orch.process_chat_message(
-            "u1", "rebuild the draft with the quotes", "sess-rca3",
+            "u1", "rebuild the draft with the quotes", sid,
             context={"canvas_id": "c1"})
 
     action.assert_not_awaited()
@@ -286,7 +301,8 @@ async def test_action_leg_runs_when_an_action_task_is_in_flight(monkeypatch):
     monkeypatch.setattr(chat, "_REPLY_LEG_MIN_SECONDS", 1.0)
 
     orch = chat.ChatOrchestrator()
-    session = {"id": "sess-rca4", "history": []}
+    sid = _fresh_session_id("rca4")
+    session = {"id": sid, "history": []}
     canvas = {"canvas_id": "c1", "canvas_type": "email",
               "content": {"subject": "Draft", "body": "Unchanged"}}
 
@@ -320,10 +336,117 @@ async def test_action_leg_runs_when_an_action_task_is_in_flight(monkeypatch):
               return_value="cont-rca4"),
     ):
         await orch.process_chat_message(
-            "u1", "rebuild the draft with the quotes", "sess-rca4",
+            "u1", "rebuild the draft with the quotes", sid,
             context={"canvas_id": "c1"})
 
     action.assert_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Fix 3b — the budget envelope reports from the operation receipt
+# ---------------------------------------------------------------------------
+
+class TestBudgetEnvelopeReportsFromTheReceipt:
+    """Owner priority 1: the edit can LAND and the reply leg can still die
+    afterwards. The terminal message must come from the operation/audit
+    receipt — never a bare `turn_budget_exceeded` for a turn whose write is
+    already on the canvas, and never a widened budget to hide it."""
+
+    def _turn(self, monkeypatch, receipt, fork_id="cont-9"):
+        import integrations.chat_orchestrator as chat
+
+        monkeypatch.setenv("ATOM_CHAT_REQUEST_DEADLINE_SECONDS", "8")
+        # The edit leg dies at its bound (its write may still have landed),
+        # so the turn reaches the final assembly where the budget envelope
+        # lives instead of returning early from an applied edit.
+        monkeypatch.setattr(chat, "_CANVAS_LEG_MAX_SECONDS", 0.5)
+        monkeypatch.setattr(chat, "_REPLY_LEG_MIN_SECONDS", 1.0)
+        orch = chat.ChatOrchestrator()
+        sid = _fresh_session_id("rcpt")
+        session = {"id": sid, "history": []}
+        canvas = {"canvas_id": "c1", "canvas_type": "email",
+                  "content": {"subject": "Draft", "body": "Unchanged"}}
+        # The reply leg ran out of budget for THIS turn.
+        orch._budget_exceeded_runs.add("e1")
+
+        async def _slow_edit(*a, **k):
+            await asyncio.sleep(5)   # dies at the 0.5s bound
+            return None
+
+        async def _receipt(cls, canvas_id, session_id, user_id,
+                           execution_id):
+            return dict(receipt)
+
+        with (
+            patch.object(orch, "_get_or_create_session", return_value=session),
+            patch.object(orch, "_resolve_canvas_ctx",
+                         new=AsyncMock(return_value=canvas)),
+            patch.object(orch, "_start_chat_execution", return_value="e1"),
+            patch.object(orch, "_record_chat_step", new=AsyncMock()),
+            patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+            patch.object(orch, "_finish_chat_execution"),
+            patch.object(orch, "_update_session"),
+            patch.object(orch, "_try_canvas_edit", side_effect=_slow_edit),
+            patch.object(orch, "_try_canvas_action", new=AsyncMock()),
+            patch.object(orch, "_get_qwen_response", new=AsyncMock(
+                return_value={"content": "answered", "model": "m",
+                              "provider": "p"})),
+            patch("core.chat_tool_planner.plan_tool_use",
+                  new=AsyncMock(return_value=None)),
+            patch("core.chat_tool_planner._provenance_menu",
+                  new=AsyncMock(return_value="")),
+            # fork_id=None models "authorized work did NOT hand off to a
+            # continuation" — the pure budget failure.
+            patch.object(chat, "_user_grounded_edit_directive",
+                         return_value=bool(fork_id)),
+            patch("core.async_turn_continuation.fork_canvas_edit_continuation",
+                  return_value=fork_id),
+            # The budget envelope reads the continuation registry for the
+            # handoff, so that is the seam the scenario controls.
+            patch("core.async_turn_continuation.continuation_in_flight",
+                  return_value=fork_id),
+            patch.object(chat.ChatOrchestrator, "_canvas_write_for_operation",
+                         classmethod(_receipt)),
+        ):
+            return asyncio.run(orch.process_chat_message(
+                "u1", "rebuild the draft with the quotes", sid,
+                context={"canvas_id": "c1"}))
+
+    def test_landed_write_is_a_confirmation_not_a_budget_failure(
+            self, monkeypatch):
+        result = self._turn(monkeypatch, {
+            "verdict": "result_verified", "review_status": "accepted"})
+        assert result["success"] is True, result
+        assert result.get("error_code") != "turn_budget_exceeded", result
+        assert "applied" in (result.get("message") or "").lower(), result
+        assert "operation" in (result.get("message") or "").lower(), result
+        assert (result.get("data") or {}).get("budget_recovery", {}).get(
+            "write_landed") is True
+
+    def test_landed_proposal_names_the_approval_flow(self, monkeypatch):
+        result = self._turn(monkeypatch, {
+            "verdict": "write_recorded", "review_status": "pending_review"})
+        assert result["success"] is True, result
+        assert result.get("error_code") != "turn_budget_exceeded", result
+        msg = (result.get("message") or "").lower()
+        assert "proposal" in msg and "approval" in msg, result
+
+    def test_unlanded_write_still_reports_the_budget_failure(
+            self, monkeypatch):
+        """The honesty contract is preserved where nothing landed."""
+        result = self._turn(monkeypatch, {"verdict": "unverified",
+                                         "review_status": None},
+                            fork_id=None)
+        assert result["success"] is False, result
+        assert result.get("error_code") == "turn_budget_exceeded", result
+
+    def test_background_handoff_is_not_a_bare_failure(self, monkeypatch):
+        result = self._turn(
+            monkeypatch, {"verdict": "unverified", "review_status": None},
+            fork_id="cont-9")
+        assert result["success"] is True, result
+        assert result.get("error_code") != "turn_budget_exceeded", result
+        assert "background" in (result.get("message") or "").lower(), result
 
 
 # ---------------------------------------------------------------------------

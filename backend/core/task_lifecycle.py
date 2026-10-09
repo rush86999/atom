@@ -669,6 +669,30 @@ def normalize_execution_facts(raw: Any) -> Dict[str, Any]:
             "source": str(planning_raw.get("source") or "")[:60] or None,
             "recovered": bool(planning_raw.get("recovered")),
         }
+    # STRUCTURAL TYPED FINDINGS passthrough (owner directive
+    # 2026-10-07): bound field values + source identity survive
+    # normalization — the operation record IS the evidence store.
+    findings_raw = raw.get("findings")
+    findings = ([f for f in findings_raw if isinstance(f, dict)]
+                if isinstance(findings_raw, list) else None)
+    # READ DIAGNOSTICS passthrough (2026-10-09): the per-attempt evidence
+    # and the inputs that produced it. They used to be dropped here, so a
+    # receipt-less read left only an outcome string and an empty items map
+    # (live A9: 10 reads, items:{}, findings:[], no way to tell a wrong
+    # row from a wrong sheet from an empty field contract). Observed facts
+    # and the attempted inputs are exactly what this record may state.
+    ev_raw = raw.get("evidence")
+    evidence = ([str(e)[:400] for e in ev_raw[:40]]
+                if isinstance(ev_raw, list) else None)
+    cand_raw = raw.get("attempted_candidates")
+    attempted = ([{k: c.get(k) for k in
+                   ("sheet", "row", "identity_column", "identity_cell")}
+                  for c in cand_raw[:12] if isinstance(c, dict)]
+                 if isinstance(cand_raw, list) else None)
+    rf_raw = raw.get("requested_fields")
+    requested_fields = ([str(f)[:120] for f in rf_raw[:12]]
+                        if isinstance(rf_raw, list) else None)
+    idc = raw.get("identity_context")
     return {
         "invoked": invoked,
         "outcome": outcome,
@@ -678,6 +702,11 @@ def normalize_execution_facts(raw: Any) -> Dict[str, Any]:
         "items": items,
         "planning": planning,
         "raw_outcome": raw_outcome,
+        "findings": findings,
+        "evidence": evidence,
+        "attempted_candidates": attempted,
+        "requested_fields": requested_fields,
+        "identity_context": str(idc)[:200] if idc else None,
         "at": _utc_now_iso(),
     }
 
@@ -2065,6 +2094,29 @@ def begin_retrieval_turn(
         canvas_id=canvas_id,
         agent_id=agent_id)
     if not was_created:
+        # FIELD-CONTRACT BACKFILL (2026-10-09, owner assignment): an
+        # existing task whose revision carries NO requested fields
+        # adopts this turn's fields — the ask IS the authority for what
+        # the job needs, and a pricing-shaped ask on a fields-less job
+        # left successor row reads with an empty contract (live
+        # A9/A10: read_returned_no_receipt while the isolated drive
+        # bound six candidates). Fields are only ever ADDED here, never
+        # replaced — existing contracts stand.
+        _rev_now = ((record or {}).get("task_revision") or {})
+        if requested_fields and not (
+                _rev_now.get("requested_fields") or []):
+            lifecycle.apply_transition(run_id, {
+                "kind": "revise_objective",
+                "requested_change": _bounded_text(message, 500),
+                "objective_text": _bounded_text(
+                    message, 500) if not str(
+                    _rev_now.get("objective_text") or "").strip()
+                else _bounded_text(
+                    str(_rev_now.get("objective_text")), 500),
+                "entities": (_entities_from_items(items)
+                             or list(_rev_now.get("entities") or [])),
+                "requested_fields": list(requested_fields),
+            })
         # SHELL BACKFILL (round 39 diagnosis): the objective and entities
         # are set ONLY at creation — a task created by a denied edit lane
         # (empty objective, no entities) stayed a shell forever, so

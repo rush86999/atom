@@ -1276,6 +1276,20 @@ class ChatMessage(Base):
     metadata_json = Column(Text, nullable=True)
 
 
+class DeliveryEvent(Base):
+    """Atomic delivery arbitration (owner directive 2026-10-07): one row
+    per delivered job event. The UNIQUE constraint on event_id is the
+    database-enforced single-writer gate — two concurrent processes
+    racing to deliver the same event: exactly one insert succeeds."""
+    __tablename__ = "delivery_events"
+    event_id = Column(String, primary_key=True)
+    conversation_id = Column(String, nullable=False, index=True)
+    job_id = Column(String, nullable=False)
+    result_revision = Column(String, nullable=False)
+    delivered_at = Column(DateTime(timezone=True),
+                          server_default=func.now())
+
+
 class InvocationEvent(Base):
     """Turn-scoped invocation instrumentation (retrieval/render boundaries).
 

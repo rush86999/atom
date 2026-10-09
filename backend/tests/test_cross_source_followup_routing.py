@@ -25,6 +25,7 @@ Pinned behavior:
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
@@ -747,6 +748,124 @@ class TestAnaphoricPinReachesTheReader:
         assert block is None, (
             "without a text name or a resolved pin there is nothing to "
             "scope the read to")
+
+    # 2026-10-08 Cedarberg release pins — natural (extension-less) file
+    # naming through the catalog's own tiered resolver.
+
+    CEDARBERG_CATALOG = [
+        {"source": "catalog", "external_id": "wb-2019",
+         "file_name": "Consolidated Price List 2019.xlsx"},
+        {"source": "catalog", "external_id": "wb-2019-copy",
+         "file_name": "Copy of Consolidated Price List 2019 - "
+                      "Linmac Update.xlsx"},
+    ]
+
+    def _cedarberg_patches(self, entries=None):
+        return (
+            patch("core.sheet_dataset_service.sheet_datasets_enabled",
+                  return_value=True),
+            patch("core.sheet_dataset_service.find_entries_sync",
+                  return_value=list(entries if entries is not None
+                                    else self.CEDARBERG_CATALOG)),
+            patch("core.sheet_dataset_service._probe_cached",
+                  side_effect=self._cedarberg_probe),
+            patch("core.sheet_dataset_service.candidate_probe_tokens",
+                  return_value=["cedarberg", "60", "ton"]),
+        )
+
+    @staticmethod
+    def _cedarberg_probe(entries, token, max_rows):
+        if entries and entries[0].get("external_id") == "wb-2019":
+            return {"file_name": entries[0]["file_name"],
+                    "entity_name": "cedarberg",
+                    "columns": ["MODEL", "PRICE"],
+                    "rows": [{"__row__": 12, "MODEL":
+                              "Cedarberg 60-ton press brake",
+                              "PRICE": 44200}],
+                    "row_count": 1}
+        return None
+
+    @pytest.mark.asyncio
+    async def test_extensionless_natural_name_resolves_uniquely(self):
+        """'the Consolidated Price List 2019 workbook' (no extension) has
+        exactly one stem-equal catalog file; the strict-superset copy
+        must not turn the ask into an ambiguity question."""
+        from core.chat_tool_planner import _datasets_named_file_block
+
+        with contextlib.ExitStack() as stack:
+            for p in self._cedarberg_patches():
+                stack.enter_context(p)
+            block = await _datasets_named_file_block(
+                "u1",
+                "consolidated price list 2019",
+                {"workspace_id": "ws",
+                 "message": "Please find the price for a Cedarberg 60-ton "
+                            "press brake in the Consolidated Price List "
+                            "2019 workbook",
+                 "requested_targets": ["Cedarberg 60-ton press brake"],
+                 "named_file_mention": "consolidated price list 2019"},
+            )
+        assert block, "the unique stem match must scope the read"
+        assert "Consolidated Price List 2019.xlsx" in block
+        assert "Linmac Update" not in block, (
+            "the strict-superset copy stays a containment-tier candidate "
+            "and must not tie the stem-equal file")
+
+    @pytest.mark.asyncio
+    async def test_ambiguous_natural_name_requires_clarification(self):
+        """Two files CONTAIN the mention with no stem equality on either
+        side: the read must stop with the multiple-match verdict and the
+        candidate names — never a first pick, never an empty scan."""
+        from core.chat_tool_planner import _datasets_named_file_block
+
+        entries = [
+            {"source": "catalog", "external_id": "pl-19",
+             "file_name": "Master Price List 2019.xlsx"},
+            {"source": "catalog", "external_id": "pl-20",
+             "file_name": "Master Price List 2020.xlsx"},
+        ]
+        import types as _types
+
+        plan = _types.SimpleNamespace(_result_meta={})
+        with contextlib.ExitStack() as stack:
+            for p in self._cedarberg_patches(entries):
+                stack.enter_context(p)
+            block = await _datasets_named_file_block(
+                "u1", "master price list",
+                {"workspace_id": "ws", "message": "check the master price "
+                 "list", "named_file_mention": "master price list"},
+                plan=plan)
+        assert block and "MULTIPLE" in block
+        meta = plan._result_meta.get("storage_read") or {}
+        assert meta.get("note") == (
+            "multiple catalogued files match the named file")
+        assert sorted(meta.get("candidates") or []) == [
+            "Master Price List 2019.xlsx",
+            "Master Price List 2020.xlsx"], (
+            "the clarification names both candidates structurally")
+        assert not meta.get("identity_verified")
+
+    @pytest.mark.asyncio
+    async def test_unrelated_name_never_inherits_the_previous_file(self):
+        """A turn that names a DIFFERENT, unindexed workbook must not be
+        answered from the conversation's previously resolved file: the
+        pin only scopes asks that name NO file of their own."""
+        from core.chat_tool_planner import _datasets_named_file_block
+
+        with contextlib.ExitStack() as stack:
+            for p in self._cedarberg_patches():
+                stack.enter_context(p)
+            block = await _datasets_named_file_block(
+                "u1", "unrelated workbook.xlsx",
+                {"workspace_id": "ws",
+                 "message": "find the price in unrelated workbook.xlsx",
+                 "named_file_mention": "Consolidated Price List 2019.xlsx"},
+                plan=None)
+        assert block is None or "Consolidated Price List 2019" not in (
+            block or ""), (
+            "an extensionful name that matches no catalog file resolves "
+            "to NOTHING — the previous file's rows must not answer it"
+        )
 
     @pytest.mark.asyncio
     async def test_direct_read_threads_the_resolved_pin(self):

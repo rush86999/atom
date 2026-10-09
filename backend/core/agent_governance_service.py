@@ -152,6 +152,9 @@ class AgentGovernanceService:
     # Reconciled from SaaS Phase 204
     ACTION_COMPLEXITY = {
         # Level 1: READ ONLY - Student Agents
+        "query_knowledge_graph": 1,  # READ (fixes meta-agent Propose-Only
+        # misclassification: this action queries the graph, modifies
+        # nothing — the default complexity 2 wrongly required approval)
         "search": 1,
         "read": 1,
         "list": 1,

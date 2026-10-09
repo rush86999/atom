@@ -318,6 +318,39 @@ def setup_byok_test_env():
         # but setup_byok_test_env is session-scoped, so it sets them for everyone.
 
 
+@pytest.fixture(scope="session", autouse=True)
+def test_database_schema():
+    """Create the ORM schema once for the ISOLATED test database.
+
+    Whole families of tests drive real code that reads and writes the
+    database (the task-lifecycle ledger via ``goal_runs``, the session
+    manager via ``chat_sessions``, canvas audit rows) without requesting a
+    schema-creating fixture of their own. On a fresh test database those
+    runs failed with ``no such table: ...`` and the pass/fail depended on
+    whichever earlier test happened to have created tables — bookkeeping,
+    not behavior.
+
+    ``checkfirst=True`` keeps this idempotent and cheap when the tables
+    already exist. It refuses outright if the resolved database is a
+    development one; tests never create schema on the live dev DB.
+    """
+    from core.database import DATABASE_URL
+
+    if any(p in DATABASE_URL for p in ("data/atom.db", "dev.db")):
+        raise RuntimeError(
+            "refusing to create schema against a development database: "
+            + DATABASE_URL)
+    import core.models  # noqa: F401 — registers tables on Base
+    from core.models_registration import Base
+    from sqlalchemy import create_engine
+
+    engine = create_engine(DATABASE_URL)
+    try:
+        Base.metadata.create_all(engine, checkfirst=True)
+    finally:
+        engine.dispose()
+
+
 @pytest.fixture(scope="session")
 def worker_database():
     """

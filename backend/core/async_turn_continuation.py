@@ -179,6 +179,12 @@ class AsyncTurnContinuation:
     # as existing_block so the retry REUSES it instead of re-searching.
     evidence_block: str = ""
     evidence_contract: Optional[Dict[str, Any]] = None
+    # REQUEST CONTRACT (2026-10-08 owner final repair 2): the reserving
+    # turn's resolved subjects and required sources, persisted with the
+    # fork and reloaded at execution — the background edit's fresh-data
+    # lookup probes THE REQUEST'S subjects; canvas/history may supply
+    # context but never replaces them.
+    request_scope: Optional[Dict[str, Any]] = None
     # Terminal state.
     outcome: str = ""
     summary: str = ""
@@ -1093,18 +1099,26 @@ async def _reconcile_authorized_proposal(
                 r"(?:change|edit|modify|update|prepare|draft)\b",
                 instruction, _re.IGNORECASE):
             return None
+        # IDENTITY (2026-10-08, live uvicorn_8001_restart.log:1404481):
+        # this lookup used to filter on ``operation_id ==
+        # cont.continuation_id`` alone, while the write path stamps the
+        # audit row with the ORIGIN operation id (the id the interactive
+        # turn owned — see `_operation_identity`). The row was therefore
+        # invisible here, reconciliation returned None, and the post-write
+        # gate reported a landed, HEAD, owner-authorized proposal as
+        # "the write could not be confirmed by audit readback".
+        # Locate the row through the SAME identity relationship every
+        # other seam in this module uses.
+        located = _matched_operation_row(cont)
+        if not located:
+            return None
         from core.database import get_db_session
         from core.models import CanvasAudit
-        from core.sql_json import json_field_equals
 
         with get_db_session() as db:
-            q = json_field_equals(
-                db, CanvasAudit.details_json, "$.operation_id",
-                cont.continuation_id)
             row = db.query(CanvasAudit).filter(
-                CanvasAudit.canvas_id == canvas_id,
-                *([q] if q is not None else []),
-            ).order_by(CanvasAudit.created_at.desc()).first()
+                CanvasAudit.id == str(located.get("audit_id") or ""),
+            ).first()
             if row is None:
                 return None
             head = db.query(CanvasAudit).filter(
@@ -1150,6 +1164,27 @@ async def _reconcile_authorized_proposal(
 
 def _operation_landed(cont: AsyncTurnContinuation) -> bool:
     return _operation_status(cont) == "accepted"
+
+
+def _landed_proposal_is_head(cont: AsyncTurnContinuation) -> bool:
+    """True when THIS operation's write landed as a proposal and is still
+    the canvas's current revision.
+
+    A proposal the reconciliation declined to accept (no owner edit
+    directive) is still FINISHED WORK awaiting a decision — not an
+    unconfirmed write. Reporting it from the receipt here is what keeps
+    the terminal message honest without spending a retry and its backoff
+    to rediscover the same row.
+    """
+    if _operation_status(cont) != "pending_review":
+        return False
+    row = _matched_operation_row(cont)
+    if not row:
+        return False
+    canvas_id = (cont.canvas or {}).get("canvas_id")
+    latest = _latest_audit(canvas_id) if canvas_id else None
+    return bool(latest and str(latest.get("id") or "")
+                == str(row.get("audit_id") or ""))
 
 
 def _classify_preapply(cont: AsyncTurnContinuation) -> Optional[str]:
@@ -2037,7 +2072,30 @@ async def run_canvas_edit_continuation(
     started = time.monotonic()
     deadline = started + max(1.0, _ASYNC_CONTINUATION_BUDGET_SECONDS - 2.0)
     last_note = "the edit planner could not complete"
+    # BUDGET-AWARE ATTEMPTS (2026-10-08 owner assignment 3): never start
+    # a full edit-planning attempt without a VIABLE budget — observed
+    # served edit-planning calls take 23-150s, so an attempt with less
+    # than the reserve floor is guaranteed waste (trial 10's attempt 3
+    # had 10s). Waiting for capacity is reported as its own failure
+    # stage, distinct from timeout/provider/malformed/decline.
+    _MIN_VIABLE_EDIT_SECONDS = float(
+        os.getenv("ATOM_ASYNC_EDIT_MIN_VIABLE_S", "60") or 60)
     for attempt in range(1, _ASYNC_CONTINUATION_ATTEMPTS + 1):
+        remaining = deadline - time.monotonic()
+        if remaining < _MIN_VIABLE_EDIT_SECONDS:
+            cont.failure_stage = "budget-reserve"
+            logger.info(
+                "[async-continuation] %s attempt %d/%d NOT started — "
+                "%.1fs remaining is below the %.0fs viable-edit floor "
+                "(observed served edit-planning calls: 23-150s)",
+                cont.continuation_id, attempt,
+                _ASYNC_CONTINUATION_ATTEMPTS, remaining,
+                _MIN_VIABLE_EDIT_SECONDS)
+            last_note = (
+                f"waiting for capacity: only {remaining:.0f}s of the "
+                "continuation budget remained — below the viable "
+                "edit-planning floor")
+            break
         if attempt > 1:
             latest = _latest_turn_evidence(orchestrator, cont)
             latest_contract = _latest_turn_contract(orchestrator, cont)
@@ -2086,6 +2144,10 @@ async def run_canvas_edit_continuation(
             "plan_task": None,
             "block": (cont.evidence_block or "") or None,
             "objective_evidence": cont.evidence_contract,
+            # RELOADED REQUEST CONTRACT (2026-10-08 owner final repair 2):
+            # the persisted subjects/sources ride the blackboard so the
+            # edit's fresh-data lookup probes THE REQUEST'S subjects.
+            "request_scope": cont.request_scope,
         }
         prior = _latest_audit((cont.canvas or {}).get("canvas_id") or "")
         expected_prior = (prior or {}).get("id")
@@ -2106,10 +2168,30 @@ async def run_canvas_edit_continuation(
             "edit_timeout=%.1fs", cont.continuation_id, attempt,
             _ASYNC_CONTINUATION_ATTEMPTS, cont.failure_stage,
             remaining, edit_timeout)
+        # BOUNDED-PATCH FEEDBACK (2026-10-08 owner correction 2): when a
+        # prior attempt was refused by the preservation guard
+        # (scope_dropped_product — protection working, not a planner
+        # black hole), the retry carries the refusal verbatim and an
+        # explicit bounded-patch instruction: surgical ops preserving
+        # every existing row identity, never a whole-table
+        # regeneration. The guard itself is never lowered.
+        _plan_message = cont.message
+        if (last_note or "").startswith("scope_dropped_product"):
+            _dropped = last_note.split(":", 1)[1][:120]
+            _plan_message = (
+                cont.message
+                + "\n\nYour previous draft was REFUSED by the scope "
+                f"guard: it dropped established identities ({_dropped}). "
+                "Produce a BOUNDED PATCH instead: one surgical "
+                "find-and-replace per intended change, copying the "
+                "existing text verbatim, preserving EVERY row and "
+                "identity already on the canvas (including row "
+                "references in descriptions). Do not regenerate the "
+                "table.")
         try:
             response = await asyncio.wait_for(
                 orchestrator._try_canvas_edit(
-                    cont.message, cont.history_snapshot, cont.canvas,
+                    _plan_message, cont.history_snapshot, cont.canvas,
                     cont.user_id, cont.session_id, cont.execution_id,
                     cont.agent_id,
                     provenance=cont.provenance,
@@ -2140,11 +2222,39 @@ async def run_canvas_edit_continuation(
                 time.monotonic() - started, last_note)
             response = None
 
+        # FAILURE TAXONOMY (2026-10-08 owner assignment 3): the edit
+        # leg's own no-apply reason names WHICH boundary stopped the
+        # attempt — planner_unavailable (no model served: capacity),
+        # planner_timeout (dispatch window), planner_error (provider
+        # failure), planner_returned_none (malformed/no plan), or
+        # planner_declined (a SERVED model answered wants_edit=False).
+        # The generic aggregate note is reserved for genuinely unknown
+        # shapes.
+        _no_apply_reason = (
+            blackboard.get("canvas_edit_no_apply_reason")
+            if isinstance(blackboard, dict) else None)
+        if _no_apply_reason and response is None:
+            _taxonomy = {
+                "planner_unavailable":
+                    "waiting for capacity: no model served the edit-"
+                    "planning call",
+                "planner_timeout":
+                    "edit-planning dispatch timed out",
+                "planner_error":
+                    "provider failure during edit planning",
+                "planner_returned_none":
+                    "malformed plan: the planner returned no usable plan",
+                "planner_declined":
+                    "served planner DECLINED the edit (wants_edit=False)",
+            }.get(str(_no_apply_reason))
+            if _taxonomy:
+                last_note = _taxonomy
         logger.info(
             "[async-continuation] %s attempt %d/%d edit returned in %.1fs "
-            "stage=%s", cont.continuation_id, attempt,
+            "stage=%s reason=%s", cont.continuation_id, attempt,
             _ASYNC_CONTINUATION_ATTEMPTS,
-            time.monotonic() - attempt_started, cont.failure_stage)
+            time.monotonic() - attempt_started, cont.failure_stage,
+            _no_apply_reason or "-")
         # DIAGNOSIS (2026-09-27, acceptance c16 case 2): the write lands but the
         # attempt is reported unconfirmed, and FOUR separate gates can each say
         # so. Name the one that actually decided it and log every input, so one
@@ -2152,6 +2262,30 @@ async def run_canvas_edit_continuation(
         # additive -- no gate's condition is altered here.
         _gate = "no-response"
         _op_status_dbg: Any = "not-probed"
+        # NO-CHANGES-NEEDED COMPLETION (2026-10-08 owner step 5): a
+        # served planner that declined because the draft ALREADY
+        # reflects the approved values completed the authorized task —
+        # nothing to change, nothing sent. Terminal truth from the
+        # planner's own captured words; never manufactured pairs.
+        if response is None and isinstance(blackboard, dict) and (
+                blackboard.get("canvas_edit_decline_noop")):
+            _noop_words = str(
+                blackboard.get("canvas_edit_decline_reply")
+                or "").strip()
+            logger.info(
+                "[async-continuation] %s attempt %d/%d completed as "
+                "no-changes-needed (planner's words: %r)",
+                cont.continuation_id, attempt,
+                _ASYNC_CONTINUATION_ATTEMPTS, _noop_words[:160])
+            return OUTCOME_ALREADY_APPLIED, (
+                _noop_words
+                or "The draft already reflects the approved values — "
+                   "no changes were needed, and nothing was sent.")
+        # A landed, HEAD, owner-authorized proposal that reconciliation
+        # promoted to `accepted` is DONE — the terminal message must come
+        # from that reconciled receipt, not from the stale
+        # review_status=pending_review the edit response carried.
+        _reconciled_to_accepted = False
         if response:
             edit_meta = ((response.get("data") or {}).get(
                 "canvas_edit") or {})
@@ -2189,21 +2323,34 @@ async def run_canvas_edit_continuation(
                         # "operation-not-landed" for a write that IS the
                         # canvas's current state, leaving the user uncertain
                         # whether the employee finished. When the landed row
-                        # carries THIS continuation's operation_id, is the
-                        # canvas HEAD, and the originating instruction was a
-                        # USER-GROUNDED edit directive (the owner already
-                        # authorized exactly this edit), reconcile: verify
-                        # through the authoritative read and accept the
-                        # proposal — a REVIEW-STATE transition on the audit
-                        # row only, never a canvas write, never a duplicate.
+                        # belongs to THIS continuation's operation identity,
+                        # is the canvas HEAD, and the originating instruction
+                        # was a USER-GROUNDED edit directive (the owner
+                        # already authorized exactly this edit), reconcile:
+                        # verify through the authoritative read and accept
+                        # the proposal — a REVIEW-STATE transition on the
+                        # audit row only, never a canvas write, never a
+                        # duplicate.
                         _recon = await _reconcile_authorized_proposal(cont)
                         if _recon == "accepted":
                             readback_ok = True
+                            _reconciled_to_accepted = True
                             _op_status_dbg = "accepted(reconciled)"
                         elif _recon:
                             _gate = _recon
                         if not readback_ok and _gate != _recon:
                             _gate = "operation-not-landed"
+                        if not readback_ok and _op_status_dbg == "pending_review" \
+                                and _landed_proposal_is_head(cont):
+                            # A landed HEAD proposal is finished work
+                            # awaiting a decision — report the proposal
+                            # flow now instead of retrying and reporting
+                            # "could not be confirmed" for a write that is
+                            # on the receipt.
+                            return OUTCOME_AWAITING_APPROVAL, (
+                                str(response.get("message") or "").strip()
+                                or "Your update is saved as a proposal "
+                                   "and is waiting for your approval.")
                     if readback_ok:
                         _gate = "read-canvas"
                         try:
@@ -2234,6 +2381,10 @@ async def run_canvas_edit_continuation(
                         "Canvas edit applied to "
                         f"{(cont.canvas or {}).get('canvas_type') or 'canvas'} "
                         f"{(cont.canvas or {}).get('canvas_id') or ''}".strip())
+                    if _reconciled_to_accepted:
+                        # The owner's own directive authorized this edit and
+                        # the receipt now records it accepted: report DONE.
+                        return OUTCOME_APPLIED, summary
                     if edit_meta.get("learning_mode") or edit_meta.get(
                             "review_status") == "pending_review":
                         return OUTCOME_AWAITING_APPROVAL, summary
@@ -2255,8 +2406,17 @@ async def run_canvas_edit_continuation(
             str(last_note)[:160])
 
         if attempt < _ASYNC_CONTINUATION_ATTEMPTS:
+            # ESCALATING BACKOFF (2026-10-08, case-1 T_AUTH trace): the
+            # fixed 45s cadence put all three attempts at 0/45/90s —
+            # INSIDE the 120s model-attempt inflight TTL, so when the
+            # interactive turn's own planning legs held (or leaked) the
+            # pair's claim, every continuation attempt skipped the
+            # healthy route as model_inflight and the edit planner never
+            # completed. The final attempt must be able to land BEYOND
+            # the TTL: base * attempt (45s, 90s) puts attempt 3 at
+            # ~135s. Still deadline-bounded below.
             delay = min(
-                _ASYNC_CONTINUATION_RETRY_DELAY_SECONDS,
+                _ASYNC_CONTINUATION_RETRY_DELAY_SECONDS * attempt,
                 max(0.0, deadline - time.monotonic()),
             )
             if delay > 0:
@@ -2368,6 +2528,7 @@ def fork_canvas_edit_continuation(
     provenance: Optional[Dict[str, Any]] = None,
     evidence_block: str = "",
     evidence_contract: Optional[Dict[str, Any]] = None,
+    request_scope: Optional[Dict[str, Any]] = None,
     origin_operation_id: str = "",
 ) -> Optional[str]:
     """Fire-and-forget entry used by the orchestrator's edit-leg timeout
@@ -2389,6 +2550,9 @@ def fork_canvas_edit_continuation(
         snapshot_audit_ts=(latest or {}).get("created_at", ""),
         origin_operation_id=str(origin_operation_id or ""),
         evidence_block=evidence_block or "",
+        request_scope=(
+            dict(request_scope)
+            if isinstance(request_scope, dict) else None),
         evidence_contract=(
             dict(evidence_contract)
             if isinstance(evidence_contract, dict)

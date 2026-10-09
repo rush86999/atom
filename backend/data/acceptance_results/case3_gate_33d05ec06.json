@@ -1,0 +1,446 @@
+{
+  "case": 3,
+  "candidate": {
+    "code": {
+      "commit": "33d05ec06b71a12dea4f154de19ee1c181b0a639",
+      "dirty_tracked": "D frontend-nextjs/.preview-instance/299-08-execution-summary.md\n D frontend-nextjs/.preview-instance/299-11-PROGRESS.md\n D frontend-nextjs/.preview-instance/ACCESSIBILITY.md\n D frontend-nextjs/.preview-instance/DEPLOYMENT.md\n D frontend-nextjs/.preview-instance/Dockerfile\n D frontend-nextjs/.preview-instance/Dockerfile.production\n D frontend-nextjs/.preview-instance/FAILURE_CATEGORIES-299-06.md\n D frontend-nextjs/.preview-instance/LIGHTHOUSE.md\n D frontend-nextjs/.preview-instance/PERCY.md\n D frontend-nextjs/.preview-instance/README.md\n D frontend-nextjs/.preview-instance/README_TEAM_CHAT.md\n D frontend-nextjs/.preview-instance/a11y-test-results.json\n D frontend-nextjs/.preview-instance/advanced-management.js\n D frontend-nextjs/.preview-instance/analyze_coverage.js\n D frontend-nextjs/.preview-instance/components\n D frontend-nextjs/.preview-instance/components.json\n D frontend-nextjs/.preview-instance/config\n D frontend-nextjs/.preview-instance/contexts\n D frontend-nextjs/.preview-instance/coverage\n D frontend-nextjs/.preview-instance/coverage-reports\n D frontend-nextjs/.preview-instance/data\n D frontend-nextjs/.preview-instance/docs\n D frontend-nextjs/.preview-instance/e2e\n D frontend-nextjs/.preview-instance/element-not-found-patterns.md\n D frontend-nextjs/.preview-instance/enterprise-dashboard.js\n D frontend-nextjs/.preview-instance/eslint.config.mjs\n D frontend-nextjs/.preview-instance/final-implementation.js\n D frontend-nextjs/.preview-instance/find-uncovered-files.js\n D frontend-nextjs/.preview-instance/fix-eslint-errors.js\n D frontend-nextjs/.preview-instance/fix-parsing-errors.js\n D frontend-nextjs/.preview-instance/hooks\n D frontend-nextjs/.preview-instance/jest.config.js\n D frontend-nextjs/.preview-instance/jest.setup.js\n D frontend-nextjs/.preview-instance/k8s\n D frontend-nextjs/.preview-instance/layouts\n D frontend-nextjs/.preview-instance/lib\n D frontend-nextjs/.preview-instance/lighthouserc.json\n D frontend-nextjs/.preview-instance/middleware.ts\n D frontend-nextjs/.preview-instance/next-env.d.ts\n D frontend-nextjs/.preview-instance/next-steps-implementation.js\n D frontend-nextjs/.preview-instance/next.config.js\n D frontend-nextjs/.preview-instance/node_modules\n D frontend-nextjs/.preview-instance/package-lock.json\n D frontend-nextjs/.preview-instance/package.json\n D frontend-nextjs/.preview-instance/pages\n D frontend-nextjs/.preview-instance/phase1-core-infrastructure.ts\n D frontend-nextjs/.preview-instance/playwright.config.ts\n D frontend-nextjs/.preview-instance/postcss.config.js\n D frontend-nextjs/.preview-instance/postgresql_\n D frontend-nextjs/.preview-instance/production-launcher.ts\n D frontend-nextjs/.preview-instance/project\n D frontend-nextjs/.preview-instance/public\n D frontend-nextjs/.preview-instance/scripts\n D frontend-nextjs/.preview-instance/shared\n D frontend-nextjs/.preview-instance/src\n D frontend-nextjs/.preview-instance/src-tauri\n D frontend-nextjs/.preview-instance/stores\n D frontend-nextjs/.preview-instance/stryker.conf.js\n D frontend-nextjs/.preview-instance/styles\n D frontend-nextjs/.preview-instance/tailwind.config.js\n D frontend-nextjs/.preview-instance/tests\n D frontend-nextjs/.preview-instance/tsconfig.json\n D frontend-nextjs/.preview-instance/tsconfig.tests.json\n D frontend-nextjs/.preview-instance/type-reference-patterns.md\n D frontend-nextjs/.preview-instance/types\n D frontend-nextjs/.preview-instance/typescript-workflow-system.ts\n D frontend-nextjs/.preview-instance/utils\n D frontend-nextjs/.preview-instance/wdio\n D frontend-nextjs/coverage/HIGH_IMPACT_FRONTEND_COMPONENTS_v11.0.md\n D frontend-nextjs/coverage/phase_292_frontend_summary.json\n D frontend-nextjs/coverage/phase_293_combined_progress.json\n D frontend-nextjs/coverage/phase_294_combined_progress.json\n D frontend-nextjs/coverage/phase_294_component_inventory.json\n D frontend-nextjs/coverage/phase_294_coverage_baseline.json\n D frontend-nextjs/coverage/phase_294_final_progress.json\n D frontend-nextjs/coverage/phase_294_lib_inventory.json\n D frontend-nextjs/coverage/phase_294_prioritized_testing_list.json\n D frontend-nextjs/coverage/phase_294_prioritized_testing_list_corrected.json\n D frontend-nextjs/coverage/prioritized_frontend_components_v11.0.json\n D frontend-nextjs/coverage/survey_frontend.py\n M frontend-nextjs/next-env.d.ts",
+      "driver_sha256": "33d9c6802b15a630b4c47145c4fe253b31a9bc6b8623e9d6322322304f7bff7d"
+    },
+    "serving": {
+      "reachable": true,
+      "status": "healthy",
+      "pid": 94461,
+      "started_at": "2026-10-07T17:16:55.542481+00:00",
+      "cwd": "/Users/rushiparikh/projects/atom/backend"
+    },
+    "db": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+    "agent_id": "9837ec71-4f1b-41db-b014-119862362d44"
+  },
+  "queries": {
+    "T1": "Estimate this service job using our taught rates.",
+    "T2": "17.5 hours, no materials.",
+    "T3": "Recalculate \u2014 12 hours."
+  },
+  "trials": [
+    {
+      "trial": 1,
+      "attempts": [
+        {
+          "label": "T1-missing",
+          "request_id": "b72432646286465596c1e88e15c86ac0",
+          "sent": "Estimate this service job using our taught rates.",
+          "http": 200,
+          "seconds": 33.6,
+          "session_id": "d3e2c5c9-bb8c-4186-b145-0cea7fde2f51",
+          "execution_id": "3d592c7b-5d7b-4952-ac15-f3df894a5d0b",
+          "success": true,
+          "intent": "data_analysis",
+          "model": "deepseek-flash",
+          "provider": "opencode-go",
+          "message": "Happy to run that \u2014 I just need the two inputs the formula uses. What are the job's hours and materials cost (if any)? Once you give me those, the estimate is ROUNDUP(hours \u00d7 $150 + materials, 0)."
+        },
+        {
+          "label": "T2-answered",
+          "request_id": "8dabc9d3d00f46f7a3c6a875b62e6392",
+          "sent": "17.5 hours, no materials.",
+          "http": 200,
+          "seconds": 21.7,
+          "session_id": "d3e2c5c9-bb8c-4186-b145-0cea7fde2f51",
+          "execution_id": "92385267-8805-4421-988a-acf6def1a295",
+          "success": true,
+          "intent": "data_analysis",
+          "model": "deepseek-flash",
+          "provider": "opencode-go",
+          "message": "**Service estimate: $2,625.00**\n\nROUNDUP(17.5 hrs \u00d7 $150/hr + $0 materials, 0) = $2,625.00, using our taught service rate of $150 per hour with no materials added."
+        },
+        {
+          "label": "T3-recalc",
+          "request_id": "4768545492dc4b8e84104b22195107bf",
+          "sent": "Recalculate \u2014 12 hours.",
+          "http": 200,
+          "seconds": 19.8,
+          "session_id": "d3e2c5c9-bb8c-4186-b145-0cea7fde2f51",
+          "execution_id": "732ba13a-5d5f-4678-ba59-5487ffa934a7",
+          "success": true,
+          "intent": "data_analysis",
+          "model": "deepseek-flash",
+          "provider": "opencode-go",
+          "message": "Recalculated at 12 hours with our taught rate of $150/hr and no materials:\n\nROUNDUP(12 \u00d7 $150 + $0, 0) = **$1,800**"
+        }
+      ],
+      "assisted": false,
+      "interventions": [],
+      "session_id": "d3e2c5c9-bb8c-4186-b145-0cea7fde2f51",
+      "job_run_id": "0fd945d8-9202-45d1-b8dc-80db1533a3e3",
+      "checks": {
+        "t1_asks_hours": true,
+        "t1_asks_materials": true,
+        "t1_records_no_calculate": true,
+        "t2_figure_2625": true,
+        "t2_exactly_one_calc_op": true,
+        "t2_op_applied": true,
+        "t2_op_inputs_own": true,
+        "t3_figure_1800": true,
+        "t3_second_calc_op": true,
+        "t3_op_applied": true,
+        "t3_op_inputs_own": true
+      },
+      "verdict": "PASS",
+      "evidence": {
+        "t1_calc_ops": 0,
+        "t2_calc_ops": [
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "17.5",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "2625",
+            "status": "applied"
+          }
+        ],
+        "t3_calc_ops": [
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "17.5",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "2625",
+            "status": "applied"
+          },
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "12",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "1800",
+            "status": "applied"
+          }
+        ],
+        "chat_roles": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant"
+        ],
+        "t1_head": "Happy to run that \u2014 I just need the two inputs the formula uses. What are the job's hours and materials cost (if any)? Once you give me those, the estimate is ROUNDUP(hours \u00d7 $150 + materials, 0).",
+        "t2_head": "**Service estimate: $2,625.00**\n\nROUNDUP(17.5 hrs \u00d7 $150/hr + $0 materials, 0) = $2,625.00, using our taught service rate of $150 per hour with no materials added.",
+        "t3_head": "Recalculated at 12 hours with our taught rate of $150/hr and no materials:\n\nROUNDUP(12 \u00d7 $150 + $0, 0) = **$1,800**"
+      }
+    },
+    {
+      "trial": 2,
+      "attempts": [
+        {
+          "label": "T1-missing",
+          "request_id": "37ad0b3b0a6848f4b2c9ac9e55418633",
+          "sent": "Estimate this service job using our taught rates.",
+          "http": 200,
+          "seconds": 21.7,
+          "session_id": "2ab11606-66a0-4a02-a62c-c246ff35eb7d",
+          "execution_id": "73ab8efc-b24e-43fb-ad93-bfb473c93025",
+          "success": true,
+          "intent": "data_analysis",
+          "model": "deepseek-flash",
+          "provider": "opencode-go",
+          "message": "I can run that estimate right away \u2014 I just need two inputs for the taught formula (ROUNDUP(hours \u00d7 $150 + materials, 0)):\n\n1. **Hours** on the job\n2. **Materials cost** (enter 0 if none)\n\nSend those and I'll give you the rounded figure."
+        },
+        {
+          "label": "T2-answered",
+          "request_id": "4bc376cfe90b481fa74293dd7783fa69",
+          "sent": "17.5 hours, no materials.",
+          "http": 200,
+          "seconds": 25.1,
+          "session_id": "2ab11606-66a0-4a02-a62c-c246ff35eb7d",
+          "execution_id": "bf762eb7-c580-4483-aec2-7104e95ae7a1",
+          "success": true,
+          "intent": "data_analysis",
+          "model": "deepseek-flash",
+          "provider": "opencode-go",
+          "message": "Service estimate: **$2,625** \u2014 ROUNDUP(17.5 hrs \u00d7 $150/hr + $0 materials, 0) = $2,625.00, per our taught formula. No materials were included, so the total is labor only."
+        },
+        {
+          "label": "T3-recalc",
+          "request_id": "e61f79e52e26475bb7caea28591ed282",
+          "sent": "Recalculate \u2014 12 hours.",
+          "http": 200,
+          "seconds": 21.4,
+          "session_id": "2ab11606-66a0-4a02-a62c-c246ff35eb7d",
+          "execution_id": "3da10140-d55d-491e-973a-d73c9fe7da9f",
+          "success": true,
+          "intent": "data_analysis",
+          "model": "deepseek-flash",
+          "provider": "opencode-go",
+          "message": "Recalculated at 12 hours with our taught rate of $150/hr and no materials:\n\nROUNDUP(12 \u00d7 $150 + $0, 0) = **$1,800**\n\n- Rate: $150/hr (taught service rate)\n- Hours: 12\n- Materials: $0\n- Estimate: **$1,800**"
+        }
+      ],
+      "assisted": false,
+      "interventions": [],
+      "session_id": "2ab11606-66a0-4a02-a62c-c246ff35eb7d",
+      "job_run_id": "11d4019f-7182-47ad-a3af-2837116d0e4c",
+      "checks": {
+        "t1_asks_hours": true,
+        "t1_asks_materials": true,
+        "t1_records_no_calculate": true,
+        "t2_figure_2625": true,
+        "t2_exactly_one_calc_op": true,
+        "t2_op_applied": true,
+        "t2_op_inputs_own": true,
+        "t3_figure_1800": true,
+        "t3_second_calc_op": true,
+        "t3_op_applied": true,
+        "t3_op_inputs_own": true
+      },
+      "verdict": "PASS",
+      "evidence": {
+        "t1_calc_ops": 0,
+        "t2_calc_ops": [
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "17.5",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine; missing inputs answered by the owner's reply",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "2625",
+            "status": "applied"
+          }
+        ],
+        "t3_calc_ops": [
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "17.5",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine; missing inputs answered by the owner's reply",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "2625",
+            "status": "applied"
+          },
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "12",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "1800",
+            "status": "applied"
+          }
+        ],
+        "chat_roles": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant"
+        ],
+        "t1_head": "I can run that estimate right away \u2014 I just need two inputs for the taught formula (ROUNDUP(hours \u00d7 $150 + materials, 0)):\n\n1. **Hours** on the job\n2. **Materials cost** (enter 0 if none)\n\nSend those and I'll give you the rounded figure.",
+        "t2_head": "Service estimate: **$2,625** \u2014 ROUNDUP(17.5 hrs \u00d7 $150/hr + $0 materials, 0) = $2,625.00, per our taught formula. No materials were included, so the total is labor only.",
+        "t3_head": "Recalculated at 12 hours with our taught rate of $150/hr and no materials:\n\nROUNDUP(12 \u00d7 $150 + $0, 0) = **$1,800**\n\n- Rate: $150/hr (taught service rate)\n- Hours: 12\n- Materials: $0\n- Estimate: **$1,800**"
+      }
+    },
+    {
+      "trial": 3,
+      "attempts": [
+        {
+          "label": "T1-missing",
+          "request_id": "4aba540d0d704048bb66d718a4899788",
+          "sent": "Estimate this service job using our taught rates.",
+          "http": 200,
+          "seconds": 36.4,
+          "session_id": "7807a409-9646-4c64-9412-a38fa7183399",
+          "execution_id": "49a0bb53-e865-4440-b772-cf959b967f03",
+          "success": true,
+          "intent": "data_analysis",
+          "model": "deepseek-flash",
+          "provider": "opencode-go",
+          "message": "I need two inputs to run our taught formula \u2014 ROUNDUP(hours \u00d7 150 + materials, 0):\n\n- **Hours** of labor\n- **Materials** cost (enter 0 if none)\n\nGive me those and I'll have the estimate back to you immediately."
+        },
+        {
+          "label": "T2-answered",
+          "request_id": "000e50aa27a346128c998ed5301f4859",
+          "sent": "17.5 hours, no materials.",
+          "http": 200,
+          "seconds": 28.3,
+          "session_id": "7807a409-9646-4c64-9412-a38fa7183399",
+          "execution_id": "136d409d-a1a0-4a0b-928e-f4de15cb123e",
+          "success": true,
+          "intent": "data_analysis",
+          "model": "deepseek-flash",
+          "provider": "opencode-go",
+          "message": "Service estimate: **$2,625.00** \u2014 ROUNDUP(17.5 hrs \u00d7 $150/hr + $0 materials, 0) = 2,625, using our taught service rate of $150/hr."
+        },
+        {
+          "label": "T3-recalc",
+          "request_id": "c72bdae9e82c4d5186608e8d6878b46c",
+          "sent": "Recalculate \u2014 12 hours.",
+          "http": 200,
+          "seconds": 35.8,
+          "session_id": "7807a409-9646-4c64-9412-a38fa7183399",
+          "execution_id": "f2b19a63-d41b-430a-8145-e1f516829ad8",
+          "success": true,
+          "intent": "data_analysis",
+          "model": "deepseek-flash",
+          "provider": "opencode-go",
+          "message": "Recalculated at 12 hours with our taught rate of $150/hr and no materials:\n\nROUNDUP(12 \u00d7 $150 + $0, 0) = **$1,800**\n\nThat's the engine-computed figure (result_id 26753240-34f2-4df4-a001-9130644ac556) \u2014 no materials were included, so the total is purely labor."
+        }
+      ],
+      "assisted": false,
+      "interventions": [],
+      "session_id": "7807a409-9646-4c64-9412-a38fa7183399",
+      "job_run_id": "5f3722f2-2d3d-4df9-9263-212390109a25",
+      "checks": {
+        "t1_asks_hours": true,
+        "t1_asks_materials": true,
+        "t1_records_no_calculate": true,
+        "t2_figure_2625": true,
+        "t2_exactly_one_calc_op": true,
+        "t2_op_applied": true,
+        "t2_op_inputs_own": true,
+        "t3_figure_1800": true,
+        "t3_second_calc_op": true,
+        "t3_op_applied": true,
+        "t3_op_inputs_own": true
+      },
+      "verdict": "PASS",
+      "evidence": {
+        "t1_calc_ops": 0,
+        "t2_calc_ops": [
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "17.5",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine; missing inputs answered by the owner's reply",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "2625",
+            "status": "applied"
+          }
+        ],
+        "t3_calc_ops": [
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "17.5",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine; missing inputs answered by the owner's reply",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "2625",
+            "status": "applied"
+          },
+          {
+            "inputs": {
+              "rate": "150",
+              "hours": "12",
+              "materials": "0"
+            },
+            "request_supplied": [
+              "hours",
+              "materials"
+            ],
+            "taught_defaults": [
+              "rate"
+            ],
+            "basis": "taught expression (lesson 1451b758f7964e1a9d1878704b7ce054) evaluated by the general formula engine",
+            "policy_id": "taught-expression:Service estimate",
+            "policy_version": "aacc361fd619",
+            "value": "1800",
+            "status": "applied"
+          }
+        ],
+        "chat_roles": [
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant"
+        ],
+        "t1_head": "I need two inputs to run our taught formula \u2014 ROUNDUP(hours \u00d7 150 + materials, 0):\n\n- **Hours** of labor\n- **Materials** cost (enter 0 if none)\n\nGive me those and I'll have the estimate back to you immediately.",
+        "t2_head": "Service estimate: **$2,625.00** \u2014 ROUNDUP(17.5 hrs \u00d7 $150/hr + $0 materials, 0) = 2,625, using our taught service rate of $150/hr.",
+        "t3_head": "Recalculated at 12 hours with our taught rate of $150/hr and no materials:\n\nROUNDUP(12 \u00d7 $150 + $0, 0) = **$1,800**\n\nThat's the engine-computed figure (result_id 26753240-34f2-4df4-a001-9130644ac556) \u2014 no materials were included, so the total is purely labor."
+      }
+    }
+  ]
+}

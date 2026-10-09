@@ -515,6 +515,7 @@ class ChatMessageResponse(BaseModel):
     reasoning: Optional[str] = Field(None, description="The model's chain-of-thought for this reply — rendered by the Reasoning Process drawer and captured with feedback for training")
     execution_id: Optional[str] = Field(None, description="The chat-trace run id for this turn — lets the client finalize THIS turn's streamed bubble when turns overlap (e.g. two tabs on one session)")
     error_code: Optional[str] = Field(None, description="Structured error code (e.g. no_llm_provider, budget_exceeded)")
+    failure_reason: Optional[str] = Field(None, description="Machine-readable cause for structured errors (e.g. provider_credits_exhausted). The orchestrator and the M1 finalizer both carry it — undeclared here it was silently DROPPED at route serialization (case-5 finding, 2026-10-06), so clients could never render the distinct retry/top-up UI the backend promised.")
     recovery_url: Optional[str] = Field(None, description="Recovery URL for structured errors")
 
 
@@ -2213,6 +2214,41 @@ async def send_chat_message(
                 recovery_url=response.get("recovery_url"),
             )
 
+        # A BLANK user-facing reply is never acceptable (2026-09-27 fix).
+        # The blank detection + truthful rewrite run BEFORE the durable
+        # outcome persist: the rewrite names the failure (model returned
+        # no content) and marks the turn failed, and THAT text is what
+        # the durable row must carry — rewriting only the transport
+        # envelope left history reloads serving the blank pre-finalization
+        # row after a restart (2026-10-08 empty-stream persistence check).
+        # Armed fault injection (never production traffic): with
+        # ATOM_TEST_FORCE_EMPTY_REPLY=1 a "[force-empty]" marker blanks
+        # the orchestrator's reply so the production branch runs through
+        # real HTTP — same convention as ATOM_TEST_FORCE_TURN_FAILURE.
+        if (os.getenv("ATOM_TEST_FORCE_EMPTY_REPLY") == "1"
+                and "[force-empty]" in str(request.message or "")):
+            response["message"] = ""
+            logger.info(
+                "[empty-reply] test seam armed — orchestrator reply "
+                "blanked for this turn (session=%s)", session_id)
+        if not str(response.get("message") or "").strip():
+            logger.warning(
+                "chat turn produced no reply text (session=%s exec=%s); "
+                "reporting an unavailable reply rather than an empty one",
+                response.get("session_id") or session_id,
+                response.get("execution_id"))
+            response = {
+                **response,
+                "success": False,
+                "message": (
+                    "I couldn't generate a response just now — the "
+                    "model returned no content. Please try again in a "
+                    "moment; your message was received and the next "
+                    "request will dispatch normally."),
+                "confidence": 0.0,
+                "error_code": "empty_reply",
+            }
+
         response = _finalize_chat_response(db, response)
         response = _persist_finalized_outcome(
             db,
@@ -2237,34 +2273,15 @@ async def send_chat_message(
             reasoning=response.get("reasoning"),
             execution_id=response.get("execution_id"),
             error_code=response.get("error_code"),
+            # The established failure metadata rides the envelope the
+            # orchestrator + M1 finalizer preserved — omitting it here
+            # serialized null failure_reason/recovery_url through the
+            # actual HTTP response on EVERY credit failure (case-5 T3
+            # envelope), leaving the client unable to render the
+            # distinct retry/top-up UI the fields exist for.
+            failure_reason=response.get("failure_reason"),
+            recovery_url=response.get("recovery_url"),
         )
-        # A BLANK user-facing reply is never acceptable. With no model
-        # provider configured the reply leg yields nothing, the
-        # marker-based detection below finds no sentinel in an empty
-        # string, and the turn is delivered as a successful empty
-        # message — leaving the user watching a spinner that never
-        # resolves. Say so explicitly and end the turn.
-        if not str(_final.message or "").strip():
-            logger.warning(
-                "chat turn produced no reply text (session=%s exec=%s); "
-                "reporting an unavailable reply rather than an empty one",
-                _final.session_id, _final.execution_id)
-            _final = ChatMessageResponse(
-                success=False,
-                message=(
-                    "No model provider is configured, so I could not "
-                    "generate a reply. Add an API key in Settings → AI, "
-                    "then try again."),
-                session_id=_final.session_id,
-                intent=_final.intent or "unknown",
-                confidence=0.0,
-                suggested_actions=[],
-                requires_confirmation=False,
-                next_steps=[],
-                timestamp=datetime.utcnow().isoformat(),
-                error_code="no_llm_provider",
-                recovery_url="/settings/ai",
-            )
         _complete_transport_request(db, _treq, _final)
         return _final
 

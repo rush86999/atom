@@ -119,6 +119,7 @@ def extract_items_from_text(text: str) -> List[str]:
     cleaned = re.sub(r"u20[0-9a-fA-F]{2}", "-", cleaned)
     raw_items = extract_targets(cleaned, [], [])
 
+
     # IDENTITY-SHAPE RULES (2026-10-01 live finding on the quote
     # canvas): '36' in 'Roper Whitney 36" No. 381' is a SPECIFICATION,
     # not an item — the read then probed a bare '36' and matched every
@@ -156,6 +157,32 @@ def extract_items_from_text(text: str) -> List[str]:
         if key and key not in seen:
             seen.add(key)
             out.append(token)
+    # NAMED-PROSE SUBJECT FALLBACK (2026-10-08 Cedarberg defect): a
+    # message like "find the price for a Cedarberg 60-ton press brake"
+    # carries no code-shaped tokens — extract_targets may return a
+    # partial fragment ('a Cedarberg') that the identity rules filter
+    # out, leaving []. The user's named subject must survive as a
+    # search term. Generic lookup language, not business vocabulary.
+    if not out:
+        import re as _re
+
+        _m = _re.search(
+            r'(?:price|cost|date|value|status|review)[ ]+'
+            r'(?:for|of)[ ]+(?:a|an|the)?[ ]*'
+            r'(.+?)(?:[ ]+(?:in|from|within|inside)[ ]|[?]|$|[.])',
+            cleaned, _re.IGNORECASE)
+        if not _m:
+            _m = _re.search(
+                r'(?:find|look[ ]?up|search[ ]+for|check)[ ]+'
+                r'(?:the[ ]+)?(?:price[ ]+)?(?:for[ ]+)?(?:a|an|the)?[ ]*'
+                r'(.+?)(?:[ ]+(?:in|from|within|inside)[ ]|[?]|$|[.])',
+                cleaned, _re.IGNORECASE)
+        if _m:
+            subject = _m.group(1).strip().rstrip('.,;:')
+            if len(subject) >= 3 and subject.lower() not in (
+                    "price", "cost", "item", "the", "a", "an", "date",
+                    "value", "status", "review", "workbook", "file"):
+                out = [subject]
     return out
 
 

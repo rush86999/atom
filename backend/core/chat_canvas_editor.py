@@ -174,6 +174,74 @@ def _ops_preview(ops: List[Any], limit: int = 2) -> str:
     return "; ".join(out)
 
 
+# Boundary-diagnostic seam (owner assignment 3): `_plan_structured`
+# swallows provider errors by contract (a failed plan is `None` so the
+# caller keeps its own failure contract). The KIND of that failure is
+# needed downstream to keep empty output, malformed output, a provider
+# error and a deadline cancellation apart, so it is published here rather
+# than changing the return contract every caller depends on.
+_LAST_PLAN_FAILURE: Dict[str, Any] = {"kind": None, "detail": ""}
+
+
+
+def _plan_failure_kind_from_seam() -> str:
+    """The failure kind published by the pinned planning wrapper."""
+    try:
+        from core.llm import pinned_planning as _pp
+
+        return (str(_pp.LAST_FAILURE.get("kind") or "")
+                or CanvasPlanOutcome.EMPTY)
+    except Exception:  # noqa: BLE001
+        return CanvasPlanOutcome.EMPTY
+
+
+def _plan_failure_kind(err: Any) -> str:
+    """Classify WHY planning produced no plan.
+
+    Empty output, malformed structured output, a provider/protocol failure
+    and a caller deadline cancellation are different boundaries and must not
+    share one diagnosis.
+    """
+    if err is None:
+        return CanvasPlanOutcome.EMPTY
+    name = type(err).__name__
+    text = f"{name} {err}".lower()
+    if ("timeout" in name.lower() or "timeout" in text
+            or "cancel" in name.lower() or "deadline" in text):
+        return CanvasPlanOutcome.DEADLINE_CANCELLED
+    if ("json" in text or "parse" in text or "schema" in text
+            or "malformed" in text or "truncat" in text):
+        return CanvasPlanOutcome.MALFORMED
+    return CanvasPlanOutcome.PROVIDER_FAILURE
+
+
+
+class CanvasPlanOutcome:
+    """The DISTINCT outcomes at the plan response boundary (owner
+    assignment 3, 2026-10-08).
+
+    A successful HTTP response is not a successful model operation. These
+    are kept apart in the operation record and the terminal response so a
+    repair is aimed at the boundary that actually failed:
+
+    * ``EXECUTABLE``      — a valid plan carrying the work.
+    * ``SERVED_DECLINE``  — a valid ``wants_edit=False`` plan. The model
+      answered; its own captured explanation is the evidence. It is NOT a
+      latency failure and must never be relabelled as one.
+    * ``MALFORMED``       — self-inconsistent or truncated structured
+      output (``wants_edit=False`` with ops, or unparseable JSON).
+    * ``EMPTY``           — the call returned no output at all.
+    * ``PROVIDER_FAILURE``— the route failed: provider, protocol or quota.
+    * ``DEADLINE_CANCELLED`` — the CALLER's deadline cancelled the leg.
+    """
+    EXECUTABLE = "executable_plan"
+    SERVED_DECLINE = "served_decline"
+    MALFORMED = "malformed_structured_output"
+    EMPTY = "empty_output"
+    PROVIDER_FAILURE = "provider_failure"
+    DEADLINE_CANCELLED = "deadline_cancelled"
+
+
 class CanvasPlanUnavailable(Exception):
     """The planning LLM call failed (provider down / timeout / no JSON).
     Distinct from ``None`` (a legitimate "this turn is not an edit"): callers
@@ -181,7 +249,34 @@ class CanvasPlanUnavailable(Exception):
     request misfiled into TASK_MANAGEMENT produces a chat reply claiming the
     edit succeeded while the canvas never changed (observed live 2026-08-31:
     "Append this exact line … LIVEUPDATEcheck456" answered with a false
-    success, no audit row, no broadcast)."""
+    success, no audit row, no broadcast).
+
+    ``kind`` is one of :class:`CanvasPlanOutcome`'s non-success values, so
+    the caller can record WHICH boundary failed instead of one bucket named
+    "provider failure" covering empty output, malformed output, a real
+    provider error and a deadline cancellation alike.
+    """
+
+    def __init__(self, message: str, kind: str = CanvasPlanOutcome.PROVIDER_FAILURE):
+        super().__init__(message)
+        self.kind = kind
+
+
+def _small_edit_shape(message: str, prompt_len: int) -> bool:
+    """A HEADER/SMALL edit: short instruction, no fresh-data section, no
+    multi-row vocabulary. Its plan is a couple of find→replace ops — a
+    14k-token output reservation buys nothing and costs deadline (owner
+    systemic item 4, 2026-10-08: a small header change entered the
+    heavyweight path and lost its budget before producing a patch)."""
+    msg = str(message or "")
+    if prompt_len > 24000:
+        return False
+    probe = msg.lower().replace("everything else", "")
+    if any(w in probe for w in (
+            "row", "table", "all ", "every", "rebuild", "regenerate",
+            "rewrite the", "entire", "whole")):
+        return False
+    return len(msg) <= 220
 
 
 async def _plan_structured(
@@ -190,6 +285,7 @@ async def _plan_structured(
     prompt: str,
     response_model: Any,
     system_instruction: str,
+    message: str = "",
 ) -> Any:
     """Structured canvas-planning call routed by BPC (no model pin).
 
@@ -223,6 +319,15 @@ async def _plan_structured(
     _pin = {}
     _edit_plan_max_tokens = int(
         _os.getenv("ATOM_ASYNC_EDIT_PLAN_MAX_TOKENS", "14000") or 14000)
+    # WORKLOAD-AWARE ALLOWANCE (owner systemic item 4): a small/header
+    # edit plans in a 2,000-token envelope — the multi-row 14k
+    # reservation exists for whole-table patch payloads, and asking a
+    # small edit to carry it spends the interactive deadline on output
+    # space the plan will never use.
+    if _small_edit_shape(message, len(prompt or "")):
+        _edit_plan_max_tokens = min(
+            _edit_plan_max_tokens,
+            int(_os.getenv("ATOM_SMALL_EDIT_MAX_TOKENS", "2000") or 2000))
     _pin_spec = (_os.getenv("ATOM_ASYNC_EDIT_PLAN_MODEL") or "").strip()
     if _pin_spec and "/" in _pin_spec:
         _prov, _mod = _pin_spec.split("/", 1)
@@ -255,6 +360,11 @@ and if so produce the edit.
 Preservation rules — the canvas may hold MANUAL EDITS by the user that are
 newer than anything in the conversation. The current content shown below is
 the authority, NOT your memory of earlier drafts:
+- PRESERVE PRODUCT IDENTITIES VERBATIM: descriptions carry identity
+  markers (e.g. "(Row 268 is the quoted machine)"). When your find text
+  includes such a marker, the replace text MUST include it too — copy
+  it verbatim. A patch that drops an identity marker will be rejected
+  by the scope validator; there is no retry for identity loss.
 - Default to edit_mode="patch": return ops, each an exact find→replace.
   Copy "find" VERBATIM from the current content (every character and
   newline); the first match is replaced by "replace". Text the ops don't
@@ -800,6 +910,27 @@ def artifact_observations(
                         }
                         observations.append(observation)
     return observations
+
+
+def _contract_entities(
+        evidence_contract: Optional[Dict[str, Any]]) -> List[str]:
+    """Entity identities the evidence contract tracks — the field
+    contract's own subjects, not a product-specific vocabulary."""
+    out: List[str] = []
+    seen = set()
+    for outcome in ((evidence_contract or {}).get("outcomes") or []):
+        if isinstance(outcome, dict):
+            eid = str(outcome.get("entity_id") or "").strip()
+            if eid and eid.lower() not in seen:
+                seen.add(eid.lower())
+                out.append(eid)
+    for action in ((evidence_contract or {}).get("actions") or []):
+        if isinstance(action, dict):
+            eid = str(action.get("entity_id") or "").strip()
+            if eid and eid.lower() not in seen:
+                seen.add(eid.lower())
+                out.append(eid)
+    return out[:24]
 
 
 def build_canvas_evidence_comparison(
@@ -1748,6 +1879,97 @@ class FreshDataResult(NamedTuple):
     evidence_contract: Optional[Dict[str, Any]] = None
 
 
+def _contract_from_receipt(reused: Dict[str, Any]) -> Dict[str, Any]:
+    """Derive the readiness gate's evidence contract from a structured
+    read receipt — recording only what the read OBSERVED.
+
+    A chained datasets read returns a structured result (subject, field,
+    parsed value with its basis/unit/currency, source identity and
+    revision, freshness qualification). The readiness gate reads a
+    different shape (`evidence_contract`). Rather than invent values or
+    an authorized change to satisfy that shape, this maps the receipt's
+    own fields across and states plainly that the read authorized NO
+    value-changing edit.
+
+    Required by the research-to-draft guide: preserve subject, field,
+    value, source/version and freshness TOGETHER.
+    """
+    sr = reused.get("structured_result") if isinstance(reused, dict) else None
+    sr = sr if isinstance(sr, dict) else {}
+    src = sr.get("source_identity") if isinstance(
+        sr.get("source_identity"), dict) else {}
+    targets = sr.get("targets") if isinstance(sr.get("targets"), list) else []
+
+    evidence: List[Dict[str, Any]] = []
+    for t in targets:
+        if not isinstance(t, dict):
+            continue
+        subject = str(t.get("item") or "")
+        fld = t.get("field") if isinstance(t.get("field"), dict) else {}
+        vals = fld.get("values") if isinstance(fld.get("values"), list) else []
+        ident = t.get("identity") if isinstance(t.get("identity"), dict) else {}
+        refs = []
+        for c in (ident.get("candidates") or []):
+            if isinstance(c, dict) and c.get("ref"):
+                refs.append(str(c.get("ref")))
+        for v in vals:
+            if not isinstance(v, dict):
+                continue
+            evidence.append({
+                "kind": "workbook_cell",
+                "entity_id": subject,
+                "field": str(v.get("col") or v.get("basis") or ""),
+                "current_value": v.get("value"),
+                "raw_value": v.get("display"),
+                "basis": v.get("basis"),
+                "unit": v.get("unit"),
+                "currency": v.get("currency"),
+                "source": (refs[0] if refs else ""),
+                "source_id": src.get("resource_id"),
+                "source_version": sr.get("evidence_revision"),
+                "content_hash": src.get("content_hash"),
+                "evidence_kind": src.get("evidence_kind"),
+                "live_vs_saved": src.get("live_vs_saved"),
+                "freshness": (
+                    "unknown live freshness"
+                    if not src.get("source_modified_at")
+                    else f"source_modified={src.get('source_modified_at')}"),
+                "addresses_requested": True,
+            })
+
+    return {
+        "contract_version": 2,
+        "source": {
+            "file_name": src.get("file_name"),
+            "service": src.get("service"),
+            "source": src.get("source"),
+            "resource_id": src.get("resource_id"),
+            "content_hash": src.get("content_hash"),
+            "evidence_revision": sr.get("evidence_revision"),
+            "evidence_kind": src.get("evidence_kind"),
+            "live_vs_saved": src.get("live_vs_saved"),
+            "ingested_at": src.get("ingested_at"),
+            "source_modified_at": src.get("source_modified_at"),
+        },
+        "coverage": {
+            "requested_entities": sorted({
+                str(t.get("item") or "") for t in targets
+                if isinstance(t, dict) and t.get("item")}),
+            "requested_fields": list(
+                (sr.get("requested_fields") or [])[:8]),
+            "outcome_count": len(evidence),
+            "complete": bool(sr.get("coverage", {}).get("read_status")
+                             == "success"),
+        },
+        # The read authorized NO value-changing edit. Anything that would
+        # change a currency/number still needs its own ready, authorized
+        # evidence action — this contract never supplies one.
+        "actions": [],
+        "evidence": evidence,
+        "evidence_refs": [e["source"] for e in evidence if e.get("source")],
+    }
+
+
 async def fetch_fresh_data_section(
     message: str,
     history: List[Dict[str, Any]],
@@ -1761,6 +1983,8 @@ async def fetch_fresh_data_section(
     allow_canvas_target: bool = True,
     existing_evidence_contract: Optional[Dict[str, Any]] = None,
     authorized_actions: Optional[List[str]] = None,
+    request_scope: Optional[Dict[str, Any]] = None,
+    reused_findings: Optional[Dict[str, Any]] = None,
 ) -> FreshDataResult:
     """LIVE evidence for edit requests that hinge on data the editor cannot
     see — a price "from the consolidated price list", specs from a drive
@@ -1785,9 +2009,6 @@ async def fetch_fresh_data_section(
     lookup timed out, it invented 'In Stock' delivery on the real draft.
     Hence the three-state result: a data-dependent edit whose lookup failed
     must be DECLINED by the caller, never applied on guesses."""
-    if not message or llm_service is None:
-        return FreshDataResult("", False, True)
-
     async def _record(step_type: str, action: Dict[str, Any],
                       observation: str) -> None:
         if step_recorder is None:
@@ -1796,6 +2017,63 @@ async def fetch_fresh_data_section(
             await step_recorder(step_type, action, observation)
         except Exception as rec_err:  # noqa: BLE001 — recording never blocks
             logger.debug(f"fresh-data step recording skipped: {rec_err}")
+
+    # RECEIPT-BASED REUSE (research-to-draft guide Repair 2, 2026-10-08):
+    # durable structured findings from a prior read (same conversation
+    # carrier) satisfy the edit's evidence need WITHOUT a new provider
+    # call — and are labeled REUSED with their original source identity,
+    # never "fetched just now". Validity is the STRUCTURED RECEIPT
+    # (observations present), not text non-emptiness.
+    #
+    # This runs BEFORE the provider guard below on purpose: it needs no
+    # model at all. Required pin (Repair 2): "readable durable finding plus
+    # unavailable LLM narration still reaches drafting". Gating it on
+    # ``llm_service`` made a readable, already-paid-for finding unreachable
+    # whenever the model was unavailable — the exact shape of the captured
+    # case-1 transition (evidence_contract=False with the workbook already
+    # read earlier in the conversation).
+    if isinstance(reused_findings, dict):
+        _rf_obs = (
+            reused_findings.get("source_observations")
+            or ((reused_findings.get("structured_result") or {})
+                .get("targets"))
+            or [])
+        _rf_render = str(reused_findings.get("rendered") or "")
+        if _rf_obs and _rf_render:
+            _rf_ident = reused_findings.get("identity") or {}
+            _rf_name = str(
+                _rf_ident.get("file_name") or "the resolved file")
+            # CONTRACT FROM THE RECEIPT (research-to-draft guide Repair 2):
+            # the readiness gate reads `evidence_contract`, while a chained
+            # datasets read produces a STRUCTURED RESULT (subject, field,
+            # parsed value with basis/unit/currency, source identity and
+            # revision, freshness). When no explicit contract was carried,
+            # derive one from the receipt's OWN fields — recording what the
+            # read observed, never inventing a value or an authorized
+            # change. `actions: []` is the truthful statement that this
+            # read authorized no value-changing edit.
+            _rf_contract = (
+                dict(existing_evidence_contract)
+                if isinstance(existing_evidence_contract, dict)
+                else reused_findings.get("objective_evidence"))
+            if not isinstance(_rf_contract, dict):
+                _rf_contract = _contract_from_receipt(reused_findings)
+            return FreshDataResult(
+                section=(
+                    "REUSED FINDINGS (durable structured evidence "
+                    "from this conversation's earlier read of "
+                    f"'{_rf_name}', source identity and revision as "
+                    "recorded — not re-fetched this turn):\n"
+                    f"{_rf_render[:12000]}\n\n"
+                ),
+                needed=False,
+                ok=True,
+                block=_rf_render[:16000],
+                evidence_contract=_rf_contract,
+            )
+
+    if not message or llm_service is None:
+        return FreshDataResult("", False, True)
 
     try:
         from core.chat_tool_planner import execute_tool_plan, plan_tool_use
@@ -2010,6 +2288,15 @@ async def fetch_fresh_data_section(
                     # path): the stated-date window reads it from here.
                     "message": message,
                     "history": history,
+                    # REQUEST-BOUND SUBJECTS (2026-10-08 owner final
+                    # repair 2): when the caller resolved this request's
+                    # subjects (interactive turn or the reloaded
+                    # background contract), they lead the probe — canvas/
+                    # history supplies context but never replaces them
+                    # (the fresh-data leg planned a memory search while
+                    # the job required the workbook).
+                    **({"request_scope": request_scope}
+                       if isinstance(request_scope, dict) else {}),
                     **({"canvas": {
                         "title": canvas.get("title"),
                         **((canvas.get("content") or {})
@@ -2396,20 +2683,31 @@ async def plan_canvas_edit(
         f"{history_section}"
     )
 
+    try:
+        from core.llm import pinned_planning as _pp
+
+        _pp.LAST_FAILURE.update(kind=None, detail="", label="")
+    except Exception:  # noqa: BLE001 — diagnostic seam is additive
+        pass
     plan = await _plan_structured(
         llm_service,
         prompt=prompt,
         response_model=CanvasEditPlan,
         system_instruction="You return only the requested JSON object.",
+        message=message,
     )
     if plan is None:
         # The structured call failed outright (all providers/timeout) — a
         # planning INFRASTRUCTURE failure, not "not an edit". Raise so the
         # caller answers honestly instead of routing an edit request into
         # generic intent handling (false-success claims, junk tasks).
+        # OWNER ASSIGNMENT 3: "provider failure" was one bucket covering
+        # empty output, malformed output, a real provider/protocol error
+        # and a caller deadline alike. Keep the outcomes apart so a repair
+        # aims at the boundary that actually failed.
         raise CanvasPlanUnavailable(
-            "canvas edit planning LLM returned no plan (provider failure)"
-        )
+            "canvas edit planning LLM returned no plan (provider failure)",
+            kind=_plan_failure_kind_from_seam())
     if not plan.wants_edit:
         # D4: a plan that says "not an edit" while carrying operations is
         # SELF-INCONSISTENT, and it is not a decline -- it is a malformed answer.
@@ -2437,6 +2735,21 @@ async def plan_canvas_edit(
         # planner was actually given. All are shapes/identities: no canvas or
         # user text, per the routine-log rule.
         _body_for_id = _body_from_content((canvas or {}).get("content")) or ""
+        # OWNER ASSIGNMENT 3: a valid wants_edit=False plan is a SERVED
+        # DECLINE — the model answered. Its captured explanation (logged
+        # below) is the evidence. It is NOT a latency failure and must
+        # never be relabelled as one. A self-inconsistent answer (claims
+        # "not an edit" while carrying the work) is MALFORMED instead.
+        try:
+            plan._result_meta = dict(getattr(plan, "_result_meta", None) or {})
+            plan._result_meta["plan_outcome"] = (
+                CanvasPlanOutcome.MALFORMED if (
+                    list(plan.ops or [])
+                    or (plan.updated_content_json or "").strip()
+                    or (plan.restore_audit_id or "").strip())
+                else CanvasPlanOutcome.SERVED_DECLINE)
+        except Exception:  # noqa: BLE001 — diagnostic only
+            pass
         logger.info(
             "canvas edit: plan DECLINED | wants_edit=%s ops=%d "
             "replacement=%s restore=%s contract_violation=%s",
@@ -2444,6 +2757,23 @@ async def plan_canvas_edit(
             bool((plan.updated_content_json or "").strip()),
             bool((plan.restore_audit_id or "").strip()),
             plan_contract_violation(plan))
+        # THE MODEL'S OWN DECLINE WORDS (2026-10-08 owner assignment 4):
+        # a served planner declining an authorized task must be
+        # diagnosed from its stated reason — not attributed to
+        # contention. Bounded + redacted (routine-log rule).
+        if str(plan.reply or "").strip():
+            try:
+                from core import log_redaction
+                _captured = log_redaction.capture(
+                    str(plan.reply)[:400], "canvas_edit_decline_reply")
+                logger.info(
+                    "canvas edit: decline reply | %s",
+                    _captured
+                    or log_redaction.describe(plan.reply))
+            except Exception:  # noqa: BLE001 — telemetry only
+                logger.info(
+                    "canvas edit: decline reply | <%d chars, "
+                    "unredactable>", len(str(plan.reply)))
         logger.info(
             "canvas edit: planner input identity | prompt_chars=%d "
             "canvas_type=%r history_msgs=%d "
@@ -3193,8 +3523,191 @@ async def apply_canvas_edit(
         and action.get("status") == "ready"
         and action.get("authorized") is True
     ]
-    if (evidence_contract or require_evidence_postconditions) and not ready_actions:
+    # FACT-CHANGE READINESS vs PRESENTATION READINESS (2026-10-08
+    # owner correction 1, replacing the monetary-token heuristic):
+    # no_ready_evidence_change protects APPLYING EVIDENCE-DEPENDENT
+    # FACTS — money, integers, dates, booleans, and contract-tracked
+    # text facts — so readiness turns on whether the op's BEFORE/AFTER
+    # value tokens actually DIFFER (the old heuristic matched '$'
+    # anywhere and never compared sides: a formatting rewrite that
+    # carried an UNCHANGED price was blocked, while changed integers,
+    # dates and booleans slipped through). Presentation changes — same
+    # canonical value tokens, differently arranged — and pure prose
+    # additions proceed under the turn's authorization; authorization
+    # and preservation checks are untouched and stay separate.
+    def _canonical_fact_tokens(text: str) -> Any:
+        from collections import Counter
+        tokens = Counter()
+        for m in re.finditer(
+                r"\$\s?([\d,]+(?:\.\d+)?)|(?<![\w.])"
+                r"([\d,]+(?:\.\d+)?)(?![\w%])", text or ""):
+            raw = m.group(1) or m.group(2)
+            try:
+                from decimal import InvalidOperation
+                value = Decimal(raw.replace(",", ""))
+                key = f"num:{value.normalize()}"
+            except (InvalidOperation, ValueError):
+                key = f"raw:{raw}"
+            tokens[key] += 1
+        for m in re.finditer(
+                r"\b(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4})\b",
+                text or ""):
+            tokens[f"date:{m.group(1)}"] += 1
+        low = re.sub(r"\s+", " ", (text or "").lower())
+        for phrase in (
+                "in stock", "out of stock", "available",
+                "unavailable", "yes", "no", "true", "false"):
+            tokens[f"bool:{phrase}"] += low.count(phrase)
+        # contract-tracked TEXT facts: entity identities the evidence
+        # contract named (the field contract supplies the domain — no
+        # product-specific vocabulary here).
+        for entity in _contract_entities(evidence_contract):
+            if entity and entity.lower() in low:
+                tokens[f"entity:{entity.lower()}"] += 1
+        return tokens
+
+    def _contract_value_index() -> List[str]:
+        """Canonical VALUES the field contract binds to (entity, field)
+        pairs — numeric values canonicalized, text values verbatim when
+        long enough to be an identity-bearing fact. THE ASSOCIATION
+        AUTHORITY: touching one of these is touching a tracked fact."""
+        values: List[str] = []
+        seen = set()
+
+        def _add(raw: Any) -> None:
+            text = str(raw or "").strip()
+            if not text:
+                return
+            try:
+                key = f"num:{Decimal(text.replace(',', '')).normalize()}"
+            except Exception:  # noqa: BLE001 — not numeric
+                if len(text) < 3 or len(text) > 80:
+                    return
+                key = f"txt:{text.lower()}"
+            if key not in seen:
+                seen.add(key)
+                values.append(key)
+
+        for outcome in ((evidence_contract or {}).get("outcomes")
+                        or []):
+            if not isinstance(outcome, dict):
+                continue
+            _add(outcome.get("current_value"))
+            for ev in outcome.get("evidence") or []:
+                if isinstance(ev, dict):
+                    _add(ev.get("raw_value"))
+                    _add(ev.get("value"))
+        for action in ((evidence_contract or {}).get("actions")
+                       or []):
+            if isinstance(action, dict):
+                _add(action.get("current_value"))
+                _add(action.get("proposed_value"))
+        return values
+
+    _tracked_values = _contract_value_index()
+
+    def _tracked_order(text: str) -> List[str]:
+        """Contract-tracked values in first-occurrence order — the
+        ASSOCIATION fingerprint. DEMONSTRATED SCOPE (owner
+        qualification 2026-10-08): a regression safeguard that catches
+        value swaps WITHIN one op's find/replace (equal bag, different
+        order = both facts changed). It is NOT a complete subject-field
+        binding mechanism: cross-op reassociation that preserves each
+        op's internal order is not caught here — the artifact-level
+        scope guard (scope_missing/dropped_product) owns that layer."""
+        # separator-insensitive scan: canonical "2902" must find the
+        # formatted "$2,902.00" — strip non-alphanumerics from both
+        # sides; index order in stripped space preserves occurrence
+        # order, which is all the association fingerprint needs.
+        flat = re.sub(r"[^0-9a-z]", "", str(text or "").lower())
+        hits: List[str] = []
+        for key in _tracked_values:
+            needle = re.sub(r"[^0-9a-z]", "", key.split(":", 1)[1])
+            if not needle:
+                continue
+            idx = flat.find(needle)
+            if idx >= 0:
+                hits.append((idx, key))
+        hits.sort()
+        return [k for _, k in hits]
+
+    def _op_changes_fact(op: Any) -> bool:
+        find = str(getattr(op, "find", "") or "")
+        replace = str(getattr(op, "replace", "") or "")
+        if find == replace:
+            return False
+        # ASSOCIATION RULE FIRST (the field contract is the authority):
+        # when the contract binds values, an op that changes WHICH
+        # tracked value appears — set difference OR ORDER difference —
+        # changes a subject-field-value association and is a fact
+        # change. The token heuristic below is SUPPORTING evidence and
+        # may only mark MORE ops fact-changing, never certify a
+        # presentation-only edit over the contract.
+        if _tracked_values:
+            before = _tracked_order(find)
+            after = _tracked_order(replace)
+            if before != after:
+                return True
+            if before:
+                # same tracked values, same order: the tracked
+                # associations are preserved. Only the fallback token
+                # rule can still flag an UNTRACKED value change.
+                pass
+        # SUPPORTING token heuristic (numeric/date/bool/entity) —
+        # ASSERTION-scoped (2026-10-08 owner step 5, gate telemetry:
+        # fact_changing=1 for a 32-char find -> EMPTY replace): the
+        # evidence requirement protects ASSERTING evidence-dependent
+        # values. A REMOVAL asserts nothing — "leave anything
+        # unresolved unasserted" authorizes exactly that — so only
+        # tokens INTRODUCED on the after-side (new assertions) or
+        # contract-association changes require ready evidence. Deletion
+        # of identities stays guarded by the artifact-level scope rules
+        # (scope_dropped_product / scope_missing_product), not here.
+        tok_before = _canonical_fact_tokens(find)
+        tok_after = _canonical_fact_tokens(replace)
+        if tok_before == tok_after:
+            return False
+        introduced = tok_after - tok_before
+        return any(
+            k.startswith(("num:", "date:", "bool:", "entity:"))
+            for k in introduced.elements())
+
+    _fact_changing_ops = [
+        op for op in (getattr(plan, "ops", None) or [])
+        if _op_changes_fact(op)
+    ]
+    if (_fact_changing_ops
+            and (evidence_contract or require_evidence_postconditions)
+            and not ready_actions):
+        # GATE TELEMETRY (2026-10-08 owner assignment 4): the refusal is
+        # diagnosable — which ops are fact-changing (shape only) and
+        # what statuses the contract's outcomes carry.
+        try:
+            from core import log_redaction
+            logger.info(
+                "canvas edit: no_ready_evidence_change | fact_changing=%d "
+                "ops_total=%d op_shapes=%s contract_outcomes=%s "
+                "tracked_values=%d",
+                len(_fact_changing_ops), len(plan.ops or []),
+                [log_redaction.shape(
+                    {"f": str(getattr(op, "find", ""))[:60],
+                     "r": str(getattr(op, "replace", ""))[:60]})
+                 for op in _fact_changing_ops[:4]],
+                [(str(o.get("entity_id"))[:24], str(o.get("field"))[:16],
+                  str(o.get("status")))
+                 for o in ((evidence_contract or {}).get("outcomes")
+                           or [])[:8]],
+                len(_tracked_values))
+        except Exception:  # noqa: BLE001 — telemetry only
+            pass
         return _out(None, "no_ready_evidence_change")
+    if (evidence_contract or require_evidence_postconditions) \
+            and not ready_actions and not _fact_changing_ops and (
+                getattr(plan, "ops", None) or []):
+        logger.info(
+            "canvas edit: drafting readiness satisfied without fact-"
+            "change actions (%d op(s), presentation-only) — proceeding "
+            "under the turn's authorization", len(plan.ops or []))
 
     current = canvas.get("content")
     canvas_id = str(canvas.get("canvas_id"))

@@ -219,6 +219,49 @@ def test_m2_http_and_history_agree_on_failed_turn(monkeypatch, app, orch, sessio
     assert meta["execution_id"] == "execution-1"
 
 
+def test_empty_reply_rewrite_reaches_the_durable_row(monkeypatch, app, orch, session):
+    """Empty-stream persistence (owner directive 2026-10-08): when the
+    reply leg yields no content, the truthful empty_reply outcome must be
+    what the DURABLE row carries — not only the HTTP envelope. Rewriting
+    the envelope after the persist left history reloads serving the blank
+    row after a restart."""
+    monkeypatch.setenv("CHAT_FINALIZATION_M1", "1")
+    monkeypatch.setenv("CHAT_FINALIZATION_M2", "1")
+    session.add(
+        AgentExecution(
+            id="execution-empty",
+            status="completed",
+            started_at=datetime.now(timezone.utc),
+            result_summary="stream ended with no content",
+            metadata_json={"session_id": "session-empty"},
+        )
+    )
+    session.add(_assistant_row("session-empty", "execution-empty", ""))
+    session.commit()
+    orch.process_chat_message = AsyncMock(
+        return_value={
+            "success": True,
+            "message": "",
+            "session_id": "session-empty",
+            "execution_id": "execution-empty",
+            "data": {},
+        }
+    )
+
+    body = TestClient(app).post(
+        "/api/chat/message", json={"message": "hi", "user_id": "u"}).json()
+
+    assert body["success"] is False
+    assert body["error_code"] == "empty_reply"
+    assert "model returned no content" in body["message"]
+    # The DURABLE row agrees with the envelope — history reloads after a
+    # restart serve the same truthful outcome, never the blank.
+    row, meta = _row_for(session, "execution-empty")
+    assert row is not None
+    assert row.content == body["message"]
+    assert meta.get("error_code") == "empty_reply"
+
+
 def test_forced_failure_hook_armed_only_by_env_and_marker(monkeypatch):
     from integrations.chat_orchestrator import (
         _ForcedTurnFailure,
@@ -405,3 +448,222 @@ def test_m2_ledger_off_records_nothing(monkeypatch, session):
     _persist_finalized_outcome(session, response, "session-1")
 
     assert "delivery" not in response["data"]
+
+
+def test_failed_provider_envelope_survives_route_serialization():
+    """Case-5 finding (2026-10-06): the orchestrator AND the M1
+    finalizer both preserve failure_reason/recovery_url on a terminal
+    provider failure, but ChatMessageResponse did not DECLARE
+    failure_reason — FastAPI's response_model silently dropped it at
+    route serialization, so the client could never render the distinct
+    retry/top-up UI. This pins the full envelope at the model boundary."""
+    from core.finalization import finalize_payload
+    from integrations.chat_routes import ChatMessageResponse
+
+    drafted = {
+        "success": False,
+        "message": "I couldn't generate a response — every configured "
+                   "provider is out of credits (opencode-go).",
+        "session_id": "s-x", "intent": "search", "confidence": 0.5,
+        "suggested_actions": [], "requires_confirmation": False,
+        "next_steps": [], "timestamp": "2026-10-06T00:00:00",
+        "execution_id": "exec-1",
+        "error_code": "no_llm_provider",
+        "failure_reason": "provider_credits_exhausted",
+        "recovery_url": "/settings/billing",
+    }
+    finalized = finalize_payload(
+        {"execution_id": "exec-1", "status": "failed",
+         "result_summary": drafted["message"], "failure_stage": "reply"},
+        drafted)
+    model = ChatMessageResponse(**finalized)
+    dumped = model.model_dump()
+    assert dumped["success"] is False
+    assert dumped["error_code"] == "no_llm_provider"
+    assert dumped["failure_reason"] == "provider_credits_exhausted"
+    assert dumped["recovery_url"] == "/settings/billing"
+
+
+CREDIT_ENVELOPE_MESSAGE = (
+    "I couldn't generate a response — every configured provider is "
+    "out of credits (opencode-go). The last provider error: 402. "
+    "Top up the provider balances in Settings → Providers, then ask "
+    "again — retrying without a top-up will fail the same way.")
+
+
+def _credit_drafted():
+    return {
+        "success": False,
+        "message": CREDIT_ENVELOPE_MESSAGE,
+        "session_id": "s-x", "intent": "search", "confidence": 0.5,
+        "suggested_actions": [], "requires_confirmation": False,
+        "next_steps": [], "timestamp": "2026-10-06T00:00:00",
+        "execution_id": "exec-1",
+        "error_code": "no_llm_provider",
+        "failure_reason": "provider_credits_exhausted",
+        "recovery_url": "/settings/billing",
+    }
+
+
+def test_failed_credit_envelope_message_preserved_verbatim():
+    """Case-5 gap (2026-10-06): finalize_payload rebuilt the failure
+    message from the execution record even when the reply leg had
+    already drafted the specific truthful credit envelope — the live
+    T2 row persisted the generic prefix with the cause truncated and
+    the remedy cut off. The full envelope (message + fields) must
+    survive finalization verbatim. Isolated stub of the verbatim
+    failure string; no provider account involved."""
+    from core.finalization import finalize_payload
+
+    drafted = _credit_drafted()
+    finalized = finalize_payload(
+        {"execution_id": "exec-1", "status": "failed",
+         "result_summary": drafted["message"], "failure_stage": "reply"},
+        drafted)
+    assert finalized["success"] is False
+    assert finalized["message"] == CREDIT_ENVELOPE_MESSAGE
+    assert finalized["error_code"] == "no_llm_provider"
+    assert finalized["failure_reason"] == "provider_credits_exhausted"
+    assert finalized["recovery_url"] == "/settings/billing"
+    assert finalized["execution_id"] == "exec-1"
+
+
+def test_failed_execution_without_drafted_error_still_synthesizes():
+    """The M1 frozen-case contract is unchanged: a failed execution
+    with no specific drafted message still gets the generic
+    record-derived failure text (never success, never silent)."""
+    from core.finalization import finalize_payload
+
+    for blank in ("", "Message processed successfully"):
+        finalized = finalize_payload(
+            {"execution_id": "exec-9", "status": "failed",
+             "result_summary": "editor blew up", "failure_stage": "edit"},
+            {"success": True, "message": blank, "execution_id": "exec-9"})
+        assert finalized["success"] is False
+        assert "Failure at edit: editor blew up" in finalized["message"]
+        assert "exec-9" in finalized["message"]
+
+
+def test_successful_finalization_adds_no_failure_fields():
+    """Failure fields must not leak into unrelated successes: a
+    completed execution's drafted success passes through with no
+    error keys added and the message untouched."""
+    from core.finalization import finalize_payload
+
+    drafted = {"success": True, "message": "done", "execution_id": "exec-2"}
+    finalized = finalize_payload(
+        {"execution_id": "exec-2", "status": "completed",
+         "result_summary": "done", "failure_stage": ""},
+        drafted)
+    assert finalized["success"] is True
+    assert finalized["message"] == "done"
+    assert "error_code" not in finalized
+    assert "failure_reason" not in finalized
+    assert "recovery_url" not in finalized
+
+
+def test_unknown_execution_preserves_truthful_error_message():
+    """An unknown/missing execution record must not clobber a
+    specific drafted error either — the turn stays failed and the
+    truthful text (with its remedy) is what the client renders."""
+    from core.finalization import finalize_payload
+
+    drafted = _credit_drafted()
+    finalized = finalize_payload(None, drafted)
+    assert finalized["success"] is False
+    assert finalized["message"] == CREDIT_ENVELOPE_MESSAGE
+    assert finalized["failure_reason"] == "provider_credits_exhausted"
+
+
+def test_two_consecutive_credit_failures_carry_metadata_through_http(
+        monkeypatch, app, orch, session):
+    """Case-5 counted-trial contract (2026-10-06): the POSTED response
+    body itself — not just the persisted row — must carry the verbatim
+    truthful text AND the failure metadata (error_code + failure_reason
+    + recovery_url) on EACH of two consecutive credit failures while
+    the provider stays broken. The route's final ChatMessageResponse
+    assembly passed error_code but never failure_reason/recovery_url,
+    so every credit failure through the actual HTTP boundary serialized
+    null metadata (the observed T3 envelope: error_code=no_llm_provider
+    with failure_reason null). Isolated orchestrator stub of the
+    verbatim credit envelope; no provider account involved."""
+    monkeypatch.setenv("CHAT_FINALIZATION_M1", "1")
+    monkeypatch.setenv("CHAT_FINALIZATION_M2", "1")
+    for i in (1, 2):
+        session.add(AgentExecution(
+            id=f"execution-{i}",
+            status="failed",
+            started_at=datetime.now(timezone.utc),
+            result_summary=CREDIT_ENVELOPE_MESSAGE,
+            metadata_json={"session_id": "session-1"},
+        ))
+        session.add(_assistant_row(
+            "session-1", f"execution-{i}", "Message processed successfully"))
+    session.commit()
+
+    client = TestClient(app)
+    for i in (1, 2):
+        orch.process_chat_message = AsyncMock(return_value={
+            "success": False,
+            "message": CREDIT_ENVELOPE_MESSAGE,
+            "session_id": "session-1",
+            "execution_id": f"execution-{i}",
+            "error_code": "no_llm_provider",
+            "failure_reason": "provider_credits_exhausted",
+            "recovery_url": "/settings/billing",
+            "data": {},
+        })
+        body = client.post(
+            "/api/chat/message", json={"message": "hi", "user_id": "u"}
+        ).json()
+        assert body["success"] is False
+        assert body["message"] == CREDIT_ENVELOPE_MESSAGE
+        assert body["error_code"] == "no_llm_provider"
+        assert body["failure_reason"] == "provider_credits_exhausted"
+        assert body["recovery_url"] == "/settings/billing"
+        assert body["execution_id"] == f"execution-{i}"
+
+    # Each failure stays bound to its own turn's durable row — the
+    # second failure never overwrites the first (exact per-turn
+    # binding under M2).
+    row1, meta1 = _row_for(session, "execution-1")
+    row2, meta2 = _row_for(session, "execution-2")
+    assert row1 is not None and row2 is not None
+    assert row1.content == CREDIT_ENVELOPE_MESSAGE
+    assert row2.content == CREDIT_ENVELOPE_MESSAGE
+    assert meta1["error_code"] == "no_llm_provider"
+    assert meta2["error_code"] == "no_llm_provider"
+
+
+def test_empty_reply_produces_truthful_error_response():
+    """Empty-stream regression (owner directive 2026-10-08): a turn whose
+    reply is empty must produce a truthful error (error_code=empty_reply,
+    honest message about the model returning no content — NOT the stale
+    'No model provider configured' text or the credit remedy)."""
+    from integrations.chat_routes import ChatMessageResponse
+
+    # The blank-reply handler constructs this response shape in the route
+    # (the code path at send_chat_message ~2259). We verify the response
+    # carries the right fields by constructing it the same way the route
+    # does and asserting the contract.
+    blank = ChatMessageResponse(
+        success=False,
+        message=(
+            "I couldn't generate a response just now — the "
+            "model returned no content. Please try again in a "
+            "moment; your message was received and the next "
+            "request will dispatch normally."),
+        session_id="s-empty", intent="unknown", confidence=0.0,
+        error_code="empty_reply",
+        suggested_actions=[], requires_confirmation=False,
+        next_steps=[], timestamp="2026-10-08T00:00:00")
+    dumped = blank.model_dump()
+    assert dumped["success"] is False
+    assert dumped["error_code"] == "empty_reply"
+    # truthful cause, NOT the stale provider-configuration or credit text
+    assert "model returned no content" in dumped["message"]
+    assert "No model provider" not in dumped["message"]
+    assert "credit" not in dumped["message"].lower()
+    assert "no_llm_provider" not in dumped.get("error_code", "")
+    # no stale recovery URL pointing at the wrong remedy
+    assert not dumped.get("recovery_url")

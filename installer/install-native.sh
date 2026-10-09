@@ -121,8 +121,9 @@ ANTHROPIC_API_KEY=
 BYOK_ENCRYPTION_KEY=
 JWT_SECRET_KEY=
 
-# Database paths
-SQLITE_PATH=./data/atom.db
+# Database (DATABASE_URL — the app reads this; a relative sqlite path
+# is anchored to backend/ by the app itself)
+DATABASE_URL=sqlite:///./data/atom.db
 LANCEDB_PATH=./data/lancedb
 
 # Environment
@@ -132,24 +133,37 @@ EOF
     fi
 fi
 
-# Generate encryption keys
+# Encryption keys: generate ONLY what is missing. A rerun must NEVER
+# regenerate configured secrets — a rotated BYOK_ENCRYPTION_KEY makes
+# every stored credential undecryptable, and a rotated JWT_SECRET_KEY
+# invalidates every issued session (owner correction 2026-10-08).
 echo ""
-echo "🔐 Generating encryption keys..."
-KEY1=$(openssl rand -base64 32)
-KEY2=$(openssl rand -base64 32)
-
-echo "Updating .env with encryption keys..."
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    sed -i '' "s|BYOK_ENCRYPTION_KEY=.*|BYOK_ENCRYPTION_KEY=$KEY1|" .env
-    sed -i '' "s|JWT_SECRET_KEY=.*|JWT_SECRET_KEY=$KEY2|" .env
+echo "🔐 Checking encryption keys..."
+set_env_key() {
+    # set_env_key <VAR> <value> — replace or append in .env
+    if grep -q "^${1}=" .env 2>/dev/null; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|^${1}=.*|${1}=${2}|" .env
+        else
+            sed -i "s|^${1}=.*|${1}=${2}|" .env
+        fi
+    else
+        echo "${1}=${2}" >> .env
+    fi
+}
+if grep -q "^BYOK_ENCRYPTION_KEY=..*" .env 2>/dev/null; then
+    echo "   BYOK_ENCRYPTION_KEY already configured — preserved"
 else
-    # Linux
-    sed -i "s|BYOK_ENCRYPTION_KEY=.*|BYOK_ENCRYPTION_KEY=$KEY1|" .env
-    sed -i "s|JWT_SECRET_KEY=.*|JWT_SECRET_KEY=$KEY2|" .env
+    set_env_key BYOK_ENCRYPTION_KEY "$(openssl rand -base64 32)"
+    echo "   BYOK_ENCRYPTION_KEY generated"
 fi
-
-echo "✅ Encryption keys generated and configured"
+if grep -q "^JWT_SECRET_KEY=..*" .env 2>/dev/null; then
+    echo "   JWT_SECRET_KEY already configured — preserved"
+else
+    set_env_key JWT_SECRET_KEY "$(openssl rand -base64 32)"
+    echo "   JWT_SECRET_KEY generated"
+fi
+echo "✅ Encryption keys verified"
 echo ""
 
 # Create data directory
@@ -158,12 +172,64 @@ mkdir -p data
 echo "✅ Data directory created: ./data"
 echo ""
 
-# Run database migrations
-echo "🗄️  Running database migrations..."
+# Initialize the database schema.
+# 2026-10-08 fresh-install repair: `alembic upgrade head` FAILS on a
+# fresh checkout — the tree carries six unmerged branch heads and the
+# branches have cross-branch ALTER/CREATE dependencies, so no ordering
+# can build an empty database (verified on an isolated clean install).
+# The app's own startup path is the schema authority for fresh
+# databases (main_api_app: create_all + sqlite drift repair — the same
+# code every boot runs). The installer therefore initializes via that
+# path and ADOPTS the schema with alembic's supported `stamp heads`, so
+# later incremental migrations apply normally. Heads are NOT merged and
+# create_all is not substituted for upgrades on existing databases.
+# Fresh-schema adoption ONLY for a verified EMPTY database. An existing
+# database must go through the validated alembic upgrade path (or stop
+# with an actionable message) — silently stamping an existing database
+# "current" would mask real drift (owner correction 2026-10-08).
+echo "🗄️  Initializing database schema..."
 cd backend
 source venv/bin/activate
-alembic upgrade head
-echo "✅ Database migrations complete"
+DB_STATE=$(python - <<'PYSTATE'
+import sys
+from sqlalchemy import inspect
+from core.database import engine
+tables = set(inspect(engine).get_table_names())
+if not tables:
+    print("EMPTY")
+elif "alembic_version" in tables:
+    print("MANAGED")
+else:
+    print("UNMANAGED")
+PYSTATE
+)
+case "$DB_STATE" in
+    EMPTY)
+        python -c "from core.database import engine; from core.models import Base; Base.metadata.create_all(engine); print('schema created')"
+        alembic stamp heads
+        echo "✅ Fresh database initialized (schema created, migration state stamped)"
+        ;;
+    MANAGED)
+        echo "   Existing database with migration history — applying validated upgrades..."
+        alembic upgrade heads || {
+            echo "❌ Upgrade failed. The database may be PARTIALLY migrated —"
+            echo "   earlier migrations may already have committed (no"
+            echo "   untouched-state guarantee; restore from a backup if you"
+            echo "   need a known state). Inspect backend/alembic history and"
+            echo "   the alembic_version table, resolve the failing migration,"
+            echo "   and retry; do NOT run 'alembic stamp' by hand."
+            exit 1
+        }
+        echo "✅ Existing database upgraded"
+        ;;
+    UNMANAGED)
+        echo "❌ Existing database WITHOUT migration history (no alembic_version table)."
+        echo "   Refusing to stamp it current — that would mask unknown drift."
+        echo "   Back it up, then either import into a fresh install or add a"
+        echo "   baseline alembic revision matching its actual schema."
+        exit 1
+        ;;
+esac
 echo ""
 
 cd ..

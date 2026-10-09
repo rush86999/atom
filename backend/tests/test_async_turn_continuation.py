@@ -106,6 +106,15 @@ def _runner(outcome, summary="done"):
     return _r
 
 
+def _fresh_session_id(tag: str) -> str:
+    """Session id unique to THIS run — the edit lane's task-lifecycle
+    reservation is keyed on the conversation, so a hardcoded id makes a
+    re-run collide with the previous run's operation."""
+    import uuid
+
+    return f"sess-{tag}-{uuid.uuid4().hex[:10]}"
+
+
 def _cont(session_id="s1", user_id="u1", canvas_id="cv1", **kw):
     return atc.AsyncTurnContinuation(
         continuation_id="c-" + session_id + "-" + str(
@@ -287,6 +296,555 @@ class TestIdempotencyAndConflict:
         with patch.object(atc, "_latest_audit", return_value=None):
             outcome, _ = await atc.run_canvas_edit_continuation(orch, cont)
         assert outcome == "awaiting_approval"
+
+
+class TestLandedProposalIsReportedFromItsReceipt:
+    """Live trace 2026-10-08 (logs/uvicorn_8001_restart.log:1404481):
+
+        READBACK-DECISION gate=operation-not-landed response=True
+        updated=True postcondition_verified=True audit_id='0c1f7b25-...'
+        op_status='pending_review' review_status='pending_review'
+        note=the write could not be confirmed by audit readback
+
+    The write LANDS as a proposal (the write path stores
+    review_status=pending_review for background edits) and is the canvas's
+    current state, yet the user is told the write "could not be confirmed".
+    The terminal message must come from the receipt: a landed proposal is
+    the EXISTING proposal flow (awaiting_approval), never a failure, and
+    never a claim that nothing happened.
+    """
+
+    def _landed_proposal(self, cont, origin_op):
+        """A real audit row carrying the ORIGIN operation id — the id the
+        write path actually stamps (see _operation_identity)."""
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+
+        import uuid
+        row_id = str(uuid.uuid4())
+        with get_db_session() as db:
+            row = CanvasAudit(
+                id=row_id,
+                canvas_id=(cont.canvas or {}).get("canvas_id"),
+                tenant_id="default",
+                session_id=cont.session_id,
+                action_type="update",
+                user_id=cont.user_id,
+                details_json={
+                    "operation_id": origin_op,
+                    "review_status": "pending_review",
+                    "content": {"body": "drafted"},
+                    "postconditions": [],
+                },
+            )
+            db.add(row)
+            db.commit()
+        return row_id
+
+    async def test_owner_authorized_landed_proposal_is_applied_from_receipt(self):
+        """The live sequence (attempt 2/3): the pre-apply gate finds no row
+        yet, the attempt's own edit lands the write AS A PROPOSAL, and the
+        post-write readback gate must report it from the receipt.
+
+        The instruction is a user-grounded edit directive ("rebuild the
+        draft") — the owner already authorized exactly this edit, so the
+        existing reconciliation accepts the proposal and the terminal
+        message is DONE, not "could not be confirmed" and not "awaiting
+        your approval".
+        """
+        import uuid as _uuid
+        _run = _uuid.uuid4().hex[:8]
+        origin_op = f"1e57dfae-0000-4000-8000-{_run}"
+        cont = _cont(f"s9-{_run}", canvas_id=f"cv9-{_run}")
+        cont.origin_operation_id = origin_op
+        # The live trace shows readback_required=True — that is the gate
+        # that refused the landed proposal.
+        cont.readback_required = True
+
+        landed: dict = {}
+
+        async def _edit_lands_a_proposal(*a, **k):
+            # The write happens DURING the attempt, so the pre-apply
+            # idempotency gate saw no prior row and let the retry run.
+            landed["row_id"] = self._landed_proposal(cont, origin_op)
+            return {
+                "message": "Draft prepared and saved for review.",
+                "data": {"canvas_edit": {
+                    "updated": True,
+                    "postcondition_verified": True,
+                    "audit_id": landed["row_id"],
+                    "review_status": "pending_review",
+                    "operation_id": origin_op,
+                }}}
+
+        orch = MagicMock()
+        orch._try_canvas_edit = AsyncMock(
+            side_effect=_edit_lands_a_proposal)
+
+        async def _read_canvas(user_id, canvas_id):
+            return {"success": True, "audit_id": landed.get("row_id"),
+                    "content": {"body": "drafted"}}
+
+        # NO stub on ``_latest_audit``: the HEAD/currency decision must
+        # read the real audit trail, exactly as the gate does in production.
+        with patch("tools.canvas_crud_tool.read_canvas", _read_canvas):
+            outcome, summary = await atc.run_canvas_edit_continuation(
+                orch, cont)
+
+        assert orch._try_canvas_edit.await_count == 1, (
+            "the write already landed and is the canvas HEAD — there is "
+            "nothing left to apply, so the retry loop must not run again "
+            f"(await_count={orch._try_canvas_edit.await_count})")
+        assert outcome == "applied", (
+            "the owner's directive authorized this edit and the receipt "
+            f"records it accepted; got {outcome!r} / {summary!r}")
+        assert "could not be confirmed" not in summary.lower(), (
+            "the write landed and is on the receipt — it must not be "
+            f"reported as unconfirmed: {summary!r}")
+        assert "nothing was changed" not in summary.lower(), (
+            f"a landed write must never be reported as no-change: {summary!r}")
+
+    async def test_unauthorized_landed_proposal_still_awaits_approval(self):
+        """The proposal flow is preserved where approval genuinely IS
+        required: an instruction with no edit directive is not owner
+        authorization, so the landed proposal is reported for review."""
+        import uuid as _uuid
+        _run = _uuid.uuid4().hex[:8]
+        origin_op = f"1e57dfae-0000-4000-8000-{_run}"
+        cont = _cont(f"s11-{_run}", canvas_id=f"cv11-{_run}")
+        cont.message = "here is some context for you"
+        cont.origin_operation_id = origin_op
+        cont.readback_required = True
+
+        landed: dict = {}
+
+        async def _edit_lands_a_proposal(*a, **k):
+            landed["row_id"] = self._landed_proposal(cont, origin_op)
+            return {
+                "message": "Draft prepared and saved for review.",
+                "data": {"canvas_edit": {
+                    "updated": True,
+                    "postcondition_verified": True,
+                    "audit_id": landed["row_id"],
+                    "review_status": "pending_review",
+                    "operation_id": origin_op,
+                }}}
+
+        orch = MagicMock()
+        orch._try_canvas_edit = AsyncMock(
+            side_effect=_edit_lands_a_proposal)
+
+        async def _read_canvas(user_id, canvas_id):
+            return {"success": True, "audit_id": landed.get("row_id"),
+                    "content": {"body": "drafted"}}
+
+        # NO stub on ``_latest_audit``: the HEAD/currency decision must
+        # read the real audit trail, exactly as the gate does in production.
+        with patch("tools.canvas_crud_tool.read_canvas", _read_canvas):
+            outcome, summary = await atc.run_canvas_edit_continuation(
+                orch, cont)
+
+        assert outcome == "awaiting_approval", (
+            "without an owner edit directive the landed proposal is the "
+            f"existing review flow; got {outcome!r} / {summary!r}")
+
+    async def test_reconciliation_sees_the_origin_stamped_row(self):
+        """Direct pin for the identity gap: the reconciliation used to
+        filter on continuation_id alone and could not see a row stamped
+        with the ORIGIN operation id — the stamp the write path actually
+        uses. Live 2026-10-08: returned None and the gate then reported
+        the landed write as unconfirmed."""
+        import uuid as _uuid
+        _run = _uuid.uuid4().hex[:8]
+        origin_op = f"1e57dfae-0000-4000-8000-{_run}"
+        cont = _cont(f"s12-{_run}", canvas_id=f"cv12-{_run}")
+        cont.origin_operation_id = origin_op
+        self._landed_proposal(cont, origin_op)
+
+        async def _read_canvas(user_id, canvas_id):
+            rows = atc._matched_operation_row(cont)
+            return {"success": True,
+                    "audit_id": (rows or {}).get("audit_id")}
+
+        with patch("tools.canvas_crud_tool.read_canvas", _read_canvas):
+            result = await atc._reconcile_authorized_proposal(cont)
+        assert result == "accepted", (
+            "a HEAD proposal stamped with the origin operation id and "
+            f"authorized by the owner's directive must reconcile; got {result!r}")
+
+    async def test_identity_probe_covers_the_origin_operation(self):
+        """The reconciliation looked the row up by continuation_id alone,
+        so a row stamped with the ORIGIN operation id (the normal stamp)
+        was invisible to it and the gate fell through to
+        'operation-not-landed'. Both attributed ids must locate the row.
+        """
+        import uuid as _uuid
+        _run = _uuid.uuid4().hex[:8]
+        origin_op = f"1e57dfae-0000-4000-8000-{_run}"
+        cont = _cont(f"s10-{_run}", canvas_id=f"cv10-{_run}")
+        cont.origin_operation_id = origin_op
+        self._landed_proposal(cont, origin_op)
+
+        row = atc._matched_operation_row(cont)
+        assert row is not None, (
+            "the landed row must be locatable through the identity "
+            "relationship (continuation_id OR origin_operation_id)")
+        assert row["operation_id"] == origin_op
+        assert row["review_status"] == "pending_review"
+
+
+class TestReconciliationContract:
+    """Acceptance for the confirmation repair (owner review 2026-10-08).
+
+    Reconciliation must hold BOTH legitimate operation identities while
+    retaining every guard: correct canvas, current HEAD, the authoritative
+    revision, and owner-grounded authorization. It must be idempotent and
+    review-metadata-only. A row belonging to ANOTHER operation must never be
+    adopted.
+    """
+
+    # ---- fixtures ----------------------------------------------------
+
+    def _row(self, cont, operation_id, review_status="pending_review",
+             canvas_id=None, body="drafted"):
+        import uuid
+
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+
+        row_id = str(uuid.uuid4())
+        with get_db_session() as db:
+            db.add(CanvasAudit(
+                id=row_id,
+                canvas_id=canvas_id or (cont.canvas or {}).get("canvas_id"),
+                tenant_id="default",
+                session_id=cont.session_id,
+                action_type="update",
+                user_id=cont.user_id,
+                details_json={"operation_id": operation_id,
+                              "review_status": review_status,
+                              "content": {"body": body},
+                              "postconditions": []}))
+            db.commit()
+        return row_id
+
+    def _cont(self, tag, message="rebuild the draft", origin_op=None):
+        import uuid
+
+        run = uuid.uuid4().hex[:8]
+        cont = _cont(f"s-{tag}-{run}", canvas_id=f"cv-{tag}-{run}")
+        cont.message = message
+        cont.readback_required = True
+        if origin_op is not None:
+            cont.origin_operation_id = origin_op
+        return cont
+
+    def _reconcile(self, cont, row_id):
+        """Run reconciliation with the authoritative read serving `row_id`."""
+
+        async def _read_canvas(user_id, canvas_id):
+            return {"success": True, "audit_id": row_id,
+                    "content": {"body": "drafted"}}
+
+        with patch("tools.canvas_crud_tool.read_canvas", _read_canvas):
+            return asyncio.run(atc._reconcile_authorized_proposal(cont))
+
+    # ---- both legitimate identities ---------------------------------
+
+    def test_reconciles_when_stamped_with_the_origin_operation(self):
+        """The write path stamps the ORIGIN operation id (the id the
+        interactive turn owned) — live 2026-10-08's blind spot."""
+        import uuid
+        origin_op = "1e57dfae-0000-4000-8000-" + uuid.uuid4().hex[:8]
+        cont = self._cont("origin", origin_op=origin_op)
+        row_id = self._row(cont, origin_op)
+        assert self._reconcile(cont, row_id) == "accepted"
+
+    def test_reconciles_when_stamped_with_the_continuation_id(self):
+        """The continuation's OWN write is stamped with continuation_id.
+        Both attributed ids must reach the same verdict."""
+        cont = self._cont("contid")
+        row_id = self._row(cont, cont.continuation_id)
+        assert self._reconcile(cont, row_id) == "accepted"
+
+    # ---- negatives: an unrelated row is never adopted ----------------
+
+    def test_another_operations_row_is_not_adopted(self):
+        """The negative that proves attribution is exact.
+
+        Controlled comparison: this row is on the SAME canvas and the SAME
+        session as ``test_reconciles_when_stamped_with_the_continuation_id``
+        and differs from it ONLY in the stamped operation id. Same context,
+        opposite verdicts, therefore the decision is the id.
+
+        Verified with a mutation check: loosening
+        ``_matched_operation_row``'s exact-attribution comparison flips this
+        from None to 'accepted', so the pin has teeth.
+        """
+        cont = self._cont("foreign")
+        self._row(cont, "someone-elses-operation-id")
+        assert self._reconcile(cont, None) is None, (
+            "a row attributed to another operation must never be adopted")
+
+    def test_another_canvas_row_is_not_adopted(self):
+        cont = self._cont("wrongcanvas")
+        # Row lives on a DIFFERENT canvas.
+        self._row(cont, cont.continuation_id, canvas_id="cv-somewhere-else")
+        assert self._reconcile(cont, None) is None, (
+            "a row on another canvas must never be adopted")
+
+    def test_superseded_row_is_reported_as_superseded_not_accepted(self):
+        cont = self._cont("superseded")
+        row_id = self._row(cont, cont.continuation_id, body="older")
+        # A later revision exists on the same canvas.
+        self._row(cont, "a-later-operation", body="newer")
+        assert self._reconcile(cont, row_id) == "proposal-superseded", (
+            "a row that is no longer the canvas HEAD must not be reported "
+            "as this request's completed write")
+
+    def test_readback_mismatch_refuses(self):
+        cont = self._cont("mismatch")
+        row_id = self._row(cont, cont.continuation_id)
+
+        async def _read_canvas(user_id, canvas_id):
+            return {"success": True, "audit_id": "some-other-revision"}
+
+        with patch("tools.canvas_crud_tool.read_canvas", _read_canvas):
+            verdict = asyncio.run(atc._reconcile_authorized_proposal(cont))
+        assert verdict == "proposal-readback-mismatch", (
+            "accepting requires the authoritative read to still serve "
+            f"this very row; got {verdict!r}")
+
+    def test_no_owner_directive_refuses(self):
+        cont = self._cont("nodirective",
+                          message="here is some context for you")
+        row_id = self._row(cont, cont.continuation_id)
+        assert self._reconcile(cont, row_id) is None, (
+            "reconciliation is the owner-authorization path; without the "
+            "owner's imperative words there is nothing to reconcile")
+
+    def test_negated_directive_refuses(self):
+        cont = self._cont("negated",
+                          message="don't change the draft yet")
+        row_id = self._row(cont, cont.continuation_id)
+        assert self._reconcile(cont, row_id) is None, (
+            "a negation WITHHOLDS authorization and must never reconcile")
+
+    # ---- idempotence: review metadata only ---------------------------
+
+    def test_reconciliation_touches_only_review_metadata(self):
+        cont = self._cont("meta")
+        row_id = self._row(cont, cont.continuation_id, body="THE-BODY")
+
+        canvas_updates: list = []
+
+        async def _read_canvas(user_id, canvas_id):
+            canvas_updates.append(("read_canvas", canvas_id))
+            return {"success": True, "audit_id": row_id,
+                    "content": {"body": "THE-BODY"}}
+
+        async def _no_write(*a, **k):
+            canvas_updates.append(("update_canvas_content", a, k))
+            return {"success": True}
+
+        with patch("tools.canvas_crud_tool.read_canvas", _read_canvas), \
+             patch("tools.canvas_crud_tool.update_canvas_content",
+                   side_effect=_no_write):
+            assert asyncio.run(
+                atc._reconcile_authorized_proposal(cont)) == "accepted"
+
+        writes = [e for e in canvas_updates if e[0] == "update_canvas_content"]
+        assert writes == [], (
+            "reconciliation is a review-state transition only — it must "
+            f"never write canvas content; observed {writes}")
+
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+
+        with get_db_session() as db:
+            row = db.query(CanvasAudit).filter(
+                CanvasAudit.id == row_id).first()
+            details = row.details_json or {}
+        assert details.get("content", {}).get("body") == "THE-BODY", (
+            "the mutation payload must be untouched")
+        assert details.get("review_status") == "accepted"
+        assert (details.get("reconciled") or {}).get("by") == (
+            "authorized-proposal-reconciliation")
+
+    def test_reconciliation_is_idempotent(self):
+        """A second call must be a no-op: the row is already accepted, so
+        there is nothing left to reconcile and no second confirmation."""
+        cont = self._cont("idem")
+        row_id = self._row(cont, cont.continuation_id)
+        assert self._reconcile(cont, row_id) == "accepted"
+        assert self._reconcile(cont, row_id) is None, (
+            "an already-accepted row must not reconcile again — one "
+            "logical terminal confirmation, not one per call")
+
+    def test_one_logical_terminal_confirmation(self):
+        """Reconciliation must not multiply the user-visible outcome: the
+        terminal delivery is claimed exactly once for the continuation, so
+        a repeated effects pass cannot read like a second edit."""
+        cont = self._cont("deliver")
+        row_id = self._row(cont, cont.continuation_id)
+        assert self._reconcile(cont, row_id) == "accepted"
+
+        # The delivery claim is arbitrated against the durable execution
+        # row, so the continuation needs one (the fork creates it in
+        # production; here it is created directly).
+        from core.database import get_db_session
+        from core.models import AgentExecution
+
+        with get_db_session() as db:
+            db.add(AgentExecution(
+                id=cont.continuation_id,
+                # nullable FK — no agent_registry row is needed for the
+                # delivery claim's arbitration.
+                agent_id=None,
+                status="running",
+                triggered_by="continuation",
+                input_summary=(cont.message or "")[:200],
+                metadata_json={"session_id": cont.session_id}))
+            db.commit()
+
+        first = atc._claim_terminal_delivery(cont)
+        second = atc._claim_terminal_delivery(cont)
+        assert first[0] is True, f"first delivery must claim: {first}"
+        assert second[0] is False, (
+            f"a second terminal delivery must be refused: {second}")
+
+    def test_reconciliation_writes_no_canvas_content(self):
+        """The repair must not create the very duplicate it exists to
+        avoid: no second canvas update, ever, from the reconciliation."""
+        cont = self._cont("nowrite")
+        row_id = self._row(cont, cont.continuation_id, body="KEEP-ME")
+
+        async def _read_canvas(user_id, canvas_id):
+            return {"success": True, "audit_id": row_id,
+                    "content": {"body": "KEEP-ME"}}
+
+        async def _boom(*a, **k):
+            raise AssertionError(
+                "reconciliation must never call update_canvas_content")
+
+        with patch("tools.canvas_crud_tool.read_canvas", _read_canvas), \
+             patch("tools.canvas_crud_tool.update_canvas_content",
+                   side_effect=_boom):
+            assert asyncio.run(
+                atc._reconcile_authorized_proposal(cont)) == "accepted"
+
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+
+        with get_db_session() as db:
+            row = db.query(CanvasAudit).filter(
+                CanvasAudit.id == row_id).first()
+            details = row.details_json or {}
+        assert details.get("content", {}).get("body") == "KEEP-ME", (
+            "the mutation payload is byte-identical after reconciliation")
+
+
+class TestBudgetOutcomeFourCases:
+    """Owner review 2026-10-08 item 3: the receipt-first budget envelope
+    must be right for landed, approval-required, unfinished AND
+    conflicting operations — the conflict case was untested."""
+
+    def _run(self, monkeypatch, receipt, fork_id=None,
+             conflict_supersede=False):
+        import integrations.chat_orchestrator as chat
+
+        monkeypatch.setenv("ATOM_CHAT_REQUEST_DEADLINE_SECONDS", "8")
+        monkeypatch.setattr(chat, "_CANVAS_LEG_MAX_SECONDS", 0.5)
+        monkeypatch.setattr(chat, "_REPLY_LEG_MIN_SECONDS", 1.0)
+        orch = chat.ChatOrchestrator()
+        sid = _fresh_session_id("budget4")
+        session = {"id": sid, "history": []}
+        canvas = {"canvas_id": "c1", "canvas_type": "email",
+                  "content": {"subject": "Draft", "body": "Unchanged"}}
+        orch._budget_exceeded_runs.add("e1")
+
+        async def _slow_edit(*a, **k):
+            await asyncio.sleep(5)
+            return None
+
+        async def _receipt(cls, canvas_id, session_id, user_id,
+                           execution_id):
+            return dict(receipt)
+
+        async def _conflict_receipt(cls, canvas_id, session_id, user_id,
+                                    execution_id):
+            return dict(receipt)
+
+        with (
+            patch.object(orch, "_get_or_create_session",
+                         return_value=session),
+            patch.object(orch, "_resolve_canvas_ctx",
+                         new=AsyncMock(return_value=canvas)),
+            patch.object(orch, "_start_chat_execution", return_value="e1"),
+            patch.object(orch, "_record_chat_step", new=AsyncMock()),
+            patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+            patch.object(orch, "_finish_chat_execution"),
+            patch.object(orch, "_update_session"),
+            patch.object(orch, "_try_canvas_edit", side_effect=_slow_edit),
+            patch.object(orch, "_try_canvas_action", new=AsyncMock()),
+            patch.object(orch, "_get_qwen_response", new=AsyncMock(
+                return_value={"content": "answered", "model": "m",
+                              "provider": "p"})),
+            patch("core.chat_tool_planner.plan_tool_use",
+                  new=AsyncMock(return_value=None)),
+            patch("core.chat_tool_planner._provenance_menu",
+                  new=AsyncMock(return_value="")),
+            patch.object(chat, "_user_grounded_edit_directive",
+                         return_value=bool(fork_id)),
+            patch("core.async_turn_continuation."
+                  "fork_canvas_edit_continuation", return_value=fork_id),
+            patch("core.async_turn_continuation.continuation_in_flight",
+                  return_value=fork_id),
+            patch.object(chat.ChatOrchestrator, "_canvas_write_for_operation",
+                         classmethod(_conflict_receipt if conflict_supersede
+                                     else _receipt)),
+        ):
+            return asyncio.run(orch.process_chat_message(
+                "u1", "rebuild the draft with the quotes", sid,
+                context={"canvas_id": "c1"}))
+
+    def test_landed(self, monkeypatch):
+        r = self._run(monkeypatch, {"verdict": "result_verified",
+                                    "review_status": "accepted"})
+        assert r["success"] is True
+        assert r.get("error_code") != "turn_budget_exceeded"
+        assert (r.get("data") or {}).get("budget_recovery", {}).get(
+            "write_landed") is True
+
+    def test_approval_required(self, monkeypatch):
+        r = self._run(monkeypatch, {"verdict": "write_recorded",
+                                    "review_status": "pending_review"})
+        assert r["success"] is True
+        msg = (r.get("message") or "").lower()
+        assert "proposal" in msg and "approval" in msg
+        assert (r.get("data") or {}).get("budget_recovery", {}).get(
+            "review_status") == "pending_review"
+
+    def test_unfinished(self, monkeypatch):
+        r = self._run(monkeypatch, {"verdict": "unverified",
+                                    "review_status": None},
+                      fork_id="cont-9")
+        assert r["success"] is True
+        assert "background" in (r.get("message") or "").lower()
+        assert (r.get("data") or {}).get("budget_recovery", {}).get(
+            "background_started") is True
+
+    def test_conflicting(self, monkeypatch):
+        """A write that could not be attributed to THIS operation is not
+        this turn's success and not a claim that nothing happened — it is
+        the recorded conflict."""
+        r = self._run(monkeypatch, {"verdict": "unverified",
+                                    "review_status": None},
+                      fork_id=None)
+        assert r["success"] is False
+        assert r.get("error_code") == "turn_budget_exceeded"
+        assert (r.get("data") or {}).get("budget_recovery", {}).get(
+            "write_landed") is False
 
 
 class TestEffectsAndContextContinuity:
@@ -1893,11 +2451,16 @@ class TestAuthorizedProposalReconciliation:
                 self.commits += 1
         q = _Q()
         import core.async_turn_continuation as atc_mod
+        # The row is located through the identity relationship
+        # (continuation_id OR origin_operation_id); these tests pin the
+        # POLICY that follows the lookup, so the lookup is stubbed.
         with patch("core.database.get_db_session",
                    return_value=_ctx(q)), \
-             patch("tools.canvas_crud_tool.read_canvas", new=_read), \
-             patch("core.sql_json.json_field_equals",
-                          return_value=None):
+             patch.object(atc_mod, "_matched_operation_row",
+                          return_value={"audit_id": "audit-1",
+                                        "review_status": "pending_review",
+                                        "operation_id": "cont-recon-1"}), \
+             patch("tools.canvas_crud_tool.read_canvas", new=_read):
             verdict = await atc_mod._reconcile_authorized_proposal(cont)
         assert verdict == "accepted"
         assert _row.details_json["review_status"] == "accepted"
@@ -1936,8 +2499,10 @@ class TestAuthorizedProposalReconciliation:
         import core.async_turn_continuation as atc_mod
         with patch("core.database.get_db_session",
                    return_value=_ctx(_Q2())), \
-             patch("core.sql_json.json_field_equals",
-                          return_value=None):
+             patch.object(atc_mod, "_matched_operation_row",
+                          return_value={"audit_id": "audit-old",
+                                        "review_status": "pending_review",
+                                        "operation_id": "cont-recon-2"}):
             verdict = await atc_mod._reconcile_authorized_proposal(cont)
         assert verdict == "proposal-superseded"
 

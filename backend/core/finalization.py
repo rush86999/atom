@@ -39,10 +39,19 @@ def finalize_payload(
     - A FAILED execution is delivered as an accurate failure: success is
       forced false, the message names the failure and its stage from the
       execution record, and no success-shaped wording survives.
+    - A drafted structured error is NEVER rewritten: when the reply leg
+      already produced a specific terminal envelope (error_code plus a
+      real message, e.g. the provider-credit failure with
+      failure_reason/recovery_url), finalization keeps its message and
+      fields verbatim. Rebuilding record-derived text here truncated the
+      cause and cut off the remedy (case-5 finding, 2026-10-06). The
+      generic record-derived message is only synthesized when the draft
+      carries no specific message.
     - Unknown/missing execution records are delivered as UNKNOWN — never
       rounded to success.
     - This function never fabricates content: it adjusts status, identity,
-      and the failure message only.
+      and the failure message only. It never adds failure fields to a
+      success, and never strips the drafted failure fields.
     """
     payload = dict(drafted or {})
     exec_id = (execution or {}).get("execution_id") or payload.get("execution_id")
@@ -54,15 +63,31 @@ def finalize_payload(
     if status == "failed":
         payload["success"] = False
         payload["error_code"] = payload.get("error_code") or "execution_failed"
-        stage = (execution or {}).get("failure_stage") or "execution"
-        summary = str((execution or {}).get("result_summary") or "the operation failed")
-        payload["message"] = (
-            f"This turn failed and nothing it attempted should be assumed "
-            f"complete. Failure at {stage}: {summary[:300]} "
-            f"(execution {exec_id})" if exec_id else
-            f"This turn failed and nothing it attempted should be assumed "
-            f"complete. Failure at {stage}: {summary[:300]}"
-        )
+        drafted_message = str(payload.get("message") or "")
+        if drafted_message.strip() and drafted_message.strip() not in (
+                "Message processed successfully",):
+            # A specific terminal envelope is already drafted — keep it
+            # verbatim (message, error_code, failure_reason, recovery_url).
+            # The previous rebuild replaced it with record-derived generic
+            # text, truncating the cause to 300 chars and dropping the
+            # remedy that follows it (live case-5 T2: the persisted row
+            # carried the generic prefix, not the credit text).
+            # Fields ride the dict copy; pin them explicitly so the
+            # contract does not depend on copy semantics.
+            for _key in ("failure_reason", "recovery_url"):
+                _value = (drafted or {}).get(_key)
+                if _value is not None:
+                    payload[_key] = _value
+        else:
+            stage = (execution or {}).get("failure_stage") or "execution"
+            summary = str((execution or {}).get("result_summary") or "the operation failed")
+            payload["message"] = (
+                f"This turn failed and nothing it attempted should be assumed "
+                f"complete. Failure at {stage}: {summary[:300]} "
+                f"(execution {exec_id})" if exec_id else
+                f"This turn failed and nothing it attempted should be assumed "
+                f"complete. Failure at {stage}: {summary[:300]}"
+            )
         data = payload.get("data")
         if isinstance(data, dict):
             data.pop("deterministic_delivery", None)

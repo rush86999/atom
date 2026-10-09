@@ -5709,6 +5709,21 @@ def _resolve_active_items(query: str, context: Optional[Dict[str, Any]],
     revised = [str(v).strip() for v in (revised or []) if str(v).strip()]
     if revised:
         return list(revised)
+    # REQUEST-BOUND SCOPE (2026-10-08 Phase-2, the case-4 defect): when
+    # the one-per-request interpretation established THIS request's
+    # subjects (scope replace/subset), they are consumed VERBATIM. The
+    # old objective cannot replace new explicit scope, and substring
+    # overlap with prior scope is never authority: a shared prefix is
+    # not evidence the old subject is intended. Legacy callers without
+    # ``request_scope`` keep the full mining precedence below, unchanged.
+    _rs = (context or {}).get("request_scope")
+    if isinstance(_rs, dict) and _rs.get("scope_change") in (
+            "replace", "subset", "extend"):
+        _rs_subjects = [
+            str(v).strip() for v in (_rs.get("subjects") or [])
+            if str(v).strip()]
+        if _rs_subjects:
+            return _rs_subjects
     active = (context or {}).get("requested_targets")
     if isinstance(active, str):
         active = [active]
@@ -5721,6 +5736,29 @@ def _resolve_active_items(query: str, context: Optional[Dict[str, Any]],
         own = _named_file_targets(query, own_ctx, candidate_probe_tokens)
     except Exception:
         own = []
+    # PARTIAL-FRAGMENT GUARD (2026-10-08 Cedarberg defect): the turn's
+    # own mining can return a PARTIAL fragment ('a Cedarberg') that is a
+    # substring of a fuller named subject in requested_targets ('Cedarberg
+    # 60-ton press brake'). The fragment wins by the own-first rule and
+    # the reader receives a partial item that matches nothing. When every
+    # own-mined item is a SUBSTRING of a requested_target, the fuller
+    # requested_targets replace them — the user named the whole subject.
+    if own and active:
+        import re as _re_covers
+
+        def _covers(full, part):
+            # Strip leading articles from both sides before substring:
+            # 'a Cedarberg' must match 'Cedarberg 60-ton press brake'
+            clean = lambda x: _re_covers.sub(
+                r'^(a|an|the)[ ]+', '', x.lower().strip())
+            fp, pp = clean(full), clean(part)
+            return pp in fp or fp in pp
+
+        all_covered = all(
+            any(_covers(a, o) for a in active) for o in own)
+        if all_covered and any(len(a) > len(o) for a in active
+                                for o in own):
+            return list(active)
     if own:
         return own
     if active:
@@ -6226,6 +6264,15 @@ async def _datasets_named_file_block(
                 "completed": False,
                 "coverage_complete": False,
                 "note": "multiple catalogued files match the named file",
+                # The candidate names ride the meta so the ASK lane can
+                # render an honest clarification question (the block text
+                # is narrator-directed; the user-facing question is built
+                # from these). 2026-10-08: the empty-item honesty block
+                # was overwriting this verdict with "the workbook was
+                # read", which never happened.
+                "candidates": [
+                    names[k] for k in sorted(exact_keys)
+                ],
             }
         return _with_grounding(
             "LIVE TOOL RESULTS (datasets.named-file) — the query names "
@@ -7231,14 +7278,70 @@ async def _datasets_search_block(
         for h in ((context or {}).get("history") or [])
         if isinstance(h, dict) and h.get("message")
     ][-6:]
-    if not candidate_probe_tokens([query] + history_texts):
+    # REQUEST-BOUND SUBJECTS ride the context (2026-10-08 owner final
+    # repair): explicit resolved subjects lead the probe; history does
+    # not supplement them (canvas-derived scope must not replace the
+    # request's own subjects). Computed BEFORE the memory delegation —
+    # a request that RESOLVED subjects has its identifying scope by
+    # definition (live case-4: 'No. 381' failed the ≥4-char heuristic
+    # net and the sweep silently became a memory search that stamped no
+    # receipt).
+    _rs_subjects: List[str] = []
+    _rs = (context or {}).get("request_scope")
+    if isinstance(_rs, dict) and _rs.get("scope_change") in (
+            "replace", "subset", "extend"):
+        _rs_subjects = [
+            str(v).strip() for v in (_rs.get("subjects") or [])
+            if str(v).strip()]
+    if not _rs_subjects:
+        # SUBJECT-BOUND LOOKUP IN PLAIN RESEARCH (2026-10-08 value-trial
+        # follow-up): a plain research turn carries no request_scope, so
+        # the sweep's candidates came from free-text token mining over
+        # the WHOLE query — and the demonstrated miss: 'What's the price
+        # basis and current lead time for the Tennsmith SLE24-16 single
+        # wheel slitter?' probed generic tokens, missed the Tennsmith
+        # row a direct subject probe finds in 1.5s, and answered
+        # 'not found in this turn's search'. The SAME extractor the ask
+        # lane uses (extract_items_from_text) supplies the subject-bound
+        # candidates here; generic mining still adds tokens beneath
+        # them. History NEVER contributes subject candidates.
+        try:
+            from core.target_set_resolution import (
+                extract_items_from_text as _eift,
+            )
+
+            _plain_subjects = [
+                i.strip() for i in _eift(
+                    _current_message_text(context) or query) if i.strip()]
+            # CODE-BEARING SUBJECTS FIRST (live A2 trap): the extractor
+            # yields both 'SLE24-16' and its superset 'Tennsmith
+            # SLE24-16'; the brand token 'tennsmith' then matched NEWER
+            # junk files (zz-formula-e2e-check) and the recency-ordered
+            # probe stopped before the 2019 workbook. Digit-bearing
+            # subjects probe; brand-only supersets do not add tokens.
+            _code_subjects = [
+                i for i in _plain_subjects
+                if any(ch.isdigit() for ch in i)]
+            _probe_pool = _code_subjects or _plain_subjects
+            # CONTAINMENT DEDUP: 'Tennsmith SLE24-16' strictly contains
+            # 'SLE24-16' — the superset only adds brand tokens that match
+            # newer junk files. Keep the MINIMAL subjects.
+            _rs_subjects = [
+                i for i in _probe_pool
+                if not any(
+                    i != j and i.lower().find(j.lower()) >= 0
+                    for j in _probe_pool)][:6]
+        except Exception:  # noqa: BLE001 — floor follows
+            pass
+    if not _rs_subjects and not candidate_probe_tokens(
+            [query] + history_texts):
         # No identifying code — sheet-level SQL adds nothing over memory.
         return await _memory_search_block(user_id, query, context)
-
     result = await asyncio.to_thread(
         search_all_datasets_sync, query, user_id,
         (context or {}).get("workspace_id"), 2, 200, history_texts,
         [_current_message_text(context) or query],
+        request_subjects=_rs_subjects or None,
     )
     files_searched = result.get("files_searched", 0) if result else 0
     hits = (result or {}).get("hits") or []
@@ -7256,13 +7359,45 @@ async def _datasets_search_block(
             _meta["datasets_search"] = {
                 "files_searched": int(files_searched or 0),
                 "hits": len(hits),
+                # HIT DIGEST (owner correction 2026-10-09): the receipt
+                # carried only a COUNT — retrieval success could not
+                # persist as findings because the hit objects never rode
+                # the receipt. Bounded, association-complete rows only.
+                "_hits": [
+                    {"file_name": (h or {}).get("file_name"),
+                     "entity_name": (h or {}).get("entity_name")
+                       or (h or {}).get("sheet"),
+                     "content_hash": (h or {}).get("content_hash"),
+                     "ingested_at": (h or {}).get("ingested_at"),
+                     "rows": (h or {}).get("rows") or []}
+                    for h in (hits or [])[:3]
+                ],
                 "tokens_tried": [
                     str(t)[:60]
                     for t in ((result or {}).get("tokens_tried") or [])][:8],
+                # SOURCE IDENTITIES (2026-10-08 owner correction 3): the
+                # receipt names file+sheet per hit — a searched TERM is
+                # dispatch, not a read of the intended workbook; the
+                # identities make the intended-source question
+                # answerable from the receipt alone.
+                "hit_sources": sorted({
+                    f"{str((h or {}).get('file') or '')[:80]}"
+                    f"!{str((h or {}).get('sheet')
+                            or (h or {}).get('entity_name') or '')[:40]}"
+                    for h in hits if h})[:12],
                 "matched_files": sorted({
                     str((h or {}).get("file") or (h or {}).get("source")
                         or "")[:120] for h in hits if h})[:12],
                 "query": str(query)[:200],
+                # per-subject probe bound omissions, stated in-receipt
+                **({"subject_scope_omitted": sorted(
+                        (result or {}).get("subject_scope_omitted")
+                        or [])[:12]}
+                   if (result or {}).get("subject_scope_omitted") else {}),
+                **({"subject_scope_unprobed": sorted(
+                        (result or {}).get("subject_scope_unprobed")
+                        or [])[:12]}
+                   if (result or {}).get("subject_scope_unprobed") else {}),
             }
         except Exception:  # noqa: BLE001 — receipt is additive
             pass
@@ -8263,11 +8398,19 @@ def _calc_dedup_key(
         canvas_id: Optional[str],
         workspace_id: Optional[str],
         query: Optional[str],
-        lessons_fingerprint: str = "") -> Optional[str]:
+        lessons_fingerprint: str = "",
+        execution_id: Optional[str] = None) -> Optional[str]:
     """Stable dedup key, or None when context is unvalidated.
 
     Validated context requires a non-empty user or conversation —
-    anonymous/empty callers never share results."""
+    anonymous/empty callers never share results.
+
+    REQUEST SCOPING (final owner correction 2026-10-06): with an
+    execution identity the key is bound to THIS request — the same
+    request's two dispatch arms and its in-request retries share the
+    key, while a NEW request (new execution) never reuses the completed
+    block of an earlier one. Without an execution identity (legacy
+    callers) the key keeps its request-less shape."""
     import hashlib as _hl
 
     u = " ".join(str(user_id or "").strip().split())
@@ -8280,7 +8423,8 @@ def _calc_dedup_key(
     if not q:
         return None
     raw = "|".join([u.lower(), c.lower(), v, w, q,
-                    str(lessons_fingerprint or "")])
+                    str(lessons_fingerprint or ""),
+                    f"exec={str(execution_id or '').strip().lower()}"])
     return "calc:" + _hl.sha256(raw.encode("utf-8")).hexdigest()[:24]
 
 
@@ -8328,8 +8472,69 @@ async def execute_tool_plan(
     planning model's own query was."""
     if not plan or not plan.use_tool or not plan.service:
         return None
+    # PROVENANCE CAPTURE (owner directive 2026-10-07): recorded BEFORE
+    # any scheduling separates caller from task. Caller location,
+    # execution-identity presence, and conversation/job identifiers —
+    # never prompts, lessons, or secrets. Context keys alone cannot
+    # distinguish arms.
+    try:
+        import sys as _sys
+
+        _fr = _sys._getframe(1)
+        # walk past asyncio scheduling machinery — the arm is the first
+        # application frame
+        _hop = 0
+        while _fr is not None and _hop < 12 and (
+                _fr.f_code.co_filename.startswith(
+                    "/Users/rushiparikh/.local/share/uv/python")
+                or "asyncio" in _fr.f_code.co_filename):
+            _fr = _fr.f_back
+            _hop += 1
+        _prov = {
+            "caller": (f"{_fr.f_code.co_filename.rsplit('/', 1)[-1]}:"
+                       f"{_fr.f_lineno} {_fr.f_code.co_name}"
+                       if _fr else "unknown"),
+            "has_exec_id": bool((context or {}).get("execution_id")),
+            "conversation": str((context or {}).get("conversation_id")
+                                or "")[:40],
+        }
+        import logging as _plg
+
+        _plg.getLogger(__name__).info(
+            "[etp-provenance] service=%s intent=%s caller=%s "
+            "exec_id=%s conv=%s", plan.service, plan.intent,
+            _prov["caller"], _prov["has_exec_id"], _prov["conversation"])
+    except Exception:  # noqa: BLE001 — diagnostic only
+        pass
     service = plan.service
     query = (plan.query or "").strip()
+
+    # DOTTED datasets TOOL NAMES -> LOCAL DISPATCH (case-3 trial 1,
+    # 2026-10-06): the planner's own vocabulary names tools
+    # "datasets.calculate" / "datasets.search" / "datasets.value_trace"
+    # (observed live: a repeated workbook ask planned as
+    # datasets.search/value_trace — see the calculation-override note).
+    # The local branches below dispatch on service == "datasets" with
+    # the action in plan.intent, so a dotted name matched NOTHING here
+    # and fell through to the generic EXTERNAL-integration branch,
+    # which tried `datasets.calculate.search` against Activepieces,
+    # failed, and returned a "nothing usable" block — the reply then
+    # carried a model-self-computed figure with NO engine run, NO
+    # structured record and NO job operation (release case 3, trial 1).
+    # Normalizing at THIS boundary sends every planner-shaped datasets
+    # plan down the SAME local lanes the derivation path uses — one
+    # convergence point, one recording seam per request.
+    if service and service.startswith("datasets."):
+        _ds_action = service.split(".", 1)[1].strip()
+        if _ds_action in ("calculate", "search", "value_trace", "ask"):
+            try:
+                plan = plan.model_copy(
+                    update={"service": "datasets", "intent": _ds_action})
+            except AttributeError:  # pydantic v1 fallback
+                _pd = plan.dict()
+                _pd.update({"service": "datasets", "intent": _ds_action})
+                plan = ToolPlan(**_pd)
+            service = "datasets"
 
     # DATE PIGGYBACK: every downstream lane in this execution (memory
     # figure scan, mailbox lines) reads the window from the context —
@@ -8729,6 +8934,14 @@ async def execute_tool_plan(
             # 76): planner + derivation paths converge HERE — dedup lives
             # here, keyed by stable request/operation identity + validated
             # context + lessons fingerprint. One request = one operation.
+            # REQUEST/EXECUTION identity (final owner correction
+            # 2026-10-06): branch-scoped so BOTH the lane invocations and
+            # the dedup/singleflight wrapper below see it — the durable
+            # operation key and the completed-block cache deduplicate
+            # THIS request's two dispatch arms and its retries, while a
+            # NEW request (new execution) never reuses an earlier one.
+            _exec_id = (context or {}).get("execution_id")
+
             async def _run_calc_lane() -> Optional[str]:
                 import re as _calc_re
                 from decimal import Decimal as _CalcD
@@ -8752,6 +8965,7 @@ async def execute_tool_plan(
                 # (never a partial price).
                 from core.pricing_calculation import (
                     calculate_expression_from_query as _expr_query,
+                    calculate_followup_from_query as _followup_query,
                     calculate_natural_from_query as _nl_query,
                     calculate_workbook_from_query as _wb_query,
                 )
@@ -8761,7 +8975,8 @@ async def execute_tool_plan(
                 _wb_block = await _wb_query(
                     _calc_q, user_id,
                     (context or {}).get("workspace_id"),
-                    conversation_id=_conv_id, canvas_id=_cv_id)
+                    conversation_id=_conv_id, canvas_id=_cv_id,
+                    execution_id=_exec_id)
                 if _wb_block:
                     # _wb_query already grounds; _with_grounding is
                     # idempotent for grounded blocks.
@@ -8770,7 +8985,8 @@ async def execute_tool_plan(
                 _expr_block = await _expr_query(
                     _calc_q, user_id,
                     (context or {}).get("workspace_id"),
-                    conversation_id=_conv_id, canvas_id=_cv_id)
+                    conversation_id=_conv_id, canvas_id=_cv_id,
+                    execution_id=_exec_id)
                 if _expr_block:
                     return _expr_block if "LIVE TOOL RESULTS" in _expr_block \
                         else _with_grounding(_expr_block)
@@ -8781,10 +8997,24 @@ async def execute_tool_plan(
                 _nl_block = await _nl_query(
                     _calc_q, user_id,
                     (context or {}).get("workspace_id"),
-                    conversation_id=_conv_id, canvas_id=_cv_id)
+                    conversation_id=_conv_id, canvas_id=_cv_id,
+                    execution_id=_exec_id)
                 if _nl_block:
                     return _nl_block if "LIVE TOOL RESULTS" in _nl_block \
                         else _with_grounding(_nl_block)
+                # CONVERSATION-STATE FOLLOW-UP (release case 3): the
+                # bare ANSWER to the lane's missing-input question and
+                # the bare RECALCULATE imperative resolve from DURABLE
+                # job state here — deterministically, not planner-
+                # dependent. Explicit asks never reach this (earlier
+                # lanes answered them); no prior state → None.
+                _followup_block = await _followup_query(
+                    _calc_q, user_id,
+                    (context or {}).get("workspace_id"),
+                    conversation_id=_conv_id, canvas_id=_cv_id,
+                    execution_id=_exec_id)
+                if _followup_block:
+                    return _followup_block
                 block = await _calc_query(
                     _calc_q, user_id,
                     (context or {}).get("workspace_id"))
@@ -8805,7 +9035,7 @@ async def execute_tool_plan(
                 _fp = _calc_lessons_fingerprint(user_id, _ws_key)
                 _dkey = _calc_dedup_key(
                     user_id, _conv_key, _cv_key, _ws_key,
-                    _calc_q_key, _fp)
+                    _calc_q_key, _fp, execution_id=_exec_id)
                 if _dkey is not None:
                     import time as _time
 

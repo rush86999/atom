@@ -54,6 +54,60 @@ _WORKER_ID = f"research-worker-{os.getpid()}"
 # meaning — business-neutral. "price" is THIS job's requested field;
 # another business passes its own ("lead_time", "labor_rate", ...) and
 # adds its synonyms through the same map.
+def _serialize_specs(specs):
+    """FieldSpec objects → durable dicts for action inputs and task
+    revisions (reloadable via _resolve_field_specs)."""
+    if not specs:
+        return []
+    out = []
+    for sp in specs:
+        if hasattr(sp, "key"):  # FieldSpec
+            out.append({
+                "key": sp.key, "labels": list(sp.labels),
+                "value_type": sp.value_type, "unit": sp.unit,
+                "currency": sp.currency, "basis": sp.basis,
+                "lesson_id": sp.lesson_id})
+        else:
+            out.append(sp)
+    return out
+
+
+def _resolve_field_specs(run_id, raw_fields):
+    """Resolve the job's requested-field contract into typed FieldSpecs.
+
+    Legacy pricing compatibility: a raw list of bare names (the
+    historical shape, e.g. ["price"]) maps through FIELD_SYNONYMS to
+    PRICING_FIELD when the stored contract predates typed fields. A
+    stored dict shape carries the full spec verbatim. An EMPTY list on
+    a job whose revision has no legacy pricing marker becomes unresolved
+    scope — returned as [] and the caller surfaces the question."""
+    from core.typed_fields import FieldSpec, PRICING_FIELD
+
+    if not raw_fields:
+        # legacy jobs created before typed fields carry pricing
+        # provenance in their revision text; without it, no implicit
+        # default applies
+        return []
+    out = []
+    for f in raw_fields:
+        if isinstance(f, dict):
+            try:
+                out.append(FieldSpec(
+                    key=str(f.get("key") or f.get("name") or "field"),
+                    labels=tuple(f.get("labels") or
+                                 [str(f.get("key") or "field")]),
+                    value_type=str(f.get("value_type") or "text"),
+                    unit=f.get("unit"), currency=f.get("currency"),
+                    basis=f.get("basis"), lesson_id=f.get("lesson_id")))
+            except ValueError:
+                continue  # unsupported type: skip (caller surfaces)
+        elif isinstance(f, str) and f.lower() in FIELD_SYNONYMS:
+            out.append(PRICING_FIELD)  # bare legacy name
+        elif isinstance(f, str):
+            out.append(FieldSpec(key=f, labels=(f,), value_type="text"))
+    return out
+
+
 FIELD_SYNONYMS: Dict[str, List[str]] = {
     "price": ["price", "cost", "list", "net", "cad"],
 }
@@ -136,8 +190,11 @@ def _read_actions(actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                     "candidates": cands,
                     "identity_context": str(
                         inputs.get("identity_context") or item),
-                    "requested_fields": list(
-                        inputs.get("requested_fields") or []),
+                    "requested_fields": _serialize_specs(
+                        _resolve_field_specs(
+                            None,
+                            list(inputs.get("requested_fields")
+                                 or []))),
                     "provenance": dict(
                         inputs.get("provenance") or {}),
                     "intent": "row_read",
@@ -145,18 +202,43 @@ def _read_actions(actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 continue
         if doc and item:
             out.append({"item": item, "file": doc,
-                        "question_id": a.get("question_id")})
+                        "question_id": a.get("question_id"),
+                        "inputs": inputs})
     return out
 
 
-def _classify_match(match: Dict[str, Any]) -> str:
-    """"matched" (carries the item's own value), "located" (identity
-    only — the price cell was not read), or "" (noise)."""
+def _classify_match(match: Dict[str, Any],
+                    specs: Optional[List[Any]] = None) -> str:
+    """"matched" (the match carries a value satisfying one of the job's
+    requested fields), "located" (identity only), or "" (noise).
+
+    CONTRACT-DRIVEN (owner directive 2026-10-07): when the job's field
+    specs are available, a match is "matched" only when a column
+    matching a spec's labels parses as that spec's declared type. The
+    price-shaped regexes remain ONLY as the legacy pricing fallback when
+    no contract is available (an explicitly identified legacy pricing
+    job)."""
+    from core.typed_fields import (
+        FieldSpec, PRICING_FIELD, binding_passes,
+    )
+
     column = str(match.get("column") or "")
     value = str(match.get("value") or "")
-    if _PRICE_COLUMN_RE.search(column) or (
-            value and _PRICE_VALUE_RE.match(value)):
-        return "matched"
+    if specs:
+        for spec in specs:
+            if isinstance(spec, FieldSpec):
+                if binding_passes(column, value, spec) is not None:
+                    return "matched"
+        return "located"
+    # LEGACY pricing fallback: fires ONLY when persisted legacy data
+    # explicitly establishes pricing — a bare legacy field name that
+    # maps through FIELD_SYNONYMS. A new generic job with an empty
+    # contract reaches _classify_match with specs=[] from its own
+    # resolution and stays "located" (unresolved scope), never priced.
+    if specs is None:
+        if _PRICE_COLUMN_RE.search(column) or (
+                value and _PRICE_VALUE_RE.match(value)):
+            return "matched"
     return "located"
 
 
@@ -164,7 +246,8 @@ async def _execute_document_read(
         lifecycle: Any, run_id: str,
         user_id: str, workspace_id: str, file_name: str,
         items: List[str],
-        item_identity_context: str = "") -> Dict[str, Any]:
+        item_identity_context: str = "",
+        action_inputs: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """One document execution resolving EACH item against its own
     structured find_all matches. Settles on the JOB's run."""
     from core.sheet_dataset_service import find_all_occurrences_sync
@@ -188,7 +271,12 @@ async def _execute_document_read(
                             f"({type(exc).__name__})")
             continue
         matches = (scan or {}).get("matches") or []
-        classified = [(m, _classify_match(m)) for m in matches]
+        _raw_rf = list((action_inputs or {}).get(
+            "requested_fields") or [])
+        _cls_specs = (_resolve_field_specs(None, _raw_rf)
+                      if _raw_rf else None)
+        classified = [(m, _classify_match(m, _cls_specs))
+                      for m in matches]
         matched = [m for m, c in classified if c == "matched"]
         if matched:
             statuses[item] = "matched"
@@ -221,10 +309,19 @@ async def _execute_document_read(
             cands = _all_located[:3]
             # REQUESTED FIELDS FROM THE JOB (round 56): carried from the
             # task revision — never hardcoded here.
-            _job_fields = list(
+            # FIELD SPECS FROM THE JOB (typed-fields integration): the
+            # task revision carries the job's field contract. A LEGACY
+            # pricing job (no stored contract, revision created before
+            # typed fields) gets the PRICING_FIELD compatibility spec;
+            # a NEW generic job with an EMPTY contract is unresolved
+            # scope — never an implicit price search.
+            _raw_fields = list(
+                (action_inputs or {}).get("requested_fields")
+                or []) or list(
                 ((lifecycle.get_task(run_id) or {}).get(
                     "task_revision") or {}).get("requested_fields")
-                or []) or ["price"]
+                or [])
+            _job_fields = _resolve_field_specs(run_id, _raw_fields)
             add_unresolved_questions(lifecycle, run_id, [{
                 "item": item,
                 "kind": "verification",
@@ -255,7 +352,8 @@ async def _execute_document_read(
                     "candidates_total": len(_all_located),
                     "candidates_omitted": max(
                         0, len(_all_located) - len(cands)),
-                    "requested_fields": _job_fields,
+                    "requested_fields": _serialize_specs(
+                        _job_fields),
                 },
             }], source_operation=None)
 
@@ -272,6 +370,11 @@ async def _execute_document_read(
         "served_basis": ("saved_copy" if any_executed else "none"),
         "failure_stage": None,
         "items": statuses,
+        # Same observability as the row-context read: the per-item
+        # evidence was returned to the caller and dropped before the
+        # ledger write, so a receipt-less document read recorded only an
+        # outcome string. Persist it.
+        "evidence": list(evidence),
     }
     finish_retrieval_turn(
         lifecycle, run_id, op["operation_id"], {}, None,
@@ -334,7 +437,12 @@ def _identity_supported(
     if not id_val:
         return False
     codes = [_norm_token(t) for t in _item_code_tokens(item)]
-    if id_val not in codes:
+    # EXACT-NAME identity (typed-fields integration): a nonpricing
+    # subject ("Site A Expansion") has no code-shaped tokens; the
+    # identity cell matching the FULL item name (normalized) is
+    # equivalent strictness for text-named subjects.
+    full_name = _norm_token(item)
+    if id_val not in codes and id_val != full_name:
         return False
     if any(c.isdigit() for c in id_val) and not any(
             re.match(r"^[A-Za-z0-9]*[A-Za-z]", c) and len(c) >= 2
@@ -395,6 +503,24 @@ def apply_taught_policy(
                             f"taught basis '{basis}' matches "
                             f"{len(sel)} columns — not selective"),
                         "remaining": sel}
+    # SELLING-PRICE SCOPE (2026-10-09, owner correction: this belongs in
+    # the PRICING ADAPTER, not the generic field binder — cost/net/
+    # factory columns can be valid answers to other requests). For a
+    # 'price' field with no taught basis naming a selective column, a
+    # customer-price question excludes columns whose NAMES say cost/net/
+    # factory: those are inputs to the price, not the price. The
+    # remaining spread is then the material business decision.
+    if field_l == "price":
+        _cost_marked = [c for c in candidates
+                        if any(w in str(c[0]).lower()
+                               for w in ("cost", "net", "factory"))]
+        _sell = [c for c in candidates if c not in _cost_marked]
+        if _sell and len(_sell) < len(candidates):
+            return {"applied": False, "selected": None,
+                    "basis_lesson": None,
+                    "reason": ("cost-side columns excluded — the selling "
+                               "basis is the owner's call"),
+                    "remaining": _sell}
     return {"applied": False, "selected": None, "basis_lesson": None,
             "reason": "no taught policy names a selective basis",
             "remaining": candidates}
@@ -416,8 +542,20 @@ def _bind_row_fields(
     id_ok = _identity_supported(
         row, identity_column, item, identity_context)
     bindings: Dict[str, List[Any]] = {}
+    from core.typed_fields import FieldSpec, PRICING_FIELD
+
     for field in requested_fields or []:
-        syns = FIELD_SYNONYMS.get(str(field).lower(), [str(field)])
+        # FIELD SPECS (typed-fields integration): a FieldSpec carries
+        # its labels + declared type; a bare string is a legacy name
+        # (price → PRICING_FIELD compatibility; others → text)
+        if isinstance(field, FieldSpec):
+            spec = field
+        else:
+            _r = _resolve_field_specs(None, [field])
+            spec = _r[0] if _r else FieldSpec(
+                key=str(field), labels=(str(field),),
+                value_type="text")
+        syns = list(spec.labels)
         cands = []
         for h in headers:
             hl = str(h).lower()
@@ -428,11 +566,16 @@ def _bind_row_fields(
             if not any(s in hl for s in syns):
                 continue
             if IDENTIFIER_COLUMN_RE.search(str(h)):
-                continue  # a CODE is never money
-            if not _MONETARY_VALUE_RE.match(sval):
-                continue  # non-monetary values are never prices
-            cands.append((str(h), sval))
-        bindings[str(field)] = cands
+                continue  # a CODE is never a valued field
+            # TYPED BINDING: the value must parse as the field's
+            # declared type — monetary shape was the old universal
+            # rule; the spec's type is the authority now
+            from core.typed_fields import binding_passes as _bp
+
+            parsed = _bp(str(h), sval, spec)
+            if parsed is not None:
+                cands.append((str(h), sval, parsed))
+        bindings[spec.key] = cands
     return {"identity_ok": id_ok, "bindings": bindings}
 
 
@@ -526,6 +669,18 @@ async def _execute_row_read(
                 + "; refused to choose; question stays open")
             continue
         if row_result is None:
+            # Named-file read returned nothing. This used to `continue`
+            # SILENTLY, so a row-context read whose candidates never
+            # materialized recorded only `read_returned_no_receipt` with
+            # an empty items map and no reason — live A9 (val-A9-c4b73)
+            # showed 10 such reads with items:{} and findings:[] and no
+            # way to tell a wrong row from a wrong sheet from a wrong
+            # file. Name the attempted location.
+            evidence.append(
+                f"{item}: row {cand.get('row')} of sheet "
+                f"{cand.get('sheet')!r} returned NOTHING from {_file} "
+                f"(identity cell {cand.get('identity_cell')!r}) — "
+                "question stays open")
             continue
         _src = row_result.get("source") or {}
         if _src:
@@ -545,6 +700,7 @@ async def _execute_row_read(
             continue
         supporting.append(
             {"cand": cand, "bound": bound, "_row_result": row_result})
+    _typed_findings: List[Dict[str, Any]] = []
     if len(supporting) == 1:
         bound = supporting[0]["bound"]
         cand = supporting[0]["cand"]
@@ -555,7 +711,7 @@ async def _execute_row_read(
             pol = apply_taught_policy(field, cands, agent_lessons or [])
             _policy[field] = pol
             if pol["applied"]:
-                col, val = pol["selected"]
+                col, val = pol["selected"][0], pol["selected"][1]
                 statuses[item] = "matched"
                 evidence.append(
                     f"{item}: {field} = {val} ({col}; policy: "
@@ -566,10 +722,19 @@ async def _execute_row_read(
                 cands = pol["remaining"]
                 evidence.append(
                     f"{item}: {field} policy narrowed candidates to "
-                    + "; ".join(f"{c}={v}" for c, v in cands)
+                    + "; ".join(f"{c}={v}" for c, v, _p in cands)
                     + f" ({pol['reason']})")
             if len(cands) == 1:
-                col, val = cands[0]
+                col, val = cands[0][0], cands[0][1]
+                _typed_findings.append({
+                    "field": field, "column": col, "raw": str(val),
+                    "parsed": cands[0][2] if len(cands[0]) > 2 else None,
+                    # single-line f-string expression: a multi-line one is
+                    # a SyntaxError on Python < 3.12, and the 3.11 test
+                    # interpreter could not import this module at all.
+                    "source": (f"{cand.get('_resolved_file') or act.get('file')}"
+                               f"!{cand.get('sheet')}"
+                               f"!row{cand.get('row')}")})
                 statuses[item] = "matched"
                 evidence.append(
                     f"{item}: {field} = {val} ({col} — basis/currency "
@@ -581,13 +746,13 @@ async def _execute_row_read(
                 statuses[item] = "matched"
                 evidence.append(
                     f"{item}: {field} AMBIGUOUS after policy — "
-                    + "; ".join(f"{c}={v}" for c, v in cands))
+                    + "; ".join(f"{c}={v}" for c, v, _p in cands))
                 decision_questions.append({
                     "item": item,
                     "kind": "business_decision",
                     "question": (
                         f"which {field} basis applies to {item}: "
-                        + " vs ".join(f"{c}={v}" for c, v in cands)),
+                        + " vs ".join(f"{c}={v}" for c, v, _p in cands)),
                     "evidence": (
                         f"corroborated row {cand.get('row')} of "
                         f"{cand.get('sheet')} in {act.get('file')}; "
@@ -645,7 +810,7 @@ async def _execute_row_read(
                     field, cands2, agent_lessons or [])
                 _policy[field] = pol2
                 if pol2["applied"]:
-                    col, val = pol2["selected"]
+                    col, val = pol2["selected"][0], pol2["selected"][1]
                     statuses[item] = "matched"
                     evidence.append(
                         f"{item}: {field} = {val} ({col}; policy: "
@@ -656,7 +821,7 @@ async def _execute_row_read(
                         pol2["remaining"]) < len(cands2):
                     cands2 = pol2["remaining"]
                 if len(cands2) == 1:
-                    col, val = cands2[0]
+                    col, val = cands2[0][0], cands2[0][1]
                     statuses[item] = "matched"
                     evidence.append(
                         f"{item}: {field} = {val} ({col} — basis as the "
@@ -666,14 +831,14 @@ async def _execute_row_read(
                     evidence.append(
                         f"{item}: {field} AMBIGUOUS (monetary candidates "
                         "on the merged duplicate) — "
-                        + "; ".join(f"{c}={v}" for c, v in cands2))
+                        + "; ".join(f"{c}={v}" for c, v, _p in cands2))
                     decision_questions.append({
                         "item": item,
                         "kind": "business_decision",
                         "question": (
                             f"which {field} basis applies to {item}: "
                             + " vs ".join(
-                                f"{c}={v}" for c, v in cands2)),
+                                f"{c}={v}" for c, v, _p in cands2)),
                         "evidence": (
                             f"duplicate listings merged (same "
                             "description); bases differ only as named; "
@@ -749,6 +914,65 @@ async def _execute_row_read(
                         "owner question"]}
         except Exception:  # noqa: BLE001 — fence or add failed
             pass
+    # EMPTY FIELD CONTRACT (2026-10-09 — the live A9 root cause).
+    # `_bind_row_fields` binds PER REQUESTED FIELD, so a job whose field
+    # contract resolves to [] binds nothing no matter how well the row
+    # reads. Every A-series job carried requested_fields: [] and its row
+    # successor carried requested_fields: [], so 10 row reads of the
+    # CORRECT row (Tennsmith /A101, MODEL NO.) reported
+    # read_returned_no_receipt with items:{} and findings:[] — while the
+    # isolated drive of the same row, which names its fields, binds 6
+    # price candidates. The divergence was never the candidates.
+    #
+    # `_resolve_field_specs` documents the intent: an empty contract is
+    # UNRESOLVED SCOPE, "returned as [] and the caller surfaces the
+    # question". The caller did not surface it, so an impossible read was
+    # dispatched and reported as receipt-less. Surface it now, and name
+    # the cause instead of letting the outcome string hide it.
+    if not fields and supporting:
+        # `supporting` non-empty: the row WAS located and its identity
+        # corroborated — so the only reason nothing bound is the missing
+        # contract. When nothing is supported at all, the identity
+        # evidence above already names the real cause and must not be
+        # masked by a scope verdict.
+        _loc = ", ".join(
+            f"{s['cand'].get('sheet')!r} row {s['cand'].get('row')}"
+            f" ({s['cand'].get('identity_cell')})"
+            for s in supporting)
+        statuses[item] = "scope_missing_fields"
+        evidence.append(
+            f"{item}: row read CANNOT BIND — the job's field contract is "
+            f"EMPTY (0 requested fields), so no value read from {_loc} "
+            "can be attributed to a field. The location itself resolved; "
+            "the gap is scope, not retrieval.")
+        from core.task_lifecycle import add_unresolved_questions as _add_q
+        try:
+            # ONCE PER ITEM: a missing field contract is a fact about the
+            # JOB, not about each attempt. Re-asking on every retry is the
+            # runaway-loop shape this ledger has already been bitten by.
+            # kind must be one of UNRESOLVED_KINDS — "scope" is not one;
+            # choosing the fields is the OWNER's decision.
+            _task_now = lifecycle.get_task(run_id) or {}
+            _already = any(
+                str(q.get("item") or "") == item
+                and str(q.get("question") or "").startswith("which fields")
+                for q in ((_task_now.get("task_revision") or {})
+                          .get("unresolved") or []))
+            if not _already:
+                _add_q(lifecycle, run_id, [{
+                    "item": item,
+                    "kind": "business_decision",
+                    "question": (
+                        f"which fields should the {item} read bind? the "
+                        "job declared none, so a value read from the "
+                        "located row could not be attributed"),
+                    "evidence": ("; ".join(evidence))[:400],
+                    "next_action": (
+                        "name the fields for this read (or restate the "
+                        "ask as a field-scoped request)"),
+                }], source_operation=None)
+        except Exception:  # noqa: BLE001 — question is bookkeeping
+            pass
     op = lifecycle.create_operation(
         run_id, op_type="retrieve",
         requested_change=(
@@ -761,6 +985,24 @@ async def _execute_row_read(
                          else "none"),
         "failure_stage": None,
         "items": statuses,
+        # DIAGNOSTIC EVIDENCE + THE INPUTS THAT PRODUCED IT (2026-10-09):
+        # `evidence` used to be returned to the caller and dropped before
+        # the ledger write, so a receipt-less row read recorded only an
+        # outcome string and an empty items map — the first-failed
+        # boundary was invisible (live A9: 10 reads, items:{}, no
+        # reason). Persist what was attempted and what each attempt said,
+        # so a receipt-less read can be compared against an isolated
+        # drive of the same row instead of guessed at.
+        "evidence": list(evidence),
+        "attempted_candidates": list(act.get("candidates") or []),
+        "requested_fields": list(act.get("requested_fields") or []),
+        "identity_context": act.get("identity_context"),
+        # STRUCTURAL TYPED FINDINGS (owner directive 2026-10-07): every
+        # bound field's parsed value + source column persist here — the
+        # operation record IS the evidence store; the resolution detail
+        # is presentation only. Values include False and 0 (real
+        # findings, not gaps).
+        "findings": _typed_findings,
     }
     # FENCED SETTLEMENT (round 56): ownership validation runs INSIDE the
     # resolution mutation — a takeover between check and write fails it.
@@ -774,14 +1016,31 @@ async def _execute_row_read(
                             if statuses.get(item) == "matched"
                             else "row read — identity unresolved"),
                     "basis": _exec_facts["served_basis"],
-                    "detail": "; ".join(evidence)[:350],
+                    "detail": "; ".join(evidence)[:1200],
                 } if statuses.get(item) == "matched" else None,
-                keep_open_detail="; ".join(evidence)[:350]
+                keep_open_detail="; ".join(evidence)[:1200]
                 if statuses.get(item) != "matched" else None)
         except Exception as _fenced:  # noqa: BLE001 — takeover: skip
             return {"statuses": {}, "evidence": [
                 f"ownership lost during settlement: {_fenced!r}"],
                 "lost_ownership": True}
+    # RECEIPT-LESS BUDGET (owner directive 2026-10-07): a row read that
+    # returned NO receipt CONSUMES the question's attempt. Before this,
+    # only the locate pass bumped attempts — a receipt-less row read
+    # re-opened its question identically forever, so nothing ever hit
+    # UNRESOLVED_ATTEMPT_CAP and each pass spawned another retrieve
+    # (live: the 5,466-op and 904-op runaway loops appending
+    # "row-context read" retrieves on one workbook item to a 46GB WAL).
+    # With the bump, repeated receipt-less reads exhaust the budget,
+    # next_unfinished_work stops selecting the question, and it is
+    # reported as exhausted — truthful termination, records preserved.
+    if qids and statuses.get(item) != "matched":
+        try:
+            from core.task_lifecycle import bump_question_attempts
+
+            bump_question_attempts(lifecycle, run_id, qids)
+        except Exception:  # noqa: BLE001 — budget is additive
+            pass
     finish_retrieval_turn(
         lifecycle, run_id, op["operation_id"], {}, None,
         bool(_exec_facts["outcome"] == "read_succeeded"),
@@ -917,6 +1176,69 @@ def _session_owned_by_interactive(sess: Dict[str, Any]) -> bool:
         if msg or resp:
             return False
     return False
+
+
+async def _delivery_recovery_pass(lifecycle: Any) -> None:
+    """Deliver committed results whose event row is missing.
+
+    Enumerates ALL runs (including terminal — `include_terminal=True`)
+    whose task record has findings or remaining obligations, derives the
+    current result revision, and calls the atomic delivery function when
+    no delivery_events row exists for it. Failed deliveries PROPAGATE
+    (the per-job loop logs the actual error) and remain retryable on the
+    next cycle."""
+    from core.database import get_db_session
+    from core.models import DeliveryEvent
+    from core.job_delivery import (
+        derive_result_revision, deliver_job_event, job_event_id,
+    )
+
+    lifecycle = lifecycle or _lifecycle_for_default_tenant()
+    if lifecycle is None:
+        return
+    try:
+        all_runs = lifecycle.runs.list_runs(
+            include_terminal=True, limit=200)
+    except Exception:
+        all_runs = lifecycle.runs.list_runs(include_terminal=False,
+                                            limit=200)
+    for run in all_runs or []:
+        try:
+            run_id = str(run.get("id") or run.get("run_id") or "")
+            if not run_id:
+                continue
+            record = lifecycle.get_task(run_id)
+            if record is None:
+                continue
+            # ELIGIBILITY: only jobs with actual content (findings or
+            # remaining obligations). Empty/uninitialized never deliver.
+            has_findings = any(
+                (o.get("execution") or {}).get("findings")
+                for o in record.get("operations") or [])
+            has_remaining = bool(
+                (record.get("task_revision") or {}).get("unresolved"))
+            if not (has_findings or has_remaining):
+                continue
+            revision = derive_result_revision(record)
+            event = job_event_id(run_id, revision, "research_update")
+            with get_db_session() as db:
+                existing = db.query(DeliveryEvent).filter(
+                    DeliveryEvent.event_id == event).first()
+            if existing is not None:
+                continue  # already delivered
+            conv = str(record.get("conversation_id") or "")
+            if not conv:
+                continue
+            delivered = deliver_job_event(conv, run_id, record)
+            if delivered:
+                logger.info(
+                    "[research-continuation] recovery delivered %s "
+                    "for job %s", delivered[:16], run_id[:8])
+        except Exception as exc:  # noqa: BLE001 — per-job isolation
+            logger.warning(
+                "[research-continuation] delivery recovery failed for "
+                "job %s: %r (remains retryable)",
+                str(run.get("id") or "?")[:8], exc)
 
 
 async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
@@ -1080,13 +1402,17 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                         f"{_c0.get('row')}): "
                         + "; ".join(res["evidence"]))
                     continue
+                _act_in = (group[0].get("inputs")
+                           if isinstance(group[0].get("inputs"), dict)
+                           else None)
                 res = await _execute_document_read(
                     lifecycle, run_id, user_id, workspace_id, fname,
                     [g["item"] for g in group],
                     item_identity_context=str(
                         (lifecycle.get_task(run_id) or {}).get(
                             "task_revision", {}).get(
-                            "objective_text") or ""))
+                            "objective_text") or ""),
+                    action_inputs=_act_in)
                 # LOCATED RESOLVES ITS READ QUESTION (round 55): the
                 # location WAS the read's deliverable; the successor
                 # row-read carries the remaining work. Only NO-MATCH
@@ -1119,38 +1445,39 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
                     1 for s in res["statuses"].values() if s == "located")
                 notes.append(f"{fname}: " + "; ".join(res["evidence"]))
             if notes:
-                # DELIVER WHERE THE UI READS (round 61): the panel's
-                # history endpoint serves ChatMessage DB rows — a note
-                # written only to the file-store session was invisible.
-                # Append an assistant row (idempotent per cycle by
-                # content check), plus keep the file-store mirror.
-                _note_text = (
-                    "Background research update — completed while you "
-                    "were away: " + " | ".join(notes)
-                    + ". Remaining work stays on the job record.")
+                # PRODUCTION DELIVERY (owner correction 2026-10-07):
+                # deliver_job_event — atomically arbitrated via the
+                # delivery_events PK; session mirror gated on the same
+                # outcome; result revision is derive_result_revision
+                # (findings/dispositions/status — not task_version, which
+                # claim renewals and attempt bumps also increment).
                 try:
-                    from core.database import get_db_session
-                    from core.models import ChatMessage as _CM
+                    from core.job_delivery import deliver_job_event
 
-                    with get_db_session() as _db:
-                        _dupe = _db.query(_CM).filter(
-                            _CM.conversation_id == conv,
-                            _CM.role == "assistant",
-                            _CM.content == _note_text[:4000],
-                        ).first()
-                        if _dupe is None:
-                            _prov = (
-                                record.get("task_revision") or {}
-                            ).get("provenance")
-                            _tenant = (
-                                _prov.get("tenant_id")
-                                if isinstance(_prov, dict) else None
-                            ) or "default"
-                            _db.add(_CM(
-                                conversation_id=conv, role="assistant",
-                                tenant_id=str(_tenant),
-                                content=_note_text[:4000]))
-                            _db.commit()
+                    _fresh = lifecycle.get_task(run_id) or {}
+
+                    def _mirror(text):
+                        fresh_sess = chat_session_manager.get_session(
+                            conv)
+                        if fresh_sess and not _session_owned_by_interactive(
+                                fresh_sess):
+                            hist = list(
+                                fresh_sess.get("history") or [])
+                            hist.append({
+                                "message": "",
+                                "response": text,
+                                "timestamp": time.time(),
+                            })
+                            chat_session_manager.update_session_activity(
+                                conv, history=hist)
+
+                    _evt = deliver_job_event(
+                        conv, str(run_id), _fresh,
+                        session_mirror=_mirror)
+                    if _evt:
+                        logger.info(
+                            "[research-continuation] delivered event %s",
+                            _evt[:16])
                 except Exception as _cm_err:  # noqa: BLE001
                     logger.debug(
                         "[research-continuation] DB note skipped: %r",
@@ -1173,6 +1500,17 @@ async def research_continuation_cycle(max_reads: int = _CYCLE_MAX_READS
             out["failed_reads"] += 1
             logger.warning("[research-continuation] job %s failed: %r",
                            str(run_id)[:8], exc)
+    # DELIVERY RECOVERY PASS (owner directive 2026-10-07): independent
+    # of the read budget and of `notes` — enumerate ALL jobs (INCLUDING
+    # terminal) whose committed result revision has no delivery_events
+    # row and deliver it. Only jobs with actual findings or remaining
+    # obligations are eligible (empty/uninitialized never deliver).
+    try:
+        await _delivery_recovery_pass(lifecycle)
+    except Exception as _dr_err:  # noqa: BLE001 — recovery is additive
+        logger.debug("[research-continuation] delivery recovery: %r",
+                     _dr_err)
+
     if out["reads"]:
         logger.info("[research-continuation] cycle: %s", out)
     return out

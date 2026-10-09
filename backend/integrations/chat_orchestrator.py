@@ -643,6 +643,26 @@ def _turn_budget_error_response() -> Dict[str, Any]:
     }
 
 
+async def _background_work_in_flight(session_id: Optional[str]) -> bool:
+    """True when this conversation still has authorized work running in a
+    background continuation.
+
+    Used by the budget envelope so an exhausted reply is never reported as a
+    bare failure while the work it authorized is still in progress. Reads
+    the continuation registry rather than the reply body: on the tool-path
+    fall-through the response carries no canvas-edit block, so the body is
+    not a reliable carrier of the handoff.
+    """
+    if not session_id:
+        return False
+    try:
+        from core.async_turn_continuation import continuation_in_flight
+
+        return bool(continuation_in_flight(session_id))
+    except Exception:  # noqa: BLE001 — this probe must never break a turn
+        return False
+
+
 class FeatureType(Enum):
     """Types of ATOM features that can be accessed through chat"""
     SEARCH = "search"
@@ -1036,6 +1056,64 @@ def _missing_chain_cells(reply: str, tool_block: Optional[str],
 #: sequential duplicates.
 
 
+# TIMEOUT WORDING RULE (owner directive 2026-10-07): mirror of the
+# acceptance gate's detector (scripts/orchestration_acceptance/
+# case3_timeout_regression.py) — a calculation-bound turn with NO engine
+# record must not present a figure with formula/teaching authority.
+_AUTHORITY_PHRASES = (
+    "per our taught formula", "per training guidance",
+    "training guidance", "taught formula", "taught service rate",
+    "our taught", "taught rates", "calculation engine",
+    "engine-computed", "i calculated", "i computed",
+    "ran the calculation")
+_DISCLOSURE_PHRASES = (
+    "not run through the engine", "no record", "without the engine",
+    "hand-computed", "didn't run", "could not run the calculation",
+    "no calculation was run", "not engine-computed", "unrecorded")
+_MONEY_FIGURE_RE = None  # compiled lazily to keep import-time cheap
+
+
+def _reply_claims_unrecorded_teaching_figure(text: str) -> bool:
+    """True when the reply asserts a money figure WITH teaching/formula
+    authority and WITHOUT an honest not-computed disclosure — the
+    false-result wording the acceptance gate fails on. A disclosed
+    figure ("not run through the engine…") is an honest shape and is
+    left alone."""
+    global _MONEY_FIGURE_RE
+    import re as _re
+
+    if _MONEY_FIGURE_RE is None:
+        _MONEY_FIGURE_RE = _re.compile(r"\$\s?[\d,]+(?:\.\d+)?")
+    t = str(text or "")
+    if not _MONEY_FIGURE_RE.search(t):
+        return False
+    low = t.lower()
+    if any(d in low for d in _DISCLOSURE_PHRASES):
+        return False
+    return any(p in low for p in _AUTHORITY_PHRASES)
+
+
+def _calc_bound_turn(message: str,
+                     session_id: Optional[str],
+                     workspace_id: Optional[str]) -> bool:
+    """Whether THIS turn is bound to the calculation contract — an
+    explicit calculation ask, or a follow-up of the conversation's own
+    recorded calculation state (the pending answer / recalculate
+    triggers). Cheap and fault-isolated."""
+    try:
+        from core.pricing_calculation import (
+            _calc_followup_dispatch,
+            message_requires_calculation,
+        )
+
+        if message_requires_calculation(message or ""):
+            return True
+        return _calc_followup_dispatch(message or "", session_id,
+                                       workspace_id)
+    except Exception:  # noqa: BLE001 — rule is additive
+        return False
+
+
 def _calc_narration_violations(reply: str,
                                allowance: Dict[str, Any]) -> List[str]:
     """Structured narration validation (round 76).
@@ -1220,6 +1298,23 @@ def _calc_narration_violations(reply: str,
         if needles and not any(n in reply_low for n in needles):
             violations.append(
                 f"status {status} presented as final (missing qualifier)")
+
+    # 6) DURABILITY CLAIMS (release case 3): when this request's job
+    # write FAILED, the reply must not present the result as recorded,
+    # saved, logged, or durable — a computed figure without its durable
+    # record is exactly the class the record pipeline exists to prevent.
+    # Negated forms ("not recorded", "never saved") are the truthful
+    # phrasing the block asks for, never violations.
+    if allowance.get("persisted") is False:
+        for m in _re.finditer(
+                r"\b(recorded|saved|logged|persisted|on\s+record|durable)\b",
+                reply, _re.IGNORECASE):
+            _prefix = reply[max(0, m.start() - 12):m.start()].lower()
+            if "not" in _prefix or "never" in _prefix or "n't" in _prefix:
+                continue
+            violations.append(
+                f"{m.group(0)} (job persistence FAILED — the result is "
+                "computed but NOT recorded)")
 
     seen = set()
     return [v for v in violations if not (v in seen or seen.add(v))][:8]
@@ -2104,6 +2199,19 @@ _CANVAS_EDIT_SHAPE_RE = re.compile(
     r"sort|write|make it|turn it into)\b",
     re.IGNORECASE,
 )
+# DRAFTING ACTIONS (2026-10-08, the case-1 T_AUTH root cause): "Prepare
+# the draft on this fork…" is an explicitly authorized edit request, but
+# its verbs are absent from _CANVAS_EDIT_SHAPE_RE — the scope validator
+# refused the edit, no mutation ever ran, and the turn burned its budget
+# on cascades before the honest budget-exceeded reply. Verb+object form
+# keeps bare nouns safe: "what does the draft say" is NOT an edit.
+_CANVAS_DRAFTING_ACTION_RE = re.compile(
+    r"\b(?:prepare|finalize|draft|compose|put\s+together)\s+"
+    r"(?:the\s+|this\s+|that\s+|my\s+|our\s+)?"
+    r"(?:draft|quote|quotation|email|document|canvas|reply|response|"
+    r"version|it)\b",
+    re.IGNORECASE,
+)
 _CANVAS_NON_EDIT_SHAPE_RE = re.compile(
     r"\b(?:add|create|make|schedule|track|remove|delete|set)\s+"
     r"(?:a\s+|an\s+|the\s+|this\s+|that\s+|these\s+|those\s+)?"
@@ -2150,7 +2258,12 @@ except Exception:  # noqa: BLE001 — version stamp optional
 _USER_EDIT_DIRECTIVE_RE = re.compile(
     r"\b(?:prepare|apply|update|edit|revise|draft|fix|change|rebuild)\b"
     r"[^.]{0,60}\b(?:the\s+)?(?:email|draft|quote|canvas|it)\b"
-    r"|\b(?:draft|email)\b[^.]{0,40}\b(?:now|please)\b",
+    r"|\b(?:draft|email)\b[^.]{0,40}\b(?:now|please)\b"
+    # 2026-10-09 (case C): "Apply any corrections the taught basis
+    # requires" — the object is carried by 'corrections', not by a
+    # document noun. A user-grounded APPLY with corrections named in
+    # the same sentence is an edit directive on the open draft.
+    r"|\bapply\b[^.]{0,80}\bcorrections?\b",
     re.IGNORECASE,
 )
 
@@ -2221,7 +2334,8 @@ def _canvas_edit_shaped(
         return False
     if _CANVAS_NON_EDIT_SHAPE_RE.search(text) and not _CANVAS_TARGET_RE.search(text):
         return False
-    if not _CANVAS_EDIT_SHAPE_RE.search(text):
+    if not (_CANVAS_EDIT_SHAPE_RE.search(text)
+            or _CANVAS_DRAFTING_ACTION_RE.search(text)):
         return False
     ctx = context or {}
     return bool(
@@ -2397,6 +2511,87 @@ def _job_scope_items(
         return [], "unresolved"
 
 
+def _findings_from_structured_result(
+        receipt: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Typed findings from a named-file read's structured result (the
+    targets carry item + identity + per-field evidence)."""
+    out: List[Dict[str, Any]] = []
+    try:
+        sr = receipt.get("structured_result") or receipt.get(
+            "storage_read") or {}
+        if not isinstance(sr, dict):
+            return []
+        for t in (sr.get("targets") or [])[:12]:
+            if not isinstance(t, dict):
+                continue
+            item = str(t.get("item") or (t.get("identity") or {})
+                       .get("matched") or "").strip()
+            if not item:
+                continue
+            out.append({
+                "item": item[:120],
+                "field": "price",
+                "value": str(
+                    (t.get("evidence") or [{}])[0].get("raw_value")
+                    or "")[:40],
+                "source_file_name": str(
+                    sr.get("file_name") or "")[:160],
+                "sheet": str(
+                    (t.get("identity") or {}).get("sheet") or "")[:80],
+                "content_hash": str(
+                    sr.get("content_hash") or "")[:64],
+            })
+    except Exception:  # noqa: BLE001 — additive
+        return []
+    return [f for f in out if f["value"]]
+
+
+def _findings_from_datasets_receipt(
+        receipt: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Typed findings from a datasets sweep receipt (owner correction
+    2026-10-09, boundary 1-2: dispatch is not retrieval, and a
+    successful retrieval that never persists leaves the job
+    findings-less — the drafting adapter then reads nothing and the
+    turn answers from narration memory). Each hit's rows become
+    findings carrying item, field, value, source file/sheet, content
+    hash and ingested timestamp — the exact association the evidence
+    contract requires."""
+    out: List[Dict[str, Any]] = []
+    try:
+        for hit in (receipt.get("datasets_search") or {}).get("_hits") or []:
+            for row in (hit or {}).get("rows") or []:
+                if not isinstance(row, dict):
+                    continue
+                item = ""
+                value = ""
+                for k, v in row.items():
+                    kl = str(k).upper()
+                    if "MODEL" in kl and not item and str(v).strip():
+                        item = str(v).strip()
+                    if "PRICE" in kl and not value and str(v).strip():
+                        value = str(v).strip()
+                if not item or not value:
+                    continue
+                out.append({
+                    "item": item[:120],
+                    "field": "price",
+                    "value": value[:40],
+                    "source_file_name": str(
+                        (hit or {}).get("file_name") or "")[:160],
+                    "sheet": str((hit or {}).get("entity_name")
+                                  or (hit or {}).get("sheet") or "")[:80],
+                    "content_hash": str(
+                        (hit or {}).get("content_hash") or "")[:64],
+                    "ingested_at": str(
+                        (hit or {}).get("ingested_at") or "")[:40],
+                })
+                if len(out) >= 12:
+                    return out
+    except Exception:  # noqa: BLE001 — findings are additive
+        return []
+    return out
+
+
 def _search_execution_receipt(
         plan: Any, block: Optional[str]) -> Dict[str, Any]:
     """Separate DISPATCH and RETRIEVAL facts for a search-shaped execution
@@ -2421,6 +2616,16 @@ def _search_execution_receipt(
     # body-only answer for the cross-document question).
     vt_covered = {str(k): [str(d) for d in (v or [])]
                   for k, v in vt.items() if (v or [])}
+    # COVERAGE KEY PARITY (2026-10-09 A8): the executor stamps the
+    # trace under 'value_trace' while some readers expect
+    # 'value_trace_coverage' — read both so the chained confirmed-file
+    # read sees the coverage the trace actually produced.
+    for _vk in ("value_trace_coverage",):
+        _extra = meta.get(_vk) or {}
+        if isinstance(_extra, dict):
+            for k, v in _extra.items():
+                if v and str(k) not in vt_covered:
+                    vt_covered[str(k)] = [str(d) for d in v]
     structured = {}
     for k in ("structured_result", "workbook_read", "storage_read",
               "file_read"):
@@ -3070,6 +3275,8 @@ async def _derivation_supplement(
     tool_block: Optional[str],
     llm_service: Any = None,
     conversation_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    execution_id: Optional[str] = None,
 ) -> Optional[str]:
     """Compose the derivation dataset block ahead of an existing tool
     block. For a derivation ask the workbook ROW is the answer (the mail
@@ -3079,7 +3286,13 @@ async def _derivation_supplement(
     the calculate lane HERE — the shared evidence-assembly point both
     the generic and the goal-session pipelines pass through. History
     (or a reused singleflight block) must never impersonate a
-    computation: the engine result becomes THE evidence block."""
+    computation: the engine result becomes THE evidence block.
+
+    ``workspace_id`` threads the turn's scope into the calculate lane's
+    context (release case 3): the dedup key that makes the planner path
+    and this seam converge on ONE execution/operation includes the
+    workspace — an omitted value made the same request dispatch twice
+    with different keys and record two operations."""
     if message:
         try:
             from core.pricing_calculation import (
@@ -3090,7 +3303,18 @@ async def _derivation_supplement(
                 execute_tool_plan as _etp,
             )
 
-            if _msg_calc(message):
+            # A DERIVATION ASK IS NOT A CALCULATION ASK (release case-3
+            # lane family): "figure out how the listed price was
+            # derived" matches the price-ask shape, and the calc lane's
+            # "WHICH ITEM?" block then displaced the matched workbook
+            # row the derivation lane exists to deliver (red regression
+            # test_derivation_supplement_leads_with_dataset since the
+            # round-74 dispatch landed). A derivation ask walks an
+            # EXISTING value's chain; only true computation asks run
+            # the engine here.
+            if _msg_calc(message) and not _derivation_ask(
+                    message,
+                    {"history": history or [], "canvas": canvas}):
                 _canvas_id = None
                 if isinstance(canvas, dict):
                     _canvas_id = (canvas.get("canvas_id")
@@ -3116,6 +3340,8 @@ async def _derivation_supplement(
                             "canvas": canvas,
                             "conversation_id": conversation_id,
                             "canvas_id": _canvas_id,
+                            "workspace_id": workspace_id,
+                            "execution_id": execution_id,
                         },
                         llm_service=llm_service),
                     timeout=110.0)
@@ -4898,6 +5124,17 @@ def _maybe_force_turn_failure(session: Optional[Dict[str, Any]],
         pass
     raise _ForcedTurnFailure(provisional)
 
+
+
+# Contact NAMES are read out of the teaching itself; this adapter never
+# carries a roster. Two or more capitalized name tokens in a cc rule are
+# the rule's named contacts.
+_NAMED_CONTACTS_RE = re.compile(
+    r"\b(?:[A-Z][a-z]{2,})(?:\s+[A-Z][a-z]{2,})*\b")
+
+# A CC rule states who to copy on correspondence. Detected by the word
+# itself, not by which contacts it happens to name.
+_CC_RULE_RE = re.compile(r"\b(?:cc|bcc|copy)\b")
 
 class ChatOrchestrator:
     """
@@ -6880,10 +7117,24 @@ class ChatOrchestrator:
             _ask_mention = ""
             _ask_direct = False
             try:
-                from core.agent_file_context import spreadsheet_mentions
+                from core.agent_file_context import (
+                    detect_file_task_mentions,
+                    spreadsheet_mentions,
+                )
 
                 _ask_mentions_list = spreadsheet_mentions(message)
                 _ask_mention = _ask_mentions_list[0] if _ask_mentions_list else ""
+                if not _ask_mention:
+                    # NATURAL-LANGUAGE FILE RESOLUTION (2026-10-08
+                    # Cedarberg, original phrasing): "in the Consolidated
+                    # Price List 2019 workbook" (no extension) matches
+                    # detect_file_task_mentions but not
+                    # spreadsheet_mentions. Use the existing task-phrase
+                    # resolver as the fallback — it resolves "price list
+                    # 2019" to the same canonical name the catalog
+                    # indexes under.
+                    _task_mentions = detect_file_task_mentions(message)
+                    _ask_mention = _task_mentions[0] if _task_mentions else ""
                 if not _ask_mention:
                     pass  # mention resolution continues below
                 # TURN-DECISION ROUTING (2026-09-30 full activation,
@@ -6898,18 +7149,44 @@ class ChatOrchestrator:
                 # off or any error restores the resolver-only behavior.
                 _td_scope_hints: List[str] = []
                 _td_decision: Optional[Dict[str, Any]] = None
+                _td_interpretation: Optional[Dict[str, Any]] = None
                 _teaching_cue_turn = False
                 _calc_grammar_turn = False
                 if os.getenv("ATOM_TURN_DECISION_ROUTING", "1").lower() not in ("0", "off", "false"):
                     try:
                         from core.turn_decision import (
                             build_turn_decision,
+                            interpret_turn_request,
                         )
 
                         _td = build_turn_decision(
                             message, session, history or [],
                             context or {}, session_id=session_id)
                         _td_decision = _td
+                        # ONE STRUCTURED INTERPRETATION PER REQUEST
+                        # (2026-10-08 Phase-2 slice): the async entry
+                        # point proposes subjects/actions/scope-change
+                        # through the structured-generation path; every
+                        # degraded outcome is an explicit unresolved
+                        # record and this seam keeps the deterministic
+                        # floor. The accepted scope rides the task and
+                        # the reader context below (requested_targets +
+                        # request_scope) so executor inputs stop being
+                        # re-derived by independent miners.
+                        try:
+                            _td_interpretation = (
+                                await interpret_turn_request(
+                                    message, session, history or [],
+                                    context or {}, session_id=session_id,
+                                    request_id=str(
+                                        (context or {}).get("request_id")
+                                        or "")))
+                        except Exception as _interp_err:  # noqa: BLE001
+                            _td_interpretation = None
+                            logger.debug(
+                                "[turn-interpretation] invocation "
+                                "failed (floor retained): %r",
+                                _interp_err)
                         _td_sources = ((_td.get("references")
                                         or {}).get("sources")) or []
                         for _a in _td.get("requested_actions") or []:
@@ -7308,21 +7585,97 @@ class ChatOrchestrator:
                                 "origin")
                     except Exception:  # noqa: BLE001 — floor follows
                         pass
-                if _ask_active:
-                    # Active-objective inheritance for vague follow-up
-                    # asks; the producer still prefers the turn's own
-                    # explicit items and never unions history.
-                    _ask_task["requested_targets"] = _ask_active
-                    # RECOGNITION SEAM (2026-09-30): these items are
-                    # INHERITED, not asked for in this turn's own words —
-                    # the reader uses the flag to tell "re-run what I
-                    # asked before" (a reference) from "show me the
-                    # sheet" (a listing) when the turn itself carries no
-                    # item codes. One explicit decision at one gate
-                    # (chat_tool_planner's browse gate), instead of the
-                    # route silently depending on which carriers happen
-                    # to be populated.
-                    _ask_task["inherited_targets"] = True
+                # TARGET PRECEDENCE (2026-10-08 Phase-2, the case-4
+                # defect): a CURRENT-REQUEST scope outranks inherited
+                # objectives — the reader used to re-derive items by
+                # mining with substring-overlap authority, which let a
+                # canvas-derived active set replace the request's
+                # explicit subject (asked 'No. 381', scanned 'sle24').
+                # Order: (0) revised targets (contrastive edits) stand;
+                # (1) the interpretation's request-bound subjects for
+                # replace/subset; (2) the turn's own extracted subjects;
+                # (3) active-objective inheritance for vague follow-ups
+                # (extend/continue keep this path too). The request-bound
+                # scope rides `request_scope` for the reader to consume
+                # VERBATIM — no re-derivation, no substring authority.
+                _interp_scope: Optional[Dict[str, Any]] = None
+                if isinstance(_td_interpretation, dict) and (
+                        _td_interpretation.get("scope_change")
+                        in ("replace", "subset")):
+                    _interp_subjects = [
+                        str(s).strip() for s in
+                        _td_interpretation.get("subjects") or []
+                        if str(s).strip()]
+                    if _interp_subjects:
+                        _interp_scope = {
+                            "subjects": _interp_subjects,
+                            "scope_change":
+                                _td_interpretation["scope_change"],
+                            "origin": _td_interpretation.get("origin"),
+                            "request_id":
+                                _td_interpretation.get("request_id"),
+                        }
+                        _ask_task["requested_targets"] = list(
+                            _interp_subjects)
+                        _ask_task["inherited_targets"] = False
+                        _ask_task["request_scope"] = dict(_interp_scope)
+                elif (isinstance(_td_interpretation, dict)
+                        and _td_interpretation.get("scope_change")
+                        == "extend"):
+                    _add_subjects = [
+                        str(s).strip() for s in
+                        _td_interpretation.get("subjects") or []
+                        if str(s).strip()]
+                    if _add_subjects and _ask_active:
+                        _merged = list(_ask_active) + [
+                            s for s in _add_subjects
+                            if s.lower() not in {
+                                a.lower() for a in _ask_active}]
+                        _ask_task["requested_targets"] = _merged
+                        # The MERGED set is the request-established
+                        # scope: it rides request_scope so the reader
+                        # consumes it verbatim — the turn's own mining
+                        # must not be able to drop the old subject
+                        # (2026-10-08 extend-boundary verification).
+                        _ask_task["request_scope"] = {
+                            "subjects": _merged,
+                            "scope_change": "extend",
+                            "origin": _td_interpretation.get("origin"),
+                            "request_id": _td_interpretation.get(
+                                "request_id"),
+                        }
+                if not _ask_task.get("requested_targets"):
+                    if _ask_active:
+                        # Active-objective inheritance for vague follow-up
+                        # asks; the producer still prefers the turn's own
+                        # explicit items and never unions history.
+                        _ask_task["requested_targets"] = _ask_active
+
+                        # RECOGNITION SEAM (2026-09-30): these items are
+                        # INHERITED, not asked for in this turn's own
+                        # words — the reader uses the flag to tell
+                        # "re-run what I asked before" (a reference) from
+                        # "show me the sheet" (a listing) when the turn
+                        # itself carries no item codes.
+                        _ask_task["inherited_targets"] = True
+                    else:
+                        # CURRENT-TURN TARGETS (2026-10-08 Cedarberg): a
+                        # fresh conversation's first file-scoped ask has
+                        # no stored objective items — stamp the turn's
+                        # own extracted subjects so the reader's scan
+                        # receives them.
+                        try:
+                            from core.target_set_resolution import (
+                                extract_items_from_text as _eift,
+                            )
+
+                            _named = [
+                                i for i in _eift(message) if i.strip()]
+                            if _named:
+                                _ask_task["requested_targets"] = _named
+                                _ask_task["inherited_targets"] = False
+                        except Exception:  # noqa: BLE001 — floor follows
+                            pass
                 try:
                     # OPERATION-AWARE ASK TURN (2026-09-24 review round 4):
                     # a version-refresh request that names the file lands
@@ -7743,34 +8096,69 @@ class ChatOrchestrator:
                     # coverage footer with no body — that renders as a
                     # confident empty answer. Ask which items, offering
                     # the objective's list when the ledger holds one.
-                    try:
-                        _ask_items_used = (
-                            _ask_structured or {}
-                        ).get("requested_items") or []
-                        if not _ask_items_used:
-                            _offer = ""
-                            try:
-                                from core import dialogue_state as _ds
-
-                                _obj_items = _ds.active_objective_items(
-                                    session_id)
-                                if _obj_items:
-                                    _offer = (
-                                        " The conversation's current list "
-                                        "is: " + ", ".join(_obj_items[:12])
-                                        + " — say the word and I'll check "
-                                        "those.")
-                            except Exception:  # noqa: BLE001 — optional
-                                pass
+                    # GATED ON A REAL SCAN RECORD (2026-10-08 Cedarberg):
+                    # when the reader returned NO structured result it
+                    # did not scan — it returned a verdict (ambiguous
+                    # file identity, or the named file is not in the
+                    # catalog). Claiming "the workbook was read" over
+                    # that verdict is false; the verdict itself is the
+                    # answer.
+                    _ask_items_used = (
+                        _ask_structured or {}
+                    ).get("requested_items") or []
+                    if not _ask_items_used and not isinstance(
+                            _ask_structured, dict):
+                        _ask_verdict = _ask_result.get("meta") or {}
+                        _ask_note = str(
+                            _ask_verdict.get("note") or "")
+                        _ask_cands = [
+                            str(c) for c in
+                            (_ask_verdict.get("candidates") or [])
+                            if str(c).strip()]
+                        if "multiple catalogued files" in _ask_note:
                             _ask_content = (
-                                "The workbook was read, but no items were "
-                                "named to check — nothing can be "
-                                "confirmed or ruled out from an empty "
-                                "list. Which items should I check?" + _offer)
-                            _ask_handoff_block = None
-                            _ask_miss_handoff = False
-                    except Exception:  # noqa: BLE001 — honesty is a floor
-                        pass
+                                "More than one workbook in the catalog "
+                                "matches the name you gave"
+                                + (f" ({_ask_verdict.get('file_name')})"
+                                   if _ask_verdict.get("file_name")
+                                   else "")
+                                + ": "
+                                + "; ".join(_ask_cands[:6])
+                                + ". Which one should I use? Nothing was "
+                                  "read yet.")
+                        else:
+                            _ask_content = (
+                                "I could not resolve that document "
+                                "against the catalogued files — nothing "
+                                "was read. "
+                                + _ask_note.strip().capitalize()
+                                + ("." if _ask_note
+                                   and not _ask_note.strip().endswith(".")
+                                   else ""))
+                        _ask_handoff_block = None
+                        _ask_miss_handoff = False
+                    elif not _ask_items_used:
+                        _offer = ""
+                        try:
+                            from core import dialogue_state as _ds
+
+                            _obj_items = _ds.active_objective_items(
+                                session_id)
+                            if _obj_items:
+                                _offer = (
+                                    " The conversation's current list "
+                                    "is: " + ", ".join(_obj_items[:12])
+                                    + " — say the word and I'll check "
+                                    "those.")
+                        except Exception:  # noqa: BLE001 — optional
+                            pass
+                        _ask_content = (
+                            "The workbook was read, but no items were "
+                            "named to check — nothing can be "
+                            "confirmed or ruled out from an empty "
+                            "list. Which items should I check?" + _offer)
+                        _ask_handoff_block = None
+                        _ask_miss_handoff = False
                     _ask_identity = _ask_result.get("identity") or {}
                     if _ask_identity:
                         _ask_identity = {
@@ -9632,8 +10020,23 @@ class ChatOrchestrator:
                         "turn's canvas-edit clock started",
                         time.monotonic() - _plan_created_t0))
 
-            _shared_tool: Dict[str, Any] = {"plan_task": _tool_plan_task,
-                                            "block": None}
+            # REQUEST CONTRACT on the INTERACTIVE blackboard too
+            # (2026-10-08 owner final repair 2): the edit leg's
+            # fresh-data lookup and the fork below both read it from
+            # here — the turn's resolved subjects/sources ride the same
+            # carrier the evidence block uses. The ask-lane task is
+            # lane-local (unbound on edit-shaped turns), so resolve via
+            # locals().
+            _edit_request_scope = None
+            _ask_task_local = locals().get("_ask_task")
+            if isinstance(_ask_task_local, dict) and isinstance(
+                    _ask_task_local.get("request_scope"), dict):
+                _edit_request_scope = _ask_task_local["request_scope"]
+            _shared_tool: Dict[str, Any] = {
+                "plan_task": _tool_plan_task,
+                "block": None,
+                "request_scope": _edit_request_scope,
+            }
             _edit_leg_timed_out = False
             try:
                 if _canvas_ctx and not _canvas_action_bypassed and (
@@ -9924,6 +10327,17 @@ class ChatOrchestrator:
                                                     _shared_tool.get(
                                                         "objective_evidence")
                                                     ),
+                                                # REQUEST CONTRACT (2026-10-08
+                                                # owner final repair 2): the
+                                                # reserving turn's resolved
+                                                # subjects + required sources
+                                                # persist with the fork and
+                                                # reload at execution — the
+                                                # background edit probes THE
+                                                # REQUEST'S subjects, never a
+                                                # canvas/history-derived set.
+                                                request_scope=(
+                                                    _edit_request_scope),
                                             )
                                         )
                                         self._record_canvas_background_fork(
@@ -10176,9 +10590,41 @@ class ChatOrchestrator:
                     # the response assembly then hit an unbound name and
                     # killed the whole turn. A safe default keeps the
                     # fall-through honest (the tool path answers).
+                    # INTENT PRESERVATION (2026-10-08 owner dispatch
+                    # item 3): planner unavailability must NOT
+                    # reinterpret an authorized drafting request as
+                    # research. Distinct reasons, distinct truths: a
+                    # planner that could not RUN reports the draft as
+                    # BLOCKED (authorization stands, nothing changed,
+                    # retryable); only a served planner's own decline
+                    # carries decline wording; the research fall-through
+                    # below never claims a drafting turn.
                     _no_apply_message = (
-                        "I couldn't apply an edit this turn — the "
-                        "requested work continues on the research path.")
+                        "The draft edit is blocked right now — the model "
+                        "that plans canvas edits could not be reached, so "
+                        "nothing was changed and your authorization "
+                        "stands. Please try again in a moment.")
+                    if _no_apply_reason in (
+                            "planner_timeout", "planner_unavailable",
+                            "planner_error", "planner_returned_none"):
+                        _no_apply_message = (
+                            "The draft edit is blocked right now — the "
+                            "edit planner "
+                            + ("timed out" if _no_apply_reason ==
+                               "planner_timeout" else
+                               "could not be reached")
+                            + ", so nothing was changed and your "
+                            "authorization stands. Please try again in a "
+                            "moment.")
+                    if (_shared_tool or {}).get(
+                            "canvas_edit_decline_noop"):
+                        _no_apply_message = (
+                            str((_shared_tool or {}).get(
+                                "canvas_edit_decline_reply")
+                                or "").strip()
+                            or "The draft already reflects the approved "
+                               "values — no changes were needed, and "
+                               "nothing was sent.")
                     if _background_started:
                         # INTERIM STATUS (2026-09-30, research-grounded —
                         # long-running chat work states WHAT is running
@@ -10209,7 +10655,8 @@ class ChatOrchestrator:
                             r"\b(?:change|edit|update|replace)\s+(?:the\s+)?"
                             r"(?:canvas|draft|email)\b",
                             message or "", re.IGNORECASE,
-                        ):
+                        ) and not _CANVAS_DRAFTING_ACTION_RE.search(
+                            message or ""):
                             logger.info(
                                 "[canvas-edit] planner_declined on a "
                                 "research-shaped turn — falling through to "
@@ -10771,6 +11218,21 @@ class ChatOrchestrator:
                 )
 
                 main_message = ai_response["content"]
+                # PROVIDER-FAILURE TERMINAL (first assignment): the LLM
+                # layer surfaces credit/quota exhaustion AS CONTENT
+                # (byok_handler credit envelope, success=True). A turn
+                # carrying it must end failed + truthful + persisted —
+                # never success, never re-anchored as a normal answer.
+                _llm_provider_failed = False
+                try:
+                    _llm_provider_failed = bool(
+                        _is_llm_error_text(main_message))
+                    if _llm_provider_failed:
+                        logger.warning(
+                            "[provider] reply leg returned provider "
+                            "failure as content — terminal failed outcome")
+                except Exception:  # noqa: BLE001 — detection never blocks
+                    _llm_provider_failed = False
                 # HONEST EXECUTION STATUS (2026-09-24 task-continuity
                 # regression): a turn resuming an outstanding file task
                 # that executed NO lookup must not ship a promise ("I'll
@@ -10851,8 +11313,10 @@ class ChatOrchestrator:
                 # Evidence: vLLM #1439, Vercel, LLM Gateway all recommend
                 # session stickiness for multi-turn consistency.
                 if used_model and used_provider and used_model not in ("template", "auto"):
-                    session["last_known_good_model"] = used_model
-                    session["last_known_good_provider"] = used_provider
+                    # A provider-failure turn must not become last-known-good.
+                    if not locals().get("_llm_provider_failed"):
+                        session["last_known_good_model"] = used_model
+                        session["last_known_good_provider"] = used_provider
             else:
                 main_message = self._generate_main_message(message, intent_analysis, feature_responses)
                 # The response came from a template, not an LLM. Label it
@@ -10860,6 +11324,28 @@ class ChatOrchestrator:
                 # silently absent, and feedback records a real model id.
                 used_model = "template"
                 used_provider = "template"
+                # DETERMINISTIC CALC DELIVERY (case-3 suite): when the
+                # reply leg collapsed to the generic template but the
+                # DURABLE state says the calculate lane asked its
+                # missing-input question this turn, the question ships
+                # as the reply — re-derived from the recorded pending
+                # state (scope-safe: no reliance on in-flight locals;
+                # the ask turn's INPUT NEEDED contract reaches the
+                # owner even under provider distress).
+                try:
+                    from core.pricing_calculation import (
+                        calc_pending_question_reply,
+                    )
+
+                    _ask_reply = calc_pending_question_reply(
+                        message, user_id,
+                        (context or {}).get("workspace_id"), session_id)
+                    if _ask_reply:
+                        main_message = _ask_reply
+                        used_model = "calc-lane"
+                        used_provider = "deterministic"
+                except Exception:  # noqa: BLE001 — delivery is additive
+                    pass
 
             # Mentioned-file mini canvas (2026-09-23 revision): opens ONLY
             # on a VERIFIED file identity (exact/normalized). The old
@@ -11070,7 +11556,8 @@ class ChatOrchestrator:
                               or [])][:2]
 
             response = {
-                "success": not budget_failure,
+                "success": not budget_failure and not locals().get(
+                    "_llm_provider_failed"),
                 "message": budget_failure["message"] if budget_failure else main_message,
                 "session_id": session["id"],
                 # Lets the client finalize THIS turn's streamed bubble (and
@@ -11100,26 +11587,236 @@ class ChatOrchestrator:
                 response["error_code"] = "budget_exceeded"
                 response["failure_reason"] = budget_failure.get("failure_reason")
                 response["recovery_url"] = "/settings/billing"
+            if locals().get("_llm_provider_failed"):
+                # Mirrors the no_llm_provider convention so the client
+                # renders a distinct retry/top-up UI and the turn counts
+                # as failed everywhere (ledger, status, history flag).
+                response["error_code"] = "no_llm_provider"
+                response["failure_reason"] = "provider_credits_exhausted"
+                response["recovery_url"] = "/settings/billing"
+
+            # TIMEOUT-TO-FOLLOW-UP BOUNDARY (owner directive
+            # 2026-10-07): a FAILED turn whose message was a
+            # calculation ask must still leave the durable
+            # pending-calculation context — otherwise the owner's next
+            # answer has nothing to bind and the reply narrates
+            # teaching-based arithmetic without an engine result (the
+            # established defect). Deterministic, no LLM,
+            # fault-isolated; skips when the lane already asked.
+            # TEMPLATE DELIVERY IS FAILURE FOR THIS PURPOSE (case-3
+            # suite trials): "I've processed your request…" with
+            # model=template ships as success=True, but no question was
+            # asked and no calculation ran — the boundary must fire or
+            # the ask's missing-input question is never put to the
+            # owner.
+            if ((response.get("success") is False
+                 or str(response.get("model") or "") == "template")
+                    and message):
+                try:
+                    from core.pricing_calculation import (
+                        record_pending_for_failed_calc_ask,
+                    )
+
+                    _ok = record_pending_for_failed_calc_ask(
+                        message, user_id,
+                        (context or {}).get("workspace_id"), session_id,
+                        canvas_id=(context or {}).get("canvas_id"))
+                    if _ok:
+                        # MISSING INPUTS ARE A CLARIFICATION (owner
+                        # correction 2026-10-07): the research worker
+                        # cannot supply them — render the precise input
+                        # question, never a "findings will follow"
+                        # promise with the wrong job identity.
+                        try:
+                            from core.job_delivery import (
+                                calc_pending_question_reply,
+                            )
+
+                            _clarify = calc_pending_question_reply(
+                                message, user_id,
+                                (context or {}).get("workspace_id"),
+                                session_id)
+                            if _clarify:
+                                response["message"] = _clarify
+                        except Exception:  # noqa: BLE001 — additive
+                            pass
+                except Exception:  # noqa: BLE001 — boundary is additive
+                    pass
 
             # R90 turn-budget honesty: the reply leg ran out of its LLM budget
             # and returned a structured error instead of a reply. Surface that
             # code (and skip the canned template text, which would read as a
             # normal answer) so the client can offer a retry. Mirrors the
             # budget_exceeded precedence above.
+            #
+            # RECEIPT BEFORE REFUSAL (2026-10-08 owner priority 1): the edit
+            # can LAND and the reply leg can still die afterwards — the plan
+            # finishing is not what the reply budget is spent on. Forcing
+            # turn_budget_exceeded then told the owner a turn had failed while
+            # the canvas had already changed, and the honest outcome is
+            # available WITHOUT another model call: the operation/audit
+            # receipt already says whether the write landed. Consult it first
+            # and report from it. The budget is never widened to hide this.
             if _execution_id and _execution_id in self._budget_exceeded_runs:
                 self._budget_exceeded_runs.discard(_execution_id)
-                response["success"] = False
-                response["error_code"] = "turn_budget_exceeded"
-                response["message"] = _turn_budget_error_response()["message"]
+                _budget_receipt: Dict[str, Any] = {}
+                _budget_canvas_id = str(
+                    ((response.get("data") or {}).get("canvas_edit") or {})
+                    .get("canvas_id") or "")
+                try:
+                    if not _budget_canvas_id:
+                        # `_canvas_ctx` is branch-assigned upstream; a
+                        # probing lookup keeps this boundary additive.
+                        _budget_canvas_id = str(
+                            (locals().get("_canvas_ctx") or {}).get(
+                                "canvas_id") or "")
+                    if _budget_canvas_id:
+                        _budget_receipt = await self._canvas_write_for_operation(
+                            _budget_canvas_id, session_id, user_id,
+                            _execution_id) or {}
+                except Exception as _b_rcpt_err:  # noqa: BLE001
+                    logger.debug(
+                        "budget receipt probe skipped: %r", _b_rcpt_err)
+                _budget_verdict = str(_budget_receipt.get("verdict") or "")
+                _budget_review = str(
+                    _budget_receipt.get("review_status") or "")
+                if _budget_verdict in ("result_verified", "write_recorded"):
+                    # WRITE LANDED: confirmation from the receipt.
+                    response["success"] = True
+                    response.pop("error_code", None)
+                    _budget_op = str(
+                        ((response.get("data") or {}).get("canvas_edit") or {})
+                        .get("operation_id") or _execution_id)
+                    if _budget_review == "pending_review":
+                        response["message"] = (
+                            "Your update was applied and is saved as a "
+                            "proposal waiting for your approval. This "
+                            "turn ran out of reply time, so I could not "
+                            "write a summary — the change itself is on "
+                            f"the canvas (operation {_budget_op}).")
+                    elif _budget_verdict == "result_verified":
+                        response["message"] = (
+                            "Your update is applied and verified on the "
+                            "canvas. This turn ran out of reply time, so "
+                            "I could not write a summary — the change "
+                            f"itself is done (operation {_budget_op}).")
+                    else:
+                        response["message"] = (
+                            "Your update is recorded on the canvas. This "
+                            "turn ran out of reply time before I could "
+                            "verify it in full — the write is on the "
+                            f"audit trail (operation {_budget_op}).")
+                    response.setdefault("data", {})["budget_recovery"] = {
+                        "write_landed": True,
+                        "verdict": _budget_verdict,
+                        "review_status": _budget_review or None,
+                        "operation_id": _budget_op,
+                    }
+                elif await _background_work_in_flight(session_id):
+                    # AUTHORIZED WORK REMAINS UNFINISHED: it is already
+                    # handed to the continuation — say so rather than
+                    # reporting a bare failure for work in progress. The
+                    # handoff is read from DURABLE continuation state, not
+                    # from the reply body: on the tool-path fall-through
+                    # the response carries no canvas_edit block at all, so
+                    # the body is not a reliable carrier of it.
+                    response["success"] = True
+                    response.pop("error_code", None)
+                    _bg_id = ""
+                    try:
+                        from core.async_turn_continuation import (
+                            continuation_in_flight)
+
+                        _bg_id = str(continuation_in_flight(session_id) or "")
+                    except Exception:  # noqa: BLE001 — probe is additive
+                        _bg_id = ""
+                    response["message"] = (
+                        "This turn ran out of reply time, and the update "
+                        "is still finishing in the background — I will "
+                        "report the result when it lands"
+                        + (f" (task {_bg_id})." if _bg_id else "."))
+                    response.setdefault("data", {})["budget_recovery"] = {
+                        "write_landed": False,
+                        "background_started": True,
+                        "continuation_id": _bg_id or None,
+                    }
+                else:
+                    response["success"] = False
+                    response["error_code"] = "turn_budget_exceeded"
+                    response["message"] = _turn_budget_error_response()["message"]
+                    response.setdefault("data", {})["budget_recovery"] = {
+                        "write_landed": False,
+                        "verdict": _budget_verdict or "unverified",
+                    }
 
             # Same honesty when the reply leg produced nothing AND the legacy
             # fallback was not affordable: the delivery failed, so quality is
             # NOT evaluated — the canned template text must not be presented as
             # an answer (item 5 of the objective).
             if _legacy_skipped_reason:
-                response["success"] = False
-                response["error_code"] = "turn_budget_exceeded"
-                response["message"] = _turn_budget_error_response()["message"]
+                # SAME receipt/handoff reporting as the R90 envelope
+                # (owner assignment 5.5): when the interactive budget
+                # cannot accommodate the work, the authorized continuation
+                # that was persisted must be the terminal the user sees —
+                # not a bare budget failure for work that is still running.
+                # Observed live 2026-10-09: planning burned 62.9s of a 115s
+                # budget against a quota-exhausted route, the continuation
+                # df04b19c was forked with a 300s budget, and the user was
+                # still told only "ran past its time budget".
+                _ls_background = await _background_work_in_flight(session_id)
+                _ls_receipt: Dict[str, Any] = {}
+                _ls_canvas = str(
+                    ((response.get("data") or {}).get("canvas_edit") or {})
+                    .get("canvas_id") or "")
+                if _ls_canvas and _execution_id:
+                    try:
+                        _ls_receipt = await self._canvas_write_for_operation(
+                            _ls_canvas, session_id, user_id, _execution_id) or {}
+                    except Exception:  # noqa: BLE001 — probe is additive
+                        _ls_receipt = {}
+                _ls_verdict = str(_ls_receipt.get("verdict") or "")
+                if _ls_verdict in ("result_verified", "write_recorded"):
+                    response["success"] = True
+                    response.pop("error_code", None)
+                    response["message"] = (
+                        "Your update is applied on the canvas. This turn "
+                        "ran out of reply time before I could write a "
+                        "summary — the change itself is done.")
+                    response.setdefault("data", {})["budget_recovery"] = {
+                        "write_landed": True, "verdict": _ls_verdict,
+                        "review_status": _ls_receipt.get("review_status"),
+                    }
+                elif _ls_background:
+                    _ls_bg_id = ""
+                    try:
+                        from core.async_turn_continuation import (
+                            continuation_in_flight)
+
+                        _ls_bg_id = str(
+                            continuation_in_flight(session_id) or "")
+                    except Exception:  # noqa: BLE001 — probe is additive
+                        _ls_bg_id = ""
+                    response["success"] = True
+                    response.pop("error_code", None)
+                    response["message"] = (
+                        "This turn ran out of reply time, and the update "
+                        "is still finishing in the background — I will "
+                        "report the result when it lands"
+                        + (f" (task {_ls_bg_id})." if _ls_bg_id else "."))
+                    response.setdefault("data", {})["budget_recovery"] = {
+                        "write_landed": False,
+                        "background_started": True,
+                        "continuation_id": _ls_bg_id or None,
+                    }
+                else:
+                    response["success"] = False
+                    response["error_code"] = "turn_budget_exceeded"
+                    response["message"] = (
+                        _turn_budget_error_response()["message"])
+                    response.setdefault("data", {})["budget_recovery"] = {
+                        "write_landed": False,
+                        "verdict": _ls_verdict or "unverified",
+                    }
                 response["failure_reason"] = _legacy_skipped_reason
                 response["deadline"] = {
                     "elapsed_s": round(_deadline.elapsed(), 1),
@@ -11416,6 +12113,14 @@ class ChatOrchestrator:
     ) -> Dict[str, Any]:
         mention = str((pending_task or {}).get("mention") or "").strip()
         original = str((pending_task or {}).get("original_message") or "").strip()
+        # EXTENSION-LESS MENTIONS resolve downstream, in
+        # _datasets_named_file_block, by the catalog's own tiered
+        # resolver (score_file_match: stem equality is a name-level
+        # match — see the 2026-10-08 Cedarberg note there). No
+        # catalog-side name rewriting happens here: a second,
+        # workspace-blind resolver in front of the real one is how
+        # cross-workspace file identities leak.
+
         if not mention or not original:
             return {"ok": False, "block": "", "reason": "pending task has no file identity"}
         timeout = 25.0
@@ -11433,11 +12138,19 @@ class ChatOrchestrator:
             block = await asyncio.wait_for(
                 _datasets_named_file_block(
                     user_id,
-                    original,
+                    # THE RESOLVED FILE MENTION, not the full message text:
+                    # the named-file block resolves files by name and
+                    # returns None when the query doesn't match one — the
+                    # full message never matches any catalog file (4th
+                    # Cedarberg boundary, confirmed: _resolve_active_items
+                    # at line 6363 never reached). The message rides the
+                    # context for text mining.
+                    mention or original,
                     {
                         "message": original,
                         "workspace_id": workspace_id,
                         "history": (history or [])[-6:],
+
                         # STALE-CRITERIA GUARD (2026-10-01 consistency
                         # run T4): the stored task's disambiguation was
                         # mined from THE TURN THAT STORED IT — its text
@@ -11456,6 +12169,12 @@ class ChatOrchestrator:
                             else None),
                         "requested_targets": (
                             pending_task.get("requested_targets") or []),
+                        # REQUEST-BOUND SCOPE (2026-10-08 Phase-2): the
+                        # one-per-request interpretation's accepted
+                        # subjects and scope-change mode — the reader
+                        # consumes these VERBATIM (no re-derivation, no
+                        # substring-overlap authority over the request).
+                        "request_scope": pending_task.get("request_scope"),
                         # Whether the targets were inherited from the
                         # conversation's objective (vs revised/own) —
                         # consumed by the reader's reference-recognition
@@ -13186,6 +13905,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             canvas_context, None,
                             llm_service=self.llm_service,
                             conversation_id=session_id,
+                            workspace_id=workspace_id,
+                            execution_id=execution_id,
                         )
                     )
                     # Owned by this turn: if the deadline expires, this is work
@@ -13645,6 +14366,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         canvas_context, _tool_block,
                         llm_service=self.llm_service,
                         conversation_id=session_id,
+                        workspace_id=workspace_id,
+                        execution_id=execution_id,
                     )
                 else:
                     # Full hydrated history for the planner (not the [-6:] main-
@@ -13746,8 +14469,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             message_requires_calculation,
                         )
 
+                        # CONVERSATION-STATE FOLLOW-UP (release case 3):
+                        # a bare ANSWER to the lane's missing-input
+                        # question ("17.5 hours, no materials.") is
+                        # calculation-shaped by DURABLE state, not by
+                        # regex — without this the turn's routing was
+                        # planner-dependent and the computation ran by
+                        # narration with no record (case-3 trials 1-2,
+                        # candidate 78ba06084).
+                        from core.pricing_calculation import (
+                            _calc_followup_dispatch,
+                        )
+
                         if (message
-                                and message_requires_calculation(message)
+                                and (message_requires_calculation(message)
+                                     or _calc_followup_dispatch(
+                                         message, session_id,
+                                         workspace_id))
                                 and not (_plan and _plan.use_tool
                                          and _plan.intent == "calculate")):
                             from core.chat_tool_planner import ToolPlan
@@ -13981,6 +14719,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 try:
                                     from core import task_lifecycle as _tlm
 
+                                    # FIELD CONTRACT FROM THE ASK
+                                    # (2026-10-09 owner assignment: the
+                                    # stored contract was [] because the
+                                    # job was created from the PLANNER's
+                                    # dispatch — the owner's own words
+                                    # never contributed. Pricing-shaped
+                                    # asks carry their requested fields
+                                    # into the contract so successor row
+                                    # reads can bind values; nonpricing
+                                    # asks keep the empty contract, which
+                                    # stays unresolved scope by design.)
+                                    _ask_fields: list = []
+                                    try:
+                                        from core.workbook_read_artifact import (
+                                            extract_field_requests,
+                                        )
+
+                                        _ask_fields = [
+                                            str(f) for f in (
+                                                extract_field_requests(
+                                                    [message]) or [])
+                                            if str(f).strip()][:6]
+                                    except Exception:  # noqa: BLE001
+                                        _ask_fields = []
                                     _ms_tl_begin = _tlm.begin_retrieval_turn(
                                         _ms_tl,
                                         session if isinstance(
@@ -13989,6 +14751,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         f"planned lookup: {_planned}",
                                         execution_id,
                                         items=list(_requested_targets or []),
+                                        requested_fields=_ask_fields,
                                         agent_id=agent_id,
                                         canvas_id=(
                                             (canvas_context or {}).get(
@@ -14068,6 +14831,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                             # calculate lane's durable
                                             # calculation records).
                                             "conversation_id": session_id,
+                                            "execution_id": execution_id,
+                                            # The turn's scope: the calculate
+                                            # lane's dedup key includes it, so
+                                            # omitting it forked the key vs
+                                            # the derivation-seam dispatch of
+                                            # the same request (case 3).
+                                            "workspace_id": workspace_id,
                                             # The current ask, ahead of session
                                             # history (which is written only
                                             # after the response): the stated-
@@ -14283,6 +15053,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     or _ms_meta_all.get("workbook_read"))
                                 if not isinstance(_ms_structured, dict):
                                     _ms_structured = None
+                                _ms_findings = (
+                                    _findings_from_datasets_receipt(
+                                        _ms_receipt.get("receipt") or {}))
                                 _ms_execution = {
                                     "invoked": _ms_invoked,
                                     "outcome": _ms_outcome,
@@ -14293,6 +15066,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         else "none"),
                                     "failure_stage": _ms_stage,
                                     "planning": _ms_planning,
+                                    "findings": _ms_findings,
                                     "items": {
                                         str((t or {}).get("item") or ""):
                                             str(((t or {}).get("identity")
@@ -14557,6 +15331,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             canvas_context, _tool_block,
                             llm_service=self.llm_service,
                             conversation_id=session_id,
+                            workspace_id=workspace_id,
+                            execution_id=execution_id,
                         )
                     else:
                         # Plan is None (provider produced no decision at
@@ -14585,6 +15361,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             canvas_context, _tool_block,
                             llm_service=self.llm_service,
                             conversation_id=session_id,
+                            workspace_id=workspace_id,
+                            execution_id=execution_id,
                         )
             except Exception as tool_err:
                 # !r, not str: a bare asyncio.TimeoutError() stringifies to
@@ -14694,14 +15472,40 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # around the calculation and the reply narrated memory. The
             # lane is dispatched HERE, its receipt satisfies the datasets
             # obligation, and no source-chaining runs.
+            # FOLLOW-UP TURNS TOO (verify-202f8dc5, owner assignment 2):
+            # "Recalculate — 12 hours." carries none of the research
+            # words, so this arm — the one whose executor reaches the
+            # follow-up lane — never dispatched it and the turn flowed
+            # to a planner-dependent branch that narrated $1,800 with
+            # no record. Calculation-shaped is decided by MESSAGE SHAPE
+            # or DURABLE conversation state, never by _research_turn.
             _calc_lane_block: Optional[str] = None
-            if message and _research_turn:
+            _calc_shaped = False
+            try:
+                from core.pricing_calculation import (
+                    _calc_followup_dispatch as _followup_guard,
+                    message_requires_calculation as _msg_calc,
+                )
+
+                _calc_shaped = bool(
+                    message
+                    and (_msg_calc(message)
+                         or _followup_guard(message, session_id,
+                                            workspace_id)))
+            except Exception:  # noqa: BLE001 — shape check is additive
+                _calc_shaped = False
+            if message and (_research_turn or _calc_shaped):
                 try:
                     from core.pricing_calculation import (
                         message_requires_calculation as _msg_calc,
                     )
 
-                    if _msg_calc(message):
+                    # Same derivation-ask exclusion as the derivation
+                    # seam: "figure out how this price was derived"
+                    # walks an existing value's chain — the derivation
+                    # lane answers it, the engine does not recompute.
+                    if _calc_shaped and not _derivation_ask(
+                            message, {"history": planner_history or history}):
                         from core.chat_tool_planner import ToolPlan as _TP
                         from core.chat_tool_planner import (
                             execute_tool_plan as _etp,
@@ -14721,6 +15525,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 context={
                                     "agent_id": agent_id,
                                     "conversation_id": session_id,
+                                    "execution_id": execution_id,
                                     "message": message,
                                     "workspace_id": workspace_id,
                                 },
@@ -14794,15 +15599,75 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     try:
                         from core.chat_tool_planner import plan_tool_use
 
+                        # TASK-GROUNDED RECOVERY INPUTS (2026-10-08 owner
+                        # correction 2): the obligation names the JOB'S
+                        # resolved subjects, required sources, requested
+                        # fields and unresolved obligations — never a
+                        # hardcoded business's workbook/correspondence.
+                        # Subjects come from the same extractors the
+                        # turn used; fields from the request's field
+                        # asks; obligations from the conversation's
+                        # recorded open item outcomes.
+                        _rc_subjects: List[str] = []
+                        try:
+                            from core.target_set_resolution import (
+                                extract_items_from_text as _rc_eift,
+                            )
+
+                            _rc_subjects = [
+                                i for i in _rc_eift(message)
+                                if i.strip()][:8]
+                        except Exception:  # noqa: BLE001 — floor follows
+                            _rc_subjects = []
+                        _rc_fields: List[str] = []
+                        try:
+                            from core.workbook_read_artifact import (
+                                extract_field_requests as _rc_vfr,
+                            )
+
+                            _rc_fields = [
+                                str(f) for f in (_rc_vfr([message])
+                                                 or [])][:6]
+                        except Exception:  # noqa: BLE001 — optional
+                            _rc_fields = []
+                        _rc_open: List[str] = []
+                        try:
+                            from core import dialogue_state as _rc_ds
+
+                            # OPEN OBLIGATIONS = the conversation's own
+                            # recorded item outcomes that are still
+                            # absent/ambiguous — the durable vocabulary
+                            # record_item_outcomes writes ('none'/'absent'
+                            # = not found, 'multiple'/'ambiguous' = needs
+                            # the user's pick).
+                            _rc_outcomes = _rc_ds.active_item_outcomes(
+                                str((context or {}).get(
+                                    "conversation_id") or ""),
+                                statuses=("none", "absent", "multiple",
+                                          "ambiguous"))
+                            _rc_open = sorted(
+                                _rc_outcomes or {})[:8]
+                        except Exception:  # noqa: BLE001 — optional
+                            _rc_open = []
                         _obligation = (
                             message
                             + "\n\nREQUIRED RESEARCH (prior plan "
-                            "produced no executable tool): consult the "
-                            "taught sources for this task — the "
-                            "designated price-list workbook (datasets "
-                            "search) AND the vendor correspondence "
-                            "(outlook search) as applicable. Return the "
-                            "tool call that executes the lookups.")
+                            "produced no executable tool). Consult the "
+                            "REQUIRED SOURCES for the resolved subjects "
+                            "and report the requested fields.\n"
+                            "Required sources: "
+                            + ", ".join(sorted(_required_sources))
+                            + "\nResolved subjects: "
+                            + ("; ".join(_rc_subjects) or "(as stated "
+                               "above)")
+                            + "\nRequested fields: "
+                            + ("; ".join(_rc_fields) or "(as stated "
+                               "above)")
+                            + ("\nUnresolved obligations: "
+                               + "; ".join(_rc_open)
+                               if _rc_open else "")
+                            + "\nReturn the tool call that executes "
+                              "these lookups.")
                         _replan = await asyncio.wait_for(
                             plan_tool_use(
                                 _obligation,
@@ -14827,25 +15692,62 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             # succeeded, and the model still returned
                             # use_tool=False. The obligation is already
                             # authorized — construct the deterministic
-                            # lookup for the FIRST required source
-                            # instead of asking permission for it.
-                            _fallback_svc = (
-                                sorted(_required_sources)[0]
-                                if _required_sources else None)
+                            # lookup for the FIRST UNCONSULTED required
+                            # source (recorded lesson order where the
+                            # task states one; never alphabetical-first)
+                            # with a SUBJECT-GROUNDED query (the resolved
+                            # subjects and requested fields — the raw
+                            # message slice carried conversational noise
+                            # the source search then matched nothing
+                            # against, 2026-10-08 owner correction 2).
+                            _fallback_svc = next(
+                                (svc for svc in (
+                                    self._required_source_order(
+                                        agent_id, message))
+                                if svc in _required_sources
+                                and svc not in _consulted_sources),
+                                None)
                             if _fallback_svc:
+                                _rc_query = " ".join(
+                                    _rc_subjects[:4]
+                                    + [f"{f}" for f in _rc_fields[:3]])
                                 _replan = ToolPlan(
                                     use_tool=True,
                                     service=_fallback_svc,
                                     intent="search",
-                                    query=message[:200],
+                                    query=(_rc_query or message)[:200],
                                 )
                                 logger.warning(
                                     "[planner-boundary] replan model "
                                     "returned no tool — executing the "
                                     f"required {_fallback_svc} lookup "
-                                    "directly (authorized obligation)")
+                                    "directly (authorized obligation; "
+                                    f"subjects={_rc_subjects[:3]!r} "
+                                    f"fields={_rc_fields[:2]!r})")
                         if _replan is not None and _replan.use_tool:
                             _replanned_service = _replan.service
+                            # RECEIPT VISIBILITY (2026-10-08): dotted
+                            # service names get re-wrapped inside the
+                            # executor, and the structured receipt then
+                            # lands on the WRAPPER — the caller's plan
+                            # object stays receiptless. Normalize to the
+                            # undotted local name and pre-attach the meta
+                            # dict so the receipt stamps land on the
+                            # object this block reads.
+                            try:
+                                if "." in str(_replan.service or ""):
+                                    _svc, _intent = str(
+                                        _replan.service).split(".", 1)
+                                    _replan = ToolPlan(
+                                        use_tool=True, service=_svc,
+                                        intent=_intent or _replan.intent,
+                                        query=_replan.query)
+                                if getattr(
+                                        _replan, "_result_meta", None) \
+                                        is None:
+                                    _replan._result_meta = {}
+                            except Exception:  # noqa: BLE001 — additive
+                                pass
                             _tool_block = await execute_tool_plan(
                                 _replan, user_id,
                                 tenant_id=getattr(
@@ -14856,6 +15758,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # calculation lanes record onto the
                                     # conversation's job (round 74)
                                     "conversation_id": session_id,
+                                    "execution_id": execution_id,
+                                    # scope parity with the other dispatch
+                                    # sites — the calculate dedup key
+                                    # includes the workspace (case 3)
+                                    "workspace_id": workspace_id,
+                                    # REQUEST-BOUND SCOPE on the direct
+                                    # dispatch (2026-10-08 owner final
+                                    # repair): the resolved subjects LEAD
+                                    # the probe; history may not replace
+                                    # them (case-4 searched 'sle24' while
+                                    # the request named 'No. 381').
+                                    "request_scope": {
+                                        "subjects": list(_rc_subjects),
+                                        "scope_change": "replace",
+                                    } if _rc_subjects else None,
                                 },
                                 llm_service=self.llm_service,
                             ) or ""
@@ -14864,6 +15781,46 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "%s.%s (block=%d chars)",
                                 _replan.service, _replan.intent,
                                 len(_tool_block))
+                            # CONSULTED-SOURCE ACCOUNTING (2026-10-08,
+                            # final owner correction 3): a source counts
+                            # as consulted ONLY on an EXECUTION RECEIPT —
+                            # the structured record the tool layer
+                            # guarantees (storage_read / structured_result
+                            # / datasets_search / file_read; see the
+                            # RECEIPT GUARANTEE note in the planner). A
+                            # large text block alone is not evidence of
+                            # successful research (the 17k-char invisible
+                            # block: prose without a receipt was both
+                            # unaccounted AND unreliable).
+                            _rc_receipt = None
+                            try:
+                                _rc_meta = getattr(
+                                    _replan, "_result_meta", None)
+                                if isinstance(_rc_meta, dict):
+                                    _rc_receipt = next(
+                                        (k for k in (
+                                            "storage_read",
+                                            "structured_result",
+                                            "datasets_search",
+                                            "file_read")
+                                         if k in _rc_meta), None)
+                            except Exception:  # noqa: BLE001
+                                _rc_receipt = None
+                            if _tool_block and _rc_receipt:
+                                _consulted_sources.add(_replan.service)
+                                if isinstance(shared_tool_state, dict):
+                                    shared_tool_state.setdefault(
+                                        "consulted_sources", set()).add(
+                                            _replan.service)
+                                logger.info(
+                                    "[planner-boundary] replan consultation "
+                                    "recorded (%s; receipt=%s)",
+                                    _replan.service, _rc_receipt)
+                            elif _tool_block:
+                                logger.warning(
+                                    "[planner-boundary] replan returned a "
+                                    "block WITHOUT a structured receipt — "
+                                    "not counted as a consultation")
                     except Exception as _rp_err:  # noqa: BLE001
                         logger.warning(
                             f"[planner-boundary] replan failed: {_rp_err!r}")
@@ -14994,7 +15951,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     if _primary_svc and isinstance(_primary_receipt, dict) \
                             and (_primary_receipt.get("retrieved")
                                  or _primary_receipt.get("bounded_absence")):
-                        _consulted.add(_primary_svc)
+                        # COVERAGE IS NOT RETRIEVAL (2026-10-09 owner
+                        # correction: dispatch does not prove retrieval):
+                        # a value_trace primary produces a COVERAGE map
+                        # (which documents carry the item) with ZERO
+                        # source observations — marking the source
+                        # consulted here skipped the chained confirmed-
+                        # file read (the actual retrieval) and the job
+                        # stayed findings-less. Credit consultation only
+                        # when retrieval facts exist for this service.
+                        _pr = _primary_receipt.get("receipt") or {}
+                        _retrieval_facts = bool(
+                            (_pr.get("source_observations") or [])
+                            or (_pr.get("read_outcomes") or [])
+                            or (_pr.get("searched_threads") or [])
+                            or ((_pr.get("datasets_search") or {})
+                                .get("_hits")))
+                        if _retrieval_facts or _primary_svc != "datasets":
+                            _consulted.add(_primary_svc)
+                        else:
+                            logger.info(
+                                "[planner-boundary] datasets primary was "
+                                "coverage-only — NOT counted as "
+                                "consulted; the confirmed-file read "
+                                "chains")
                 _missing = _required_sources - _consulted
                 try:
                     if deadline is not None:
@@ -15230,6 +16210,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         "live" if _receipt["dispatched"]
                                         else "none"),
                                     "failure_stage": _stage,
+                                    # CHAINED-READ FINDINGS (2026-10-09
+                                    # owner B1): a chained confirmed-file
+                                    # read's structured result carries the
+                                    # row values — persist them as typed
+                                    # findings alongside the settle so the
+                                    # drafting adapter reads them.
+                                    "findings": (
+                                        _findings_from_structured_result(
+                                            _receipt.get("receipt") or {})),
                                     "items": {
                                         item: "" for item in _chain_items},
                                 })
@@ -15332,6 +16321,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     # read path.
                                     "agent_id": agent_id,
                                     "conversation_id": session_id,
+                                    "execution_id": execution_id,
                                     "message": message,
                                     "history": (planner_history
                                                 or history or [])[-6:],
@@ -15348,6 +16338,178 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 f"{_tool_block}\n\nREQUIRED-SOURCE "
                                 f"CROSS-CHECK ({_missing_svc}):\n"
                                 + _attempt_block)
+                        # VALUE-TRACE → CONFIRMED-FILE READ (2026-10-08
+                        # owner research-boundary close): value_trace is a
+                        # COVERAGE map — it NAMES the file carrying each
+                        # item but reads no values (live trial 13:
+                        # value_trace_coverage named the workbook,
+                        # source_observations=0, so the comparison lacked
+                        # the workbook's prices and drafting correctly
+                        # refused). The trace itself establishes file
+                        # identity, and the ask's read authorization
+                        # stands — so chain ONE confirmed named-file read
+                        # for the covered subjects instead of leaving the
+                        # values unread.
+                        if (_missing_svc == "datasets"
+                                and _attempt_intent == "value_trace"):
+                            _vt_cov = dict(
+                                (_receipt["receipt"]
+                                 .get("value_trace_coverage") or {}))
+                            if _vt_cov and _chain_turn_left() > 25:
+                                for _item, _files in list(
+                                        _vt_cov.items())[:2]:
+                                    _fname = next(
+                                        (f for f in (_files or [])
+                                         if str(f).strip()), "")
+                                    if not _fname:
+                                        continue
+                                    try:
+                                        from core.chat_tool_planner import (
+                                            _datasets_named_file_block,
+                                        )
+
+                                        _vt_read = (
+                                            await asyncio.wait_for(
+                                                _datasets_named_file_block(
+                                                    user_id, _fname, {
+                                                        "message": message,
+                                                        "history": (
+                                                            planner_history
+                                                            or history
+                                                            or [])[-4:],
+                                                        "workspace_id":
+                                                            workspace_id,
+                                                        "request_scope": {
+                                                            "subjects":
+                                                                [_item],
+                                                            "scope_change":
+                                                                "replace",
+                                                        },
+                                                    },
+                                                    plan=_attempt_plan),
+                                                timeout=min(
+                                                    20.0,
+                                                    _chain_turn_left()
+                                                    - 15.0)))
+                                        if _vt_read:
+                                            _tool_block = (
+                                                f"{_tool_block}\n\n"
+                                                "CONFIRMED-FILE READ "
+                                                f"({ _fname }, item="
+                                                f"{_item}):\n"
+                                                + _vt_read)
+                                            # DURABLE STRUCTURED FINDINGS
+                                            # (research-to-draft guide
+                                            # Repair 2, 2026-10-08): the
+                                            # chained read's structured
+                                            # result + identity persist on
+                                            # the session's pending-result
+                                            # carrier — the SAME carrier
+                                            # the drafting turn's fresh-
+                                            # data leg reads for
+                                            # objective_evidence — so the
+                                            # rows the trace found reach
+                                            # the drafting CONTRACT, not
+                                            # only the reply text (trial
+                                            # 16: rows read,
+                                            # contract_outcomes=[]).
+                                            try:
+                                                _vt_meta = getattr(
+                                                    _attempt_plan,
+                                                    "_result_meta",
+                                                    None) or {}
+                                                _vt_sr = (
+                                                    _vt_meta.get(
+                                                        "storage_read")
+                                                    or {})
+                                                _prior_pfr = (
+                                                    session.get(
+                                                        "_pending_file_result")
+                                                    if isinstance(
+                                                        session, dict)
+                                                    else None)
+                                                if not isinstance(
+                                                        _prior_pfr, dict):
+                                                    _prior_pfr = {}
+                                                _merged = dict(_prior_pfr)
+                                                _merged.update({
+                                                    "status": "retrieved",
+                                                    "identity": {
+                                                        "file_name":
+                                                            _fname,
+                                                        "execution_id":
+                                                            execution_id,
+                                                    },
+                                                    "workbook_read": (
+                                                        _vt_sr.get(
+                                                            "workbook_read")
+                                                        or _merged.get(
+                                                            "workbook_read")),
+                                                    "structured_result": (
+                                                        _vt_sr.get(
+                                                            "structured_result")
+                                                        or _merged.get(
+                                                            "structured_result")),
+                                                    # CARRIER COMPLETENESS
+                                                    # (2026-10-08): the
+                                                    # drafting caller's
+                                                    # receipt-based reuse
+                                                    # requires the RENDERED
+                                                    # evidence alongside the
+                                                    # structured receipt —
+                                                    # `rendered` is this
+                                                    # carrier's canonical key
+                                                    # (see _adopt_pending_file_
+                                                    # result consumers). The
+                                                    # chained read persisted
+                                                    # the receipt but not the
+                                                    # rendering, so the reuse
+                                                    # gate read "no evidence"
+                                                    # for a read that had in
+                                                    # fact produced 2,920
+                                                    # chars of it.
+                                                    "rendered": (
+                                                        _vt_sr.get(
+                                                            "rendered_answer")
+                                                        or _merged.get(
+                                                            "rendered")
+                                                        or ""),
+                                                    "execution_id":
+                                                        execution_id,
+                                                    "retrieved_at":
+                                                        time.time(),
+                                                    "chained_read": True,
+                                                })
+                                                session[
+                                                    "_pending_file_result"
+                                                ] = _merged
+                                                logger.info(
+                                                    "[planner-boundary] "
+                                                    "chained read persisted "
+                                                    "to the findings "
+                                                    "carrier (file=%r, "
+                                                    "structured=%s)",
+                                                    _fname,
+                                                    bool(_vt_sr.get(
+                                                        "structured_result")))
+                                            except Exception as _pfr_err:  # noqa
+                                                logger.warning(
+                                                    "chained-read carrier "
+                                                    "persist skipped: %r",
+                                                    _pfr_err)
+                                            logger.info(
+                                                "[planner-boundary] "
+                                                "value-trace chained a "
+                                                "confirmed-file read "
+                                                "(file=%r item=%r, "
+                                                "block=%d chars)",
+                                                _fname, _item,
+                                                len(_vt_read))
+                                    except Exception as _vt_err:  # noqa
+                                        logger.info(
+                                            "[planner-boundary] "
+                                            "value-trace chained read "
+                                            "skipped (%r)", _vt_err)
                         logger.info(
                             "[planner-boundary] chained source %s: %s "
                             "(receipt=%s)", _missing_svc,
@@ -15430,6 +16592,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 context={
                                     "agent_id": agent_id,
                                     "conversation_id": session_id,
+                                    "execution_id": execution_id,
                                     "message": message,
                                     "history": (planner_history
                                                 or history or [])[-6:],
@@ -16013,6 +17176,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             canvas_context, None,
                             llm_service=self.llm_service,
                             conversation_id=session_id,
+                            workspace_id=workspace_id,
+                            execution_id=execution_id,
                         )
                     if _deriv_block:
                         # A DETERMINISTIC BLOCK SUPERSEDES A LOOKUP-FAILURE
@@ -17625,6 +18790,68 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "[figure-grounding] narration contradicts the "
                             "structured calculation: "
                             + ", ".join(_unsupported[:6]))
+                # STRUCTURED-RESULT DELIVERY UNDER PROVIDER FAILURE
+                # (owner directive 2026-10-07, case-3 trial 2): the
+                # engine already computed and RECORDED this turn's
+                # calculation, but the narration leg collapsed (credit
+                # envelope / template). The existing deterministic
+                # rendering fallback ships the record directly — no
+                # second model call, no lost result.
+                if (_calc_evidence and _content and message
+                        and (str(response_data.get("model") or "")
+                             in ("template",)
+                             or locals().get("_llm_provider_failed"))):
+                    try:
+                        _det_render = _deterministic_calc_fallback(
+                            _calc_allowance, [])
+                        if _det_render:
+                            _content = _det_render
+                            response_data = dict(response_data or {})
+                            response_data["content"] = _content
+                            response_data["model"] = (
+                                response_data.get("model") or "calc-lane")
+                            logger.info(
+                                "[calc-delivery] narration leg collapsed "
+                                "with a recorded result — deterministic "
+                                "rendering shipped")
+                    except Exception:  # noqa: BLE001 — additive
+                        pass
+                # TIMEOUT WORDING RULE (owner directive 2026-10-07,
+                # acceptance gate case3_timeout_regression): a turn BOUND
+                # to the calculation contract whose reply carries NO
+                # engine record must not present a figure with formula/
+                # teaching authority. The recorded failures (9eeb3e15,
+                # 62c248d2) narrated "$2,625 per our taught formula"
+                # with zero calculate operations — one with a generic
+                # retrieval warning that is NOT computation disclosure.
+                # The honest replacement is deterministic (no regen: a
+                # regen is exactly what provider distress cannot afford)
+                # — refuse-with-retry, no figure, no authority claim.
+                _pending_ask_open = False
+                try:
+                    from core.pricing_calculation import (
+                        _open_pending_questions as _opq,
+                    )
+
+                    _pending_ask_open = bool(_opq(session_id, workspace_id))
+                except Exception:  # noqa: BLE001 — additive
+                    _pending_ask_open = False
+                if (not _calc_evidence and _content and message
+                        and not _pending_ask_open
+                        and _calc_bound_turn(
+                            message, session_id, workspace_id)
+                        and _reply_claims_unrecorded_teaching_figure(
+                            _content)):
+                    logger.warning(
+                        "[calc-wording] calculation-bound reply asserted "
+                        "a teaching figure with no engine record — "
+                        "replaced with the honest not-computed wording")
+                    _content = (
+                        "I couldn't complete the calculation just now — "
+                        "no calculation was run, so there is no estimate "
+                        "to report yet. Please try again in a moment and "
+                        "I'll run the taught-rate calculation with your "
+                        "inputs.")
                 if _tool_block and _content and not (
                     _derivation_reply and not _derivation_contradicted
                 ) and not _calc_evidence:
@@ -18366,22 +19593,125 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"canvas corrections lookup skipped: {e}")
             return []
 
+    # Contact identities come from what the TEACHING actually names.
+    # This adapter never hardcodes people or addresses: an installation's
+    # contacts are installation data, not universal constants.
+    @staticmethod
+    def _contact_tokens(text: str) -> List[str]:
+        """Addressable contacts named by taught text, or []."""
+        return re.findall(r"[\w.+-]+@[\w-]+\.[\w.-]+", text or "")
+
+    def _teaching_header_evidence(
+        self, agent_id: Optional[str], message: str
+    ) -> Dict[str, Any]:
+        """Teaching-derived drafting rules and header evidence.
+
+        Contacts and header rules come from the ACTING AGENT's teaching and
+        established contact identities — this adapter never hardcodes
+        people or addresses. Where the teaching does not establish a
+        header, the header stays UNRESOLVED: a missing identity is a
+        precise missing-evidence obligation, never a guessed address.
+        """
+        taught_rules: List[str] = []
+        header_candidates: List[str] = []
+        resolved_cc: List[str] = []
+        try:
+            from core.database import get_db_session as _gs2
+            from core.student_learning_service import get_agent_lessons
+
+            _all = []
+            if agent_id:
+                with _gs2() as _db2:
+                    _all = get_agent_lessons(
+                        _db2, agent_id, query=message or "", limit=10)
+            for l in _all:
+                text = " ".join(str(l.get("lesson") or l.get("summary")
+                                    or "").split())
+                if not text:
+                    continue
+                low = text.lower()
+                if _CC_RULE_RE.search(low):
+                    taught_rules.append(f"CC rule (taught): {text[:220]}")
+                    addrs = self._contact_tokens(text)
+                    if addrs:
+                        resolved_cc.append("Cc: " + ", ".join(addrs[:4]))
+                    else:
+                        # The rule stands; its ADDRESSES must come from
+                        # established identity data. Record the obligation
+                        # quoting the teaching's OWN wording — never a
+                        # roster compiled in this file, never a guess.
+                        header_candidates.append(
+                            "Cc: UNRESOLVED ADDRESSES — the taught rule "
+                            "reads \"%s\" but supplies no addressable "
+                            "identity; resolve from established contact "
+                            "data before addressing" % text[:120])
+                elif "subject" in low or "header" in low:
+                    taught_rules.append(
+                        f"Header rule (taught): {text[:220]}")
+                else:
+                    taught_rules.append(text[:220])
+        except Exception:  # noqa: BLE001 — additive
+            pass
+        return {"taught_rules": taught_rules[:4],
+                "header_candidates": header_candidates[:4],
+                "resolved_cc": resolved_cc[:2]}
+
+    def _teaching_only_findings(
+        self, agent_id: Optional[str], message: str
+    ) -> Optional[Dict[str, Any]]:
+        """The drafting contract for a canvas with NO bound job record.
+
+        The header rules a draft must apply are teaching artifacts, not
+        job-ledger artifacts, so an empty ledger must not withhold them.
+        """
+        ev = self._teaching_header_evidence(agent_id, message)
+        if not any(ev.get(k) for k in ("taught_rules", "header_candidates",
+                                      "resolved_cc")):
+            return None
+        return {
+            "typed_findings": [],
+            "verified": [],
+            "scoped_misses": [],
+            "resolution_notes": [],
+            "open_decisions": [],
+            "manual_preserved": [],
+            "freshness_limits": [],
+            "inherited_from": None,
+            "mutation_authority_inherited": False,
+            **ev,
+        }
+
     def _canvas_job_findings(
         self,
         user_id: str,
         canvas: Optional[Dict[str, Any]],
         session: Optional[Dict[str, Any]],
         message: str,
+        agent_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """The job-work ledger for THIS canvas's conversation, shaped for
-        the edit planner (round 62): verified findings (resolved
-        questions whose evidence names workbook cells/emails), open
-        business decisions with candidates, the owner's approved manual
-        values, and freshness limits. Best-effort — an unavailable
-        ledger degrades to no section, never blocks the edit."""
+        the edit planner (round 62; rebuilt 2026-10-08, research-to-draft
+        guide Repair 1): the job's ACTUAL durable typed findings, the
+        owner's protected manual values, open business decisions, and
+        freshness limits.
+
+        Best-effort — an unavailable ledger degrades to no section, never
+        blocks the edit.
+
+        Two hard rules this rebuild enforces:
+          - A RESOLVED QUESTION IS NOT A VERIFIED FACT. Resolution prose is
+            supplemental explanation only (`resolution_notes`). It may
+            describe scoped absence, supersession, or an informational
+            disposition. Verified values come from operations' typed
+            findings (`execution.findings`), which carry the field, the
+            parsed value with its basis/unit/currency, the source identity,
+            the operation id and the freshness qualification TOGETHER.
+          - PROTECTED VALUES COME FROM OWNER-INSTRUCTION PROVENANCE. A
+            business decision the OWNER resolved carries authority; a word
+            such as "approved" appearing in someone's note does not.
+        """
         try:
-            from core.task_lifecycle import (
-                find_active_task_for_canvas, open_unresolved_questions)
+            from core.task_lifecycle import open_unresolved_questions
 
             tl = _task_lifecycle_for(
                 getattr(self, "tenant_id", None), None)
@@ -18389,12 +19719,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 return None
             canvas_id = (canvas or {}).get("canvas_id") or (
                 canvas or {}).get("id")
+            # Lookup goes through the LIFECYCLE (find_active_task_for_canvas
+            # is a method, not a module function). The previous
+            # ``from core.task_lifecycle import find_active_task_for_canvas``
+            # raised ImportError on every call, and the surrounding
+            # best-effort handler swallowed it — so this whole adapter
+            # returned None and the drafting contract never received the
+            # job's research at all.
             record = None
             if canvas_id:
                 try:
-                    record = find_active_task_for_canvas(tl, canvas_id)
+                    record = tl.find_active_task_for_canvas(str(canvas_id))
                 except Exception:  # noqa: BLE001
                     record = None
+            inherited_from: Optional[str] = None
             if record is None and canvas_id:
                 # FORK LINEAGE (round 64, live DRAFT6): a disposable fork
                 # starts a NEW job with an empty ledger — the research the
@@ -18402,7 +19740,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # fork's audit row carries source_canvas_id; follow it (one
                 # hop) so drafting on a fork applies the lineage's verified
                 # findings instead of declining for lack of provenance.
+                #
+                # INHERITANCE IS EVIDENCE-ONLY (guide Repair 1 pin 5): the
+                # fork may READ the source's findings; it never acquires
+                # the source's mutation authority.
                 try:
+                    from core.database import get_db_session
                     from core.models import CanvasAudit as _CA
 
                     with get_db_session() as _db2:
@@ -18417,11 +19760,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                              or {}).get("source_canvas_id") or ""
                     ) if _fork_row else ""
                     if _parent and _parent != str(canvas_id):
-                        record = find_active_task_for_canvas(tl, _parent)
+                        record = tl.find_active_task_for_canvas(_parent)
                         if record is not None:
+                            inherited_from = _parent
                             logger.info(
                                 "[job-findings] fork %s inherits the "
-                                "source canvas %s research record",
+                                "source canvas %s research record "
+                                "(evidence only)",
                                 str(canvas_id)[:8], _parent[:8])
                 except Exception as _fl_err:  # noqa: BLE001 — additive
                     logger.debug("fork lineage lookup skipped: %r", _fl_err)
@@ -18432,105 +19777,266 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         record = tl.find_active_task(conv)
                     except Exception:  # noqa: BLE001
                         record = None
+            # TEACHING IS NOT A JOB-LEDGER ARTIFACT (2026-10-08, case-1
+            # header verification): a standing drafting rule — a general
+            # "cc these contacts on all sales quotes" instruction — and its
+            # established contact identities live in the AGENT'S TEACHING.
+            # A canvas with no bound task record still has that teaching,
+            # so the header evidence must reach the planner regardless of
+            # whether the ledger has a job. The adapter used to return
+            # None before gathering it, which is exactly why the required
+            # header change was absent from the planner input and the
+            # planner declined on value grounds.
             if record is None:
-                return None
-            verified = []
-            manual = []
+                return self._teaching_only_findings(agent_id, message)
+
+            # ---- typed findings from OPERATION EXECUTION FACTS ----------
+            # The operation record IS the evidence store
+            # (normalize_execution_facts passthrough). Subject comes from
+            # the operation's items; basis/unit/currency ride the parsed
+            # value; freshness and served basis ride the execution.
+            typed: List[Dict[str, Any]] = []
+            scoped_misses: List[str] = []
+            seen_ops: set = set()
+            for op in (record.get("operations") or []):
+                if not isinstance(op, dict):
+                    continue
+                ex = op.get("execution") or {}
+                if not isinstance(ex, dict):
+                    continue
+                op_id = str(op.get("operation_id") or "")
+                if op_id in seen_ops:
+                    continue
+                seen_ops.add(op_id)
+                findings = ex.get("findings")
+                items = ex.get("items") if isinstance(
+                    ex.get("items"), dict) else {}
+                # Subject: the operation's items map, else the record's
+                # entities, else the requested change's object.
+                subject = ""
+                if items:
+                    subject = ", ".join(sorted(items.keys())[:4])
+                if not subject:
+                    subject = ", ".join(
+                        str(e.get("label") or e.get("id") or "")
+                        for e in ((record.get("task_revision") or {}).get(
+                            "entities") or [])[:4]
+                        if str(e.get("label") or e.get("id") or "").strip())
+                for f in (findings or []):
+                    if not isinstance(f, dict):
+                        continue
+                    parsed = f.get("parsed") if isinstance(
+                        f.get("parsed"), dict) else {}
+                    typed.append({
+                        "subject": subject,
+                        "field": str(f.get("field") or ""),
+                        "column": str(f.get("column") or ""),
+                        "raw": str(f.get("raw") or ""),
+                        "parsed": parsed or None,
+                        "value": (parsed or {}).get("value",
+                                                    f.get("raw")),
+                        "basis": (parsed or {}).get("basis"),
+                        "unit": (parsed or {}).get("unit"),
+                        "currency": (parsed or {}).get("currency"),
+                        "source": str(f.get("source") or ""),
+                        "operation_id": op_id,
+                        "served_basis": ex.get("served_basis"),
+                        "freshness_status": ex.get("freshness_status"),
+                    })
+                # A read that ran and produced NO findings is a SCOPED
+                # MISS — an observation about the world. It is not
+                # verified evidence and must never be presented as one.
+                if (ex.get("invoked") and not findings
+                        and str(ex.get("outcome") or "") == "read_succeeded"):
+                    named = ", ".join(sorted(items.keys())[:4]) or "(job)"
+                    scoped_misses.append(
+                        f"{named}: read succeeded with no matching value "
+                        f"(basis: {ex.get('served_basis') or 'none'}; "
+                        f"source operation {op_id or 'unknown'})")
+
+            # ---- resolution prose: SUPPLEMENTAL only --------------------
+            resolution_notes: List[str] = []
+            manual: List[str] = []
             for q in (record.get("task_revision") or {}).get(
                     "unresolved") or []:
-                res = str(q.get("resolution") or "")
-                item = str(q.get("item") or "")
-                if q.get("status") == "resolved" and res:
-                    note = ""
-                    try:
-                        note = str(res.get("detail") or res) if isinstance(
-                            res, dict) else res
-                    except Exception:  # noqa: BLE001
-                        note = str(res)
-                    verified.append({
-                        "item": item or "(job)",
-                        "note": note[:300],
-                        "source": "job ledger (see operation evidence)",
-                    })
-                    if "manual" in note.lower() or "approved" in note.lower():
-                        manual.append(item)
+                if not isinstance(q, dict) or q.get("status") != "resolved":
+                    continue
+                res = q.get("resolution")
+                note = ""
+                value = None
+                if isinstance(res, dict):
+                    note = str(res.get("detail") or "")
+                    value = res.get("value")
+                else:
+                    note = str(res or "")
+                item = str(q.get("item") or "") or "(job)"
+                if note:
+                    resolution_notes.append(f"{item}: {note}"[:300])
+                # OWNER-INSTRUCTION PROVENANCE ONLY. A business decision
+                # the OWNER resolved carries authority over a value; a
+                # word appearing in any note does not.
+                if (str(q.get("kind") or "") == "business_decision"
+                        and str(q.get("decision_owner") or "") == "owner"):
+                    exact = str(value if value is not None else note).strip()
+                    if exact:
+                        manual.append(
+                            f"{item}"
+                            + (f" {q.get('field')}" if q.get("field") else "")
+                            + f" = {exact}")
+
             decisions = [
                 {"item": str(q.get("item") or ""),
                  "question": str(q.get("question") or "")[:200]}
                 for q in open_unresolved_questions(record)
                 if q.get("kind") == "business_decision"]
             freshness = [
-                str(q.get("item") or "") + ": saved-copy; live source "
-                "unverified"
-                for q in open_unresolved_questions(record)
-                if "freshness" in str(q.get("question") or "").lower()]
-            if not (verified or decisions or freshness):
+                f"{t.get('subject') or '(job)'} {t.get('field')}: "
+                f"{t.get('freshness_status') or 'live source unverified'} "
+                f"(served basis: {t.get('served_basis') or 'none'})"
+                for t in typed
+                if str(t.get("served_basis") or "") != "live"]
+            if not (typed or decisions or freshness or resolution_notes
+                    or manual or scoped_misses):
                 return None
-            # HEADER PROVENANCE (round 63): the taught cc rule is an
-            # APPLICABLE drafting rule, not optional — include it as a
-            # taught rule; To/Subject ride only when the ledger's
-            # verified evidence names correspondence values for THIS
-            # thread (provenance established), else the specific
-            # ambiguity is named.
-            taught_rules = []
-            try:
-                from core.database import get_db_session as _gs2
-                from core.student_learning_service import (
-                    _permanent_lessons as _pl)
 
-                with _gs2() as _db2:
-                    _all = _pl(_db2, agent_id or "") if agent_id else []
-                for l in _all:
-                    t = " ".join(str(l.get("lesson") or l.get("summary")
-                                     or "").split()).lower()
-                    if ("cc" in t and (
-                            "chandrakant" in t or "vipul" in t)):
-                        taught_rules.append(
-                            "CC rule (taught): all sales quotes cc "
-                            "Chandrakant <chandrakant@brennan.ca> and "
-                            "Vipul <vipul@brennan.ca>")
-                        break
-            except Exception:  # noqa: BLE001 — additive
-                pass
-            # Correspondence-derived header values: search the verified
-            # notes for the thread's To/Subject evidence.
-            header_candidates = []
-            resolved_cc = []
-            joined = " ".join(
-                str(v.get("note") or "") for v in verified).lower()
-            if "steve" in joined and "alumasafway" in joined:
-                header_candidates.append(
-                    "To: Steve <amacisaac@alumasafway.com> (verified "
-                    "correspondence: the Sept 18 2026 'Quote for "
-                    "Slitter' thread to Steve at AlumaSafway)")
-            if "quote for slitter" in joined:
-                header_candidates.append(
-                    "Subject: Re: Quote for Slitter (the verified "
-                    "thread's subject)")
-            # CC INDEPENDENCE (round 64): the taught CC rule needs NO
-            # correspondence provenance — verified contact identities
-            # from the teaching itself suffice. Resolved separately
-            # from To/Subject so unrelated correspondence cannot block
-            # it.
-            for rule in taught_rules:
-                if "chandrakant" in rule.lower() and "vipul" in rule.lower():
-                    resolved_cc.append(
-                        "Cc: Chandrakant <chandrakant@brennan.ca>, "
-                        "Vipul <vipul@brennan.ca> (taught rule; "
-                        "contact identities verified in the teaching)")
-                    break
+            # ---- teaching / headers: from the ACTING AGENT only ----------
+            ev = self._teaching_header_evidence(agent_id, message)
+
             return {
-                "verified": verified[:12],
+                "typed_findings": typed[:12],
+                "verified": [
+                    {"item": t.get("subject") or t.get("field") or "(job)",
+                     "note": f"{t.get('field')} = {t.get('raw')}"
+                             + (f" ({t.get('column')})" if t.get("column")
+                                else ""),
+                     "source": t.get("source") or ""}
+                    for t in typed[:12]],
+                "scoped_misses": scoped_misses[:8],
+                "resolution_notes": resolution_notes[:8],
                 "open_decisions": decisions[:6],
                 "manual_preserved": manual[:8],
                 "freshness_limits": freshness[:8],
-                "taught_rules": taught_rules[:4],
-                "header_candidates": header_candidates[:4],
-                "resolved_cc": resolved_cc[:2],
+                **ev,
+                # INHERITANCE IS EVIDENCE-ONLY: a fork's own revision
+                # decides what it may mutate, never the source's.
+                "inherited_from": inherited_from,
+                "mutation_authority_inherited": False,
             }
         except Exception as exc:  # noqa: BLE001 — additive context
             logger.debug("job findings for edit skipped: %r", exc)
             return None
+
+    def _lessons_from_taught_agents(
+        self, db: Any, query: str, limit: int,
+    ) -> List[Dict[str, Any]]:
+        """The agent-less teaching fallback body, injectable for tests:
+        read the workspace's agents that carry lessons and merge their
+        teaching (deduped, bounded)."""
+        from core.models import AgentRegistry
+        from core.student_learning_service import get_agent_lessons
+
+        _taught = [
+            str(a.id) for a in (
+                db.query(AgentRegistry).limit(20).all())
+            if ChatOrchestrator._config_has_lessons(a.configuration)
+        ]
+        if not _taught:
+            return []
+        # AUTHORITY SCOPE (owner correction 2026-10-09): merging teaching
+        # from "top taught agents" is NOT a general authority rule —
+        # different hires may carry conflicting protocols. An agent-less
+        # turn uses ONE deterministic scope: the workspace's SINGLE
+        # agent with teaching when only one exists; when several do, the
+        # teaching of the hire whose lessons DESIGNATE the sources this
+        # derivation needs is used only if exactly one such hire exists;
+        # otherwise ambiguity stays explicit (no merged rules).
+        if len(_taught) > 1:
+            _designating: List[str] = []
+            for _aid in _taught:
+                _text = " ".join(
+                    str(l.get("lesson") or l.get("content") or "")
+                    for l in get_agent_lessons(
+                        db, _aid, query=query, limit=30))
+                if re.search(
+                        r"\b(?:workbook|price\s+lists?|spreadsheet|"
+                        r"xlsx?|workdrive)\b|\b(?:e-?mail|correspondence|"
+                        r"inbox|thread)s?\b",
+                        _text, re.IGNORECASE):
+                    _designating.append(_aid)
+            if len(_designating) == 1:
+                _taught = _designating
+            else:
+                # Several hires designate — merge only if their teaching
+                # is the SAME corpus (shared training), which is one
+                # authority under several names. Genuinely DIFFERENT
+                # teachings stay explicit: no silent merge of unrelated
+                # business rules (owner correction 2026-10-09).
+                _corpora = set()
+                for _aid in _designating:
+                    _ids = tuple(sorted(
+                        str(l.get("id") or "")[:16]
+                        for l in get_agent_lessons(
+                            db, _aid, query=query, limit=30)))
+                    _corpora.add(_ids)
+                if len(_corpora) == 1:
+                    logger.info(
+                        "[teaching-fallback] %d designating hires share "
+                        "ONE teaching corpus — single authority",
+                        len(_designating))
+                    _taught = _designating[:1]
+                else:
+                    logger.info(
+                        "[teaching-fallback] %d taught agents designate "
+                        "sources with DIFFERENT corpora — ambiguity "
+                        "stays explicit; teaching not merged",
+                        len(_corpora))
+                    return []
+        _merged: List[Dict[str, Any]] = []
+        _seen = set()
+        for _aid in _taught[:3]:
+            for _l in get_agent_lessons(db, _aid, query=query, limit=limit):
+                _k = str(_l.get("id") or _l.get("lesson") or "")
+                if _k and _k not in _seen:
+                    _seen.add(_k)
+                    _merged.append(_l)
+        return _merged[:limit + 5]
+
+    @staticmethod
+    def _config_has_lessons(configuration: Any) -> bool:
+        """Does this agent's configuration carry teaching? Takes the
+        CONFIG VALUE (the registry stores it as a JSON string), so the
+        taught-agent scan does not re-query per id."""
+        try:
+            import json as _json
+            _cfg = configuration
+            if isinstance(_cfg, str):
+                _cfg = _json.loads(_cfg)
+            _log = ((_cfg or {}).get("learning") or {}).get("log") or []
+            return bool(_log)
+        except Exception:  # noqa: BLE001 — probe is best-effort
+            return False
+
+    @staticmethod
+    def _agent_has_lessons(agent_id: str) -> bool:
+        """Cheap existence check for the agent-less teaching fallback."""
+        try:
+            import json as _json
+            from core.database import get_db_session
+            from core.models import AgentRegistry
+
+            with get_db_session() as db:
+                row = db.query(
+                    AgentRegistry.configuration).filter(
+                    AgentRegistry.id == agent_id).first()
+            if not row or not row[0]:
+                return False
+            _cfg = row[0]
+            if isinstance(_cfg, str):
+                _cfg = _json.loads(_cfg)
+            _log = ((_cfg or {}).get("learning") or {}).get("log") or []
+            return bool(_log)
+        except Exception:  # noqa: BLE001 — fallback probe is best-effort
+            return False
 
     def _agent_lessons(self, agent_id: Optional[str], query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """The operating hire's PERMANENT taught lessons (TrainingPanel /teach,
@@ -18540,7 +20046,26 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         every canvas app. Fault-isolated like the corrections lookup: [] on
         any failure, never blocks the edit."""
         if not agent_id:
-            return []
+            # TEACHING FALLBACK FOR AGENT-LESS TURNS (2026-10-09 value
+            # trial): a plain chat request carries no agent_id, so the
+            # lessons lookup returned [] — and with it the required-
+            # source derivation ('price list 2019 in zoho workdrive…')
+            # returned EMPTY, the planner-boundary chaining never fired,
+            # and the free planner routed the workbook check to memory/
+            # zoho instead of the subject-bound catalog lookup (live
+            # A3: required=[] while taught lessons name both sources).
+            # The fallback reads the hire's teaching from the agents
+            # that HAVE lessons in this workspace — scoped, read-only,
+            # and only when the turn names no hire of its own.
+            try:
+                from core.database import get_db_session
+
+                with get_db_session() as db:
+                    return self._lessons_from_taught_agents(
+                        db, query, limit)
+            except Exception as e:
+                logger.debug(f"agent lessons fallback skipped: {e}")
+                return []
         try:
             from core.database import get_db_session
             from core.student_learning_service import get_agent_lessons
@@ -18870,7 +20395,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         # preserves what the owner set, and annotates (never resolves)
         # the open choices.
         job_findings = self._canvas_job_findings(
-            user_id, canvas, session, message)
+            user_id, canvas, session, message, agent_id=agent_id)
         similar_corrections, correction_patterns = await self._cross_canvas_learnings(
             user_id, canvas, agent_id
         )
@@ -18916,10 +20441,44 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 if isinstance(
                     (shared_tool_state or {}).get("objective_evidence"), dict
                 )
-                else None
+                else (
+                    # PERSISTED-FINDINGS REUSE (2026-10-08 owner step 4):
+                    # the session's prior read (T1) already produced an
+                    # objective-evidence contract — reuse it instead of
+                    # re-researching every drafting attempt. Freshness is
+                    # the workbook revision: the editor re-validates ops
+                    # against the CURRENT canvas content, and a changed
+                    # workbook revision would miss (ops_no_longer_match)
+                    # rather than silently apply stale values.
+                    ((session.get("_pending_file_result") or {})
+                     .get("structured_result") or {})
+                    .get("objective_evidence")
+                    if isinstance(session, dict) and isinstance(
+                        (session.get("_pending_file_result") or {})
+                        .get("structured_result"), dict)
+                    else None
+                )
             ),
             authorized_actions=(
                 ["edit_artifact"] if _edit_requested else []
+            ),
+            request_scope=(
+                (shared_tool_state or {}).get("request_scope")
+                if isinstance(
+                    (shared_tool_state or {}).get("request_scope"), dict)
+                else None
+            ),
+            # RECEIPT-BASED REUSE (guide Repair 2): the session's
+            # durable findings carrier (prior turn's read or the value-
+            # trace chained confirmed-file read) satisfies the evidence
+            # need without a new provider call — freshness-labeled.
+            reused_findings=(
+                session.get("_pending_file_result")
+                if isinstance(session, dict) and isinstance(
+                    session.get("_pending_file_result"), dict)
+                and session["_pending_file_result"].get("status")
+                == "retrieved"
+                else None
             ),
         )
         if shared_tool_state is not None:
@@ -19129,6 +20688,37 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     shared_tool_state["canvas_edit_no_apply_reason"] = "planner_returned_none"
                 else:
                     shared_tool_state["canvas_edit_no_apply_reason"] = "planner_declined"
+                    # SERVED DECLINE (owner systemic item 3): a model that
+                    # ANSWERED wants_edit=False is a served decline — a
+                    # distinct outcome from timeout/unavailable/error/
+                    # returned-none. Its explanation is captured
+                    # separately; it must never be relabeled latency.
+                    shared_tool_state["canvas_planning_outcome"] = (
+                        "declined_noop" if plan is not None
+                        and not plan.wants_edit
+                        and not str(getattr(plan, "reply", "") or "").strip()
+                        else "declined")
+                    # NO-CHANGES-NEEDED DECLINE (2026-10-08 owner step 5,
+                    # live capture): a SERVED planner that declines
+                    # because "the draft already reflects the approved
+                    # prices; no changes were needed" is a COMPLETION
+                    # (nothing to change, nothing sent), not a failure —
+                    # the truthful terminal the case wants. The words ride
+                    # the shared state; the response assembly and the
+                    # continuation map them to an already-correct outcome.
+                    _decline_reply = str(
+                        getattr(plan, "reply", "") or "").strip()
+                    if _decline_reply and re.search(
+                            r"no\s+(?:\w+\s+){0,2}changes (?:were )?"
+                            r"needed|already (?:reflects|preserves|"
+                            r"includes|contains|matches|uses)|nothing "
+                            r"to change|no canvas changes",
+                            _decline_reply, re.IGNORECASE):
+                        shared_tool_state[
+                            "canvas_edit_decline_noop"] = True
+                        shared_tool_state[
+                            "canvas_edit_decline_reply"] = (
+                                _decline_reply[:300])
             return None
         if not _edit_requested:
             if shared_tool_state is not None:
@@ -19573,6 +21163,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             plan_task=(shared_tool_state or {}).get("plan_task"),
             existing_block=(shared_tool_state or {}).get("block"),
             allow_canvas_target=False,
+            request_scope=(
+                (shared_tool_state or {}).get("request_scope")
+                if isinstance(
+                    (shared_tool_state or {}).get("request_scope"), dict)
+                else None
+            ),
         )
         if shared_tool_state is not None:
             shared_tool_state["block"] = fresh.block or None
@@ -21077,7 +22673,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         _is_error_turn = bool(
             not _resp_dict.get("success", True)
             or _resp_dict.get("cancelled")
-            or _resp_dict.get("error_code") in ("no_llm_provider", "budget_exceeded")
+            or _resp_dict.get("error_code") in (
+                "no_llm_provider", "budget_exceeded", "turn_budget_exceeded")
             or (
                 _is_malformed_output is not None
                 and                 _is_malformed_output(
@@ -21375,6 +22972,44 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
     _OUTCOME_SECTION_MAX_ITEMS = 12
     _OUTCOME_SECTION_MAX_VALUES = 6
     _OUTCOME_SECTION_MAX_CHARS = 2400
+
+    def _required_source_order(
+        self,
+        agent_id: Optional[str],
+        message: str,
+    ) -> List[str]:
+        """Required research sources in the order the teaching NAMES them.
+
+        The deterministic recovery lookup picks the first UNCONSULTED
+        required source (2026-10-08 owner correction: never alphabetical
+        first). Lesson text order is the only order the job actually
+        states: whichever store the teaching mentions first is consulted
+        first; sources the resolver also requires but the lessons order
+        later follow. Unknown orders fall back to the resolver's set
+        order-of-discovery, which is stable and not alphabetical.
+        """
+        ordered: List[str] = []
+        try:
+            lessons = self._agent_lessons(agent_id, message, limit=10)
+            text = " ".join(
+                str(l.get("lesson") or l.get("summary") or "")
+                for l in (lessons or [])).lower()
+            for word, svc in (
+                    ("workbook", "datasets"), ("price list", "datasets"),
+                    ("spreadsheet", "datasets"), ("xlsx", "datasets"),
+                    ("workdrive", "datasets"),
+                    ("email", "outlook"), ("correspondence", "outlook"),
+                    ("inbox", "outlook"), ("attachment", "outlook"),
+                    ("thread", "outlook")):
+                if word in text and svc not in ordered:
+                    ordered.append(svc)
+        except Exception:  # noqa: BLE001 — ordering is additive
+            ordered = []
+        for svc in self._required_research_sources(
+                agent_id=agent_id, message=message):
+            if svc not in ordered:
+                ordered.append(svc)
+        return ordered
 
     def _required_research_sources(
         self,
