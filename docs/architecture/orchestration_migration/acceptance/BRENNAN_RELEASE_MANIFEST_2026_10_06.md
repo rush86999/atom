@@ -681,6 +681,20 @@ from declines.
 
 ### Fresh value trial 2 (2026-10-09, serving 34c4ed7e6-dirty)
 
+CORRECTED PER OWNER REVIEW: the ≈15-minute delta includes partial work
+and an unnecessary drafting task — it is NOT a measure of useful
+completion savings. Completion savings are claimable ONLY for task B.
+The actual candidate is **34c4ed7e6** (test-only dirty state recorded);
+earlier references to "761df9c47 plus fixes" are superseded — name the
+exact served identity.
+
+CORRECTED PER OWNER REVIEW: the ≈15-minute delta includes partial work
+and an unnecessary drafting task — it is NOT a measure of useful
+completion savings. Completion savings are claimable ONLY for task B.
+The actual candidate is **34c4ed7e6** (test-only dirty state recorded);
+earlier references to "761df9c47 plus fixes" are superseded — name the
+exact served identity.
+
 Three fresh sessions, zero interventions, timed. **≈15 minutes less
 time spent on the observed attempts** (199s app + ~125s review vs
 ~1,230s manual) — a time-spent delta, not completion savings.
