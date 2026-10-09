@@ -2611,6 +2611,16 @@ def _search_execution_receipt(
     # body-only answer for the cross-document question).
     vt_covered = {str(k): [str(d) for d in (v or [])]
                   for k, v in vt.items() if (v or [])}
+    # COVERAGE KEY PARITY (2026-10-09 A8): the executor stamps the
+    # trace under 'value_trace' while some readers expect
+    # 'value_trace_coverage' — read both so the chained confirmed-file
+    # read sees the coverage the trace actually produced.
+    for _vk in ("value_trace_coverage",):
+        _extra = meta.get(_vk) or {}
+        if isinstance(_extra, dict):
+            for k, v in _extra.items():
+                if v and str(k) not in vt_covered:
+                    vt_covered[str(k)] = [str(d) for d in v]
     structured = {}
     for k in ("structured_result", "workbook_read", "storage_read",
               "file_read"):

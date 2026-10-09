@@ -32,7 +32,13 @@ __all__ = [
 #: Bounded work: at most this many items traced, each across at most
 #: this many other files — the trace is evidence-gathering, not a scan.
 MAX_ITEMS = 8
-MAX_FILES = 12
+# 2026-10-09 (owner correction, dispatch≠retrieval): the trace walked
+# only the 12 most-recent file groups while the carrying workbook sat at
+# recency position 21 — the trace answered "no other document carries
+# it" for a file that does. Cover the catalog the caller already
+# bounded (find_entries_sync caps at 1000 entries); the per-file probe
+# is the cached one.
+MAX_FILES = 120
 
 
 def _default_probe(entries: Sequence[Dict[str, Any]], item: str) -> bool:
