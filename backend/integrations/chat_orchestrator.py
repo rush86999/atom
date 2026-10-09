@@ -4335,6 +4335,58 @@ def _canvas_id_from_context(context: Any) -> Optional[str]:
     return None
 
 
+#: The legacy template's completion claim. Served with success=true it
+#: reports unfinished work as completed — the false-completion shape
+#: this module's fallback-honesty gate replaces.
+_FALLBACK_COMPLETION_CLAIM = (
+    "I've processed your request across all connected platforms.")
+
+
+def _fallback_honesty_replacement(
+    main_message: Any,
+    used_model: Any,
+    feature_responses: Any,
+    context: Any,
+    canvas_ctx: Any,
+) -> Optional[str]:
+    """Honest replacement for a false template completion claim.
+
+    Fires ONLY when all hold: the served message is the exact
+    fallthrough completion claim, the deterministic template leg
+    rendered it, the turn delivered nothing (empty feature responses),
+    and the request carried canvas context (a canvas-attached work
+    turn). The replacement states the recorded outcome — failed (not
+    partial: no verdicts; not queued: nothing is underway) — what
+    remains unfinished, and an explicit retry. Returns None when the
+    reply must stand (genuine content, calc-lane delivery, contextless
+    turns, or anything actually delivered).
+    """
+    try:
+        if not isinstance(main_message, str):
+            return None
+        if main_message != _FALLBACK_COMPLETION_CLAIM:
+            return None
+        if str(used_model or "") != "template":
+            return None
+        if feature_responses:
+            return None
+        canvas_id = _canvas_id_from_context(context)
+        if not canvas_id:
+            return None
+        read = bool(
+            isinstance(canvas_ctx, dict)
+            and (canvas_ctx.get("content") is not None))
+        return (
+            "I couldn't complete your request just now"
+            " — nothing was retrieved or computed this "
+            "turn, so there is no result to report and "
+            "nothing is underway."
+            + (" The draft itself was read." if read else "")
+            + " Send another message to retry.")
+    except Exception:  # noqa: BLE001 — additive
+        return None
+
+
 def _stored_requested_items(session: Optional[Dict[str, Any]]) -> List[str]:
     """The active objective's ordered items, from the durable carriers on
     the session, in precedence order.
@@ -11453,6 +11505,28 @@ class ChatOrchestrator:
                         used_model = "calc-lane"
                         used_provider = "deterministic"
                 except Exception:  # noqa: BLE001 — delivery is additive
+                    pass
+                # FAILED-TURN HONESTY (owner directive 2026-10-09,
+                # measurement trial C1, session 3038c208): the modern
+                # lane collapsed (planning + replan timeouts under pool
+                # distress) with the draft retrieved but ZERO
+                # dispositions delivered — and the fallthrough line
+                # shipped as a SUCCESSFUL reply. The decision lives in
+                # _fallback_honesty_replacement (pinned directly); this
+                # call site only applies it.
+                try:
+                    _fb_replacement = _fallback_honesty_replacement(
+                        main_message, used_model,
+                        feature_responses, context, _canvas_ctx)
+                    if _fb_replacement:
+                        main_message = _fb_replacement
+                        logger.warning(
+                            "[fallback-honesty] template completion "
+                            "claim replaced with the recorded failed "
+                            "outcome (canvas=%s, execution=%s)",
+                            str(_canvas_id_from_context(context))[:8],
+                            str(_execution_id)[:8])
+                except Exception:  # noqa: BLE001 — additive
                     pass
 
             # Mentioned-file mini canvas (2026-09-23 revision): opens ONLY
