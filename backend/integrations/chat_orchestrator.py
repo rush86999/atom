@@ -4342,24 +4342,223 @@ _FALLBACK_COMPLETION_CLAIM = (
     "I've processed your request across all connected platforms.")
 
 
+def _fallback_turn_outcome(
+    session: Any,
+    execution_id: Any,
+    feature_responses: Any,
+    context: Any,
+    workspace_id: Any = None,
+    canvas_was_read: bool = False,
+) -> Dict[str, Any]:
+    """Resolve the turn's outcome from DURABLE records — never from the
+    reply's sentence or from dict non-emptiness alone.
+
+    Sources, in authority order:
+    1. the task lifecycle record (``session['_task_run_id']``) — its
+       unfinished-work snapshot and unresolved questions are the durable
+       continuation truth;
+    2. the session's delivered-result carriers (``_pending_file_result``
+       — findings THIS turn actually delivered);
+    3. the durable pending-input questions (a queued calculation
+       continuation);
+    4. the pending-file task carrier (work underway).
+
+    Returns ``{"state": ..., "open_work": [...], "delivered": bool}``
+    with state one of: failed / partial / continuation_queued /
+    completed / unconfirmed. Feature responses corroborate delivery only
+    via an explicit success + data payload — their emptiness proves
+    nothing about durable work.
+    """
+    state = {
+        "state": "unconfirmed", "open_work": [], "delivered": False}
+    try:
+        delivered = False
+        open_work: List[str] = []
+        # 1. the durable task record.
+        run_id = (session or {}).get("_task_run_id") if isinstance(
+            session, dict) else None
+        record = None
+        if run_id:
+            try:
+                from core.task_lifecycle import next_unfinished_work
+
+                tl = _task_lifecycle_for(
+                    None, workspace_id
+                    or (context or {}).get("workspace_id"))
+                record = tl.get_task(run_id) if tl else None
+                if record is not None:
+                    snap = next_unfinished_work(record) or {}
+                    open_work = [
+                        str(a.get("next_action"))
+                        for a in (snap.get("actions") or [])
+                        if a.get("next_action")]
+            except Exception:  # noqa: BLE001 — record stays best-effort
+                record = None
+        # Findings the turn's job actually carries (the durable
+        # evidence store — execution.findings on any operation): a turn
+        # whose values reached the operation record delivered, even
+        # when the session carriers are empty (owner work order: use
+        # the existing execution outcome records).
+        if isinstance(record, dict) and not delivered:
+            try:
+                for _op in (record.get("operations") or []):
+                    _ex = _op.get("execution") if isinstance(
+                        _op, dict) else None
+                    if isinstance(_ex, dict) and _ex.get("findings"):
+                        delivered = True
+                        break
+            except Exception:  # noqa: BLE001 — additive
+                pass
+        # 2. findings this turn actually delivered.
+        if isinstance(session, dict):
+            result = session.get("_pending_file_result")
+            if isinstance(result, dict) and (
+                    result.get("structured_result")
+                    or result.get("findings")
+                    or result.get("rows")):
+                delivered = True
+        # Feature responses NEVER assert delivery (owner work order:
+        # "do not infer … from dictionary non-emptiness alone") — the
+        # legacy handlers return stub payloads like
+        # {"success": true, "data": {"message": "AI Analytics logic
+        # here"}} and empty result lists, which is precisely the
+        # false-delivery shape. Delivery is the durable carriers above
+        # and the task record's findings.
+        # 3./4. recorded obligations vs queued background work —
+        # NEVER conflated (owner work order: do not imply background
+        # work unless it exists). Pending-input questions, the
+        # pending-file task, and the turn's own open-work snapshot are
+        # RECORDED obligations (resumable next turn); only a genuine
+        # async continuation means work is running in the background.
+        if isinstance(session, dict):
+            try:
+                from core.pricing_calculation import (
+                    _open_pending_questions,
+                )
+
+                if _open_pending_questions(
+                        (session or {}).get("id"),
+                        workspace_id
+                        or (context or {}).get("workspace_id")):
+                    open_work.append(
+                        "a calculation waiting on your missing inputs")
+            except Exception:  # noqa: BLE001 — additive
+                pass
+            task = session.get("_pending_file_task")
+            if isinstance(task, dict) and (
+                    task.get("requested_targets")
+                    or task.get("item")):
+                open_work.append(
+                    str(task.get("objective") or task.get("item")
+                        or "the requested file read"))
+        # The turn's OWN open-work snapshot (written at the multi-source
+        # settle seam, still on the session when the fallback gate runs —
+        # the envelope pops it later): remaining obligations the turn
+        # itself recorded.
+        if isinstance(session, dict):
+            snap = session.get("_last_open_work")
+            if isinstance(snap, dict):
+                for a in (snap.get("actions") or []):
+                    if a.get("next_action"):
+                        open_work.append(str(a["next_action"]))
+        # Genuine async continuation ONLY: the in-process claim or a
+        # durable running continuation execution for this session. Open
+        # questions and pending tasks resume next turn — they are not
+        # background work.
+        continuation = False
+        try:
+            _sess_id = ((session or {}).get("id")
+                        or (session or {}).get("session_id"))
+            if _sess_id:
+                from core.async_turn_continuation import (
+                    continuation_in_flight,
+                )
+
+                if continuation_in_flight(str(_sess_id)):
+                    continuation = True
+        except Exception:  # noqa: BLE001 — additive
+            pass
+        # Map to the state. A canvas that WAS read (or a durable task
+        # record) is evidence work started — nothing delivered after
+        # that is a failure, not an unknown (the C1 shape). With no
+        # record, no read, and no delivery the outcome is genuinely
+        # unverifiable.
+        if delivered and not open_work:
+            state["state"] = "completed"
+        elif delivered:
+            state["state"] = "partial"
+        elif continuation:
+            state["state"] = "continuation_queued"
+        elif canvas_was_read or record is not None:
+            state["state"] = "failed"
+        else:
+            state["state"] = "unconfirmed"
+        state["open_work"] = open_work[:4]
+        state["delivered"] = delivered
+    except Exception:  # noqa: BLE001 — the gate never blocks the turn
+        state = {"state": "unconfirmed", "open_work": [],
+                 "delivered": False}
+    return state
+
+
+def _fallback_outcome_text(outcome: Dict[str, Any],
+                           canvas_was_read: bool = False) -> str:
+    """The honest reply text for a resolved fallback outcome."""
+    state = outcome.get("state")
+    work = "; ".join(outcome.get("open_work") or [])
+    read_note = (" The draft itself was read." if canvas_was_read else "")
+    if state == "failed":
+        return ("I couldn't complete your request just now"
+                " — nothing was retrieved or computed this "
+                "turn, so there is no result to report."
+                + read_note
+                + (f" Still open: {work}." if work else "")
+                + " Send another message to retry.")
+    if state == "partial":
+        return ("Here is what I have so far — the rest of this "
+                "request is still open"
+                + (f" ({work})" if work else "") + "."
+                + read_note + " Tell me to continue and I will.")
+    if state == "continuation_queued":
+        return ("I couldn't finish this turn — "
+                + (work or "the work") + " is still queued and "
+                "nothing has been delivered yet."
+                + read_note + " Send another message to pick it up.")
+    if state == "completed":
+        return ("Your request completed this turn."
+                + read_note)
+    return ("I couldn't confirm what happened with your request "
+            "just now — no result was delivered and I can't verify "
+            "the turn's outcome."
+            + read_note + " Please try again.")
+
+
+_FALLBACK_OUTCOME_ERROR_CODES = {
+    "failed": "turn_failed_no_result",
+    "unconfirmed": "outcome_unconfirmed",
+}
+
+
 def _fallback_honesty_replacement(
     main_message: Any,
     used_model: Any,
     feature_responses: Any,
     context: Any,
     canvas_ctx: Any,
-) -> Optional[str]:
+    session: Any = None,
+    execution_id: Any = None,
+) -> Optional[Dict[str, Any]]:
     """Honest replacement for a false template completion claim.
 
-    Fires ONLY when all hold: the served message is the exact
-    fallthrough completion claim, the deterministic template leg
-    rendered it, the turn delivered nothing (empty feature responses),
-    and the request carried canvas context (a canvas-attached work
-    turn). The replacement states the recorded outcome — failed (not
-    partial: no verdicts; not queued: nothing is underway) — what
-    remains unfinished, and an explicit retry. Returns None when the
-    reply must stand (genuine content, calc-lane delivery, contextless
-    turns, or anything actually delivered).
+    Fires when the served message is the exact fallthrough completion
+    claim AND the deterministic template leg rendered it. The outcome is
+    resolved from durable records (``_fallback_turn_outcome``) — canvas
+    context is NOT required: a standalone work request earns the same
+    honest treatment. Returns ``None`` when the reply must stand
+    (genuine content, calc-lane delivery, anything actually delivered
+    as claimed); otherwise a dict of ``{"message", "outcome"}`` so the
+    caller can align the machine-readable status and persisted metadata
+    with the text.
     """
     try:
         if not isinstance(main_message, str):
@@ -4368,21 +4567,16 @@ def _fallback_honesty_replacement(
             return None
         if str(used_model or "") != "template":
             return None
-        if feature_responses:
-            return None
-        canvas_id = _canvas_id_from_context(context)
-        if not canvas_id:
-            return None
         read = bool(
             isinstance(canvas_ctx, dict)
             and (canvas_ctx.get("content") is not None))
-        return (
-            "I couldn't complete your request just now"
-            " — nothing was retrieved or computed this "
-            "turn, so there is no result to report and "
-            "nothing is underway."
-            + (" The draft itself was read." if read else "")
-            + " Send another message to retry.")
+        outcome = _fallback_turn_outcome(
+            session, execution_id, feature_responses, context,
+            (context or {}).get("workspace_id") if isinstance(
+                context, dict) else None,
+            canvas_was_read=read)
+        return {"message": _fallback_outcome_text(outcome, read),
+                "outcome": outcome}
     except Exception:  # noqa: BLE001 — additive
         return None
 
@@ -11513,17 +11707,24 @@ class ChatOrchestrator:
                 # dispositions delivered — and the fallthrough line
                 # shipped as a SUCCESSFUL reply. The decision lives in
                 # _fallback_honesty_replacement (pinned directly); this
-                # call site only applies it.
+                # call site only applies it. OUTCOME-ALIGNED (owner work
+                # order 2026-10-09): the replacement carries the record-
+                # resolved outcome so the envelope's machine status and
+                # the persisted metadata agree with the text — and the
+                # gate is GENERAL (no canvas requirement).
                 try:
                     _fb_replacement = _fallback_honesty_replacement(
                         main_message, used_model,
-                        feature_responses, context, _canvas_ctx)
+                        feature_responses, context, _canvas_ctx,
+                        session=session, execution_id=_execution_id)
                     if _fb_replacement:
-                        main_message = _fb_replacement
+                        main_message = _fb_replacement["message"]
+                        _fallback_outcome = _fb_replacement["outcome"]
                         logger.warning(
                             "[fallback-honesty] template completion "
-                            "claim replaced with the recorded failed "
+                            "claim replaced with the recorded %s "
                             "outcome (canvas=%s, execution=%s)",
+                            _fallback_outcome.get("state"),
                             str(_canvas_id_from_context(context))[:8],
                             str(_execution_id)[:8])
                 except Exception:  # noqa: BLE001 — additive
@@ -11737,9 +11938,23 @@ class ChatOrchestrator:
                     for d in (_open_work_snapshot.get("owner_decisions")
                               or [])][:2]
 
+            # FALLBACK OUTCOME ALIGNMENT (owner work order 2026-10-09):
+            # when the honesty gate replaced the template completion
+            # claim, the machine-readable status must agree with the
+            # text — an execution failure (or an unconfirmable turn)
+            # never ships a success envelope, whatever the failure
+            # wording says. Partial/continuation states keep the
+            # established success semantics (something is delivered or
+            # durably queued) and carry the outcome explicitly.
+            _fb_outcome = locals().get("_fallback_outcome") or None
+            _fb_failed = bool(_fb_outcome and _fb_outcome.get(
+                "state") in ("failed", "unconfirmed"))
+
             response = {
-                "success": not budget_failure and not locals().get(
-                    "_llm_provider_failed"),
+                "success": (
+                    not budget_failure
+                    and not locals().get("_llm_provider_failed")
+                    and not _fb_failed),
                 "message": budget_failure["message"] if budget_failure else main_message,
                 "session_id": session["id"],
                 # Lets the client finalize THIS turn's streamed bubble (and
@@ -11755,6 +11970,14 @@ class ChatOrchestrator:
                 "timestamp": datetime.now().isoformat(),
                 "model": used_model,
                 "provider": used_provider,
+                # OUTCOME FIELD (owner work order): the record-resolved
+                # state rides the envelope AND the persisted metadata so
+                # text, machine status, and history agree.
+                "outcome": _fb_outcome.get("state") if _fb_outcome else None,
+                "error_code": (
+                    _FALLBACK_OUTCOME_ERROR_CODES.get(
+                        _fb_outcome.get("state"))
+                    if _fb_failed else None),
                 "deterministic_delivery": bool(
                     (ai_response or {}).get("deterministic_delivery")
                 ),
@@ -22176,12 +22399,35 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         # Generate main response message
         main_message = self._generate_main_message(message, intent_analysis, feature_responses)
 
+        # OUTCOME ALIGNMENT (owner work order 2026-10-09): the legacy
+        # envelope hardcoded success=true even when the generated
+        # message was the template completion claim over zero delivered
+        # work. When (and only when) the claim text is present, resolve
+        # the recorded outcome and let it govern — text, success, and
+        # the outcome field agree. Non-claim messages keep the
+        # established envelope semantics.
+        outcome: Optional[Dict[str, Any]] = None
+        if main_message == _FALLBACK_COMPLETION_CLAIM:
+            outcome = _fallback_turn_outcome(
+                session, (session or {}).get("_last_execution_id"),
+                feature_responses, None,
+                (session or {}).get("workspace_id"))
+            if outcome.get("state") != "completed":
+                main_message = _fallback_outcome_text(outcome)
+
+        _coordinated_failed = bool(
+            outcome and outcome.get("state") in ("failed", "unconfirmed"))
+
         return {
-            "success": True,
+            "success": not _coordinated_failed,
             "message": main_message,
             "session_id": session["id"],
             "intent": intent_analysis["primary_intent"].value,
             "confidence": intent_analysis["confidence"],
+            "outcome": outcome.get("state") if outcome else None,
+            "error_code": (
+                _FALLBACK_OUTCOME_ERROR_CODES.get(outcome.get("state"))
+                if _coordinated_failed else None),
             "data": combined_data,
             "suggested_actions": suggested_actions[:5],  # Limit to top 5
             "ui_updates": ui_updates,

@@ -517,6 +517,7 @@ class ChatMessageResponse(BaseModel):
     error_code: Optional[str] = Field(None, description="Structured error code (e.g. no_llm_provider, budget_exceeded)")
     failure_reason: Optional[str] = Field(None, description="Machine-readable cause for structured errors (e.g. provider_credits_exhausted). The orchestrator and the M1 finalizer both carry it — undeclared here it was silently DROPPED at route serialization (case-5 finding, 2026-10-06), so clients could never render the distinct retry/top-up UI the backend promised.")
     recovery_url: Optional[str] = Field(None, description="Recovery URL for structured errors")
+    outcome: Optional[str] = Field(None, description="Record-resolved turn outcome: failed / partial / continuation_queued / completed / unconfirmed. Present when the fallback honesty gate aligned the envelope with the recorded state — the machine status agrees with the reply text.")
 
 
 class ChatHistoryRequest(BaseModel):
@@ -2281,6 +2282,7 @@ async def send_chat_message(
             # distinct retry/top-up UI the fields exist for.
             failure_reason=response.get("failure_reason"),
             recovery_url=response.get("recovery_url"),
+            outcome=response.get("outcome"),
         )
         _complete_transport_request(db, _treq, _final)
         return _final
