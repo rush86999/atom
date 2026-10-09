@@ -816,6 +816,16 @@ not a code issue. No further code repair is indicated.
   pre-evidence boundary; the remaining constraint is the same
   provider latency
 
+### CONTENT-READ SETTLEMENT CHAIN COMPLETE (2026-10-09)
+
+The read → settle → fresh-reload → drafting-contract chain is verified
+live. The subject-bound search dispatches with the resolved subject,
+the confirmed-file read produces row values, `record_read_outcome`
+persists typed findings on the task lifecycle, and the drafting
+adapter's `_canvas_job_findings` reads them from the operation record.
+Verified through the public canvas and history APIs on the serving
+stack. No incorrect answers in any recorded trial.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
