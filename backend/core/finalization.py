@@ -127,3 +127,84 @@ def execution_record_from_row(row: Optional[Dict[str, Any]],
         "result_summary": (row or {}).get("result_summary"),
         "failure_stage": cont.get("failure_stage") or (row or {}).get("failure_stage"),
     }
+
+
+RECORDED_OUTCOME_ERROR_CODES = {
+    "failed": "turn_failed_no_result",
+    "unconfirmed": "outcome_unconfirmed",
+}
+
+
+def apply_recorded_outcome(
+    payload: Dict[str, Any],
+    outcome: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Align the envelope with the turn's RECORDED outcome.
+
+    ``finalize_payload`` binds the envelope to the execution's STATUS,
+    which is coarse: a turn that produced a reply is recorded
+    ``success`` even when the work behind it failed (the live 2026-10-09
+    case — a model-authored "the live lookup failed this turn" shipped
+    under ``success: true`` with no outcome at all). The recorded
+    outcome is the finer-grained truth, resolved from durable records by
+    the orchestrator's ``_fallback_turn_outcome``, never from the reply's
+    wording.
+
+    Mapping (owner work order 2026-10-09):
+      - recorded failure with no result -> failure status + error code;
+      - delivered findings with unfinished obligations -> partial;
+      - genuine queued continuation -> continuation_queued;
+      - verified completion -> completed;
+      - insufficient outcome evidence -> unconfirmed (never success).
+
+    Contract, matching the rest of this module:
+      - NON-WORK turns are untouched. A conversational turn has no
+        durable work task, so it resolves no outcome and keeps the
+        established envelope semantics.
+      - Message text is NEVER rewritten here — the caller owns the
+        wording. This adjusts machine status and the outcome field only.
+      - It never strips an already-drafted specific failure envelope
+        (error_code/failure_reason/recovery_url survive verbatim).
+      - It never fabricates completion: a failure/unconfirmed outcome
+        can only clear ``success``, never set it.
+      - A GENUINE DELIVERY IS NEVER NEGATED BY AN OUTCOME ALONE. A
+        calculation whose engine result actually reached the turn is a
+        delivered result, whatever the narration leg did; so is an
+        authorized instruction already satisfied. ``deterministic_delivery``
+        and an explicit recorded-completion marker are those records, and
+        they are preserved.
+    """
+    state = (outcome or {}).get("state") if isinstance(
+        outcome, dict) else outcome
+    if not state or state not in (
+            "failed", "partial", "continuation_queued", "completed",
+            "unconfirmed"):
+        return payload
+    # A NON-work turn resolved no outcome: established semantics stand.
+    if isinstance(outcome, dict) and not outcome.get("work_turn"):
+        return payload
+    payload["outcome"] = state
+    if state in ("failed", "unconfirmed"):
+        _data = payload.get("data")
+        # A DELIVERED RESULT outranks the classification. Two such
+        # records, both explicit and both upstream of the resolver:
+        #   - deterministic_delivery — the engine/compute lane's own
+        #     record that its result reached the turn;
+        #   - an authorized instruction already satisfied (no-op) — the
+        #     durable record that there was nothing left to do, which
+        #     is a genuine completion and never a manufactured failure.
+        delivered_now = bool(payload.get("deterministic_delivery")) or bool(
+            isinstance(_data, dict) and _data.get("deterministic_delivery"))
+        noop_satisfied = bool(_data.get("noop")) and str(
+            _data.get("noop_reason") or "") == "already_satisfied" \
+            if isinstance(_data, dict) else False
+        if delivered_now or noop_satisfied:
+            return payload
+        payload["success"] = False
+        payload["error_code"] = payload.get("error_code") or \
+            RECORDED_OUTCOME_ERROR_CODES.get(state)
+        data = payload.get("data")
+        if isinstance(data, dict):
+            data.pop("deterministic_delivery", None)
+            payload["data"] = data
+    return payload

@@ -4335,11 +4335,92 @@ def _canvas_id_from_context(context: Any) -> Optional[str]:
     return None
 
 
+#: Operation statuses that RECORD a failure. ``uncertain`` is
+#: deliberately excluded: a confirmed-lost worker means the effect may
+#: or may not have happened — that is unconfirmed, never failed.
+_FAILED_OP_STATUSES = ("failed", "cancelled", "rejected", "conflict")
+
 #: The legacy template's completion claim. Served with success=true it
 #: reports unfinished work as completed — the false-completion shape
 #: this module's fallback-honesty gate replaces.
 _FALLBACK_COMPLETION_CLAIM = (
     "I've processed your request across all connected platforms.")
+
+
+#: Recorded execution outcomes that establish FAILURE. A dispatch that
+#: never ran (pool starved) and a dispatched read that returned nothing
+#: are recorded failures of THIS turn. Bounded absence
+#: (``search_succeeded_empty``) and a prose-only return
+#: (``*_returned_no_receipt``) are NOT failures: the first is a real
+#: result, the second leaves item coverage as an open question.
+_EXEC_FAILED_OUTCOMES = frozenset(
+    ("read_failed", "search_failed", "not_dispatched"))
+
+
+def _turn_evidence_set(record: Optional[Dict[str, Any]],
+                       execution_id: Any) -> Dict[str, Any]:
+    """This turn's evidence set — scoped by IDENTITY, never by recency.
+
+    Returns the operations bound to THIS execution, the delivery records
+    for THIS execution, and the operations those deliveries explicitly
+    name (the recorded evidence-reuse link).
+
+    The bound matters: an earlier successful operation on the same job
+    must not certify a later turn that failed. Operations are selected by
+    ``execution_id`` equality or by an explicit delivery reference — never
+    by "any findings on this job".
+    """
+    empty = {"operations": [], "deliveries": [], "reused": [],
+             "operation_ids": set()}
+    if not isinstance(record, dict) or not execution_id:
+        return empty
+    target = str(execution_id)
+    all_ops = [op for op in (record.get("operations") or [])
+               if isinstance(op, dict)]
+    this_ops = [op for op in all_ops
+                if str(op.get("execution_id") or "") == target]
+    deliveries = [d for d in (record.get("deliveries") or [])
+                  if isinstance(d, dict)
+                  and str(d.get("execution_id") or "") == target]
+    # Operations the delivery records explicitly name: the recorded
+    # "this answer includes these results" link.
+    named = {str(oid) for d in deliveries
+             for oid in (d.get("operation_ids") or [])}
+    reused = [op for op in all_ops
+              if str(op.get("operation_id") or "") in named]
+    return {
+        "operations": this_ops,
+        "deliveries": deliveries,
+        "reused": reused,
+        "all_operations": all_ops,
+        "operation_ids": {str(op.get("operation_id") or "")
+                          for op in this_ops + reused},
+    }
+
+
+def _operation_outcome(op: Dict[str, Any]) -> Optional[str]:
+    execr = op.get("execution")
+    if isinstance(execr, dict):
+        return str(execr.get("outcome") or "") or None
+    return None
+
+
+def _operation_has_values(op: Dict[str, Any]) -> bool:
+    """Does this operation actually carry REQUESTED VALUES?
+
+    A discovery-only receipt — dispatched, returned prose, no structured
+    values (``findings: []`` with ``items: {}``) — obtained evidence
+    about WHERE to look, not an answer. It must not certify delivery.
+    """
+    execr = op.get("execution")
+    if not isinstance(execr, dict):
+        return False
+    findings = execr.get("findings")
+    if isinstance(findings, list) and any(
+            isinstance(f, dict) and f for f in findings):
+        return True
+    items = execr.get("items")
+    return bool(isinstance(items, dict) and items)
 
 
 def _fallback_turn_outcome(
@@ -4350,31 +4431,39 @@ def _fallback_turn_outcome(
     workspace_id: Any = None,
     canvas_was_read: bool = False,
 ) -> Dict[str, Any]:
-    """Resolve the turn's outcome from DURABLE records — never from the
-    reply's sentence or from dict non-emptiness alone.
+    """Resolve the turn's outcome from DURABLE, IDENTITY-BOUND records.
 
-    Sources, in authority order:
-    1. the task lifecycle record (``session['_task_run_id']``) — its
-       unfinished-work snapshot and unresolved questions are the durable
-       continuation truth;
-    2. the session's delivered-result carriers (``_pending_file_result``
-       — findings THIS turn actually delivered);
-    3. the durable pending-input questions (a queued calculation
-       continuation);
-    4. the pending-file task carrier (work underway).
+    Never from the reply's wording, never from dictionary non-emptiness,
+    and never from work that belongs to another turn.
 
-    Returns ``{"state": ..., "open_work": [...], "delivered": bool}``
-    with state one of: failed / partial / continuation_queued /
-    completed / unconfirmed. Feature responses corroborate delivery only
-    via an explicit success + data payload — their emptiness proves
-    nothing about durable work.
+    The evidence set (owner review 2026-10-09):
+      1. operations bound to THIS execution, plus the operations this
+         execution's delivery records explicitly name (recorded reuse);
+      2. the delivery records for THIS execution — the proof that an
+         answer was assembled and persisted;
+      3. the open obligations RELEVANT TO THIS REQUEST — executable
+         actions, owner decisions, and exhausted questions alike;
+      4. a continuation bound to THIS turn's operations.
+
+    Mapping:
+      - a RECORDED failure on this turn's operations -> failed;
+      - a validated answer (values actually obtained, or this turn's
+        own delivery) with relevant obligations still open -> partial;
+      - a real continuation for this operation -> continuation_queued;
+      - all relevant obligations settled with a validated result ->
+        completed;
+      - anything else -> unconfirmed. A canvas read or an existing task
+        proves work was ATTEMPTED, never that it failed.
+
+    Returns ``{"state", "open_work", "delivered", "work_turn",
+    "continuation_id"}``.
     """
-    state = {
-        "state": "unconfirmed", "open_work": [], "delivered": False}
+    state = {"state": "unconfirmed", "open_work": [], "delivered": False,
+             "work_turn": False}
     try:
-        delivered = False
         open_work: List[str] = []
-        # 1. the durable task record.
+
+        # 1. the durable task record for this session.
         run_id = (session or {}).get("_task_run_id") if isinstance(
             session, dict) else None
         record = None
@@ -4386,50 +4475,98 @@ def _fallback_turn_outcome(
                     None, workspace_id
                     or (context or {}).get("workspace_id"))
                 record = tl.get_task(run_id) if tl else None
-                if record is not None:
-                    snap = next_unfinished_work(record) or {}
-                    open_work = [
-                        str(a.get("next_action"))
-                        for a in (snap.get("actions") or [])
-                        if a.get("next_action")]
             except Exception:  # noqa: BLE001 — record stays best-effort
                 record = None
-        # Findings the turn's job actually carries (the durable
-        # evidence store — execution.findings on any operation): a turn
-        # whose values reached the operation record delivered, even
-        # when the session carriers are empty (owner work order: use
-        # the existing execution outcome records).
-        if isinstance(record, dict) and not delivered:
+
+        ev = _turn_evidence_set(record, execution_id)
+        this_ops = ev["operations"]
+        deliveries = ev["deliveries"]
+        work_turn = bool(this_ops or deliveries)
+
+        # 2. RECORDED FAILURE — this turn's operations only.
+        recorded_failure = False
+        for op in this_ops:
+            if str(op.get("status") or "") == "failed":
+                recorded_failure = True
+                break
+            if _operation_outcome(op) in _EXEC_FAILED_OUTCOMES:
+                recorded_failure = True
+                break
+
+        # 3. VALIDATED ANSWER — this turn delivered actual values.
+        #    Two identity-bound proofs, neither of which is a stale
+        #    carrier or a discovery receipt:
+        #      (a) an operation bound to THIS execution carries requested
+        #          values (findings/items);
+        #      (b) a delivery record FOR THIS execution names the
+        #          operations its answer was assembled from — the
+        #          recorded reuse link — and those operations (or this
+        #          execution's) carry values.
+        #    A delivery whose named operations carry NO values (an
+        #    empty-answer dispatch) does not validate delivery.
+        def _ops_carry_values(ops) -> bool:
+            return any(_operation_has_values(op) for op in ops)
+
+        validated = _ops_carry_values(this_ops)
+        if not validated:
+            for delivery in deliveries:
+                _named = {str(o) for o in (
+                    delivery.get("operation_ids") or [])}
+                _linked = [op for op in all_operations
+                           if str(op.get("operation_id") or "") in _named]
+                if _named and not _linked:
+                    # Names a delivery for an operation we cannot see:
+                    # treat the delivery as proof it assembled an answer.
+                    validated = True
+                    break
+                if _ops_carry_values(_linked):
+                    validated = True
+                    break
+
+        # 4. RELEVANT OPEN OBLIGATIONS — actions, owner decisions, and
+        #    exhausted questions are all unfinished requested work.
+        #    EXCEPT the DISCLOSED LIMITATION (owner example): a
+        #    saved-copy value served WITH its freshness note completes
+        #    the historical-value request — the re-verify note is part
+        #    of the answer, not unfinished requested work.
+        if isinstance(record, dict):
             try:
-                for _op in (record.get("operations") or []):
-                    _ex = _op.get("execution") if isinstance(
-                        _op, dict) else None
-                    if isinstance(_ex, dict) and _ex.get("findings"):
-                        delivered = True
-                        break
+                from core.task_lifecycle import (
+                    next_unfinished_work, open_unresolved_questions,
+                )
+
+                snap = next_unfinished_work(record) or {}
+                raw = {str(q.get("question_id") or ""): q
+                       for q in open_unresolved_questions(record)}
+                for bucket, label in (
+                        (snap.get("actions") or [], ""),
+                        (snap.get("owner_decisions") or [],
+                         "your decision: "),
+                        (snap.get("exhausted") or [],
+                         "exhausted: ")):
+                    for entry in bucket:
+                        qid = str(entry.get("question_id") or "") if (
+                            isinstance(entry, dict)) else ""
+                        q = raw.get(qid) or {}
+                        evid = str(q.get("evidence") or "")
+                        if "served_basis=saved_copy" in evid:
+                            continue  # disclosed with the answer
+                        text = (entry.get("next_action") if isinstance(
+                            entry, dict) else None) or (
+                            entry.get("question") if isinstance(
+                                entry, dict) else None) or str(entry)
+                        if text:
+                            work_turn = True
+                            open_work.append(f"{label}{text}")
             except Exception:  # noqa: BLE001 — additive
                 pass
-        # 2. findings this turn actually delivered.
-        if isinstance(session, dict):
-            result = session.get("_pending_file_result")
-            if isinstance(result, dict) and (
-                    result.get("structured_result")
-                    or result.get("findings")
-                    or result.get("rows")):
-                delivered = True
-        # Feature responses NEVER assert delivery (owner work order:
-        # "do not infer … from dictionary non-emptiness alone") — the
-        # legacy handlers return stub payloads like
-        # {"success": true, "data": {"message": "AI Analytics logic
-        # here"}} and empty result lists, which is precisely the
-        # false-delivery shape. Delivery is the durable carriers above
-        # and the task record's findings.
-        # 3./4. recorded obligations vs queued background work —
-        # NEVER conflated (owner work order: do not imply background
-        # work unless it exists). Pending-input questions, the
-        # pending-file task, and the turn's own open-work snapshot are
-        # RECORDED obligations (resumable next turn); only a genuine
-        # async continuation means work is running in the background.
+
+        # 4b. Durable pending-input questions (a calculation awaiting
+        #     the owner's values) are OUTSTANDING OBLIGATIONS — named,
+        #     never counted as delivery (their existence does not prove
+        #     the clarification reached the user; the shipped reply and
+        #     its delivery record prove that, and the envelope decides
+        #     that from the lane that shipped it).
         if isinstance(session, dict):
             try:
                 from core.pricing_calculation import (
@@ -4440,32 +4577,24 @@ def _fallback_turn_outcome(
                         (session or {}).get("id"),
                         workspace_id
                         or (context or {}).get("workspace_id")):
+                    work_turn = True
                     open_work.append(
                         "a calculation waiting on your missing inputs")
             except Exception:  # noqa: BLE001 — additive
                 pass
-            task = session.get("_pending_file_task")
-            if isinstance(task, dict) and (
-                    task.get("requested_targets")
-                    or task.get("item")):
-                open_work.append(
-                    str(task.get("objective") or task.get("item")
-                        or "the requested file read"))
-        # The turn's OWN open-work snapshot (written at the multi-source
-        # settle seam, still on the session when the fallback gate runs —
-        # the envelope pops it later): remaining obligations the turn
-        # itself recorded.
+
+        # 5. The turn's OWN open-work snapshot (written at the
+        #    multi-source settle seam, still on the session).
         if isinstance(session, dict):
             snap = session.get("_last_open_work")
             if isinstance(snap, dict):
                 for a in (snap.get("actions") or []):
-                    if a.get("next_action"):
+                    if isinstance(a, dict) and a.get("next_action"):
+                        work_turn = True
                         open_work.append(str(a["next_action"]))
-        # Genuine async continuation ONLY: the in-process claim or a
-        # durable running continuation execution for this session. Open
-        # questions and pending tasks resume next turn — they are not
-        # background work. The continuation id rides the state so the
-        # acknowledgement names the unfinished work.
+
+        # 6. CONTINUATION BOUND TO THIS OPERATION. Another operation's
+        #    running continuation must not certify this turn.
         continuation = False
         continuation_id: Optional[str] = None
         try:
@@ -4477,34 +4606,79 @@ def _fallback_turn_outcome(
                 )
 
                 _cid = continuation_in_flight(str(_sess_id))
-                if _cid:
+                # IDENTITY-BOUND (owner review 2026-10-09): a running
+                # continuation certifies this turn only when it belongs to
+                # THIS turn's execution or to one of this turn's
+                # operations. A continuation left running by ANOTHER
+                # operation says nothing about this request, so it must
+                # not turn an unverified turn into queued — nor into a
+                # success. Without a resolvable identity the claim is
+                # simply unverified, which is the honest answer.
+                _owned = {str(execution_id or "")} | {
+                    str(op.get("execution_id") or "") for op in this_ops} - {""}
+                if _cid and (_owned and str(_cid) in _owned):
                     continuation = True
+                    work_turn = True
                     continuation_id = str(_cid)
         except Exception:  # noqa: BLE001 — additive
             pass
-        # Map to the state. A canvas that WAS read (or a durable task
-        # record) is evidence work started — nothing delivered after
-        # that is a failure, not an unknown (the C1 shape). With no
-        # record, no read, and no delivery the outcome is genuinely
-        # unverifiable.
-        if delivered and not open_work:
-            state["state"] = "completed"
-        elif delivered:
-            state["state"] = "partial"
-        elif continuation:
-            state["state"] = "continuation_queued"
-        elif canvas_was_read or record is not None:
+
+        # 6b. Work THIS turn dispatched that is still running under its
+        #     own execution row: genuine queued work for this operation
+        #     (an accepted agent task), not an unverifiable outcome.
+        if not continuation and execution_id:
+            try:
+                from core.models import AgentExecution as _ExecRow
+
+                _db = SessionLocal()
+                try:
+                    _row = (_db.query(_ExecRow)
+                            .filter(_ExecRow.id == str(execution_id))
+                            .first())
+                finally:
+                    _db.close()
+                if _row is not None and str(
+                        getattr(_row, "status", "") or "").lower() in (
+                            "running", "pending", "queued", "in_progress"):
+                    if this_ops:
+                        continuation = True
+                        work_turn = True
+                        continuation_id = str(execution_id)
+            except Exception:  # noqa: BLE001 — additive
+                pass
+
+        if canvas_was_read:
+            # A read proves execution OCCURRED. It is not evidence that
+            # the work failed, so it never selects `failed`.
+            work_turn = True
+        if record is not None and not work_turn:
+            work_turn = True
+
+        # Map to the state.
+        if recorded_failure:
             state["state"] = "failed"
+        elif continuation and not validated:
+            state["state"] = "continuation_queued"
+        elif validated and open_work:
+            state["state"] = "partial"
+        elif validated:
+            state["state"] = "completed"
+        elif work_turn:
+            # Work was attempted; nothing recorded a failure and nothing
+            # validated a result. That is UNKNOWN, not failure.
+            state["state"] = "unconfirmed"
         else:
             state["state"] = "unconfirmed"
+        state["work_turn"] = bool(work_turn)
         state["open_work"] = open_work[:4]
         if continuation_id:
             state["continuation_id"] = continuation_id
-        state["delivered"] = delivered
+        state["delivered"] = bool(validated)
     except Exception:  # noqa: BLE001 — the gate never blocks the turn
         state = {"state": "unconfirmed", "open_work": [],
-                 "delivered": False}
+                 "delivered": False, "work_turn": False}
     return state
+
 
 
 def _fallback_outcome_text(outcome: Dict[str, Any],
@@ -4527,11 +4701,16 @@ def _fallback_outcome_text(outcome: Dict[str, Any],
                 + read_note + " Tell me to continue and I will.")
     if state == "continuation_queued":
         _cid = str(outcome.get("continuation_id") or "")
-        return ("I couldn't finish this turn — "
-                + (work or "the work") + " is still queued and "
-                "nothing has been delivered yet."
-                + (f" (task {_cid})." if _cid else ".")
-                + read_note + " Send another message to pick it up.")
+        # A GENUINE running continuation needs no nudge: telling the
+        # owner to "send another message to pick it up" contradicts the
+        # acknowledgement that it is already running. Pending owner
+        # INPUTS are a different state (partial) and do need an answer.
+        return ("Your request is still running in the background"
+                + (f" (task {_cid})" if _cid else "")
+                + " — nothing has been delivered yet."
+                + (f" Still open: {work}." if work else "")
+                + read_note + " I'll keep going and bring you the "
+                "result when it lands.")
     if state == "completed":
         return ("Your request completed this turn."
                 + read_note)
@@ -11946,15 +12125,43 @@ class ChatOrchestrator:
                     for d in (_open_work_snapshot.get("owner_decisions")
                               or [])][:2]
 
-            # FALLBACK OUTCOME ALIGNMENT (owner work order 2026-10-09):
-            # when the honesty gate replaced the template completion
-            # claim, the machine-readable status must agree with the
-            # text — an execution failure (or an unconfirmable turn)
-            # never ships a success envelope, whatever the failure
-            # wording says. Partial/continuation states keep the
-            # established success semantics (something is delivered or
-            # durably queued) and carry the outcome explicitly.
+            # RECORDED-OUTCOME RESOLUTION (owner work order 2026-10-09).
+            # Previously resolved ONLY when the honesty gate fired (the
+            # exact template claim), so a model-authored failure shipped
+            # under success=true with no outcome. Now resolved for EVERY
+            # work turn from durable records and handed to the common
+            # finalization boundary (_finalize_chat_response), which
+            # aligns success/error_code/outcome. Non-work turns resolve no
+            # outcome and keep established semantics.
             _fb_outcome = locals().get("_fallback_outcome") or None
+            # The honesty gate firing IS the work signal: the lane fell
+            # through and served a completion claim, so work was
+            # attempted whatever the durable carriers say.
+            _fb_from_gate = _fb_outcome is not None
+            if _fb_outcome is None:
+                try:
+                    _fb_read = bool(
+                        isinstance(locals().get("_canvas_ctx"), dict)
+                        and (locals()["_canvas_ctx"].get("content")
+                             is not None))
+                    _fb_outcome = _fallback_turn_outcome(
+                        session, _execution_id, feature_responses, context,
+                        workspace_id=(context or {}).get("workspace_id"),
+                        canvas_was_read=_fb_read)
+                except Exception:  # noqa: BLE001 — additive
+                    _fb_outcome = None
+            if not _fb_from_gate and not (_fb_outcome or {}).get(
+                    "work_turn"):
+                # Conversational turn: nothing was attempted, so there is
+                # no outcome to verify. Established envelope stands.
+                _fb_outcome = None
+            # SHIPPED CLARIFICATION (owner case 6): when the calculate
+            # lane's pending-input question is what actually shipped,
+            # the clarification was delivered and the values are the
+            # outstanding obligation — partial, never unconfirmed.
+            if (_fb_outcome and _fb_outcome.get("state") == "unconfirmed"
+                    and str(used_model or "") == "calc-lane"):
+                _fb_outcome["state"] = "partial"
             _fb_failed = bool(_fb_outcome and _fb_outcome.get(
                 "state") in ("failed", "unconfirmed"))
 
@@ -11982,6 +12189,10 @@ class ChatOrchestrator:
                 # state rides the envelope AND the persisted metadata so
                 # text, machine status, and history agree.
                 "outcome": _fb_outcome.get("state") if _fb_outcome else None,
+                # The full resolved outcome, consumed by the route's
+                # finalization boundary. Private: never persisted as a
+                # client field, never rendered.
+                "_recorded_outcome": _fb_outcome,
                 "error_code": (
                     _FALLBACK_OUTCOME_ERROR_CODES.get(
                         _fb_outcome.get("state"))

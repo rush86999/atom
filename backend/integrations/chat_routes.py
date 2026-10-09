@@ -1440,6 +1440,13 @@ def _persist_finalized_outcome(
                 meta["quality"] = "error"
         if response.get("error_code") is not None:
             meta["error_code"] = str(response.get("error_code"))
+        # The record-resolved outcome rides the persisted metadata too
+        # (owner work order 2026-10-09): without this the row keeps the
+        # PRE-finalization value (None) while the delivered envelope
+        # carries the outcome — the live defect where a truthful failure
+        # persisted success/outcome disagreement.
+        if response.get("outcome") is not None:
+            meta["outcome"] = str(response.get("outcome"))
         _record_lifecycle_delivery(
             response, str(target.id), str(execution_id), target)
         final_text = str(response.get("message") or "")
@@ -1607,6 +1614,22 @@ def _finalize_chat_response(
                 "message": UNKNOWN_OUTCOME_MESSAGE,
                 "execution_id": execution_id,
             }
+    # RECORDED-OUTCOME ALIGNMENT (owner work order 2026-10-09): the
+    # execution STATUS is coarse — a turn that produced a reply is
+    # recorded success even when the work behind it failed. The
+    # orchestrator's record-resolved outcome is the finer truth, and it
+    # governs machine status HERE, at the one boundary every lane
+    # (model-authored, template, coordinated, calc) passes through. The
+    # text is owned upstream; this aligns status/error/outcome only, and
+    # never rewrites a specific drafted failure envelope.
+    try:
+        from core.finalization import apply_recorded_outcome
+
+        finalized = apply_recorded_outcome(
+            finalized, response.get("_recorded_outcome"))
+    except Exception as outcome_error:  # noqa: BLE001 — additive
+        logger.warning(
+            f"recorded-outcome alignment failed open: {outcome_error}")
     _store_delivery_record(db, row, execution_id, finalized)
     return finalized
 

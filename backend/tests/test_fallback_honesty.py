@@ -68,10 +68,30 @@ def db():
 class TestFallbackOutcomeResolver:
     """The record-driven outcome mapping (owner work order table)."""
 
-    def test_canvas_read_nothing_delivered_is_failed(self):
+    def test_canvas_read_alone_is_unconfirmed_not_failed(self):
+        """Finding 4: a read proves execution occurred — not that it
+        failed. Without a recorded failure the state is unconfirmed."""
         from integrations.chat_orchestrator import _fallback_turn_outcome
         out = _fallback_turn_outcome({}, None, {}, CTX, "default",
                                      canvas_was_read=True)
+        assert out["state"] == "unconfirmed"
+
+    def test_recorded_operation_failure_is_failed(self):
+        from integrations.chat_orchestrator import _fallback_turn_outcome
+        session = {"_task_run_id": "run-1"}
+        record = {"operations": [{
+            "operation_id": "op-1", "execution_id": "exec-9",
+            "status": "failed"}]}
+        monkey_out = None
+        import integrations.chat_orchestrator as com
+        orig = com._task_lifecycle_for
+        com._task_lifecycle_for = lambda *a, **k: type(
+            "TL", (), {"get_task": lambda self, rid: record})()
+        try:
+            out = com._fallback_turn_outcome(
+                session, "exec-9", {}, {}, "default")
+        finally:
+            com._task_lifecycle_for = orig
         assert out["state"] == "failed"
 
     def test_standalone_no_records_is_unconfirmed_never_processed(self):
@@ -103,38 +123,50 @@ class TestFallbackOutcomeResolver:
         assert out["delivered"] is False
         assert out["state"] == "unconfirmed"
 
-    def test_findings_plus_remaining_work_is_partial(self):
+    def test_stale_carrier_alone_never_validates(self):
+        """Finding 2: a session carrier is not a validated answer by
+        itself — validation needs THIS turn's values on the operations
+        or this turn's delivery record. The route-level partial case is
+        pinned in TestPartialAndQueuedThroughThePath (seeded job)."""
         from integrations.chat_orchestrator import _fallback_turn_outcome
-        session = {"_pending_file_result": {"structured_result": {"rows": []}},
+        session = {"_pending_file_result": {
+                       "execution_id": "exec-p-1",
+                       "structured_result": {"rows": [
+                           {"item": "No. 622", "value": "2421"}]}},
                    "_last_open_work": {"actions": [
                        {"next_action": "open the No. 622 quote"}]}}
-        out = _fallback_turn_outcome(session, None, {}, {}, "default")
-        assert out["state"] == "partial"
-        assert any("No. 622" in w for w in out["open_work"])
+        out = _fallback_turn_outcome(session, "exec-p-1", {}, {}, "default")
+        assert out["state"] == "unconfirmed"
+        assert out["delivered"] is False
 
-    def test_recorded_obligations_are_named(self):
-        """A pending-file task is a RECORDED obligation — it names the
-        unfinished work (it resumes next turn; it is not background
-        work — only a genuine in-flight continuation is)."""
+    def test_turn_open_work_snapshot_is_named(self):
+        """The turn's own open-work snapshot names the unfinished work —
+        recorded obligations, not background work."""
         from integrations.chat_orchestrator import _fallback_turn_outcome
-        session = {"_pending_file_task": {"objective": "re-read rows 1-5",
-                                          "requested_targets": ["381"]}}
+        session = {"_last_open_work": {"actions": [
+            {"next_action": "re-read rows 1-5"}]}}
         out = _fallback_turn_outcome(session, None, {}, {}, "default")
         assert any("re-read" in w for w in out["open_work"])
+        assert out["state"] in ("unconfirmed", "partial")
 
-    def test_genuine_in_flight_continuation_is_queued(self, monkeypatch):
-        from core.async_turn_continuation import continuation_in_flight
-        monkeypatch.setattr(continuation_in_flight.__class__ if False
-                            else continuation_in_flight,
-                            "__wrapped__", continuation_in_flight,
-                            raising=False)
+    def test_own_continuation_is_queued_foreign_is_not(self, monkeypatch):
+        """A continuation bound to THIS turn's execution queues the
+        turn; ANOTHER operation's continuation must not certify it
+        (owner finding: identity-bound continuations)."""
         import core.async_turn_continuation as atc
-        monkeypatch.setattr(atc, "continuation_in_flight",
-                            lambda sid: True)
         from integrations.chat_orchestrator import _fallback_turn_outcome
+        monkeypatch.setattr(atc, "continuation_in_flight",
+                            lambda sid: "exec-own-1")
         out = _fallback_turn_outcome(
-            {"id": "conv-cont-1"}, None, {}, {}, "default")
+            {"id": "conv-cont-1"}, "exec-own-1", {}, {}, "default")
         assert out["state"] == "continuation_queued"
+        assert out["continuation_id"] == "exec-own-1"
+        # a foreign continuation changes nothing
+        monkeypatch.setattr(atc, "continuation_in_flight",
+                            lambda sid: "exec-other-9")
+        out = _fallback_turn_outcome(
+            {"id": "conv-cont-1"}, "exec-own-1", {}, {}, "default")
+        assert out["state"] != "continuation_queued"
 
 
 class TestFallbackHonestyGate:
@@ -143,12 +175,13 @@ class TestFallbackHonestyGate:
             _fallback_honesty_replacement as gate)
         out = gate(CLAIM, "template", {}, CTX, READ_CTX)
         assert out is not None, "the false completion claim must be replaced"
-        assert "couldn't complete" in out["message"]
+        assert "couldn't confirm" in out["message"], (
+            "finding 4: a read without a recorded failure is unconfirmed, "
+            "not failed")
         assert "draft itself was read" in out["message"], (
             "the resolved draft read is established fact")
-        assert "retry" in out["message"]
         assert "processed your request" not in out["message"]
-        assert out["outcome"]["state"] == "failed"
+        assert out["outcome"]["state"] == "unconfirmed"
 
     def test_standalone_claim_is_replaced_too(self):
         """Work order rev 2: the canvas-only exception is GONE — a
@@ -205,6 +238,36 @@ def _mk_app_and_db(monkeypatch):
     app = FastAPI()
     app.include_router(cr.router)
     return app, factory, get_db_session
+
+
+def _fixed_execution(monkeypatch, exec_id="e-turn"):
+    """Bind the turn's execution identity so tests can seed operations
+    the identity-bound resolver attributes to THIS execution. Also
+    creates the AgentExecution row (status success) — the M1 finalizer
+    reads it, and an unknown record is delivered as unverified
+    (success=false) by design."""
+    from datetime import datetime, timezone
+    from integrations import chat_routes as cr
+    from core.models import AgentExecution
+
+    def _fixed(session_id, agent_id, message, **k):
+        try:
+            with _db_session_ctx() as db:
+                db.add(AgentExecution(
+                    id=exec_id, status="success",
+                    started_at=datetime.now(timezone.utc),
+                    result_summary="test execution",
+                    metadata_json={"session_id": session_id}))
+                db.commit()
+        except Exception:
+            pass
+        return exec_id
+
+    def _db_session_ctx():
+        from core.database import get_db_session
+        return get_db_session()
+    monkeypatch.setattr(cr.chat_orchestrator, "_start_chat_execution",
+                        _fixed)
 
 
 def _seam_failure(monkeypatch, reply=None):
@@ -275,10 +338,11 @@ def _route_call(factory, message, context, session_id=None):
 
 class TestProductionPath:
     def test_canvas_failure_envelope_and_history_agree(self, monkeypatch):
-        """Work order case 1: canvas-attached request fails without
-        dispositions — the envelope carries success=False + the failure
-        classification, the persisted row + the REAL history handler
-        read back the same truthful text."""
+        """Work order case 1 (rev 3): a canvas-attached request whose
+        outcome is unverified carries success=False + outcome
+        unconfirmed (a read proves execution occurred, not failure) —
+        the persisted row + the REAL history handler read back the same
+        truthful text."""
         app, factory, _ = _mk_app_and_db(monkeypatch)
         _seam_failure(monkeypatch)
         from core.models import Canvas, CanvasAudit
@@ -300,10 +364,10 @@ class TestProductionPath:
             "taught sources.",
             {"canvas_id": CANVAS_ID})
         assert resp.success is False
-        assert resp.error_code == "turn_failed_no_result"
-        assert resp.outcome == "failed"
+        assert resp.error_code == "outcome_unconfirmed"
+        assert resp.outcome == "unconfirmed"
         assert "processed your request" not in resp.message
-        assert "couldn't complete" in resp.message
+        assert "couldn't confirm" in resp.message
 
         # the REAL history handler (production read path)
         history = asyncio.run(
@@ -312,7 +376,7 @@ class TestProductionPath:
         asst = [m for m in history.messages if m["role"] == "assistant"]
         assert asst, "the assistant row must exist"
         assert "processed your request" not in (asst[-1]["response"]["message"])
-        assert "couldn't complete" in asst[-1]["response"]["message"]
+        assert "couldn't confirm" in asst[-1]["response"]["message"]
 
     def test_standalone_failure_same_treatment(self, monkeypatch):
         """Work order case 2: a standalone request reaches the same
@@ -363,14 +427,31 @@ class TestProductionPath:
         """Work order case 7: genuine success stays successful, the
         gate stands down, and the REAL history handler serves it."""
         app, factory, _ = _mk_app_and_db(monkeypatch)
-        _seam_failure(monkeypatch, reply={
-            "content": SUCCESS_REPLY, "model": "deepseek",
-            "provider": "deepseek"})
+        # the reply leg SUCCEEDS (a genuine model answer); the planner is
+        # disabled but the LLM service is NOT poisoned — an in-turn
+        # helper failure must not relabel a delivered answer
+        # (provider-failure wording is a different case, covered above).
+        orch = cr.chat_orchestrator
+
+        async def good_reply(*a, **k):
+            return {"content": SUCCESS_REPLY, "model": "deepseek",
+                    "provider": "deepseek"}
+        monkeypatch.setattr(orch, "_get_qwen_response", good_reply)
+        monkeypatch.setenv("ATOM_DISABLE_TOOL_PLANNER", "1")
+        _fixed_execution(monkeypatch, "e-turn")
+        conv = "conv-genuine-1"
+        cr.chat_orchestrator._get_or_create_session("user_1", conv)
+        # the execution-bound evidence carrier: this turn's findings
+        cr.chat_orchestrator.conversation_sessions[conv][
+            "_pending_file_result"] = {
+                "execution_id": "e-turn",
+                "structured_result": {"rows": [
+                    {"item": "No. 381", "value": "2902"}]}}
 
         resp, user = _route_call(
             factory,
             "Check rows 1 to 5 of the current quote draft.",
-            {"canvas_id": CANVAS_ID})
+            {"canvas_id": CANVAS_ID}, session_id=conv)
         assert resp.success is True
         assert "$2,902" in resp.message
         assert resp.error_code is None
@@ -380,6 +461,96 @@ class TestProductionPath:
                                 user_id="user_1", current_user=user))
         asst = [m for m in history.messages if m["role"] == "assistant"]
         assert asst and "$2,902" in asst[-1]["response"]["message"]
+
+
+    def test_model_authored_failure_gets_aligned_envelope(self, monkeypatch):
+        """Owner work order 2026-10-09: alignment is driven by the
+        RECORDED outcome, not by the claim sentence.
+
+        Live evidence (browser check, 21:53): a model-authored "I couldn't
+        complete the check — the live lookup ... failed this turn" was
+        PERSISTED with success=true and no outcome, because the gate only
+        ever looked for the exact template claim. The execution was
+        recorded success (a reply was produced) while the work behind it
+        had failed.
+
+        Here the same shape: a model-authored, already-truthful failure
+        over a canvas read with nothing delivered must ship
+        success=false + the recorded outcome, and the PERSISTED metadata
+        and the REAL history handler must agree. The model's own truthful
+        wording is preserved verbatim — alignment governs status, not
+        text.
+        """
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        model_reply = ("I couldn't complete the check — the live lookup "
+                       "against our taught sources failed this turn "
+                       "(timed out or errored), so I have no per-row "
+                       "verdict for you.")
+        _seam_failure(monkeypatch, reply={
+            "content": model_reply, "model": "deepseek",
+            "provider": "deepseek"})
+        from core.models import Canvas, CanvasAudit
+        with factory() as sc:
+            sc.add(Canvas(id=CANVAS_ID, tenant_id="t1",
+                          created_by="user_1", name="Quote draft",
+                          canvas_type="email",
+                          content={"body": "quote rows"}))
+            sc.add(CanvasAudit(
+                canvas_id=CANVAS_ID, tenant_id="t1", action_type="fork",
+                user_id="user_1",
+                details_json={"content": {"body": "quote rows"}}))
+            sc.commit()
+
+        resp, user = _route_call(
+            factory,
+            "Check rows 1 to 5 of the current quote draft against our "
+            "taught sources.",
+            {"canvas_id": CANVAS_ID})
+
+        # the envelope now agrees with the recorded outcome
+        assert resp.success is False, (
+            "a recorded failure must not ship a success envelope")
+        assert resp.error_code in ("turn_failed_no_result",
+                                   "outcome_unconfirmed")
+        assert resp.outcome in ("failed", "unconfirmed")
+        # the model's truthful wording stands — alignment is not rewriting
+        assert "couldn't complete the check" in resp.message
+
+        # the PERSISTED metadata agrees (the live defect was here)
+        import json as _json
+        from sqlalchemy import text as _sql_text
+        with factory() as sc:
+            found = sc.execute(_sql_text(
+                "SELECT metadata_json FROM chat_messages WHERE "
+                "conversation_id=:s AND role='assistant'"),
+                {"s": resp.session_id}).fetchall()
+        assert found, "the assistant row must be persisted"
+        meta = _json.loads(found[-1][0])
+        assert meta.get("success") is False, (
+            "persisted success must match the finalized envelope")
+        assert meta.get("outcome") == resp.outcome
+
+        history = asyncio.run(
+            cr.get_chat_history(session_id=resp.session_id,
+                                user_id="user_1", current_user=user))
+        asst = [m for m in history.messages if m["role"] == "assistant"]
+        assert asst and "couldn't complete the check" in (
+            asst[-1]["response"]["message"])
+
+    def test_conversational_turn_keeps_established_envelope(self, monkeypatch):
+        """The mapping applies to WORK turns. A conversational turn
+        attempted nothing, so it has no outcome to verify and must not be
+        downgraded to unconfirmed/success=false — this is the regression
+        guard for generalizing the gate."""
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch, reply={
+            "content": "Hello — what can I help you with?",
+            "model": "deepseek", "provider": "deepseek"})
+
+        resp, user = _route_call(factory, "hello there", {})
+        assert resp.success is True
+        assert resp.outcome is None
+        assert resp.error_code is None
 
 
 class TestCoordinatedEnvelope:
@@ -419,17 +590,18 @@ class TestCoordinatedEnvelope:
         success semantics for queued work, with the outcome explicit."""
         import core.async_turn_continuation as atc
         monkeypatch.setattr(atc, "continuation_in_flight",
-                            lambda sid: True)
+                            lambda sid: "exec-coord-1")
         from integrations.chat_orchestrator import chat_orchestrator
         from integrations.chat_orchestrator import ChatIntent
 
         intent = {"primary_intent": ChatIntent.DATA_ANALYSIS,
                   "confidence": 0.9}
         resp = chat_orchestrator._generate_coordinated_response(
-            "do the thing", intent, {}, {"id": "s-coord-3"})
+            "do the thing", intent, {},
+            {"id": "s-coord-3", "_last_execution_id": "exec-coord-1"})
         assert resp["success"] is True
         assert resp["outcome"] == "continuation_queued"
-        assert "queued" in resp["message"].lower()
+        assert "running in the background" in resp["message"].lower()
 
 
 class TestPartialAndQueuedThroughThePath:
@@ -453,10 +625,10 @@ class TestPartialAndQueuedThroughThePath:
             GoalService(workspace_id="default", tenant_id="t1",
                         session_factory=factory))
         run_id, op = begin_retrieval_turn(
-            tl, {"id": conv}, conv, "verify pricing", "e-seed",
+            tl, {"id": conv}, conv, "verify pricing", "e-turn",
             items=["M-1"], requested_fields=["price"])
         finish_retrieval_turn(
-            tl, run_id, op, {}, "e-seed", True,
+            tl, run_id, op, {}, "e-turn", True,
             execution={"invoked": True, "outcome": "read_succeeded",
                        "served_basis": "saved_copy", "failure_stage": None,
                        "findings": [{
@@ -480,6 +652,7 @@ class TestPartialAndQueuedThroughThePath:
 
         app, factory, _ = _mk_app_and_db(monkeypatch)
         _seam_failure(monkeypatch)
+        _fixed_execution(monkeypatch)
         self._seed_job(factory, "conv-partial-1")
         resp, user = _route_call(
             factory,
@@ -507,6 +680,7 @@ class TestPartialAndQueuedThroughThePath:
 
         app, factory, _ = _mk_app_and_db(monkeypatch)
         _seam_failure(monkeypatch)
+        _fixed_execution(monkeypatch, "cont-path-1")
         atc._SESSION_IN_FLIGHT["conv-queued-1"] = "cont-path-1"
         try:
             resp, user = _route_call(
@@ -516,10 +690,267 @@ class TestPartialAndQueuedThroughThePath:
         finally:
             atc._SESSION_IN_FLIGHT.pop("conv-queued-1", None)
         assert resp.success is True
-        assert "queued" in resp.message.lower()
+        assert "running in the background" in resp.message.lower()
+        assert "keep going" in resp.message.lower(), (
+            "finding 5: a genuine continuation continues on its own — "
+            "the reply must not tell the owner to re-send")
         assert "cont-path-1" in resp.message
         history = asyncio.run(
             cr.get_chat_history(session_id=resp.session_id,
                                 user_id="user_1", current_user=user))
         asst = [m for m in history.messages if m["role"] == "assistant"]
         assert asst and "cont-path-1" in asst[-1]["response"]["message"]
+
+
+# ---------------------------------------------------------------------------
+# Identity-bound outcome resolution — owner review 2026-10-09.
+# Each regression drives the REAL route (planner kill-switch + injected
+# reply-leg failure) through real persistence and the real history handler,
+# over real task-lifecycle records seeded per case.
+# ---------------------------------------------------------------------------
+class TestIdentityBoundOutcomes:
+    """The resolver may only infer from evidence bound to THIS turn."""
+
+    def _route(self, factory, message, session_id, ctx=None):
+        resp, _user = _route_call(
+            factory, message,
+            ctx or {"canvas_id": CANVAS_ID}, session_id=session_id)
+        return resp
+
+    def _job(self, factory, conv, *, execution_id, outcome, findings,
+             questions=None):
+        """Seed a real task record whose ONE operation is bound to
+        ``execution_id`` (this turn's identity) with the given recorded
+        outcome/findings. Returns nothing — the record is durable on the
+        scratch DB, which is what the resolver reads."""
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import (
+            TaskLifecycle, begin_retrieval_turn, finish_retrieval_turn,
+            record_read_outcome)
+        tl = TaskLifecycle(
+            GoalRunService(workspace_id="default", tenant_id="t1",
+                           session_factory=factory),
+            GoalService(workspace_id="default", tenant_id="t1",
+                        session_factory=factory))
+        run_id, op = begin_retrieval_turn(
+            tl, {"id": conv}, conv, "verify pricing", execution_id,
+            items=["M-1"], requested_fields=["price"])
+        execution = {"invoked": True, "outcome": outcome,
+                     "served_basis": "saved_copy" if findings else "none",
+                     "failure_stage": None,
+                     "findings": findings,
+                     "items": {"M-1": "matched"} if findings else {}}
+        finish_retrieval_turn(
+            tl, run_id, op, {}, execution_id, bool(findings),
+            execution=execution)
+        if questions:
+            record_read_outcome(
+                tl, run_id, op, structured_result=None, freshness=None,
+                execution=None, extra_questions=questions)
+        return tl
+
+    def test_earlier_findings_do_not_certify_a_failed_turn(
+            self, monkeypatch):
+        """Finding 1: an earlier successful operation must not certify a
+        later failed turn. The successful op belongs to a DIFFERENT
+        execution id."""
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch)
+        _fixed_execution(monkeypatch, "exec-now-1")
+        # earlier turn: succeeded on exec-earlier-9
+        self._job(factory, "conv-earlier-1", execution_id="exec-earlier-9",
+                  outcome="read_succeeded",
+                  findings=[{"field": "price", "raw": "100",
+                             "parsed": {"value": 100.0},
+                             "source": "W.xlsx!row1"}])
+        # THIS turn: retrieval dispatched and failed, no values
+        self._job(factory, "conv-now-1", execution_id="exec-now-1",
+                  outcome="read_failed", findings=None)
+
+        resp = self._route(
+            factory, "Give me the current price for M-1.", "conv-now-1")
+        assert resp.outcome == "failed", (
+            "this turn's recorded failure must decide — an earlier "
+            "operation's findings belong to another execution")
+        assert resp.success is False
+
+    def test_discovery_only_receipt_is_not_delivery(self, monkeypatch):
+        """Finding 2: a dispatched read that returned prose but no
+        structured values obtained evidence, not an answer. It is not a
+        failure (the executor returned), and it is not delivery."""
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch)
+        _fixed_execution(monkeypatch, "exec-disc-1")
+        self._job(factory, "conv-disc-1", execution_id="exec-disc-1",
+                  outcome="read_returned_no_receipt", findings=None)
+
+        resp = self._route(
+            factory, "Read M-1 out of the price list.", "conv-disc-1")
+        assert resp.outcome != "completed", (
+            "a discovery receipt without requested values is not an"
+            " answer")
+        assert resp.success is False, (
+            "no validated result and no recorded failure — the outcome "
+            "is unverified, never success")
+
+    def test_findings_with_owner_decision_is_partial(self, monkeypatch):
+        """Finding 3: owner decisions are unresolved requested work — the
+        turn delivered values but cannot report a final answer."""
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch)
+        _fixed_execution(monkeypatch, "exec-own-1")
+        self._job(
+            factory, "conv-own-1", execution_id="exec-own-1",
+            outcome="read_succeeded",
+            findings=[{"field": "price", "raw": "100",
+                       "parsed": {"value": 100.0},
+                       "source": "W.xlsx!row1"}],
+            questions=[{
+                "item": "M-1", "kind": "business_decision",
+                "question": "Two rows match M-1 — which one applies?",
+                "evidence": "test seed"}])
+
+        resp = self._route(
+            factory, "Quote M-1 from the price list.", "conv-own-1")
+        assert resp.outcome == "partial", (
+            "delivered values with an unanswered owner decision")
+        assert resp.success is True
+
+    def test_findings_with_exhausted_read_is_partial(self, monkeypatch):
+        """Finding 3: an exhausted obligation is still unfinished
+        requested work, never silently dropped."""
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch)
+        _fixed_execution(monkeypatch, "exec-exh-1")
+        self._job(
+            factory, "conv-exh-1", execution_id="exec-exh-1",
+            outcome="read_succeeded",
+            findings=[{"field": "price", "raw": "100",
+                       "parsed": {"value": 100.0},
+                       "source": "W.xlsx!row1"}],
+            questions=[{
+                "item": "M-2", "kind": "verification",
+                "question": "M-2 is carried elsewhere — keep trying",
+                "evidence": "test seed", "attempts": 99,
+                "next_action": "re-read M-2"}])
+
+        resp = self._route(
+            factory, "Check rows 1 to 5.", "conv-exh-1")
+        assert resp.outcome == "partial", (
+            "an exhausted obligation is unfinished requested work")
+        assert resp.success is True
+
+    def test_successful_grounded_read_completes(self, monkeypatch):
+        """Finding 2-4: this turn's own successful read with values and
+        no open obligations is a validated completion."""
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch)
+        _fixed_execution(monkeypatch, "exec-ok-1")
+        self._job(
+            factory, "conv-ok-1", execution_id="exec-ok-1",
+            outcome="read_succeeded",
+            findings=[{"field": "price", "raw": "100",
+                       "parsed": {"value": 100.0},
+                       "source": "W.xlsx!row1"}])
+
+        resp = self._route(
+            factory, "What is the list price for M-1?", "conv-ok-1")
+        assert resp.outcome == "completed", (
+            "this turn's own validated result with no open obligations")
+        assert resp.success is True
+
+    @pytest.mark.xfail(reason=(
+        "DESIGN GAP shared with tests/test_outcome_resolution.py: "
+        "an authorized no-op has no structured values, and current "
+        "delivery validation requires values — needs an explicit "
+        "no-op validated signal (owner table: requested-work-"
+        "completed)."), strict=True)
+    def test_authorized_instruction_already_satisfied(self, monkeypatch):
+        """An authorized instruction that is already satisfied is a
+        genuine no-op: it must not be manufactured into a failure.
+
+        Two things are pinned:
+          (a) the finalization helper preserves a no-op-shaped delivery
+              (an authorized stop with nothing left to do reports its
+              own truthful completion, not a manufactured failure);
+          (b) through the REAL route, a turn with NO durable work task
+              resolves no outcome at all, so the established envelope
+              stands.
+        """
+        from core.finalization import apply_recorded_outcome
+        # (a) a no-op delivery is preserved: success stays as drafted
+        noop = apply_recorded_outcome(
+            {"success": True, "message": "Nothing to send — it already "
+                                         "went out.",
+             "data": {"noop": True, "noop_reason": "already_satisfied"}},
+            {"state": "unconfirmed", "work_turn": True})
+        assert noop["success"] is True, (
+            "an authorized no-op is a genuine completion, not a failure")
+
+        # (b) no durable task -> no outcome -> established semantics
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch)
+        _fixed_execution(monkeypatch, "exec-noop-1")
+        resp = self._route(factory, "Thanks, that's all.", "conv-noop-1")
+        # A conversational close has no work task, so nothing is
+        # manufactured. (If it resolves an outcome it must not be a
+        # failure the records do not support.)
+        assert resp.outcome is None or resp.success is True, (
+            "no durable work task — the outcome resolver must not "
+            "invent one")
+
+    def test_completed_calculation_survives_narration_failure(
+            self, monkeypatch):
+        """A delivered engine result is never negated by an outcome
+        resolved from an incomplete evidence set.
+
+        The turn's own record is what decides delivery: a
+        deterministic calculation result (or an authorized instruction
+        already satisfied) reaching the reply is a genuine delivery, and
+        ``apply_recorded_outcome`` must preserve it even though the
+        resolver could not corroborate it from operations. Pinned at the
+        finalization helper, which is the boundary that owns this rule.
+        """
+        from core.finalization import apply_recorded_outcome
+
+        # a resolved-but-uncorroborated outcome over a DELIVERED
+        # deterministic result: the delivery wins
+        payload = {
+            "success": True,
+            "message": "Service estimate: $1,260 (engine-computed).",
+            "deterministic_delivery": True,
+            "data": {"calculation": {"value": 1260}},
+            "execution_id": "exec-calc-1",
+        }
+        out = apply_recorded_outcome(
+            payload, {"state": "unconfirmed", "work_turn": True,
+                      "open_work": [], "delivered": False})
+        assert out["success"] is True, (
+            "a delivered engine result is never negated by an outcome "
+            "resolved from an incomplete evidence set")
+        assert out.get("deterministic_delivery") is True
+
+        # and the same guard on the data-carried marker
+        out2 = apply_recorded_outcome(
+            {"success": True, "message": "m",
+             "data": {"deterministic_delivery": True}},
+            {"state": "failed", "work_turn": True})
+        assert out2["success"] is True
+
+    def test_foreign_continuation_does_not_certify_this_turn(
+            self, monkeypatch):
+        """Finding 1: a continuation running for ANOTHER operation must
+        not turn this turn into queued."""
+        import core.async_turn_continuation as atc
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch)
+        _fixed_execution(monkeypatch, "exec-mine-1")
+        atc._SESSION_IN_FLIGHT["conv-foreign-1"] = "exec-theirs-9"
+        try:
+            resp = self._route(
+                factory, "Read M-1 from the price list.", "conv-foreign-1")
+        finally:
+            atc._SESSION_IN_FLIGHT.pop("conv-foreign-1", None)
+        assert resp.outcome != "continuation_queued", (
+            "a foreign continuation certifies nothing about this turn")
