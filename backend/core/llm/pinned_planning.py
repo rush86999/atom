@@ -51,6 +51,28 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
+# Boundary-diagnostic seam (owner assignment 3): this wrapper converts
+# every provider error to ``None`` by contract so callers keep their own
+# failure contract. The KIND of the failure still has to reach the caller —
+# empty output, malformed output, a provider/protocol error and a caller
+# deadline are different boundaries and must not share one diagnosis.
+LAST_FAILURE: dict = {"kind": None, "detail": "", "label": ""}
+
+
+def _publish_failure(label: str, err: BaseException) -> None:
+    name = type(err).__name__
+    text = f"{name} {err}".lower()
+    if "timeout" in name.lower() or "timeout" in text or "cancel" in name.lower():
+        kind = "deadline_cancelled"
+    elif any(k in text for k in ("json", "parse", "schema", "malformed",
+                                 "truncat", "validation")):
+        kind = "malformed_structured_output"
+    else:
+        kind = "provider_failure"
+    LAST_FAILURE.update(kind=kind, detail=f"{name}: {str(err)[:160]}",
+                        label=label)
+
+
 def build_provider_model_pin(
     llm_service: Any,
     provider: str,
@@ -202,6 +224,7 @@ async def pinned_structured_call(
                     **base, **pin_kwargs),
                 log_label, task_type, _t0)
         except Exception as pinned_err:  # noqa: BLE001
+            _publish_failure(log_label, pinned_err)
             logger.warning(
                 "%s pinned call raised (%s): %s — retrying unpinned",
                 log_label,
@@ -233,6 +256,7 @@ async def pinned_structured_call(
                 llm_service.generate_structured_response(**fallback_kwargs),
                 log_label, task_type, _t0)
         except Exception as unpinned_err:  # noqa: BLE001
+            _publish_failure(log_label, unpinned_err)
             logger.warning("%s unpinned retry raised: %s", log_label, unpinned_err)
             return None
 
@@ -241,5 +265,6 @@ async def pinned_structured_call(
             llm_service.generate_structured_response(**base),
             log_label, task_type, _t0)
     except Exception as err:  # noqa: BLE001
+        _publish_failure(log_label, err)
         logger.warning("%s call raised: %s", log_label, err)
         return None

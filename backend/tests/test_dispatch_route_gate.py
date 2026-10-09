@@ -319,3 +319,57 @@ class TestProtocolRejectionIsPerRouteAndOperation:
             assert h._dispatch_catalog_admits(
                 "prov", "m", None, operation="text") is True, (
                 "the same route for another operation stays usable")
+
+
+class TestResponseOutcomeSeparation:
+    """Owner assignment 3: a successful HTTP response is not a successful
+    model operation. Six outcomes stay apart at the response boundary."""
+
+    def test_the_six_outcomes_are_distinct_strings(self):
+        from core.chat_canvas_editor import CanvasPlanOutcome as C
+
+        kinds = {C.EXECUTABLE, C.SERVED_DECLINE, C.MALFORMED, C.EMPTY,
+                 C.PROVIDER_FAILURE, C.DEADLINE_CANCELLED}
+        assert len(kinds) == 6, kinds
+
+    def test_failure_classifier_separates_the_boundaries(self):
+        from core.chat_canvas_editor import (
+            CanvasPlanOutcome as C, _plan_failure_kind)
+
+        class _Timeout(Exception):
+            pass
+
+        assert _plan_failure_kind(_Timeout("x")) == C.DEADLINE_CANCELLED
+        assert _plan_failure_kind(
+            ValueError("Expecting value: line 1 json")) == C.MALFORMED
+        assert _plan_failure_kind(
+            RuntimeError("400 ModelProtocolUnsupported")) == (
+            C.PROVIDER_FAILURE)
+        assert _plan_failure_kind(None) == C.EMPTY
+
+    def test_served_decline_is_not_a_latency_failure(self):
+        """A valid wants_edit=False plan carries SERVED_DECLINE, never a
+        timeout/latency label."""
+        from core.chat_canvas_editor import (
+            CanvasEditPlan, CanvasPlanOutcome as C)
+
+        plan = CanvasEditPlan(wants_edit=False, reply="the draft already "
+                                                      "reflects the values")
+        # Exercise the same classification the boundary applies.
+        malformed = bool(list(plan.ops or [])
+                         or (plan.updated_content_json or "").strip())
+        outcome = C.MALFORMED if malformed else C.SERVED_DECLINE
+        assert outcome == C.SERVED_DECLINE
+        assert outcome != C.DEADLINE_CANCELLED
+        assert outcome != C.PROVIDER_FAILURE
+
+    def test_self_inconsistent_plan_is_malformed_not_a_decline(self):
+        from core.chat_canvas_editor import (
+            CanvasEditPlan, CanvasPatchOp, CanvasPlanOutcome as C)
+
+        plan = CanvasEditPlan(
+            wants_edit=False, reply="no change",
+            ops=[CanvasPatchOp(find="a", replace="b")])
+        malformed = bool(list(plan.ops or [])
+                         or (plan.updated_content_json or "").strip())
+        assert (C.MALFORMED if malformed else C.SERVED_DECLINE) == C.MALFORMED

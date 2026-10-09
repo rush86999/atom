@@ -174,6 +174,74 @@ def _ops_preview(ops: List[Any], limit: int = 2) -> str:
     return "; ".join(out)
 
 
+# Boundary-diagnostic seam (owner assignment 3): `_plan_structured`
+# swallows provider errors by contract (a failed plan is `None` so the
+# caller keeps its own failure contract). The KIND of that failure is
+# needed downstream to keep empty output, malformed output, a provider
+# error and a deadline cancellation apart, so it is published here rather
+# than changing the return contract every caller depends on.
+_LAST_PLAN_FAILURE: Dict[str, Any] = {"kind": None, "detail": ""}
+
+
+
+def _plan_failure_kind_from_seam() -> str:
+    """The failure kind published by the pinned planning wrapper."""
+    try:
+        from core.llm import pinned_planning as _pp
+
+        return (str(_pp.LAST_FAILURE.get("kind") or "")
+                or CanvasPlanOutcome.EMPTY)
+    except Exception:  # noqa: BLE001
+        return CanvasPlanOutcome.EMPTY
+
+
+def _plan_failure_kind(err: Any) -> str:
+    """Classify WHY planning produced no plan.
+
+    Empty output, malformed structured output, a provider/protocol failure
+    and a caller deadline cancellation are different boundaries and must not
+    share one diagnosis.
+    """
+    if err is None:
+        return CanvasPlanOutcome.EMPTY
+    name = type(err).__name__
+    text = f"{name} {err}".lower()
+    if ("timeout" in name.lower() or "timeout" in text
+            or "cancel" in name.lower() or "deadline" in text):
+        return CanvasPlanOutcome.DEADLINE_CANCELLED
+    if ("json" in text or "parse" in text or "schema" in text
+            or "malformed" in text or "truncat" in text):
+        return CanvasPlanOutcome.MALFORMED
+    return CanvasPlanOutcome.PROVIDER_FAILURE
+
+
+
+class CanvasPlanOutcome:
+    """The DISTINCT outcomes at the plan response boundary (owner
+    assignment 3, 2026-10-08).
+
+    A successful HTTP response is not a successful model operation. These
+    are kept apart in the operation record and the terminal response so a
+    repair is aimed at the boundary that actually failed:
+
+    * ``EXECUTABLE``      — a valid plan carrying the work.
+    * ``SERVED_DECLINE``  — a valid ``wants_edit=False`` plan. The model
+      answered; its own captured explanation is the evidence. It is NOT a
+      latency failure and must never be relabelled as one.
+    * ``MALFORMED``       — self-inconsistent or truncated structured
+      output (``wants_edit=False`` with ops, or unparseable JSON).
+    * ``EMPTY``           — the call returned no output at all.
+    * ``PROVIDER_FAILURE``— the route failed: provider, protocol or quota.
+    * ``DEADLINE_CANCELLED`` — the CALLER's deadline cancelled the leg.
+    """
+    EXECUTABLE = "executable_plan"
+    SERVED_DECLINE = "served_decline"
+    MALFORMED = "malformed_structured_output"
+    EMPTY = "empty_output"
+    PROVIDER_FAILURE = "provider_failure"
+    DEADLINE_CANCELLED = "deadline_cancelled"
+
+
 class CanvasPlanUnavailable(Exception):
     """The planning LLM call failed (provider down / timeout / no JSON).
     Distinct from ``None`` (a legitimate "this turn is not an edit"): callers
@@ -181,7 +249,17 @@ class CanvasPlanUnavailable(Exception):
     request misfiled into TASK_MANAGEMENT produces a chat reply claiming the
     edit succeeded while the canvas never changed (observed live 2026-08-31:
     "Append this exact line … LIVEUPDATEcheck456" answered with a false
-    success, no audit row, no broadcast)."""
+    success, no audit row, no broadcast).
+
+    ``kind`` is one of :class:`CanvasPlanOutcome`'s non-success values, so
+    the caller can record WHICH boundary failed instead of one bucket named
+    "provider failure" covering empty output, malformed output, a real
+    provider error and a deadline cancellation alike.
+    """
+
+    def __init__(self, message: str, kind: str = CanvasPlanOutcome.PROVIDER_FAILURE):
+        super().__init__(message)
+        self.kind = kind
 
 
 def _small_edit_shape(message: str, prompt_len: int) -> bool:
@@ -2600,6 +2678,12 @@ async def plan_canvas_edit(
         f"{history_section}"
     )
 
+    try:
+        from core.llm import pinned_planning as _pp
+
+        _pp.LAST_FAILURE.update(kind=None, detail="", label="")
+    except Exception:  # noqa: BLE001 — diagnostic seam is additive
+        pass
     plan = await _plan_structured(
         llm_service,
         prompt=prompt,
@@ -2612,9 +2696,13 @@ async def plan_canvas_edit(
         # planning INFRASTRUCTURE failure, not "not an edit". Raise so the
         # caller answers honestly instead of routing an edit request into
         # generic intent handling (false-success claims, junk tasks).
+        # OWNER ASSIGNMENT 3: "provider failure" was one bucket covering
+        # empty output, malformed output, a real provider/protocol error
+        # and a caller deadline alike. Keep the outcomes apart so a repair
+        # aims at the boundary that actually failed.
         raise CanvasPlanUnavailable(
-            "canvas edit planning LLM returned no plan (provider failure)"
-        )
+            "canvas edit planning LLM returned no plan (provider failure)",
+            kind=_plan_failure_kind_from_seam())
     if not plan.wants_edit:
         # D4: a plan that says "not an edit" while carrying operations is
         # SELF-INCONSISTENT, and it is not a decline -- it is a malformed answer.
@@ -2642,6 +2730,21 @@ async def plan_canvas_edit(
         # planner was actually given. All are shapes/identities: no canvas or
         # user text, per the routine-log rule.
         _body_for_id = _body_from_content((canvas or {}).get("content")) or ""
+        # OWNER ASSIGNMENT 3: a valid wants_edit=False plan is a SERVED
+        # DECLINE — the model answered. Its captured explanation (logged
+        # below) is the evidence. It is NOT a latency failure and must
+        # never be relabelled as one. A self-inconsistent answer (claims
+        # "not an edit" while carrying the work) is MALFORMED instead.
+        try:
+            plan._result_meta = dict(getattr(plan, "_result_meta", None) or {})
+            plan._result_meta["plan_outcome"] = (
+                CanvasPlanOutcome.MALFORMED if (
+                    list(plan.ops or [])
+                    or (plan.updated_content_json or "").strip()
+                    or (plan.restore_audit_id or "").strip())
+                else CanvasPlanOutcome.SERVED_DECLINE)
+        except Exception:  # noqa: BLE001 — diagnostic only
+            pass
         logger.info(
             "canvas edit: plan DECLINED | wants_edit=%s ops=%d "
             "replacement=%s restore=%s contract_violation=%s",
