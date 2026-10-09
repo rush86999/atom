@@ -463,6 +463,45 @@ retained; the release campaign remains closed.
   the protected $2,902 and the taught-basis $8,984) and all 8
   identities intact; exactly 8 dollar figures; nothing sent.
 
+### Drafting repair campaign — CLOSED (2026-10-08/09, final)
+
+**Transaction accepted as closed:** the instructed subject-and-CC
+update landed once (audit `ae4c22ac`), preserved the body and every
+price (incl. protected $2,902 and taught-basis $8,984) and row
+identity, sent nothing, and survived signed-in browser reload
+(session `hdr2-ba5fb`, 50s, zero interventions).
+
+**IDENTITIES AT CLOSURE:**
+- Release-campaign verdict chain tip: `556039ba7`.
+- Working-tree HEAD at closure: `7c1536646` ("fix(planning): keep the
+  response outcomes separate from routing" — the peer's committed
+  planning-outcome fix on top of 556039ba7).
+- Serving source at closure: `7c1536646293-dirty` — the runtime tree
+  includes ONE uncommitted test-only change (the peer's
+  `tests/test_drafting_evidence_handoff.py` header-evidence tests, +61
+  lines); no uncommitted production code is running.
+
+**SCOPE LABEL — authorized subject-and-CC editing.** This transaction
+validated: the unified dispatch gate on the tested paths, the
+workload-derived planning envelope, the evidence-handoff chain, and
+the finding≠authorization boundary, for an owner-authorized header
+update. **To-field resolution and any send operation were OUTSIDE this
+transaction** (To was left empty — no verified recipient was
+established; nothing was sent, per instruction). This is not a general
+reliability or business-portability claim.
+
+**PEER WORK, PRESERVED UNDER ITS DECLARED OWNERSHIP:** the uncommitted
+`tests/test_drafting_evidence_handoff.py` header-evidence additions
+(TestHeaderEvidenceReachesThePlannerWithoutAJOB — CC from teaching,
+To/Subject from verified correspondence, missing identities as
+obligations) remain unstaged in the tree, untouched, awaiting their
+owner's commit.
+
+**NEXT (separate assignment, not this campaign):** the value-trial
+retrieval seam — plain research reusing the existing subject-bound
+workbook lookup, then tasks A and C rerun unchanged, measuring
+completion plus owner review time.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
