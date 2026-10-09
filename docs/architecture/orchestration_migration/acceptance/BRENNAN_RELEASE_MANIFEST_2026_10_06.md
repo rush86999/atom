@@ -536,6 +536,39 @@ across all runs; the draft's three update audit rows are exactly the
 three authorized transactions (price basis, subject, subject+CC).
 Original partials retained for comparison.
 
+### Owner correction pair (2026-10-09) — A5 traced exactly; three boundaries fixed; one newly named
+
+**Dispatch ≠ retrieval ≠ persistence — A5's exact trace:** (1) the
+receipt carried hit COUNTS only (no rows/values/cells) — FIXED with a
+bounded hit digest; the isolated drive now yields the finding
+(SLE24-16=8984 @ Tennsmith, Consolidated Price List 2019.xlsx).
+(2) NOTHING persisted (both ops findings:0) — FIXED at both settles
+(primary digest→typed findings; chained structured results→typed
+findings). (3) The reply renderer received no evidence — the
+deterministic-renderer claim is scoped to named-file reads only.
+(4) The earlier 'narration defect' attribution is WITHDRAWN — the
+omissions were upstream of narration. Live chain repairs: coverage-only
+datasets primaries no longer count as consultations; the catalog trace
+walks 120 file groups (the carrying workbook sat at recency position 21
+of 92 under the old cap of 12 — proven by direct probe).
+
+**Teaching authority (B2):** the top-taught MERGE is REPLACED —
+agent-less turns resolve ONE authority (the single designating hire,
+or several hires sharing one corpus; genuinely different corpora stay
+explicit, no silent merge). Pinned both ways; live: 3 hires share one
+corpus.
+
+**A9 (live rerun):** the trace now finds the workbook (3 files) and
+the continuation spawns row-context reads — but all six attempts
+returned read_returned_no_receipt while the ISOLATED drive of the same
+row (Tennsmith 101) binds six price candidates successfully. The
+NEXT first-failed boundary is inside the live row-context read's
+candidate/field inputs — recorded, not yet fixed. Task A still does
+not complete; 'one follow-up away' remains UNPROVEN. No observed
+incorrect answers in any recorded trial. Task C not rerun this pass.
+Full record: brennan_value_report_20261008.json
+(owner_correction_pair_2026_10_09).
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
