@@ -7786,11 +7786,29 @@ class ChatOrchestrator:
                         # leaves a durable pending operation with zero
                         # tool effects.
                         from core import task_lifecycle as _tlm
+                        # ASK-DERIVED FIELD CONTRACT (2026-10-09 owner
+                        # assignment step 1): the FIRST begin derives the
+                        # requested fields from the owner's own words.
+                        # Without this, the job's contract is [] and
+                        # successor row reads return no-receipt because
+                        # they cannot bind values.
+                        _begin_fields: list = []
+                        try:
+                            from core.workbook_read_artifact import (
+                                extract_field_requests,
+                            )
+                            _begin_fields = [
+                                str(f) for f in (
+                                    extract_field_requests([message]) or [])
+                                if str(f).strip()][:6]
+                        except Exception:  # noqa: BLE001
+                            _begin_fields = []
                         _tl_begin = _tlm.begin_retrieval_turn(
                             _tl_lifecycle, session, session_id, message,
                             _execution_id,
                             items=list(
                                 _ask_task.get("requested_targets") or []),
+                            requested_fields=_begin_fields,
                             agent_id=getattr(self, "_turn_agent_id", None),
                             canvas_id=_canvas_id_from_context(context))
                     except Exception as _tl_err:  # noqa: BLE001
