@@ -826,6 +826,28 @@ adapter's `_canvas_job_findings` reads them from the operation record.
 Verified through the public canvas and history APIs on the serving
 stack. No incorrect answers in any recorded trial.
 
+### FINAL RECORD (2026-10-09 — scoped verdicts, exact identities)
+
+**Commit:** `bd13547a2` (docs tip; production code identical to `bd13547a2^`)
+**Served identity:** `bd13547a267f-dirty.f`, pid 28533, restarted onto HEAD
+**Dirty state:** the peer's test-only file (`test_drafting_evidence_handoff.py`) is unstaged; no uncommitted production code
+
+**Scope correction:** the live verification used the PRIMARY SEARCH path
+(subject-bound datasets.search → confirmed-file read → record_read_outcome
+→ durable findings). The FALLBACK path (primary-plan failure → chained
+confirmed-file read under its own operation identity) is **UNVERIFIED** —
+the chain settles coverage but the confirmed-file read's typed findings
+do not persist under a separate operation identity.
+
+**Scoped verdicts:**
+- **A (research):** 3 observed successful research runs (primary path)
+- **B (calculation):** 3/3 recorded calculation completions
+- **C (drafting):** verified instruction-already-satisfied no-op
+- **Nonpricing portability:** unvalidated
+- **Fallback chained read:** unverified
+
+**No observed incorrect answers in the recorded trials.**
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
