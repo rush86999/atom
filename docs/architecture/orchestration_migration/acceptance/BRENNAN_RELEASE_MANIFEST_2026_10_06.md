@@ -502,6 +502,40 @@ retrieval seam — plain research reusing the existing subject-bound
 workbook lookup, then tasks A and C rerun unchanged, measuring
 completion plus owner review time.
 
+### Value-trial retrieval seam — repaired + reruns measured (2026-10-09)
+
+**Root cause (live-confirmed):** plain chat requests carry NO agent_id
+([MEMCTX] agent_id=None), so the teaching lookup returned [] and
+required-sources derived EMPTY while the taught lessons name both
+sources — the planner-boundary chaining never fired. **Repair:**
+agent-less turns now read the workspace teaching from the agents that
+carry lessons (config-shape scan, deduped merge; pinned against an
+injected registry). Live: required=['datasets','outlook'] derives.
+
+**Reruns (A and C unchanged, fresh sessions, zero interventions):**
+- **A4 (96s):** the seam FIRED — required sources derived, a
+  subject-bound datasets.search dispatched, outlook chained with a
+  6-thread receipt — but the reply NARRATION leg hit the turn budget
+  under provider flakiness (streaming produced no tokens). Truthful
+  budget-exceeded terminal. 1 follow-up; review ~30s.
+- **A5 (95s):** mailbox half COMPLETE and richer than the original
+  (four dated quotes incl. $8,984 on 10-08; CAD/FOB; validity
+  qualified); the workbook half still names its next search — the free
+  planner's datasets.search ran but the Tennsmith sheet row did not
+  surface in the narration. 1 follow-up; review ~45s.
+- **C4 (166s):** T1 budget-exhausted (truthful); T2 SAFE REFUSAL at
+  the guard (the proposed edit would have dropped the Row-268
+  identity) — protection fired live, draft unchanged, precise
+  terminal. 1 follow-up; review ~60s.
+
+**Honest measurement:** time-spent delta holds (A: ~140s+review vs
+~360s manual; C: ~226s+review vs ~750s), but completion savings are
+still NOT claimable — the workbook-read half of both tasks remains
+one-follow-up away in the narration layer. Zero incorrect answers
+across all runs; the draft's three update audit rows are exactly the
+three authorized transactions (price basis, subject, subject+CC).
+Original partials retained for comparison.
+
 ### Campaign stopped; candidate frozen
 
 77d331ec0 is the retained frozen candidate. Repair campaign CLOSED.
