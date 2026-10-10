@@ -1133,6 +1133,79 @@ def _scope_placeholder_violations(body: str, rows: List[List[str]]) -> List[str]
     return sorted(set(violations))
 
 
+def requirement_check(
+    *,
+    message: str,
+    canvas: Optional[Dict[str, Any]],
+    authorized: bool,
+    expected_prior_audit_id: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    """Decide, from RECORDS, whether an authorized edit is already
+    satisfied by the authoritative draft — the evidence a served decline
+    needs before it may be called a no-op.
+
+    Replaces a regex over the planner's reply wording, which let a
+    model choose its own completion by phrasing ("already reflects the
+    approved values"). Completion authority now comes from a CHECK, and
+    the check is bound to three things (owner assignment 2026-10-10):
+
+      1. AUTHORIZATION — an edit was actually authorized for this turn
+         (edit-shaped request over an open canvas). Without it there is
+         nothing to be "already satisfied".
+      2. CANVAS IDENTITY — a canvas was open and resolved.
+      3. AUTHORITATIVE REVISION — the draft the check reads is the one
+         the caller expected to edit. A revision the caller did not
+         expect (or a concurrent change) cannot certify "already done".
+
+    The satisfaction test itself is the SAME scope contract that gates a
+    real edit (``_validate_scoped_edit``), applied to the draft against
+    itself: if the authoritative body already satisfies the request's
+    requirements, there is nothing outstanding.
+
+    Returns None when the evidence is absent or insufficient — the
+    caller must then keep an unconfirmed served decline.
+    """
+    if not authorized:
+        return None
+    canvas = canvas or {}
+    canvas_id = str(canvas.get("canvas_id") or canvas.get("id") or "")
+    if not canvas_id:
+        return None
+    current = canvas.get("content")
+    body = _body_from_content(current)
+    if not body.strip():
+        return None
+    # AUTHORITATIVE REVISION: the draft being certified must be the one
+    # the caller intended to edit. The caller passes the audit id it
+    # read; when it supplied one, a mismatch means the draft moved under
+    # us and this check certifies nothing.
+    observed = str(canvas.get("latest_audit_id")
+                   or canvas.get("audit_id") or "")
+    if expected_prior_audit_id and observed and (
+            str(expected_prior_audit_id) != observed):
+        return None
+    try:
+        violation = _validate_scoped_edit(current, current, [message])
+    except Exception:  # noqa: BLE001 — the check never asserts completion
+        return None
+    if violation:
+        # The authoritative draft does NOT satisfy the request: this is
+        # an outstanding edit, not a no-op.
+        return {
+            "satisfied": False,
+            "reason": str(violation)[:120],
+            "canvas_id": canvas_id[:64],
+            "revision": (observed or None),
+            "authorized": True,
+        }
+    return {
+        "satisfied": True,
+        "canvas_id": canvas_id[:64],
+        "revision": (observed or None),
+        "authorized": True,
+    }
+
+
 def _validate_scoped_edit(
     current: Any,
     new_content: Any,

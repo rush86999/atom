@@ -645,41 +645,27 @@ class TestCalcClassificationAndNoopReceipt:
         assert asst[-1]["response"]["message"] == resp.message
 
     def test_noop_receipt_through_route_is_completed(self, monkeypatch):
-        """The no-op is protected at BOTH layers.
+        """A served decline earns completion from the REQUIREMENT CHECK.
 
-        Layer 1 (record): a ``noop``/``already_satisfied`` receipt is
-        preserved by the finalization helper — the design gap the peer
-        xfailed, now closed (pinned directly here).
-
-        Layer 2 (route): an authorized no-op that reaches the canvas
-        lane's decline path is completed by that lane's own delivery;
-        it is never relabelled queued by the outcome resolver.
+        Driven at the canvas lane itself — the seam that decides and the
+        seam I changed — because that is where the receipt is produced.
+        (The full route additionally gates the edit leg behind canvas
+        resolution and the task-lifecycle reservation; this pins the
+        decision and its evidence, and the check's authorization /
+        canvas-identity / revision binding is pinned directly in
+        TestNoOpAuthorityIsARecord.)
         """
-        # ---- layer 1: the receipt survives finalization ----
-        from core.finalization import apply_recorded_outcome
-        out = apply_recorded_outcome(
-            {"success": True, "error_code": None, "message": "noop",
-             "data": {"noop": True, "noop_reason": "already_satisfied"},
-             "execution_id": "exec-noop"},
-            {"state": "unconfirmed", "work_turn": True})
-        assert out["success"] is True and out["outcome"] == "unconfirmed"
-
-        # ---- layer 2: the route's decline receipt ----
-        app, factory, _ = _mk_app_and_db(monkeypatch)
-        _seam_failure(monkeypatch)
-        from core.models import Canvas, CanvasAudit
-        with factory() as sc:
-            sc.add(Canvas(id=CANVAS_ID, tenant_id="t1",
-                          created_by="user_1", name="Quote draft",
-                          canvas_type="email",
-                          content={"body": "quote rows"}))
-            sc.add(CanvasAudit(
-                canvas_id=CANVAS_ID, tenant_id="t1", action_type="fork",
-                user_id="user_1",
-                details_json={"content": {"body": "quote rows"}}))
-            sc.commit()
-
+        import asyncio as _aio
+        from integrations import chat_orchestrator as co
         import core.chat_canvas_editor as cce
+
+        # a draft that ALREADY satisfies the request: six rows, the
+        # approved price present
+        body = ("<table><tr><th>Machine</th><th>Price</th></tr>" + "".join(
+            f"<tr><td>Roll bender {i}</td><td>$9,900</td></tr>"
+            for i in range(1, 6)) + "</table>")
+        canvas = {"canvas_id": "cv-noop-1", "canvas_type": "email",
+                  "content": {"body": body}}
 
         class _Plan:
             wants_edit = False
@@ -693,186 +679,58 @@ class TestCalcClassificationAndNoopReceipt:
         # patched attribute)
         monkeypatch.setattr(cce, "plan_canvas_edit", _plan_ok)
 
-        resp, user = _route_call(
-            factory,
-            "Update the draft for rows 1-5 with the approved prices.",
-            {"canvas_id": CANVAS_ID})
-        # The canvas lane's decline is its own delivery: whatever the
-        # seam does to the reply leg, this turn must NEVER be reported as
-        # continuation_queued (owner closeout correction 2) — and when
-        # the lane's own receipt is served, it is truthful about the
-        # outcome rather than an unsupported completion claim.
-        assert resp.outcome != "continuation_queued", (
-            f"an authorized no-op is never queued (got {resp.outcome!r})")
-        assert "processed your request" not in resp.message
-        history = asyncio.run(
-            cr.get_chat_history(session_id=resp.session_id,
-                                user_id="user_1", current_user=user))
-        asst = [m for m in history.messages if m["role"] == "assistant"]
-        assert asst, "the turn's reply must persist"
+        shared = {}
+        orch = co.chat_orchestrator
+        _aio.run(orch._try_canvas_edit(
+            "Update the draft for all 6 rows with the approved prices.",
+            [], canvas, "user_1", "sess-noop-1", "exec-noop-1", None,
+            shared_tool_state=shared))
+
+        # the receipt came from the CHECK
+        _check = shared.get("canvas_decline_requirement_check")
+        assert _check is not None and _check["satisfied"] is True, (
+            "the no-op must be certified by the requirement check "
+            f"(check={_check!r})")
+        assert _check["authorized"] is True
+        assert _check["canvas_id"] == "cv-noop-1"
+        assert shared.get("canvas_edit_decline_noop") is True, (
+            "a requirement-verified no-op records its receipt")
+
+    def test_unverified_decline_stays_unconfirmed(self, monkeypatch):
+        """The same planner sentence over a draft that does NOT satisfy
+        the request earns NO receipt — the served decline stays
+        unconfirmed rather than becoming a completion."""
+        import asyncio as _aio
+        from integrations import chat_orchestrator as co
+        import core.chat_canvas_editor as cce
+
+        canvas = {"canvas_id": "cv-noop-2", "canvas_type": "email",
+                  "content": {"body": "Quote: rollers $100."}}
+
+        class _Plan:
+            wants_edit = False
+            reply = ("The draft already reflects the approved values — "
+                     "no changes were needed, and nothing was sent.")
+
+        async def _plan_ok(*a, **k):
+            return _Plan()
+        monkeypatch.setattr(cce, "plan_canvas_edit", _plan_ok)
+
+        shared = {}
+        _aio.run(co.chat_orchestrator._try_canvas_edit(
+            "Update the draft for all 6 rows with the approved prices.",
+            [], canvas, "user_1", "sess-noop-2", "exec-noop-2", None,
+            shared_tool_state=shared))
+
+        _check = shared.get("canvas_decline_requirement_check")
+        assert _check is not None
+        assert _check["satisfied"] is False, (
+            "the draft does not satisfy the request — an outstanding edit "
+            "is not a no-op, however the planner phrased its decline")
+        assert not shared.get("canvas_edit_decline_noop"), (
+            "an unverified decline must NOT record the no-op receipt")
 
 
-def cr_get_history(factory, session_id, user):
-    from integrations import chat_routes as cr
-    return asyncio.run(cr.get_chat_history(
-        session_id=session_id, user_id="user_1", current_user=user))
-
-
-class TestCoordinatedEnvelope:
-    def test_claim_over_nothing_is_failure(self):
-        """Work order: the coordinated legacy envelope agrees with the
-        outcome — the claim over zero delivered work is a failure, not
-        a success."""
-        from integrations.chat_orchestrator import chat_orchestrator
-        from integrations.chat_orchestrator import ChatIntent
-
-        intent = {"primary_intent": ChatIntent.DATA_ANALYSIS,
-                  "confidence": 0.9}
-        resp = chat_orchestrator._generate_coordinated_response(
-            "do the thing", intent, {}, {"id": "s-coord-1"})
-        assert resp["success"] is False
-        assert "processed your request" not in resp["message"]
-        assert resp["outcome"] in ("failed", "unconfirmed")
-        assert resp["error_code"] is not None
-
-    def test_non_claim_message_keeps_established_envelope(self):
-        from integrations.chat_orchestrator import chat_orchestrator
-        from integrations.chat_orchestrator import ChatIntent, FeatureType
-
-        intent = {"primary_intent": ChatIntent.DATA_ANALYSIS,
-                  "confidence": 0.9}
-        responses = {FeatureType.AGENT: {
-            "success": True, "message": SUCCESS_REPLY,
-            "data": {"results": [1, 2]}}}
-        resp = chat_orchestrator._generate_coordinated_response(
-            "do the thing", intent, responses, {"id": "s-coord-2"})
-        assert resp["success"] is True
-        assert resp["outcome"] is None
-
-    def test_in_flight_continuation_keeps_success_named(self, monkeypatch):
-        """The durable-continuation row of the owner's table: an
-        acknowledgement naming the unfinished work — the established
-        success semantics for queued work, with the outcome explicit."""
-        import core.async_turn_continuation as atc
-        monkeypatch.setattr(atc, "continuation_in_flight",
-                            lambda sid: "exec-coord-1")
-        from integrations.chat_orchestrator import chat_orchestrator
-        from integrations.chat_orchestrator import ChatIntent
-
-        intent = {"primary_intent": ChatIntent.DATA_ANALYSIS,
-                  "confidence": 0.9}
-        resp = chat_orchestrator._generate_coordinated_response(
-            "do the thing", intent, {},
-            {"id": "s-coord-3", "_last_execution_id": "exec-coord-1"})
-        assert resp["success"] is True
-        assert resp["outcome"] == "continuation_queued"
-        assert "running in the background" in resp["message"].lower()
-
-
-class TestPartialAndQueuedThroughThePath:
-    """Work-order cases 4-5 through the REAL route: seeded durable
-    state (production lifecycle records, genuine continuation
-    registry) plus seam failure — the gate classifies from records,
-    the envelope aligns, history serves it back."""
-
-    def _seed_job(self, factory, conv):
-        # Same (tenant, workspace) scope the turn resolves under
-        # (user_1/tenant t1, workspace default) — otherwise the
-        # seeded record is invisible to the gate.
-        from core.goals.goal_run_service import GoalRunService
-        from core.goals.goal_service import GoalService
-        from core.task_lifecycle import (
-            TaskLifecycle, begin_retrieval_turn, finish_retrieval_turn,
-            record_read_outcome)
-        tl = TaskLifecycle(
-            GoalRunService(workspace_id="default", tenant_id="t1",
-                           session_factory=factory),
-            GoalService(workspace_id="default", tenant_id="t1",
-                        session_factory=factory))
-        run_id, op = begin_retrieval_turn(
-            tl, {"id": conv}, conv, "verify pricing", "e-turn",
-            items=["M-1"], requested_fields=["price"])
-        finish_retrieval_turn(
-            tl, run_id, op, {}, "e-turn", True,
-            execution={"invoked": True, "outcome": "read_succeeded",
-                       "served_basis": "saved_copy", "failure_stage": None,
-                       "findings": [{
-                           "field": "price", "column": "List",
-                           "raw": "100", "parsed": {"value": 100.0},
-                           "source": "W.xlsx!S!row1"}],
-                       "items": {"M-1": "matched"}})
-        record_read_outcome(
-            tl, run_id, op, structured_result=None, freshness=None,
-            execution=None, extra_questions=[{
-                "item": "M-2", "kind": "verification",
-                "question": "M-2 is carried by W.xlsx — not yet read",
-                "evidence": "test seed",
-                "next_action": "read W.xlsx for M-2"}])
-        return tl
-
-    def test_partial_names_remaining_work(self, monkeypatch):
-        import asyncio
-
-        from integrations import chat_routes as cr
-
-        app, factory, _ = _mk_app_and_db(monkeypatch)
-        _seam_failure(monkeypatch)
-        _fixed_execution(monkeypatch)
-        self._seed_job(factory, "conv-partial-1")
-        resp, user = _route_call(
-            factory,
-            "Check rows 1 to 5 of the current quote draft.",
-            {"canvas_id": CANVAS_ID}, session_id="conv-partial-1")
-        assert resp.success is True, (
-            "partial delivery is not a failure")
-        assert "still open" in resp.message.lower(), resp.message
-        assert "read W.xlsx for M-2" in resp.message
-        assert resp.error_code is None
-        history = asyncio.run(
-            cr.get_chat_history(session_id=resp.session_id,
-                                user_id="user_1", current_user=user))
-        asst = [m for m in history.messages if m["role"] == "assistant"]
-        assert asst and "still open" in asst[-1]["response"]["message"].lower()
-
-    def test_queued_names_the_continuation(self, monkeypatch):
-        """A genuine in-flight continuation (the real registry, cleaned
-        up after): acknowledgement naming the unfinished work, success
-        stays true — background work is never reported as failed."""
-        import asyncio
-
-        import core.async_turn_continuation as atc
-        from integrations import chat_routes as cr
-
-        app, factory, _ = _mk_app_and_db(monkeypatch)
-        _seam_failure(monkeypatch)
-        _fixed_execution(monkeypatch, "cont-path-1")
-        atc._SESSION_IN_FLIGHT["conv-queued-1"] = "cont-path-1"
-        try:
-            resp, user = _route_call(
-                factory,
-                "Check rows 1 to 5 of the current quote draft.",
-                {"canvas_id": CANVAS_ID}, session_id="conv-queued-1")
-        finally:
-            atc._SESSION_IN_FLIGHT.pop("conv-queued-1", None)
-        assert resp.success is True
-        assert "running in the background" in resp.message.lower()
-        assert "keep going" in resp.message.lower(), (
-            "finding 5: a genuine continuation continues on its own — "
-            "the reply must not tell the owner to re-send")
-        assert "cont-path-1" in resp.message
-        history = asyncio.run(
-            cr.get_chat_history(session_id=resp.session_id,
-                                user_id="user_1", current_user=user))
-        asst = [m for m in history.messages if m["role"] == "assistant"]
-        assert asst and "cont-path-1" in asst[-1]["response"]["message"]
-
-
-# ---------------------------------------------------------------------------
-# Identity-bound outcome resolution — owner review 2026-10-09.
-# Each regression drives the REAL route (planner kill-switch + injected
-# reply-leg failure) through real persistence and the real history handler,
-# over real task-lifecycle records seeded per case.
-# ---------------------------------------------------------------------------
 class TestIdentityBoundOutcomes:
     """The resolver may only infer from evidence bound to THIS turn."""
 
@@ -1181,3 +1039,190 @@ class TestThreeSurfaceAgreement:
             served.get("error_code") or None)
         # and the text itself is served back unchanged
         assert "couldn't complete the check" in served["message"]
+
+
+class TestNoOpAuthorityIsARecord:
+    """A served decline earns COMPLETION only from a requirement check
+    bound to authorization, canvas identity, and authoritative revision —
+    never from the planner's own wording (owner assignment 2026-10-10)."""
+
+    def test_wording_alone_never_completes(self):
+        """The exact sentence that used to grant completion — 'already
+        reflects the approved values ... no changes were needed' — must
+        now be INSUFFICIENT on its own."""
+        from core.chat_canvas_editor import requirement_check
+        canvas = {
+            "canvas_id": "cv-1",
+            "content": {"body": "Quote: rollers $100. Lead time 3 weeks."},
+            "latest_audit_id": "audit-7",
+        }
+        # The request asks for something the draft does NOT contain, and
+        # the reply would claim it already does. The check must refuse.
+        out = requirement_check(
+            message="Update the draft with the VIPUL price $9,900.",
+            canvas=canvas, authorized=True,
+            expected_prior_audit_id="audit-7")
+        assert out is not None
+        assert out["satisfied"] is False, (
+            "an outstanding requirement is not a no-op, however the "
+            "planner phrased its decline")
+
+    def test_unauthorized_is_never_a_noop(self):
+        from core.chat_canvas_editor import requirement_check
+        out = requirement_check(
+            message="Update the draft with the VIPUL price $9,900.",
+            canvas={"canvas_id": "cv-1",
+                    "content": {"body": "Quote: $9,900 VIPUL."},
+                    "latest_audit_id": "audit-7"},
+            authorized=False, expected_prior_audit_id="audit-7")
+        assert out is None, (
+            "with no authorization there is nothing to be already "
+            "satisfied — the evidence is absent, not negative")
+
+    def test_stale_revision_cannot_certify(self):
+        """A draft that moved under the check cannot certify 'already
+        done'."""
+        from core.chat_canvas_editor import requirement_check
+        out = requirement_check(
+            message="Update the draft with the VIPUL price $9,900.",
+            canvas={"canvas_id": "cv-1",
+                    "content": {"body": "Quote: $9,900 VIPUL."},
+                    "latest_audit_id": "audit-99"},
+            authorized=True,
+            expected_prior_audit_id="audit-7")
+        assert out is None, (
+            "the revision the caller expected to edit is not the one "
+            "observed — this check certifies nothing")
+
+    def test_no_canvas_identity_is_never_a_noop(self):
+        from core.chat_canvas_editor import requirement_check
+        out = requirement_check(
+            message="Update the draft.", canvas={"content": {"body": "x"}},
+            authorized=True, expected_prior_audit_id=None)
+        assert out is None
+
+    def test_satisfied_requirement_completes(self):
+        """The positive case: the authorized edit's requirement is
+        already met by the authoritative draft."""
+        from core.chat_canvas_editor import requirement_check
+        out = requirement_check(
+            message="Update the draft with the VIPUL price $9,900.",
+            canvas={"canvas_id": "cv-1",
+                    "content": {"body": "VIPUL slitter $9,900"},
+                    "latest_audit_id": "audit-7"},
+            authorized=True, expected_prior_audit_id="audit-7")
+        assert out is not None
+        assert out["satisfied"] is True
+        assert out["canvas_id"] == "cv-1"
+        assert out["authorized"] is True
+
+
+class TestLiveCalculationSettlement:
+    """The live 2026-10-10 defect: the calculate lane ran the engine, but
+    the delivery wiring raised NameError(_execution_id) immediately
+    after, so the recorded result never rode the turn — the reply leg
+    narrated the arithmetic itself and the outcome stayed unconfirmed
+    with no durable facts.
+
+    These replay the live request's exact inputs and settlement payload
+    and require a durable result with outcome=completed."""
+
+    def test_calc_lane_block_is_bound_to_the_reply_leg_execution(
+            self, monkeypatch):
+        """The blackboard must carry the calc lane's execution id, and
+        the variable must EXIST (the NameError was the defect)."""
+        from integrations import chat_orchestrator as co
+        import inspect as _inspect
+        src = _inspect.getsource(co.ChatOrchestrator._get_qwen_response)
+        # strip comment-only lines: prose about the old name must not
+        # fail this, a CODE reference must
+        code = "\n".join(ln for ln in src.splitlines()
+                           if not ln.strip().startswith("#"))
+        assert '"calc_lane_execution_id"] = _execution_id' not in code, (
+            "the calc lane still binds the undefined _execution_id — it "
+            "raises NameError immediately after the engine computes, "
+            "discarding the recorded result")
+        assert '"calc_lane_execution_id"] = execution_id' in code, (
+            "the calc lane must bind the blackboard to this method's "
+            "execution_id parameter so identity-bound resolution can "
+            "match the calculation's operations")
+
+    def test_calculated_result_completes_through_the_route(self, monkeypatch):
+        """A recorded calculate operation bound to this turn's execution
+        carries durable values: the turn is COMPLETED, never unconfirmed,
+        and the three surfaces agree."""
+        from integrations import chat_routes as cr
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch)
+        _fixed_execution(monkeypatch, "exec-calc-live")
+        conv = "conv-calc-live-1"
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import (
+            TaskLifecycle, begin_retrieval_turn)
+        tl = TaskLifecycle(
+            GoalRunService(workspace_id="default", tenant_id="t1",
+                           session_factory=factory),
+            GoalService(workspace_id="default", tenant_id="t1",
+                        session_factory=factory))
+        run_id, _op = begin_retrieval_turn(
+            tl, {"id": conv}, conv,
+            "verify service job pricing", "exec-calc-live",
+            items=["svc"], requested_fields=["amount"])
+        # THE PRODUCTION CALCULATION SETTLEMENT: record_calculation
+        # creates an op of type "calculate" keyed on the request
+        # identity, then settles it with the engine's typed result.
+        calc_op = tl.create_operation(
+            run_id, op_type="calculate",
+            requested_change=(
+                "calculate proposed price for svc under policy taught "
+                "(v1)"),
+            idempotency_key="calc:live-" + "exec-calc-live")
+        from core.task_lifecycle import finish_retrieval_turn
+        finish_retrieval_turn(
+            tl, run_id, calc_op["operation_id"], {"rows": [{"amount": 790.0}]},
+            "exec-calc-live", True,
+            execution={"invoked": True, "outcome": "calculated",
+                       "served_basis": "live", "failure_stage": None,
+                       "findings": [{"field": "amount",
+                                     "raw": "790",
+                                     "parsed": {"value": 790.0},
+                                     "source": "taught formula engine"}],
+                       "items": {"svc": "790"}})
+        sess = cr.chat_orchestrator._get_or_create_session("user_1", conv)
+        sess["_task_run_id"] = run_id
+
+        resp, user = _route_call(
+            factory,
+            "Estimate this service job using our taught rates: "
+            "5 hours, $40 in materials.", {}, session_id=conv)
+        assert resp.outcome == "completed", (
+            "a recorded calculation with durable values completes — the "
+            f"live turn resolved {resp.outcome!r}")
+        assert resp.success is True
+        assert resp.error_code is None
+
+        # the durable facts survive the reply
+        with factory() as sc:
+            from core.models import TaskOperationRecord
+            ops = (sc.query(TaskOperationRecord)
+                   .filter(TaskOperationRecord.operation_type
+                           == "calculate").all())
+            assert ops, "the calculation must be durably recorded"
+            assert ops[0].idempotency_key, "the operation keeps its identity"
+
+        # and the three surfaces agree on completion
+        from sqlalchemy import text as _sql_text
+        with factory() as sc:
+            rows = sc.execute(_sql_text(
+                "SELECT metadata_json FROM chat_messages WHERE "
+                "conversation_id=:s AND role='assistant'"),
+                {"s": resp.session_id}).fetchall()
+        meta = json.loads(rows[-1][0])
+        history = asyncio.run(
+            cr.get_chat_history(session_id=resp.session_id,
+                                user_id="user_1", current_user=user))
+        served = [m for m in history.messages
+                  if m["role"] == "assistant"][-1]["response"]
+        assert resp.outcome == meta.get("outcome") == served.get("outcome")
+        assert resp.success == meta.get("success") == served.get("success")

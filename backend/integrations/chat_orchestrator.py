@@ -4534,7 +4534,19 @@ def _fallback_turn_outcome(
         def _ops_carry_values(ops) -> bool:
             return any(_operation_has_values(op) for op in ops)
 
-        validated = _ops_carry_values(this_ops)
+        def _operation_carries_calculation_result(op) -> bool:
+            calc = op.get("calculation") if isinstance(op, dict) else None
+            if not isinstance(calc, dict):
+                return False
+            proposed = calc.get("proposed") or {}
+            snap = calc.get("inputs") or {}
+            inputs = (snap.get("inputs") if isinstance(snap, dict) else None)
+            return bool(proposed.get("amount") is not None and inputs)
+
+        validated = (
+            _ops_carry_values(this_ops)
+            or any(_operation_carries_calculation_result(op)
+                   for op in this_ops))
         # The session's delivered-result carrier, bound to THIS
         # execution when it carries one: the recorded "results actually
         # included in this answer" (owner step 1). A carrier bound to
@@ -11346,6 +11358,14 @@ class ChatOrchestrator:
                         "task_run_id": _edit_task_reserved.get("run_id"),
                         "outcome": "refused",
                     }
+                    # REQUIREMENT-CHECK RECORD (owner closeout): the
+                    # satisfied receipt is the lane's structured check —
+                    # authorization + canvas identity + authoritative
+                    # revision — never this message's wording.
+                    _noop_satisfied = bool(
+                        _shared_tool.get("canvas_edit_decline_noop"))
+                    _noop_check = _shared_tool.get(
+                        "canvas_decline_requirement_check")
                     if _shared_tool.get("canvas_planning_unavailable"):
                         _canvas_edit_data["plan_unavailable"] = True
                     if _shared_tool.get("task_lifecycle_block"):
@@ -11360,16 +11380,18 @@ class ChatOrchestrator:
                     # CURRENT draft and needed no change — record the
                     # receipt so the outcome is completed (the finalizer's
                     # genuine-no-op escape preserves it).
-                    if _shared_tool.get("canvas_noop_receipt"):
+                    if _noop_satisfied:
                         _canvas_edit_data["noop"] = True
                         _canvas_edit_data["noop_reason"] = (
                             "already_satisfied")
-                    # VERIFIED-SATISFIED NO-OP (owner closeout): the
-                    # message IS the confirmation ("already reflects… "
-                    # nothing written), the machine outcome is
-                    # completed, and the receipt rides the data for the
-                    # finalizer's genuine-no-op escape.
-                    if _shared_tool.get("canvas_noop_receipt"):
+                    # VERIFIED-SATISFIED NO-OP (owner closeout): the REQUIREMENT
+                    # CHECK — not this message's wording — is the
+                    # confirmation (the authorized edit is already
+                    # satisfied by the authoritative draft, nothing was
+                    # written), the machine outcome is completed, and the
+                    # receipt rides the data for the finalizer's
+                    # genuine-no-op escape.
+                    if _noop_satisfied:
                         _no_apply_message = (
                             str(_shared_tool.get(
                                 "canvas_edit_decline_reply") or "").strip()
@@ -11382,10 +11404,19 @@ class ChatOrchestrator:
                         _no_apply_message = (
                             f"{_no_apply_message}\n\n"
                             f"{_shared_tool['chain_report']}").strip()
-                    _noop_receipt = bool(
-                        _shared_tool.get("canvas_noop_receipt"))
+                    # REQUIREMENT-CHECK RECORD (owner closeout): the
+                    # satisfied receipt is the lane's structured check —
+                    # authorization + canvas identity + authoritative
+                    # revision — never this message's wording. With it,
+                    # the no-op is completed; without it, the served
+                    # decline ships UNCONFIRMED (never failed, queued, or
+                    # certified completed).
+                    _noop_satisfied = bool(
+                        _shared_tool.get("canvas_edit_decline_noop"))
+                    _noop_check = _shared_tool.get(
+                        "canvas_decline_requirement_check")
                     response = {
-                        "success": True,
+                        "success": bool(_noop_satisfied),
                         "message": _no_apply_message,
                         "session_id": session_id,
                         # D3: every outcome carries the execution it belongs to.
@@ -11395,7 +11426,17 @@ class ChatOrchestrator:
                         # VERIFIED-SATISFIED NO-OP: the machine outcome
                         # agrees with the confirmation text.
                         "outcome": (
-                            "completed" if _noop_receipt else None),
+                            "completed" if _noop_satisfied
+                            else "unconfirmed"),
+                        "error_code": (
+                            None if _noop_satisfied
+                            else "outcome_unconfirmed"),
+                        "_recorded_outcome": {
+                            "state": ("completed" if _noop_satisfied
+                                      else "unconfirmed"),
+                            "work_turn": True,
+                            "noop": _noop_satisfied,
+                        },
                         "data": {"canvas_edit": _canvas_edit_data},
                         "suggested_actions": [],
                         "requires_confirmation": False,
@@ -11407,11 +11448,12 @@ class ChatOrchestrator:
                         {"primary_intent": "canvas_edit", "confidence": 0.9},
                     )
                     await self._emit_agent_status(
-                        session_id, _trace_agent_id, _execution_id, "success"
+                        session_id, _trace_agent_id, _execution_id,
+                        "success" if _noop_satisfied else "failed"
                     )
                     self._finish_chat_execution(
                         _execution_id,
-                        "success",
+                        "success" if _noop_satisfied else "failed",
                         _no_apply_message,
                         session=session,
                         message=message,
@@ -12207,7 +12249,7 @@ class ChatOrchestrator:
                              is not None))
                     _noop_receipt = bool(
                         isinstance(locals().get("_shared_tool"), dict)
-                        and _shared_tool.get("canvas_noop_receipt"))
+                        and _shared_tool.get("canvas_edit_decline_noop"))
                     # the calc lane runs on the reply leg's own inner
                     # execution id — carried on the blackboard so the
                     # identity-bound resolver matches its operations
@@ -16300,9 +16342,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 # The ledger binds the operation to the
                                 # INNER execution id of this reply leg —
                                 # carried so identity-bound resolution can
-                                # match it.
+                                # match it. (This method's parameter is
+                                # ``execution_id``; the underscore-prefixed
+                                # name never existed here and raised
+                                # NameError on EVERY calc-lane delivery,
+                                # unwinding the block right after the
+                                # engine had already computed — the live
+                                # 2026-10-10 defect where the reply
+                                # narrated the arithmetic and no durable
+                                # result rode the turn.)
                                 shared_tool_state[
-                                    "calc_lane_execution_id"] = _execution_id
+                                    "calc_lane_execution_id"] = execution_id
 
                             logger.info(
                                 "[calc-lane] goal-session calculation "
@@ -21539,27 +21589,46 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         and not plan.wants_edit
                         and not str(getattr(plan, "reply", "") or "").strip()
                         else "declined")
-                    # NO-CHANGES-NEEDED DECLINE (2026-10-08 owner step 5,
-                    # live capture): a SERVED planner that declines
-                    # because "the draft already reflects the approved
-                    # prices; no changes were needed" is a COMPLETION
-                    # (nothing to change, nothing sent), not a failure —
-                    # the truthful terminal the case wants. The words ride
-                    # the shared state; the response assembly and the
-                    # continuation map them to an already-correct outcome.
+                    # NO-CHANGES-NEEDED DECLINE — REQUIREMENT CHECK, NOT
+                    # WORDING (owner assignment 2026-10-10). This used to
+                    # read the planner's own sentence ("already reflects
+                    # the approved values") with a regex, which let the
+                    # model grant itself completion authority by how it
+                    # phrased a decline. Completion is now a CHECK
+                    # against the authoritative draft, bound to three
+                    # things: authorization (an edit really was asked for
+                    # over an open canvas), canvas identity, and the
+                    # authoritative revision the caller intended to edit.
+                    # Without that evidence the decline is an UNCONFIRMED
+                    # served decline — never a completion.
                     _decline_reply = str(
                         getattr(plan, "reply", "") or "").strip()
-                    if _decline_reply and re.search(
-                            r"no\s+(?:\w+\s+){0,2}changes (?:were )?"
-                            r"needed|already (?:reflects|preserves|"
-                            r"includes|contains|matches|uses)|nothing "
-                            r"to change|no canvas changes",
-                            _decline_reply, re.IGNORECASE):
+                    _requirement_check = None
+                    try:
+                        from core.chat_canvas_editor import (
+                            requirement_check as _requirement_check_fn,
+                        )
+
+                        _requirement_check = _requirement_check_fn(
+                            message=message,
+                            canvas=canvas,
+                            authorized=bool(_edit_requested),
+                            expected_prior_audit_id=(
+                                expected_prior_audit_id),
+                        )
+                    except Exception:  # noqa: BLE001 — never assert
+                        _requirement_check = None
+                    shared_tool_state["canvas_decline_requirement_check"] = (
+                        _requirement_check)
+                    if bool((_requirement_check or {}).get("satisfied")):
                         shared_tool_state[
                             "canvas_edit_decline_noop"] = True
                         shared_tool_state[
                             "canvas_edit_decline_reply"] = (
-                                _decline_reply[:300])
+                                _decline_reply[:300] or
+                                "The draft already reflects the approved "
+                                "values — no changes were needed, and "
+                                "nothing was sent.")
             return None
         if not _edit_requested:
             if shared_tool_state is not None:
