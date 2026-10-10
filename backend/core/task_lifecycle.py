@@ -147,6 +147,11 @@ EXEC_OUTCOMES = (
     "search_returned_no_receipt",  # dispatched; prose came back, no receipt
     "read_returned_no_receipt",    # dispatched; prose came back, no receipt
     "search_succeeded_empty",      # valid empty search: bounded absence
+    # Round 66's calculate lane executes deterministically and its result
+    # rides the operation record — a real outcome, verbatim, not to be
+    # clamped to read_failed (which misrecorded every calculation as a
+    # failure and downgraded completed calculations to unconfirmed).
+    "calculated",
 )
 
 #: Which basis served a SUCCESSFUL read — independent of outcome, because

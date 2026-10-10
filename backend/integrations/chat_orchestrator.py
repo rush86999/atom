@@ -4358,7 +4358,8 @@ _EXEC_FAILED_OUTCOMES = frozenset(
 
 
 def _turn_evidence_set(record: Optional[Dict[str, Any]],
-                       execution_id: Any) -> Dict[str, Any]:
+                       execution_id: Any,
+                       extra_ids: Any = None) -> Dict[str, Any]:
     """This turn's evidence set — scoped by IDENTITY, never by recency.
 
     Returns the operations bound to THIS execution, the delivery records
@@ -4374,14 +4375,16 @@ def _turn_evidence_set(record: Optional[Dict[str, Any]],
              "operation_ids": set()}
     if not isinstance(record, dict) or not execution_id:
         return empty
-    target = str(execution_id)
+    targets = {str(execution_id or "")} | {str(e) for e in (
+        extra_ids or ()) if e}
+    targets.discard("")
     all_ops = [op for op in (record.get("operations") or [])
                if isinstance(op, dict)]
     this_ops = [op for op in all_ops
-                if str(op.get("execution_id") or "") == target]
+                if str(op.get("execution_id") or "") in targets]
     deliveries = [d for d in (record.get("deliveries") or [])
                   if isinstance(d, dict)
-                  and str(d.get("execution_id") or "") == target]
+                  and str(d.get("execution_id") or "") in targets]
     # Operations the delivery records explicitly name: the recorded
     # "this answer includes these results" link.
     named = {str(oid) for d in deliveries
@@ -4409,8 +4412,12 @@ def _operation_has_values(op: Dict[str, Any]) -> bool:
     """Does this operation actually carry REQUESTED VALUES?
 
     A discovery-only receipt — dispatched, returned prose, no structured
-    values (``findings: []`` with ``items: {}``) — obtained evidence
-    about WHERE to look, not an answer. It must not certify delivery.
+    values (``findings: []`` with ``items: {"M-1": "matched"}``) —
+    obtained evidence about WHERE to look and WHAT matched, not an
+    answer. Match-status strings are setup facts, not values (owner
+    finding 2: stored findings/match maps must not certify delivery).
+    Only value-bearing entries count: a findings entry with a value
+    field, or an items map whose entries are value-shaped dicts.
     """
     execr = op.get("execution")
     if not isinstance(execr, dict):
@@ -4420,7 +4427,14 @@ def _operation_has_values(op: Dict[str, Any]) -> bool:
             isinstance(f, dict) and f for f in findings):
         return True
     items = execr.get("items")
-    return bool(isinstance(items, dict) and items)
+    if isinstance(items, dict):
+        for v in items.values():
+            if isinstance(v, dict) and any(
+                    v.get(k) not in (None, "")
+                    for k in ("value", "amount", "price", "raw_value",
+                              "parsed")):
+                return True
+    return False
 
 
 def _fallback_turn_outcome(
@@ -4431,6 +4445,7 @@ def _fallback_turn_outcome(
     workspace_id: Any = None,
     canvas_was_read: bool = False,
     noop_receipt: bool = False,
+    extra_execution_ids: Any = None,
 ) -> Dict[str, Any]:
     """Resolve the turn's outcome from DURABLE, IDENTITY-BOUND records.
 
@@ -4464,22 +4479,33 @@ def _fallback_turn_outcome(
     try:
         open_work: List[str] = []
 
-        # 1. the durable task record for this session.
+        # 1. the durable task record for this session. The session's
+        #    run binding when present; otherwise the conversation's own
+        #    active run — a calculation turn creates and settles its run
+        #    without stamping the session, and the conversation IS the
+        #    request scope, so the scoped lookup stays identity-bound.
         run_id = (session or {}).get("_task_run_id") if isinstance(
             session, dict) else None
         record = None
-        if run_id:
-            try:
-                from core.task_lifecycle import next_unfinished_work
-
-                tl = _task_lifecycle_for(
-                    None, workspace_id
-                    or (context or {}).get("workspace_id"))
+        try:
+            tl = _task_lifecycle_for(
+                None, workspace_id
+                or (context or {}).get("workspace_id"))
+            if tl is not None and not run_id and isinstance(session, dict):
+                _conv = (session or {}).get("id") or (
+                    session or {}).get("session_id")
+                if _conv:
+                    _active = tl.find_active_task(str(_conv))
+                    if _active:
+                        run_id = _active.get("run_id")
+            if run_id:
                 record = tl.get_task(run_id) if tl else None
-            except Exception:  # noqa: BLE001 — record stays best-effort
-                record = None
+        except Exception:  # noqa: BLE001 — record stays best-effort
+            record = None
 
-        ev = _turn_evidence_set(record, execution_id)
+        _extra = {str(e) for e in (
+            extra_execution_ids or ()) if e}
+        ev = _turn_evidence_set(record, execution_id, extra_ids=_extra)
         this_ops = ev["operations"]
         deliveries = ev["deliveries"]
         work_turn = bool(this_ops or deliveries)
@@ -12182,11 +12208,20 @@ class ChatOrchestrator:
                     _noop_receipt = bool(
                         isinstance(locals().get("_shared_tool"), dict)
                         and _shared_tool.get("canvas_noop_receipt"))
+                    # the calc lane runs on the reply leg's own inner
+                    # execution id — carried on the blackboard so the
+                    # identity-bound resolver matches its operations
+                    _extra_exec = None
+                    if isinstance(locals().get("_shared_tool"), dict):
+                        _extra_exec = _shared_tool.get(
+                            "calc_lane_execution_id")
                     _fb_outcome = _fallback_turn_outcome(
                         session, _execution_id, feature_responses, context,
                         workspace_id=(context or {}).get("workspace_id"),
                         canvas_was_read=_fb_read,
-                        noop_receipt=_noop_receipt)
+                        noop_receipt=_noop_receipt,
+                        extra_execution_ids=(
+                            [_extra_exec] if _extra_exec else None))
                 except Exception:  # noqa: BLE001 — additive
                     _fb_outcome = None
             if not _fb_from_gate and not (_fb_outcome or {}).get(
@@ -16262,6 +16297,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             if isinstance(shared_tool_state, dict):
                                 shared_tool_state["calc_lane_block"] = \
                                     _calc_block
+                                # The ledger binds the operation to the
+                                # INNER execution id of this reply leg —
+                                # carried so identity-bound resolution can
+                                # match it.
+                                shared_tool_state[
+                                    "calc_lane_execution_id"] = _execution_id
 
                             logger.info(
                                 "[calc-lane] goal-session calculation "
