@@ -1133,6 +1133,198 @@ def _scope_placeholder_violations(body: str, rows: List[List[str]]) -> List[str]
     return sorted(set(violations))
 
 
+# Shared trigger vocabulary with ``_validate_scoped_edit`` below: the
+# words that make a request scope-bearing (table/value obligations).
+# Kept as one constant so the satisfaction check and the mutation guard
+# cannot drift apart.
+_SCOPE_TRIGGER_RE = re.compile(
+    r"price|lead time|delivery|actual|quote|table|row|apply|update|fill",
+    re.IGNORECASE,
+)
+
+_PLACEHOLDER_TRIGGER_RE = re.compile(
+    r"no\s+(?:square\s+brackets?|brackets?|unresolved\s+placeholders?)|"
+    r"square\s+brackets?.{0,30}(?:not|never|no)",
+    re.IGNORECASE,
+)
+
+
+def _normalize_subject_value(value: Any) -> str:
+    text = _html_text(str(value or ""))
+    text = text.strip().strip("\"'“”‘’").strip()
+    return re.sub(r"\s+", " ", text)
+
+
+def _extract_requested_subject(message: str) -> Optional[str]:
+    """The subject value the request explicitly names, or None.
+
+    Only explicit subject cues count (``subject to "X"``, ``subject: X``,
+    ``set the subject to X``). A bare mention of the word "subject" with
+    no value is not an obligation — it stays unconfirmed, never satisfied
+    by default.
+    """
+    text = str(message or "")
+    for pattern in (
+        r"subject\s*(?:line)?\s*(?:to|as|:)\s*[\"“”'‘’](.+?)[\"“”'‘’]",
+        r"set\s+(?:the\s+)?subject\s+(?:to\s+)?[\"“”'‘’](.+?)[\"“”'‘’]",
+    ):
+        match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+        if match and match.group(1).strip():
+            return _normalize_subject_value(match.group(1))
+    match = re.search(
+        r"subject\s*(?:line)?\s*(?:to|as|:)\s*([^\n;.]+)",
+        text, re.IGNORECASE)
+    if match:
+        candidate = _normalize_subject_value(match.group(1))
+        candidate = re.sub(
+            r"\s+(?:please|thanks|for\s+the\s+draft|on\s+the\s+draft)\s*$",
+            "", candidate, flags=re.IGNORECASE).strip()
+        if candidate:
+            return candidate
+    return None
+
+
+def _split_addr_list(raw: Any) -> List[str]:
+    parts = re.split(
+        r"[;,]+|\s+and\s+|\s*&\s+", str(raw or ""), flags=re.IGNORECASE)
+    out: List[str] = []
+    for part in parts:
+        cleaned = part.strip().strip("\"'“”‘’").strip()
+        cleaned = re.sub(r"\s+", " ", cleaned)
+        if cleaned:
+            out.append(cleaned)
+    return out
+
+
+def _dedupe_preserve(entries: List[str]) -> List[str]:
+    seen: set = set()
+    unique: List[str] = []
+    for entry in entries:
+        key = entry.lower()
+        if key not in seen:
+            seen.add(key)
+            unique.append(entry)
+    return unique
+
+
+def _extract_requested_cc(message: str) -> List[str]:
+    text = str(message or "")
+    found: List[str] = []
+    for pattern in (
+        r"\bcc\s*:\s*([^\n;]+)",
+        r"add\s+(.+?)\s+to\s+(?:the\s+)?cc\b",
+        r"(?:set|change|update)\s+(?:the\s+)?cc\s+(?:to|as)\s+([^\n;.]+)",
+        r"\bcc\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})",
+    ):
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            found.extend(_split_addr_list(match.group(1)))
+    return _dedupe_preserve(found)
+
+
+def _extract_requested_to(message: str) -> List[str]:
+    text = str(message or "")
+    found: List[str] = []
+    for pattern in (
+        r"\bto\s*:\s*([^\n;]+)",
+        r"add\s+(.+?)\s+to\s+(?:the\s+)?to\b",
+        r"(?:set|change|update)\s+(?:the\s+)?to\s+(?:to|as|field\s+to)\s+([^\n;.]+)",
+    ):
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            # "subject to: X" names the SUBJECT, not a recipient — the
+            # subject extractor owns that cue.
+            prefix = text[max(0, match.start() - 12):match.start()]
+            if re.search(r"subject\s*$", prefix, re.IGNORECASE):
+                continue
+            chunk = match.group(1) or ""
+            if re.fullmatch(r"\s*cc\s*", chunk, re.IGNORECASE):
+                continue
+            found.extend(_split_addr_list(chunk))
+    return _dedupe_preserve(found)
+
+
+def _content_headers(content: Any) -> Dict[str, str]:
+    if isinstance(content, dict):
+        return {
+            "subject": _normalize_subject_value(content.get("subject")),
+            "to": str(content.get("to") or ""),
+            "cc": str(content.get("cc") or ""),
+            "body": _body_from_content(content),
+        }
+    return {"subject": "", "to": "", "cc": "",
+            "body": _body_from_content(content)}
+
+
+def _header_obligations_present(message: str) -> bool:
+    return bool(
+        _extract_requested_subject(message)
+        or _extract_requested_cc(message)
+        or _extract_requested_to(message)
+    )
+
+
+def _header_violation(message: str, content: Any) -> Optional[str]:
+    """Unmet requested header postconditions, or None when all met.
+
+    Returns None both when the request names no headers (no obligations)
+    and when every named header is satisfied — callers distinguish with
+    ``_header_obligations_present``.
+    """
+    requested_subject = _extract_requested_subject(message)
+    requested_cc = _extract_requested_cc(message)
+    requested_to = _extract_requested_to(message)
+    if not requested_subject and not requested_cc and not requested_to:
+        return None
+    headers = _content_headers(content)
+    if requested_subject:
+        if not headers["subject"].strip():
+            return "subject_missing"
+        if headers["subject"].lower() != requested_subject.lower():
+            return "subject_mismatch"
+    saved_cc = str(headers["cc"] or "")
+    for entry in requested_cc:
+        if entry.lower() not in saved_cc.lower():
+            return "cc_missing:" + entry[:40]
+    saved_to = str(headers["to"] or "")
+    for entry in requested_to:
+        if entry.lower() not in saved_to.lower():
+            return "to_missing:" + entry[:40]
+    return None
+
+
+def _scope_message_text(message: str) -> str:
+    """The request with extracted header VALUES removed.
+
+    A subject value's own words ("Quote", "$9,900", "381") are not body
+    obligations — without this, a subject-only edit would demand its own
+    words appear in the body. Values are replaced, cues kept, so a vague
+    request still reads as vague rather than empty.
+    """
+    text = str(message or "")
+    subject = _extract_requested_subject(message)
+    if subject:
+        text = re.sub(re.escape(subject), " ", text, flags=re.IGNORECASE)
+    for entries in (
+            _extract_requested_cc(message), _extract_requested_to(message)):
+        for entry in entries:
+            text = re.sub(re.escape(entry), " ", text, flags=re.IGNORECASE)
+    return text
+
+
+def _has_concrete_scope_obligations(scope_text: str) -> bool:
+    text = str(scope_text or "")
+    if _requested_product_count([text]) is not None:
+        return True
+    if _scope_requirements([text]):
+        return True
+    if _scope_codes([text]):
+        return True
+    if "alternative" in text.lower():
+        return True
+    if _PLACEHOLDER_TRIGGER_RE.search(text):
+        return True
+    return False
+
+
 def requirement_check(
     *,
     message: str,
@@ -1157,10 +1349,16 @@ def requirement_check(
          the caller expected to edit. A revision the caller did not
          expect (or a concurrent change) cannot certify "already done".
 
-    The satisfaction test itself is the SAME scope contract that gates a
-    real edit (``_validate_scoped_edit``), applied to the draft against
-    itself: if the authoritative body already satisfies the request's
-    requirements, there is nothing outstanding.
+    SATISFACTION vs PRESERVATION (2026-10-10 correction): the scope
+    contract (``_validate_scoped_edit``) guards MUTATIONS — it proves a
+    draft does not violate preservation constraints. Passing it does NOT
+    prove the requested change already exists. Satisfaction therefore
+    evaluates the request's POSTCONDITIONS against the authoritative
+    canvas: every requested header (subject, recipients) must already
+    match, and every requested scope obligation (row counts, amounts
+    with identifiers, alternatives, placeholders) must already hold.
+    A request the check cannot parse into concrete obligations is
+    UNSUPPORTED — it returns None (unconfirmed), never True.
 
     Returns None when the evidence is absent or insufficient — the
     caller must then keep an unconfirmed served decline.
@@ -1172,34 +1370,69 @@ def requirement_check(
     if not canvas_id:
         return None
     current = canvas.get("content")
-    body = _body_from_content(current)
-    if not body.strip():
+    headers = _content_headers(current)
+    body = headers["body"]
+    if (not body.strip() and not headers["subject"].strip()
+            and not str(headers["to"] or "").strip()
+            and not str(headers["cc"] or "").strip()):
         return None
     # AUTHORITATIVE REVISION: the draft being certified must be the one
     # the caller intended to edit. The caller passes the audit id it
-    # read; when it supplied one, a mismatch means the draft moved under
-    # us and this check certifies nothing.
+    # read; a mismatch means the draft moved under us. A missing
+    # observed revision when one was expected is the same refusal: there
+    # is no evidence the draft IS the intended revision.
     observed = str(canvas.get("latest_audit_id")
                    or canvas.get("audit_id") or "")
-    if expected_prior_audit_id and observed and (
-            str(expected_prior_audit_id) != observed):
+    if expected_prior_audit_id:
+        if not observed:
+            return None
+        if str(expected_prior_audit_id) != observed:
+            return None
+    # OBLIGATION DISPOSITIONS (owner work order 2026-10-10): every
+    # requirement the request names gets an explicit disposition —
+    # satisfied / unsatisfied / unresolved — and completion REQUIRES all
+    # required obligations satisfied. A mixed request (subject satisfied
+    # + contractor replacement unmet) is unconfirmed with the unmet
+    # obligation named, never certified by its satisfied half.
+    obligations: List[Dict[str, Any]] = []
+    header_present = _header_obligations_present(message)
+    if header_present:
+        header_violation = _header_violation(message, current)
+        obligations.append({
+            "kind": "header_postconditions",
+            "disposition": ("unsatisfied" if header_violation
+                            else "satisfied"),
+            "detail": str(header_violation or
+                          "requested subject/recipients already match")[:120],
+        })
+    # SCOPE POSTCONDITIONS: header values are stripped first so a
+    # subject's own words never become body obligations.
+    scope_text = _scope_message_text(message)
+    scope_shaped = bool(_SCOPE_TRIGGER_RE.search(scope_text))
+    if scope_shaped:
+        try:
+            violation = _validate_scoped_edit(current, current, [scope_text])
+        except Exception:  # noqa: BLE001 — the check never asserts completion
+            return None
+        obligations.append({
+            "kind": "scope_postconditions",
+            "disposition": ("unsatisfied" if violation else "satisfied"),
+            "detail": str(violation or "scope obligations hold")[:120],
+        })
+        if not _has_concrete_scope_obligations(scope_text) and not header_present:
+            # Scope-shaped wording with no concrete obligations (a bare
+            # "update the draft") certifies nothing.
+            return None
+    elif not header_present:
+        # Neither a scope-bearing request nor a header obligation: the
+        # check cannot parse this into postconditions. Unconfirmed.
         return None
-    try:
-        violation = _validate_scoped_edit(current, current, [message])
-    except Exception:  # noqa: BLE001 — the check never asserts completion
-        return None
-    if violation:
-        # The authoritative draft does NOT satisfy the request: this is
-        # an outstanding edit, not a no-op.
-        return {
-            "satisfied": False,
-            "reason": str(violation)[:120],
-            "canvas_id": canvas_id[:64],
-            "revision": (observed or None),
-            "authorized": True,
-        }
+    unsatisfied = [o for o in obligations
+                   if o["disposition"] == "unsatisfied"]
     return {
-        "satisfied": True,
+        "satisfied": bool(obligations) and not unsatisfied,
+        "obligations": obligations,
+        "unmet": [o["detail"] for o in unsatisfied],
         "canvas_id": canvas_id[:64],
         "revision": (observed or None),
         "authorized": True,

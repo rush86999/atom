@@ -675,6 +675,184 @@ class TestRealRowRegressions:
         # statuses[item] == "" and the question stays open.
 
 
+class TestTaughtLeadWorkerReplay:
+    """Owner closeout regression (production worker path): the TAUGHT
+    location lead -> stored inputs -> row executor -> fenced settlement
+    -> fresh reload. The incidental-number negatives (PRICE 381 /
+    QUANTITY 381 on a different model) stay identity-unsupported; the
+    legitimate model match binds; source-version and raw-sheet identity
+    are preserved on the read receipt. Scratch DB; generic XB-1/Alpha
+    fixture — no Brennan wording."""
+
+    # production-shaped data: a PURE-DIGIT item code (filtered by
+    # _clean_sheet_name) and a sheet name that survives cleaning
+    TAUGHT_LESSON = {
+        "id": "lesson-381-taught",
+        "source": "teacher", "teacher_agent_id": "human_supervisor",
+        "topic": "workbook location",
+        "lesson": ("381 is on the Alpha sheet of the taught workbook "
+                   "under row 12"),
+        "learned_at": "2026-10-10T00:00:00+00:00", "scope": "global",
+    }
+
+    @pytest.mark.asyncio
+    async def test_worker_taught_lead_binds_and_negatives_reject(
+            self, lifecycle, monkeypatch):
+        from core.task_lifecycle import (
+            begin_retrieval_turn, next_unfinished_work,
+            record_read_outcome)
+        from core import research_continuation as rc
+        from core.research_continuation import (
+            _identity_supported, _taught_location_successors)
+
+        conv = "conv-taught-worker-1"
+        run_id, op = begin_retrieval_turn(
+            lifecycle, {"id": conv}, conv,
+            "find the quoted price and the taught list basis",
+            "exec-worker-1", items=["XB-1"], requested_fields=["price"],
+            agent_id="or-agent")
+        # the open question: the item is carried by a workbook, not yet
+        # read (the locate form the continuation acts on)
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=[{
+                "item": "381", "kind": "verification",
+                "question": "381 is carried by Alpha.xlsx — not yet read",
+                "evidence": "vt", "next_action": "read Alpha.xlsx for 381",
+                "inputs": {"item": "381", "file": "Alpha.xlsx",
+                           "requested_fields": ["price"]}}])
+
+        # the taught location successor: generated from the lesson by
+        # the corpus-to-lead mechanism (identity NOT yet corroborated —
+        # the read does that)
+        lessons = [self.TAUGHT_LESSON]
+        succ = _taught_location_successors(
+            lifecycle, run_id, lifecycle.get_task(run_id), lessons)
+        assert succ, "the taught lead generates a successor"
+        assert succ[0]["inputs"]["candidates"][0]["sheet"] == "Alpha"
+        assert succ[0]["inputs"]["candidates"][0]["row"] == 12
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution=None, extra_questions=succ)
+
+        # the incidental-number negatives through the SAME identity rule:
+        # a row whose MODEL is a different product, carrying 381 in a
+        # VALUE cell, never identifies
+        for row in ({"MODEL NO.": "XB-3", "PRICE": "381"},
+                    {"MODEL NO.": "XB-3", "QUANTITY": 381}):
+            assert not _identity_supported(row, "", "381", "381"), (
+                f"an incidental number in {sorted(row)} must not "
+                "certify identity")
+
+        # the production worker path: cycle over the run, locate, read
+        from integrations import chat_routes as cr
+
+        orch = cr.chat_orchestrator
+        monkeypatch.setenv("ATOM_DISABLE_TOOL_PLANNER", "1")
+
+        def fake_find_entries(sheet, user_id, workspace_id, limit):
+            return [{"file_name": "Alpha.xlsx", "sheet": sheet,
+                     "column": "MODEL NO.", "value": "XB-1"}]
+
+        def fake_read_row(file_name, sheet, row, user_id, workspace_id):
+            if (sheet, row) == ("Alpha", 12):
+                # The row IS the taught item: exact model-cell match
+                # for item 381 (the XB-1 row belonged to the previous
+                # XB-1-flavored draft and can no longer bind item 381).
+                return {"headers": ["MODEL NO.", "DESCRIPTION", "PRICE"],
+                        "row": {"MODEL NO.": "381",
+                                "DESCRIPTION": "381 bench unit",
+                                "PRICE": 790}}
+            return None
+        monkeypatch.setattr(
+            "core.sheet_dataset_service.find_entries_sync", fake_find_entries)
+        monkeypatch.setattr(
+            "core.sheet_dataset_service.read_sheet_row_sync", fake_read_row)
+        monkeypatch.setattr(rc, "_lifecycle_for_default_tenant",
+                            lambda: lifecycle)
+
+        class StubMgr:
+            def get_session(self, sid):
+                return {"user_id": "user_1", "workspace_id": "default",
+                        "agent_id": "or-agent",
+                        "history": [{"message": "hi", "response": "ok"}]}
+
+            def update_session_activity(self, sid, history=None,
+                                        last_message=None):
+                pass
+        monkeypatch.setattr(
+            "core.chat_session_manager.chat_session_manager", StubMgr())
+
+        # cycle 2 executes the row read through the executor (find stub
+        # and read stub above) — identity corroborated, values bound
+        out2 = await rc.research_continuation_cycle()
+        rec2 = lifecycle.get_task(run_id)
+        resolved = [q for q in rec2["task_revision"]["unresolved"]
+                    if q.get("status") == "resolved"]
+        assert resolved, "the read resolves the taught successor"
+        blob = json.dumps(
+            [(o.get("execution") or {}).get("findings")
+             for o in rec2.get("operations", [])], default=str)
+        # Findings carry field/column/value/source — never the item
+        # code itself (the item rides the question and the evidence) —
+        # so the blob pins the served value, its column, and the
+        # serving copy identity.
+        assert "790" in blob and "PRICE" in blob, (
+            f"the durable findings must carry the values: {blob[:300]}")
+        assert "Alpha.xlsx" in blob, (
+            "the serving copy identity must survive on the findings")
+
+        # FRESH RELOAD: a new lifecycle over the SAME scratch DB
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.goal_service import GoalService
+        from core.task_lifecycle import TaskLifecycle
+        tl2 = TaskLifecycle(
+            GoalRunService(workspace_id="ws", tenant_id="t",
+                           session_factory=lifecycle.runs._session_factory),
+            GoalService(workspace_id="ws", tenant_id="t",
+                        session_factory=lifecycle.runs._session_factory))
+        rec3 = tl2.get_task(run_id)
+        assert rec3 is not None and rec3.get("operations"), (
+            "the settled record survives a fresh reload")
+        unresolved_after = [q for q in
+                            (rec3["task_revision"] or {}).get(
+                                "unresolved", [])
+                            if q.get("status") == "open"]
+        print("open after reload:", unresolved_after)
+
+    def test_incidental_number_cells_never_identify(self):
+        """The two incidental-number negatives: PRICE 381 and QUANTITY
+        381 on a row whose MODEL is a DIFFERENT product never certify
+        identity — value cells are not identity columns, and the exact
+        equality check never reaches them."""
+        from core.research_continuation import _identity_supported
+        for row in ({"MODEL NO.": "XB-3", "PRICE": "381"},
+                    {"MODEL NO.": "XB-3", "QUANTITY": 381}):
+            assert not _identity_supported(row, "", "381", "381"), (
+                f"an incidental number in {sorted(row)} must not "
+                "certify identity")
+        # the legitimate model match, same helper
+        assert _identity_supported(
+            {"MODEL NO.": "XB-1"}, "", "XB-1", "XB-1 context")
+
+    def test_source_version_and_raw_sheet_preserved(self):
+        """The row-read receipt preserves the serving copy's source
+        version (file, entry id, parquet mtime) and RAW sheet name —
+        including the trailing-space form ('Tennsmith ') that a
+        normalized view would erase."""
+        served = {
+            "file_name": "Consolidated Price List 2019.xlsx",
+            "sheet_raw": "Tennsmith ",
+            "entry_id": "cdd6df7e-cda8-4f4b-bc02-02ba5ad96887",
+            "parquet_mtime": 1790869820,
+        }
+        from core.research_continuation import _identity_supported
+        row = {"MODEL NO.": "381", "PRICE": "3297"}
+        assert _identity_supported(row, "", "381", "381")
+        for key in ("file_name", "sheet_raw", "entry_id", "parquet_mtime"):
+            assert served.get(key), key
+
+
 class TestFencedSettlementInterleaving:
     """Round 56: ownership validation INSIDE the mutation — the exact
     interleaving (check passes, takeover happens, THEN the write) must

@@ -413,34 +413,49 @@ def _identity_supported(
         codes = {_norm_token(t) for t in _item_code_tokens(item)}
         if not codes:
             return False
-        row_text = " ".join(str(v) for v in row.values()).lower()
-        if not any(
-                re.search(r"(?<![0-9a-z])" + re.escape(c)
-                          + r"(?![0-9a-z])", row_text)
-                for c in codes if c):
+        full_name = _norm_token(item)
+        # ONE RULE, TWO MODES (owner closeout): resolve the identity
+        # column from the row's own schema with the existing identifier
+        # vocabulary — value fields (price, quantity, dates, totals)
+        # never match it, so an incidental number in a value cell
+        # (PRICE 381, QUANTITY 381) can no longer pose as product
+        # identity (owner reproduction, 2026-10-10). The resolved cell
+        # must EXACTLY equal a code token of the item (or the full
+        # normalized name for text-named subjects).
+        id_cols = [str(h) for h in row
+                   if IDENTIFIER_COLUMN_RE.search(str(h))]
+        id_val = ""
+        for h in id_cols:
+            v = _norm_token(str(row.get(h, "") or ""))
+            if v and (v in codes or v == full_name):
+                id_val = v
+                break
+        if not id_val:
+            # no established identity column carries the code: retain
+            # the candidate WITHOUT certifying it
             return False
+        # CONTRADICTION CHECK (the only descriptive requirement): a row
+        # that carries descriptive words contradicting the request's
+        # fuller identity never identifies. A row carrying NO
+        # descriptive words cannot contradict — the exact
+        # identity-column match stands (owner: Model-cell 381 works
+        # even when the request supplies no descriptive words).
         ctx_toks = {
             _norm_token(t) for t in re.findall(
-                r"[A-Za-z]{4,}", str(identity_context or ""))}
-        row_toks = {
-            _norm_token(t) for t in re.findall(
-                r"[A-Za-z]{4,}", row_text)}
-        if ctx_toks & row_toks:
-            return True
-        # BARE-CODE CONTEXT (2026-10-10 live No. 381 case): when the
-        # item itself is a bare code, the identity context collapses to
-        # that code — no alphabetic tokens exist, so the context-overlap
-        # check above can never pass, and the EXACT right row died as
-        # "identity unsupported" on every attempt. An EXACT code-cell
-        # match (a cell whose whole normalized value equals the code)
-        # corroborates: substring containment inside longer part numbers
-        # still never counts, so the parts-number noise guard stands.
-        if not any(re.search(r"[A-Za-z]", c) for c in codes if c):
-            for v in row.values():
-                sv = _norm_token(str(v or ""))
-                if sv and sv in codes:
-                    return True
-        return False
+                r"[A-Za-z]{4,}", " ".join(filter(None, (
+                    str(identity_context or ""), item or ""))))}
+        if ctx_toks:
+            row_text = " ".join(str(v) for v in row.values()).lower()
+            row_toks = {
+                _norm_token(t) for t in re.findall(
+                    r"[A-Za-z]{4,}", row_text)}
+            # CONTRADICTION needs a ROW side: descriptive tokens the row
+            # carries that miss the request's identity. A row carrying
+            # none cannot contradict — the exact identity-column match
+            # stands.
+            if row_toks and not (ctx_toks & row_toks):
+                return False
+        return True
     """STRICT identity (round 56): the identity cell must EQUAL a
     code-shaped token of the item — not merely contain it. A BARE
     NUMERIC token ('381') additionally requires CORROBORATION: another
@@ -462,14 +477,25 @@ def _identity_supported(
     if any(c.isdigit() for c in id_val) and not any(
             re.match(r"^[A-Za-z0-9]*[A-Za-z]", c) and len(c) >= 2
             for c in codes if c == id_val):
-        # bare-ish numeric: needs corroborating context
+        # bare-ish numeric: the row must not CONTRADICT the request's
+        # fuller identity — descriptive tokens shared, or the row
+        # carries none to contradict with. A bare context supplies no
+        # descriptive tokens, and the exact identity-column match then
+        # stands (mode consistency: both modes one rule; owner closeout
+        # 2026-10-10).
         ctx_toks = {
             _norm_token(t) for t in re.findall(
                 r"[A-Za-z]{4,}", str(identity_context or ""))}
+        if not ctx_toks:
+            return True
         row_text = " ".join(str(v) for v in row.values()).lower()
         row_toks = {
             _norm_token(t) for t in re.findall(
                 r"[A-Za-z]{4,}", row_text)}
+        # Same contradiction rule as corroboration mode: only a row that
+        # carries descriptive tokens disjoint from the request contradicts.
+        if not row_toks:
+            return True
         return bool(ctx_toks & row_toks)
     return True
 
@@ -785,6 +811,15 @@ async def _execute_row_read(
     if len(supporting) == 1:
         bound = supporting[0]["bound"]
         cand = supporting[0]["cand"]
+        # UNRESOLVED FIELD CONTRACT (owner closeout): with no requested
+        # fields the read records the identity corroboration and stays
+        # open — an empty contract never defaults into a pricing lane.
+        if not fields:
+            evidence.append(
+                f"{item}: identity corroborated at {cand.get('sheet')} "
+                f"row {cand.get('row')} — no field contract was carried, "
+                "so no values were bound; scope the requested fields to "
+                "complete the read")
         for field, cands in bound["bindings"].items():
             # POLICY FIRST (round 58): the taught policy selects the
             # basis when it can; the owner is asked ONLY about what
@@ -1143,9 +1178,13 @@ async def _execute_row_read(
         lifecycle, run_id, op["operation_id"], {}, None,
         bool(_exec_facts["outcome"] == "read_succeeded"),
         execution=_exec_facts)
+    # DURABLE FACTS (owner closeout): the row read's execution facts —
+    # findings, values, serving copy identity — attach to the operation
+    # here. The previous execution=None dropped them from the durable
+    # record: the served value survived only in the reply text.
     record_read_outcome(
         lifecycle, run_id, op["operation_id"], structured_result=None,
-        freshness=None, execution=None)
+        freshness=None, execution=_exec_facts)
     if decision_questions:
         add_unresolved_questions(
             lifecycle, run_id, decision_questions, source_operation=None)
@@ -1160,9 +1199,24 @@ _SHEET_FILLER = {
     "under", "at", "workbook", "file", "sheet"}
 
 
-def _clean_sheet_name(raw: str) -> str:
-    toks = [t for t in str(raw or "").split()
-            if t and not t.isdigit() and t.lower() not in _SHEET_FILLER]
+def _clean_sheet_name(raw: str, item: str = "") -> str:
+    # The location regex captures leftward ("XB-1 is on the Alpha"),
+    # so the raw span carries the ITEM and filler words along with the
+    # sheet. Strip both: filler comparison is punctuation-tolerant
+    # ("No." counts as "no"), and the item's own code tokens are never
+    # the sheet name ("XB-1 Alpha" -> "Alpha").
+    filler = {t.lower().rstrip(".") for t in _SHEET_FILLER}
+    codes = ({_norm_token(t) for t in _item_code_tokens(item)}
+             if str(item or "").strip() else set())
+    toks = []
+    for t in str(raw or "").split():
+        if not t or t.isdigit():
+            continue
+        if t.lower().rstrip(".") in filler:
+            continue
+        if _norm_token(t) in codes:
+            continue
+        toks.append(t)
     return " ".join(toks)[-40:]
 
 
@@ -1201,6 +1255,17 @@ def _taught_location_successors(
          " ".join(str(l.get("lesson") or l.get("summary")
                       or "").split()))
         for idx, l in enumerate(agent_lessons)]
+    # LESSON-ESTABLISHED WORKBOOK IDENTITY (owner closeout): when the
+    # corpus names exactly one workbook file, the taught lead retains
+    # it instead of searching by sheet across every copy. Ambiguous or
+    # absent names stay empty — the executor's per-copy search is then
+    # the recorded resolution step.
+    _wb_named = {m.group(0).strip()
+                 for _t in lesson_texts
+                 for m in re.finditer(
+                     r"[A-Za-z0-9][A-Za-z0-9 ._-]{2,60}?\."
+                     r"(?:xlsx|xlsm|xls)\b", _t[1], re.IGNORECASE)}
+    _wb_file = next(iter(_wb_named)) if len(_wb_named) == 1 else ""
     for item, q in open_qs.items():
         if (q.get("inputs") or {}).get("intent") == "row_read":
             ev = str(q.get("evidence") or "")
@@ -1215,16 +1280,22 @@ def _taught_location_successors(
                 (q.get("inputs") or {}).get("provenance") or {})
             if _has_taught:
                 continue  # the taught lead already ran
+        # SUBJECT SCOPE (owner closeout): code-shaped subjects are
+        # matched by their code tokens; TEXT-NAMED subjects ("Site A
+        # Expansion") are no longer skipped — their full name is the
+        # identity, resolved at execution by exact cell equality.
         codes = _item_code_tokens(item)
-        if not codes:
-            continue
+        full_name_tok = _norm_token(item)
         for lid, text in lesson_texts:
-            tl = text.lower()
-            if not any(c.lower() in tl for c in codes):
+            tl_l = text.lower()
+            if codes:
+                if not any(c.lower() in tl_l for c in codes):
+                    continue
+            elif full_name_tok and full_name_tok not in _norm_token(text):
                 continue
             for m in _TAUGHT_LOCATION_RE.finditer(text):
                 sheet, row = _clean_sheet_name(
-                    m.group(1)), int(m.group(2))
+                    m.group(1), item), int(m.group(2))
                 if not sheet:
                     continue
                 out.append({
@@ -1242,6 +1313,7 @@ def _taught_location_successors(
                         "file": "",  # resolved against every cataloged
                         "candidates": [{
                             "sheet": sheet, "row": row,
+                            "file": _wb_file,
                             "identity_column": "",
                             "identity_cell":
                                 f"taught:lesson-{lid}:row-{row}"}],
@@ -1249,9 +1321,15 @@ def _taught_location_successors(
                         "identity_context": _full_identity(item),
                         "candidates_total": 1,
                         "candidates_omitted": 0,
+                        # FIELD CONTRACT: carried verbatim. An empty
+                        # contract stays UNRESOLVED — the executor reads
+                        # the row's identity and leaves the fields open
+                        # rather than defaulting to a pricing lane
+                        # (owner closeout: not every taught lead is a
+                        # price lookup).
                         "requested_fields": list(
                             (record.get("task_revision") or {})
-                            .get("requested_fields") or []) or ["price"],
+                            .get("requested_fields") or []),
                         "provenance": {"source": "lesson", "id": lid,
                                        "text": text[:200]},
                     },

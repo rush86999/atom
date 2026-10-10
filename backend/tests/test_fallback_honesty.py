@@ -730,6 +730,102 @@ class TestCalcClassificationAndNoopReceipt:
         assert not shared.get("canvas_edit_decline_noop"), (
             "an unverified decline must NOT record the no-op receipt")
 
+    def test_wrong_subject_decline_records_no_receipt(self, monkeypatch):
+        """The lane-level header case: the planner's 'already reflects'
+        sentence over a stale subject earns no receipt."""
+        import asyncio as _aio
+        from integrations import chat_orchestrator as co
+        import core.chat_canvas_editor as cce
+
+        canvas = {"canvas_id": "cv-noop-subj", "canvas_type": "email",
+                  "content": {"subject": "Old subject",
+                              "body": "Hello body."}}
+
+        class _Plan:
+            wants_edit = False
+            reply = ("The draft already reflects the approved values — "
+                     "no changes were needed, and nothing was sent.")
+
+        async def _plan_ok(*a, **k):
+            return _Plan()
+        monkeypatch.setattr(cce, "plan_canvas_edit", _plan_ok)
+
+        shared = {}
+        _aio.run(co.chat_orchestrator._try_canvas_edit(
+            'Set subject to "Requested Machinery & Alternatives".',
+            [], canvas, "user_1", "sess-noop-subj", "exec-noop-subj", None,
+            shared_tool_state=shared))
+
+        _check = shared.get("canvas_decline_requirement_check")
+        assert _check is not None
+        assert _check["satisfied"] is False
+        unmet = _check.get("unmet") or [o.get("detail", "") for o in
+                                        _check.get("obligations", [])
+                                        if o.get("disposition") == "unsatisfied"]
+        assert any("subject" in u.lower() for u in unmet), unmet
+        assert not shared.get("canvas_edit_decline_noop"), (
+            "a stale-subject decline must NOT record the no-op receipt")
+
+    def test_wrong_subject_decline_never_completes_through_route(
+            self, monkeypatch):
+        """Production response-path pin (scratch DB): a served decline
+        over an unmet subject requirement cannot become completed — the
+        envelope, the persisted row, and history all stay unconfirmed."""
+        from core.models import Canvas, CanvasAudit
+        import core.chat_canvas_editor as cce
+
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch)
+        _fixed_execution(monkeypatch, "exec-subj-route")
+
+        class _Plan:
+            wants_edit = False
+            reply = ("The draft already reflects the approved values — "
+                     "no changes were needed, and nothing was sent.")
+
+        async def _plan_ok(*a, **k):
+            return _Plan()
+        monkeypatch.setattr(cce, "plan_canvas_edit", _plan_ok)
+
+        with factory() as sc:
+            sc.add(Canvas(id=CANVAS_ID, tenant_id="t1",
+                          created_by="user_1", name="Quote draft",
+                          canvas_type="email",
+                          content={"subject": "Old subject",
+                                   "body": "Hello body."}))
+            sc.add(CanvasAudit(
+                canvas_id=CANVAS_ID, tenant_id="t1", action_type="fork",
+                user_id="user_1",
+                details_json={"content": {"subject": "Old subject",
+                                          "body": "Hello body."}}))
+            sc.commit()
+
+        resp, user = _route_call(
+            factory,
+            'Set subject to "Requested Machinery & Alternatives".',
+            {"canvas_id": CANVAS_ID})
+        assert resp.outcome != "completed", (
+            "an unmet subject requirement must never complete")
+        assert resp.success is False
+
+        from sqlalchemy import text as _sql_text
+        with factory() as sc:
+            rows = sc.execute(_sql_text(
+                "SELECT metadata_json FROM chat_messages WHERE "
+                "conversation_id=:s AND role='assistant'"),
+                {"s": resp.session_id}).fetchall()
+        assert rows, "the assistant row must persist"
+        meta = json.loads(rows[-1][0])
+        assert meta.get("outcome") == resp.outcome
+        assert meta.get("success") == resp.success
+        history = asyncio.run(
+            cr.get_chat_history(session_id=resp.session_id,
+                                user_id="user_1", current_user=user))
+        served = [m for m in history.messages
+                  if m["role"] == "assistant"][-1]["response"]
+        assert served.get("outcome") == resp.outcome
+        assert served.get("success") == resp.success
+
 
 class TestIdentityBoundOutcomes:
     """The resolver may only infer from evidence bound to THIS turn."""
@@ -1115,6 +1211,88 @@ class TestNoOpAuthorityIsARecord:
         assert out["satisfied"] is True
         assert out["canvas_id"] == "cv-1"
         assert out["authorized"] is True
+
+    def test_wrong_subject_is_not_satisfied(self):
+        """A requested subject that does not match the saved subject is
+        an outstanding edit — preservation checks passing says nothing
+        about the header (owner review 2026-10-10)."""
+        from core.chat_canvas_editor import requirement_check
+        out = requirement_check(
+            message='Set subject to "Requested Machinery & Alternatives".',
+            canvas={"canvas_id": "cv-x",
+                    "content": {"subject": "Old subject",
+                                "body": "Hello body."}},
+            authorized=True, expected_prior_audit_id=None)
+        assert out is not None
+        assert out["satisfied"] is False
+        unmet = out.get("unmet") or [o.get("detail", "") for o in
+                                     out.get("obligations", [])
+                                     if o.get("disposition") == "unsatisfied"]
+        assert any("subject" in u.lower() for u in unmet), unmet
+
+    def test_matching_subject_satisfies(self):
+        from core.chat_canvas_editor import requirement_check
+        out = requirement_check(
+            message='Set subject to "Requested Machinery & Alternatives".',
+            canvas={"canvas_id": "cv-x",
+                    "content": {
+                        "subject": "Requested Machinery & Alternatives",
+                        "body": "Hello body."}},
+            authorized=True, expected_prior_audit_id=None)
+        assert out is not None
+        assert out["satisfied"] is True
+
+    def test_missing_cc_is_not_satisfied(self):
+        from core.chat_canvas_editor import requirement_check
+        out = requirement_check(
+            message="Add vipul@example.com to cc.",
+            canvas={"canvas_id": "cv-x",
+                    "content": {"subject": "S", "body": "Body here.",
+                                "cc": ""}},
+            authorized=True, expected_prior_audit_id=None)
+        assert out is not None
+        assert out["satisfied"] is False
+        unmet = out.get("unmet") or [o.get("detail", "") for o in
+                                     out.get("obligations", [])
+                                     if o.get("disposition") == "unsatisfied"]
+        assert any("cc" in u.lower() for u in unmet), unmet
+
+    def test_matching_cc_satisfies(self):
+        from core.chat_canvas_editor import requirement_check
+        out = requirement_check(
+            message="Add vipul@example.com to cc.",
+            canvas={"canvas_id": "cv-x",
+                    "content": {"subject": "S", "body": "Body here.",
+                                "cc": "vipul@example.com"}},
+            authorized=True, expected_prior_audit_id=None)
+        assert out is not None
+        assert out["satisfied"] is True
+
+    def test_missing_revision_refuses_certification(self):
+        """An expected revision with no observed revision certifies
+        nothing — same refusal as a mismatch (owner review 2026-10-10)."""
+        from core.chat_canvas_editor import requirement_check
+        out = requirement_check(
+            message='Set subject to "Requested Machinery & Alternatives".',
+            canvas={"canvas_id": "cv-x",
+                    "content": {"subject": "Old subject",
+                                "body": "Hello body."}},
+            authorized=True, expected_prior_audit_id="audit-7")
+        assert out is None
+
+    def test_mismatched_revision_refuses_header_match(self):
+        """Even a matching subject cannot certify against the wrong
+        revision."""
+        from core.chat_canvas_editor import requirement_check
+        out = requirement_check(
+            message='Set subject to "Requested Machinery & Alternatives".',
+            canvas={"canvas_id": "cv-x",
+                    "content": {
+                        "subject": "Requested Machinery & Alternatives",
+                        "body": "Hello body."},
+                    "latest_audit_id": "audit-99"},
+            authorized=True, expected_prior_audit_id="audit-7")
+        assert out is None
 
 
 class TestLiveCalculationSettlement:
