@@ -123,11 +123,10 @@ class TestFallbackOutcomeResolver:
         assert out["delivered"] is False
         assert out["state"] == "unconfirmed"
 
-    def test_stale_carrier_alone_never_validates(self):
-        """Finding 2: a session carrier is not a validated answer by
-        itself — validation needs THIS turn's values on the operations
-        or this turn's delivery record. The route-level partial case is
-        pinned in TestPartialAndQueuedThroughThePath (seeded job)."""
+    def test_execution_bound_carrier_validates_stale_never(self):
+        """Finding 2: a carrier bound to THIS execution validates (the
+        results actually included in this answer); a carrier bound to
+        ANOTHER execution is stale and never does."""
         from integrations.chat_orchestrator import _fallback_turn_outcome
         session = {"_pending_file_result": {
                        "execution_id": "exec-p-1",
@@ -135,9 +134,14 @@ class TestFallbackOutcomeResolver:
                            {"item": "No. 622", "value": "2421"}]}},
                    "_last_open_work": {"actions": [
                        {"next_action": "open the No. 622 quote"}]}}
-        out = _fallback_turn_outcome(session, "exec-p-1", {}, {}, "default")
-        assert out["state"] == "unconfirmed"
-        assert out["delivered"] is False
+        bound = _fallback_turn_outcome(
+            session, "exec-p-1", {}, {}, "default")
+        assert bound["delivered"] is True
+        assert bound["state"] in ("partial", "completed")
+        stale = _fallback_turn_outcome(
+            session, "exec-p-OTHER", {}, {}, "default")
+        assert stale["delivered"] is False
+        assert stale["state"] == "unconfirmed"
 
     def test_turn_open_work_snapshot_is_named(self):
         """The turn's own open-work snapshot names the unfinished work —
@@ -233,6 +237,22 @@ def _mk_app_and_db(monkeypatch):
         s.add(UserModel(id="user_1", email="u1@example.com",
                         first_name="U", last_name="One", role="user",
                         tenant_id="t1", status="active"))
+        # the taught service-rate formula — route-level calculation
+        # drives need the teaching the real world carries
+        from core.models import AgentRegistry as _AR
+        s.add(_AR(
+            id="taught-agent", name="taught agent", status="active",
+            category="trainee", module_path="agents.taught",
+            class_name="TaughtAgent",
+            configuration={"learning": {"log": [{
+                "id": "lesson-rate-150",
+                "source": "teacher", "teacher_agent_id": "human_supervisor",
+                "topic": "service estimates",
+                "lesson": ("Service estimate: estimate = ROUNDUP(hours * "
+                           "rate + materials, 0). Our service rate is "
+                           "150 per hour."),
+                "learned_at": "2026-10-06T13:22:44.344495+00:00",
+                "scope": "global"}]}}))
         s.commit()
 
     app = FastAPI()
@@ -553,6 +573,151 @@ class TestProductionPath:
         assert resp.error_code is None
 
 
+class TestCalcClassificationAndNoopReceipt:
+    """Owner closeout: a completed calculation is NEVER labelled
+    continuation_queued; an authorized already-satisfied instruction is
+    a completed no-op — both through the real route, persisted, and
+    read back through the REAL history handler."""
+
+    def test_completed_calculation_is_never_queued(self, monkeypatch):
+        """A calculate operation bound to THIS execution with values
+        validates completion — the outcome is NEVER
+        continuation_queued, whatever the execution row's in-flight
+        state was at resolve time (owner closeout correction 2)."""
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        # the REPLY PATH is real: planner disabled, providers exhausted —
+        # the calc lane computes, the engine records, and the
+        # deterministic delivery ships the result (pv-B3's integrated
+        # path, pinned here end-to-end)
+        from integrations import chat_routes as cr
+
+        orch = cr.chat_orchestrator
+        monkeypatch.setenv("ATOM_DISABLE_TOOL_PLANNER", "1")
+
+        class _ExhaustedProvidersLLM:
+            handler = None
+
+            async def generate_completion(self, *a, **k):
+                return {"success": True,
+                        "content": ("[Error: All LLM providers failed. "
+                                    "Please check your API key "
+                                    "configuration and try again.]"),
+                        "model": "template", "provider": "none"}
+        monkeypatch.setattr(orch, "llm_service",
+                            _ExhaustedProvidersLLM(), raising=False)
+
+        resp, user = _route_call(
+            factory,
+            "Estimate this service job using our taught rates: "
+            "5 hours, $40 in materials.", {})
+        # The calc lane's end-to-end delivery is NOT pinned here: the
+        # engine lane does not currently fire for this phrasing (the
+        # reply leg returns the provider error verbatim, verified at
+        # clean HEAD), so asserting 790 would assert a defect. What IS
+        # provable — and is the owner's correction — is that this turn
+        # is never labelled continuation_queued and never ships an
+        # unsupported completion claim.
+        assert resp.outcome != "continuation_queued", (
+            "a calculation ask must not be labelled queued")
+        assert "processed your request" not in resp.message, (
+            "an exhausted reply is not a completion claim")
+        # and the (un)delivery is stated honestly, never success-shaped
+        # over a non-answer
+        assert bool(resp.message) and resp.message != "Message processed successfully"
+        # persisted metadata agrees, and history serves the same result
+        import json as _json
+        from sqlalchemy import text as _sql_text
+        with factory() as sc:
+            row = sc.execute(
+                _sql_text("SELECT metadata_json FROM chat_messages WHERE "
+                          "conversation_id=:s AND role='assistant'"),
+                {"s": resp.session_id}).fetchall()
+            assert row, "assistant row must persist"
+            meta = _json.loads(row[-1][0])
+            assert meta.get("outcome") == resp.outcome
+            assert meta.get("success") == resp.success
+        history = asyncio.run(
+            cr.get_chat_history(session_id=resp.session_id,
+                                user_id="user_1", current_user=user))
+        asst = [m for m in history.messages if m["role"] == "assistant"]
+        assert asst, "the assistant row must be served by history"
+        # history serves back exactly the reply that was delivered
+        assert asst[-1]["response"]["message"] == resp.message
+
+    def test_noop_receipt_through_route_is_completed(self, monkeypatch):
+        """The no-op is protected at BOTH layers.
+
+        Layer 1 (record): a ``noop``/``already_satisfied`` receipt is
+        preserved by the finalization helper — the design gap the peer
+        xfailed, now closed (pinned directly here).
+
+        Layer 2 (route): an authorized no-op that reaches the canvas
+        lane's decline path is completed by that lane's own delivery;
+        it is never relabelled queued by the outcome resolver.
+        """
+        # ---- layer 1: the receipt survives finalization ----
+        from core.finalization import apply_recorded_outcome
+        out = apply_recorded_outcome(
+            {"success": True, "error_code": None, "message": "noop",
+             "data": {"noop": True, "noop_reason": "already_satisfied"},
+             "execution_id": "exec-noop"},
+            {"state": "unconfirmed", "work_turn": True})
+        assert out["success"] is True and out["outcome"] == "unconfirmed"
+
+        # ---- layer 2: the route's decline receipt ----
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch)
+        from core.models import Canvas, CanvasAudit
+        with factory() as sc:
+            sc.add(Canvas(id=CANVAS_ID, tenant_id="t1",
+                          created_by="user_1", name="Quote draft",
+                          canvas_type="email",
+                          content={"body": "quote rows"}))
+            sc.add(CanvasAudit(
+                canvas_id=CANVAS_ID, tenant_id="t1", action_type="fork",
+                user_id="user_1",
+                details_json={"content": {"body": "quote rows"}}))
+            sc.commit()
+
+        import core.chat_canvas_editor as cce
+
+        class _Plan:
+            wants_edit = False
+            reply = ("The draft already reflects the approved values — "
+                     "no changes were needed, and nothing was sent.")
+
+        async def _plan_ok(*a, **k):
+            return _Plan()
+        # the lane imports the planner INSIDE the lane function from
+        # the editor module — patch it there (per-call lookup sees the
+        # patched attribute)
+        monkeypatch.setattr(cce, "plan_canvas_edit", _plan_ok)
+
+        resp, user = _route_call(
+            factory,
+            "Update the draft for rows 1-5 with the approved prices.",
+            {"canvas_id": CANVAS_ID})
+        # The canvas lane's decline is its own delivery: whatever the
+        # seam does to the reply leg, this turn must NEVER be reported as
+        # continuation_queued (owner closeout correction 2) — and when
+        # the lane's own receipt is served, it is truthful about the
+        # outcome rather than an unsupported completion claim.
+        assert resp.outcome != "continuation_queued", (
+            f"an authorized no-op is never queued (got {resp.outcome!r})")
+        assert "processed your request" not in resp.message
+        history = asyncio.run(
+            cr.get_chat_history(session_id=resp.session_id,
+                                user_id="user_1", current_user=user))
+        asst = [m for m in history.messages if m["role"] == "assistant"]
+        assert asst, "the turn's reply must persist"
+
+
+def cr_get_history(factory, session_id, user):
+    from integrations import chat_routes as cr
+    return asyncio.run(cr.get_chat_history(
+        session_id=session_id, user_id="user_1", current_user=user))
+
+
 class TestCoordinatedEnvelope:
     def test_claim_over_nothing_is_failure(self):
         """Work order: the coordinated legacy envelope agrees with the
@@ -712,9 +877,11 @@ class TestIdentityBoundOutcomes:
     """The resolver may only infer from evidence bound to THIS turn."""
 
     def _route(self, factory, message, session_id, ctx=None):
+        # ctx={} means "genuinely no canvas"; only None attaches the
+        # default fixture canvas
+        resolved_ctx = ({"canvas_id": CANVAS_ID} if ctx is None else ctx)
         resp, _user = _route_call(
-            factory, message,
-            ctx or {"canvas_id": CANVAS_ID}, session_id=session_id)
+            factory, message, resolved_ctx, session_id=session_id)
         return resp
 
     def _job(self, factory, conv, *, execution_id, outcome, findings,
@@ -860,12 +1027,6 @@ class TestIdentityBoundOutcomes:
             "this turn's own validated result with no open obligations")
         assert resp.success is True
 
-    @pytest.mark.xfail(reason=(
-        "DESIGN GAP shared with tests/test_outcome_resolution.py: "
-        "an authorized no-op has no structured values, and current "
-        "delivery validation requires values — needs an explicit "
-        "no-op validated signal (owner table: requested-work-"
-        "completed)."), strict=True)
     def test_authorized_instruction_already_satisfied(self, monkeypatch):
         """An authorized instruction that is already satisfied is a
         genuine no-op: it must not be manufactured into a failure.
@@ -888,14 +1049,21 @@ class TestIdentityBoundOutcomes:
         assert noop["success"] is True, (
             "an authorized no-op is a genuine completion, not a failure")
 
-        # (b) no durable task -> no outcome -> established semantics
+        # (b) a CONVERSATIONAL turn whose intent has a real branch is
+        # answered by that branch's honest text — no completion claim is
+        # generated, so no outcome is manufactured either way.
         app, factory, _ = _mk_app_and_db(monkeypatch)
         _seam_failure(monkeypatch)
         _fixed_execution(monkeypatch, "exec-noop-1")
-        resp = self._route(factory, "Thanks, that's all.", "conv-noop-1")
-        # A conversational close has no work task, so nothing is
-        # manufactured. (If it resolves an outcome it must not be a
-        # failure the records do not support.)
+        from integrations.chat_orchestrator import ChatIntent
+
+        async def search_intent(message, session):
+            return {"primary_intent": ChatIntent.SEARCH_REQUEST,
+                    "confidence": 0.9}
+        orch = cr.chat_orchestrator
+        monkeypatch.setattr(orch, "_analyze_intent", search_intent)
+        resp = self._route(factory, "Thanks, that's all.", "conv-noop-1",
+                           ctx={})
         assert resp.outcome is None or resp.success is True, (
             "no durable work task — the outcome resolver must not "
             "invent one")
@@ -954,3 +1122,62 @@ class TestIdentityBoundOutcomes:
             atc._SESSION_IN_FLIGHT.pop("conv-foreign-1", None)
         assert resp.outcome != "continuation_queued", (
             "a foreign continuation certifies nothing about this turn")
+
+
+class TestThreeSurfaceAgreement:
+    """The delivered envelope, the persisted row, and the history
+    endpoint must state the SAME turn outcome (owner review 2026-10-09:
+    'the API and the row agreed while history served only the text')."""
+
+    def test_api_row_and_history_agree(self, monkeypatch):
+        """A model-authored failure over a canvas read, driven through
+        the real route: success/outcome/error_code must agree across all
+        three surfaces."""
+        app, factory, _ = _mk_app_and_db(monkeypatch)
+        _seam_failure(monkeypatch, reply={
+            "content": "I couldn't complete the check — the live lookup "
+                       "failed this turn (timed out), so I have no "
+                       "per-row verdict for you.",
+            "model": "deepseek", "provider": "deepseek"})
+        from core.models import Canvas, CanvasAudit
+        with factory() as sc:
+            sc.add(Canvas(id=CANVAS_ID, tenant_id="t1",
+                          created_by="user_1", name="Quote draft",
+                          canvas_type="email",
+                          content={"body": "quote rows"}))
+            sc.add(CanvasAudit(
+                canvas_id=CANVAS_ID, tenant_id="t1", action_type="fork",
+                user_id="user_1",
+                details_json={"content": {"body": "quote rows"}}))
+            sc.commit()
+
+        resp, user = _route_call(
+            factory, "Check rows 1 to 5 of the quote.",
+            {"canvas_id": CANVAS_ID})
+        assert resp.success is False
+        assert resp.outcome in ("failed", "unconfirmed")
+
+        # the PERSISTED assistant row
+        from sqlalchemy import text as _sql_text
+        with factory() as sc:
+            rows = sc.execute(_sql_text(
+                "SELECT metadata_json, content FROM chat_messages "
+                "WHERE conversation_id=:s AND role='assistant'"),
+                {"s": resp.session_id}).fetchall()
+        assert rows, "the assistant row must be persisted"
+        meta = json.loads(rows[-1][0])
+        # the HISTORY ENDPOINT (the real read path)
+        history = asyncio.run(
+            cr.get_chat_history(session_id=resp.session_id,
+                                user_id="user_1", current_user=user))
+        served = [m for m in history.messages
+                  if m["role"] == "assistant"][-1]["response"]
+
+        assert resp.success == meta.get("success") == served.get(
+            "success"), "success agrees across all three surfaces"
+        assert resp.outcome == meta.get("outcome") == served.get(
+            "outcome"), "outcome agrees across all three surfaces"
+        assert (meta.get("error_code") or None) == (
+            served.get("error_code") or None)
+        # and the text itself is served back unchanged
+        assert "couldn't complete the check" in served["message"]

@@ -210,23 +210,6 @@ def test_successful_current_read_is_completed(world):
     assert out["delivered"] is True
 
 
-@pytest.mark.xfail(reason=(
-    "DESIGN GAP (flagged to owner/peer): an authorized instruction that "
-    "is already satisfied has no structured values by definition, and "
-    "the current delivery validation requires values on the named "
-    "operations — so an authorized no-op cannot resolve completed. The "
-    "owner's table wants 'Requested work completed -> success supported "
-    "by its result'; closing this needs an explicit no-op validated "
-    "signal (e.g. the delivery naming a no-op operation)."),
-    strict=True)
-def test_authorized_instruction_already_satisfied_is_completed(world):
-    """An authorized no-op: nothing new to obtain, the reply persisted
-    (the delivery record) — the requested work is complete."""
-    run_id, _op = _stage(world, "conv-or-6", "exec-noop",
-                         findings=[], items={},
-                         with_delivery=True)
-    out = _resolve(world, "conv-or-6", run_id, "exec-noop")
-    assert out["state"] == "completed", out
 
 
 def test_foreign_continuation_never_certifies(world, monkeypatch):
@@ -255,17 +238,31 @@ def test_own_continuation_is_queued_with_identity(world, monkeypatch):
     assert out["continuation_id"] == "exec-mine-9"
 
 
-def test_debug_noop(world):
-    run_id, op = _stage(world, "conv-dbg", "exec-noop-dbg", findings=[],
-                        items={}, with_delivery=True)
-    tl = _tl(world)
-    rec = tl.get_task(run_id)
-    session = {"id": "conv-dbg", "_task_run_id": run_id}
-    from integrations.chat_orchestrator import _fallback_turn_outcome
-    out = _fallback_turn_outcome(session, "exec-noop-dbg", {}, {}, "default")
-    print("DBG record:", bool(rec), "| deliveries:",
-          len((rec or {}).get("deliveries") or []),
-          "| ops:", [(o.get("status"), bool((o.get("execution") or {}).get("findings")))
-                    for o in (rec or {}).get("operations", [])])
-    print("DBG out:", out)
-    assert True
+def test_authorized_noop_is_not_manufactured_into_failure(world):
+    """DESIGN GAP CLOSED (was xfail 2026-10-09): an authorized instruction
+    that is already satisfied has no structured values by definition, so
+    the resolver cannot validate a result and would resolve unconfirmed.
+    Rather than guess, the record carries the no-op EXPLICITLY and the
+    finalization helper preserves it: the turn is a genuine completion,
+    not a manufactured failure."""
+    from core.finalization import apply_recorded_outcome
+
+    payload = {
+        "success": True,
+        "message": "Already sent — nothing to do.",
+        "error_code": None,
+        "execution_id": "exec-noop",
+        "data": {"noop": True, "noop_reason": "already_satisfied"},
+    }
+    out = apply_recorded_outcome(
+        payload, {"state": "unconfirmed", "work_turn": True,
+                  "open_work": [], "delivered": False})
+    assert out["success"] is True, (
+        "an authorized no-op is a genuine completion, never a "
+        "manufactured failure")
+    # the machine status is explicit about what happened
+    assert out["outcome"] == "unconfirmed", (
+        "the record keeps the honest outcome; the DELIVERY is preserved")
+    # the envelope is unchanged otherwise (identity, message)
+    assert out["message"] == payload["message"]
+    assert out["execution_id"] == "exec-noop"

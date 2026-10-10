@@ -735,6 +735,17 @@ async def get_chat_history(
                         "response": {"message": row.content} if row.role == "assistant" else None,
                         "timestamp": row.created_at.isoformat() if row.created_at else None,
                     }
+                    # MACHINE STATUS ON HISTORY RELOAD: the persisted
+                    # success/error_code/outcome ride the history entry,
+                    # so a reload shows the same turn state the API
+                    # returned for it (2026-10-09 agreement check: the
+                    # API and the row agreed while history served only
+                    # the text).
+                    if row.role == "assistant":
+                        for _k in ("success", "error_code", "outcome",
+                                   "failure_reason"):
+                            if _meta.get(_k) is not None:
+                                _entry["response"][_k] = _meta[_k]
                     # Surface the persisted chain-of-thought so reloading a
                     # session re-renders the "Reasoning Process" drawer (the
                     # trace route only covers agent-tool steps, not CoT).

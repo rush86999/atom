@@ -4430,6 +4430,7 @@ def _fallback_turn_outcome(
     context: Any,
     workspace_id: Any = None,
     canvas_was_read: bool = False,
+    noop_receipt: bool = False,
 ) -> Dict[str, Any]:
     """Resolve the turn's outcome from DURABLE, IDENTITY-BOUND records.
 
@@ -4508,6 +4509,21 @@ def _fallback_turn_outcome(
             return any(_operation_has_values(op) for op in ops)
 
         validated = _ops_carry_values(this_ops)
+        # The session's delivered-result carrier, bound to THIS
+        # execution when it carries one: the recorded "results actually
+        # included in this answer" (owner step 1). A carrier bound to
+        # ANOTHER execution — or one that predates the binding — is
+        # stale and never validates.
+        if not validated and isinstance(session, dict):
+            _result = session.get("_pending_file_result")
+            if isinstance(_result, dict) and (
+                    _result.get("structured_result")
+                    or _result.get("findings")
+                    or _result.get("rows")):
+                _carrier_exec = str(_result.get("execution_id") or "")
+                if (not execution_id or not _carrier_exec
+                        or _carrier_exec == str(execution_id)):
+                    validated = True
         if not validated:
             for delivery in deliveries:
                 _named = {str(o) for o in (
@@ -4623,34 +4639,18 @@ def _fallback_turn_outcome(
         except Exception:  # noqa: BLE001 — additive
             pass
 
-        # 6b. Work THIS turn dispatched that is still running under its
-        #     own execution row: genuine queued work for this operation
-        #     (an accepted agent task), not an unverifiable outcome.
-        if not continuation and execution_id:
-            try:
-                from core.models import AgentExecution as _ExecRow
-
-                _db = SessionLocal()
-                try:
-                    _row = (_db.query(_ExecRow)
-                            .filter(_ExecRow.id == str(execution_id))
-                            .first())
-                finally:
-                    _db.close()
-                if _row is not None and str(
-                        getattr(_row, "status", "") or "").lower() in (
-                            "running", "pending", "queued", "in_progress"):
-                    if this_ops:
-                        continuation = True
-                        work_turn = True
-                        continuation_id = str(execution_id)
-            except Exception:  # noqa: BLE001 — additive
-                pass
-
         if canvas_was_read:
             # A read proves execution OCCURRED. It is not evidence that
             # the work failed, so it never selects `failed`.
             work_turn = True
+        # An ATTACHED canvas on a work-shaped ask is also an attempt:
+        # the read itself may have failed (no content resolved), which
+        # leaves the outcome unverified — attempted, not processed.
+        try:
+            if _canvas_id_from_context(context):
+                work_turn = True
+        except Exception:  # noqa: BLE001 — additive
+            pass
         if record is not None and not work_turn:
             work_turn = True
 
@@ -11159,6 +11159,15 @@ class ChatOrchestrator:
                             "moment.")
                     if (_shared_tool or {}).get(
                             "canvas_edit_decline_noop"):
+                        # VERIFIED-SATISFIED RECEIPT (owner closeout):
+                        # the planner served wants_edit=False against the
+                        # CURRENT draft it read — the requirement check
+                        # (authorized canvas, requirements compared, read
+                        # draft, nothing written). Recorded state, not
+                        # wording; the resolver and the envelope consume
+                        # it.
+                        if isinstance(_shared_tool, dict):
+                            _shared_tool["canvas_noop_receipt"] = True
                         _no_apply_message = (
                             str((_shared_tool or {}).get(
                                 "canvas_edit_decline_reply")
@@ -11320,6 +11329,26 @@ class ChatOrchestrator:
                         _canvas_edit_data["planner_outcome"] = _shared_tool[
                             "canvas_planning_outcome"
                         ]
+                    # VERIFIED-SATISFIED NO-OP (owner closeout): the
+                    # planner compared the authorized ask against the
+                    # CURRENT draft and needed no change — record the
+                    # receipt so the outcome is completed (the finalizer's
+                    # genuine-no-op escape preserves it).
+                    if _shared_tool.get("canvas_noop_receipt"):
+                        _canvas_edit_data["noop"] = True
+                        _canvas_edit_data["noop_reason"] = (
+                            "already_satisfied")
+                    # VERIFIED-SATISFIED NO-OP (owner closeout): the
+                    # message IS the confirmation ("already reflects… "
+                    # nothing written), the machine outcome is
+                    # completed, and the receipt rides the data for the
+                    # finalizer's genuine-no-op escape.
+                    if _shared_tool.get("canvas_noop_receipt"):
+                        _no_apply_message = (
+                            str(_shared_tool.get(
+                                "canvas_edit_decline_reply") or "").strip()
+                            or _no_apply_message)
+
                     # CHAIN REPORT (no-apply path): even when the edit
                     # could not apply, the fallback ladder's findings and
                     # the ready-to-send ask must reach the user.
@@ -11327,6 +11356,8 @@ class ChatOrchestrator:
                         _no_apply_message = (
                             f"{_no_apply_message}\n\n"
                             f"{_shared_tool['chain_report']}").strip()
+                    _noop_receipt = bool(
+                        _shared_tool.get("canvas_noop_receipt"))
                     response = {
                         "success": True,
                         "message": _no_apply_message,
@@ -11335,6 +11366,10 @@ class ChatOrchestrator:
                         "execution_id": _execution_id,
                         "intent": "canvas_edit",
                         "confidence": 0.9,
+                        # VERIFIED-SATISFIED NO-OP: the machine outcome
+                        # agrees with the confirmation text.
+                        "outcome": (
+                            "completed" if _noop_receipt else None),
                         "data": {"canvas_edit": _canvas_edit_data},
                         "suggested_actions": [],
                         "requires_confirmation": False,
@@ -12144,10 +12179,14 @@ class ChatOrchestrator:
                         isinstance(locals().get("_canvas_ctx"), dict)
                         and (locals()["_canvas_ctx"].get("content")
                              is not None))
+                    _noop_receipt = bool(
+                        isinstance(locals().get("_shared_tool"), dict)
+                        and _shared_tool.get("canvas_noop_receipt"))
                     _fb_outcome = _fallback_turn_outcome(
                         session, _execution_id, feature_responses, context,
                         workspace_id=(context or {}).get("workspace_id"),
-                        canvas_was_read=_fb_read)
+                        canvas_was_read=_fb_read,
+                        noop_receipt=_noop_receipt)
                 except Exception:  # noqa: BLE001 — additive
                     _fb_outcome = None
             if not _fb_from_gate and not (_fb_outcome or {}).get(
@@ -12189,6 +12228,18 @@ class ChatOrchestrator:
                 # state rides the envelope AND the persisted metadata so
                 # text, machine status, and history agree.
                 "outcome": _fb_outcome.get("state") if _fb_outcome else None,
+                # the verified-satisfied receipt rides data so the
+                # finalizer's genuine-no-op escape can see it
+                ** (
+                    {"data": {**(
+                        response_data if isinstance(
+                            response_data := locals().get("combined_data"),
+                            dict) else {}),
+                        "noop": True,
+                        "noop_reason": "already_satisfied"}}
+                    if _fb_outcome and _fb_outcome.get("state")
+                    == "completed" and _fb_outcome.get("noop_receipt")
+                    else {}),
                 # The full resolved outcome, consumed by the route's
                 # finalization boundary. Private: never persisted as a
                 # client field, never rendered.
@@ -16211,6 +16262,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             if isinstance(shared_tool_state, dict):
                                 shared_tool_state["calc_lane_block"] = \
                                     _calc_block
+
                             logger.info(
                                 "[calc-lane] goal-session calculation "
                                 "ask answered by datasets.calculate "
@@ -19503,16 +19555,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # Global recency is never authority: a later reply cannot
                 # inherit unrelated evidence. Unknown currency (XXX) invents
                 # nothing; non-succeeded statuses stay qualified.
-                if not _tool_block and isinstance(shared_tool_state, dict):
+                if isinstance(shared_tool_state, dict) and \
+                        shared_tool_state.get("calc_lane_block"):
                     # CALC-FORCE BLOCK DELIVERY (owner assignment
                     # 2026-10-09, pv-B3): when providers are down the
                     # planner never runs and the calc-force lane answers
                     # INSIDE _get_qwen_response — its block was captured
                     # and dropped, so this guard saw no evidence and a
                     # RECORDED engine result shipped as a raw provider
-                    # error. The blackboard carries it out.
-                    _tool_block = shared_tool_state.get("calc_lane_block") \
-                        or _tool_block
+                    # error. The blackboard carries it out. The engine's
+                    # own block takes precedence over any earlier
+                    # retrieval evidence: the narration is validated
+                    # against THE calculation.
+                    _tool_block = shared_tool_state["calc_lane_block"]
                 _calc_allowance = None
                 try:
                     from core.pricing_calculation import (

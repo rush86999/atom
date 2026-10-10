@@ -176,6 +176,14 @@ def apply_recorded_outcome(
     """
     state = (outcome or {}).get("state") if isinstance(
         outcome, dict) else outcome
+    import logging as _lg
+    _lg.getLogger("core.finalization").warning(
+        "[apply-dbg] state=%s work_turn=%s noop=%s success_in=%s",
+        state, (outcome or {}).get("work_turn") if isinstance(
+            outcome, dict) else None,
+        isinstance((payload.get("data") or {}), dict) and (
+            payload.get("data") or {}).get("noop"),
+        payload.get("success"))
     if not state or state not in (
             "failed", "partial", "continuation_queued", "completed",
             "unconfirmed"):
