@@ -585,6 +585,51 @@ class TestRealRowRegressions:
             "DEALER (monetary but a dealer column) and codes never "
             "appear; every legitimate monetary candidate is preserved")
 
+    def test_bare_code_taught_lead_corroborates_on_exact_cell(self):
+        """Owner repair pin (a): a BARE-CODE taught lead ('381', context
+        collapsed to the code) corroborates when a row cell's WHOLE
+        normalized value equals the code — the live No. 381 row-338
+        shape (MODEL NO. '381'). The identity COLUMN stays empty; this
+        is the corroboration-mode path."""
+        from core.research_continuation import _identity_supported
+        row338 = {"MODEL NO.": "381", "CAT. NO.": "167072381",
+                  "DESCRIPTION": "Roll Bending Machine,",
+                  "PRICE": "3297", "ITEM": "167072381"}
+        assert _identity_supported(row338, "", "381", "381"), (
+            "exact code-cell match corroborates a bare-code taught lead")
+        # containment inside a longer part number is still NOT identity
+        row_cat_only = {"CAT. NO.": "167072381",
+                        "DESCRIPTION": "Roll Bending Machine,"}
+        assert not _identity_supported(
+            row_cat_only, "", "381", "381"), (
+            "substring containment must never count")
+
+    def test_nonpricing_taught_lead_by_full_name(self):
+        """Owner repair pin (b): a NONPRICING taught location lead — a
+        text-named item located by sheet+row — corroborates via its
+        full name (identity mode, exact normalized cell match)."""
+        from core.research_continuation import _identity_supported
+        row = {"NAME": "Site A Expansion", "STATUS": "open",
+               "OWNER": "facilities"}
+        assert _identity_supported(
+            row, "NAME", "Site A Expansion", "Site A Expansion"), (
+            "a text-named taught lead identifies by full-name equality")
+
+    def test_missing_and_ambiguous_identity_stay_unsupported(self):
+        """Owner repair pin (c): missing source identity (a bare code
+        with no code-bearing cell) and an ambiguous/mismatched identity
+        (a different model on the taught row) both stay UNSUPPORTED."""
+        from core.research_continuation import _identity_supported
+        # no code-bearing cell anywhere on the row
+        row_none = {"DESCRIPTION": "Mount Stand"}
+        assert not _identity_supported(row_none, "", "381", "381")
+        # the taught row exists but carries a DIFFERENT model
+        row_other = {"MODEL NO.": "383", "CAT. NO.": "667002914",
+                     "DESCRIPTION": "No. 383 Heavy Duty Welded Floor"}
+        assert not _identity_supported(row_other, "", "381", "381"), (
+            "a row that does not corroborate the requested item never "
+            "identifies — even on the taught location")
+
     def test_bare_numeric_381_requires_corroboration(self):
         from core.research_continuation import _bind_row_fields
         row = {"headers": ["No.", "Description", "PRICE"],

@@ -425,7 +425,22 @@ def _identity_supported(
         row_toks = {
             _norm_token(t) for t in re.findall(
                 r"[A-Za-z]{4,}", row_text)}
-        return bool(ctx_toks & row_toks)
+        if ctx_toks & row_toks:
+            return True
+        # BARE-CODE CONTEXT (2026-10-10 live No. 381 case): when the
+        # item itself is a bare code, the identity context collapses to
+        # that code — no alphabetic tokens exist, so the context-overlap
+        # check above can never pass, and the EXACT right row died as
+        # "identity unsupported" on every attempt. An EXACT code-cell
+        # match (a cell whose whole normalized value equals the code)
+        # corroborates: substring containment inside longer part numbers
+        # still never counts, so the parts-number noise guard stands.
+        if not any(re.search(r"[A-Za-z]", c) for c in codes if c):
+            for v in row.values():
+                sv = _norm_token(str(v or ""))
+                if sv and sv in codes:
+                    return True
+        return False
     """STRICT identity (round 56): the identity cell must EQUAL a
     code-shaped token of the item — not merely contain it. A BARE
     NUMERIC token ('381') additionally requires CORROBORATION: another
