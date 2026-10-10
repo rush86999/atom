@@ -4372,9 +4372,14 @@ def _turn_evidence_set(record: Optional[Dict[str, Any]],
     by "any findings on this job".
     """
     empty = {"operations": [], "deliveries": [], "reused": [],
-             "operation_ids": set()}
+             "operation_ids": set(), "execution_ids": set()}
     if not isinstance(record, dict) or not execution_id:
         return empty
+    # THE RECORDED LINKAGE (owner closeout): the outer id and any inner
+    # id the turn's own lane explicitly stashed. Matching is scoped to
+    # EXACTLY these two ids — nothing derived by recency, nothing
+    # propagated from other turns — so matching either id cannot admit
+    # an unrelated operation.
     targets = {str(execution_id or "")} | {str(e) for e in (
         extra_ids or ()) if e}
     targets.discard("")
@@ -4396,6 +4401,7 @@ def _turn_evidence_set(record: Optional[Dict[str, Any]],
         "deliveries": deliveries,
         "reused": reused,
         "all_operations": all_ops,
+        "execution_ids": sorted(targets),
         "operation_ids": {str(op.get("operation_id") or "")
                           for op in this_ops + reused},
     }
@@ -4708,6 +4714,15 @@ def _fallback_turn_outcome(
         else:
             state["state"] = "unconfirmed"
         state["work_turn"] = bool(work_turn)
+        # EXPLICIT LINKAGE RECORD: which execution ids this outcome was
+        # resolved from (outer + the calc lane's inner id) — auditable on
+        # the outcome itself, so either-id matching is accounted for and
+        # scoped, never implicit.
+        state["execution_ids"] = sorted(
+            str(e) for e in (
+                [str(execution_id or "")] + (
+                    [str(_extra_e) for _extra_e in (
+                        extra_execution_ids or []) if _extra_e])))
         state["open_work"] = open_work[:4]
         if continuation_id:
             state["continuation_id"] = continuation_id
