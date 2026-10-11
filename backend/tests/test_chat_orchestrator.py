@@ -81,9 +81,40 @@ class TestChatOrchestrator:
             mock_execute.return_value = {"id": "task_456", "status": "running"}
             
             response = await orchestrator.process_chat_message("test_user", "Please research this")
-            
+
             mock_execute.assert_called_once()
             assert response["success"] is True
+
+    async def test_successful_agent_answer_is_not_overwritten(self):
+        """A succeeded AGENT_REQUEST (Atom meta-agent) must not trigger the
+        ComputerUse fallback. The old condition
+        (``not handled or primary_intent == AGENT_REQUEST``) fired even
+        after Atom answered, overwriting its final_output with a generic
+        task-ID bubble AND spawning a duplicate background agent — every
+        tool-plan "agent_request" turn lost its answer that way."""
+        orchestrator = ChatOrchestrator()
+        await self._no_ai_response(orchestrator)
+
+        orchestrator.feature_handlers[FeatureType.AGENT] = AsyncMock(return_value={
+            "success": True,
+            "message": "Atom's completed answer",
+        })
+
+        orchestrator._analyze_intent = AsyncMock(return_value={
+            "primary_intent": ChatIntent.AGENT_REQUEST,
+            "confidence": 0.9,
+            "entities": [],
+            "platforms": [],
+            "command_type": "agent"
+        })
+
+        with patch("services.agent_service.ComputerUseAgent.execute_task", new_callable=AsyncMock) as mock_execute:
+            response = await orchestrator.process_chat_message("test_user", "Please research this")
+
+            mock_execute.assert_not_called()
+            assert response["success"] is True
+            assert "Atom's completed answer" in response["message"], response["message"]
+            assert "Task ID" not in response["message"], response["message"]
 
 
 # --------------------------------------------------------------------------- #

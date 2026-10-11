@@ -438,7 +438,10 @@ class TestAnalyzeIntent:
         ("BUSINESS_HEALTH", co.ChatIntent.BUSINESS_HEALTH),
         ("TRIGGER", co.ChatIntent.AUTOMATION_TRIGGER),
         ("WORKFLOW_CREATION", co.ChatIntent.WORKFLOW_CREATION),
-        ("REPORT", co.ChatIntent.SEARCH_REQUEST),
+        # Unmapped command types hit the default: the general agent,
+        # never a fake search.
+        ("REPORT", co.ChatIntent.AGENT_REQUEST),
+        ("UNKNOWN", co.ChatIntent.AGENT_REQUEST),
     ])
     def test_classify_intent_mapping(self, command_type, expected):
         from ai.nlp_engine import CommandType
@@ -455,7 +458,8 @@ class TestAnalyzeIntent:
         ("what should i do today", co.ChatIntent.BUSINESS_HEALTH),
         ("simulate hiring impact", co.ChatIntent.BUSINESS_HEALTH),
         ("show my deal pipeline", co.ChatIntent.CRM),
-        ("hello there", co.ChatIntent.SEARCH_REQUEST),
+        # Keyword-free text routes to the general agent.
+        ("hello there", co.ChatIntent.AGENT_REQUEST),
     ])
     def test_fallback_intent_branches(self, message, expected):
         orch = _make_orch()

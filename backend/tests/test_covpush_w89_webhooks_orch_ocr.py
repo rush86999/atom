@@ -913,7 +913,8 @@ class TestIntentAnalysis:
             (CommandType.BUSINESS_HEALTH, ChatIntent.BUSINESS_HEALTH),
             (CommandType.TRIGGER, ChatIntent.AUTOMATION_TRIGGER),
             (CommandType.WORKFLOW_CREATION, ChatIntent.WORKFLOW_CREATION),
-            ("unknown_command", ChatIntent.SEARCH_REQUEST),
+            # Unmapped command types default to the general agent.
+            ("unknown_command", ChatIntent.AGENT_REQUEST),
         ]
         for ct, expected in cases:
             got = orch._classify_intent(SimpleNamespace(command_type=ct))

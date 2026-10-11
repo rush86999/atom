@@ -2232,8 +2232,10 @@ class TestChatIntent:
         assert orch._fallback_intent_analysis("what if i hire")["primary_intent"] == co.ChatIntent.BUSINESS_HEALTH
         assert orch._fallback_intent_analysis("show me deals")["primary_intent"] == co.ChatIntent.CRM
         result = orch._fallback_intent_analysis("random words")
-        assert result["primary_intent"] == co.ChatIntent.SEARCH_REQUEST
+        # Keyword-free text routes to the general agent, not a fake search.
+        assert result["primary_intent"] == co.ChatIntent.AGENT_REQUEST
         assert result["confidence"] == 0.6
+        assert result["command_type"] == "agent"
 
     async def test_analyze_intent_nlp(self):
         orch = make_orch()
@@ -2270,7 +2272,10 @@ class TestChatIntent:
         ]
         for cmd, intent in mapping:
             assert orch._classify_intent(SimpleNamespace(command_type=cmd)) == intent
-        assert orch._classify_intent(SimpleNamespace(command_type=CommandType.DELETE)) == co.ChatIntent.SEARCH_REQUEST
+        # Unmapped command types (DELETE has no mapping) default to the
+        # general agent, never a fake search.
+        assert orch._classify_intent(SimpleNamespace(command_type=CommandType.DELETE)) == co.ChatIntent.AGENT_REQUEST
+        assert orch._classify_intent(SimpleNamespace(command_type=CommandType.UNKNOWN)) == co.ChatIntent.AGENT_REQUEST
 
 
 class TestChatQwen:

@@ -22476,7 +22476,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         from ai.nlp_engine import CommandType
         command_type = nlp_result.command_type
         
-        # Map command types to intents
+        # Map command types to intents. An UNCLASSIFIABLE turn is NOT a
+        # search: the legacy lane's SEARCH handler returns success even
+        # over an empty store, so the unclassifiable tail used to end in
+        # a guaranteed-useless "I found 0 results" template. The general
+        # agent (Phase 30) is the honest default for what no classifier
+        # recognized — one deadline-bounded run instead of a fake search.
         intent_mapping = {
             CommandType.SEARCH: ChatIntent.SEARCH_REQUEST,
             CommandType.CREATE: ChatIntent.TASK_MANAGEMENT,
@@ -22486,9 +22491,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             CommandType.BUSINESS_HEALTH: ChatIntent.BUSINESS_HEALTH,
             CommandType.TRIGGER: ChatIntent.AUTOMATION_TRIGGER,
             CommandType.WORKFLOW_CREATION: ChatIntent.WORKFLOW_CREATION,
+            CommandType.UNKNOWN: ChatIntent.AGENT_REQUEST,
         }
 
-        return intent_mapping.get(command_type, ChatIntent.SEARCH_REQUEST)
+        return intent_mapping.get(command_type, ChatIntent.AGENT_REQUEST)
 
     def _fallback_intent_analysis(self, message: str) -> Dict[str, Any]:
         """Fallback intent analysis when NLP is unavailable"""
@@ -22516,14 +22522,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         elif any(word in message_lower for word in ["deal", "lead", "pipeline", "sales", "prospect", "forecast"]):
             intent = ChatIntent.CRM
         else:
-            intent = ChatIntent.SEARCH_REQUEST
+            # No keyword matched: free-form text the rules cannot read.
+            # Route to the general agent rather than pretending it is a
+            # search (the else-branch used to return SEARCH_REQUEST,
+            # which dead-ended in the "0 results" template — see
+            # _classify_intent for the same decision).
+            intent = ChatIntent.AGENT_REQUEST
 
         return {
             "primary_intent": intent,
             "confidence": 0.6,
             "entities": [],
             "platforms": [],
-            "command_type": "search"
+            # "search" remains the tolerated default for every
+            # rule-classified intent (see _TOOL_PLAN_INTENT_MAP);
+            # "agent" only when that is what was actually decided.
+            "command_type": (
+                "agent" if intent is ChatIntent.AGENT_REQUEST else "search")
         }
 
     def _continuation_decision(
@@ -22733,9 +22748,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         logger.info(f"Feature handling complete. Handled: {handled}, Intent: {primary_intent}")
 
-        # Fallback to ComputerUseAgent if no specific feature handled it successfully
-        # OR if the intention was explicitly AGENT_REQUEST
-        if not handled or primary_intent == ChatIntent.AGENT_REQUEST:
+        # Fallback to ComputerUseAgent only when NO feature handled the
+        # turn. AGENT_REQUEST routes to the Atom meta-agent above; when
+        # Atom succeeds, its final_output IS the user-facing answer, and
+        # this branch used to overwrite it with a generic task-ID bubble
+        # while spawning a duplicate background agent (every tool-plan
+        # "agent_request" turn lost its answer that way). Atom failing
+        # leaves handled=False, so the safety net survives.
+        if not handled:
              try:
                 # Use the General Agent (ComputerUseAgent) for unhandled queries
                 # Identity and size, not the goal text. The user's own words do

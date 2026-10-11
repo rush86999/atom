@@ -808,7 +808,9 @@ class TestOrchestratorIntent:
             ("what are my priorities", co.ChatIntent.BUSINESS_HEALTH),
             ("simulate what if i hire", co.ChatIntent.BUSINESS_HEALTH),
             ("pipeline deal forecast", co.ChatIntent.CRM),
-            ("hello world", co.ChatIntent.SEARCH_REQUEST),
+            # Keyword-free text routes to the general agent, not a fake
+            # search (the "0 results" template dead-end).
+            ("hello world", co.ChatIntent.AGENT_REQUEST),
         ]
         for msg, expected in cases:
             result = orch._fallback_intent_analysis(msg)
@@ -827,7 +829,10 @@ class TestOrchestratorIntent:
             (CommandType.BUSINESS_HEALTH, co.ChatIntent.BUSINESS_HEALTH),
             (CommandType.TRIGGER, co.ChatIntent.AUTOMATION_TRIGGER),
             (CommandType.WORKFLOW_CREATION, co.ChatIntent.WORKFLOW_CREATION),
-            ("UNKNOWN", co.ChatIntent.SEARCH_REQUEST),
+            # Unclassifiable and unmapped command types route to the
+            # general agent (AGENT_REQUEST), never a fake search.
+            (CommandType.UNKNOWN, co.ChatIntent.AGENT_REQUEST),
+            ("UNKNOWN", co.ChatIntent.AGENT_REQUEST),
         ]:
             nlp.command_type = ct
             assert orch._classify_intent(nlp) == expected
