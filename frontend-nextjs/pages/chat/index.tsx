@@ -156,6 +156,26 @@ const ChatPage = () => {
         }
     };
 
+    // Delete a chat session (shared by the history sidebar and the agent
+    // workspace). After a successful delete, drop the persisted session
+    // pointer and fall back to a fresh chat if the deleted one was open, then
+    // nudge the sidebar to re-fetch its list.
+    const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+    const handleDeleteSession = useCallback(async (sessionId: string) => {
+        if (!sessionId || sessionId === "new" || sessionId === "unknown") return;
+        const { apiClient } = await import("../../lib/api-client");
+        await apiClient.delete(`/api/chat/sessions/${sessionId}`, {
+            timeout: 10000,
+            // @ts-ignore
+            retry: false,
+        });
+        if (selectedSessionId === sessionId) {
+            window.localStorage.removeItem("atom_chat_session_id");
+            setSessionOverride("new");
+        }
+        setHistoryRefreshKey((k) => k + 1);
+    }, [selectedSessionId]);
+
     // NOTE: ChatInterface is rendered exactly ONCE and shared by both the
     // desktop 3-pane layout and the mobile single-pane layout (the sidebar /
     // workspace are desktop panels or mobile overlay drawers). Rendering a
@@ -181,6 +201,8 @@ const ChatPage = () => {
                     <ChatHistorySidebar
                         selectedSessionId={selectedSessionId}
                         onSelectSession={handleSelectSession}
+                        onDeleteSession={handleDeleteSession}
+                        refreshKey={historyRefreshKey}
                     />
                 </div>
 
@@ -208,6 +230,7 @@ const ChatPage = () => {
                         onUserInteraction={handleUserInteraction}
                         autoHide={autoHideEnabled}
                         onAutoHideToggle={handleAutoHideToggle}
+                        onDeleteSession={handleDeleteSession}
                     />
                 </div>
             </div>
@@ -223,6 +246,8 @@ const ChatPage = () => {
                     <ChatHistorySidebar
                         selectedSessionId={selectedSessionId}
                         onSelectSession={(id) => { handleSelectSession(id); setShowSidebar(false); }}
+                        onDeleteSession={handleDeleteSession}
+                        refreshKey={historyRefreshKey}
                     />
                 </div>
             )}
@@ -237,6 +262,7 @@ const ChatPage = () => {
                     <AgentWorkspace
                         sessionId={selectedSessionId}
                         initialAgentId={initialAgentId}
+                        onDeleteSession={handleDeleteSession}
                     />
                 </div>
             )}
