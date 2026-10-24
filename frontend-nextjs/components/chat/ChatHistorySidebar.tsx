@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Plus, GitFork } from "lucide-react";
+import { Search, Plus, GitFork, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AGENT_CHAT } from "@/src/lib/testIds";
 import { getCurrentUserId } from "@/lib/identity";
@@ -19,17 +19,23 @@ interface ChatSession {
 interface ChatHistorySidebarProps {
     selectedSessionId: string | null;
     onSelectSession: (id: string) => void;
+    /** Parent-owned delete (so workspace/sidebar share one code path). */
+    onDeleteSession?: (id: string) => Promise<void>;
+    /** Bump to re-fetch the list after a sibling (workspace) deletes a chat. */
+    refreshKey?: number;
 }
 
-const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSessionId, onSelectSession }) => {
+const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSessionId, onSelectSession, onDeleteSession, refreshKey }) => {
     const [history, setHistory] = useState<ChatSession[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [forkingId, setForkingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchChatHistory();
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [refreshKey]);
 
     const fetchChatHistory = async () => {
         try {
@@ -137,6 +143,37 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
         }
     };
 
+    // Delete a session: confirm, DELETE on the backend, drop it from the list.
+    // When the page supplies `onDeleteSession` the delete is shared with the
+    // workspace (single code path + the list re-fetches via `refreshKey`);
+    // without it we fall back to a self-contained delete for standalone use.
+    const handleDeleteChat = async (e: React.MouseEvent, sessionId: string) => {
+        e.stopPropagation(); // don't trigger the row's session select
+        if (deletingId) return;
+        if (!window.confirm("Delete this chat? This cannot be undone.")) return;
+        setDeletingId(sessionId);
+        try {
+            if (onDeleteSession) {
+                await onDeleteSession(sessionId);
+            } else {
+                const { apiClient } = await import('../../lib/api-client');
+                await apiClient.delete(`/api/chat/sessions/${sessionId}`, {
+                    timeout: 10000,
+                    // @ts-ignore
+                    retry: false
+                });
+                if (selectedSessionId === sessionId) {
+                    onSelectSession("new");
+                }
+                await fetchChatHistory();
+            }
+        } catch (error) {
+            console.error("Error deleting chat session:", error);
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
     const filteredHistory = history.filter(session =>
         session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         session.preview.toLowerCase().includes(searchQuery.toLowerCase())
@@ -193,6 +230,16 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
                                             className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md text-slate-400 hover:text-indigo-300 hover:bg-slate-700/60 disabled:opacity-50 disabled:cursor-wait"
                                         >
                                             <GitFork className="h-3.5 w-3.5" />
+                                        </button>
+                                        <button
+                                            onClick={(e) => handleDeleteChat(e, session.id)}
+                                            disabled={deletingId === session.id}
+                                            title={deletingId === session.id ? "Deleting..." : "Delete this chat"}
+                                            aria-label="Delete this chat"
+                                            data-testid={`${AGENT_CHAT.DELETE_BUTTON}-${index}`}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md text-slate-400 hover:text-red-400 hover:bg-slate-700/60 disabled:opacity-50 disabled:cursor-wait"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
                                         </button>
                                     </div>
                                 </div>

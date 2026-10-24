@@ -80,6 +80,8 @@ interface AgentWorkspaceProps {
     /** Auto-hide preference (owned by the page; persisted to localStorage). */
     autoHide?: boolean;
     onAutoHideToggle?: (enabled: boolean) => void;
+    /** Delete the current chat session (ChatGPT-style "delete conversation"). */
+    onDeleteSession?: (sessionId: string) => void | Promise<void>;
 }
 
 function runStatusFromWire(status?: string): AgentRun["status"] {
@@ -136,6 +138,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     onUserInteraction,
     autoHide,
     onAutoHideToggle,
+    onDeleteSession,
 }) => {
     const [runs, setRuns] = useState<AgentRun[]>([]);
     const [agentStatus, setAgentStatus] = useState<string>("idle");
@@ -410,6 +413,22 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
         setRuns([]);
         setAgentStatus("idle");
         setActiveAgentId(null);
+    };
+
+    // The workspace trash deletes the whole chat (ChatGPT-style) when it is
+    // scoped to a real session; otherwise it just clears the local run steps.
+    const handleDelete = async () => {
+        onUserInteraction?.();
+        if (sessionId && sessionId !== "new" && onDeleteSession) {
+            if (!window.confirm("Delete this chat? This cannot be undone.")) return;
+            try {
+                await onDeleteSession(sessionId);
+            } catch (error) {
+                console.error("Error deleting chat session:", error);
+            }
+            return;
+        }
+        handleClear();
     };
 
     // ── Feedback (understanding → training loop) ─────────────────────────
@@ -743,7 +762,14 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                         </Button>
                     )}
                     {runs.length > 0 && (
-                        <Button variant="ghost" size="sm" onClick={handleClear} className="text-slate-400 hover:text-slate-200">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleDelete}
+                            aria-label="Delete chat"
+                            title={sessionId && sessionId !== "new" ? "Delete this chat" : "Clear steps"}
+                            className="text-slate-400 hover:text-slate-200"
+                        >
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     )}

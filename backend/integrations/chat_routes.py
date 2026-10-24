@@ -1358,6 +1358,74 @@ async def get_session_details(
         raise HTTPException(status_code=500, detail="Failed to get session details")
 
 
+@router.delete("/sessions/{session_id}")
+async def delete_chat_session(
+    session_id: str,
+    db: _Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    Delete a chat session and its persisted messages (authenticated).
+
+    The sidebar lists sessions from /api/chat/sessions and has no way to
+    remove one today; this is the durable counterpart of that UI. It deletes
+    the ChatMessage rows (they are NOT FK-cascaded from chat_sessions) and the
+    ChatSession row, then drops the in-memory copy so the next list call
+    cannot resurrect the session, and finally cleans the legacy JSON file
+    fallback via the session manager.
+    """
+    from core.models import ChatMessage as ChatMessageModel
+    from core.models import ChatSession as ChatSessionModel
+
+    session = chat_orchestrator.conversation_sessions.get(session_id)
+    if not session and chat_orchestrator.session_manager is not None:
+        session = chat_orchestrator.session_manager.get_session(session_id)
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if not _ensure_session_access(session, current_user):
+        logger.warning(
+            f"Delete denied: Owner {session.get('user_id')} != Requestor {current_user.id}"
+        )
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        deleted_messages = (
+            db.query(ChatMessageModel)
+            .filter(ChatMessageModel.conversation_id == session_id)
+            .delete(synchronize_session=False)
+        )
+        row = (
+            db.query(ChatSessionModel)
+            .filter(ChatSessionModel.id == session_id)
+            .first()
+        )
+        if row is not None:
+            db.delete(row)
+        db.commit()
+
+        # Drop the in-memory copy so the next list can't resurrect it.
+        chat_orchestrator.conversation_sessions.pop(session_id, None)
+
+        # Clean the legacy JSON file fallback too (idempotent on the row,
+        # which is already gone).
+        if chat_orchestrator.session_manager is not None:
+            chat_orchestrator.session_manager.delete_session(session_id)
+
+        return {
+            "success": True,
+            "message": "Session deleted",
+            "session_id": session_id,
+            "messages_deleted": deleted_messages,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete session {session_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete session")
+
 
 def _chat_operation_succeeded(response: Dict[str, Any]) -> bool:
     data = response.get("data")
