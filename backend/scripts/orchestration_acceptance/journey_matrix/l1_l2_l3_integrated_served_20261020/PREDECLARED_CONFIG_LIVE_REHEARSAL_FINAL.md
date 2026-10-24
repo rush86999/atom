@@ -9,11 +9,11 @@ check records whether every POST is one of the configured providers.
 
 ## Candidate
 
-- Product `7ed555958bbbc1e420bb34f4eaed87286744ba6c`
-- Launch `7ed555958bbc`
+- Product `8912eba5dac56e3c6a29d18e380b1b1cf5adb3ea`
+- Launch `8912eba5dac5`
 - Frontend `P5jHbHKTzj_38xHIMFoe9`
 - World: 09:19 876 MB snapshot; scratch
-  `…/l1-l2-l3-live-rehearsal-20261024-final`
+  `…/l1-l2-l3-live-rehearsal-20261024-final2`
 - Full 13-key / 37-provider BYOK copy in isolation.
 
 ## Policy

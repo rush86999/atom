@@ -77,7 +77,7 @@ BASE = f"http://127.0.0.1:{PORT}"
 LIVE_DB = MAIN / "backend/data/atom.db"
 PILOT_BACKEND = "http://127.0.0.1:8001"
 PILOT_FRONTEND = "http://127.0.0.1:3000"
-PRODUCT_SHA = "7ed555958bbbc1e420bb34f4eaed87286744ba6c"
+PRODUCT_SHA = "8912eba5dac56e3c6a29d18e380b1b1cf5adb3ea"
 CANDIDATE_SHA = PRODUCT_SHA
 HARNESS_GATE_COMMIT = "f2f8329971129bc14e9f107aa234b98db7f18379"
 HARNESS_GATE_TAG = "successor/live-rehearsal-20261024-policy"
@@ -90,7 +90,7 @@ EXPECTED_SOURCE_SHA256 = {
     "chat_orchestrator": "0dfa3c83efada00cd28bec99e17604092357a9851278d45ba19872703f65db00",
     "answer_boundary": "3a36a5dd99cd11e1767c036461f84342fbf41e4f20d6644e147f5047a6b49db3",
     "workbook_read_artifact": "db23d66749eb79ed37f0011b96b0096ad0e746cc0c981fd5f5f6edb89889da67",
-    "chat_canvas_editor": "f7b46cad302ab528fa06c66fb719552255810db52b0002698b2d7da272c67cf0",
+    "chat_canvas_editor": "8b1e9ed7a2585d4039cd6e54d32b05a39286c6ce58fddc95cdee90031cf43e91",
     "chat_routes": "d86d0be9334e8927c6811b998a5cc8c28a3b535d03cace57e8f9529679ffa0e0",
     "turn_decision": "f5342f1d8deac03a917142d5931efec190fe58a52889e8acf9cc551963508065",
 }
