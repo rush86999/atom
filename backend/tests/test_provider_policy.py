@@ -305,6 +305,44 @@ async def test_transcription_and_embeddings_fail_closed():
             ["a", "b"], "text-embedding-3-small")
 
 
+@pytest.mark.asyncio
+async def test_transcription_and_embeddings_allowed_positive_control():
+    handler = _bare_handler(ProviderPolicy(
+        mode="selected", allowed_providers=frozenset({"openai"}),
+        revision="r3"))
+    calls = []
+
+    class Audio:
+        class transcriptions:
+            @staticmethod
+            async def create(**kwargs):
+                calls.append(("audio", kwargs["model"]))
+                return SimpleNamespace(text="transcribed")
+
+    class Embeddings:
+        @staticmethod
+        async def create(**kwargs):
+            calls.append(("embed", kwargs["model"]))
+            return SimpleNamespace(data=[
+                SimpleNamespace(embedding=[0.1, 0.2])])
+
+    class Client:
+        audio = Audio()
+        embeddings = Embeddings()
+
+    handler.async_clients = {"openai": Client()}
+    out = await handler.generate_transcription(
+        file=object(), model="whisper-1")
+    assert out["text"] == "transcribed"
+    assert calls[0] == ("audio", "whisper-1")
+    vec = await handler.generate_embedding(
+        "text", "text-embedding-3-small")
+    assert vec == [0.1, 0.2]
+    batch = await handler.generate_embeddings_batch(
+        ["a", "b"], "text-embedding-3-small")
+    assert batch == [[0.1, 0.2]]
+
+
 def test_llm_service_handler_property_uses_refresh_path(monkeypatch):
     from core.llm_service import LLMService
 
@@ -314,6 +352,24 @@ def test_llm_service_handler_property_uses_refresh_path(monkeypatch):
     sentinel = object()
     service._get_handler = lambda *a, **k: sentinel
     assert service.handler is sentinel
+
+
+def test_spec_mock_handler_is_not_rebuilt():
+    from unittest.mock import Mock
+
+    from core.llm_service import LLMService
+
+    service = object.__new__(LLMService)
+    service._scope_lock = __import__("threading").RLock()
+    service._workspace_id = "default"
+    service._tenant_id = "default"
+    service._scope_unresolved_reason = None
+    service._workspace_from_tenant_resolution = False
+    service._scoped_handlers = {}
+    service._db = None
+    mock_handler = Mock(spec=BYOKHandler)
+    service._handler = mock_handler
+    assert service.handler is mock_handler
 
 
 def test_clear_provider_check_on_key_change():
@@ -331,13 +387,20 @@ def test_clear_provider_check_on_key_change():
     )
 
     class Manager:
-        def get_tenant_usage(self, _tenant):
-            return {"openai": usage}
+        usage_stats = {"t1": {"openai": usage}}
 
     _clear_provider_check(Manager(), "t1", "openai")
     assert usage.last_check_at is None
     assert usage.last_check_ok is None
     assert usage.last_check_status is None
+
+    # A global key change must clear tenant-visible checks too.
+    class AllScopes:
+        usage_stats = {"global": {"openai": usage}, "t1": {"openai": usage}}
+
+    usage.last_check_ok = True
+    _clear_provider_check(AllScopes(), "global", "openai")
+    assert usage.last_check_ok is None
 
 
 @pytest.mark.asyncio

@@ -409,6 +409,10 @@ class LLMService:
 
         def _is_real_handler(handler) -> bool:
             try:
+                from unittest.mock import Mock as _Mock
+
+                if isinstance(handler, _Mock):
+                    return False
                 return isinstance(handler, BYOKHandler)
             except TypeError:
                 # Tests frequently replace BYOKHandler with a MagicMock.

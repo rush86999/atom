@@ -53,18 +53,25 @@ BYOK_ENC_KEY_FILE = os.getenv("BYOK_ENC_KEY_FILE") or os.path.join(
 
 
 def _clear_provider_check(byok_manager, tenant_id: str, provider_id: str) -> None:
-    """A key change invalidates the last connection check."""
+    """A key change invalidates the last connection check.
+
+    A global key change affects every tenant's resolution, so it clears
+    the provider's check in every usage bucket, not only ``"global"``.
+    """
     try:
-        usage = byok_manager.get_tenant_usage(tenant_id).get(provider_id)
-        if usage is None:
-            return
-        usage.last_check_at = None
-        usage.last_check_ok = None
-        usage.last_check_status = None
-        usage.last_check_message = None
-        usage.last_check_provider = None
-        usage.last_check_model = None
-        usage.last_check_latency_ms = None
+        stats = getattr(byok_manager, "usage_stats", {}) or {}
+        scopes = list(stats.keys()) if tenant_id == "global" else [tenant_id]
+        for scope in scopes:
+            usage = (stats.get(scope) or {}).get(provider_id)
+            if usage is None:
+                continue
+            usage.last_check_at = None
+            usage.last_check_ok = None
+            usage.last_check_status = None
+            usage.last_check_message = None
+            usage.last_check_provider = None
+            usage.last_check_model = None
+            usage.last_check_latency_ms = None
     except Exception as exc:  # noqa: BLE001 — best-effort status reset
         logger.debug("provider check reset skipped: %s", exc)
 
