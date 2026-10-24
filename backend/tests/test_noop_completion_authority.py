@@ -146,8 +146,13 @@ def _run_lane(canvas, contract, expected_prior=None,
     import integrations.chat_orchestrator as co_mod
     original = cce.plan_canvas_edit
     original_fresh = cce.fetch_fresh_data_section
+    original_det = getattr(cce, "deterministic_assignment_plan", None)
     cce.plan_canvas_edit = _plan_ok
     cce.fetch_fresh_data_section = _fresh_resolved
+    # This suite exercises the no-op/decline authority path with a stubbed
+    # planner. Deterministic assignment compilation has its own tests; keep
+    # this lane on the decline path so the receipt assertions stay exact.
+    cce.deterministic_assignment_plan = lambda **kwargs: None
     shared = {}
     if contract is not None:
         shared["objective_evidence"] = contract
@@ -162,6 +167,13 @@ def _run_lane(canvas, contract, expected_prior=None,
     finally:
         cce.plan_canvas_edit = original
         cce.fetch_fresh_data_section = original_fresh
+        if original_det is not None:
+            cce.deterministic_assignment_plan = original_det
+        else:
+            try:
+                del cce.deterministic_assignment_plan
+            except AttributeError:
+                pass
     return shared
 
 
@@ -1318,8 +1330,10 @@ class TestFinalizerConsumesOnlyTheReceipt:
             execution_id="exec-auth", agent_id=None, history_snapshot=[])
         original_plan = cce.plan_canvas_edit
         original_fresh = cce.fetch_fresh_data_section
+        original_det = getattr(cce, "deterministic_assignment_plan", None)
         cce.plan_canvas_edit = _plan_ok
         cce.fetch_fresh_data_section = _fresh_none
+        cce.deterministic_assignment_plan = lambda **kwargs: None
         try:
             with patch.object(
                     atc, "_classify_preapply", return_value=None), patch.object(
@@ -1330,6 +1344,13 @@ class TestFinalizerConsumesOnlyTheReceipt:
         finally:
             cce.plan_canvas_edit = original_plan
             cce.fetch_fresh_data_section = original_fresh
+            if original_det is not None:
+                cce.deterministic_assignment_plan = original_det
+            else:
+                try:
+                    del cce.deterministic_assignment_plan
+                except AttributeError:
+                    pass
         return outcome, summary, captured.get("blackboard") or {}
 
     def test_negated_value_finalizes_unconfirmed(self):
@@ -1419,6 +1440,49 @@ class TestFinalizerConsumesOnlyTheReceipt:
         assert check.get("satisfied") is True, (
             "the finalizer's outcome rides a fresh satisfied receipt, "
             f"not the planner's prose: {check!r}")
+
+
+def test_provable_noop_survives_planner_outage():
+    """The identical re-ask must complete before planning, even when the
+    planner is unavailable: the receipt is the authority, not the model."""
+    import asyncio
+    from core.chat_canvas_editor import CanvasPlanUnavailable, FreshDataResult
+    import integrations.chat_orchestrator as co_mod
+
+    calls = []
+
+    async def _plan_outage(*a, **k):
+        calls.append(1)
+        raise CanvasPlanUnavailable("provider down")
+
+    async def _fresh_none(*a, **k):
+        return FreshDataResult("", False, True)
+
+    original_plan = cce.plan_canvas_edit
+    original_fresh = cce.fetch_fresh_data_section
+    original_det = getattr(cce, "deterministic_assignment_plan", None)
+    cce.plan_canvas_edit = _plan_outage
+    cce.fetch_fresh_data_section = _fresh_none
+    cce.deterministic_assignment_plan = lambda **kwargs: None
+    shared = {}
+    try:
+        asyncio.run(co_mod.chat_orchestrator._try_canvas_edit(
+            _REASK_ASK, [], _reask_canvas(), "user_1", "sess-auth",
+            "exec-auth", None, shared_tool_state=shared))
+    finally:
+        cce.plan_canvas_edit = original_plan
+        cce.fetch_fresh_data_section = original_fresh
+        if original_det is not None:
+            cce.deterministic_assignment_plan = original_det
+        else:
+            try:
+                del cce.deterministic_assignment_plan
+            except AttributeError:
+                pass
+    assert calls == [], "a provable no-op must not dispatch the planner"
+    assert shared.get("canvas_edit_decline_noop") is True
+    assert "already set to Net 45" in (shared.get(
+        "canvas_edit_decline_reply") or "")
 
 
 class TestStrictAssignmentSatisfactionPrimitives:

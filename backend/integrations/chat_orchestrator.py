@@ -28459,6 +28459,70 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     session, session_id)
             if _outcome_section:
                 fresh_data = f"{fresh_data}\n\n{_outcome_section}".strip()
+        # PROVABLE NO-OP BEFORE PLANNING (owner assignment 2026-10-24):
+        # the identical re-ask must not depend on edit-plan availability.
+        # The authoritative receipt check runs against the current artifact
+        # first; only a complete, authorized, revision-bound receipt may
+        # render the existing no-op confirmation. A genuinely new edit
+        # fails this check and proceeds to planning.
+        if _edit_requested:
+            try:
+                from core.chat_canvas_editor import (
+                    noop_completion_reply as _pre_noop_fn,
+                    requirement_check as _pre_requirement_fn,
+                )
+
+                _pre_fresh_contract = (
+                    fresh.evidence_contract
+                    if fresh is not None and isinstance(
+                        getattr(fresh, "evidence_contract", None), dict)
+                    else None)
+                _pre_current_rev = str(
+                    (_pre_fresh_contract or {}).get("source", {})
+                    .get("evidence_revision") or "") or None
+                _pre_session_contract = (
+                    shared_tool_state.get("objective_evidence")
+                    if isinstance(shared_tool_state, dict)
+                    and isinstance(
+                        shared_tool_state.get("objective_evidence"), dict)
+                    else None)
+                _pre_job_contract = (
+                    self._canvas_job_evidence_contract(canvas)
+                    if _pre_session_contract is None else None)
+                _pre_check = _pre_requirement_fn(
+                    message=message,
+                    canvas=canvas,
+                    authorized=True,
+                    expected_prior_audit_id=expected_prior_audit_id,
+                    evidence_contract=(
+                        _pre_session_contract or _pre_job_contract),
+                    current_source_revision=(
+                        _pre_current_rev if _pre_session_contract
+                        is not None else None),
+                )
+                _pre_completion = _pre_noop_fn(_pre_check)
+                if _pre_completion and shared_tool_state is not None:
+                    shared_tool_state[
+                        "canvas_decline_requirement_check"] = _pre_check
+                    shared_tool_state["canvas_edit_decline_noop"] = True
+                    shared_tool_state["canvas_edit_decline_reply"] = (
+                        _pre_completion)
+                    shared_tool_state["canvas_edit_no_apply"] = True
+                    shared_tool_state["canvas_edit_no_apply_reason"] = (
+                        "already_satisfied")
+                    shared_tool_state["canvas_planning_outcome"] = (
+                        "proven_satisfied")
+                    logger.info(
+                        "canvas edit proven no-op before planning: "
+                        "canvas=%s revision=%s",
+                        canvas.get("canvas_id"),
+                        (_pre_check or {}).get("revision"))
+                    return None
+            except Exception as _pre_noop_err:  # noqa: BLE001
+                logger.debug(
+                    "pre-plan requirement check skipped: %r",
+                    _pre_noop_err)
+
         # VALUE-EDIT TBC PROBE (2026-10-03, reliability run A): an edit
         # instruction asking to fill/update prices with no live lookup ran
         # (the planner judged "no tools needed" for an edit-shaped message),
@@ -28530,30 +28594,54 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         try:
             with _stage_span("edit_plan"):
-                plan = await asyncio.wait_for(
-                plan_canvas_edit(
-                    message, history, canvas, self.llm_service,
-                    # THE TURN'S OWN SCOPE (J6 draft finding, same as the
-                    # action lane): the frozen constructor scope never
-                    # sees the workspace-registered local provider — the
-                    # edit planner's pool was empty on a deployment where
-                    # the same registration served the reply lane.
-                    workspace_id=resolve_user_workspace(user_id),
-                    tenant_id=getattr(self, "tenant_id", None),
-                    execution_id=execution_id,
-                    corrections=corrections,
-                    versions=versions,
-                    lessons=lessons,
-                    similar_corrections=similar_corrections,
-                    correction_patterns=correction_patterns,
-                    provenance=provenance,
-                    user_identity=user_identity,
-                    playbooks=playbooks,
-                    fresh_data=fresh_data,
-                    job_findings=job_findings,
-                ),
-                timeout=edit_plan_timeout,
-            )
+                # NARROW DETERMINISTIC COMPILER (owner assignment
+                # 2026-10-24): one explicit user-supplied assignment that
+                # binds uniquely to a verbatim artifact line does not need
+                # a model plan. Ambiguous/negated/source-dependent edits
+                # still go to the planner; the common apply validator,
+                # preservation checks, revision guard, audit and readback
+                # remain in force.
+                from core.chat_canvas_editor import (
+                    deterministic_assignment_plan as _det_assignment_fn,
+                )
+
+                plan = _det_assignment_fn(
+                    message=message,
+                    canvas=canvas,
+                    expected_prior_audit_id=expected_prior_audit_id,
+                )
+                if plan is not None:
+                    if shared_tool_state is not None:
+                        shared_tool_state["canvas_plan_source"] = (
+                            "deterministic_assignment")
+                    logger.info(
+                        "canvas edit compiled deterministically: "
+                        "canvas=%s", canvas.get("canvas_id"))
+                else:
+                    plan = await asyncio.wait_for(
+                        plan_canvas_edit(
+                            message, history, canvas, self.llm_service,
+                            # THE TURN'S OWN SCOPE (J6 draft finding, same as the
+                            # action lane): the frozen constructor scope never
+                            # sees the workspace-registered local provider — the
+                            # edit planner's pool was empty on a deployment where
+                            # the same registration served the reply lane.
+                            workspace_id=resolve_user_workspace(user_id),
+                            tenant_id=getattr(self, "tenant_id", None),
+                            execution_id=execution_id,
+                            corrections=corrections,
+                            versions=versions,
+                            lessons=lessons,
+                            similar_corrections=similar_corrections,
+                            correction_patterns=correction_patterns,
+                            provenance=provenance,
+                            user_identity=user_identity,
+                            playbooks=playbooks,
+                            fresh_data=fresh_data,
+                            job_findings=job_findings,
+                        ),
+                        timeout=edit_plan_timeout,
+                    )
         except asyncio.TimeoutError:
             # TIMEOUT ≠ provider failure (review finding 5): the retrieval
             # may have succeeded and only planning ran out of time. Set ONLY

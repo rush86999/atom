@@ -2348,6 +2348,119 @@ def _assignment_postcondition_obligations(
     return blocker + built
 
 
+def deterministic_assignment_plan(
+    *,
+    message: str,
+    canvas: Optional[Dict[str, Any]],
+    expected_prior_audit_id: Optional[str] = None,
+) -> Optional[CanvasEditPlan]:
+    """Compile ONE explicit user-supplied assignment into a patch plan.
+
+    This is deliberately narrower than the LLM planner: exactly one
+    assignment, a unique field binding through the existing vocabulary,
+    a line that appears verbatim in the current content, and a replacement
+    value supplied by the request. Any ambiguity, negation, source
+    reference, header field, stale revision, or non-text line returns None
+    and leaves the normal planner in charge. The shared apply validator,
+    preservation checks, revision guard, audit and readback still run.
+    """
+    try:
+        from core.turn_decision import extract_request_assignments
+
+        parsed = extract_request_assignments(str(message or ""))
+        if parsed.get("unresolved_additions"):
+            return None
+        assignments = [
+            entry for entry in (parsed.get("assignments") or [])
+            if isinstance(entry, dict)
+            and str(entry.get("target") or "").strip()
+            and str(entry.get("value") or "").strip()]
+        if len(assignments) != 1:
+            return None
+        # "also"/"as well"/"too" signals an additional or mixed obligation;
+        # a mechanical patch must not silently drop the other half.
+        if re.search(r"\b(?:also|as\s+well|too)\b", str(message or ""),
+                     re.IGNORECASE):
+            return None
+        entry = assignments[0]
+        target = str(entry.get("target") or "").strip()
+        value = str(entry.get("value") or "").strip()
+        span = entry.get("span")
+        if not target or not value:
+            return None
+        # A negated instruction is not an assignment. The shared extractor
+        # is intentionally grammar-only; this boundary refuses the common
+        # negation forms rather than applying a change the user forbade.
+        if isinstance(span, (list, tuple)) and len(span) == 2:
+            prefix = str(message or "")[max(0, int(span[0]) - 24):
+                                         int(span[0])].lower()
+            if re.search(r"\b(?:do\s+not|don't|never|without)\b", prefix):
+                return None
+        canvas = canvas or {}
+        current = canvas.get("content")
+        text = str(current or "")
+        if not text.strip():
+            return None
+        observed = str(canvas.get("latest_audit_id")
+                       or canvas.get("audit_id") or "")
+        if expected_prior_audit_id and observed and \
+                str(expected_prior_audit_id) != observed:
+            return None
+        # Header assignments are the existing header obligation's job.
+        header_targets = set()
+        try:
+            if _extract_requested_subject(message):
+                header_targets.add("subject")
+            if _extract_requested_cc(message):
+                header_targets.add("cc")
+            if _extract_requested_to(message):
+                header_targets.add("to")
+        except Exception:  # noqa: BLE001 — additive
+            header_targets = set()
+        target_tokens = set(re.findall(r"[a-z0-9]+", target.lower()))
+        if target_tokens & header_targets:
+            return None
+        records = _assignment_artifact_lines(current)
+        binding = _resolve_assignment_target(target, records)
+        record = binding.record
+        if record is None or not record.line.strip():
+            return None
+        # The deterministic find must be the exact text the patch engine
+        # will see. HTML-normalized lines are not byte-identical; leave
+        # those to the model planner.
+        if record.line not in text:
+            return None
+        line_match = re.match(
+            r"^(\s*[^:\n]{1,160}:\s*)(.*)$", record.line)
+        if not line_match:
+            return None
+        # A current value that negates the requested value ("not Net 30")
+        # is a contradiction, not a simple replacement; leave it to the
+        # planner/validator rather than mechanically overwriting it.
+        if re.search(r"\b(?:not|no|never)\b",
+                     str(record.value or ""), re.IGNORECASE):
+            return None
+        new_line = f"{line_match.group(1)}{value}"
+        if new_line == record.line:
+            # Satisfied, not a new edit; the pre-plan no-op check owns it.
+            return None
+        op = CanvasPatchOp(
+            field=record.label or None,
+            find=record.line,
+            replace=new_line,
+            origin="user_supplied",
+        )
+        return CanvasEditPlan(
+            wants_edit=True,
+            edit_mode="patch",
+            ops=[op],
+            reply=f"Updated {record.label or target} to {value}.",
+        )
+    except Exception as exc:  # noqa: BLE001 — narrow compiler only
+        logger.debug("deterministic assignment plan skipped: %r", exc)
+        return None
+
+
 def requirement_check(
     *,
     message: str,
