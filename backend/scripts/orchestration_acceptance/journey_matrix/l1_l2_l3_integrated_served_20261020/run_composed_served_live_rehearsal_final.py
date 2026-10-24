@@ -71,7 +71,7 @@ CAND_BACKEND = CAND / "backend"
 PY = MAIN / "backend/venv314/bin/python"
 SCRATCH = Path(
     "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/"
-    "l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-final")
+    "l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-final2")
 PORT = 8121
 BASE = f"http://127.0.0.1:{PORT}"
 LIVE_DB = MAIN / "backend/data/atom.db"
