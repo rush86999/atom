@@ -87,10 +87,10 @@ PRE_DECL = HERE / "PREDECLARED_CONFIG_LIVE_REHEARSAL_FINAL.md"
 
 EXPECTED_SOURCE_SHA256 = {
     "chat_tool_planner": "807dd65eb83fe7676ac29fba475ef188cac6ad82146c02321d66564a023414c5",
-    "chat_orchestrator": "7736adbf3bbf9e007087201f4e72b212a1667f7384ec44426efc915b3802d91c",
+    "chat_orchestrator": "0dfa3c83efada00cd28bec99e17604092357a9851278d45ba19872703f65db00",
     "answer_boundary": "3a36a5dd99cd11e1767c036461f84342fbf41e4f20d6644e147f5047a6b49db3",
     "workbook_read_artifact": "db23d66749eb79ed37f0011b96b0096ad0e746cc0c981fd5f5f6edb89889da67",
-    "chat_canvas_editor": "5f724ceb645cff36718c13a5c6a3cb3de2417f63f9b2e04cc5be84c55170dece",
+    "chat_canvas_editor": "f7b46cad302ab528fa06c66fb719552255810db52b0002698b2d7da272c67cf0",
     "chat_routes": "d86d0be9334e8927c6811b998a5cc8c28a3b535d03cace57e8f9529679ffa0e0",
     "turn_decision": "f5342f1d8deac03a917142d5931efec190fe58a52889e8acf9cc551963508065",
 }
