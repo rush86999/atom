@@ -28470,7 +28470,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 from core.chat_canvas_editor import (
                     noop_completion_reply as _pre_noop_fn,
                     requirement_check as _pre_requirement_fn,
+                    single_explicit_assignment as _single_assignment_fn,
                 )
+                if not _single_assignment_fn(message):
+                    raise ValueError("not a single explicit assignment")
 
                 _pre_fresh_contract = (
                     fresh.evidence_contract

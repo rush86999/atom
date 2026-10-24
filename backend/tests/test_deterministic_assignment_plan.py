@@ -77,7 +77,68 @@ def test_negated_current_value_is_not_mechanically_replaced():
 def test_mixed_request_is_not_compiled():
     canvas = _canvas("Payment terms: Net 45\n")
     assert deterministic_assignment_plan(
-        message=("Please also update the payment terms in the draft to "
-                 "Net 30."),
+        message=("Add a closing paragraph. Please update the payment terms "
+                 "in the draft to Net 30."),
         canvas=canvas,
     ) is None
+
+
+def test_intervening_negation_is_not_compiled():
+    canvas = _canvas("Payment terms: Net 45\n")
+    assert deterministic_assignment_plan(
+        message=("Please do not, under any circumstances, update the "
+                 "payment terms in the draft to Net 30."),
+        canvas=canvas,
+    ) is None
+
+
+def test_value_residue_is_not_compiled():
+    canvas = _canvas("Payment terms: Net 45\n")
+    assert deterministic_assignment_plan(
+        message=("Please update the payment terms in the draft to "
+                 "Net 30, thanks."),
+        canvas=canvas,
+    ) is None
+
+
+def test_wrong_section_does_not_bind_by_completion_mapping():
+    canvas = _canvas(
+        "# Warranty\nTerms: 12 months\nWarranty period: 2 years\n")
+    assert deterministic_assignment_plan(
+        message="Please update the payment terms in the draft to Net 30.",
+        canvas=canvas,
+    ) is None
+
+
+def test_email_canvas_uses_the_content_key_not_the_label():
+    canvas = {
+        "canvas_id": "cv-email",
+        "latest_audit_id": "a1",
+        "content": {
+            "subject": "Q3 pricing",
+            "to": "client@example.com",
+            "cc": "",
+            "body": "Payment terms: Net 45\n",
+        },
+    }
+    plan = deterministic_assignment_plan(
+        message="Please update the payment terms in the draft to Net 30.",
+        canvas=canvas,
+    )
+    assert plan is not None
+    assert plan.ops[0].field == "body"
+    assert plan.ops[0].find == "Payment terms: Net 45"
+
+
+def test_noop_refuses_mixed_request():
+    from core.chat_canvas_editor import requirement_check
+
+    canvas = _canvas("Payment terms: Net 30\n")
+    check = requirement_check(
+        message=("Add a closing paragraph. Please update the payment terms "
+                 "in the draft to Net 30."),
+        canvas=canvas,
+        authorized=True,
+        expected_prior_audit_id=None,
+    )
+    assert check is None or check.get("satisfied") is not True

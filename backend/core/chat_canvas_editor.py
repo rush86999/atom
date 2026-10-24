@@ -2348,6 +2348,76 @@ def _assignment_postcondition_obligations(
     return blocker + built
 
 
+_EDIT_VERB_RE = re.compile(
+    r"\b(?:update|set|change|add|rewrite|translate|replace|remove|delete|"
+    r"insert|append)\b", re.IGNORECASE)
+
+
+def _assignment_value_is_safe(value: str) -> bool:
+    """A scalar replacement, not a clause or a second instruction."""
+    text = str(value or "").strip().rstrip(" \t.,;!?")
+    if not text:
+        return False
+    if re.search(r"\b(?:and|then|plus|thanks|please|instead|previously|"
+                 r"for now)\b", text, re.IGNORECASE):
+        return False
+    if re.search(r"[;!?]", text):
+        return False
+    if "," in text and not re.fullmatch(r"\$?\d[\d,]*(?:\.\d+)?", text):
+        return False
+    return True
+
+
+def single_explicit_assignment(message: str) -> bool:
+    """True only for one safe, user-supplied assignment clause.
+
+    Used to gate the pre-plan no-op and the deterministic compiler. Mixed
+    requests (multiple edit verbs, unresolved additions, source references,
+    header edits, or a value carrying another clause) return False and stay
+    on the existing planner/receipt path.
+    """
+    try:
+        from core.turn_decision import extract_request_assignments
+
+        parsed = extract_request_assignments(str(message or ""))
+        if parsed.get("unresolved_additions") or parsed.get("source_references"):
+            return False
+        assignments = [
+            entry for entry in (parsed.get("assignments") or [])
+            if isinstance(entry, dict)
+            and str(entry.get("target") or "").strip()
+            and str(entry.get("value") or "").strip()]
+        if len(assignments) != 1:
+            return False
+        entry = assignments[0]
+        target = str(entry.get("target") or "")
+        value = str(entry.get("value") or "")
+        if not _assignment_value_is_safe(value):
+            return False
+        if len(_EDIT_VERB_RE.findall(str(message or ""))) != 1:
+            return False
+        span = entry.get("span")
+        if isinstance(span, (list, tuple)) and len(span) == 2:
+            before = str(message or "")[:int(span[0])]
+            clause = re.split(r"[.!?;]", before)[-1].lower()
+            if re.search(r"\b(?:do\s+not|don't|never|without|must\s+not|"
+                         r"should\s+not)\b", clause):
+                return False
+        header_targets = set()
+        if _extract_requested_subject(message):
+            header_targets.add("subject")
+        if _extract_requested_cc(message):
+            header_targets.add("cc")
+        if _extract_requested_to(message):
+            header_targets.add("to")
+        target_tokens = set(re.findall(r"[a-z0-9]+", target.lower()))
+        if target_tokens & header_targets:
+            return False
+        return True
+    except Exception:  # noqa: BLE001 — conservative by design
+        return False
+
+
 def deterministic_assignment_plan(
     *,
     message: str,
@@ -2365,70 +2435,45 @@ def deterministic_assignment_plan(
     preservation checks, revision guard, audit and readback still run.
     """
     try:
+        if not single_explicit_assignment(message):
+            return None
         from core.turn_decision import extract_request_assignments
 
         parsed = extract_request_assignments(str(message or ""))
-        if parsed.get("unresolved_additions"):
-            return None
-        assignments = [
-            entry for entry in (parsed.get("assignments") or [])
-            if isinstance(entry, dict)
-            and str(entry.get("target") or "").strip()
-            and str(entry.get("value") or "").strip()]
-        if len(assignments) != 1:
-            return None
-        # "also"/"as well"/"too" signals an additional or mixed obligation;
-        # a mechanical patch must not silently drop the other half.
-        if re.search(r"\b(?:also|as\s+well|too)\b", str(message or ""),
-                     re.IGNORECASE):
-            return None
-        entry = assignments[0]
+        entry = (parsed.get("assignments") or [])[0]
         target = str(entry.get("target") or "").strip()
-        value = str(entry.get("value") or "").strip()
-        span = entry.get("span")
+        value = str(entry.get("value") or "").strip().rstrip(" \t.,;!?")
         if not target or not value:
             return None
-        # A negated instruction is not an assignment. The shared extractor
-        # is intentionally grammar-only; this boundary refuses the common
-        # negation forms rather than applying a change the user forbade.
-        if isinstance(span, (list, tuple)) and len(span) == 2:
-            prefix = str(message or "")[max(0, int(span[0]) - 24):
-                                         int(span[0])].lower()
-            if re.search(r"\b(?:do\s+not|don't|never|without)\b", prefix):
-                return None
         canvas = canvas or {}
         current = canvas.get("content")
-        text = str(current or "")
-        if not text.strip():
+        body_text = str(_body_from_content(current) or "")
+        if not body_text.strip():
             return None
         observed = str(canvas.get("latest_audit_id")
                        or canvas.get("audit_id") or "")
         if expected_prior_audit_id and observed and \
                 str(expected_prior_audit_id) != observed:
             return None
-        # Header assignments are the existing header obligation's job.
-        header_targets = set()
-        try:
-            if _extract_requested_subject(message):
-                header_targets.add("subject")
-            if _extract_requested_cc(message):
-                header_targets.add("cc")
-            if _extract_requested_to(message):
-                header_targets.add("to")
-        except Exception:  # noqa: BLE001 — additive
-            header_targets = set()
-        target_tokens = set(re.findall(r"[a-z0-9]+", target.lower()))
-        if target_tokens & header_targets:
-            return None
         records = _assignment_artifact_lines(current)
         binding = _resolve_assignment_target(target, records)
         record = binding.record
         if record is None or not record.line.strip():
             return None
+        # Deterministic mutation requires EXACT field identity; the reviewed
+        # completion mapping is safe for read-only satisfaction but can
+        # overwrite a wrong section (e.g. "payment terms" -> Warranty terms).
+        target_words = [
+            word for word in re.findall(
+                r"[a-z0-9]+", _assignment_norm(target))
+            if word not in _ASSIGNMENT_LOCATION_TOKENS]
+        label_words = _assignment_label_words(record.label)
+        if not label_words or target_words != label_words:
+            return None
         # The deterministic find must be the exact text the patch engine
         # will see. HTML-normalized lines are not byte-identical; leave
         # those to the model planner.
-        if record.line not in text:
+        if record.line not in body_text:
             return None
         line_match = re.match(
             r"^(\s*[^:\n]{1,160}:\s*)(.*)$", record.line)
@@ -2444,8 +2489,18 @@ def deterministic_assignment_plan(
         if new_line == record.line:
             # Satisfied, not a new edit; the pre-plan no-op check owns it.
             return None
+        # For object-shaped content, `field` is the content key holding
+        # this line (normally "body"), never the record label.
+        field_key = None
+        if isinstance(current, dict):
+            field_key = next(
+                (key for key, chunk in current.items()
+                 if isinstance(chunk, str) and record.line in chunk),
+                None)
+            if field_key is None:
+                return None
         op = CanvasPatchOp(
-            field=record.label or None,
+            field=field_key,
             find=record.line,
             replace=new_line,
             origin="user_supplied",
@@ -2547,6 +2602,15 @@ def requirement_check(
     has_assignments = any(
         o.get("kind") == "assignment_postconditions"
         for o in assignment_obligations)
+    if has_assignments and not single_explicit_assignment(message):
+        # Mixed/ambiguous/unsafe request: the assignment half may hold,
+        # but the receipt must not certify the whole request complete.
+        assignment_obligations.append({
+            "kind": "mixed_obligations",
+            "disposition": "unresolved",
+            "detail": ("the request contains other or unsafe edit "
+                       "obligations this receipt cannot account for")[:160],
+        })
     # OBLIGATION DISPOSITIONS (owner work order 2026-10-10): every
     # requirement the request names gets an explicit disposition —
     # satisfied / unsatisfied / unresolved — and completion REQUIRES all
