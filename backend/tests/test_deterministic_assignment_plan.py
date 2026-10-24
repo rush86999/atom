@@ -101,6 +101,19 @@ def test_value_residue_is_not_compiled():
     ) is None
 
 
+def test_completion_mapping_is_allowed_in_quotation_section():
+    canvas = _canvas(
+        "# Quotation Q-2026-114 (DRAFT)\n\nTerms: Net 45\n"
+        "Valid until: 2026-12-31\n")
+    plan = deterministic_assignment_plan(
+        message="Please update the payment terms in the draft to Net 30.",
+        canvas=canvas,
+    )
+    assert plan is not None
+    assert plan.ops[0].find == "Terms: Net 45"
+    assert plan.ops[0].replace == "Terms: Net 30"
+
+
 def test_wrong_section_does_not_bind_by_completion_mapping():
     canvas = _canvas(
         "# Warranty\nTerms: 12 months\nWarranty period: 2 years\n")
@@ -128,6 +141,44 @@ def test_email_canvas_uses_the_content_key_not_the_label():
     assert plan is not None
     assert plan.ops[0].field == "body"
     assert plan.ops[0].find == "Payment terms: Net 45"
+    from core.chat_canvas_editor import _apply_patch_ops
+
+    updated, failed = _apply_patch_ops(canvas["content"], plan.ops)
+    assert failed == []
+    assert updated["body"] == "Payment terms: Net 30\n"
+    assert updated["subject"] == "Q3 pricing"
+
+
+def test_edit_verb_mixed_request_is_not_compiled():
+    canvas = _canvas("Payment terms: Net 30\n")
+    assert deterministic_assignment_plan(
+        message=("Edit the greeting in the draft to be warmer. Update the "
+                 "payment terms in the draft to Net 30."),
+        canvas=canvas,
+    ) is None
+
+
+def test_verbless_second_clause_is_not_compiled():
+    canvas = _canvas("Payment terms: Net 30\n")
+    assert deterministic_assignment_plan(
+        message=("Update the payment terms in the draft to Net 30; "
+                 "closing line to Best regards."),
+        canvas=canvas,
+    ) is None
+
+
+def test_negation_variants_are_not_compiled():
+    canvas = _canvas("Payment terms: Net 45\n")
+    for message in (
+        "It is not necessary to update the payment terms in the draft "
+        "to Net 30.",
+        "I would rather you didn't update the payment terms in the draft "
+        "to Net 30.",
+        "Please update the payment terms in the draft to Net 30 but don't.",
+        "Please update the payment terms in the draft to Net 30 or Net 45.",
+    ):
+        assert deterministic_assignment_plan(
+            message=message, canvas=canvas) is None, message
 
 
 def test_noop_refuses_mixed_request():

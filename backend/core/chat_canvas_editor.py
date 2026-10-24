@@ -2350,7 +2350,9 @@ def _assignment_postcondition_obligations(
 
 _EDIT_VERB_RE = re.compile(
     r"\b(?:update|set|change|add|rewrite|translate|replace|remove|delete|"
-    r"insert|append)\b", re.IGNORECASE)
+    r"insert|append|edit|include|sort|trim|rename|apply|fill|restore|"
+    r"rebuild|revise|reformat|reword|prepare|finalize|compose|paste|"
+    r"modify)\b", re.IGNORECASE)
 
 
 def _assignment_value_is_safe(value: str) -> bool:
@@ -2359,7 +2361,8 @@ def _assignment_value_is_safe(value: str) -> bool:
     if not text:
         return False
     if re.search(r"\b(?:and|then|plus|thanks|please|instead|previously|"
-                 r"for now)\b", text, re.IGNORECASE):
+                 r"for now|or|vs|versus|not|never|don't|didn't|but)\b",
+                 text, re.IGNORECASE):
         return False
     if re.search(r"[;!?]", text):
         return False
@@ -2394,15 +2397,28 @@ def single_explicit_assignment(message: str) -> bool:
         value = str(entry.get("value") or "")
         if not _assignment_value_is_safe(value):
             return False
-        if len(_EDIT_VERB_RE.findall(str(message or ""))) != 1:
+        verbs = _EDIT_VERB_RE.findall(str(message or ""))
+        if len(verbs) != 1:
             return False
         span = entry.get("span")
         if isinstance(span, (list, tuple)) and len(span) == 2:
-            before = str(message or "")[:int(span[0])]
-            clause = re.split(r"[.!?;]", before)[-1].lower()
-            if re.search(r"\b(?:do\s+not|don't|never|without|must\s+not|"
-                         r"should\s+not)\b", clause):
+            start, end = int(span[0]), int(span[1])
+            residual = (str(message or "")[:start]
+                        + " " + str(message or "")[end:])
+            residual = re.sub(r"[^A-Za-z0-9]+", " ", residual).lower()
+            allowed = {
+                "please", "kindly", "also", "now", "the", "draft", "in",
+                "my", "our", "this", "that", "thanks", "thank", "you",
+            }
+            if set(residual.split()) - allowed:
                 return False
+            clause = str(message or "")[:start].lower()
+            if re.search(r"\b(?:do\s+not|don't|never|without|must\s+not|"
+                         r"should\s+not|not\s+necessary|no\s+need|"
+                         r"rather|didn't)\b", clause):
+                return False
+        else:
+            return False
         header_targets = set()
         if _extract_requested_subject(message):
             header_targets.add("subject")
@@ -2468,8 +2484,21 @@ def deterministic_assignment_plan(
                 r"[a-z0-9]+", _assignment_norm(target))
             if word not in _ASSIGNMENT_LOCATION_TOKENS]
         label_words = _assignment_label_words(record.label)
-        if not label_words or target_words != label_words:
+        if not label_words:
             return None
+        if target_words != label_words:
+            # A reviewed completion mapping (e.g. "payment terms" ->
+            # "Terms") is safe for deterministic mutation only inside a
+            # document-type section. A warranty/contract section must not
+            # donate its generic "Terms" record.
+            section_words = set(re.findall(
+                r"[a-z0-9]+", _assignment_norm(record.section)))
+            document_types = {
+                "quotation", "quote", "draft", "document", "invoice",
+                "proposal", "estimate",
+            }
+            if not (section_words & document_types):
+                return None
         # The deterministic find must be the exact text the patch engine
         # will see. HTML-normalized lines are not byte-identical; leave
         # those to the model planner.
@@ -2610,6 +2639,16 @@ def requirement_check(
             "disposition": "unresolved",
             "detail": ("the request contains other or unsafe edit "
                        "obligations this receipt cannot account for")[:160],
+        })
+    elif not has_assignments and len(
+            _EDIT_VERB_RE.findall(str(message or ""))) > 1:
+        # Header-only (or value-only) receipt plus a second edit verb:
+        # the receipt cannot account for the other obligation.
+        assignment_obligations.append({
+            "kind": "mixed_obligations",
+            "disposition": "unresolved",
+            "detail": ("the request contains another edit obligation "
+                       "this receipt cannot account for")[:160],
         })
     # OBLIGATION DISPOSITIONS (owner work order 2026-10-10): every
     # requirement the request names gets an explicit disposition —
@@ -5752,7 +5791,12 @@ async def apply_canvas_edit(
     # values is not an insertion. With no record there is nothing to
     # validate against (a direct programmatic apply) and the caller owns
     # authorization.
-    if request_message or evidence_contract:
+    # Patch-mode validation already ran above against the patch delta.
+    # Re-diffing serialized object content here misparses body lines on
+    # email/form canvases (e.g. "Net 45" -> "Net 30" as an unlabelled
+    # numeric change) and refuses a valid patch.
+    if (request_message or evidence_contract) and not (
+            plan.ops and isinstance(current, dict)):
         from core.factual_change_validation import (
             validate_factual_changes as _validate_factual,
         )
