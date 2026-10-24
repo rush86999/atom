@@ -524,30 +524,30 @@
   }
  },
  "RELEASE.pilot": {
-  "status": "local-rehearsal-functional-pass-route-parity-failed-cutover-hold",
-  "candidate": "09cccb5b0b977f86c0a39d59af5b922c83143e7f",
-  "product_tree": "4c7ec787c8ff1f81baa89f1cdc3c40496ef44b1f",
-  "release_tree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-release-09cccb5b0-20261024",
-  "export_head": "4bfcbc2adc3a6bb36568eef4a000c65910bb795f",
-  "release_head": "4bfcbc2adc3a6bb36568eef4a000c65910bb795f",
+  "status": "byok-policy-implemented-selected-profiles-fail-workflow-hold",
+  "candidate": "a729df5f572ac254eac0ae0d4180818c67916eba",
+  "product_tree": "481f3a4f338fdd50fc9f2870019f0be89e3fff5f",
+  "release_tree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-release-a729df5f5-20261024",
+  "export_head": "a729df5f572ac254eac0ae0d4180818c67916eba",
+  "release_head": "a729df5f572ac254eac0ae0d4180818c67916eba",
   "release_clean": true,
   "verified_attempt": 9,
-  "verified_checks": "59/61 (59/59 functional)",
+  "verified_checks": "59/61 functional 59/59 (full profile)",
   "clean_export": "4bfcbc2ad",
   "clean_backend_health": true,
   "frontend_build": true,
-  "frontend_build_id": "VHwW5YQ_s140w5s6u7HWl",
+  "frontend_build_id": "P5jHbHKTzj_38xHIMFoe9",
   "browser_signin": true,
   "pilot_before": "8c593e57031e clean backend :8001 pid 16055; frontend :3000 pid 16488; untouched",
-  "deployment": "HOLD \u2014 functional rehearsal passed, intended-route parity failed; old pilot 8c593e57031e serving",
-  "release_doc": "docs/acceptance/RELEASE_CANDIDATE_LIVE_WORLD_2026-10-23.md",
+  "deployment": "HOLD \u2014 BYOK policy selected profiles fail the full workflow; old pilot serving",
+  "release_doc": "docs/acceptance/BYOK_POLICY_RESULTS_2026-10-24.md",
   "support_statement": "docs/acceptance/SUPPORT_STATEMENT_LIVE_WORLD_2026-10-23.md",
   "evidence": "docs/acceptance/release_evidence_20261024/cutover_09cccb5b0/",
   "notes": "Attempt 9 copied the full unfiltered BYOK (13 keys / 37 providers) into isolation. All 59 functional workflow checks passed. The intended Ollama/DeepSeek route was not preserved: L3 reply openrouter/z-ai/glm-5.3-flash, S3/S7 opencode-go/glm-5.3-flash, edit/tool planning opencode-go/glm-5.3-flash, interpretation deepseek/deepseek-v4-pro. All destinations were configured providers; no unconfigured provider. provider_reply_parity and provider_allowlist_clean failed under the intended allowlist. Cutover approval is requested only with explicit acceptance of the actual routes; otherwise hold for routing containment.",
   "delta_review": "docs/acceptance/DELTA_FIX_REVIEW_09CCCB5B0_2026-10-24.md",
   "known_limitation": "unfiltered BYOK does not preserve the intended Ollama/DeepSeek route; [ingested] body retention can show internal metadata",
-  "approval": "requested_pending_owner",
-  "approval_doc": "docs/acceptance/CUTOVER_APPROVAL_2026-10-24.md",
+  "approval": "not_requested_pending_profile_decision",
+  "approval_doc": null,
   "maintenance_window": "2026-10-24 14:30-15:30 EDT / 18:30-19:30 UTC",
   "attempt8_history": {
    "product": "cc813aeeb90b84fcb36d128fda0a3b32b255742e",
@@ -557,11 +557,9 @@
    "note": "historical only; not transferred to changed code"
   },
   "live_rehearsal": {
-   "status": "functional-pass-route-parity-failed",
+   "status": "functional-pass-full-profile-only",
    "attempt": 9,
-   "checks": "59/61",
-   "functional_checks": "59/59",
-   "first_failure": "reply_route_not_parity",
+   "checks": "59/61 functional 59/59",
    "product": "09cccb5b0b977f86c0a39d59af5b922c83143e7f",
    "runtime": "4bfcbc2ad",
    "latencies": {
@@ -572,16 +570,14 @@
     "continuation": 53.63
    },
    "provider_routes": {
-    "intended": "ollama reply / deepseek structured",
     "actual": {
      "l3": "openrouter/z-ai/glm-5.3-flash",
      "s3": "opencode-go/glm-5.3-flash",
      "s7": "opencode-go/glm-5.3-flash",
      "interpretation": "deepseek/deepseek-v4-pro",
-     "edit_planning": "opencode-go/glm-5.3-flash",
-     "tool_planning": "opencode-go/glm-5.3-flash"
+     "edit_planning": "opencode-go/glm-5.3-flash"
     },
-    "unconfigured_provider_posts": []
+    "intended": "ollama reply / deepseek structured; parity failed"
    },
    "evidence": "docs/acceptance/LIVE_WORLD_REHEARSAL_ATTEMPT9.md"
   },
@@ -592,6 +588,10 @@
   "deployed": false,
   "served_runtime": null,
   "cutover_doc": "docs/acceptance/CUTOVER_2026-10-24.md",
-  "rollback": "prepared; fresh snapshot and unchanged BYOK/env; old pilot 8c593e57031e serving"
+  "rollback": "prepared; fresh snapshot and unchanged BYOK/env; old pilot 8c593e57031e serving",
+  "byok_policy": "implemented; selected-mode enforcement verified with zero forbidden POSTs; full profile only passing workflow",
+  "attempt10": "selected ollama+deepseek: 56/61, zero forbidden POSTs, reask failed (planner unavailable)",
+  "attempt11": "selected ollama+deepseek+opencode-go: 54/61, zero OpenRouter POSTs, edit failed (planner declined)",
+  "decision_required": "accept full profile (policy automatic) or hold for strict-policy planner work"
  }
 }
