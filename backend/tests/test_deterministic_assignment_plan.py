@@ -94,11 +94,19 @@ def test_intervening_negation_is_not_compiled():
 
 def test_value_residue_is_not_compiled():
     canvas = _canvas("Payment terms: Net 45\n")
-    assert deterministic_assignment_plan(
-        message=("Please update the payment terms in the draft to "
-                 "Net 30, thanks."),
-        canvas=canvas,
-    ) is None
+    for value in (
+        "Net 30, thanks.",
+        "Net 30 now.",
+        "Net 30 with delivery in 3-4 weeks.",
+        "Net 30 don\u2019t touch delivery.",
+        "Net 30 unless the client objects.",
+        "Net 30 (subject to approval).",
+    ):
+        assert deterministic_assignment_plan(
+            message=("Please update the payment terms in the draft to "
+                     f"{value}"),
+            canvas=canvas,
+        ) is None, value
 
 
 def test_completion_mapping_is_allowed_in_quotation_section():
@@ -115,12 +123,14 @@ def test_completion_mapping_is_allowed_in_quotation_section():
 
 
 def test_wrong_section_does_not_bind_by_completion_mapping():
-    canvas = _canvas(
-        "# Warranty\nTerms: 12 months\nWarranty period: 2 years\n")
-    assert deterministic_assignment_plan(
-        message="Please update the payment terms in the draft to Net 30.",
-        canvas=canvas,
-    ) is None
+    for heading in ("# Warranty", "# Draft Warranty",
+                    "# Quotation \u2014 Warranty", "# Document: Warranty"):
+        canvas = _canvas(
+            f"{heading}\nTerms: 12 months\nWarranty period: 2 years\n")
+        assert deterministic_assignment_plan(
+            message="Please update the payment terms in the draft to Net 30.",
+            canvas=canvas,
+        ) is None, heading
 
 
 def test_email_canvas_uses_the_content_key_not_the_label():
@@ -191,5 +201,27 @@ def test_noop_refuses_mixed_request():
         canvas=canvas,
         authorized=True,
         expected_prior_audit_id=None,
+    )
+    assert check is None or check.get("satisfied") is not True
+
+
+def test_noop_refuses_header_only_mixed_request():
+    from core.chat_canvas_editor import requirement_check
+
+    canvas = {
+        "canvas_id": "cv-header",
+        "latest_audit_id": "a1",
+        "content": {
+            "subject": "Q4 pricing",
+            "to": "a@b.com",
+            "cc": "",
+            "body": "Payment terms: Net 30\n",
+        },
+    }
+    check = requirement_check(
+        message="Update the subject to Q4 pricing; closing line to Best regards.",
+        canvas=canvas,
+        authorized=True,
+        expected_prior_audit_id="a1",
     )
     assert check is None or check.get("satisfied") is not True

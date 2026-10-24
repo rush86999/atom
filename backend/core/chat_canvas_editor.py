@@ -2358,15 +2358,23 @@ _EDIT_VERB_RE = re.compile(
 def _assignment_value_is_safe(value: str) -> bool:
     """A scalar replacement, not a clause or a second instruction."""
     text = str(value or "").strip().rstrip(" \t.,;!?")
+    # Normalize typographic apostrophes so curly-quoted negation cannot
+    # slip past the ASCII guard.
+    text = text.replace("\u2019", "'").replace("\u2018", "'")
     if not text:
         return False
     if re.search(r"\b(?:and|then|plus|thanks|please|instead|previously|"
-                 r"for now|or|vs|versus|not|never|don't|didn't|but)\b",
+                 r"for now|or|vs|versus|not|never|don't|dont|didn't|but|"
+                 r"with|unless|subject|approval|touch|now)\b",
                  text, re.IGNORECASE):
         return False
     if re.search(r"[;!?]", text):
         return False
     if "," in text and not re.fullmatch(r"\$?\d[\d,]*(?:\.\d+)?", text):
+        return False
+    # A replacement value is a scalar, not a clause. Five words is already
+    # generous for labels like "Net 30" / "In Stock" / "Best regards".
+    if len(text.split()) > 5:
         return False
     return True
 
@@ -2497,7 +2505,12 @@ def deterministic_assignment_plan(
                 "quotation", "quote", "draft", "document", "invoice",
                 "proposal", "estimate",
             }
-            if not (section_words & document_types):
+            section_vetoes = {
+                "warranty", "contract", "agreement", "policy", "terms",
+                "conditions",
+            }
+            if (section_words & section_vetoes) or not (
+                    section_words & document_types):
                 return None
         # The deterministic find must be the exact text the patch engine
         # will see. HTML-normalized lines are not byte-identical; leave
@@ -2628,6 +2641,7 @@ def requirement_check(
     # arrive here; unresolved additions block.)
     assignment_obligations = _assignment_postcondition_obligations(
         message, current)
+    header_present = _header_obligations_present(message)
     has_assignments = any(
         o.get("kind") == "assignment_postconditions"
         for o in assignment_obligations)
@@ -2640,10 +2654,15 @@ def requirement_check(
             "detail": ("the request contains other or unsafe edit "
                        "obligations this receipt cannot account for")[:160],
         })
-    elif not has_assignments and len(
-            _EDIT_VERB_RE.findall(str(message or ""))) > 1:
-        # Header-only (or value-only) receipt plus a second edit verb:
-        # the receipt cannot account for the other obligation.
+    elif not has_assignments and (
+            len(_EDIT_VERB_RE.findall(str(message or ""))) > 1
+            or (header_present and (
+                ";" in str(message or "")
+                or len(re.findall(r"[.!?]", str(message or ""))) > 1))):
+        # Header-only (or value-only) receipt plus a second clause:
+        # the receipt cannot account for the other obligation. Semicolon
+        # or a second sentence with a header edit is enough — verbless
+        # clauses ("closing line to ...") must not be certified.
         assignment_obligations.append({
             "kind": "mixed_obligations",
             "disposition": "unresolved",
@@ -2657,7 +2676,6 @@ def requirement_check(
     # + contractor replacement unmet) is unconfirmed with the unmet
     # obligation named, never certified by its satisfied half.
     obligations: List[Dict[str, Any]] = []
-    header_present = _header_obligations_present(message)
     if header_present:
         header_violation = _header_violation(message, current)
         obligations.append({
