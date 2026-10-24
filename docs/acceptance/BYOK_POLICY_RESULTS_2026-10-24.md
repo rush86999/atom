@@ -52,17 +52,21 @@ not pass.
   functional failures.
 - No final-code profile currently has a passing full workflow.
 
-## Decision required
+## Current status
 
-1. **Accept the tested full profile**: cut over with BYOK policy
-   `automatic` (or unset) and the attempt-9 functional evidence; declare the
-   actual routes in the support statement. The selected-provider controls
-   ship but are not the pilot's active profile.
-2. **Hold for planner/no-op work**: keep the selected policy and fix the
-   allowed edit planner (a separate functional change), then re-rehearse.
+The edit/no-op repair is complete and verified on the final code; see
+`EDIT_NOOP_REPAIR_2026-10-24.md`. The earlier "accept attempt-9 evidence and
+cut over" option is withdrawn: attempt 9 is pre-BYOK code and cannot be
+transferred to the current candidate.
+
+Still open, and separate from the edit/no-op repair:
+
+- the full configured provider profile does not match the historical
+  Ollama/DeepSeek intended-route checks;
+- attempt 14's S7 continuation leg failed independently;
+- no final-code run has passed every workflow and route check.
 
 No cutover has been executed. The pilot remains `8c593e57031e`.
 
-Evidence: `release_evidence_20261024/byok_policy_attempts/` (both failed
-attempts preserved) and `release_evidence_20261024/cutover_09cccb5b0/`
-(attempt 9).
+Evidence: `release_evidence_20261024/byok_policy_attempts/` (attempts 10–14
+preserved) and `release_evidence_20261024/cutover_09cccb5b0/` (attempt 9).

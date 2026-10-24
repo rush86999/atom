@@ -524,29 +524,29 @@
   }
  },
  "RELEASE.pilot": {
-  "status": "byok-policy-implemented-final-code-edit-planner-failing-hold",
-  "candidate": "a729df5f572ac254eac0ae0d4180818c67916eba",
+  "status": "edit-noop-verified-full-workflow-s7-flake-hold",
+  "candidate": "8912eba5dac56e3c6a29d18e380b1b1cf5adb3ea",
   "product_tree": "481f3a4f338fdd50fc9f2870019f0be89e3fff5f",
   "release_tree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-release-a729df5f5-20261024",
   "export_head": "a729df5f572ac254eac0ae0d4180818c67916eba",
-  "release_head": "6ae01062b",
+  "release_head": "dd5f59ada",
   "release_clean": true,
-  "verified_attempt": 12,
-  "verified_checks": "52/62 on final code; attempt 9 (pre-BYOK 59/61) historical only",
+  "verified_attempt": 14,
+  "verified_checks": "edit/reask pass (attempts 13 and 14); attempt 13 full functional 60/62; attempt 14 S7 flake",
   "clean_export": "4bfcbc2ad",
   "clean_backend_health": true,
   "frontend_build": true,
   "frontend_build_id": "P5jHbHKTzj_38xHIMFoe9",
   "browser_signin": true,
   "pilot_before": "8c593e57031e clean backend :8001 pid 16055; frontend :3000 pid 16488; untouched",
-  "deployment": "HOLD \u2014 final code failed edit/no-op in attempts 11 and 12",
+  "deployment": "HOLD \u2014 edit/no-op fixed; S7 continuation and provider route profile remain",
   "release_doc": "docs/acceptance/BYOK_POLICY_RESULTS_2026-10-24.md",
   "support_statement": "docs/acceptance/SUPPORT_STATEMENT_LIVE_WORLD_2026-10-23.md",
   "evidence": "docs/acceptance/release_evidence_20261024/cutover_09cccb5b0/",
-  "notes": "Policy enforcement verified (attempt 10 zero forbidden POSTs; attempt 11 zero OpenRouter POSTs). Final-code full-profile attempt 12 failed edit_not_applied and re-ask. The edit planner decline is the blocker, not a provider-policy escape. No cutover.",
+  "notes": "Pre-plan requirement-check no-op is planner-independent. Deterministic compiler covers one safe exact assignment; mixed/negated/ambiguous/header/warranty stay on the planner. Attempt 13 edit/reask pass, 60/62 (only historical route checks fail). Attempt 14 edit/reask pass but S7 continuation failed. BYOK policy enforcement remains.",
   "delta_review": "docs/acceptance/DELTA_FIX_REVIEW_09CCCB5B0_2026-10-24.md",
   "known_limitation": "unfiltered BYOK does not preserve the intended Ollama/DeepSeek route; [ingested] body retention can show internal metadata",
-  "approval": "not_requested_final_code_failing",
+  "approval": "not_requested_full_workflow_failing",
   "approval_doc": null,
   "maintenance_window": "2026-10-24 14:30-15:30 EDT / 18:30-19:30 UTC",
   "attempt8_history": {
@@ -592,6 +592,6 @@
   "byok_policy": "implemented; selected-mode enforcement verified with zero forbidden POSTs; full profile only passing workflow",
   "attempt10": "selected ollama+deepseek: 56/61, zero forbidden POSTs, reask failed (planner unavailable)",
   "attempt11": "selected ollama+deepseek+opencode-go: 54/61, zero OpenRouter POSTs, edit failed (planner declined)",
-  "decision_required": "separate edit-plan reliability repair; do not cut over current candidate"
+  "decision_required": "separate S7 continuation reliability + provider profile choice; no cutover"
  }
 }
