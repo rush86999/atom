@@ -1706,6 +1706,13 @@ class BYOKHandler:
         when the caller explicitly named it: being first in a ranked list
         is not evidence of an operator override.
         """
+        # LOCAL-ONLY remains a hard boundary independent of provider policy.
+        if _local_only_blocks_provider(
+                attempt_provider_id, getattr(self, "_local_routes", None)):
+            logger.warning(
+                "[local-only] BLOCKED %s/%s operation=%s",
+                attempt_provider_id, model, operation)
+            return False
         # PROVIDER POLICY GATE (2026-10-24): the hard boundary. This runs
         # before the explicit-override/catalog branches so no pin, default,
         # retry, streaming fallback or capability fail-open can widen the
@@ -1956,6 +1963,18 @@ class BYOKHandler:
                     *[p for p in available_providers
                       if p != preferred_provider],
                 ]
+
+        # Local-only is independent of the saved provider policy: a cloud
+        # provider excluded by local-only must not re-enter the fallback
+        # ladder merely because the policy allows it.
+        available_providers = [
+            p for p in available_providers
+            if not _local_only_blocks_provider(
+                p, getattr(self, "_local_routes", None))]
+        if not available_providers:
+            logger.warning(
+                "[local-only] no local provider has a client; no dispatch")
+            return []
 
         # Same availability rule as ranking: a local runtime that isn't
         # answering stays out of the fallback chain — mid-request fallback
@@ -5983,14 +6002,17 @@ class BYOKHandler:
             for provider_id, model in options:
                 if provider_id in failed_providers:
                     continue
-                # Same hard policy gate as streaming/structured. The
-                # non-streaming path previously relied on the ranker alone;
-                # a panic/fallback option could bypass it.
+                # Policy denial is provider-wide (the saved policy excludes
+                # it). Pair-level catalog/protocol denial is NOT: a later
+                # model on the same allowed provider may still be valid.
+                policy = getattr(self, "provider_policy", None)
+                if policy is not None and not policy.allows(provider_id, model):
+                    failed_providers.add(provider_id)
+                    continue
                 if not self._dispatch_catalog_admits(
                         provider_id, model,
                         options[0][0] if options else provider_id,
                         operation="text"):
-                    failed_providers.add(provider_id)
                     continue
                 if self._model_cooldown_active(provider_id, model):
                     logger.info(
@@ -9033,6 +9055,11 @@ class BYOKHandler:
         # architecture. Audio is request content: a policy that excludes
         # openai must fail closed rather than transcribe elsewhere.
         provider_id = "openai"
+        if _local_only_blocks_provider(
+                provider_id, getattr(self, "_local_routes", None)):
+            raise ValueError(
+                "Local-only mode blocks openai, the only configured "
+                "transcription route; audio was not sent.")
         policy = getattr(self, "provider_policy", None)
         if policy is not None and not policy.allows(provider_id, model):
             raise ValueError(
@@ -9163,6 +9190,9 @@ class BYOKHandler:
         provider = model = None
         for candidate_provider, candidate_model in candidates:
             if candidate_provider not in self.clients:
+                continue
+            if _local_only_blocks_provider(
+                    candidate_provider, getattr(self, "_local_routes", None)):
                 continue
             if policy is not None and not policy.allows(
                     candidate_provider, candidate_model):
@@ -10731,6 +10761,11 @@ class BYOKHandler:
         Returns:
             List of floats representing the embedding vector
         """
+        if _local_only_blocks_provider(
+                provider, getattr(self, "_local_routes", None)):
+            raise ValueError(
+                f"Local-only mode blocks {provider}/{model}; text was not "
+                "sent for embedding.")
         policy = getattr(self, "provider_policy", None)
         if policy is not None and not policy.allows(provider, model):
             raise ValueError(
@@ -10765,6 +10800,11 @@ class BYOKHandler:
         """
         Generate embeddings for multiple texts in batch using managed clients.
         """
+        if _local_only_blocks_provider(
+                provider, getattr(self, "_local_routes", None)):
+            raise ValueError(
+                f"Local-only mode blocks {provider}/{model}; text was not "
+                "sent for embedding.")
         policy = getattr(self, "provider_policy", None)
         if policy is not None and not policy.allows(provider, model):
             raise ValueError(

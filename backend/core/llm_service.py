@@ -192,10 +192,14 @@ class LLMService:
         """Alias for _handler (parity with some callers). Raises the
         explicit unresolved-scope error rather than letting a None
         handler AttributeError deep inside a dispatch."""
-        if self._handler is None and self._scope_unresolved_reason:
+        # Route through the policy-refresh path. A policy change between
+        # requests must rebuild the handler; callers that hold the previous
+        # handler keep their in-flight snapshot.
+        handler = self._get_handler()
+        if handler is None and self._scope_unresolved_reason:
             raise LLMScopeUnresolvedError(
                 self._tenant_id, self._scope_unresolved_reason)
-        return self._handler
+        return handler
 
     @handler.setter
     def handler(self, value: BYOKHandler) -> None:
@@ -403,6 +407,13 @@ class LLMService:
 
         from core.llm.provider_policy import ProviderPolicy
 
+        def _is_real_handler(handler) -> bool:
+            try:
+                return isinstance(handler, BYOKHandler)
+            except TypeError:
+                # Tests frequently replace BYOKHandler with a MagicMock.
+                return False
+
         def _policy_key(handler) -> tuple:
             policy = getattr(handler, "provider_policy", None)
             if not isinstance(policy, ProviderPolicy):
@@ -426,7 +437,7 @@ class LLMService:
                 target_tenant == self._tenant_id:
             # Test/mocked handlers keep their established replacement
             # semantics; policy refresh applies to real BYOK handlers.
-            if not isinstance(self._handler, BYOKHandler):
+            if not _is_real_handler(self._handler):
                 return self._handler
             # Policy changes apply to NEW requests. Rebuild rather than
             # mutating the shared handler, so an in-flight turn keeps the
@@ -440,7 +451,7 @@ class LLMService:
 
         key = (target_ws, target_tenant)
         handler = self._scoped_handlers.get(key)
-        if handler is not None and not isinstance(handler, BYOKHandler):
+        if handler is not None and not _is_real_handler(handler):
             return handler
         if handler is None or _policy_key(handler) != _fresh_policy_key():
             handler = BYOKHandler(

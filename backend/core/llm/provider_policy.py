@@ -194,7 +194,12 @@ def resolve_provider_policy(
         return ProviderPolicy.invalid(str(exc), source=source)
 
     raw = resolved.value
-    if raw is None or raw == "":
+    if raw is None:
+        if os.environ.get(PROVIDER_POLICY_KEY) is not None:
+            return ProviderPolicy.invalid(
+                "provider policy must be an object, not null", source="env")
+        return ProviderPolicy(mode="unset", source=resolved.source or "default")
+    if raw == "":
         return ProviderPolicy(mode="unset", source=resolved.source or "default")
     try:
         canonical = validate_provider_policy(raw)

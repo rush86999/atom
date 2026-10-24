@@ -1266,6 +1266,7 @@ async def add_api_key(
         raise HTTPException(status_code=400, detail=f"Provider {provider} not found")
 
     key_id = byok_manager.store_api_key(provider, key)
+    _clear_provider_check(byok_manager, "global", provider)
 
     return ApiResponse(success=True, data={
         "status": "success",
@@ -1451,11 +1452,13 @@ async def test_provider_key(
     """Run one bounded models-list probe and record its actual result.
 
     A saved key is not a successful inference test. The response and the
-    persisted ``last_check_*`` usage fields distinguish authentication,
-    quota/rate, network-unavailable, and successful checks with a timestamp.
+    process-local ``last_check_*`` usage fields distinguish authentication,
+    quota/rate, network-unavailable, and successful checks with a timestamp
+    (a restart honestly reports "not checked").
     The probe is only run when the operator clicks Test; page loads do not
     probe every configured provider.
     """
+    import asyncio
     from datetime import datetime, timezone
     from starlette.concurrency import run_in_threadpool
 
@@ -1487,9 +1490,14 @@ async def test_provider_key(
                     m.id for m in getattr(models, "data", [])][:5],
             }
 
-        result = await run_in_threadpool(_probe)
+        # Bound the check at the HTTP boundary. The thread may finish later
+        # (the SDK call is not cancellable here) but the UI/API cannot hang
+        # indefinitely on an unresponsive provider.
+        result = await asyncio.wait_for(
+            run_in_threadpool(_probe), timeout=20.0)
         status = "ready"
-        message = "Provider answered a bounded models-list check."
+        message = ("Provider answered a bounded models-list check "
+                   "(catalogue-level, not an inference test).")
         ok = True
     except Exception as exc:  # noqa: BLE001 — probe boundary
         logger.warning("Provider key test failed for %s: %s", provider_id, exc)

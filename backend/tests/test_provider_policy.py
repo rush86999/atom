@@ -81,6 +81,23 @@ def test_strict_resolver_rejects_malformed_env(monkeypatch):
         resolve_setting_strict("ATOM_LLM_PROVIDER_POLICY")
 
 
+def test_malformed_env_policy_is_managed_and_fails_closed(monkeypatch):
+    monkeypatch.setenv("ATOM_LLM_PROVIDER_POLICY", "{not-json")
+    policy = resolve_provider_policy()
+    assert policy.mode == "invalid"
+    assert policy.source == "env"
+    assert policy.managed_by_env is True
+    assert policy.allows("openrouter") is False
+
+
+def test_literal_null_env_policy_is_malformed(monkeypatch):
+    monkeypatch.setenv("ATOM_LLM_PROVIDER_POLICY", "null")
+    policy = resolve_provider_policy()
+    assert policy.mode == "invalid"
+    assert policy.managed_by_env is True
+    assert policy.allows("ollama") is False
+
+
 def test_unset_policy_preserves_legacy_behavior(monkeypatch):
     monkeypatch.setattr(
         "core.runtime_settings.resolve_setting_strict",
@@ -232,7 +249,9 @@ async def test_vision_auxiliary_cannot_use_forbidden_provider():
         class chat:
             class completions:
                 @staticmethod
-                async def create(**kwargs):
+                def create(**kwargs):
+                    # Production calls this through _to_thread_safe, so the
+                    # fake must be synchronous or it records nothing.
                     calls.append(kwargs)
                     raise AssertionError("forbidden vision dispatch")
 
@@ -242,6 +261,33 @@ async def test_vision_auxiliary_cannot_use_forbidden_provider():
         "abc123", "free", True)
     assert out is None
     assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_vision_auxiliary_uses_allowed_provider():
+    handler = _bare_handler(ProviderPolicy(
+        mode="selected",
+        allowed_providers=frozenset({"ollama", "deepseek"}),
+        revision="r2"))
+    calls = []
+
+    class VisionClient:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kwargs):
+                    calls.append(kwargs)
+                    return SimpleNamespace(
+                        choices=[SimpleNamespace(
+                            message=SimpleNamespace(
+                                content="allowed vision description"))])
+
+    handler.clients = {"deepseek": VisionClient()}
+    handler._capture_echoed_model = lambda *a, **k: None
+    out = await handler._get_coordinated_vision_description(
+        "abc123", "free", True)
+    assert out == "allowed vision description"
+    assert calls and calls[0]["model"] == "janus-pro-7b"
 
 
 @pytest.mark.asyncio
@@ -257,6 +303,57 @@ async def test_transcription_and_embeddings_fail_closed():
     with pytest.raises(ValueError, match="policy excludes"):
         await handler.generate_embeddings_batch(
             ["a", "b"], "text-embedding-3-small")
+
+
+def test_llm_service_handler_property_uses_refresh_path(monkeypatch):
+    from core.llm_service import LLMService
+
+    service = object.__new__(LLMService)
+    service._scope_unresolved_reason = None
+    service._handler = object()
+    sentinel = object()
+    service._get_handler = lambda *a, **k: sentinel
+    assert service.handler is sentinel
+
+
+def test_clear_provider_check_on_key_change():
+    from api.byok_routes import ProviderUsage, _clear_provider_check
+
+    usage = ProviderUsage(
+        provider_id="openai",
+        last_check_at="2026-10-24T12:00:00Z",
+        last_check_ok=True,
+        last_check_status="ready",
+        last_check_message="ok",
+        last_check_provider="openai",
+        last_check_model="gpt-4o-mini",
+        last_check_latency_ms=10,
+    )
+
+    class Manager:
+        def get_tenant_usage(self, _tenant):
+            return {"openai": usage}
+
+    _clear_provider_check(Manager(), "t1", "openai")
+    assert usage.last_check_at is None
+    assert usage.last_check_ok is None
+    assert usage.last_check_status is None
+
+
+@pytest.mark.asyncio
+async def test_generic_admin_settings_rejects_policy_under_env(monkeypatch):
+    import api.admin_runtime_settings_routes as admin_routes
+    from fastapi import HTTPException
+
+    monkeypatch.setenv("ATOM_LLM_PROVIDER_POLICY",
+                       '{"mode":"selected","allowed_providers":["ollama"]}')
+    with pytest.raises(HTTPException) as denied:
+        await admin_routes.update_setting(
+            "ATOM_LLM_PROVIDER_POLICY",
+            SimpleNamespace(value={"mode": "automatic"}),
+            admin=SimpleNamespace(email="o@example.com"),
+            db=SimpleNamespace())
+    assert denied.value.status_code == 409
 
 
 def test_forbidden_pin_is_refused_before_dispatch():
