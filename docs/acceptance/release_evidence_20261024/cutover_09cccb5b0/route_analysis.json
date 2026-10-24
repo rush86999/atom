@@ -1,0 +1,41 @@
+{
+  "attempt": 9,
+  "generated_at": "2026-10-24T16:50:00Z",
+  "byok": {
+    "mode": "full pilot BYOK copied into isolated scratch world",
+    "live_files_modified": false,
+    "keys_count": 13,
+    "provider_ids": ["deepseek", "ollama", "opencode-go", "openrouter"]
+  },
+  "provider_posts": [
+    "http://localhost:11434/v1/chat/completions",
+    "https://api.deepseek.com/v1/chat/completions",
+    "https://opencode.ai/zen/go/v1/chat/completions",
+    "https://openrouter.ai/api/v1/chat/completions"
+  ],
+  "unconfigured_provider_posts": [],
+  "intended_reply_routes": ["ollama/llama3.1:8b", "deepseek/deepseek-v4-pro"],
+  "actual_reply_routes": {
+    "l3": "openrouter/z-ai/glm-5.3-flash",
+    "s3": "opencode-go/glm-5.3-flash",
+    "s7": "opencode-go/glm-5.3-flash"
+  },
+  "actual_structured_routes": {
+    "interpretation": "deepseek/deepseek-v4-pro",
+    "edit_planning": "opencode-go/glm-5.3-flash",
+    "tool_planning": "opencode-go/glm-5.3-flash"
+  },
+  "intended_route_parity": false,
+  "unexpected_relative_to_intended": [
+    "opencode-go",
+    "openrouter"
+  ],
+  "unexpected_relative_to_configured": [],
+  "functional_checks_true": 59,
+  "functional_checks_total": 59,
+  "failed_route_checks": [
+    "provider_reply_parity",
+    "provider_allowlist_clean"
+  ],
+  "interpretation": "All workflow checks passed. All destinations were configured providers. The declared Ollama/DeepSeek route was not preserved by the unfiltered BYOK; the BPC router selected OpenCode Go/OpenRouter GLM-5.3 Flash. Approval must explicitly accept this profile, or the cutover must be withheld for routing containment."
+}

@@ -107,6 +107,12 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
       "Installation-level preferred model id for the preferred provider "
       "(e.g. a free-tier catalog-served model). Must be served by the "
       "provider's discovered catalogue."),
+    J("ATOM_LLM_PROVIDER_POLICY", None, C_LLM,
+      "Installation provider policy: mode automatic|selected, "
+      "allowed_providers ids, optional preferred {provider, model}. "
+      "Selected mode confines every reply/planning/pin/fallback dispatch "
+      "to the allowed set; unset preserves legacy behavior; malformed "
+      "restrictive values fail closed. Stored keys are never changed."),
     S("OPENAI_API_KEY", "", C_LLM, "OpenAI API key", secret=True),
     S("ANTHROPIC_API_KEY", "", C_LLM, "Anthropic API key", secret=True),
     S("MINIMAX_API_KEY", "", C_LLM, "MiniMax API key", secret=True),

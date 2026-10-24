@@ -429,7 +429,7 @@ class TestLLMServiceStreaming(TestLLMServiceProviderSelection):
     async def test_stream_completion_with_agent_id(self, streaming_service):
         """Verify that governance tracking integration works with agent_id."""
         # Mock stream_completion to verify agent_id is passed through
-        async def mock_stream(messages, model, provider_id, temperature, max_tokens, agent_id=None, db=None):
+        async def mock_stream(messages, model, provider_id, temperature, max_tokens, agent_id=None, db=None, **kwargs):
             assert agent_id == "test-agent-123"
             assert provider_id == "openai"
             yield "governed response"
@@ -454,7 +454,7 @@ class TestLLMServiceStreaming(TestLLMServiceProviderSelection):
     async def test_stream_completion_empty_messages(self, streaming_service):
         """Verify that empty messages are handled gracefully."""
         # Mock stream_completion to handle empty messages
-        async def mock_stream(messages, model, provider_id, temperature, max_tokens, agent_id=None, db=None):
+        async def mock_stream(messages, model, provider_id, temperature, max_tokens, agent_id=None, db=None, **kwargs):
             # Should receive empty messages list
             assert messages == []
             yield ""
@@ -474,7 +474,7 @@ class TestLLMServiceStreaming(TestLLMServiceProviderSelection):
     async def test_stream_completion_explicit_provider(self, streaming_service, mock_handler):
         """Verify that explicit provider_id bypasses auto selection."""
         # Mock stream_completion
-        async def mock_stream(messages, model, provider_id, temperature, max_tokens, agent_id=None, db=None):
+        async def mock_stream(messages, model, provider_id, temperature, max_tokens, agent_id=None, db=None, **kwargs):
             # Verify explicit provider is used
             assert provider_id == "anthropic"
             assert model == "claude-3-5-sonnet"
@@ -500,7 +500,7 @@ class TestLLMServiceStreaming(TestLLMServiceProviderSelection):
     async def test_stream_completion_temperature_and_max_tokens(self, streaming_service):
         """Verify that temperature and max_tokens are passed through correctly."""
         # Mock stream_completion
-        async def mock_stream(messages, model, provider_id, temperature, max_tokens, agent_id=None, db=None):
+        async def mock_stream(messages, model, provider_id, temperature, max_tokens, agent_id=None, db=None, **kwargs):
             assert temperature == 0.5
             assert max_tokens == 2000
             yield "response"

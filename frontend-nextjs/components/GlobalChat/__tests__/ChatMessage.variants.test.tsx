@@ -62,12 +62,12 @@ describe('ChatMessage user/assistant variants', () => {
     const { rerender } = render(
       <ChatMessage message={baseMsg({ model: 'gpt-4o' })} onActionClick={jest.fn()} />
     );
-    expect(screen.getByText('gpt-4o')).toBeInTheDocument();
+    expect(screen.getByText('via gpt-4o')).toBeInTheDocument();
 
     rerender(
       <ChatMessage message={baseMsg({ type: 'user', model: 'gpt-4o' })} onActionClick={jest.fn()} />
     );
-    expect(screen.queryByText('gpt-4o')).not.toBeInTheDocument();
+    expect(screen.queryByText('via gpt-4o')).not.toBeInTheDocument();
   });
 
   it('treats system messages as non-user (left aligned)', () => {

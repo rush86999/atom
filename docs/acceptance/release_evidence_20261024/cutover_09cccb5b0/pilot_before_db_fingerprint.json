@@ -1,0 +1,23 @@
+{
+  "path": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+  "exists": true,
+  "size_bytes": 876240896,
+  "sha256": "4b25241ef0754e33424bdaac74f5ee063e5b750eeaedf0f7c596429eb13aca7e",
+  "quick_check": "ok",
+  "journal_mode": "wal",
+  "row_counts": {
+    "users": 49,
+    "chat_sessions": 1025,
+    "chat_messages": 5430,
+    "canvases": 197,
+    "canvas_audit": 1116,
+    "ingested_documents": 3747,
+    "agent_executions": 4257,
+    "task_operation_records": 269,
+    "tool_mutations": 0
+  },
+  "-wal": {
+    "exists": true,
+    "size_bytes": 0
+  }
+}

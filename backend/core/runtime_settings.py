@@ -36,6 +36,15 @@ class ResolvedSetting:
     source: str  # "env" | "db" | "default" | "unknown"
 
 
+class StrictSettingError(ValueError):
+    """A strict setting exists but cannot be read/coerced safely.
+
+    Ordinary flags fall through to the next precedence leg on bad values.
+    Security/policy values must not: an unreadable restrictive value would
+    silently become the permissive default.
+    """
+
+
 _CACHE_TTL_SECONDS = float(os.getenv("ATOM_SETTINGS_CACHE_TTL", "60"))
 _cache_rows: Optional[dict[str, Any]] = None
 _cache_loaded_at: float = 0.0
@@ -156,6 +165,52 @@ def resolve_setting(key_name: str, db: Any = None) -> ResolvedSetting:
             return ResolvedSetting(value=coerced, source="db")
 
     # 3. Catalog default.
+    return ResolvedSetting(value=spec.default, source="default")
+
+
+def resolve_setting_strict(key_name: str, db: Any = None) -> ResolvedSetting:
+    """Resolve one setting without softening bad values.
+
+    Used by fail-closed policy consumers. A present-but-invalid env value,
+    a present-but-invalid DB row, or an unreadable DB raises
+    ``StrictSettingError`` instead of falling through to a permissive
+    default. Absence of the setting still returns the catalog default.
+    """
+    spec = find_spec(key_name)
+    if spec is None:
+        raise StrictSettingError(f"unknown setting: {key_name}")
+
+    env_raw = os.environ.get(key_name)
+    if env_raw is not None:
+        try:
+            return ResolvedSetting(value=_coerce(env_raw, spec.type),
+                                   source="env")
+        except Exception as exc:
+            raise StrictSettingError(
+                f"{key_name} has an invalid environment value: {exc}") from exc
+
+    try:
+        from core.models import RuntimeSetting
+
+        if db is not None:
+            row = db.get(RuntimeSetting, key_name)
+        else:
+            from core.database import get_db_session
+
+            with get_db_session() as session:
+                row = session.get(RuntimeSetting, key_name)
+        raw = row.value_json if row is not None else None
+    except Exception as exc:
+        raise StrictSettingError(
+            f"{key_name} is unreadable: {exc}") from exc
+
+    if raw is not None:
+        try:
+            return ResolvedSetting(value=_coerce(raw, spec.type), source="db")
+        except Exception as exc:
+            raise StrictSettingError(
+                f"{key_name} has an invalid stored value: {exc}") from exc
+
     return ResolvedSetting(value=spec.default, source="default")
 
 

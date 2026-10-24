@@ -1,34 +1,44 @@
 # Atom live-world pilot support statement — 2026-10-23 (refreshed 2026-10-24)
 
-**Build:** `cc813aeeb90b84fcb36d128fda0a3b32b255742e`
-**Launch/runtime:** `b682d017e60ffb0f872fddba9bcf9fb648034775`
-(`b682d017e60f`, clean)
+**Build:** `09cccb5b0b977f86c0a39d59af5b922c83143e7f`
+**Launch/runtime:** `4bfcbc2adc3a6bb36568eef4a000c65910bb795f` (`4bfcbc2ad`)
 **Scope:** single-tenant local Atom pilot on the declared configuration
-**Status:** local live-world rehearsal passed 60/60 (attempt 8); cutover is
-held and **not executed**. The old pilot `8c593e57031e` is serving until the
-owner approves `CUTOVER_APPROVAL_2026-10-24.md`.
+**Status:** the `[ingested]` fix is functionally verified (attempt 9:
+59/61; all 59 functional checks pass). Intended-route parity failed on the
+preserved unfiltered BYOK. Cutover is held and **not executed**; the old
+pilot `8c593e57031e` is serving.
 
 ## Supported (on this exact candidate)
 
-On the declared configuration (DeepSeek structured interpretation and edit
-planning, local Ollama reply, local fastembed, SQLite/LanceDB/BYOK):
+The composed workflow passed with the pilot's full copied BYOK:
 
-- sign in, upload records, get a concise sourced answer;
+- sign in, upload records, get a sourced answer;
 - edit a draft once and repeat without another write;
 - compare a draft with its source, including an honest partial/open
   comparison instead of a fabricated match;
 - ask a follow-up and reload/restart without losing or contradicting the
   saved result.
 
-The live-world composed rehearsal passed 60/60 on the verified pre-cutover
-786 MB snapshot with isolated auxiliary stores and writers disabled. Actual
-replies for L3/S3/S7 were all `ollama/llama3.1:8b`; structured interpretation
-was `deepseek/deepseek-v4-pro`. The declared fallback was not needed in that
-run. L3 59.1 s, edit 33.99 s, re-ask 31.04 s, S3 87.53 s, S7 67.46 s.
+Attempt 9 latencies: L3 76.05 s, edit 33.74 s, re-ask 31.36 s, S3 85.36 s,
+S7 53.63 s. `live_db_isolated=true`, `pilot_untouched=true`.
 
-Evidence: `LIVE_WORLD_REHEARSAL_ATTEMPT8.md`,
-`RELEASE_CANDIDATE_LIVE_WORLD_2026-10-23.md`, and
-`release_evidence_20261023/live_world_rehearsal_attempt8/`.
+## Actual provider profile (disclosed)
+
+The preserved unfiltered BYOK produced these actual routes:
+
+| Leg | Actual route |
+|---|---|
+| L3 reply | `openrouter` / `z-ai/glm-5.3-flash` |
+| S3 reply | `opencode-go` / `glm-5.3-flash` |
+| S7 reply | `opencode-go` / `glm-5.3-flash` |
+| Structured interpretation | `deepseek` / `deepseek-v4-pro` |
+| Edit planning | `opencode-go` / `glm-5.3-flash` |
+| Tool planning | `opencode-go` / `glm-5.3-flash` |
+
+All POST destinations were configured providers. There was no
+unconfigured/rogue destination, but OpenCode Go and OpenRouter were outside
+the intended Ollama/DeepSeek reply profile. Attempt 8's Ollama route was an
+artifact of its DeepSeek-only isolated store.
 
 ## Not claimed
 
@@ -36,34 +46,29 @@ Evidence: `LIVE_WORLD_REHEARSAL_ATTEMPT8.md`,
   mobile/installation platform works.
 - Not a SaaS/multi-tenant certification, security audit, or
   high-availability deployment.
-- Only the declared provider/model/fixture/live-world configuration is
-  verified. Changing providers, models, embeddings, deadlines, or corpus
-  invalidates this statement until re-measured.
+- Only the declared configuration is verified. Changing providers, models,
+  embeddings, deadlines, or corpus invalidates this statement until
+  re-measured.
 - The S3 comparison may remain partial with the broader obligation OPEN;
   that is the intended truthful behavior.
-- One rehearsal is not a reliability or latency-tail estimate; S3 took
-  87.53 s.
-- **Known defect in this exact product commit:** the answer boundary drops
-  the first paragraph of a multi-paragraph reply when that paragraph contains
-  the literal `[ingested]`. Ordinary user quotations can therefore lose
-  their first paragraph. See `DELTA_REVIEW_CC813AEEB_2026-10-24.md`. This is
-  accepted only if the cutover approval explicitly accepts it.
-- The live pilot preserves all existing BYOK providers, while attempt 8 used
-  an isolated store containing only DeepSeek and local Ollama. Broader live
-  fallback routes were not exercised by the rehearsal; the cutover smoke
-  records the actual route.
+- One rehearsal is not a reliability or latency-tail estimate.
+- The `[ingested]` fix removes the carrier prefix and retains the source
+  label/body. Internal metadata in the body can remain visible; this is
+  deliberate so an answer-bearing paragraph is never deleted. Line-numbered
+  block removal remains a separate pre-existing path.
+- The actual provider profile above is not the attempt-8 route; approval is
+  conditional on accepting it.
 
 ## Operation / recovery
 
 - Exact cutover, smoke, and rollback instructions: `CUTOVER_2026-10-24.md`.
-- Candidate identity/configuration:
+- Candidate identity/config:
   `RELEASE_CANDIDATE_LIVE_WORLD_2026-10-23.md` and
-  `release_evidence_20261024/cutover_cc813aeeb/release_config.json`.
-- The historical 09:19 SQLite backup restores cleanly but is stale (48 users
-  vs 49 live). A fresh quiescent snapshot is mandatory at cutover; the
-  procedure takes it before any candidate write.
+  `release_evidence_20261024/cutover_09cccb5b0/release_config.json`.
 - Preserve the pilot BYOK files in place. Do not use the historical
   `candidate-byok/` filtered store.
+- The 09:19 backup restores but is stale; take a fresh quiescent snapshot at
+  cutover.
 - One backend on `:8001`, one frontend on `:3000`; no `--reload`.
 - On smoke failure, restore the fresh snapshot and unchanged BYOK/env,
   restart `8c593e57031e`, and preserve evidence. Do not retry in the same
@@ -71,7 +76,7 @@ Evidence: `LIVE_WORLD_REHEARSAL_ATTEMPT8.md`,
 
 ## Support boundary
 
-Report the build identity, request text, observed answer/draft/history, and
-`/api/health` identity. Do not send credentials or full private documents.
-This statement is revised to “deployed” only after a successful cutover
-smoke on the served identity.
+Report the build identity, request text, observed answer/draft/history,
+`/api/health` identity, and the actual provider/model if visible. Do not
+send credentials or full private documents. This statement is revised to
+“deployed” only after a successful cutover smoke on the served identity.

@@ -524,65 +524,74 @@
   }
  },
  "RELEASE.pilot": {
-  "status": "local-rehearsal-60of60-passed-cutover-approval-requested",
-  "candidate": "cc813aeeb90b84fcb36d128fda0a3b32b255742e",
-  "product_tree": "5e324af5297640ee11628fa755bd50c7b7307302",
-  "release_tree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-release-cc813aeeb-20261024",
-  "export_head": "b682d017e60ffb0f872fddba9bcf9fb648034775",
-  "release_head": "b682d017e60ffb0f872fddba9bcf9fb648034775",
+  "status": "byok-policy-implemented-selected-profiles-fail-workflow-hold",
+  "candidate": "a729df5f572ac254eac0ae0d4180818c67916eba",
+  "product_tree": "481f3a4f338fdd50fc9f2870019f0be89e3fff5f",
+  "release_tree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-release-a729df5f5-20261024",
+  "export_head": "a729df5f572ac254eac0ae0d4180818c67916eba",
+  "release_head": "a729df5f572ac254eac0ae0d4180818c67916eba",
   "release_clean": true,
-  "verified_attempt": 8,
-  "verified_checks": "60/60",
-  "clean_export": "b682d017e60f",
+  "verified_attempt": 9,
+  "verified_checks": "59/61 functional 59/59 (full profile)",
+  "clean_export": "4bfcbc2ad",
   "clean_backend_health": true,
   "frontend_build": true,
-  "frontend_build_id": "tCcJqyp6jX99CjA0eySjZ",
+  "frontend_build_id": "P5jHbHKTzj_38xHIMFoe9",
   "browser_signin": true,
   "pilot_before": "8c593e57031e clean backend :8001 pid 16055; frontend :3000 pid 16488; untouched",
-  "deployment": "HOLD \u2014 local rehearsal only; old pilot 8c593e57031e serving",
-  "release_doc": "docs/acceptance/RELEASE_CANDIDATE_LIVE_WORLD_2026-10-23.md",
+  "deployment": "HOLD \u2014 BYOK policy selected profiles fail the full workflow; old pilot serving",
+  "release_doc": "docs/acceptance/BYOK_POLICY_RESULTS_2026-10-24.md",
   "support_statement": "docs/acceptance/SUPPORT_STATEMENT_LIVE_WORLD_2026-10-23.md",
-  "evidence": "docs/acceptance/release_evidence_20261024/cutover_cc813aeeb/",
-  "notes": "Attempt 8 passed 60/60 with actual Ollama replies and DeepSeek structured interpretation. Delta review of cc813aeeb found the _chain_query fix safe but the inline [ingested] strip over-broad: it can drop a first paragraph containing literal [ingested] from ordinary multi-paragraph text. Cutover approval is requested and explicitly conditional on accepting that known limitation. No cutover has been executed; the hold remains.",
-  "delta_review": "docs/acceptance/DELTA_REVIEW_CC813AEEB_2026-10-24.md",
-  "known_limitation": "[ingested] first-paragraph deletion in multi-paragraph non-streaming replies",
-  "approval": "requested_pending_owner",
-  "approval_doc": "docs/acceptance/CUTOVER_APPROVAL_2026-10-24.md",
-  "maintenance_window": "2026-10-24 11:30-12:30 EDT / 15:30-16:30 UTC",
-  "cutover_attempt": "docs/acceptance/CUTOVER_ATTEMPT_2026-10-23.md",
-  "cutover_evidence": "docs/acceptance/release_evidence_20261023/cutover/",
-  "pilot_after_rollback": "8c593e57031e clean backend :8001 health 200; frontend :3000 /login 200; DB/BYOK restored",
-  "live_rehearsal": {
-   "status": "passed",
-   "attempt": 8,
-   "checks": "60/60",
-   "first_failure": null,
+  "evidence": "docs/acceptance/release_evidence_20261024/cutover_09cccb5b0/",
+  "notes": "Attempt 9 copied the full unfiltered BYOK (13 keys / 37 providers) into isolation. All 59 functional workflow checks passed. The intended Ollama/DeepSeek route was not preserved: L3 reply openrouter/z-ai/glm-5.3-flash, S3/S7 opencode-go/glm-5.3-flash, edit/tool planning opencode-go/glm-5.3-flash, interpretation deepseek/deepseek-v4-pro. All destinations were configured providers; no unconfigured provider. provider_reply_parity and provider_allowlist_clean failed under the intended allowlist. Cutover approval is requested only with explicit acceptance of the actual routes; otherwise hold for routing containment.",
+  "delta_review": "docs/acceptance/DELTA_FIX_REVIEW_09CCCB5B0_2026-10-24.md",
+  "known_limitation": "unfiltered BYOK does not preserve the intended Ollama/DeepSeek route; [ingested] body retention can show internal metadata",
+  "approval": "not_requested_pending_profile_decision",
+  "approval_doc": null,
+  "maintenance_window": "2026-10-24 14:30-15:30 EDT / 18:30-19:30 UTC",
+  "attempt8_history": {
    "product": "cc813aeeb90b84fcb36d128fda0a3b32b255742e",
    "runtime": "b682d017e60f",
+   "result": "60/60 passed",
+   "evidence": "docs/acceptance/LIVE_WORLD_REHEARSAL_ATTEMPT8.md",
+   "note": "historical only; not transferred to changed code"
+  },
+  "live_rehearsal": {
+   "status": "functional-pass-full-profile-only",
+   "attempt": 9,
+   "checks": "59/61 functional 59/59",
+   "product": "09cccb5b0b977f86c0a39d59af5b922c83143e7f",
+   "runtime": "4bfcbc2ad",
    "latencies": {
-    "l3": 59.1,
-    "edit": 33.99,
-    "reask": 31.04,
-    "comparison": 87.53,
-    "continuation": 67.46
+    "l3": 76.05,
+    "edit": 33.74,
+    "reask": 31.36,
+    "comparison": 85.36,
+    "continuation": 53.63
    },
    "provider_routes": {
-    "structured": "deepseek/deepseek-v4-pro",
-    "reply_actual": {
-     "l3": "ollama",
-     "s3": "ollama",
-     "s7": "ollama"
-    }
+    "actual": {
+     "l3": "openrouter/z-ai/glm-5.3-flash",
+     "s3": "opencode-go/glm-5.3-flash",
+     "s7": "opencode-go/glm-5.3-flash",
+     "interpretation": "deepseek/deepseek-v4-pro",
+     "edit_planning": "opencode-go/glm-5.3-flash"
+    },
+    "intended": "ollama reply / deepseek structured; parity failed"
    },
-   "evidence": "docs/acceptance/LIVE_WORLD_REHEARSAL_ATTEMPT8.md"
+   "evidence": "docs/acceptance/LIVE_WORLD_REHEARSAL_ATTEMPT9.md"
   },
   "backup_package": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-cutover-final-20261024/",
   "backup_status": "09:19 snapshot restorable but stale; fresh quiescent snapshot required at cutover",
   "fresh_backup_required": true,
-  "release_evidence": "docs/acceptance/release_evidence_20261024/cutover_cc813aeeb/",
+  "release_evidence": "docs/acceptance/release_evidence_20261024/cutover_09cccb5b0/",
   "deployed": false,
   "served_runtime": null,
   "cutover_doc": "docs/acceptance/CUTOVER_2026-10-24.md",
-  "rollback": "prepared; fresh snapshot and unchanged BYOK/env; old pilot 8c593e57031e serving"
+  "rollback": "prepared; fresh snapshot and unchanged BYOK/env; old pilot 8c593e57031e serving",
+  "byok_policy": "implemented; selected-mode enforcement verified with zero forbidden POSTs; full profile only passing workflow",
+  "attempt10": "selected ollama+deepseek: 56/61, zero forbidden POSTs, reask failed (planner unavailable)",
+  "attempt11": "selected ollama+deepseek+opencode-go: 54/61, zero OpenRouter POSTs, edit failed (planner declined)",
+  "decision_required": "accept full profile (policy automatic) or hold for strict-policy planner work"
  }
 }

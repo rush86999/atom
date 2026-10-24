@@ -19,6 +19,12 @@ export interface AIProviderStatus {
     success: boolean;
     message: string;
   };
+  check?: {
+    success: boolean;
+    message: string;
+    status: string;
+    at: string;
+  } | null;
   provider_info: AIProvider;
 }
 
@@ -30,6 +36,17 @@ export interface UserAPIKeyStatus {
     total_configured: number;
     total_working: number;
   };
+}
+
+export interface ProviderPolicy {
+  mode: "unset" | "automatic" | "selected" | "invalid";
+  allowed_providers: string[];
+  preferred: { provider: string; model: string } | null;
+  source: "env" | "db" | "default" | "invalid";
+  managed_by_env: boolean;
+  revision: string;
+  error: string | null;
+  scope: string;
 }
 
 export interface AIProviderSettingsProps {
@@ -51,6 +68,13 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   const [saving, setSaving] = useState<string | null>(null);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [showKeyInput, setShowKeyInput] = useState<Record<string, boolean>>({});
+  const [policy, setPolicy] = useState<ProviderPolicy | null>(null);
+  const [policyMode, setPolicyMode] = useState<"automatic" | "selected">("automatic");
+  const [policyAllowed, setPolicyAllowed] = useState<string[]>([]);
+  const [policyPreferred, setPolicyPreferred] = useState("");
+  const [policyPreferredModel, setPolicyPreferredModel] = useState("");
+  const [policySaving, setPolicySaving] = useState(false);
+  const [policyError, setPolicyError] = useState<string | null>(null);
 
   // Satellite Key State
   const [satelliteKey, setSatelliteKey] = useState<string | null>(null);
@@ -150,23 +174,39 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
         let workingCount = 0;
 
         payload.providers.forEach((p: any) => {
+          const check = p.has_api_keys && p.usage?.last_check_at
+            ? {
+                success: p.usage.last_check_ok === true,
+                message: p.usage.last_check_message || "",
+                status: p.usage.last_check_status || "unavailable",
+                at: p.usage.last_check_at,
+              }
+            : null;
           statusMap[p.provider.id] = {
             configured: p.has_api_keys,
+            // "active" means a key exists and the provider is enabled. It
+            // is NOT a successful connection check. Only last_check_* from
+            // an explicit Test action may say Ready/Authentication/Quota.
             test_result: {
-              success: p.status === "active",
-              message: p.status === "active" ? "Connection successful" : "Not configured or inactive"
+              success: check?.success === true,
+              message: check
+                ? check.message
+                : p.has_api_keys
+                  ? "Key saved — not checked"
+                  : "Not configured",
             },
+            check,
             provider_info: {
               name: p.provider.name,
               description: p.provider.description,
               acquisition_url: p.provider.base_url || "", // Backend might not have this, default to empty
-              expected_format: "sk-...",
+              expected_format: "Provider-specific key",
               capabilities: p.provider.supported_tasks,
               models: [p.provider.model || "default"]
             }
           };
           if (p.has_api_keys) configuredCount++;
-          if (p.status === "active") workingCount++;
+          if (check?.success === true) workingCount++;
         });
 
         setUserStatus({
@@ -188,10 +228,94 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     }
   }, [baseApiUrl, userId]);
 
+  const applyPolicy = useCallback((next: ProviderPolicy | null) => {
+    setPolicy(next);
+    if (!next) return;
+    setPolicyMode(next.mode === "selected" ? "selected" : "automatic");
+    setPolicyAllowed(next.allowed_providers || []);
+    setPolicyPreferred(next.preferred?.provider || "");
+    setPolicyPreferredModel(next.preferred?.model || "");
+  }, []);
+
+  const loadProviderPolicy = useCallback(async () => {
+    try {
+      const response = await fetch(`${baseApiUrl}/ai/provider-policy`, {
+        headers: authHeaders(),
+      });
+      if (response.status === 404) {
+        // Older backend: keep the provider list usable, but say so.
+        setPolicy(null);
+        setPolicyError(
+          "Provider routing policy is not available on this backend build.");
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(`Failed to load provider policy (${response.status})`);
+      }
+      const body = await response.json();
+      const next = body?.data?.policy ?? body?.policy ?? null;
+      applyPolicy(next);
+      setPolicyError(next?.error || null);
+    } catch (err) {
+      setPolicyError(
+        err instanceof Error ? err.message : "Failed to load provider policy");
+    }
+  }, [baseApiUrl, applyPolicy]);
+
+  const saveProviderPolicy = async () => {
+    try {
+      setPolicySaving(true);
+      setPolicyError(null);
+      const allowed = policyMode === "selected" ? policyAllowed : [];
+      const preferred = policyPreferred && policyPreferredModel
+        ? { provider: policyPreferred, model: policyPreferredModel }
+        : null;
+      if (preferred && policyMode === "selected"
+          && !allowed.includes(preferred.provider)) {
+        throw new Error(
+          "Preferred provider must also be selected in the allowed set.");
+      }
+      const response = await fetch(`${baseApiUrl}/ai/provider-policy`, {
+        method: "PUT",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          mode: policyMode,
+          allowed_providers: allowed,
+          preferred,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          body?.detail || body?.message
+          || `Provider policy was rejected (${response.status})`);
+      }
+      const next = body?.data?.policy ?? body?.policy ?? null;
+      applyPolicy(next);
+      toast({
+        title: "Routing policy saved",
+        description: next?.mode === "selected"
+          ? "Only the selected providers may receive requests."
+          : "Any enabled provider may receive requests.",
+      });
+    } catch (err) {
+      // The prior effective policy remains in force on failed saves; put
+      // the controls back to it instead of leaving the rejected draft
+      // looking effective.
+      applyPolicy(policy);
+      setPolicyError(
+        err instanceof Error ? err.message : "Failed to save provider policy");
+    } finally {
+      setPolicySaving(false);
+    }
+  };
+
   useEffect(() => {
     loadUserAPIKeyStatus();
+    loadProviderPolicy();
     loadSatelliteKey();
-  }, [userId, baseApiUrl, loadSatelliteKey, loadUserAPIKeyStatus]);
+  }, [userId, baseApiUrl, loadSatelliteKey, loadUserAPIKeyStatus,
+      loadProviderPolicy]);
 
   const saveAPIKey = async (provider: string, apiKey: string) => {
     try {
@@ -265,10 +389,23 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
       );
       if (testResponse.ok) {
         const testData = await testResponse.json();
+        const detailMessage =
+          testData.message || testData.data?.message
+          || testData.error || testData.detail;
         if (testData.success || testData.valid) {
-          toast({ title: "Connection Successful", description: `${provider} API key is working.` });
+          const checkedAt = testData.data?.checked_at
+            ? new Date(testData.data.checked_at).toLocaleString()
+            : "just now";
+          toast({
+            title: "Connection checked",
+            description: `${provider} answered a bounded models-list check at ${checkedAt}.`,
+          });
         } else {
-          toast({ title: "Connection Failed", description: testData.error || testData.detail || "Key may be invalid.", variant: "error" });
+          toast({
+            title: "Connection check failed",
+            description: detailMessage || "The provider did not answer the check.",
+            variant: "error",
+          });
         }
       } else {
         toast({ title: "Connection Failed", description: `Server returned ${testResponse.status}.`, variant: "error" });
@@ -329,8 +466,182 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
       <h2>AI Provider Settings</h2>
       <p className="description">
         Configure your own API keys for different AI providers. Each user brings
-        their own keys.
+        their own keys. A saved key is permission to store a credential; it is
+        not permission to send every request to that provider.
       </p>
+
+      <div className="summary-card provider-policy-section">
+        <div className="provider-header">
+          <div>
+            <h3>Where Atom may send requests</h3>
+            <p className="detail">
+              This policy is enforced for replies, planning, pins, retries, and
+              fallback. Saved keys are never deleted by changing it.
+            </p>
+          </div>
+          <div className={`status-badge ${policy?.managed_by_env ? "not-configured" : "success"}`}>
+            {policy?.managed_by_env ? "Managed by this installation" : "Saved policy"}
+          </div>
+        </div>
+
+        {policy?.managed_by_env && (
+          <div className="error-message">
+            An environment override controls this installation. The controls
+            below are read-only; a UI save will not take effect.
+          </div>
+        )}
+        {policy?.error && (
+          <div className="error-message">
+            Policy error: {policy.error}. Requests fail closed until this is fixed.
+          </div>
+        )}
+        {policyError && <div className="error-message">{policyError}</div>}
+
+        <div className="policy-options" style={{ marginTop: 12 }}>
+          <label className="policy-option">
+            <input
+              type="radio"
+              name="provider-policy-mode"
+              checked={policyMode === "automatic"}
+              disabled={policy?.managed_by_env}
+              onChange={() => setPolicyMode("automatic")}
+            />
+            <span>
+              <strong>Automatic among enabled providers</strong>
+              <span className="detail">
+                Any enabled provider may receive request content. Preferred
+                is an order, not a guarantee.
+              </span>
+            </span>
+          </label>
+          <label className="policy-option">
+            <input
+              type="radio"
+              name="provider-policy-mode"
+              checked={policyMode === "selected"}
+              disabled={policy?.managed_by_env}
+              onChange={() => setPolicyMode("selected")}
+            />
+            <span>
+              <strong>Only selected providers</strong>
+              <span className="detail">
+                Fallback is confined to this set. If none is usable, Atom
+                reports an unavailable route instead of sending elsewhere.
+              </span>
+            </span>
+          </label>
+        </div>
+
+        {policyMode === "selected" && (
+          <div className="policy-provider-grid" style={{ marginTop: 10 }}>
+            {Object.entries(userStatus?.status || {})
+              .filter(([id, s]) => s.configured || id === "ollama")
+              .map(([id, s]) => (
+                <label key={id} className="policy-provider-option">
+                  <input
+                    type="checkbox"
+                    checked={policyAllowed.includes(id)}
+                    disabled={policy?.managed_by_env}
+                    onChange={(e) => {
+                      setPolicyAllowed((prev) => e.target.checked
+                        ? Array.from(new Set([...prev, id]))
+                        : prev.filter((p) => p !== id));
+                      if (!e.target.checked && policyPreferred === id) {
+                        setPolicyPreferred("");
+                      }
+                    }}
+                  />
+                  <span>{s.provider_info.name}</span>
+                  {!s.configured && id === "ollama" && (
+                    <span className="detail"> (local, no key)</span>
+                  )}
+                </label>
+              ))}
+            {Object.entries(userStatus?.status || {})
+              .filter(([id, s]) => s.configured || id === "ollama").length === 0 && (
+              <p className="detail">Save a provider key first.</p>
+            )}
+          </div>
+        )}
+
+        <div className="policy-preferred" style={{ marginTop: 12 }}>
+          <label htmlFor="policy-preferred-provider">
+            <strong>Preferred provider</strong> (optional)
+          </label>
+          <span className="detail" style={{ display: "block", marginBottom: 4 }}>
+            The first eligible route. Capability, access, local-only, and
+            billing checks still apply; this is not a guarantee.
+          </span>
+          <select
+            id="policy-preferred-provider"
+            value={policyPreferred}
+            disabled={policy?.managed_by_env}
+            onChange={(e) => {
+              const next = e.target.value;
+              setPolicyPreferred(next);
+              if (next) {
+                const defaultModel =
+                  userStatus?.status[next]?.provider_info.models[0] || "";
+                setPolicyPreferredModel((prev) => prev || defaultModel);
+              } else {
+                setPolicyPreferredModel("");
+              }
+            }}
+            className="key-input"
+            style={{ maxWidth: 320 }}
+          >
+            <option value="">No preferred provider</option>
+            {(policyMode === "selected" ? policyAllowed : Object.keys(userStatus?.status || {}))
+              .filter((id) => id === "ollama" || userStatus?.status[id]?.configured)
+              .map((id) => (
+                <option key={id} value={id}>
+                  {userStatus?.status[id]?.provider_info.name || id}
+                </option>
+              ))}
+          </select>
+          {policyPreferred && (
+            <div style={{ marginTop: 8 }}>
+              <label htmlFor="policy-preferred-model">
+                <strong>Preferred model</strong>
+              </label>
+              <input
+                id="policy-preferred-model"
+                className="key-input"
+                value={policyPreferredModel}
+                disabled={policy?.managed_by_env}
+                onChange={(e) => setPolicyPreferredModel(e.target.value)}
+                placeholder="e.g. llama3.1:8b"
+                style={{ display: "block", maxWidth: 320, marginTop: 4 }}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="detail" style={{ marginTop: 10 }}>
+          <strong>Fallback:</strong>{" "}
+          {policyMode === "selected"
+            ? `only ${policyAllowed.length
+                ? policyAllowed.join(", ")
+                : "the selected set (currently empty — requests will be unavailable)"}.`
+            : "any enabled provider from the saved BYOK store."}
+        </div>
+
+        <div className="provider-actions" style={{ marginTop: 12 }}>
+          <button
+            className="save-btn"
+            onClick={saveProviderPolicy}
+            disabled={policySaving || policy?.managed_by_env}
+          >
+            {policySaving ? "Saving..." : "Save Routing Policy"}
+          </button>
+          {policy?.revision && (
+            <span className="detail" style={{ alignSelf: "center" }}>
+              Effective revision {policy.revision}
+              {policy.source ? ` · source: ${policy.source}` : ""}
+            </span>
+          )}
+        </div>
+      </div>
 
       {/* Satellite Key Section */}
       <div className="satellite-key-section">
@@ -471,13 +782,27 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
                   <div className="provider-header">
                     <h3>{status.provider_info.name}</h3>
                     <div
-                      className={`status-badge ${status.test_result.success ? "success" : status.configured ? "error" : "not-configured"}`}
+                      className={`status-badge ${
+                        status.check?.success
+                          ? "success"
+                          : status.check
+                            ? "error"
+                            : status.configured
+                              ? "not-configured"
+                              : "not-configured"
+                      }`}
                     >
-                      {status.test_result.success
-                        ? "✓ Working"
+                      {status.check
+                        ? status.check.success
+                          ? `Ready — checked ${new Date(status.check.at).toLocaleString()}`
+                          : status.check.status === "authentication_failed"
+                            ? "Authentication failed"
+                            : status.check.status === "usage_limit"
+                              ? "Usage limit reached"
+                              : "Unavailable"
                         : status.configured
-                          ? "✗ Failed"
-                          : "Not Configured"}
+                          ? "Key saved — not checked"
+                          : "Not configured"}
                     </div>
                   </div>
 
@@ -494,15 +819,19 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
                       <strong>Capabilities:</strong>{" "}
                       {status.provider_info.capabilities.join(", ")}
                     </div>
-                  </div>
-
-                  {status.test_result.message &&
-                    !status.test_result.success &&
-                    status.configured && (
-                      <div className="error-message">
-                        {status.test_result.message}
+                    {policy?.mode === "selected"
+                      && !policy.allowed_providers.includes(provider) && (
+                      <div className="detail">
+                        Enabled, excluded by routing policy
                       </div>
                     )}
+                  </div>
+
+                  {status.check && !status.check.success && (
+                    <div className="error-message">
+                      {status.check.message}
+                    </div>
+                  )}
 
                   <div className="provider-actions">
                     {!status.configured || showKeyInput[provider] ? (
@@ -566,7 +895,7 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
                       rel="noopener noreferrer"
                       className="get-key-link"
                     >
-                      Get API Key
+                      Provider site
                     </a>
                   </div>
                 </div>
@@ -618,6 +947,41 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
         .summary-card h3 {
           margin: 0 0 15px 0;
           color: #333;
+        }
+
+        .provider-policy-section {
+          margin-bottom: 24px;
+        }
+
+        .policy-options {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .policy-option,
+        .policy-provider-option {
+          display: flex;
+          gap: 8px;
+          align-items: flex-start;
+          cursor: pointer;
+        }
+
+        .policy-option .detail {
+          display: block;
+          margin-top: 2px;
+          color: #666;
+          font-size: 0.9rem;
+        }
+
+        .policy-provider-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 8px 16px;
+        }
+
+        .policy-provider-option {
+          align-items: center;
         }
 
         .summary-stats {

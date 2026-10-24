@@ -1,0 +1,452 @@
+{
+  "attempt": "live-rehearsal-1",
+  "checks": {
+    "auth_user_resolved": true,
+    "comparison_broader_obligation_open": true,
+    "comparison_draft_unchanged": true,
+    "comparison_history_agreement": true,
+    "comparison_http_ok": true,
+    "comparison_interpretation_deepseek": true,
+    "comparison_no_false_date": true,
+    "comparison_no_global_claim": true,
+    "comparison_requirement_captured": true,
+    "comparison_settlement_basis": true,
+    "comparison_truthful_date": true,
+    "comparison_zero_writes": true,
+    "continuation_actions_proposed": true,
+    "continuation_capture_archived": true,
+    "continuation_date_only_completed": true,
+    "continuation_draft_unchanged": true,
+    "continuation_history_agreement": true,
+    "continuation_http_ok": true,
+    "continuation_interpretation_deepseek": true,
+    "continuation_requirement_captured": true,
+    "continuation_settlement_basis": true,
+    "continuation_source_resolved": true,
+    "continuation_truthful_date": true,
+    "continuation_zero_writes": true,
+    "deepseek_credential_active": true,
+    "draft_created_through_product": true,
+    "edit_audit_exactly_one": false,
+    "edit_body_applied": false,
+    "edit_http_ok": true,
+    "edit_other_fields_preserved": true,
+    "edit_settled_completed": false,
+    "fixture_uploaded_through_product": true,
+    "l3_answer_correct": true,
+    "l3_documents_receipt_executed": true,
+    "l3_history_agreement": true,
+    "l3_http_ok": true,
+    "l3_interpretation_deepseek": true,
+    "l3_no_canvas_created": true,
+    "l3_objective_met": true,
+    "l3_receipt_bound_to_execution": true,
+    "l3_receipt_bound_to_workspace": true,
+    "l3_receipt_verified_complete": true,
+    "l3_settlement_completed": true,
+    "live_db_isolated": true,
+    "pilot_untouched": true,
+    "provider_allowlist_clean": true,
+    "provider_reply_parity": true,
+    "provider_structured_deepseek": true,
+    "reask_body_unchanged": true,
+    "reask_completed": false,
+    "reask_history_agreement": true,
+    "reask_http_ok": true,
+    "reask_noop_receipt": false,
+    "reask_receipt_reply": false,
+    "reask_zero_additional_writes": true,
+    "restart_canvas_unchanged": true,
+    "restart_execution_persists": false,
+    "restart_history_agreement": true,
+    "restart_runtime_identity": true,
+    "restart_zero_new_writes": true,
+    "runtime_identity": true
+  },
+  "classification": "edit_not_applied",
+  "first_failure": "edit_not_applied",
+  "live_db_guard_after": {
+    "fingerprint": {
+      "exists": true,
+      "mtime": 1792848926.6231077,
+      "path": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+      "quick_check": "ok",
+      "row_counts": {
+        "agent_executions": 4257,
+        "agents": null,
+        "canvas_audit": 1116,
+        "canvases": 197,
+        "chat_messages": 5430,
+        "chat_sessions": 1025,
+        "ingested_documents": 3747,
+        "task_operation_records": 269,
+        "tool_mutations": 0,
+        "users": 49
+      },
+      "sha256": "4b25241ef0754e33424bdaac74f5ee063e5b750eeaedf0f7c596429eb13aca7e",
+      "size_bytes": 876240896,
+      "wal_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "wal_size_bytes": 0
+    },
+    "holders": {
+      "holders": [
+        {
+          "command": "python3.14",
+          "names": [
+            "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+            "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+            "/Users/rushiparikh/projects/atom/backend/data/atom.db"
+          ],
+          "pid": 16055
+        }
+      ],
+      "lsof_rc": 0,
+      "path": "/Users/rushiparikh/projects/atom/backend/data/atom.db"
+    },
+    "isolated": true,
+    "live_db_path_in_server_logs": false,
+    "scratch_holders": {
+      "holders": [],
+      "lsof_rc": 0,
+      "path": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+      "pid_tree": [
+        52345
+      ]
+    },
+    "scratch_paths_isolated": true,
+    "unchanged": true
+  },
+  "live_db_isolated": true,
+  "live_db_unchanged": true,
+  "pass": false,
+  "pilot_untouched": true,
+  "provider_routes": {
+    "deepseek_chat_posts": 6,
+    "edit_plan_lines": [
+      "INFO:integrations.chat_orchestrator:[stage-timing] canvas-action plan: 0.0s (overlapped with canvas-edit plan)",
+      "INFO:integrations.chat_orchestrator:[lane-stage-begin] eid=a170a550-f3bc-4b7b-ae5e-bb4db8dd7be1 stage=edit_plan",
+      "INFO:core.llm.byok_handler:[structured-dispatch] opencode-go/glm-5.3-flash route=canvas_edit_plan:a170a550-f3bc-4b7b-ae5e-bb4db8dd7be1 attempt=1 prompt_chars=3024 cap=2000 instructor_retries=2",
+      "INFO:core.llm.byok_handler:[structured-trace] opencode-go/glm-5.3-flash cap=2000 dur=1.6s finish=tool_calls content_present=True tool_calls_present=True result_type=CanvasEditPlan route=canvas_edit_plan:a170a550-f3bc-4b7b-ae5e-bb4db8dd7be1 ",
+      "INFO:core.chat_canvas_editor:[plan-stage] eid=a170a550-f3bc-4b7b-ae5e-bb4db8dd7be1 stage=canvas_edit_plan outcome=declined attempts=1 contract=violation detail=served decline",
+      "INFO:core.chat_canvas_editor:[plan-stage] eid=a170a550-f3bc-4b7b-ae5e-bb4db8dd7be1 stage=canvas_edit_plan outcome=repair attempts=2 contract=violation detail=attempt 1 invalid: wants_edit=false but ops[2]={field=?,find='Terms: Net 45'}; {fi",
+      "INFO:core.llm.byok_handler:[structured-dispatch] opencode-go/glm-5.3-flash route=canvas_edit_plan_repair:a170a550-f3bc-4b7b-ae5e-bb4db8dd7be1 attempt=1 prompt_chars=4112 cap=2000 instructor_retries=2",
+      "INFO:core.llm.byok_handler:[structured-trace] opencode-go/glm-5.3-flash cap=2000 dur=0.8s finish=tool_calls content_present=True tool_calls_present=True result_type=CanvasEditPlan route=canvas_edit_plan_repair:a170a550-f3bc-4b7b-ae5e-bb4db8",
+      "INFO:core.chat_canvas_editor:[plan-stage] eid=a170a550-f3bc-4b7b-ae5e-bb4db8dd7be1 stage=canvas_edit_plan outcome=declined attempts=2 contract=valid detail=repair resolved to a decline",
+      "INFO:integrations.chat_orchestrator:[lane-stage-end] eid=a170a550-f3bc-4b7b-ae5e-bb4db8dd7be1 stage=edit_plan elapsed=3.7s",
+      "INFO:integrations.chat_orchestrator:[stage-timing] canvas-edit plan: 4.6s",
+      "INFO:integrations.chat_orchestrator:[stage-timing] canvas-action plan: 0.0s (overlapped with canvas-edit plan)"
+    ],
+    "interpretation_lines": [
+      "INFO:core.llm.byok_handler:[structured-dispatch] deepseek/deepseek-v4-pro route=turn_interpretation:l1l2l3-l3-423df5f99fd247b49ef7101a08c2d189 attempt=1 prompt_chars=2602 cap=5500 instructor_retries=2",
+      "INFO:core.llm.byok_handler:[structured-trace] deepseek/deepseek-v4-pro cap=5500 dur=17.3s finish=stop content_present=True tool_calls_present=False result_type=_Interpretation route=turn_interpretation:l1l2l3-l3-423df5f99fd247b49ef7101a08c2",
+      "INFO:core.llm.byok_handler:[structured-dispatch] deepseek/deepseek-v4-pro route=turn_interpretation:l1l2l3-edit-b40d4d99feab42b287ac6111f309160a attempt=1 prompt_chars=3291 cap=5500 instructor_retries=2",
+      "INFO:core.llm.byok_handler:[structured-trace] deepseek/deepseek-v4-pro cap=5500 dur=21.8s finish=stop content_present=True tool_calls_present=False result_type=_Interpretation route=turn_interpretation:l1l2l3-edit-b40d4d99feab42b287ac6111f3",
+      "INFO:core.llm.byok_handler:[structured-dispatch] deepseek/deepseek-v4-pro route=turn_interpretation:l1l2l3-reask-01851d649c1042e494a65712dad983c2 attempt=1 prompt_chars=3403 cap=5500 instructor_retries=2",
+      "INFO:core.llm.byok_handler:[structured-trace] deepseek/deepseek-v4-pro cap=5500 dur=32.9s finish=stop content_present=True tool_calls_present=False result_type=_Interpretation route=turn_interpretation:l1l2l3-reask-01851d649c1042e494a65712d",
+      "INFO:core.llm.byok_handler:[structured-dispatch] deepseek/deepseek-v4-pro route=turn_interpretation:l1l2l3-s3-20bcc7549ac64990b12d8d8efd05bd61 attempt=1 prompt_chars=2949 cap=5500 instructor_retries=2",
+      "INFO:core.llm.byok_handler:[structured-trace] deepseek/deepseek-v4-pro cap=5500 dur=23.7s finish=stop content_present=True tool_calls_present=False result_type=_Interpretation route=turn_interpretation:l1l2l3-s3-20bcc7549ac64990b12d8d8efd05",
+      "INFO:core.llm.byok_handler:[structured-dispatch] deepseek/deepseek-v4-pro route=turn_interpretation:l1l2l3-s7-e81eb07490e6449cb941500bd8de0532 attempt=1 prompt_chars=3382 cap=5500 instructor_retries=2",
+      "INFO:core.llm.byok_handler:[structured-trace] deepseek/deepseek-v4-pro cap=5500 dur=24.1s finish=stop content_present=True tool_calls_present=False result_type=_Interpretation route=turn_interpretation:l1l2l3-s7-e81eb07490e6449cb941500bd8de"
+    ],
+    "provider_posts": [
+      "http://localhost:11434/v1/chat/completions",
+      "https://api.deepseek.com/v1/chat/completions",
+      "https://opencode.ai/zen/go/v1/chat/completions"
+    ],
+    "reply_streamed_routes": [
+      "opencode-go/glm-5.3-flash"
+    ],
+    "source_ask_lines": [
+      "INFO:core.chat_tool_planner:tool planner: source-ask floor -> documents.search query='the launch code for project Zephyr-9'",
+      "INFO:core.chat_tool_planner:tool planner: source-ask floor -> documents.search query='Compare the draft quotation with my uploaded Approved Records document. Does the Valid Until date in the draft match the approved record? Flag anything th",
+      "INFO:core.chat_tool_planner:tool planner: source-ask floor -> documents.search query='approved_records_q2026_114.txt What is the current Valid until date on the draft, and does it still match the approved record?'"
+    ],
+    "structured_dispatch_models": [
+      "deepseek/deepseek-flash",
+      "deepseek/deepseek-v4-pro",
+      "opencode-go/glm-5.3-flash",
+      "opencode-go/minimax-m2.7",
+      "opencode-go/minimax-m3"
+    ],
+    "unexpected_provider_posts": []
+  },
+  "runtime_identity": {
+    "candidate_commit_ok": true,
+    "candidate_cwd_ok": true,
+    "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l3-required-read-timeout/backend",
+    "dirty": false,
+    "git_commit": "9cbd029d883f",
+    "revision": "9cbd029d883ff66425cc5b29e6f8ef8cc4024e92",
+    "source_id": "9cbd029d883f"
+  },
+  "stage_summary": {
+    "comparison": {
+      "broader_comparison_requirement": true,
+      "context_fulfillment_state": "partial",
+      "message": "I retrieved approved_records_q2026_114.txt, but the comparison itself was not recorded this turn, so I cannot confirm whether the requested expiration date matches or differs. The draft's expiration date is 2026-12-31. Broader comparison obligation: OPEN \u2014 the source value was not verified this turn.",
+      "message_has_open": true,
+      "missing_comparison": true,
+      "missing_fields": null,
+      "outcome": "partial",
+      "request_id": "l1l2l3-s3-20bcc7549ac64990b12d8d8efd05bd61",
+      "route": {
+        "action_count": 2,
+        "action_kinds": [
+          "research",
+          "presentation"
+        ],
+        "capture_archived": true,
+        "capture_phases": [
+          "post_validation",
+          "pre_validation"
+        ],
+        "dispatch_attempted": true,
+        "dispatch_models": [
+          "deepseek/deepseek-v4-pro"
+        ],
+        "interpretation_origin": "llm:deepseek-v4-pro",
+        "interpretation_unresolved_reason": "",
+        "request_id": "l1l2l3-s3-20bcc7549ac64990b12d8d8efd05bd61",
+        "scope_change": "replace",
+        "total_turn_latency_s": 44.21
+      },
+      "success": true
+    },
+    "date_only_continuation": {
+      "broader_comparison": false,
+      "context_fulfillment_state": "completed",
+      "fields": [
+        "expiration_date"
+      ],
+      "message": "Verified comparison (the values below are read directly from the retrieved source; wording does not replace them):\nScope: all requested typed fields below are compared.\n- Quotation Q-2026-114 (DRAFT) / expiration date: draft 2026-12-31 = approved_records_q2026_114.txt 2026-12-31 (match)\nNo canvas change was made by this comparison.",
+      "outcome": "partial",
+      "request_id": "l1l2l3-s7-e81eb07490e6449cb941500bd8de0532",
+      "route": {
+        "action_count": 1,
+        "action_kinds": [
+          "research"
+        ],
+        "capture_archived": true,
+        "capture_phases": [
+          "post_validation",
+          "pre_validation"
+        ],
+        "dispatch_attempted": true,
+        "dispatch_models": [
+          "deepseek/deepseek-v4-pro"
+        ],
+        "interpretation_origin": "llm:deepseek-v4-pro",
+        "interpretation_unresolved_reason": "",
+        "request_id": "l1l2l3-s7-e81eb07490e6449cb941500bd8de0532",
+        "scope_change": "continue",
+        "total_turn_latency_s": 40.93
+      },
+      "success": true
+    },
+    "edit": {
+      "audit_delta": 0,
+      "canvas_edit": {
+        "background_started": false,
+        "canvas_id": "6f29e3cc-3820-43b9-b54c-994b67d3cf4b",
+        "continuation_id": null,
+        "execution_id": "0499de52-9e86-4b5c-9d14-fd0c8faff8dd",
+        "no_apply": true,
+        "operation_id": "eb4cb334-6ee4-44a2-a982-9ea342ee0ebd",
+        "outcome": "refused",
+        "planner_outcome": "declined_noop",
+        "reason": "planner_declined",
+        "task_run_id": "4e42d024-1d60-4e13-947c-39e6fc718628",
+        "updated": false
+      },
+      "outcome": "unconfirmed",
+      "request_id": "l1l2l3-edit-b40d4d99feab42b287ac6111f309160a",
+      "route": {
+        "action_count": 1,
+        "action_kinds": [
+          "canvas_edit"
+        ],
+        "capture_archived": true,
+        "capture_phases": [
+          "post_validation",
+          "pre_validation"
+        ],
+        "dispatch_attempted": true,
+        "dispatch_models": [
+          "deepseek/deepseek-v4-pro"
+        ],
+        "interpretation_origin": "llm:deepseek-v4-pro",
+        "interpretation_unresolved_reason": "",
+        "request_id": "l1l2l3-edit-b40d4d99feab42b287ac6111f309160a",
+        "scope_change": "replace",
+        "total_turn_latency_s": 28.75
+      },
+      "success": false
+    },
+    "identical_reask": {
+      "audit_delta": 0,
+      "canvas_edit": {
+        "background_started": false,
+        "canvas_id": "6f29e3cc-3820-43b9-b54c-994b67d3cf4b",
+        "continuation_id": null,
+        "execution_id": "a170a550-f3bc-4b7b-ae5e-bb4db8dd7be1",
+        "no_apply": true,
+        "operation_id": "192387b8-6205-4ea0-82f0-bf3194c4ba90",
+        "outcome": "refused",
+        "planner_outcome": "declined_noop",
+        "reason": "planner_declined",
+        "task_run_id": "4e42d024-1d60-4e13-947c-39e6fc718628",
+        "updated": false
+      },
+      "message": "I didn't apply that canvas change, so nothing was changed. The change was clear; the canvas editor declined it, which usually means it could not match your wording to a specific part of this canvas. Naming the exact text to change (for example 'change \"Quote validity: 15 days\" to \"30 days\"') usually gets it applied.",
+      "outcome": "unconfirmed",
+      "request_id": "l1l2l3-reask-01851d649c1042e494a65712dad983c2",
+      "route": {
+        "action_count": 1,
+        "action_kinds": [
+          "canvas_edit"
+        ],
+        "capture_archived": true,
+        "capture_phases": [
+          "post_validation",
+          "pre_validation"
+        ],
+        "dispatch_attempted": true,
+        "dispatch_models": [
+          "deepseek/deepseek-v4-pro"
+        ],
+        "interpretation_origin": "llm:deepseek-v4-pro",
+        "interpretation_unresolved_reason": "",
+        "request_id": "l1l2l3-reask-01851d649c1042e494a65712dad983c2",
+        "scope_change": "replace",
+        "total_turn_latency_s": 38.01
+      },
+      "success": false
+    },
+    "l3_sourced_answer": {
+      "decoy_present": false,
+      "documents_receipts": [
+        {
+          "refs": [
+            {
+              "coverage": "complete",
+              "match_count": 2
+            }
+          ],
+          "tool": "documents.search",
+          "verified": true
+        }
+      ],
+      "expected_code": "QUARTZ-77",
+      "message": "The launch code for project Zephyr-9 is **QUARTZ-77**.\n\nSource: your uploaded document `l3_zephyr9_fixture.txt` (ATOM Phase D Fixture \u2014 internal notes on project Zephyr-9 launch planning).",
+      "old_plan_none_seen": false,
+      "outcome": "completed",
+      "planning_timeout_seen": false,
+      "request_id": "l1l2l3-l3-423df5f99fd247b49ef7101a08c2d189",
+      "required_read_after_timeout": false,
+      "route": {
+        "action_count": 1,
+        "action_kinds": [
+          "research"
+        ],
+        "capture_archived": true,
+        "capture_phases": [
+          "post_validation",
+          "pre_validation"
+        ],
+        "dispatch_attempted": true,
+        "dispatch_models": [
+          "deepseek/deepseek-v4-pro"
+        ],
+        "interpretation_origin": "llm:deepseek-v4-pro",
+        "interpretation_unresolved_reason": "",
+        "request_id": "l1l2l3-l3-423df5f99fd247b49ef7101a08c2d189",
+        "scope_change": "replace",
+        "total_turn_latency_s": 52.37
+      },
+      "success": true
+    },
+    "restart": {
+      "executions": {
+        "edit": {
+          "delivery": {
+            "channel": "chat",
+            "delivered": false,
+            "deterministic": false,
+            "model": null
+          },
+          "execution_id": "0499de52-9e86-4b5c-9d14-fd0c8faff8dd",
+          "found": true,
+          "mutation": {
+            "readback_matched": false,
+            "requested": true,
+            "status": null
+          },
+          "objective_met": false,
+          "outcome": null,
+          "status": "failed",
+          "success": null
+        },
+        "reask": {
+          "delivery": {
+            "channel": "chat",
+            "delivered": false,
+            "deterministic": false,
+            "model": null
+          },
+          "execution_id": "a170a550-f3bc-4b7b-ae5e-bb4db8dd7be1",
+          "found": true,
+          "mutation": {
+            "readback_matched": false,
+            "requested": true,
+            "status": null
+          },
+          "objective_met": false,
+          "outcome": null,
+          "status": "failed",
+          "success": null
+        },
+        "s7": {
+          "delivery": {
+            "channel": "chat",
+            "delivered": true,
+            "deterministic": false,
+            "model": "glm-5.3-flash"
+          },
+          "execution_id": "fbb119a9-6527-484d-90e2-5920960db87a",
+          "found": true,
+          "mutation": {
+            "readback_matched": false,
+            "requested": false,
+            "status": null
+          },
+          "objective_met": true,
+          "outcome": null,
+          "status": "success",
+          "success": null
+        }
+      },
+      "route": {
+        "candidate_commit_ok": true,
+        "candidate_cwd_ok": true,
+        "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l3-required-read-timeout/backend",
+        "dirty": false,
+        "git_commit": "9cbd029d883f"
+      },
+      "session_a_assistant_count": 3,
+      "session_a_noop": null,
+      "session_a_noop_reason": null,
+      "session_a_pre_count": 3,
+      "session_b_assistant_count": 2,
+      "session_b_outcome": "partial",
+      "session_b_pre_count": 2,
+      "session_b_success": true
+    },
+    "total_turn_latency_s": {
+      "comparison": 44.21,
+      "continuation": 40.93,
+      "edit": 28.75,
+      "l3": 52.37,
+      "reask": 38.01
+    }
+  }
+}

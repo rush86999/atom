@@ -123,6 +123,14 @@ def build_provider_model_pin(
             handler = llm_service._get_handler(
                 workspace_id=workspace_id, tenant_id=tenant_id)
         if handler is not None and provider in handler.clients:
+            policy = getattr(handler, "provider_policy", None)
+            if policy is not None and not policy.allows(provider, model):
+                logger.warning(
+                    "PROVIDER-POLICY: pin %s/%s refused — outside the "
+                    "allowed set (revision %s); the caller may fall back "
+                    "only within the same policy",
+                    provider, model, getattr(policy, "revision", "?"))
+                return {}
             return {"provider_model": (provider, model)}
     except Exception:  # noqa: BLE001 — pinning is best-effort by design
         pass

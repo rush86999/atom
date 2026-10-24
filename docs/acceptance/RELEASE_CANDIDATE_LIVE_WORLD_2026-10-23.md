@@ -1,139 +1,124 @@
 # Live-world release candidate — 2026-10-23 (refreshed 2026-10-24)
 
-**Status: LOCAL LIVE-WORLD REHEARSAL PASSED 60/60 (attempt 8) on product
-`cc813aeeb`; cutover is NOT authorized and NOT executed. The old pilot
-`8c593e57031e` is still serving on `:8001`/`:3000`.**
+**Status: the `[ingested]` fix is functionally verified, but intended-route
+parity FAILED on the preserved unfiltered BYOK. Cutover is NOT authorized
+and NOT executed. The old pilot `8c593e57031e` is still serving.**
 
-This document supersedes the attempt-3 numbers previously in this file. It
-describes the final attempt-8 candidate and the staged release tree. The
-one-attempt cutover request is
-`CUTOVER_APPROVAL_2026-10-24.md`; the procedure is
-`CUTOVER_2026-10-24.md`.
+This supersedes the `cc813aeeb` attempt-8 candidate. Attempt 8 remains
+historical evidence for that exact product; its 60/60 is not transferred to
+the changed code.
 
 ## Exact identity
 
 | Item | Value |
 |---|---|
-| Product commit | `cc813aeeb90b84fcb36d128fda0a3b32b255742e` |
-| Product tree | `5e324af5297640ee11628fa755bd50c7b7307302` |
-| Rehearsal/launch commit | `b682d017e60ffb0f872fddba9bcf9fb648034775` |
-| Rehearsal runtime | `b682d017e60f`, clean (`dirty=false`) |
-| Product diff, launch vs pin | none (`product_tree_equals_pin=true`) |
-| Staged release tree | `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-release-cc813aeeb-20261024` |
-| Staged tree HEAD | `b682d017e60ffb0f872fddba9bcf9fb648034775`, clean (`git status` empty) |
-| Staged backend health | 200; identity `revision=b682d017e60f`, `dirty=false` (`stage_backend_health.json`) |
-| Frontend build | Next.js 16.2.2 (webpack), Node 20.19.6, npm 10.8.2, `BUILD_ID=tCcJqyp6jX99CjA0eySjZ` |
-| Frontend API base | `http://127.0.0.1:8001`, loopback opt-in (`NEXT_PUBLIC_ALLOW_LOOPBACK=1`) |
-| Frontend source tree | `0d48f0b863ba3069526006ed29441099df435c71` (same in product and launch) |
-| Interpreter | `/Users/rushiparikh/projects/atom/backend/venv314/bin/python`, Python 3.14.7; `pip freeze` sha256 `70aedee4…` |
+| Product commit | `09cccb5b0b977f86c0a39d59af5b922c83143e7f` |
+| Product tree | `4c7ec787c8ff1f81baa89f1cdc3c40496ef44b1f` |
+| Rehearsal/launch commit | `4bfcbc2adc3a6bb36568eef4a000c65910bb795f`, clean |
+| Product diff, launch vs pin | none in `backend/core` / `backend/integrations` |
+| Staged release tree | `…/opencode/atom-release-09cccb5b0-20261024` (HEAD `4bfcbc2ad`, clean) |
+| Staged backend health | 200; `revision=4bfcbc2ad`, `dirty=false` |
+| Frontend source tree | `0d48f0b863ba3069526006ed29441099df435c71` (unchanged) |
+| Frontend build | Next 16.2.2 webpack, Node 20.19.6, npm 10.8.2, `BUILD_ID=VHwW5YQ_s140w5s6u7HWl` |
+| Interpreter | `/Users/rushiparikh/projects/atom/backend/venv314/bin/python` 3.14.7 |
 | Live gate | `successor_gates_live.py` `6d66d0b8b3b2c9a24efbe111a750c477f623a207d34692dcd4fa07cfceb88dd2` |
-| Serving pilot (hold) | `8c593e57031e` clean, backend `:8001` pid 16055; frontend `:3000` pid 16488 |
-| Pre-cutover backup | the existing 09:19 snapshot is **stale**; a fresh quiescent snapshot is required at cutover |
+| Serving pilot (hold) | `8c593e57031e` clean, `:8001` pid 16055; frontend `:3000` pid 16488 |
+| Rollback snapshot | the 09:19 backup restores but is stale; a fresh quiescent snapshot is required at cutover |
 
-The staged tree was converted from a plain `git archive` into a local
-repository pinned to `b682d017e` because a tree without `.git` reports
-`revision=unknown` on `/api/health`. Pinning did not change product code:
-the seven attempt-8 source hashes and the `frontend-nextjs` tree hash are
-identical to `cc813aeeb`.
+## Verification (attempt 9)
 
-## Verification (attempt 8)
+Evidence: `LIVE_WORLD_REHEARSAL_ATTEMPT9.md` and
+`release_evidence_20261024/live_world_rehearsal_attempt9/`.
 
-Evidence: `LIVE_WORLD_REHEARSAL_ATTEMPT8.md` and
-`release_evidence_20261023/live_world_rehearsal_attempt8/`
-(5/5 checksums verified; checksums were not rewritten).
+- **59/61 checks true.** All 59 functional workflow checks passed:
+  L3 76.05 s (`QUARTZ-77`, documents receipt, no decoy), edit 33.74 s
+  (one write), re-ask 31.36 s (no-op, zero writes), S3 85.36 s (honest
+  partial, broader obligation OPEN), S7 53.63 s (date-only, restart
+  agreement).
+- The two failing checks are both route checks:
+  `provider_reply_parity` and `provider_allowlist_clean` under the declared
+  Ollama/DeepSeek allowlist.
+- `live_db_isolated=true`, `live_db_unchanged=true`,
+  `pilot_untouched=true`.
+- BYOK: full 13-key / 37-provider configuration copied into the isolated
+  world; live files read-only.
 
-- **60/60 checks true** on the verified 786 MB pre-cutover snapshot with
-  isolated auxiliary stores and writers disabled; port 8121.
-- L3 59.1 s: `QUARTZ-77`, verified `documents.search` receipt, no decoy.
-- Edit 33.99 s: one write, postcondition verified.
-- Re-ask 31.04 s: no-op `already_satisfied`, zero writes.
-- S3 87.53 s: honest partial, broader obligation OPEN, truthful date,
-  delivery recorded.
-- S7 67.46 s: date-only completed, settlement basis, restart agreement.
-- Actual replies L3/S3/S7 all `ollama/llama3.1:8b`; structured
-  interpretation `deepseek/deepseek-v4-pro`; provider parity passed.
-- `live_db_isolated=true`, `pilot_untouched=true`.
+### Actual routes (important)
 
-## Delta review of the product commit
+| Leg | Actual provider/model |
+|---|---|
+| L3 reply | `openrouter` / `z-ai/glm-5.3-flash` |
+| S3 reply | `opencode-go` / `glm-5.3-flash` |
+| S7 reply | `opencode-go` / `glm-5.3-flash` |
+| Structured interpretation | `deepseek` / `deepseek-v4-pro` |
+| Edit planning | `opencode-go` / `glm-5.3-flash` |
+| Tool planning | `opencode-go` / `glm-5.3-flash` |
 
-`DELTA_REVIEW_CC813AEEB_2026-10-24.md` reviewed only `cc813aeeb`:
+Every POST destination was a configured provider: DeepSeek, local Ollama,
+OpenCode Go, OpenRouter. There was no unconfigured/rogue destination. But
+the intended reply route was Ollama, with DeepSeek fallback; the BPC router
+selected OpenCode Go/OpenRouter GLM-5.3 Flash. The DeepSeek edit pin did not
+hold (`BPC skipped deepseek/deepseek-v4-pro — observed structured latency
+40s > interactive cap 25s`).
 
-- `_chain_query` initialization is safe; no unbound-local path remains.
-- The inline `[ingested]` strip is **over-broad**: it deletes the first
-  paragraph of any multi-paragraph reply when that paragraph contains the
-  literal `[ingested]`. The required “ordinary user quotation is preserved”
-  check **fails**.
-- No product change was made; changing it would break the attempt-8
-  identity and require a new rehearsal.
+This is a route/config parity failure, not a functional workflow failure.
+Attempt 8's Ollama reply route was an artifact of its DeepSeek-only
+isolated credential store and is not reproduced by the preserved BYOK.
 
-The cutover request is therefore conditional on explicitly accepting this
-known limitation. It is not silently treated as passing.
+## Delta fix
+
+`DELTA_FIX_REVIEW_09CCCB5B0_2026-10-24.md`: independent review verdict
+**APPROVE WITH COMMENTS**. The `[ingested]` path no longer deletes
+paragraphs. It removes only a positively identified carrier prefix and
+keeps the source label and body. Ordinary quotations, marker mentions,
+explanatory prose, mismatched markers, and explicit quote requests are
+preserved. Line-numbered removal remains a separate pre-existing path with
+answer-value/decoy/short-remainder guards.
 
 ## Configuration the request would run
 
-The live pilot's existing provider files are preserved in place. **Do not
-use `atom-cutover-final-20261024/candidate-byok/`**; that historical
-filtered store is not part of this candidate.
-
-- Stores (absolute, anchored to the pilot): `DATABASE_URL`,
-  `ATOM_DATA_DIR`, `LANCEDB_URI`, `LANCEDB_URI_BASE`, `LANCEDB_PATH`,
-  `BYOK_CONFIG_FILE`, `BYOK_KEYS_FILE`, `BYOK_ENC_KEY_FILE`.
-- Additive turn flags: `ATOM_TURN_INTERPRETATION=1`,
+- Existing pilot BYOK files are preserved in place. The historical
+  `candidate-byok/` filtered store is not used.
+- Additive flags: `ATOM_TURN_INTERPRETATION=1`,
   `ATOM_TURN_INTERPRET_PIN=deepseek:deepseek-v4-pro`,
   `ATOM_TURN_INTERPRET_CAPTURE=1`, `ATOM_TURN_DECISION_ROUTING=1`,
-  `ATOM_ASYNC_EDIT_PLAN_MODEL=deepseek/deepseek-v4-pro`.
-- Additive reply preference proposed by the approval:
+  `ATOM_ASYNC_EDIT_PLAN_MODEL=deepseek/deepseek-v4-pro`,
   `ATOM_PREFERRED_LLM_PROVIDER=ollama`,
-  `ATOM_PREFERRED_LLM_MODEL=llama3.1:8b`. This is a routing preference, not
-  a credential change; it was not present in the rehearsal's isolated
-  environment and is validated by the post-cutover smoke.
+  `ATOM_PREFERRED_LLM_MODEL=llama3.1:8b`.
 - Preserve `CHAT_FINALIZATION_M1=1`, `CHAT_FINALIZATION_M2=1`,
   `ATOM_TASK_LIFECYCLE_ENABLED=1`,
-  `ATOM_STREAM_FALLBACK_RESERVE_SECONDS=70`, `ALLOWED_ORIGINS`/
-  `CORS_ORIGINS` including `http://127.0.0.1:3000`.
-- Intended routes: reply `ollama/llama3.1:8b`; structured interpretation and
-  edit planning `deepseek/deepseek-v4-pro`.
-- Allowed fallback: the pre-existing global `deepseek`, `opencode-go`, and
-  `openrouter` credentials remain active because the pilot BYOK is
-  preserved. Attempt 8 did not exercise those routes; only DeepSeek and
-  local Ollama were present in its isolated store. The smoke records the
-  actual route.
+  `ATOM_STREAM_FALLBACK_RESERVE_SECONDS=70`, and the existing origins.
+- Intended routes: Ollama reply, DeepSeek structured.
+- Actual observed routes: OpenCode Go/OpenRouter GLM-5.3 Flash replies,
+  OpenCode Go edit/tool planning, DeepSeek interpretation.
+- Allowed fallback set for the smoke: the configured providers
+  (`deepseek`, `ollama`, `opencode-go`, `openrouter`). Any other
+  destination is a failure.
 
-Exact JSON: `release_evidence_20261024/cutover_cc813aeeb/release_config.json`.
+Exact JSON: `release_evidence_20261024/cutover_09cccb5b0/release_config.json`.
 
 ## Cutover (prepared, not executed)
 
-1. Quiesce only the owned pilot processes, confirm no DB holders remain,
-   and take a fresh `sqlite .backup` snapshot; verify `quick_check`, row
-   counts, and hashes. Copy the four existing BYOK/env files unchanged.
-2. Start the staged backend on `:8001` against the live stores; require
-   health identity `b682d017e60f`, `dirty=false`, live database path, live
-   BYOK key-store path.
-3. Start the staged frontend on `:3000`; require `/login` 200 and browser
-   sign-in.
-4. Run the sourced-answer → edit → identical re-ask → reload/restart smoke
-   in `CUTOVER_2026-10-24.md`. Dashboard/signup alone is not a pass.
-5. On success, record the served `X-Atom-Serving-Instance`/`X-Atom-Source`
-   headers and health identity. On failure, restore the fresh snapshot and
-   the unchanged BYOK/env files, restart the old pilot, and preserve
-   evidence.
+The procedure is `CUTOVER_2026-10-24.md`. It requires a fresh quiescent
+snapshot, narrowly owned shutdown, a served sourced-answer/edit/no-op
+smoke, restart agreement, actual-route recording, and rollback on any
+failure. The cutover request is `CUTOVER_APPROVAL_2026-10-24.md` and is
+explicitly conditional on accepting the actual provider profile.
 
 ## Limits
 
-- One rehearsal is not a reliability or latency-tail estimate. The S3 leg
-  took 87.53 s; the reply budget is finite.
-- The live provider universe is broader than the rehearsal's isolated
-  credential set. Actual live route parity is a smoke criterion, not a
-  rehearsal claim.
-- The `[ingested]` first-paragraph defect is a known limitation of this
-  exact product commit.
+- One rehearsal; not a reliability or latency-tail estimate. L3 76.05 s,
+  S3 85.36 s.
+- The route deviation is unresolved; the owner must accept it or withhold
+  for routing containment.
+- The `[ingested]` fix retains the source label/body, so internal metadata
+  in the body can remain visible; this is deliberate to avoid deleting an
+  answer.
 - No SaaS/multi-tenant, security, or high-availability certification.
 
 ## Hold
 
-The hold remains in force until the owner approves
-`CUTOVER_APPROVAL_2026-10-24.md`. No cutover has been executed for
-`cc813aeeb`; the serving pilot is still `8c593e57031e`.
+The hold remains in force. No cutover has been executed for
+`09cccb5b0`; the serving pilot is still `8c593e57031e`.
 
-Support statement: `SUPPORT_STATEMENT_LIVE_WORLD_2026-10-23.md` (refreshed
-for the attempt-8 candidate).
+Support statement: `SUPPORT_STATEMENT_LIVE_WORLD_2026-10-23.md`.

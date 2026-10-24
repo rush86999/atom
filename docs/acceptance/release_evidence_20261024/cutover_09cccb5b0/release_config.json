@@ -1,0 +1,253 @@
+{
+  "schema": "atom-cutover-config/v1",
+  "generated_at": "2026-10-24T16:52:00Z",
+  "candidate": {
+    "product_commit": "09cccb5b0b977f86c0a39d59af5b922c83143e7f",
+    "product_tree": "4c7ec787c8ff1f81baa89f1cdc3c40496ef44b1f",
+    "launch_commit": "4bfcbc2adc3a6bb36568eef4a000c65910bb795f",
+    "launch_source_id": "4bfcbc2adc3a",
+    "launch_dirty": false,
+    "product_tree_equals_pin": true,
+    "delta_fix_review": "docs/acceptance/DELTA_FIX_REVIEW_09CCCB5B0_2026-10-24.md",
+    "delta_fix_review_verdict": "APPROVE WITH COMMENTS"
+  },
+  "release_tree": {
+    "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-release-09cccb5b0-20261024",
+    "head": "4bfcbc2adc3a6bb36568eef4a000c65910bb795f",
+    "tree": "9b191017603138cf132429a69ce2abd21c71fadb",
+    "clean": true,
+    "product_source_hashes_sha256": {
+      "backend/core/answer_boundary.py": "3a36a5dd99cd11e1767c036461f84342fbf41e4f20d6644e147f5047a6b49db3",
+      "backend/integrations/chat_orchestrator.py": "7736adbf3bbf9e007087201f4e72b212a1667f7384ec44426efc915b3802d91c",
+      "backend/integrations/chat_routes.py": "d86d0be9334e8927c6811b998a5cc8c28a3b535d03cace57e8f9529679ffa0e0",
+      "backend/core/chat_canvas_editor.py": "5f724ceb645cff36718c13a5c6a3cb3de2417f63f9b2e04cc5be84c55170dece",
+      "backend/core/chat_tool_planner.py": "807dd65eb83fe7676ac29fba475ef188cac6ad82146c02321d66564a023414c5",
+      "backend/core/turn_decision.py": "f5342f1d8deac03a917142d5931efec190fe58a52889e8acf9cc551963508065",
+      "backend/core/workbook_read_artifact.py": "db23d66749eb79ed37f0011b96b0096ad0e746cc0c981fd5f5f6edb89889da67"
+    },
+    "staged_health_evidence": "release_evidence_20261024/cutover_09cccb5b0/stage_backend_health.json"
+  },
+  "frontend": {
+    "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-release-09cccb5b0-20261024/frontend-nextjs",
+    "source_tree": "0d48f0b863ba3069526006ed29441099df435c71",
+    "source_unchanged_from_product": true,
+    "build_id": "VHwW5YQ_s140w5s6u7HWl",
+    "build_id_sha256": "855a8db4e6aaacca5100c9def70c9064e1a9bea786f157ddb4c731cb94e85f9d",
+    "next_version": "16.2.2",
+    "bundler": "webpack",
+    "node_version": "20.19.6",
+    "npm_version": "10.8.2",
+    "api_url": "http://127.0.0.1:8001",
+    "allow_loopback": true,
+    "package_lock_sha256": "c4655cddccb0d05a2139b6ca70ddeb801fffd655ee2396221bd2169a84165917",
+    "next_config_sha256": "919b15bf6b9ba36acdd6c71d88437b7ae6de70682010b7fb8b187714230f3bb4",
+    "build_log_sha256": "bedfb76f93f88031dcaf0cbf4d31582d42c9033aaadf3553f4948206a9afbac8",
+    "stage_login_status": "200",
+    "stage_login_evidence": "release_evidence_20261024/cutover_09cccb5b0/stage_frontend_login_status.txt"
+  },
+  "interpreter": {
+    "absolute_path": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "version": "Python 3.14.7",
+    "pip_freeze_sha256": "70aedee442940759490bea13dc32bc0526af274d7fd1fb13f573886df403d060"
+  },
+  "verification": {
+    "attempt": 9,
+    "checks_true": 59,
+    "checks_total": 61,
+    "functional_checks_true": 59,
+    "functional_checks_total": 59,
+    "failed_checks": ["provider_reply_parity", "provider_allowlist_clean"],
+    "classification": "reply_route_not_parity",
+    "pass": false,
+    "latencies_s": {
+      "l3": 76.05,
+      "edit": 33.74,
+      "reask": 31.36,
+      "comparison_s3": 85.36,
+      "continuation_s7": 53.63
+    },
+    "live_db_isolated": true,
+    "live_db_unchanged": true,
+    "pilot_untouched": true,
+    "byok_copy": {
+      "keys_count": 13,
+      "provider_ids": ["deepseek", "ollama", "opencode-go", "openrouter"],
+      "live_files_modified": false
+    },
+    "evidence": "docs/acceptance/release_evidence_20261024/cutover_09cccb5b0/",
+    "rehearsal_evidence": "docs/acceptance/release_evidence_20261024/live_world_rehearsal_attempt9/",
+    "summary": "docs/acceptance/LIVE_WORLD_REHEARSAL_ATTEMPT9.md"
+  },
+  "flags": {
+    "preserve_from_pilot": {
+      "CHAT_FINALIZATION_M1": "1",
+      "CHAT_FINALIZATION_M2": "1",
+      "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+      "ATOM_STREAM_FALLBACK_RESERVE_SECONDS": "70",
+      "ATOM_OLLAYA_ENABLED": "true",
+      "ATOM_OLLAYA_SHADOW_INTENT": "true",
+      "ATOM_OLLAYA_SHADOW_TURN": "true",
+      "ATOM_OLLAYA_SHADOW_GATE": "true",
+      "ATOM_OLLAYA_GATE_SAMPLE_RATE": "0.1",
+      "ATOM_BPE_WORKSPACE_ENABLED": "true",
+      "ATOM_BPE_CONSULT_POLICY": "true",
+      "ATOM_BPE_EVOLUTION": "auto",
+      "ATOM_EDITION": "enterprise",
+      "ATOM_LOCAL_ONLY": "false",
+      "ATOM_DECISION_AUTO_ENFORCE": "approve",
+      "ENVIRONMENT": "development",
+      "EMBEDDING_PROVIDER": "fastembed",
+      "FASTEMBED_MODEL": "BAAI/bge-small-en-v1.5",
+      "EMBEDDING_DIM": "384"
+    },
+    "add": {
+      "ATOM_TURN_INTERPRETATION": "1",
+      "ATOM_TURN_INTERPRET_PIN": "deepseek:deepseek-v4-pro",
+      "ATOM_TURN_INTERPRET_CAPTURE": "1",
+      "ATOM_TURN_DECISION_ROUTING": "1",
+      "ATOM_ASYNC_EDIT_PLAN_MODEL": "deepseek/deepseek-v4-pro",
+      "ATOM_PREFERRED_LLM_PROVIDER": "ollama",
+      "ATOM_PREFERRED_LLM_MODEL": "llama3.1:8b"
+    },
+    "do_not_set": {
+      "TESTING": "would redirect the primary engine to a scratch DB",
+      "ENABLE_SCHEDULER": "false is rehearsal-only; do not disable live writers permanently",
+      "ENABLE_INGESTION_SYNC": "false is rehearsal-only; do not disable live writers permanently"
+    }
+  },
+  "stores": {
+    "database_url": "sqlite:////Users/rushiparikh/projects/atom/backend/data/atom.db",
+    "atom_data_dir": "/Users/rushiparikh/projects/atom/backend/data",
+    "lancedb_uri": "/Users/rushiparikh/projects/atom/backend/data/atom_memory",
+    "lancedb_uri_base": "/Users/rushiparikh/projects/atom/backend/data/atom_memory",
+    "lancedb_path": "/Users/rushiparikh/projects/atom/backend/data/lancedb",
+    "byok_config_file": "/Users/rushiparikh/projects/atom/backend/data/byok_config.json",
+    "byok_keys_file": "/Users/rushiparikh/projects/atom/backend/data/byok_keys.json",
+    "byok_enc_key_file": "/Users/rushiparikh/projects/atom/backend/data/byok_encryption_key",
+    "byok_policy": "preserve files in place; no filtering; do not use candidate-byok/"
+  },
+  "provider_settings": {
+    "change": "none to BYOK; additive env reply preference only",
+    "byok_keys_preserved": 13,
+    "provider_definitions_preserved": 37,
+    "configured_providers": ["deepseek", "ollama", "opencode-go", "openrouter"],
+    "filtered_store_used": false
+  },
+  "routes": {
+    "intended": {
+      "reply": "ollama/llama3.1:8b",
+      "fallback": "deepseek/deepseek-v4-pro",
+      "structured_interpretation": "deepseek/deepseek-v4-pro",
+      "edit_planning": "deepseek/deepseek-v4-pro"
+    },
+    "actual": {
+      "l3_reply": "openrouter/z-ai/glm-5.3-flash",
+      "s3_reply": "opencode-go/glm-5.3-flash",
+      "s7_reply": "opencode-go/glm-5.3-flash",
+      "structured_interpretation": "deepseek/deepseek-v4-pro",
+      "edit_planning": "opencode-go/glm-5.3-flash",
+      "tool_planning": "opencode-go/glm-5.3-flash"
+    },
+    "allowed_destinations": [
+      "https://api.deepseek.com/v1",
+      "http://localhost:11434/v1",
+      "http://127.0.0.1:11434/v1",
+      "https://opencode.ai/zen/go/v1",
+      "https://openrouter.ai/api/v1"
+    ],
+    "intended_route_parity": false,
+    "unconfigured_provider_posts": [],
+    "note": "All destinations were configured providers. OpenCode Go and OpenRouter were outside the intended Ollama/DeepSeek profile; approval is conditional on accepting them."
+  },
+  "backup": {
+    "staged_0919": {
+      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-cutover-final-20261024/atom-pre-cutover-final-20261024-091936.db.gz",
+      "gzip_sha256": "e54d2dbb92ff43f7afa062810d204d25b690a47f775964dbb90930f4e447e5c3",
+      "quick_check": "ok",
+      "rows": {
+        "users": 48,
+        "chat_sessions": 1022,
+        "chat_messages": 5426,
+        "canvases": 197,
+        "canvas_audit": 1116,
+        "ingested_documents": 3747,
+        "agent_executions": 4254,
+        "task_operation_records": 269
+      },
+      "status": "restorable but stale; not the cutover rollback source"
+    },
+    "fresh_snapshot_required_at_cutover": true,
+    "fresh_snapshot_location": "docs/acceptance/release_evidence_20261024/cutover_execution_09cccb5b0/pre_cutover/",
+    "method": "sqlite3 backup API after quiescence; quick_check and row counts verified; BYOK/env copied unchanged with mode 600"
+  },
+  "maintenance_window": {
+    "date": "2026-10-24",
+    "local_edt": "14:30-15:30",
+    "utc": "18:30-19:30",
+    "start_deadline_edt": "14:50",
+    "rollback_deadline_edt": "15:25",
+    "attempts": 1
+  },
+  "smoke": {
+    "account": "seeded admin via real /api/auth/login; credential read only from local 0600 password file",
+    "fixture": "release_smoke_record_09cccb5b0.txt",
+    "fixture_code": "CEDAR-42",
+    "sourced_ask": "Search my uploaded documents for the release smoke code in release_smoke_record_09cccb5b0.txt and tell me the code. Name the source.",
+    "edit_ask": "Please update the payment terms in the draft to Net 30.",
+    "pass_criteria": [
+      "health 200, revision 4bfcbc2adc3a6bb36568eef4a000c65910bb795f, dirty=false, live DB/BYOK paths",
+      "/login 200 and real browser sign-in",
+      "sourced answer contains CEDAR-42 and names the source; persisted history; no provider error",
+      "edit writes exactly once and preserves all other fields",
+      "identical re-ask writes zero additional rows and leaves the body unchanged",
+      "restart preserves identity, answer, and canvas",
+      "every provider POST destination is in the configured set; any other destination fails",
+      "actual reply/structured routes recorded; do not claim intended routes",
+      "post-smoke user-visible DB delta equals smoke fixtures; background agent rows are attributable in logs"
+    ],
+    "artifacts_dir": "docs/acceptance/release_evidence_20261024/cutover_execution_09cccb5b0/"
+  },
+  "rollback": {
+    "triggers": [
+      "health non-200 or wrong revision/dirty state or wrong live DB/BYOK path",
+      "frontend login/browser sign-in failure not fixed in 5 minutes",
+      "sourced answer missing CEDAR-42, wrong source, provider failure, or unconfigured provider POST after two attempts",
+      "edit writes zero or more than one time, or changes another field",
+      "re-ask writes again or changes the body",
+      "restart loses history/canvas or changes identity",
+      "DB integrity failure or unexplained user-visible row delta",
+      "owner abort"
+    ],
+    "method": "stop candidate PIDs; restore fresh snapshot; restore unchanged BYOK/env; restart old backend 8c593e57031e and old frontend; verify health/login; preserve evidence",
+    "retry": "none in the same window"
+  },
+  "known_limitations": [
+    {
+      "id": "route-parity",
+      "severity": "configuration/verification",
+      "detail": "The unfiltered BYOK preserved all providers but did not preserve the intended Ollama/DeepSeek route. Actual replies were OpenRouter/OpenCode Go GLM-5.3 Flash. Approval is conditional on accepting this profile."
+    },
+    {
+      "id": "ingested-body-retention",
+      "severity": "user-visible content",
+      "detail": "The [ingested] fix removes the carrier prefix and keeps the source label/body. Internal metadata in a retained body can remain visible; no answer-bearing paragraph is deleted."
+    },
+    {
+      "id": "line-numbered-path",
+      "severity": "pre-existing",
+      "detail": "The separate L1:/L2: block removal can still remove a block whose answer has no code/date/money shape. It is guarded by value/decoy/short-remainder checks but is outside the [ingested] fix."
+    },
+    {
+      "id": "one-rehearsal",
+      "severity": "evidence scope",
+      "detail": "One attempt-9 run is not a reliability or latency-tail estimate; L3 76.05 s, S3 85.36 s."
+    }
+  ],
+  "approval": {
+    "status": "requested_pending_owner",
+    "document": "docs/acceptance/CUTOVER_APPROVAL_2026-10-24.md",
+    "condition": "clear authorization naming product 09cccb5b0 / launch 4bfcbc2ad and accepting the actual OpenCode Go/OpenRouter routes"
+  },
+  "cutover_executed": false,
+  "served_runtime": null
+}

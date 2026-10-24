@@ -1,0 +1,19 @@
+{
+  "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-cutover-final-20261024/atom-pre-cutover-final-20261024-091936.db.gz",
+  "gzip_sha256": "e54d2dbb92ff43f7afa062810d204d25b690a47f775964dbb90930f4e447e5c3",
+  "gzip_size_bytes": 141600956,
+  "decompressed_size_bytes": 876195840,
+  "quick_check": "ok",
+  "row_counts": {
+    "users": 48,
+    "chat_sessions": 1022,
+    "chat_messages": 5426,
+    "canvases": 197,
+    "canvas_audit": 1116,
+    "ingested_documents": 3747,
+    "agent_executions": 4254,
+    "task_operation_records": 269
+  },
+  "verified_at": "2026-10-24T14:39:28.958804+00:00",
+  "note": "Restorable, but stale relative to the live DB (live has 49 users/1025 sessions). A fresh quiescent snapshot is required for rollback."
+}

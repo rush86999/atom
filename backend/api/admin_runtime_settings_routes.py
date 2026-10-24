@@ -21,6 +21,7 @@ All mutating endpoints require an admin role
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -218,12 +219,27 @@ async def update_setting(
             status_code=403,
             detail=f"{key} is managed by environment configuration",
         )
+    if key == "ATOM_LLM_PROVIDER_POLICY" and \
+            os.environ.get(key) is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=("Provider policy is managed by the installation "
+                    "environment; this write would be ignored."),
+        )
 
     # Validate against the spec's type BEFORE persisting.
     from core.runtime_settings import _coerce
 
     try:
         coerced = _coerce(payload.value, spec.type)
+        if key == "ATOM_LLM_PROVIDER_POLICY":
+            # The generic JSON type is not enough: this value controls
+            # whether provider content may be sent. Reject unknown ids,
+            # bad modes, and preferred-outside-allowed here as well as on
+            # the dedicated policy endpoint.
+            from core.llm.provider_policy import validate_provider_policy
+
+            coerced = validate_provider_policy(coerced)
     except Exception as exc:
         raise HTTPException(
             status_code=400,

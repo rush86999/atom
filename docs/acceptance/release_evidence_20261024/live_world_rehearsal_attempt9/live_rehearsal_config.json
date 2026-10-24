@@ -1,0 +1,202 @@
+{
+  "attempt": "live-rehearsal-1",
+  "byok_copy": {
+    "destination": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-unfiltered",
+    "files": [
+      "byok_config.json",
+      "byok_keys.json",
+      "byok_encryption_key"
+    ],
+    "keys_count": 13,
+    "live_files_modified": false,
+    "provider_ids": [
+      "deepseek",
+      "ollama",
+      "opencode-go",
+      "openrouter"
+    ],
+    "source": "/Users/rushiparikh/projects/atom/backend/data"
+  },
+  "candidate": {
+    "branch": "fix/l3-required-read-timeout",
+    "harness_commit": "4bfcbc2adc3a6bb36568eef4a000c65910bb795f",
+    "head_at_launch": "4bfcbc2adc3a6bb36568eef4a000c65910bb795f",
+    "parents": {
+      "base_candidate": "ddcc404dd",
+      "l2": "c0cbea9f1",
+      "l3_contains_l1": "6d662abff (L1 aaa1169d7)",
+      "main": "e6308cb54"
+    },
+    "product_commit": "09cccb5b0b977f86c0a39d59af5b922c83143e7f",
+    "product_diff_names": [],
+    "product_tree_equals_pin": true,
+    "source_sha256": {
+      "answer_boundary": "3a36a5dd99cd11e1767c036461f84342fbf41e4f20d6644e147f5047a6b49db3",
+      "chat_canvas_editor": "5f724ceb645cff36718c13a5c6a3cb3de2417f63f9b2e04cc5be84c55170dece",
+      "chat_orchestrator": "7736adbf3bbf9e007087201f4e72b212a1667f7384ec44426efc915b3802d91c",
+      "chat_routes": "d86d0be9334e8927c6811b998a5cc8c28a3b535d03cace57e8f9529679ffa0e0",
+      "chat_tool_planner": "807dd65eb83fe7676ac29fba475ef188cac6ad82146c02321d66564a023414c5",
+      "turn_decision": "f5342f1d8deac03a917142d5931efec190fe58a52889e8acf9cc551963508065",
+      "workbook_read_artifact": "db23d66749eb79ed37f0011b96b0096ad0e746cc0c981fd5f5f6edb89889da67"
+    },
+    "status_clean": true,
+    "worktree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l3-required-read-timeout"
+  },
+  "declared_at": "2026-10-24T12:28:26",
+  "embeddings": {
+    "dim": 384,
+    "model": "BAAI/bge-small-en-v1.5",
+    "provider": "fastembed"
+  },
+  "flags": {
+    "declared": {
+      "ATOM_ASYNC_EDIT_PLAN_MODEL": "deepseek/deepseek-v4-pro",
+      "ATOM_DEFAULT_MODEL": "llama3.1:8b",
+      "ATOM_PREFERRED_LLM_MODEL": "llama3.1:8b",
+      "ATOM_PREFERRED_LLM_PROVIDER": "ollama",
+      "ATOM_PROVIDER": "ollama",
+      "ATOM_TASK_LIFECYCLE_ENABLED": "1",
+      "ATOM_TURN_DECISION_ROUTING": "1",
+      "ATOM_TURN_INTERPRETATION": "1",
+      "ATOM_TURN_INTERPRET_CAPTURE": "1",
+      "ATOM_TURN_INTERPRET_PIN": "deepseek:deepseek-v4-pro",
+      "CHAT_FINALIZATION_M1": "1",
+      "CHAT_FINALIZATION_M2": "1",
+      "PREFERRED_PROVIDER": "ollama"
+    }
+  },
+  "harness": {
+    "gate_commit": "f2f8329971129bc14e9f107aa234b98db7f18379",
+    "gate_module_sha256": "6d66d0b8b3b2c9a24efbe111a750c477f623a207d34692dcd4fa07cfceb88dd2",
+    "gate_tag": "successor/live-rehearsal-20261024-unfiltered",
+    "runner_sha256": "fe844a6c72263bf7f387a8a0b0d2dcd4476665e2555588a7519e8b4452b0ab48",
+    "server_observe_sha256": "c2dddfcd1618aa3b0575dd6cecde8d5028a05dcc581f7ecbbe56ef4e7e922368"
+  },
+  "interpreter": {
+    "absolute_path": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "version": "Python 3.14.7"
+  },
+  "isolation": {
+    "credential_vault_copied": true,
+    "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l3-required-read-timeout/backend",
+    "database_url": "sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-unfiltered/atom.db",
+    "live_env_copied_wholesale": false,
+    "scratch_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-unfiltered",
+    "stores": [
+      "DATABASE_URL",
+      "ATOM_DATA_DIR",
+      "LANCEDB_URI",
+      "LANCEDB_URI_BASE",
+      "BYOK_CONFIG_FILE",
+      "BYOK_KEYS_FILE",
+      "BYOK_ENC_KEY_FILE"
+    ]
+  },
+  "job": {
+    "comparison_session": "fresh conversation (session B) against the same draft, so the comparison is a replace-scope request as in the L2 attempt-12 acceptance",
+    "edit_ask": "Please update the payment terms in the draft to Net 30.",
+    "fixtures": [
+      "approved_records_q2026_114.txt",
+      "l3_zephyr9_fixture.txt"
+    ],
+    "l3_ask": "search my uploaded documents for the launch code for project Zephyr-9 and tell me the code",
+    "l3_decoy_code": "BASALT-13",
+    "l3_expected_code": "QUARTZ-77",
+    "reask": "identical EDIT_ASK in the same session/canvas (session A)",
+    "restart": "stop/relaunch the same scratch process/stores; reload both sessions' history/canvas/audits",
+    "s3_ask": "Compare the draft quotation with my uploaded Approved Records document. Does the Valid Until date in the draft match the approved record? Flag anything that differs. Do not change anything yet.",
+    "s7_ask": "What is the current Valid until date on the draft, and does it still match the approved record?",
+    "upload_route": "POST /api/documents/upload"
+  },
+  "live_db_guard": {
+    "before": {
+      "exists": true,
+      "mtime": 1792848926.6231077,
+      "path": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+      "quick_check": "ok",
+      "row_counts": {
+        "agent_executions": 4257,
+        "agents": null,
+        "canvas_audit": 1116,
+        "canvases": 197,
+        "chat_messages": 5430,
+        "chat_sessions": 1025,
+        "ingested_documents": 3747,
+        "task_operation_records": 269,
+        "tool_mutations": 0,
+        "users": 49
+      },
+      "sha256": "4b25241ef0754e33424bdaac74f5ee063e5b750eeaedf0f7c596429eb13aca7e",
+      "size_bytes": 876240896,
+      "wal_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "wal_size_bytes": 0
+    },
+    "holders_before": {
+      "holders": [
+        {
+          "command": "python3.14",
+          "names": [
+            "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+            "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+            "/Users/rushiparikh/projects/atom/backend/data/atom.db"
+          ],
+          "pid": 16055
+        }
+      ],
+      "lsof_rc": 0,
+      "path": "/Users/rushiparikh/projects/atom/backend/data/atom.db"
+    },
+    "path": "/Users/rushiparikh/projects/atom/backend/data/atom.db"
+  },
+  "model": {
+    "credentials": [
+      {
+        "environment": "production",
+        "key_name": "default",
+        "provider": "deepseek",
+        "source": "pilot BYOK copied into isolated scratch",
+        "value_recorded": false,
+        "vault_copied_wholesale": true
+      }
+    ],
+    "edit_planning": "configured deepseek/deepseek-v4-pro; the deterministic assignment/no-op path may run without an LLM plan; actual path recorded",
+    "interpretation": "DeepSeek direct, pinned deepseek:deepseek-v4-pro; actual origin recorded",
+    "reply": "declared local Ollama llama3.1:8b (the L3 parent acceptance's observed reply route); DeepSeek is the declared fallback; actual reply route recorded",
+    "structured_route": "https://api.deepseek.com/v1",
+    "tool_planning": "product-selected structured dispatch; the full pilot BYOK registry is copied into the isolated scratch world and DeepSeek is pinned for structured interpretation/edit planning; actual routes recorded"
+  },
+  "observation_harness": {
+    "candidate_source_edited": false,
+    "hooks": [
+      "interpret_turn_request",
+      "apply_interpretation_references",
+      "_stash_evidence_requirement",
+      "_context_backed_fulfillment",
+      "_fallback_turn_outcome"
+    ],
+    "launcher": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l1-l2-l3-unfiltered-20261024/server_observe.py"
+  },
+  "pilot_before": {
+    "backend_8001_listening": true,
+    "frontend_3000_listening": true,
+    "health_http": 200,
+    "identity": {
+      "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-rollback-8c593e/backend",
+      "database": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+      "git_commit": "8c593e57031e",
+      "instance_id": "8c593e57031e.16055.1792848933",
+      "pid": 16055,
+      "revision": "8c593e57031ebfea08dac81bbc2b4d78e47d8559",
+      "source_id": "8c593e57031e",
+      "started_at": "2026-10-24T13:35:29.549767+00:00"
+    }
+  },
+  "ports": {
+    "backend": 8121,
+    "frontend": null
+  },
+  "predeclared_config": {
+    "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l1-l2-l3-unfiltered-20261024/PREDECLARED_CONFIG_LIVE_REHEARSAL_UNFILTERED.md",
+    "sha256": "9481e09041f64b441d5a2a2ffe0ca700ff7942d2f4cc5433a1bb0d937dc4e81d"
+  }
+}

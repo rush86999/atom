@@ -1,140 +1,139 @@
-# Cutover approval request — `cc813aeeb`
+# Cutover approval request — `09cccb5b0`
 
 **Requested:** one reversible cutover of the local Atom pilot (`:8001` /
-`:3000`) to the verified attempt-8 candidate.
-**Status: NOT APPROVED. The hold remains in force until the owner replies
-with the approval line below. No cutover has been executed.**
+`:3000`) to the `[ingested]` fix candidate, **with the actual unfiltered-BYOK
+provider profile disclosed below**.
+**Status: NOT APPROVED. No cutover has been executed.**
+
+Clear human authorization naming this candidate and scope is sufficient;
+no magic phrase is required.
 
 ## What is being approved
 
 | Item | Exact value |
 |---|---|
-| Product commit | `cc813aeeb90b84fcb36d128fda0a3b32b255742e` |
-| Product tree | `5e324af5297640ee11628fa755bd50c7b7307302` |
-| Launch/runtime commit | `b682d017e60ffb0f872fddba9bcf9fb648034775` (`b682d017e60f`, clean) |
-| Release tree | `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-release-cc813aeeb-20261024` |
-| Rehearsal result | attempt 8, **60/60 true**; L3 59.1 s, edit 33.99 s, re-ask 31.04 s, S3 87.53 s, S7 67.46 s |
-| Frontend build | Next.js 16.2.2 webpack, Node 20.19.6, npm 10.8.2, `BUILD_ID=tCcJqyp6jX99CjA0eySjZ`, API `http://127.0.0.1:8001`, loopback opt-in |
-| Interpreter | `/Users/rushiparikh/projects/atom/backend/venv314/bin/python` 3.14.7; freeze sha256 `70aedee4…` |
+| Product commit | `09cccb5b0b977f86c0a39d59af5b922c83143e7f` |
+| Product tree | `4c7ec787c8ff1f81baa89f1cdc3c40496ef44b1f` |
+| Launch/runtime commit | `4bfcbc2adc3a6bb36568eef4a000c65910bb795f` (clean) |
+| Release tree | `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-release-09cccb5b0-20261024` |
+| Verification | attempt 9: **59/61 checks true**; all 59 functional workflow checks pass; intended-route parity fails |
+| Frontend build | Next 16.2.2 webpack, Node 20.19.6, npm 10.8.2, `BUILD_ID=VHwW5YQ_s140w5s6u7HWl`, API `http://127.0.0.1:8001`, loopback opt-in |
+| Interpreter | `/Users/rushiparikh/projects/atom/backend/venv314/bin/python` 3.14.7 |
 | Live gate | `6d66d0b8b3b2c9a24efbe111a750c477f623a207d34692dcd4fa07cfceb88dd2` |
 | Current pilot | `8c593e57031e` clean, backend `:8001` pid 16055, frontend `:3000` pid 16488 |
 
 ## Maintenance window
 
-**2026-10-24 11:30–12:30 EDT / 15:30–16:30 UTC.**
+**2026-10-24 14:30–15:30 EDT / 18:30–19:30 UTC.**
 
-- Do not start after 11:50 EDT.
-- If smoke has not passed by 12:25 EDT, roll back.
-- One attempt only; a rollback ends it.
-- If this window is not approved and started in time, the request lapses and
-  a new window must be proposed. There is no standing authorization.
+- Do not start after 14:50 EDT.
+- If smoke has not passed by 15:25 EDT, roll back.
+- One attempt only; a rollback ends it. The request lapses if not started.
+
+## The route finding you are accepting
+
+Attempt 9 copied the pilot's **full 13-key / 37-provider BYOK** into the
+isolated world; the live files were read-only. The workflow passed, but the
+actual routes were not the attempt-8 Ollama/DeepSeek profile:
+
+| Leg | Actual route |
+|---|---|
+| L3 reply | `openrouter` / `z-ai/glm-5.3-flash` |
+| S3 reply | `opencode-go` / `glm-5.3-flash` |
+| S7 reply | `opencode-go` / `glm-5.3-flash` |
+| Structured interpretation | `deepseek` / `deepseek-v4-pro` |
+| Edit planning | `opencode-go` / `glm-5.3-flash` |
+| Tool planning | `opencode-go` / `glm-5.3-flash` |
+
+All POST destinations were configured providers (DeepSeek, local Ollama,
+OpenCode Go, OpenRouter); there was no unconfigured/rogue destination. But
+OpenCode Go and OpenRouter were outside the intended Ollama/DeepSeek reply
+profile. Attempt 8's 60/60 was an artifact of its DeepSeek-only isolated
+store and does **not** transfer to this product/configuration.
+
+**Approval means accepting these actual configured-provider routes for the
+pilot.** If you require Ollama/DeepSeek parity, do not approve; hold for a
+routing-containment change and a new rehearsal.
 
 ## Configuration and provider settings
 
-- **Existing BYOK is preserved in place.** All existing key files, all 13
-  active keys, and all 37 provider definitions remain. The historical
-  filtered `candidate-byok/` store is not used.
-- No credential is deleted, added, or re-scoped by this request.
-- Additive turn flags: `ATOM_TURN_INTERPRETATION=1`,
+- Existing pilot BYOK is preserved in place: all 13 keys and 37 provider
+  definitions remain. No credential is deleted, added, or re-scoped. The
+  historical filtered `candidate-byok/` store is not used.
+- Additive flags: `ATOM_TURN_INTERPRETATION=1`,
   `ATOM_TURN_INTERPRET_PIN=deepseek:deepseek-v4-pro`,
   `ATOM_TURN_INTERPRET_CAPTURE=1`, `ATOM_TURN_DECISION_ROUTING=1`,
-  `ATOM_ASYNC_EDIT_PLAN_MODEL=deepseek/deepseek-v4-pro`.
-- Additive reply preference: `ATOM_PREFERRED_LLM_PROVIDER=ollama`,
-  `ATOM_PREFERRED_LLM_MODEL=llama3.1:8b`. This is a new routing preference,
-  not a credential change. It was not present in the isolated rehearsal
-  environment and is validated by the live smoke.
+  `ATOM_ASYNC_EDIT_PLAN_MODEL=deepseek/deepseek-v4-pro`,
+  `ATOM_PREFERRED_LLM_PROVIDER=ollama`,
+  `ATOM_PREFERRED_LLM_MODEL=llama3.1:8b`.
 - Preserve `CHAT_FINALIZATION_M1=1`, `CHAT_FINALIZATION_M2=1`,
   `ATOM_TASK_LIFECYCLE_ENABLED=1`,
-  `ATOM_STREAM_FALLBACK_RESERVE_SECONDS=70`, `ALLOWED_ORIGINS` /
-  `CORS_ORIGINS` including `http://127.0.0.1:3000`.
-- Stores remain the pilot's absolute paths: SQLite `backend/data/atom.db`,
-  `ATOM_DATA_DIR`, LanceDB `atom_memory`/`lancedb`, and the three BYOK files.
-- Intended routes: reply `ollama/llama3.1:8b`; structured interpretation and
-  edit planning `deepseek/deepseek-v4-pro`.
-- Allowed fallback: the pre-existing global `deepseek`, `opencode-go`, and
-  `openrouter` credentials remain reachable if Ollama fails. The rehearsal
-  did not exercise those routes. The smoke records the actual route; an
-  unexplained route is a rollback condition.
+  `ATOM_STREAM_FALLBACK_RESERVE_SECONDS=70`, and existing origins.
+- Stores remain the pilot's absolute SQLite/LanceDB/BYOK paths.
+- Intended routes remain Ollama/DeepSeek; actual observed routes are the
+  table above. The smoke records actual routes and fails on any destination
+  outside the configured set.
 
-Exact JSON: `release_evidence_20261024/cutover_cc813aeeb/release_config.json`.
+## The `[ingested]` fix
+
+The confirmed paragraph-deletion defect is fixed. The boundary now removes
+only a positively identified carrier prefix and keeps the source label and
+body. Ordinary quotations, marker mentions, explanatory prose, mismatched
+markers, and explicit quote requests are preserved. The tradeoff is that
+internal metadata in a retained body (e.g. `Owner:` in a fixture excerpt)
+can remain visible; no answer-bearing paragraph is deleted. Line-numbered
+block removal remains a separate pre-existing path with value/decoy guards.
 
 ## Smoke that must pass
 
-This is a served-workflow smoke, not signup/dashboard:
-
-1. Fresh quiescent snapshot; start backend on `:8001`; health identity must
-   be `b682d017e60f`, `dirty=false`, with the live DB and live BYOK paths.
+1. Fresh quiescent snapshot; start backend on `:8001`; health identity
+   `4bfcbc2ad`, `dirty=false`, live DB/BYOK paths.
 2. Frontend `/login` 200 and real browser sign-in.
-3. Upload a unique smoke record and ask for its code. Require `CEDAR-42`,
-   correct source filename, persisted history, and a recorded actual route.
-4. Create a draft, edit `Net 45` → `Net 30`; require exactly one write and
-   all other fields unchanged.
-5. Send the identical edit again; require zero additional writes and an
-   unchanged body.
-6. Reload history/canvas; restart the backend once; require the same
-   identity and persisted answer/body.
-7. Record `post_smoke_db_fingerprint.json`; only smoke fixture rows in the
-   user-visible tables may differ. Background agent/scheduler rows may move
-   after the snapshot and must be attributable in the logs; unexplained
-   changes in users/documents/canvases/audits/chats are rollback.
+3. Upload a unique smoke record; ask for `CEDAR-42`; require correct answer,
+   source filename, persisted history, and recorded actual provider/model.
+4. Create a draft; edit `Net 45` → `Net 30`; exactly one write, other fields
+   preserved.
+5. Identical re-ask; zero additional writes, body unchanged.
+6. Reload history/canvas; restart the backend once; same identity and
+   persisted answer/body.
+7. Record every outbound provider POST. Allowed: DeepSeek, local Ollama,
+   OpenCode Go, OpenRouter. Any other destination fails.
+8. `post_smoke_db_fingerprint.json`: user-visible delta equals smoke
+   fixtures; background agent rows attributable in logs.
 
 Artifacts under
-`docs/acceptance/release_evidence_20261024/cutover_execution_cc813aeeb/`:
-`pre_cutover/` (DB.gz, BYOK/env copies, manifest), `candidate_health.json`,
-`candidate_backend.log`, `candidate_frontend.log`, `browser_signin.png`,
-`smoke_sourced_*`, `smoke_edit_*`, `smoke_reask_*`, `post_restart_*`,
-`post_smoke_db_fingerprint.json`, `cutover_summary.json` (and `rollback/` if
-needed).
+`docs/acceptance/release_evidence_20261024/cutover_execution_09cccb5b0/`:
+`pre_cutover/`, `candidate_health.json`, logs, `browser_signin.png`,
+`smoke_sourced_*`, `smoke_edit_*`, `smoke_reask_*`, `provider_posts.json`,
+`post_restart_*`, `post_smoke_db_fingerprint.json`, `cutover_summary.json`
+(and `rollback/` if needed).
 
 ## Rollback conditions
 
-Any of the following triggers rollback to `8c593e57031e` using the fresh
-snapshot and unchanged BYOK/env:
+Any of:
 
 - health non-200, wrong revision/dirty state, or wrong live DB/BYOK path;
-- frontend `/login` or browser sign-in failure not fixed in 5 minutes;
-- sourced answer missing `CEDAR-42`, wrong source, provider failure, or
-  unexplained route after two bounded attempts;
+- frontend login/browser sign-in failure not fixed in 5 minutes;
+- sourced answer missing `CEDAR-42`, wrong source, provider failure, or any
+  POST to an unconfigured provider after two bounded attempts;
 - edit writes zero or more than one time, or changes another field;
 - re-ask writes again or changes the body;
 - restart loses history/canvas or changes identity;
-- DB integrity failure or unexplained row delta;
+- DB integrity failure or unexplained user-visible row delta;
 - owner aborts.
 
-Rollback stops only the candidate PIDs, restores the fresh snapshot and the
-four unchanged provider/env files, restarts the old backend/frontend, and
-verifies `8c593e57031e` + `/login` 200. Evidence is preserved. No retry in
-the same window.
+Rollback stops only candidate PIDs, restores the fresh snapshot and the
+four unchanged BYOK/env files, restarts the old backend/frontend, verifies
+`8c593e57031e` + `/login` 200, and preserves evidence. No retry in the
+same window.
 
-## Known limitation requiring explicit acceptance
-
-`DELTA_REVIEW_CC813AEEB_2026-10-24.md` found that the answer boundary drops
-the **first paragraph** of any multi-paragraph reply containing the literal
-`[ingested]`, including ordinary user quotations. Reproduced exactly:
-
-- input: `You wrote: "[ingested] is the tag the importer adds."` followed by
-  a second paragraph;
-- output: the second paragraph only.
-
-No product change was made, because a fix would change the verified runtime
-and require a new full rehearsal. **Approval is conditional on accepting
-this known limitation for the pilot.** If it is not acceptable, do not
-approve; withhold cutover for a separate delta fix.
-
-## What approval authorizes — and what it does not
-
-Approval authorizes only the single cutover described above, in the stated
-window, with the stated smoke and rollback. It does not authorize a second
-attempt, a product change, provider reconfiguration, deletion of the old
-trees, or a broader reliability claim.
-
-## Reply to approve
-
-Reply exactly:
+## Approval line (clear authorization is sufficient)
 
 ```
-APPROVE CUTOVER cc813aeeb, window 2026-10-24 11:30-12:30 EDT,
-accept [ingested] limitation, smoke + rollback as written.
+I approve the one-attempt cutover of product 09cccb5b0 / launch 4bfcbc2ad
+in the 2026-10-24 14:30-15:30 EDT window, accepting the actual
+OpenCode Go/OpenRouter GLM-5.3 Flash routes and the smoke/rollback terms.
 ```
 
-Any other reply leaves the hold in force.
+Any reply that does not clearly name this candidate and scope leaves the
+hold in force.

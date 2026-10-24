@@ -273,8 +273,13 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate, 
                 <span className="text-[10px] text-muted-foreground mt-1 px-1 flex items-center gap-1.5">
                     {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     {!isUser && message.model && (
-                        <span className="inline-flex items-center rounded-md bg-muted px-1 py-0.5 text-[9px] font-medium text-muted-foreground">
-                            {message.model}
+                        <span
+                            className="inline-flex items-center rounded-md bg-muted px-1 py-0.5 text-[9px] font-medium text-muted-foreground"
+                            title="Actual answering provider/model"
+                        >
+                            via {message.provider
+                                ? `${message.provider}/${message.model}`
+                                : message.model}
                         </span>
                     )}
                 </span>
