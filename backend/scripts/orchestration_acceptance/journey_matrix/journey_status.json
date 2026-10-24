@@ -524,29 +524,29 @@
   }
  },
  "RELEASE.pilot": {
-  "status": "byok-policy-implemented-selected-profiles-fail-workflow-hold",
+  "status": "byok-policy-implemented-final-code-edit-planner-failing-hold",
   "candidate": "a729df5f572ac254eac0ae0d4180818c67916eba",
   "product_tree": "481f3a4f338fdd50fc9f2870019f0be89e3fff5f",
   "release_tree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-release-a729df5f5-20261024",
   "export_head": "a729df5f572ac254eac0ae0d4180818c67916eba",
-  "release_head": "a729df5f572ac254eac0ae0d4180818c67916eba",
+  "release_head": "6ae01062b",
   "release_clean": true,
-  "verified_attempt": 9,
-  "verified_checks": "59/61 functional 59/59 (full profile)",
+  "verified_attempt": 12,
+  "verified_checks": "52/62 on final code; attempt 9 (pre-BYOK 59/61) historical only",
   "clean_export": "4bfcbc2ad",
   "clean_backend_health": true,
   "frontend_build": true,
   "frontend_build_id": "P5jHbHKTzj_38xHIMFoe9",
   "browser_signin": true,
   "pilot_before": "8c593e57031e clean backend :8001 pid 16055; frontend :3000 pid 16488; untouched",
-  "deployment": "HOLD \u2014 BYOK policy selected profiles fail the full workflow; old pilot serving",
+  "deployment": "HOLD \u2014 final code failed edit/no-op in attempts 11 and 12",
   "release_doc": "docs/acceptance/BYOK_POLICY_RESULTS_2026-10-24.md",
   "support_statement": "docs/acceptance/SUPPORT_STATEMENT_LIVE_WORLD_2026-10-23.md",
   "evidence": "docs/acceptance/release_evidence_20261024/cutover_09cccb5b0/",
-  "notes": "Attempt 9 copied the full unfiltered BYOK (13 keys / 37 providers) into isolation. All 59 functional workflow checks passed. The intended Ollama/DeepSeek route was not preserved: L3 reply openrouter/z-ai/glm-5.3-flash, S3/S7 opencode-go/glm-5.3-flash, edit/tool planning opencode-go/glm-5.3-flash, interpretation deepseek/deepseek-v4-pro. All destinations were configured providers; no unconfigured provider. provider_reply_parity and provider_allowlist_clean failed under the intended allowlist. Cutover approval is requested only with explicit acceptance of the actual routes; otherwise hold for routing containment.",
+  "notes": "Policy enforcement verified (attempt 10 zero forbidden POSTs; attempt 11 zero OpenRouter POSTs). Final-code full-profile attempt 12 failed edit_not_applied and re-ask. The edit planner decline is the blocker, not a provider-policy escape. No cutover.",
   "delta_review": "docs/acceptance/DELTA_FIX_REVIEW_09CCCB5B0_2026-10-24.md",
   "known_limitation": "unfiltered BYOK does not preserve the intended Ollama/DeepSeek route; [ingested] body retention can show internal metadata",
-  "approval": "not_requested_pending_profile_decision",
+  "approval": "not_requested_final_code_failing",
   "approval_doc": null,
   "maintenance_window": "2026-10-24 14:30-15:30 EDT / 18:30-19:30 UTC",
   "attempt8_history": {
@@ -592,6 +592,6 @@
   "byok_policy": "implemented; selected-mode enforcement verified with zero forbidden POSTs; full profile only passing workflow",
   "attempt10": "selected ollama+deepseek: 56/61, zero forbidden POSTs, reask failed (planner unavailable)",
   "attempt11": "selected ollama+deepseek+opencode-go: 54/61, zero OpenRouter POSTs, edit failed (planner declined)",
-  "decision_required": "accept full profile (policy automatic) or hold for strict-policy planner work"
+  "decision_required": "separate edit-plan reliability repair; do not cut over current candidate"
  }
 }

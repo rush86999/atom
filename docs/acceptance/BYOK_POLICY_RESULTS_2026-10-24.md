@@ -29,6 +29,7 @@ policy has a passing full workflow**. Live cutover remains held.
 | 9 | full configured store (automatic/legacy) | **59/61; 59/59 functional pass** | DeepSeek, Ollama, OpenCode Go, OpenRouter |
 | 10 | selected `ollama`, `deepseek` | **56/61**; edit passed, **re-ask failed** (`reask_not_a_noop`, planner unavailable) | **DeepSeek, Ollama only — zero forbidden POSTs** |
 | 11 | selected `ollama`, `deepseek`, `opencode-go` | **54/61**; **edit failed** (`edit_not_applied`, planner declined) | DeepSeek, Ollama, OpenCode Go — **zero OpenRouter POSTs** |
+| 12 | automatic / full configured store on final BYOK code | **52/62**; **edit failed again** (`edit_not_applied`), re-ask failed, comparison interpretation route not DeepSeek | DeepSeek, Ollama, OpenCode Go, OpenRouter |
 
 Attempt 10 proves the hard policy boundary works: with all 13 keys present,
 OpenCode Go/OpenRouter received **zero** POSTs. The failure is functional:
@@ -40,13 +41,16 @@ not pass.
 
 ## Conclusion
 
-- The only profile with a passing functional workflow is the **full
-  configured store** (attempt 9): OpenCode Go/OpenRouter/DeepSeek replies,
-  DeepSeek interpretation, OpenCode Go edit/tool planning.
-- Strict Ollama/DeepSeek containment is enforced correctly but currently
-  fails the identical re-ask.
-- Adding OpenCode Go fixes neither reliably; the edit planner remains
-  nondeterministic under the selected policy.
+- The policy boundary itself works (attempt 10: zero forbidden POSTs; attempt
+  11: zero OpenRouter POSTs).
+- The **edit/no-op planner is the blocker** on the final code: it failed in
+  attempts 11 and 12 with `edit_not_applied`/planner decline. Attempt 12 ran
+  the full configured profile with policy `automatic`; the failure is not a
+  policy escape.
+- Attempt 9's 59/61 is historical evidence for `09cccb5b0` (before the BYOK
+  code). It cannot be transferred to `a729df5f5` after two final-code
+  functional failures.
+- No final-code profile currently has a passing full workflow.
 
 ## Decision required
 
