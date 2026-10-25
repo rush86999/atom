@@ -29,8 +29,9 @@ ATOM_LLM_PROVIDER_POLICY={"mode":"automatic","allowed_providers":[]}
   authorizes only its non-empty allowed subset, and that subset must be
   inside the approved set; an invalid policy authorizes nothing.
 - Any POST outside the authorized set is a failure. This is the real
-  restriction; it is stricter than the historical two-provider list, not
-  a relaxation.
+  restriction. It is policy-derived, not the historical two-provider
+  list: under `automatic` it authorizes the configured OpenRouter and
+  OpenCode Go routes as well, and the declaration says so explicitly.
 
 ## Checks
 
@@ -48,9 +49,12 @@ ATOM_LLM_PROVIDER_POLICY={"mode":"automatic","allowed_providers":[]}
 - Historical intended-route results remain recorded under
   `provider_routes.historical_intended_route_checks` but do not decide
   the pass.
-- The S7 date-only follow-up must take the deterministic bounded path:
-  no interpreter dispatch, source bound to the observed approved record,
-  exactly `expiration_date`, `broader_comparison` false, zero writes.
+- The S7 date-only follow-up may take at most a 5s optional model
+  refinement. If that does not resolve, the explicit
+  `deterministic:continuation` record is used: source bound to the
+  observed approved record, exactly `expiration_date`,
+  `broader_comparison` false, zero writes. Any refinement attempt must
+  still use an authorized route.
 - A genuinely broad follow-up stays broad (whole-document obligation
   open), and an ambiguous source clarifies without selecting one.
 - The cutover request, if any, must explicitly accept the actual

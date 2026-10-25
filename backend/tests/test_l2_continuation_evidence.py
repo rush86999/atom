@@ -278,6 +278,9 @@ def _seed_conversation_evidence(session, workspace_id, observed_files=None):
         "subjects": [],
         "identity": {"state": "kind_only", "candidates": []},
         "artifact_attached": True,
+        # The prior S3 turn was broad ("flag anything that differs"); the
+        # S7 date-only follow-up must not inherit it.
+        "broader_comparison": True,
     }
     session[PRIOR_OBS_KEY] = [
         {"observation_id": f"l2-prior-{i}",
@@ -1422,16 +1425,13 @@ class TestL2ContinuationChain:
             self, scoped_world, world_app):
         """Owner regression through the real turn: a short identifier
         constraint is preserved — 381 never resolves to 6603; with the
-        381 file observed it resolves and certifies. The message carries
-        the identifier so the bounded deterministic fast path cannot
-        (correctly) resolve the unconstrained phrase instead."""
-        message = ("Does the Valid until date still match the approved "
-                   "record 381?")
+        381 file observed it resolves and certifies. The bounded
+        refinement keeps the model's more specific proposal authoritative
+        when it resolves inside the short window."""
         session_out = {}
         out, session, ep = _drive_continuation_turn(
             scoped_world, world_app,
             interpretation=_resolved_interpretation(["approved record 381"]),
-            message=message,
             observed_files=["approved_records_6603.txt"],
             session_out=session_out)
         eid, req = _turn_requirement(session, out)
@@ -1449,7 +1449,6 @@ class TestL2ContinuationChain:
         out2, session2, ep2 = _drive_continuation_turn(
             scoped_world, world_app,
             interpretation=_resolved_interpretation(["approved record 381"]),
-            message=message,
             observed_files=["approved_records_381.txt"],
             session_out=session_out2)
         eid2, req2 = _turn_requirement(session2, out2)
@@ -1494,7 +1493,6 @@ class TestL2ContinuationChain:
         out, session, ep = _drive_continuation_turn(
             scoped_world, world_app,
             interpretation=_resolved_interpretation(["document", "email"]),
-            message=("Does the Valid until date still match the record?"),
             observed_files=[PRIOR_FILE],
             session_out=session_out)
         eid, req = _turn_requirement(session, out)
@@ -1542,8 +1540,6 @@ class TestL2ContinuationChain:
         out, session, ep = _drive_continuation_turn(
             scoped_world, world_app,
             interpretation=_resolved_interpretation(["approved record A"]),
-            message=("Does the Valid until date still match the approved "
-                     "record A?"),
             observed_files=["approved_records_B.txt"],
             session_out=session_out)
         eid, req = _turn_requirement(session, out)
@@ -1662,6 +1658,18 @@ class TestL2ContinuationChain:
         degraded["requested_fields"] = []
         degraded["actions"] = []
         canvas_before = copy.deepcopy(S7_CANVAS)
+        accepted = {}
+
+        import core.turn_decision as td
+
+        _orig_apply = td.apply_interpretation_references
+
+        def _capture_apply(decision, interpretation, session_arg):
+            accepted["origin"] = (interpretation or {}).get("origin")
+            return _orig_apply(decision, interpretation, session_arg)
+
+        monkeypatch.setattr(
+            td, "apply_interpretation_references", _capture_apply)
         session_out = {}
         out, session, ep = _drive_continuation_turn(
             scoped_world, world_app, interpretation=degraded,
@@ -1687,9 +1695,12 @@ class TestL2ContinuationChain:
             str(o.get("workspace_id") or "") == session_out["workspace_id"]
             for o in observations), observations
 
-        assert session_out.get("interpret_calls") == 0, (
-            "the bounded date-only continuation must not dispatch the "
-            "interpreter at all")
+        assert session_out.get("interpret_calls") == 1, (
+            "the bounded refinement is attempted once inside its short "
+            "window")
+        assert accepted.get("origin") == "deterministic:continuation", (
+            "an unresolved refinement must fall back to the explicit "
+            f"deterministic record; got {accepted!r}")
         verdict, settled = _settlement_from_turn(
             session, eid, session_out["workspace_id"])
         assert verdict and verdict.get("state") == "completed", verdict
@@ -1735,9 +1746,13 @@ class TestL2ContinuationChain:
         finally:
             db.close()
         # The prior conversation carrier is preserved, not overwritten by
-        # this turn's requirement.
+        # this turn's requirement. The prior S3 carrier is BROAD; the
+        # current date-only requirement is narrow, proving the prior
+        # contract was not imported.
         assert f"_evidence_requirement_{eid}" in session
         assert PRIOR_REQ_KEY in session
+        assert session[PRIOR_REQ_KEY]["broader_comparison"] is True
+        assert req["broader_comparison"] is False
 
     def test_degraded_ambiguous_source_clarifies_without_selecting(
             self, scoped_world, world_app, monkeypatch):

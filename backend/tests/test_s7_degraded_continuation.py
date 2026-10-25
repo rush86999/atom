@@ -118,6 +118,72 @@ def test_captured_date_only_turn_resolves_the_named_source(monkeypatch):
     assert req["artifact_attached"] is True, req
 
 
+def test_sole_identity_noun_is_never_stripped_to_a_bare_adjective():
+    """`approved record` must not fall through to `approved` and bind an
+    unrelated approved_quotation.pdf. The sole source noun is identity."""
+    _decision, composed, _session_ = _compose(
+        observed_files=("approved_quotation.pdf",))
+    marker = composed["references"]["continuation_evidence"]
+    assert marker["state"] == "unresolved", marker
+    assert "approved_quotation.pdf" not in str(marker)
+    assert composed["references"].get("file") is None
+
+
+def test_generic_floor_kind_is_refined_only_by_the_named_reference(
+        monkeypatch):
+    """A generic `document` capture is a nomination, not an identity. A
+    named reference that does not match must not leave kind_only and let
+    an unrelated purchase_order.pdf complete the date comparison."""
+    message = ("Does the Valid until date on the draft still match the "
+               "approved record document?")
+    session = _session(("purchase_order.pdf",))
+    decision = build_turn_decision(message, session, [])
+    composed = apply_degraded_continuation_references(
+        decision, _degraded(), session, message)
+    marker = composed["references"]["continuation_evidence"]
+    assert marker["state"] == "unresolved", marker
+    assert composed["references"].get("file") is None
+    req = _requirement(composed, message=message, monkeypatch=monkeypatch)
+    assert req["identity"]["state"] == "unresolved", req
+    assert req["identity"].get("names") == ["approved record"], req
+
+
+def test_mixed_source_family_is_not_certified_from_one_family(monkeypatch):
+    """The turn names the approved record and `my email`: the receipt must
+    preserve the unaccounted family rather than bind kind_only to either."""
+    message = ("Also check my email. Does the Valid until date still match "
+               "the approved record?")
+    session = _session(("approved_records_q2026_114.txt",))
+    session["_retrieval_source_observations_prior"].append({
+        "observation_id": "email-1",
+        "source": "communication",
+        "file_name": "thread-42.eml",
+        "title": "thread-42",
+        "workspace_id": "ws-1",
+        "content_hash": "",
+    })
+    decision = build_turn_decision(message, session, [])
+    assert "email" in (decision["references"]["sources"] or [])
+    composed = apply_degraded_continuation_references(
+        decision, _degraded(), session, message)
+    marker = composed["references"]["continuation_evidence"]
+    assert marker["state"] == "unresolved", marker
+    assert composed["references"].get("file") is None
+    req = _requirement(composed, message=message, monkeypatch=monkeypatch)
+    assert req["identity"]["state"] == "unresolved", req
+    assert req["identity"].get("names") == ["approved record"], req
+
+
+def test_casual_source_mention_is_not_an_evidence_request():
+    message = "Thanks, the approved record was helpful."
+    session = _session((PRIOR_FILE,))
+    decision = build_turn_decision(message, session, [])
+    composed = apply_degraded_continuation_references(
+        decision, _degraded(), session, message)
+    assert composed["references"] == decision["references"]
+    assert turn_evidence_required(composed) is False
+
+
 def test_ambiguous_source_preserves_every_candidate(monkeypatch):
     _decision, composed, _session_ = _compose(
         observed_files=(PRIOR_FILE, PRIOR_FILE_2))
@@ -143,21 +209,6 @@ def test_genuinely_broad_followup_keeps_the_whole_document_obligation(
     req = _requirement(composed, message=BROAD_ASK, monkeypatch=monkeypatch)
     assert req["fields"] == ["expiration_date"], req
     assert req["broader_comparison"] is True, req
-
-
-def test_date_only_followup_does_not_inherit_a_prior_broad_contract(
-        monkeypatch):
-    prior = {
-        "required": True,
-        "sources": ["document"],
-        "fields": ["expiration_date"],
-        "broader_comparison": True,
-        "identity": {"state": "kind_only", "candidates": []},
-        "artifact_attached": True,
-    }
-    _decision, composed, _session_ = _compose(requested=prior)
-    req = _requirement(composed, monkeypatch=monkeypatch)
-    assert req["broader_comparison"] is False, req
 
 
 def test_named_source_identifier_is_preserved(monkeypatch):
@@ -236,10 +287,50 @@ def test_ambiguous_or_mutating_turn_is_not_fast_pathed():
     assert deterministic_continuation_ready(
         S7_ASK, session, decision) is None
     one = _session((PRIOR_FILE,))
-    mixed = ("Update the payment terms to Net 30 and tell me whether the "
-             "Valid until date still matches the approved record.")
-    decision = build_turn_decision(mixed, one, [])
-    assert deterministic_continuation_ready(mixed, one, decision) is None
+    for mixed in (
+            "Update the payment terms to Net 30 and tell me whether the "
+            "Valid until date still matches the approved record.",
+            "Check that the valid until date matches the approved record "
+            "and draft a short email to the client.",
+            "Check the valid until date against the approved record and "
+            "send it to the client.",
+    ):
+        decision = build_turn_decision(mixed, one, [])
+        assert deterministic_continuation_ready(mixed, one, decision) is None
+
+
+def test_specific_floor_file_is_not_replaced_by_a_named_record():
+    """A workbook mention and a named record are two sources; the fast
+    path must not bind the record while the floor owns the workbook."""
+    message = ("Does the Valid until date in catalog_2019.xlsx match the "
+               "draft and the approved record?")
+    session = _session((PRIOR_FILE,))
+    decision = build_turn_decision(message, session, [])
+    assert decision["references"].get("file"), decision["references"]
+    assert deterministic_continuation_ready(
+        message, session, decision) is None
+
+
+def test_broad_phrasings_are_not_fast_pathed_and_stay_broad(monkeypatch):
+    messages = (
+        "Compare every value on the draft with the approved record.",
+        "Compare the price and everything else with the approved record.",
+        "Compare the price and tell me about every difference with the "
+        "approved record.",
+        "Compare the price and don't miss any differences with the "
+        "approved record.",
+        "Does the price match, and is everything else consistent with the "
+        "approved record?",
+    )
+    session = _session((PRIOR_FILE,))
+    for message in messages:
+        decision = build_turn_decision(message, session, [])
+        assert deterministic_continuation_ready(
+            message, session, decision) is None, message
+        composed = apply_degraded_continuation_references(
+            decision, _degraded(), session, message)
+        req = _requirement(composed, message=message, monkeypatch=monkeypatch)
+        assert req["broader_comparison"] is True, (message, req)
 
 
 def test_resolved_interpretation_is_untouched():

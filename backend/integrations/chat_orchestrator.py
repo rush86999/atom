@@ -1119,6 +1119,13 @@ _INTERPRETATION_MAX_SECONDS = float(
     os.getenv("ATOM_INTERPRETATION_MAX_SECONDS", "75") or 75)
 _TURN_REPLY_RESERVE_SECONDS = float(
     os.getenv("ATOM_TURN_REPLY_RESERVE_SECONDS", "35") or 35)
+#: A bounded deterministic continuation may take a SHORT optional model
+#: refinement (an identifier, exclusion, or section the message did not
+#: spell out). It must never consume the turn's interpretation budget:
+#: attempt 14 spent 59.9s here and lost the reply. On expiry the durable
+#: deterministic facts are used instead.
+_DETERMINISTIC_REFINEMENT_WAIT_S = float(
+    os.getenv("ATOM_DETERMINISTIC_REFINEMENT_SECONDS", "5") or 5)
 
 
 def _interpretation_wait_seconds(remaining: float) -> float:
@@ -10674,44 +10681,47 @@ class ChatOrchestrator:
                                 _deadline.remaining())
                             _interp_request_id = str(
                                 (context or {}).get("request_id") or "")
-                            if _det_continuation is None:
-                                logger.info(
-                                    "[turn-interpretation] bounded wait=%.1fs "
-                                    "(remaining=%.1fs reserve=%.1fs)",
-                                    _interp_wait, _deadline.remaining(),
-                                    _TURN_REPLY_RESERVE_SECONDS)
                             if _det_continuation is not None:
-                                _td = (
-                                    apply_degraded_continuation_references(
-                                        _td, None, session, message))
-                                _td_decision = _td
-                                _det_ref = (
-                                    _det_continuation.get("reference") or {})
-                                _td_interpretation = (
-                                    interpretation_deterministic_continuation(
-                                        message, _interp_request_id, _td,
-                                        _det_ref))
-                                logger.info(
-                                    "[turn-interpretation] skipped — "
-                                    "deterministic continuation "
-                                    "(source=%s field=%s); model not "
-                                    "required",
-                                    _det_ref.get("resolved_file"),
-                                    (_det_continuation.get(
-                                        "fields") or [""])[0])
-                            elif _interp_wait <= 0.0:
-                                from core.turn_decision import (
-                                    interpretation_budget_unresolved,
-                                )
-                                _td_interpretation = (
-                                    interpretation_budget_unresolved(
-                                        message, _interp_request_id, _td))
-                                logger.warning(
-                                    "[turn-interpretation] skipped — stage "
-                                    "budget exhausted (remaining=%.1fs "
-                                    "reserve=%.1fs); deterministic floor "
-                                    "retained", _deadline.remaining(),
-                                    _TURN_REPLY_RESERVE_SECONDS)
+                                # OPTIONAL REFINEMENT, NOT A REQUIREMENT:
+                                # a specific model proposal (identifier,
+                                # exclusion) may still win, but it gets a
+                                # short bounded window. The durable facts
+                                # are used when it does not resolve.
+                                _interp_wait = min(
+                                    _interp_wait,
+                                    _DETERMINISTIC_REFINEMENT_WAIT_S)
+                            logger.info(
+                                "[turn-interpretation] bounded wait=%.1fs "
+                                "(remaining=%.1fs reserve=%.1fs%s)",
+                                _interp_wait, _deadline.remaining(),
+                                _TURN_REPLY_RESERVE_SECONDS,
+                                "; deterministic refinement"
+                                if _det_continuation is not None else "")
+                            if _interp_wait <= 0.0:
+                                if _det_continuation is not None:
+                                    _td_interpretation = (
+                                        interpretation_deterministic_continuation(
+                                            message, _interp_request_id, _td,
+                                            _det_continuation.get(
+                                                "reference") or {}))
+                                    logger.warning(
+                                        "[turn-interpretation] skipped — "
+                                        "no budget for refinement; using "
+                                        "deterministic continuation")
+                                else:
+                                    from core.turn_decision import (
+                                        interpretation_budget_unresolved,
+                                    )
+                                    _td_interpretation = (
+                                        interpretation_budget_unresolved(
+                                            message, _interp_request_id, _td))
+                                    logger.warning(
+                                        "[turn-interpretation] skipped — "
+                                        "stage budget exhausted "
+                                        "(remaining=%.1fs reserve=%.1fs); "
+                                        "deterministic floor retained",
+                                        _deadline.remaining(),
+                                        _TURN_REPLY_RESERVE_SECONDS)
                             else:
                                 try:
                                     _td_interpretation = (
@@ -10734,29 +10744,93 @@ class ChatOrchestrator:
                                                 llm_service=_scope_llm),
                                             timeout=_interp_wait))
                                 except asyncio.TimeoutError:
-                                    from core.turn_decision import (
-                                        interpretation_budget_unresolved,
-                                    )
-                                    _td_interpretation = (
-                                        interpretation_budget_unresolved(
-                                            message, _interp_request_id, _td))
-                                    logger.warning(
-                                        "[turn-interpretation] wait %.1fs "
-                                        "expired — preserving explicit "
-                                        "stage_budget_exhausted and the "
-                                        "deterministic floor", _interp_wait)
+                                    if _det_continuation is not None:
+                                        _td_interpretation = (
+                                            interpretation_deterministic_continuation(
+                                                message, _interp_request_id,
+                                                _td,
+                                                _det_continuation.get(
+                                                    "reference") or {}))
+                                        logger.warning(
+                                            "[turn-interpretation] refinement "
+                                            "wait %.1fs expired — using "
+                                            "deterministic continuation",
+                                            _interp_wait)
+                                    else:
+                                        from core.turn_decision import (
+                                            interpretation_budget_unresolved,
+                                        )
+                                        _td_interpretation = (
+                                            interpretation_budget_unresolved(
+                                                message, _interp_request_id,
+                                                _td))
+                                        logger.warning(
+                                            "[turn-interpretation] wait %.1fs "
+                                            "expired — preserving explicit "
+                                            "stage_budget_exhausted and the "
+                                            "deterministic floor",
+                                            _interp_wait)
                                 except Exception as _interp_err:  # noqa: BLE001
-                                    _td_interpretation = None
-                                    logger.debug(
-                                        "[turn-interpretation] invocation "
-                                        "failed (floor retained): %r",
-                                        _interp_err)
+                                    if _det_continuation is not None:
+                                        _td_interpretation = (
+                                            interpretation_deterministic_continuation(
+                                                message, _interp_request_id,
+                                                _td,
+                                                _det_continuation.get(
+                                                    "reference") or {}))
+                                        logger.warning(
+                                            "[turn-interpretation] refinement "
+                                            "failed — using deterministic "
+                                            "continuation: %r",
+                                            _interp_err)
+                                    else:
+                                        _td_interpretation = None
+                                        logger.debug(
+                                            "[turn-interpretation] invocation "
+                                            "failed (floor retained): %r",
+                                            _interp_err)
                         except Exception as _interp_outer_err:  # noqa: BLE001
-                            _td_interpretation = None
+                            if _det_continuation is not None:
+                                _td_interpretation = (
+                                    interpretation_deterministic_continuation(
+                                        message, locals().get(
+                                            "_interp_request_id", ""), _td,
+                                        _det_continuation.get(
+                                            "reference") or {}))
+                            else:
+                                _td_interpretation = None
                             logger.debug(
                                 "[turn-interpretation] outer budget seam "
                                 "failed (floor retained): %r",
                                 _interp_outer_err)
+                        # If the bounded refinement did not resolve, the
+                        # explicit deterministic record is the accepted
+                        # interpretation. Compose the durable references
+                        # BEFORE the observation hook so the runner sees
+                        # the same decision the requirement consumes.
+                        _det_accepted = False
+                        if _det_continuation is not None and (
+                                not isinstance(_td_interpretation, dict)
+                                or str(_td_interpretation.get(
+                                    "origin") or "") == "unresolved"
+                                or str(_td_interpretation.get(
+                                    "scope_change") or "") == "unresolved"):
+                            _td_interpretation = (
+                                interpretation_deterministic_continuation(
+                                    message, _interp_request_id, _td,
+                                    _det_continuation.get("reference") or {}))
+                            _det_accepted = True
+                        if _det_accepted:
+                            _td = apply_degraded_continuation_references(
+                                _td, None, session, message)
+                            _td_decision = _td
+                            logger.info(
+                                "[turn-interpretation] accepted deterministic "
+                                "continuation (source=%s field=%s)",
+                                (_det_continuation.get(
+                                    "reference") or {}).get(
+                                        "resolved_file"),
+                                (_det_continuation.get("fields") or [""])[0])
                         # L2 repair (2026-10-18): CONSUME the resolved
                         # interpretation's source references when the
                         # deterministic floor found none. A continuation

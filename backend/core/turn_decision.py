@@ -612,8 +612,10 @@ _SOURCE_REFERENCE_RE = re.compile(
 #: These are participation/attachment modifiers, not names — the same
 #: distinction `_REFERENCE_STOPWORDS` draws for glue words.
 _SOURCE_REFERENCE_MODIFIERS = frozenset({
+    # Attachment/participation verbs do not identify a document; temporal
+    # or versioning adjectives ("original", "latest", "current") DO and
+    # must stay in the identity phrase.
     "uploaded", "attached", "enclosed", "provided", "supplied", "shared",
-    "current", "latest", "original", "existing",
 })
 _SOURCE_REFERENCE_KIND_TOKENS = frozenset({
     "record", "records", "document", "documents", "file", "files",
@@ -644,7 +646,8 @@ def _request_source_reference_phrases(message: str) -> List[str]:
         # digit-bearing token or a single capital letter qualifies; an
         # ordinary following word is not part of the name.
         tail = re.match(
-            r"\s+([A-Za-z0-9][A-Za-z0-9._-]{0,15})\b",
+            r"\s*(?:[\(\[]\s*['\"]?|#\s*)?"
+            r"([A-Za-z0-9][A-Za-z0-9._-]{0,15})\b",
             text[match.end():])
         if tail:
             token = tail.group(1)
@@ -663,20 +666,24 @@ def _request_source_reference_phrases(message: str) -> List[str]:
 def _reference_phrase_variants(phrase: str) -> List[str]:
     """Identity-match variants for one named reference.
 
-    The strongest form is tried first. If the user appended a generic
-    container noun ("approved records document"), trailing kind words are
-    removed one at a time until the identity tokens can match the
-    observed filename; a bare kind ("document") remains a kind proposal."""
+    The strongest form is tried first. A trailing CONTAINER noun is
+    removed only when ANOTHER source noun remains in the phrase
+    ("approved records document" -> "approved records"). The sole
+    identity noun is never stripped: "approved record" must not fall
+    through to the bare adjective "approved", which would bind an
+    unrelated file such as approved_quotation.pdf."""
     tokens = _reference_tokens(phrase)
     variants: List[str] = []
     if tokens:
         variants.append(" ".join(tokens))
-    while tokens and tokens[-1] in _SOURCE_REFERENCE_KIND_TOKENS:
+    while (len(tokens) >= 2
+           and tokens[-1] in _SOURCE_REFERENCE_KIND_TOKENS
+           and any(token in _SOURCE_REFERENCE_KIND_TOKENS
+                   for token in tokens[:-1])):
         tokens = tokens[:-1]
-        if tokens:
-            candidate = " ".join(tokens)
-            if candidate not in variants:
-                variants.append(candidate)
+        candidate = " ".join(tokens)
+        if candidate not in variants:
+            variants.append(candidate)
     return variants
 
 
@@ -729,6 +736,7 @@ def resolve_request_source_reference(
             "state": "unresolved",
             "resolved_file": "",
             "resolved_kinds": observed_kinds,
+            "phrases": phrases,
             "names": [r["phrase"] for r in missing][:4],
         }
     # Union every candidate before deciding; several distinct files are
@@ -753,6 +761,7 @@ def resolve_request_source_reference(
             "state": "resolved",
             "resolved_file": str(candidate.get("file_name") or ""),
             "resolved_kinds": kinds,
+            "phrases": phrases,
             "antecedents": [{
                 "kind": candidate.get("kind"),
                 "file_name": candidate.get("file_name"),
@@ -764,6 +773,7 @@ def resolve_request_source_reference(
         "state": "ambiguous",
         "resolved_file": "",
         "resolved_kinds": kinds,
+        "phrases": phrases,
         "candidates": [{
             "kind": candidate.get("kind"),
             "file_name": candidate.get("file_name"),
@@ -946,8 +956,21 @@ def apply_interpretation_references(
 #: request that also mutates, sends, schedules, or submits. "draft" is
 #: deliberately absent: it is the ARTIFACT the S7 ask compares, not a verb.
 _COMPOUND_ACTION_VETO_RE = re.compile(
-    r"\b(?:update|edit|change|set|apply|send|create|add|remove|delete|"
-    r"write|schedule|book|pay|submit|upload|remember|learn)\b",
+    r"\b(?:update|updates|updated|updating|edit|edits|edited|editing|"
+    r"change|changes|changed|changing|set|sets|setting|apply|applies|"
+    r"applied|applying|send|sends|sent|sending|create|creates|created|"
+    r"creating|add|adds|added|adding|remove|removes|removed|removing|"
+    r"delete|deletes|deleted|deleting|write|writes|wrote|writing|"
+    r"schedule|schedules|scheduled|scheduling|book|books|booked|"
+    r"booking|pay|pays|paid|paying|submit|submits|submitted|submitting|"
+    r"upload|uploads|uploaded|uploading|remember|remembers|remembered|"
+    r"remembering|learn|learns|learned|learning|replace|replaces|"
+    r"replaced|replacing|correct|corrects|corrected|correcting|fix|"
+    r"fixes|fixed|fixing)\b"
+    # "draft" is the S7 ARTIFACT ("on the draft"), so only its verb use
+    # ("draft a short email") is a compound-action veto.
+    r"|\b(?:draft|prepare|compose|write)\s+"
+    r"(?:a|an|the|me|it|this|that)\b",
     re.IGNORECASE,
 )
 
@@ -969,11 +992,11 @@ def deterministic_continuation_ready(
     * the deterministic decision proposed no action beyond conversation
       or research.
 
-    The caller may then skip the semantic interpretation entirely: the
-    named reference and the typed field are the request contract, and the
-    existing comparison renderer consumes them. Anything broader,
-    ambiguous, unresolved, or mixed stays on the normal interpretation
-    path.
+    The caller may use these facts immediately, with at most a bounded
+    optional model refinement: the named reference and the typed field
+    are the request contract, and the existing comparison renderer
+    consumes them. Anything broader, ambiguous, unresolved, or mixed
+    stays on the normal interpretation path.
     """
     text = str(message or "")
     if not text.strip() or _COMPOUND_ACTION_VETO_RE.search(text):
@@ -1004,6 +1027,22 @@ def deterministic_continuation_ready(
     if not resolved or str(resolved.get("state") or "") != "resolved":
         return None
     if isinstance(decision, dict):
+        refs = decision.get("references")
+        refs = refs if isinstance(refs, dict) else {}
+        if refs.get("file"):
+            # A specific floor file owns the source identity; the named
+            # reference must not silently replace it.
+            return None
+        floor_sources = {
+            str(source).casefold()
+            for source in (refs.get("sources") or []) if str(source)}
+        resolved_kinds = {
+            str(kind).casefold()
+            for kind in (resolved.get("resolved_kinds") or []) if str(kind)}
+        if floor_sources - resolved_kinds:
+            # Another source family is part of the request ("also check
+            # my email"); the named-record fast path cannot account for it.
+            return None
         kinds = {
             str(action.get("kind") or "")
             for action in (decision.get("requested_actions") or [])
@@ -1043,31 +1082,59 @@ def apply_degraded_continuation_references(
         scope_change = str(interpretation.get("scope_change") or "")
         if origin != "unresolved" and scope_change != "unresolved":
             return decision  # the resolved interpretation owns composition
+    text = message or str(decision.get("message") or "")
+    if not _looks_seek_shaped(text):
+        # A conversational mention ("the approved record was helpful") is
+        # not an evidence request; do not manufacture an obligation.
+        return decision
     refs = decision.get("references")
-    if isinstance(refs, dict) and (
-            refs.get("sources") or refs.get("file")):
-        return decision  # the deterministic floor already captured a source
-    resolved = resolve_request_source_reference(
-        message or str(decision.get("message") or ""), session)
+    refs = refs if isinstance(refs, dict) else {}
+    if refs.get("file"):
+        # A specific floor file already owns the source identity; never
+        # replace it with a named reference from the same turn.
+        return decision
+    resolved = resolve_request_source_reference(text, session)
     if not resolved:
         return decision
     kinds = [
         str(kind) for kind in (resolved.get("resolved_kinds") or [])
         if str(kind)] or ["document"]
-    new_refs = dict(refs) if isinstance(refs, dict) else {}
-    new_refs["sources"] = kinds
-    if str(resolved.get("state") or "") == "resolved":
-        file_name = str(resolved.get("resolved_file") or "")
-        if file_name:
-            new_refs["file"] = {"file_name": file_name}
-    new_refs["continuation_evidence"] = resolved
+    resolved_kinds = {kind.casefold() for kind in kinds}
+    floor_sources = {
+        str(source).casefold()
+        for source in (refs.get("sources") or []) if str(source)}
+    new_refs = dict(refs)
+    if floor_sources - resolved_kinds:
+        # The turn names ANOTHER source family ("also check my email").
+        # Preserve that obligation but mark the named reference unresolved:
+        # the receipt must not certify the whole request from one family.
+        marker = dict(resolved)
+        marker.update({
+            "state": "unresolved",
+            "resolved_file": "",
+            "names": list(
+                resolved.get("names")
+                or resolved.get("phrases")
+                or ["the named source"])[:4],
+        })
+        new_refs["continuation_evidence"] = marker
+    else:
+        # A generic floor kind ("document") was only a nomination; the
+        # named reference is the stronger identity and may refine it.
+        new_refs["sources"] = sorted(resolved_kinds)
+        if str(resolved.get("state") or "") == "resolved":
+            file_name = str(resolved.get("resolved_file") or "")
+            if file_name:
+                new_refs["file"] = {"file_name": file_name}
+        new_refs["continuation_evidence"] = resolved
     composed = dict(decision)
     composed["references"] = new_refs
     provenance = dict(composed.get("provenance") or {})
     signals = list(provenance.get("signals") or [])
     signals.append(
         "degraded_source_reference_%s" % str(
-            resolved.get("state") or "unresolved"))
+            (new_refs.get("continuation_evidence") or {}).get(
+                "state") or "unresolved"))
     provenance["signals"] = signals
     composed["provenance"] = provenance
     return composed

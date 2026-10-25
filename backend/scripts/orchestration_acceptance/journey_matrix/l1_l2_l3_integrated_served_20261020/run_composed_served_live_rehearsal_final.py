@@ -746,14 +746,20 @@ def _interpretation_route_authorized(
     continuation dispatches no model, so it is authorized by construction.
     """
     origin = str(origin or "")
-    if origin.startswith("deterministic:"):
-        return True
     models = [str(m) for m in ((summary or {}).get(
         "dispatch_models") or [])]
+    if origin.startswith("deterministic:"):
+        # The deterministic record may have taken a bounded optional
+        # refinement; any attempt it made must still be authorized. No
+        # dispatch at all is the normal deterministic case.
+        return all(any(m.startswith(prefix) for prefix in prefixes)
+                   for m in models)
     if models:
         return all(any(m.startswith(prefix) for prefix in prefixes)
                    for m in models)
-    return origin.startswith("llm:")
+    # A model origin with no captured dispatch route is not evidence that
+    # an authorized provider served it. Fail closed.
+    return False
 
 
 #: Provider id -> the POST destinations that id may legitimately use.

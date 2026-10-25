@@ -120,6 +120,14 @@ def test_deterministic_continuation_is_authorized_without_a_model():
         {"dispatch_models": ["openrouter/z-ai/glm-5.3-flash"]},
         ("deepseek/", "ollama/")), (
         "a route outside the declared policy is never authorized")
+    assert not runner._interpretation_route_authorized(
+        "llm:glm-5.3-flash", {"dispatch_models": []}, prefixes), (
+        "a model origin with no captured dispatch is not evidence that an "
+        "authorized provider served it")
+    assert not runner._interpretation_route_authorized(
+        "deterministic:continuation",
+        {"dispatch_models": ["unknown/model"]}, prefixes), (
+        "a bounded refinement attempt must still be authorized")
 
 
 def test_historical_intended_routes_are_observations_not_gates():

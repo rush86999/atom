@@ -4637,8 +4637,19 @@ def accepted_comparison_scope(
     _BROAD_FIELD = re.compile(
         r"\b(?:all|every|other|remaining|additional|any)\b"
         r"(?:\s+\w+){0,3}\s+"
-        r"(?:fields?|attributes?|columns?|properties?|metrics?)\b"
-        r"|\bany\s+other\s+(?:differences?|discrepanc(?:y|ies))\b"
+        r"(?:fields?|attributes?|columns?|properties?|metrics?|"
+        r"values?|data)\b"
+        # A universal marker directly on the difference noun ("all
+        # differences", "any differences", "every difference"). A
+        # CONCRETE field between the marker and the noun ("any date
+        # difference") is narrow and deliberately does not match.
+        r"|\b(?:all|every|any|other|remaining|additional)\s+"
+        r"(?:differences?|discrepanc(?:y|ies))\b"
+        r"|\b(?:all|any|other|remaining|additional|differing)\s+"
+        r"(?:fields?|attributes?|columns?|properties?|metrics?|values?)\b"
+        r"|\b(?:everything|anything)\s+else\b"
+        r"|\b(?:don't|do\s+not)\s+miss\s+(?:any\s+)?"
+        r"(?:differences?|discrepanc(?:y|ies))\b"
         r"|\b(?:comparable|quotation)\s+fields?\b",
         re.IGNORECASE)
     # The USER's own broad instruction is part of the request contract even
