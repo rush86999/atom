@@ -10,8 +10,8 @@ declared policy itself.
 
 ## Candidate
 
-- Product `8a855d82956cc9274b555b6d4b96ef71d1c66fa9`
-- Launch `8a855d82956c`
+- Product `13d5f1a35a970bc77ff0edc3e3bc344c95698198`
+- Launch `13d5f1a35a97`
 - Frontend `P5jHbHKTzj_38xHIMFoe9`
 - World: 09:19 876 MB snapshot; scratch
   `…/l1-l2-l3-live-rehearsal-20261024-final3`
