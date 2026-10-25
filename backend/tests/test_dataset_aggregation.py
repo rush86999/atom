@@ -771,6 +771,9 @@ async def test_row_identity_must_be_plain_integer_not_expression(tmp_path):
          '__sheet_row FROM df WHERE "Status" = \'Approved\''),
         ('SELECT "__sheet_row", $$ from df $$ FROM '
          '(SELECT unnest([2,3,4]) AS "__sheet_row") x'),
+        'SELECT "__sheet_row" FROM df USING SAMPLE 2 ROWS (reservoir, 7)',
+        'SELECT "__sheet_row" FROM df USING SAMPLE 10 PERCENT',
+        'SELECT "__SHEET_ROW" FROM df',
     ):
         result = await execute_validated_aggregate_plan(
             entries, _plan(po, sql), "PO Register sheet approved totals")
@@ -838,3 +841,63 @@ async def test_nl_plan_projection_cannot_substitute_values(tmp_path, monkeypatch
     }]
     assert result["subtotals"]["CAD"]["value"] == "-700.00"
     assert "75.00" not in result["block"]
+
+
+@pytest.mark.asyncio
+async def test_case_variant_header_cannot_shadow_meta_row(tmp_path):
+    # A user header __SHEET_ROW survives normalization; DuckDB then
+    # renames the real meta __sheet_row to __sheet_row_1. The executor
+    # must fail closed rather than read the lookalike as row identity.
+    df = pd.DataFrame([
+        {"__SHEET_ROW": 5, "PO ID": "0024", "Status": "Approved",
+         "Qty": 10.0, "Unit Price": 500.0, "Currency": "CAD"},
+        {"__SHEET_ROW": 2, "PO ID": "0007", "Status": "Approved",
+         "Qty": 3.0, "Unit Price": 1250.0, "Currency": "CAD"},
+    ])
+    df["__sheet_row"] = [2, 3]
+    path = tmp_path / "collision.parquet"
+    df.to_parquet(path, index=False)
+    entry = {
+        "dataset_name": "wb_collision",
+        "entity_name": "Sheet1",
+        "file_name": "collision.xlsx",
+        "parquet_path": str(path),
+        "content_hash": "abc123",
+        "columns": list(df.columns),
+        "row_count": len(df),
+    }
+    result = await execute_validated_aggregate_plan(
+        [entry],
+        {
+            "dataset_name": "wb_collision",
+            "sql": ('SELECT "__sheet_row", "PO ID", "Status", "Qty", '
+                    '"Unit Price", "Currency" FROM df '
+                    'WHERE "Status" = \'Approved\''),
+            "identity_column": "PO ID",
+            "quantity_column": "Qty",
+            "price_column": "Unit Price",
+            "currency_column": "Currency",
+            "status_column": "Status",
+        },
+        "Sheet1 approved totals",
+    )
+    assert result["status"] == "error"
+    assert "ROW PROVENANCE MISSING" in result["block"]
+
+
+@pytest.mark.asyncio
+async def test_missing_planner_role_is_inferred_from_frame(tmp_path):
+    entries = _entries(tmp_path)
+    adj = next(e for e in entries if e["entity_name"] == "Adjustments")
+    plan = _plan(
+        adj,
+        'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\'',
+        {"quantity_column": ""},
+    )
+    result = await execute_validated_aggregate_plan(
+        entries, plan, "Adjustments sheet approved totals")
+    assert result["status"] == "partial"
+    assert result["gaps"] == [{
+        "identity": "0055", "row": 5, "missing": "quantity", "cell": "C5"
+    }]
+    assert result["subtotals"]["CAD"]["value"] == "-700.00"

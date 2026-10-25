@@ -598,6 +598,11 @@ def _ast_identity_violation(
             "The selection query may not sample rows; the full eligible "
             "selection is required."
         )
+    if node.get("sample") is not None:
+        return (
+            "The selection query may not sample rows; the full eligible "
+            "selection is required."
+        )
     if from_table.get("at_clause"):
         return "Time-travel/AT clauses are not allowed on the dataset."
     if from_table.get("column_name_alias"):
@@ -625,9 +630,9 @@ def _ast_identity_violation(
                 "Project __sheet_row explicitly as a plain column; SELECT * "
                 "is not allowed."
             )
-        alias = str(item.get("alias") or "").strip().lower()
+        alias = str(item.get("alias") or "").strip()
         names = item.get("column_names") or []
-        last = str(names[-1]).lower() if names else ""
+        last = str(names[-1]) if names else ""
         if alias == "__sheet_row" or last == "__sheet_row":
             sheet_refs.append(item)
     if len(sheet_refs) != 1:
@@ -648,6 +653,53 @@ def _ast_identity_violation(
             "the authoritative frame supplies all calculation inputs."
         )
     return None
+
+
+_ROLE_HINTS: Dict[str, Tuple[str, ...]] = {
+    "identity_column": (
+        "po id", "po number", "order id", "order number", "item id",
+        "item number", "reference", "ref", "sku", "code", "id",
+    ),
+    "quantity_column": (
+        "qty", "quantity", "units", "unit quantity",
+    ),
+    "price_column": (
+        "unit price", "price", "unit cost",
+    ),
+    "currency_column": (
+        "currency", "ccy", "curr",
+    ),
+    "status_column": (
+        "status", "state",
+    ),
+}
+
+
+def _norm_role_name(value: str) -> str:
+    return " ".join(
+        re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).split())
+
+
+def _infer_roles(
+    roles: Dict[str, str], columns: List[str]
+) -> Dict[str, str]:
+    """Fill a missing role from an exact generic column-name match.
+
+    The planner sometimes omits or aliases role fields while the frame
+    carries the real names. This is a deterministic frame lookup, not a
+    second model call; ambiguous matches stay missing and fail closed.
+    """
+    normalized = {_norm_role_name(col): col for col in columns}
+    for role, hints in _ROLE_HINTS.items():
+        current = str(roles.get(role) or "")
+        if current and current in columns and current != SHEET_ROW_COL:
+            continue
+        matches = {
+            normalized[hint] for hint in hints if hint in normalized
+        }
+        if len(matches) == 1:
+            roles[role] = next(iter(matches))
+    return roles
 
 
 def _strip_sql_noise(sql: str) -> str:
@@ -826,6 +878,7 @@ async def _execute_selection_plan(
 
         df = pd.read_parquet(chosen["parquet_path"])
         columns = [str(c) for c in df.columns]
+        roles = _infer_roles(roles, columns)
         if roles["identity_column"] in ("", SHEET_ROW_COL):
             # The planner sometimes returns __sheet_row as the identity
             # role even when it projected a real business key. Values
@@ -925,11 +978,8 @@ async def _execute_selection_plan(
             "subtotals": {},
         }
 
-    out_sheet_col = next(
-        (col for col in out.columns
-         if str(col).strip().lower() == SHEET_ROW_COL),
-        None,
-    )
+    out_sheet_col = (
+        SHEET_ROW_COL if SHEET_ROW_COL in out.columns else None)
     if out_sheet_col is None:
         return _error_block(
             "ROW PROVENANCE MISSING",
