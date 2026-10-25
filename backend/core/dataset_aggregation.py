@@ -561,6 +561,17 @@ def _ast_plain_projected_columns(node: Dict[str, Any]) -> List[str]:
     return out
 
 
+def _ast_contains_sample(value: Any) -> bool:
+    """Any SELECT/table node in the tree may carry a sample."""
+    if isinstance(value, dict):
+        if value.get("sample") is not None:
+            return True
+        return any(_ast_contains_sample(v) for v in value.values())
+    if isinstance(value, list):
+        return any(_ast_contains_sample(v) for v in value)
+    return False
+
+
 def _ast_identity_violation(
     node: Dict[str, Any], allowed_tables: List[str]
 ) -> Optional[str]:
@@ -576,6 +587,11 @@ def _ast_identity_violation(
         return (
             "The selection query must be a single SELECT reading the "
             "registered dataset directly; WITH/CTE forms are not allowed."
+        )
+    if _ast_contains_sample(node):
+        return (
+            "The selection query may not sample rows (outer or nested); the "
+            "full eligible selection is required."
         )
     from_table = node.get("from_table") or {}
     if str(from_table.get("type") or "").upper() != "BASE_TABLE":
@@ -593,16 +609,6 @@ def _ast_identity_violation(
     schema = str(from_table.get("schema_name") or "").lower()
     if schema not in ("", "main"):
         return "The selection query may read only the registered dataset."
-    if from_table.get("sample") is not None:
-        return (
-            "The selection query may not sample rows; the full eligible "
-            "selection is required."
-        )
-    if node.get("sample") is not None:
-        return (
-            "The selection query may not sample rows; the full eligible "
-            "selection is required."
-        )
     if from_table.get("at_clause"):
         return "Time-travel/AT clauses are not allowed on the dataset."
     if from_table.get("column_name_alias"):
@@ -689,13 +695,15 @@ def _infer_roles(
     carries the real names. This is a deterministic frame lookup, not a
     second model call; ambiguous matches stay missing and fail closed.
     """
-    normalized = {_norm_role_name(col): col for col in columns}
+    normalized: Dict[str, List[str]] = {}
+    for col in columns:
+        normalized.setdefault(_norm_role_name(col), []).append(col)
     for role, hints in _ROLE_HINTS.items():
         current = str(roles.get(role) or "")
         if current and current in columns and current != SHEET_ROW_COL:
             continue
         matches = {
-            normalized[hint] for hint in hints if hint in normalized
+            col for hint in hints for col in normalized.get(hint, [])
         }
         if len(matches) == 1:
             roles[role] = next(iter(matches))
@@ -849,6 +857,53 @@ async def _execute_selection_plan(
     ast_node, ast_error = _duckdb_ast(sql)
     if ast_error or ast_node is None:
         return _error_block("SQL REJECTED", ast_error)
+    try:
+        import pandas as pd
+
+        df = pd.read_parquet(chosen["parquet_path"])
+        columns = [str(c) for c in df.columns]
+    except Exception as exc:  # noqa: BLE001
+        return _error_block(
+            "AGGREGATION EXECUTION FAILED",
+            f"The materialized sheet could not be read "
+            f"({type(exc).__name__}); no total was computed.",
+        )
+    # Role inference precedes the required-column SQL guard: a planner
+    # that omits quantity_column must not thereby disable the guard.
+    roles = _infer_roles(roles, columns)
+    if roles["identity_column"] in ("", SHEET_ROW_COL):
+        # The planner sometimes returns __sheet_row as the identity
+        # role even when it projected a real business key. Values
+        # still come from the frame; only the ROLE is corrected.
+        _role_cols = {
+            roles["quantity_column"], roles["price_column"],
+            roles["currency_column"], roles["status_column"],
+            SHEET_ROW_COL,
+        }
+        _candidate = next(
+            (
+                name for name in _ast_plain_projected_columns(ast_node)
+                if name in columns and name not in _role_cols
+            ),
+            None,
+        )
+        if _candidate:
+            roles["identity_column"] = _candidate
+    for role, col in roles.items():
+        if col and col not in columns:
+            return _error_block(
+                "COLUMN NOT FOUND",
+                f"The planner named {role}='{col}', which is not a column "
+                "of the materialized sheet. No similar column was substituted.",
+            )
+    for required in ("identity_column", "quantity_column",
+                     "price_column", "currency_column"):
+        if not roles[required]:
+            return _error_block(
+                "REQUIRED COLUMN NOT IDENTIFIED",
+                f"The planner did not identify the {required.replace('_column', '')} "
+                "column; a complete total was withheld.",
+            )
     violation = (
         _validate_dataset_sql(sql)
         or _selection_sql_violation(
@@ -874,44 +929,7 @@ async def _execute_selection_plan(
         dataset_name, sql[:800], roles)
     try:
         import duckdb
-        import pandas as pd
 
-        df = pd.read_parquet(chosen["parquet_path"])
-        columns = [str(c) for c in df.columns]
-        roles = _infer_roles(roles, columns)
-        if roles["identity_column"] in ("", SHEET_ROW_COL):
-            # The planner sometimes returns __sheet_row as the identity
-            # role even when it projected a real business key. Values
-            # still come from the frame; only the ROLE is corrected.
-            _role_cols = {
-                roles["quantity_column"], roles["price_column"],
-                roles["currency_column"], roles["status_column"],
-                SHEET_ROW_COL,
-            }
-            _candidate = next(
-                (
-                    name for name in _ast_plain_projected_columns(ast_node)
-                    if name in columns and name not in _role_cols
-                ),
-                None,
-            )
-            if _candidate:
-                roles["identity_column"] = _candidate
-        for role, col in roles.items():
-            if col and col not in columns:
-                return _error_block(
-                    "COLUMN NOT FOUND",
-                    f"The planner named {role}='{col}', which is not a column "
-                    "of the materialized sheet. No similar column was substituted.",
-                )
-        for required in ("identity_column", "quantity_column",
-                         "price_column", "currency_column"):
-            if not roles[required]:
-                return _error_block(
-                    "REQUIRED COLUMN NOT IDENTIFIED",
-                    f"The planner did not identify the {required.replace('_column', '')} "
-                    "column; a complete total was withheld.",
-                )
         source_status_counts: Dict[str, int] = {}
         if roles["status_column"] and roles["status_column"] in columns:
             status_series = (

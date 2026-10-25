@@ -773,6 +773,9 @@ async def test_row_identity_must_be_plain_integer_not_expression(tmp_path):
          '(SELECT unnest([2,3,4]) AS "__sheet_row") x'),
         'SELECT "__sheet_row" FROM df USING SAMPLE 2 ROWS (reservoir, 7)',
         'SELECT "__sheet_row" FROM df USING SAMPLE 10 PERCENT',
+        ('SELECT "__sheet_row" FROM df WHERE "__sheet_row" IN '
+         '(SELECT "__sheet_row" FROM df USING SAMPLE 2 ROWS '
+         '(reservoir, 7))'),
         'SELECT "__SHEET_ROW" FROM df',
     ):
         result = await execute_validated_aggregate_plan(
@@ -901,3 +904,56 @@ async def test_missing_planner_role_is_inferred_from_frame(tmp_path):
         "identity": "0055", "row": 5, "missing": "quantity", "cell": "C5"
     }]
     assert result["subtotals"]["CAD"]["value"] == "-700.00"
+
+
+@pytest.mark.asyncio
+async def test_missing_role_inference_cannot_bypass_required_column_guard(
+        tmp_path):
+    entries = _entries(tmp_path)
+    adj = next(e for e in entries if e["entity_name"] == "Adjustments")
+    plan = _plan(
+        adj,
+        'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+        'AND "Qty" > 0',
+        {"quantity_column": ""},
+    )
+    result = await execute_validated_aggregate_plan(
+        entries, plan, "Adjustments sheet approved totals")
+    assert result["status"] == "error"
+    assert "SQL REJECTED" in result["block"]
+    assert "required input column 'Qty'" in result["block"]
+
+
+@pytest.mark.asyncio
+async def test_ambiguous_normalized_role_names_fail_closed(tmp_path):
+    df = pd.DataFrame([
+        {"PO ID": "0007", "Status": "Approved", "Qty": 1.0,
+         "Qty.": 10.0, "Unit Price": 2.0, "Currency": "CAD",
+         "__sheet_row": 2},
+    ])
+    path = tmp_path / "ambiguous_roles.parquet"
+    df.to_parquet(path, index=False)
+    entry = {
+        "dataset_name": "wb_ambiguous",
+        "entity_name": "Sheet1",
+        "file_name": "ambiguous.xlsx",
+        "parquet_path": str(path),
+        "content_hash": "abc123",
+        "columns": list(df.columns),
+        "row_count": len(df),
+    }
+    result = await execute_validated_aggregate_plan(
+        [entry],
+        {
+            "dataset_name": "wb_ambiguous",
+            "sql": 'SELECT "__sheet_row" FROM df',
+            "identity_column": "PO ID",
+            "quantity_column": "",
+            "price_column": "Unit Price",
+            "currency_column": "Currency",
+            "status_column": "Status",
+        },
+        "Sheet1 approved totals",
+    )
+    assert result["status"] == "error"
+    assert "REQUIRED COLUMN NOT IDENTIFIED" in result["block"]
