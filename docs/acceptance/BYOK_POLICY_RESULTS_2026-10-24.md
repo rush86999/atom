@@ -54,19 +54,24 @@ not pass.
 
 ## Current status
 
-The edit/no-op repair and the S7 degraded-continuation repair are complete
-and verified on the final code; see `EDIT_NOOP_REPAIR_2026-10-24.md` and
-`S7_CONTINUATION_REPAIR_2026-10-24.md`. The earlier "accept attempt-9
-evidence and cut over" option is withdrawn: attempt 9 is pre-BYOK code and
-cannot be transferred to the current candidate.
+The edit/no-op repair and the S7 date-only behavior are closed on their
+narrow scopes; see `EDIT_NOOP_REPAIR_2026-10-24.md` and
+`S7_CONTINUATION_REPAIR_2026-10-24.md`. The final local batch
+(`55b13cd2f`) closes the two review residuals — unresolved mixed sources
+surviving every completion path, and additional mutation/insertion/send
+clauses blocking read-only completion — and adds explicit refinement
+status plus the pilot preflight. **421 focused tests passed**; the two
+`test_fallback_honesty` receipt fixtures remain pre-existing failures on
+parent `73bcae400`.
 
-Attempt 15 (product `a7b17bb38`) passed **61/62** checks: every functional,
-scope, write, settlement, restart and provider-policy check passed. The sole
-failure is `pilot_untouched`, because the pilot backend :8001 and frontend
-:3000 were already down before the rehearsal (both identity captures null,
-connection refused). The candidate ran on isolated :8121. This is an
-environmental guard failure, not a product-check failure, but it means the
-workflow is not a clean pass yet.
+Attempt 15 (product `a7b17bb38`, before the final local batch) is
+preserved as **functional verification passed; original
+pilot-preservation assertion not established**. It is **not 62/62**. Every
+functional, scope, write, settlement, restart and provider-policy check
+passed; the sole failure was `pilot_untouched`, because the pilot backend
+:8001 and frontend :3000 were already down before the rehearsal (both
+identity captures null, connection refused). The candidate ran on
+isolated :8121.
 
 The provider contract is now policy-derived: `automatic` authorizes the
 configured DeepSeek/Ollama/OpenCode Go/OpenRouter set; historical
@@ -74,12 +79,20 @@ Ollama/DeepSeek intended-route observations are recorded but no longer
 gate the pass. `provider_policy_declared`, `provider_policy_respected`,
 `provider_reply_authorized` and `provider_structured_authorized` passed.
 
-Still open:
+**Release decision: HOLD.** Still open:
 
-- restore/authorize the pilot and re-run the pilot guard (or explicitly
-  accept its absence) before calling the workflow clean;
-- no cutover has been executed; the pilot code remains `8c593e57031e` but
-  its :8001/:3000 processes are currently absent.
+- verify the pilot's actual listener/process/store state before any
+  operational action; restore/authorize it only with the verified
+  launcher/configuration and run one fresh `final4` campaign (the default
+  required-pilot preflight stops before launch while it is absent); or
+- explicitly declare a no-pilot environment with
+  `ATOM_REHEARSAL_NO_PILOT_ASSERTION` and accept the different
+  `no_pilot_isolation_asserted` gate.
+- No cutover has been executed. The pilot deployment/processes are
+  currently absent; this work did not start or restore them.
+
+No provider experiment, deadline increase, or unchanged full campaign was
+run for this local batch.
 
 Evidence: `release_evidence_20261024/byok_policy_attempts/` (attempts
 10–15 preserved) and `release_evidence_20261024/cutover_09cccb5b0/`
