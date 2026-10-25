@@ -766,11 +766,13 @@ def _interpretation_route_authorized(
 #: Unknown ids fail closed: the policy check cannot authorize a route it
 #: cannot map.
 _PROVIDER_POST_PREFIXES = {
-    "deepseek": ("https://api.deepseek.com/v1",),
-    "ollama": ("http://localhost:11434/v1",
-               "http://127.0.0.1:11434/v1"),
-    "opencode-go": ("https://opencode.ai/zen/go/v1",),
-    "openrouter": ("https://openrouter.ai/api/v1",),
+    # Trailing slash is deliberate: it prevents a host-suffix trick such
+    # as .../v1.evil from passing a startswith() check.
+    "deepseek": ("https://api.deepseek.com/v1/",),
+    "ollama": ("http://localhost:11434/v1/",
+               "http://127.0.0.1:11434/v1/"),
+    "opencode-go": ("https://opencode.ai/zen/go/v1/",),
+    "openrouter": ("https://openrouter.ai/api/v1/",),
 }
 
 

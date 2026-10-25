@@ -174,6 +174,70 @@ def test_mixed_source_family_is_not_certified_from_one_family(monkeypatch):
     assert req["identity"].get("names") == ["approved record"], req
 
 
+def test_resolved_empty_source_record_is_filled_from_the_named_reference(
+        monkeypatch):
+    """A schema-valid model record with sources=[] made NO source
+    decision. It must not erase the request's named reference into
+    kind_only; the deterministic fill supplies the same binding the
+    degraded path would."""
+    session = _session((PRIOR_FILE,))
+    decision = build_turn_decision(S7_ASK, session, [])
+    empty = dict(_degraded())
+    empty.update({
+        "origin": "llm:test-model",
+        "scope_change": "continue",
+        "sources": [],
+    })
+    composed = apply_degraded_continuation_references(
+        decision, empty, session, S7_ASK, fill_missing_source=True)
+    marker = composed["references"]["continuation_evidence"]
+    assert marker["state"] == "resolved", marker
+    assert composed["references"]["file"] == {"file_name": PRIOR_FILE}
+    req = _requirement(composed, accepted=empty, monkeypatch=monkeypatch)
+    assert req["required"] is True, req
+    assert req["identity"]["state"] == "resolved", req
+    assert req["identity"]["file_name"] == PRIOR_FILE, req
+
+
+def test_floor_file_plus_named_record_is_an_unresolved_mixed_obligation(
+        monkeypatch):
+    message = ("Does the Valid until date in catalog_2019.xlsx match the "
+               "draft and the approved record?")
+    session = _session((PRIOR_FILE,))
+    decision = build_turn_decision(message, session, [])
+    assert decision["references"].get("file")
+    composed = apply_degraded_continuation_references(
+        decision, _degraded(), session, message)
+    marker = composed["references"]["continuation_evidence"]
+    assert marker["state"] == "unresolved", marker
+    assert marker.get("mixed_source_families") == (
+        "floor_file_and_named_reference"), marker
+    req = _requirement(composed, message=message, monkeypatch=monkeypatch)
+    assert req["identity"]["state"] == "unresolved", req
+    assert req["identity"]["names"] == ["approved record"], req
+    _floor_file = req.get("file") or {}
+    assert "catalog_2019.xlsx" in str(
+        _floor_file.get("name") or _floor_file.get("file_name") or ""), req
+
+
+def test_bare_back_reference_resolves_the_sole_observed_source():
+    for message in (
+            "Does the Valid until date still match the same document?",
+            "Does the Valid until date still match the record?",
+            "Does the Valid until date still match the file?"):
+        _decision, composed, _session_ = _compose(
+            message=message, observed_files=(PRIOR_FILE,))
+        marker = composed["references"]["continuation_evidence"]
+        assert marker["state"] == "resolved", (message, marker)
+        assert marker["resolved_file"] == PRIOR_FILE, (message, marker)
+
+    _decision, ambiguous, _session_ = _compose(
+        message="Does the Valid until date still match the same document?",
+        observed_files=(PRIOR_FILE, OTHER_FILE))
+    marker = ambiguous["references"]["continuation_evidence"]
+    assert marker["state"] == "ambiguous", marker
+
+
 def test_casual_source_mention_is_not_an_evidence_request():
     message = "Thanks, the approved record was helpful."
     session = _session((PRIOR_FILE,))
@@ -228,6 +292,52 @@ def test_named_source_identifier_is_preserved(monkeypatch):
     assert marker["state"] == "unresolved", marker
     assert "approved_records_B.txt" not in str(marker)
     assert unresolved["references"].get("file") is None
+
+
+def test_concrete_date_difference_stays_narrow_and_fast_pathed(monkeypatch):
+    """`any date difference` is a concrete field scope, not a
+    whole-document obligation. It must stay narrow AND get the bounded
+    refinement instead of the full interpretation wait."""
+    message = ("Compare the valid until date and flag any date difference "
+               "with the approved record.")
+    session = _session((PRIOR_FILE,))
+    decision = build_turn_decision(message, session, [])
+    assert deterministic_continuation_ready(
+        message, session, decision) is not None
+    composed = apply_degraded_continuation_references(
+        decision, _degraded(), session, message)
+    req = _requirement(composed, message=message, monkeypatch=monkeypatch)
+    assert req["broader_comparison"] is False, req
+
+
+def test_compound_action_vetoes_cover_bare_objects_and_adjectives():
+    one = _session((PRIOR_FILE,))
+    for mixed in (
+            "Check the valid until date matches the approved record and "
+            "prepare summary for the client.",
+            "Check the valid until date matches the approved record and "
+            "compose reply for the client.",
+            "Check the valid until date matches the approved record and "
+            "rewrite the summary.",
+            "Check the valid until date matches the approved record and "
+            "revise the summary.",
+            "Check the valid until date matches the approved record and "
+            "adjust the terms.",
+            "Check the valid until date matches the approved record and "
+            "insert the client name."):
+        decision = build_turn_decision(mixed, one, [])
+        assert deterministic_continuation_ready(
+            mixed, one, decision) is None, mixed
+    for adjective in (
+            "Does the valid until date on the updated draft match the "
+            "approved record?",
+            "Does the valid until date on the corrected draft match the "
+            "approved record?",
+            "Does the valid until date on the edited draft match the "
+            "approved record?"):
+        decision = build_turn_decision(adjective, one, [])
+        assert deterministic_continuation_ready(
+            adjective, one, decision) is not None, adjective
 
 
 def test_no_named_source_changes_nothing():
@@ -321,6 +431,12 @@ def test_broad_phrasings_are_not_fast_pathed_and_stay_broad(monkeypatch):
         "approved record.",
         "Does the price match, and is everything else consistent with the "
         "approved record?",
+        "Compare the price and check everything on the draft against the "
+        "approved record.",
+        "Compare the price and all of it against the approved record.",
+        "Compare the price and every part of the draft against the "
+        "approved record.",
+        "Compare the price and check the rest against the approved record.",
     )
     session = _session((PRIOR_FILE,))
     for message in messages:

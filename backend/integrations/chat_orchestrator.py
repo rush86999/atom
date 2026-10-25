@@ -6205,25 +6205,18 @@ def _build_evidence_requirement(
     _cont = refs.get("continuation_evidence") if isinstance(
         refs.get("continuation_evidence"), dict) else None
     _cont_state = str((_cont or {}).get("state") or "")
-    if file_ref and (file_ref.get("file_name") or file_ref.get("name")
-                     or file_ref.get("resource_id")):
-        identity = _resolve_requirement_identity(
-            [str(file_ref.get("file_name") or file_ref.get("name") or "")],
-            workspace_id)
-        if (identity.get("state") == "unresolved"
-                and file_ref.get("resource_id")):
-            identity = {
-                "state": "resolved",
-                "file_id": str(file_ref.get("resource_id")),
-                "file_name": (file_ref.get("file_name")
-                              or file_ref.get("name")),
-            }
-    elif _cont is not None and _cont_state in ("ambiguous", "unresolved"):
+    if _cont is not None and _cont_state in ("ambiguous", "unresolved"):
         # L2 correction (2026-10-18, owner review): the reference
         # resolution preserved an AMBIGUOUS or UNRESOLVED antecedent —
         # carry that state into the requirement's identity verbatim
         # (the settlement reports the clarification / the honest
         # non-match; never a silently chosen source).
+        #
+        # MIXED-SOURCE PRECEDENCE (2026-10-24): an unresolved named
+        # reference blocks completion even when a floor file exists. The
+        # floor file stays in `references.file`/`sources`, but the
+        # identity is the unaccounted obligation, not a one-source
+        # certification.
         if _cont_state == "ambiguous":
             identity = {
                 "state": "ambiguous",
@@ -6238,6 +6231,19 @@ def _build_evidence_requirement(
                 "state": "unresolved",
                 "names": [str(n)[:120]
                           for n in (_cont.get("names") or [])][:4],
+            }
+    elif file_ref and (file_ref.get("file_name") or file_ref.get("name")
+                       or file_ref.get("resource_id")):
+        identity = _resolve_requirement_identity(
+            [str(file_ref.get("file_name") or file_ref.get("name") or "")],
+            workspace_id)
+        if (identity.get("state") == "unresolved"
+                and file_ref.get("resource_id")):
+            identity = {
+                "state": "resolved",
+                "file_id": str(file_ref.get("resource_id")),
+                "file_name": (file_ref.get("file_name")
+                              or file_ref.get("name")),
             }
     elif mentions:
         identity = _resolve_requirement_identity(
@@ -10831,6 +10837,30 @@ class ChatOrchestrator:
                                     "reference") or {}).get(
                                         "resolved_file"),
                                 (_det_continuation.get("fields") or [""])[0])
+                        if (_det_continuation is not None
+                                and isinstance(_td_interpretation, dict)):
+                            _interp_actions = [
+                                action for action in (
+                                    _td_interpretation.get("actions") or [])
+                                if isinstance(action, dict)]
+                            if not any(
+                                    action.get("kind") == "research"
+                                    for action in _interp_actions):
+                                # The bounded shape IS a read-only
+                                # comparison. A schema-valid model record
+                                # that left actions empty still needs the
+                                # same truthful action receipt; this adds
+                                # no capability and changes no source or
+                                # scope decision.
+                                _td_interpretation = dict(
+                                    _td_interpretation)
+                                _td_interpretation["actions"] = [
+                                    *_interp_actions,
+                                    {"kind": "research",
+                                     "authorization": "granted",
+                                     "note": "deterministic read-only "
+                                             "continuation"},
+                                ]
                         # L2 repair (2026-10-18): CONSUME the resolved
                         # interpretation's source references when the
                         # deterministic floor found none. A continuation
@@ -10853,8 +10883,19 @@ class ChatOrchestrator:
                         # This composes only the durable reference; it never
                         # invents an action, source, or authorization, and
                         # a resolved interpretation is untouched.
+                        _refs_before_fill = dict(
+                            _td.get("references") or {})
                         _td = apply_degraded_continuation_references(
-                            _td, _td_interpretation, session, message)
+                            _td, _td_interpretation, session, message,
+                            fill_missing_source=True)
+                        if dict(_td.get("references") or {}) != (
+                                _refs_before_fill):
+                            # The fill composed a reference the model left
+                            # out. Re-run the observation seam (pure) so
+                            # the harness's LAST apply event carries the
+                            # same refs the requirement consumes.
+                            _td = apply_interpretation_references(
+                                _td, _td_interpretation, session)
                         _td_decision = _td
                         _td_sources = ((_td.get("references")
                                         or {}).get("sources")) or []

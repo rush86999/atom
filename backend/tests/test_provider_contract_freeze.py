@@ -44,7 +44,7 @@ def test_automatic_authorizes_every_configured_provider():
     assert contract["valid"] is True
     assert contract["authorized"] == PROVIDERS
     assert "openrouter/" in contract["route_prefixes"]
-    assert "https://openrouter.ai/api/v1" in contract["post_prefixes"]
+    assert "https://openrouter.ai/api/v1/" in contract["post_prefixes"]
 
 
 def test_selected_authorizes_only_the_declared_subset():
@@ -104,6 +104,15 @@ def test_policy_violations_fail_closed():
     ]
     assert runner._provider_policy_violations(posts, ()) == posts, (
         "an empty authorization set must reject every POST")
+    automatic = runner._authorized_provider_contract({
+        "mode": "automatic",
+        "allowed_providers": [],
+        "approved_providers": PROVIDERS,
+    })
+    assert runner._provider_policy_violations(
+        ["https://api.deepseek.com/v1.evil/chat/completions"],
+        automatic["post_prefixes"]), (
+        "a host-suffix trick must not pass a startswith check")
 
 
 def test_deterministic_continuation_is_authorized_without_a_model():

@@ -1754,6 +1754,53 @@ class TestL2ContinuationChain:
         assert session[PRIOR_REQ_KEY]["broader_comparison"] is True
         assert req["broader_comparison"] is False
 
+    def test_resolved_empty_source_model_still_binds_the_named_reference(
+            self, scoped_world, world_app, monkeypatch):
+        """A schema-valid model record with sources=[] made no source
+        decision. The real turn must fill the named reference instead of
+        falling back to kind_only and certifying a memory answer."""
+        empty = dict(_resolved_interpretation())
+        empty["sources"] = []
+        empty["requested_fields"] = []
+        empty["actions"] = []
+        empty["origin"] = "llm:test-model"
+        accepted = {}
+
+        import core.turn_decision as td
+
+        _orig_apply = td.apply_interpretation_references
+
+        def _capture_apply(decision, interpretation, session_arg):
+            if isinstance(interpretation, dict):
+                accepted.setdefault("actions", [
+                    str(action.get("kind") or "")
+                    for action in (interpretation.get("actions") or [])
+                    if isinstance(action, dict)])
+            return _orig_apply(decision, interpretation, session_arg)
+
+        monkeypatch.setattr(
+            td, "apply_interpretation_references", _capture_apply)
+        session_out = {}
+        out, session, ep = _drive_continuation_turn(
+            scoped_world, world_app, interpretation=empty,
+            canvas=S7_CANVAS, session_out=session_out,
+            persist_history=True)
+        eid, req = _turn_requirement(session, out)
+        assert req.get("required") is True, req
+        assert req.get("sources") == ["document"], req
+        assert req.get("fields") == ["expiration_date"], req
+        assert req.get("broader_comparison") is False, req
+        identity = req.get("identity") or {}
+        assert identity.get("state") == "resolved", identity
+        assert identity.get("file_name") == PRIOR_FILE, identity
+        verdict, settled = _settlement_from_turn(
+            session, eid, session_out["workspace_id"])
+        assert verdict and verdict.get("state") == "completed", verdict
+        assert settled.get("state") == "completed", settled
+        assert str(out.get("message") or "").startswith(
+            "Verified comparison"), out.get("message")
+        assert "research" in (accepted.get("actions") or []), accepted
+
     def test_degraded_ambiguous_source_clarifies_without_selecting(
             self, scoped_world, world_app, monkeypatch):
         """Two observed candidates for the named reference: the turn

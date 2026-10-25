@@ -4648,6 +4648,13 @@ def accepted_comparison_scope(
         r"|\b(?:all|any|other|remaining|additional|differing)\s+"
         r"(?:fields?|attributes?|columns?|properties?|metrics?|values?)\b"
         r"|\b(?:everything|anything)\s+else\b"
+        r"|\b(?:all|any)\s+of\s+(?:it|them|these|those)\b"
+        r"|\bevery\s+part\b"
+        r"|\bthe\s+rest\b"
+        r"|\b(?:check|compare|assess|verify|against|consistent|matches?|"
+        r"differs?)\b[^\n]{0,60}\beverything\b"
+        r"|\beverything\b[^\n]{0,60}\b(?:against|consistent|matches?|"
+        r"differs?)\b"
         r"|\b(?:don't|do\s+not)\s+miss\s+(?:any\s+)?"
         r"(?:differences?|discrepanc(?:y|ies))\b"
         r"|\b(?:comparable|quotation)\s+fields?\b",
@@ -4657,9 +4664,17 @@ def accepted_comparison_scope(
     # field. "Flag anything that differs" is a whole-document obligation,
     # not a date-only match question. Explicit narrowing still wins.
     _BROAD_MESSAGE = re.compile(
+        # "flag anything that differs" / "check everything that differs"
         r"\b(?:flag|report|identify|list|show|assess|check)\b"
-        r"[^\n]{0,40}\b(?:anything|everything|all|any|other)\b"
-        r"[^\n]{0,30}\b(?:differs?|differences?|discrepanc(?:y|ies))\b",
+        r"[^\n]{0,40}\b(?:anything|everything)\b"
+        r"[^\n]{0,30}\b(?:differs?|differences?|discrepanc(?:y|ies))\b"
+        # "flag any differences" / "flag all other differences". A
+        # concrete field between the quantifier and the noun ("flag any
+        # date difference") is NARROW and deliberately does not match.
+        r"|\b(?:flag|report|identify|list|show|assess|check)\b"
+        r"[^\n]{0,40}\b(?:all|any|other)\b"
+        r"(?:\s+(?:other|remaining|additional|differing))?\s+"
+        r"(?:differs?|differences?|discrepanc(?:y|ies))\b",
         re.IGNORECASE)
     relevant = [text for text in candidates
                 if comparison_request_shaped(text)

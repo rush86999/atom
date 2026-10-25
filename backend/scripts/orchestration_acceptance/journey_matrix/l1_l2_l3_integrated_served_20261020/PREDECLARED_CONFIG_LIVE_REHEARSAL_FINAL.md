@@ -50,11 +50,12 @@ ATOM_LLM_PROVIDER_POLICY={"mode":"automatic","allowed_providers":[]}
   `provider_routes.historical_intended_route_checks` but do not decide
   the pass.
 - The S7 date-only follow-up may take at most a 5s optional model
-  refinement. If that does not resolve, the explicit
-  `deterministic:continuation` record is used: source bound to the
-  observed approved record, exactly `expiration_date`,
-  `broader_comparison` false, zero writes. Any refinement attempt must
-  still use an authorized route.
+  refinement. If the model does not resolve — timeout, unresolved
+  origin, or a schema-valid record that names no source — the
+  deterministic reference fill is used: source bound to the observed
+  approved record, exactly `expiration_date`, `broader_comparison`
+  false, zero writes. Any refinement attempt must still use an
+  authorized route.
 - A genuinely broad follow-up stays broad (whole-document obligation
   open), and an ambiguous source clarifies without selecting one.
 - The cutover request, if any, must explicitly accept the actual
