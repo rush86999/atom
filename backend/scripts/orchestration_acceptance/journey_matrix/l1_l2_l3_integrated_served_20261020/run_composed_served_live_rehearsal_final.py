@@ -162,17 +162,36 @@ S7_ASK = (
     "match the approved record?")
 
 
-def l3_answer_contract(message: str) -> bool:
-    """The declared L3 answer contract: expected code, no decoy.
+_L3_DECOY_DISCLAIMERS = (
+    "not relevant", "irrelevant", "not the launch code", "not the answer",
+    "different project", "archive key", "decoy", "belongs to project halcyon",
+    "not for project zephyr",
+)
 
-    Kept as a named predicate so the answer-boundary replay can exercise
-    the same contract the campaign checks.
+
+def l3_answer_contract(message: str) -> bool:
+    """The declared L3 answer contract: expected code, decoy not served.
+
+    A decoy mention is allowed ONLY when the same sentence/adjacent clause
+    explicitly disclaims it as not the answer (different project, archive
+    key, decoy, irrelevant). Merely naming the decoy as another project's
+    launch code is not enough; that was the historical failure this
+    predicate guards.
     """
     text = str(message or "")
-    return bool(
-        L3_EXPECTED_CODE in text
-        and L3_DECOY_CODE not in text
-        and "needs to be connected" not in text.casefold())
+    if (L3_EXPECTED_CODE not in text
+            or "needs to be connected" in text.casefold()):
+        return False
+    if L3_DECOY_CODE not in text:
+        return True
+    sentences = re.split(r"(?<=[.!?])\s+|\n+", text)
+    for index, sentence in enumerate(sentences):
+        if L3_DECOY_CODE not in sentence:
+            continue
+        window = " ".join(sentences[index:index + 2]).casefold()
+        if not any(marker in window for marker in _L3_DECOY_DISCLAIMERS):
+            return False
+    return True
 
 WRONG_VALUES = ("2026-11-30", "2026-10-31", "2025-12-31")
 GLOBAL_CLAIMS = (
