@@ -763,6 +763,14 @@ async def test_row_identity_must_be_plain_integer_not_expression(tmp_path):
         'WITH x AS (SELECT 2 AS __sheet_row) SELECT __sheet_row FROM x',
         'SELECT __sheet_row FROM (SELECT 2 AS __sheet_row) x',
         'SELECT __sheet_row FROM df, df d',
+        # Review bypasses: a line comment split the hand parser, and a
+        # dollar-quoted string hid the real derived-table FROM.
+        ('SELECT CASE WHEN "PO ID" = \'0007\' THEN 2 '
+         'WHEN "PO ID" = \'0012\' THEN 3 '
+         'WHEN "PO ID" = \'0055\' THEN 4 END --,\n'
+         '__sheet_row FROM df WHERE "Status" = \'Approved\''),
+        ('SELECT "__sheet_row", $$ from df $$ FROM '
+         '(SELECT unnest([2,3,4]) AS "__sheet_row") x'),
     ):
         result = await execute_validated_aggregate_plan(
             entries, _plan(po, sql), "PO Register sheet approved totals")

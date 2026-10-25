@@ -17,6 +17,7 @@ It deliberately does not add another SQL engine or formula evaluator.
 """
 from __future__ import annotations
 
+import json
 import logging
 import math
 import numbers
@@ -516,193 +517,135 @@ def aggregate_selected_rows(
     return result
 
 
-def _split_top_level_items(body: str) -> List[str]:
-    items: List[str] = []
-    start = 0
-    depth = 0
-    quote: Optional[str] = None
-    i = 0
-    while i < len(body):
-        ch = body[i]
-        if quote:
-            if ch == quote:
-                if i + 1 < len(body) and body[i + 1] == quote:
-                    i += 2
-                    continue
-                quote = None
-            i += 1
-            continue
-        if ch in ("'", '"'):
-            quote = ch
-        elif ch == "(":
-            depth += 1
-        elif ch == ")":
-            depth = max(0, depth - 1)
-        elif ch == "," and depth == 0:
-            items.append(body[start:i].strip())
-            start = i + 1
-        i += 1
-    items.append(body[start:].strip())
-    return [item for item in items if item]
+def _duckdb_ast(sql: str) -> Tuple[Optional[Dict[str, Any]], str]:
+    """Parse SQL with DuckDB's own parser (no execution)."""
+    import duckdb
 
-
-def _outer_select_bounds(sql: str) -> Optional[Tuple[int, int]]:
-    """(end of outermost SELECT keyword, start of its FROM)."""
-    lower = sql.lower()
-    depth = 0
-    quote: Optional[str] = None
-    selects: List[int] = []
-    froms: List[int] = []
-    last_word = ""
-    i = 0
-    while i < len(sql):
-        ch = sql[i]
-        if quote:
-            if ch == quote:
-                if i + 1 < len(sql) and sql[i + 1] == quote:
-                    i += 2
-                    continue
-                quote = None
-            i += 1
-            continue
-        if ch in ("'", '"'):
-            quote = ch
-            i += 1
-            continue
-        if ch == "(":
-            depth += 1
-            i += 1
-            continue
-        if ch == ")":
-            depth = max(0, depth - 1)
-            i += 1
-            continue
-        if depth == 0 and (ch.isalpha() or ch == "_"):
-            j = i + 1
-            while j < len(sql) and (sql[j].isalnum() or sql[j] == "_"):
-                j += 1
-            word = lower[i:j]
-            if word == "select":
-                selects.append(j)
-            elif word == "from" and last_word != "distinct":
-                froms.append(i)
-            last_word = word
-            i = j
-            continue
-        i += 1
-    for select_end in reversed(selects):
-        outer_from = next((f for f in froms if f > select_end), None)
-        if outer_from is not None:
-            return select_end, outer_from
-    return None
-
-
-def _outer_select_items(sql: str) -> List[str]:
-    """Select-list items of the outermost SELECT."""
-    bounds = _outer_select_bounds(sql)
-    if bounds is None:
-        return []
-    select_end, outer_from = bounds
-    return _split_top_level_items(sql[select_end:outer_from])
-
-
-def _sheet_row_projection_violation(sql: str) -> Optional[str]:
-    """Row identity must be selected as a role/reference, never computed.
-
-    The calculation inputs are read from the authoritative frame. If
-    ``__sheet_row`` itself is produced by CASE/arithmetic, the SQL can
-    choose arbitrary real rows and bypass the predicate.
-    """
-    items = _outer_select_items(sql)
-    if not items:
-        return None
-    has_star = False
-    found = False
-    for item in items:
-        normalized = re.sub(r"\s+", "", item)
-        if normalized == "*" or normalized.endswith(".*"):
-            has_star = True
-            continue
-        if "__sheet_row" not in normalized.lower():
-            continue
-        found = True
-        if not re.fullmatch(
-                r'(?:"?[A-Za-z_][A-Za-z0-9_]*"?\.)?'
-                r'(?:"__sheet_row"|__sheet_row)',
-                normalized):
-            return (
-                "The selection query must project __sheet_row as a plain "
-                "column reference (never an expression or alias); the "
-                "authoritative frame supplies all calculation inputs."
-            )
-    if not found and not has_star:
-        return (
-            "The selection query must project __sheet_row; the harness "
-            "reads the selected rows from the authoritative frame."
+    con = duckdb.connect()
+    try:
+        raw = con.execute(
+            "SELECT json_serialize_sql(?)", [sql]).fetchone()[0]
+    except Exception as exc:  # noqa: BLE001
+        return None, f"SQL could not be parsed ({type(exc).__name__})."
+    finally:
+        con.close()
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        return None, "SQL parser returned an unreadable structure."
+    if parsed.get("error"):
+        return None, (
+            "SQL could not be parsed: "
+            + str(parsed.get("error_message") or "syntax error")[:200]
         )
-    return None
+    statements = parsed.get("statements") or []
+    if len(statements) != 1:
+        return None, "Only one SELECT statement is allowed."
+    node = (statements[0] or {}).get("node") or {}
+    if node.get("type") != "SELECT_NODE":
+        return None, "Only a SELECT statement is allowed."
+    return node, ""
 
 
-def _plain_projected_columns(sql: str) -> List[str]:
+def _ast_plain_projected_columns(node: Dict[str, Any]) -> List[str]:
     """Plain column references in the outer projection (no expressions)."""
     out: List[str] = []
-    for item in _outer_select_items(sql):
-        text = item.strip()
-        if not text or text == "*" or text.endswith(".*"):
+    for item in node.get("select_list") or []:
+        if str(item.get("class") or "").upper() != "COLUMN_REF":
             continue
-        if re.search(r"\s+as\s+", text, re.IGNORECASE):
+        if str(item.get("alias") or "").strip():
             continue
-        if any(token in text for token in ("(", ")", "+", "-", "/", "*",
-                                           "||", "=", "<", ">")):
-            continue
-        match = re.fullmatch(
-            r'(?:(?:"[^"]+"|[A-Za-z_][A-Za-z0-9_]*)\.)?'
-            r'(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*))',
-            text)
-        if match:
-            out.append(match.group(1) or match.group(2))
+        names = item.get("column_names") or []
+        if names and str(names[-1]):
+            out.append(str(names[-1]))
     return out
 
 
-def _table_binding_violation(
-    sql: str, allowed_tables: List[str]
+def _ast_identity_violation(
+    node: Dict[str, Any], allowed_tables: List[str]
 ) -> Optional[str]:
-    """Only the directly registered frame may supply row identities.
+    """Structural membership binding via DuckDB's parsed AST.
 
-    CTEs and derived tables can compute a real-looking ``__sheet_row``
-    without touching the bound frame; fail closed (2026-10-25 final
-    correction).
+    The outer query must read the registered BASE_TABLE directly; the
+    outer projection must contain exactly one plain __sheet_row column
+    reference and no computed/aliased replacement. Comments, dollar
+    quotes, CTEs, derived tables, joins and samples cannot hide that
+    shape from the parser.
     """
-    if re.match(r"(?is)^\s*with\b", sql):
+    if (node.get("cte_map") or {}).get("map"):
         return (
             "The selection query must be a single SELECT reading the "
             "registered dataset directly; WITH/CTE forms are not allowed."
         )
-    bounds = _outer_select_bounds(sql)
-    if bounds is None:
-        return "The selection query must read the registered dataset."
-    suffix = sql[bounds[1] + 4:]  # after the outer FROM keyword
-    if re.match(r"(?is)^\s*\(", suffix):
+    from_table = node.get("from_table") or {}
+    if str(from_table.get("type") or "").upper() != "BASE_TABLE":
         return (
             "The selection query must read the registered dataset directly; "
-            "derived tables/subqueries in FROM are not allowed."
+            "derived tables, joins and table functions are not allowed."
         )
-    match = re.match(
-        r"(?is)^\s+(\"[^\"]+\"|'[^']+'|[^\s,;()]+)", suffix)
-    if not match:
-        return "The selection query must read the registered dataset."
-    table = match.group(1).strip().strip('"').strip("'")
-    remainder = suffix[match.end():].lstrip()
-    if remainder.startswith(","):
-        return (
-            "The selection query may read only the registered dataset; "
-            "comma-separated/joined tables are not allowed."
-        )
+    table = str(from_table.get("table_name") or "").lower()
     allowed = {str(name).lower() for name in allowed_tables if name}
-    if table.lower() not in allowed:
+    if table not in allowed:
         return (
             f"The selection query reads '{table}', but only the registered "
             "dataset may supply row identities."
+        )
+    schema = str(from_table.get("schema_name") or "").lower()
+    if schema not in ("", "main"):
+        return "The selection query may read only the registered dataset."
+    if from_table.get("sample") is not None:
+        return (
+            "The selection query may not sample rows; the full eligible "
+            "selection is required."
+        )
+    if from_table.get("at_clause"):
+        return "Time-travel/AT clauses are not allowed on the dataset."
+    if from_table.get("column_name_alias"):
+        return "Renaming columns in FROM is not allowed for this selection."
+    for modifier in node.get("modifiers") or []:
+        kind = str(modifier.get("type") or "").upper()
+        if kind == "ORDER_MODIFIER":
+            continue
+        return (
+            "The selection query must return the full unordered detail row "
+            f"set; {kind or 'this modifier'} is not allowed."
+        )
+    if (node.get("group_expressions") or node.get("group_sets")
+            or node.get("having") or node.get("qualify")):
+        return (
+            "The selection query must return detail rows only; grouping/"
+            "HAVING/QUALIFY are not allowed."
+        )
+    select_list = node.get("select_list") or []
+    sheet_refs = []
+    for item in select_list:
+        cls = str(item.get("class") or "").upper()
+        if cls == "STAR":
+            return (
+                "Project __sheet_row explicitly as a plain column; SELECT * "
+                "is not allowed."
+            )
+        alias = str(item.get("alias") or "").strip().lower()
+        names = item.get("column_names") or []
+        last = str(names[-1]).lower() if names else ""
+        if alias == "__sheet_row" or last == "__sheet_row":
+            sheet_refs.append(item)
+    if len(sheet_refs) != 1:
+        return (
+            "The selection query must project exactly one plain "
+            "__sheet_row column reference."
+        )
+    item = sheet_refs[0]
+    if str(item.get("class") or "").upper() != "COLUMN_REF":
+        return (
+            "The selection query must project __sheet_row as a plain "
+            "column reference (never an expression, CASE, cast or alias); "
+            "the authoritative frame supplies all calculation inputs."
+        )
+    if str(item.get("alias") or "").strip():
+        return (
+            "The selection query must project __sheet_row without an alias; "
+            "the authoritative frame supplies all calculation inputs."
         )
     return None
 
@@ -851,6 +794,9 @@ async def _execute_selection_plan(
     }
     alias = re.sub(
         r"[^a-z0-9_]+", "_", str(chosen.get("entity_name")).lower())
+    ast_node, ast_error = _duckdb_ast(sql)
+    if ast_error or ast_node is None:
+        return _error_block("SQL REJECTED", ast_error)
     violation = (
         _validate_dataset_sql(sql)
         or _selection_sql_violation(
@@ -861,9 +807,8 @@ async def _execute_selection_plan(
                 roles["currency_column"],
             ],
         )
-        or _sheet_row_projection_violation(sql)
-        or _table_binding_violation(
-            sql,
+        or _ast_identity_violation(
+            ast_node,
             ["df", str(chosen.get("dataset_name") or ""), alias],
         )
     )
@@ -892,7 +837,7 @@ async def _execute_selection_plan(
             }
             _candidate = next(
                 (
-                    name for name in _plain_projected_columns(sql)
+                    name for name in _ast_plain_projected_columns(ast_node)
                     if name in columns and name not in _role_cols
                 ),
                 None,
@@ -980,8 +925,12 @@ async def _execute_selection_plan(
             "subtotals": {},
         }
 
-    out_columns = [str(c) for c in out.columns]
-    if SHEET_ROW_COL not in out_columns:
+    out_sheet_col = next(
+        (col for col in out.columns
+         if str(col).strip().lower() == SHEET_ROW_COL),
+        None,
+    )
+    if out_sheet_col is None:
         return _error_block(
             "ROW PROVENANCE MISSING",
             f"The selection query did not project {SHEET_ROW_COL}; sheet row "
@@ -995,7 +944,7 @@ async def _execute_selection_plan(
     # status/identity.
     selected_ids: List[int] = []
     seen_ids = set()
-    for value in out[SHEET_ROW_COL].tolist():
+    for value in out[out_sheet_col].tolist():
         if isinstance(value, bool) or value is None:
             return _error_block(
                 "ROW IDENTITY INVALID",
@@ -1178,7 +1127,8 @@ async def aggregate_named_dataset(
         "Rules:\n"
         "- Pick the single dataset_name from the list; the sheet is already "
         "bound when the question names one.\n"
-        "- SQL must be ONE SELECT (or WITH) reading ONLY \"df\". No "
+        "- SQL must be ONE SELECT reading ONLY \"df\" directly (no WITH/CTE, "
+        "derived table or join). No "
         "INSERT/UPDATE/DELETE/DDL, no semicolon, no LIMIT.\n"
         "- Return the eligible rows only: encode the user's selection/filter "
         "in WHERE using the actual columns and values. Do not return unrelated "
