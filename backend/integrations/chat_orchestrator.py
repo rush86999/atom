@@ -8806,6 +8806,45 @@ class ChatOrchestrator:
                 item for item in comparison.get("gaps") or []
                 if isinstance(item, dict)
             ]
+            # PERSIST THE REQUEST-BOUND FULFILLMENT VERDICT. A partial/
+            # unresolved/ambiguous source obligation must outlive the
+            # response text; it rides the durable task-outcome gaps even
+            # though the outcome contract has no separate CF field.
+            _recorded_cf = (
+                ((response or {}).get("_recorded_outcome") or {}).get(
+                    "context_fulfillment"))
+            if not isinstance(_recorded_cf, dict) and isinstance(
+                    session, dict):
+                _recorded_cf = (
+                    (session.get("_recorded_outcome") or {}).get(
+                        "context_fulfillment"))
+            if isinstance(_recorded_cf, dict) and str(
+                    _recorded_cf.get("state") or "") in (
+                        "unresolved", "ambiguous", "partial",
+                        "unsupplied"):
+                _cf_reasons = [
+                    str(n) for n in (_recorded_cf.get("names") or [])
+                    if str(n)][:4]
+                if not _cf_reasons and _recorded_cf.get("candidates"):
+                    _cf_reasons = [
+                        str(c.get("file_name") or c.get("file_id") or "")
+                        for c in (_recorded_cf.get("candidates") or [])
+                        if isinstance(c, dict)][:4]
+                if not _cf_reasons:
+                    _cf_reasons = [
+                        str(f) for f in (
+                            _recorded_cf.get("missing_fields") or [])
+                        if str(f)][:4]
+                comparison_gaps.append({
+                    "criterion_id": "context_fulfillment",
+                    "status": str(_recorded_cf.get("state")),
+                    "reasons": [r for r in _cf_reasons if r],
+                    "next_evidence_needed": (
+                        "complete the additional action"
+                        if str(_recorded_cf.get("reason") or "")
+                        == "additional_action"
+                        else "resolve the named source"),
+                })
             comparison_implications = [
                 {
                     **item,
@@ -16907,6 +16946,8 @@ class ChatOrchestrator:
                     if _fb_replacement:
                         main_message = _fb_replacement["message"]
                         _fallback_outcome = _fb_replacement["outcome"]
+                        if isinstance(session, dict):
+                            session["_recorded_outcome"] = _fallback_outcome
                         logger.warning(
                             "[fallback-honesty] template completion "
                             "claim replaced with the recorded %s "
@@ -17179,6 +17220,11 @@ class ChatOrchestrator:
                         presentation_only_turn=_fb_presentation)
                 except Exception:  # noqa: BLE001 — additive
                     _fb_outcome = None
+            if isinstance(session, dict) and isinstance(_fb_outcome, dict):
+                # Durable persistence consumes the SAME request-bound
+                # outcome the response/finalizer saw; the route may not
+                # pass the private response field through.
+                session["_recorded_outcome"] = _fb_outcome
             if not _fb_from_gate and not (_fb_outcome or {}).get(
                     "work_turn"):
                 # Conversational turn: nothing was attempted, so there is

@@ -679,17 +679,25 @@ def capture_prior_obligation_from_durable_record(
 
 
 def _step_interpretation(step: dict) -> dict:
-    """The turn's accepted interpretation record.
+    """The turn's ACCEPTED interpretation record.
 
-    A deterministic bounded continuation has no model-interpretation
-    event; its explicit record rides the apply event instead. Prefer the
-    model record when present, then the deterministic one.
+    A deterministic bounded continuation may have BOTH a model-
+    interpretation event (the unresolved refinement attempt) and an apply
+    event carrying the accepted deterministic record. The apply record is
+    the accepted one and must win when it is deterministic or carries the
+    explicit refinement status; otherwise the model event is authoritative.
     """
     observation = (step or {}).get("observation") or {}
-    return (((observation.get("interpretation") or {}).get(
+    model_record = ((observation.get("interpretation") or {}).get(
         "interpretation"))
-        or ((observation.get("apply") or {}).get("interpretation"))
-        or {})
+    applied_record = ((observation.get("apply") or {}).get(
+        "interpretation"))
+    if isinstance(applied_record, dict) and (
+            str(applied_record.get("origin") or "").startswith(
+                "deterministic:")
+            or isinstance(applied_record.get("refinement"), dict)):
+        return applied_record
+    return model_record or applied_record or {}
 
 
 def pilot_preflight(pilot_before, mode: str = "required",

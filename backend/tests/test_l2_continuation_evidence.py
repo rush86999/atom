@@ -1869,6 +1869,14 @@ class TestL2ContinuationChain:
         assert any("approved record" in str(w)
                    for w in (settled.get("open_work") or [])), settled
         assert out.get("outcome") == "partial", out
+        durable = _turn_outcome(scoped_world)
+        assert durable.get("execution_id") == eid, durable
+        assert durable.get("objective_met") is not True, durable
+        for gap in durable.get("gaps") or []:
+            if gap.get("criterion_id") == "context_fulfillment":
+                assert gap.get("status") == "unresolved", durable
+                assert gap.get("next_evidence_needed") == (
+                    "resolve the named source"), durable
         assert S7_CANVAS["content"] == canvas_before["content"]
         db = scoped_world["Session"]()
         try:
@@ -1945,6 +1953,14 @@ class TestL2ContinuationChain:
         assert any("insert client" in str(w).casefold()
                    for w in (settled.get("open_work") or [])), settled
         assert out.get("outcome") != "completed", out
+        durable = _turn_outcome(scoped_world)
+        assert durable.get("execution_id") == eid, durable
+        assert durable.get("objective_met") is not True, durable
+        for gap in durable.get("gaps") or []:
+            if gap.get("criterion_id") == "context_fulfillment":
+                assert gap.get("status") == "unresolved", durable
+                assert gap.get("next_evidence_needed") == (
+                    "complete the additional action"), durable
         assert S7_CANVAS["content"] == canvas_before["content"]
         db = scoped_world["Session"]()
         try:

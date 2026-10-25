@@ -154,6 +154,31 @@ def test_deterministic_continuation_is_authorized_without_a_model():
         "authorized provider served it")
 
 
+def test_step_interpretation_prefers_the_accepted_deterministic_record():
+    runner = _runner()
+    step = {"observation": {
+        "interpretation": {"interpretation": {
+            "origin": "unresolved", "scope_change": "unresolved"}},
+        "apply": {"interpretation": {
+            "origin": "deterministic:continuation",
+            "refinement": {
+                "status": "completed", "outcome": "unresolved"}}},
+    }}
+    accepted = runner._step_interpretation(step)
+    assert accepted["origin"] == "deterministic:continuation", accepted
+    assert runner.stage_summary(step, "")["refinement"]["status"] == (
+        "completed")
+    # Without a deterministic/refinement apply record, the model event
+    # remains authoritative.
+    model_only = {"observation": {
+        "interpretation": {"interpretation": {
+            "origin": "llm:test", "scope_change": "continue"}},
+        "apply": {"interpretation": {
+            "origin": "llm:test", "scope_change": "continue"}},
+    }}
+    assert runner._step_interpretation(model_only)["origin"] == "llm:test"
+
+
 def test_stage_summary_carries_refinement_or_unknown():
     runner = _runner()
     step = {"observation": {"apply": {"interpretation": {
