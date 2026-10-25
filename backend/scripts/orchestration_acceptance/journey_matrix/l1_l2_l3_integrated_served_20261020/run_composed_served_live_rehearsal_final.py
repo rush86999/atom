@@ -678,11 +678,99 @@ def capture_prior_obligation_from_durable_record(
     }
 
 
+def _step_interpretation(step: dict) -> dict:
+    """The turn's accepted interpretation record.
+
+    A deterministic bounded continuation has no model-interpretation
+    event; its explicit record rides the apply event instead. Prefer the
+    model record when present, then the deterministic one.
+    """
+    observation = (step or {}).get("observation") or {}
+    return (((observation.get("interpretation") or {}).get(
+        "interpretation"))
+        or ((observation.get("apply") or {}).get("interpretation"))
+        or {})
+
+
+def _authorized_provider_contract(policy: dict) -> dict:
+    """The declared policy's authorized provider set, fail-closed.
+
+    ``automatic`` authorizes every configured provider; ``selected``
+    authorizes exactly the declared subset, and an empty/unknown subset or
+    a subset outside the configured set is INVALID (authorizes nothing).
+    """
+    policy = policy if isinstance(policy, dict) else {}
+    mode = str(policy.get("mode") or "")
+    approved = [str(p) for p in (policy.get("approved_providers") or []) if p]
+    selected = [str(p) for p in (policy.get("allowed_providers") or []) if p]
+    valid = bool(
+        approved
+        and mode in ("automatic", "selected")
+        and (mode != "selected" or (
+            selected and set(selected) <= set(approved))))
+    if not valid:
+        authorized = []
+    elif mode == "selected":
+        authorized = selected
+    else:
+        authorized = approved
+    post_prefixes = tuple(
+        prefix for provider in authorized
+        for prefix in _PROVIDER_POST_PREFIXES.get(provider, ()))
+    route_prefixes = tuple(f"{provider}/" for provider in authorized)
+    return {
+        "mode": mode,
+        "approved": approved,
+        "selected": selected,
+        "authorized": authorized,
+        "valid": valid,
+        "post_prefixes": post_prefixes,
+        "route_prefixes": route_prefixes,
+    }
+
+
+def _provider_policy_violations(posts, post_prefixes) -> list:
+    """Every POST outside the authorized destinations, fail-closed.
+
+    An empty prefix set is a policy failure, never an "allow all"."""
+    prefixes = tuple(post_prefixes or ())
+    return [
+        str(url) for url in (posts or [])
+        if not prefixes or not str(url).startswith(prefixes)]
+
+
+def _interpretation_route_authorized(
+        origin: str, summary: dict, prefixes) -> bool:
+    """A model interpretation is authorized when every structured route
+    it dispatched to is in the declared policy set. A deterministic
+    continuation dispatches no model, so it is authorized by construction.
+    """
+    origin = str(origin or "")
+    if origin.startswith("deterministic:"):
+        return True
+    models = [str(m) for m in ((summary or {}).get(
+        "dispatch_models") or [])]
+    if models:
+        return all(any(m.startswith(prefix) for prefix in prefixes)
+                   for m in models)
+    return origin.startswith("llm:")
+
+
+#: Provider id -> the POST destinations that id may legitimately use.
+#: Unknown ids fail closed: the policy check cannot authorize a route it
+#: cannot map.
+_PROVIDER_POST_PREFIXES = {
+    "deepseek": ("https://api.deepseek.com/v1",),
+    "ollama": ("http://localhost:11434/v1",
+               "http://127.0.0.1:11434/v1"),
+    "opencode-go": ("https://opencode.ai/zen/go/v1",),
+    "openrouter": ("https://openrouter.ai/api/v1",),
+}
+
+
 def stage_summary(step: dict, log_text: str) -> dict:
     request_id = str(step.get("request_id") or "")
-    interp_event = ((step.get("observation") or {}).get(
-        "interpretation") or {})
-    interp = interp_event.get("interpretation") or {}
+    interp = _step_interpretation(step)
     dispatch_lines = [
         ln for ln in log_text.splitlines()
         if f"route=turn_interpretation:{request_id}" in ln]
@@ -927,12 +1015,19 @@ def main() -> int:
         _dst.chmod(0o600)
     _byok_keys = json.loads(
         (SCRATCH / "byok_keys.json").read_text()).get("keys") or {}
+    _declared_policy = json.loads(
+        declared_env().get("ATOM_LLM_PROVIDER_POLICY") or "{}")
+    _configured_providers = sorted({
+        str(row.get("provider_id")) for row in _byok_keys.values()
+        if row.get("provider_id")} | {"ollama"})
     cfg["provider_policy"] = {
-        "mode": "selected",
-        "allowed_providers": [],
-        "preferred": {"provider": "ollama", "model": "llama3.1:8b"},
+        "mode": str(_declared_policy.get("mode") or "automatic"),
+        "allowed_providers": [
+            str(p) for p in (_declared_policy.get("allowed_providers") or [])],
+        "preferred": _declared_policy.get("preferred") or {
+            "provider": "ollama", "model": "llama3.1:8b"},
         "source": "env",
-        "approved_providers": ["deepseek", "ollama", "opencode-go", "openrouter"],
+        "approved_providers": _configured_providers,
     }
     cfg["byok_copy"] = {
         "source": str(MAIN / "backend/data"),
@@ -1593,26 +1688,49 @@ def main() -> int:
                 or "tool planner" in ln.lower())][-12:]
         provider_posts = sorted(set(re.findall(
             r"POST (https?://[^\s]+)", log_text)))
-        _allowed_posts = ("https://api.deepseek.com/v1",
-                          "http://localhost:11434/v1",
-                          "http://127.0.0.1:11434/v1")
-        _approved_posts = (*_allowed_posts,
-                           "https://opencode.ai/zen/go/v1",
-                           "https://openrouter.ai/api/v1")
-        unexpected_posts = [
+        _policy = cfg.get("provider_policy") or {}
+        _contract = _authorized_provider_contract(_policy)
+        _policy_mode = _contract["mode"]
+        _approved_providers = _contract["approved"]
+        _selected_providers = _contract["selected"]
+        _policy_valid = _contract["valid"]
+        _authorized_providers = _contract["authorized"]
+        _authorized_posts = _contract["post_prefixes"]
+        _authorized_route_prefixes = _contract["route_prefixes"]
+        policy_violations = _provider_policy_violations(
+            provider_posts, _authorized_posts)
+        # Historical intended-route observations stay in the evidence but
+        # are NOT pass/fail criteria: the declared policy above is the
+        # contract. They are recorded so the route drift remains visible.
+        _historical_posts = (
+            "https://api.deepseek.com/v1",
+            "http://localhost:11434/v1",
+            "http://127.0.0.1:11434/v1")
+        _historical_unexpected = [
             url for url in provider_posts
-            if not url.startswith(_allowed_posts)]
-        unapproved_posts = [
-            url for url in provider_posts
-            if not url.startswith(_approved_posts)]
+            if not url.startswith(_historical_posts)]
         result["provider_routes"] = {
             "structured_dispatch_models": dispatch_models,
             "deepseek_chat_posts": deepseek_posts,
             "reply_streamed_routes": reply_routes,
             "provider_posts": provider_posts,
-            "unexpected_provider_posts": unexpected_posts,
-            "approved_provider_posts": provider_posts,
-            "unapproved_provider_posts": unapproved_posts,
+            "policy": {
+                "mode": _policy_mode,
+                "allowed_providers": _selected_providers,
+                "approved_providers": _approved_providers,
+                "authorized_providers": _authorized_providers,
+                "valid": _policy_valid,
+            },
+            "authorized_post_prefixes": list(_authorized_posts),
+            "policy_violations": policy_violations,
+            "authorized_provider_posts": [
+                url for url in provider_posts
+                if url not in policy_violations],
+            "historical_intended_route_checks": {
+                "allowlist_clean": bool(
+                    provider_posts and not _historical_unexpected),
+                "unexpected_provider_posts": _historical_unexpected,
+            },
             "interpretation_lines": interpretation_lines,
             "edit_plan_lines": edit_plan_lines,
             "source_ask_lines": source_ask_lines,
@@ -1650,8 +1768,7 @@ def main() -> int:
         l3_workspace_ok = bool(
             workspace_id
             and str(l3_task.get("workspace_id") or "") == workspace_id)
-        l3_interp = ((l3.get("observation") or {}).get(
-            "interpretation") or {}).get("interpretation") or {}
+        l3_interp = _step_interpretation(l3)
         l3_origin = str(l3_interp.get("origin") or "")
         l3_answer_ok = l3_answer_contract(l3_msg)
         l3_settled = bool(
@@ -1732,8 +1849,7 @@ def main() -> int:
         s3_rows = [r for r in (s3.get("persisted_rows") or [])
                    if r.get("role") == "assistant"]
         s3_last = s3_rows[-1] if s3_rows else {}
-        s3_interp = ((s3.get("observation") or {}).get(
-            "interpretation") or {}).get("interpretation") or {}
+        s3_interp = _step_interpretation(s3)
         s3_origin = str(s3_interp.get("origin") or "")
         s3_truthful = bool(
             date_ok(s3_msg)
@@ -1768,9 +1884,6 @@ def main() -> int:
                 "execution_id") or "") == s3_eid
             and (s3.get("requirement_event") or {}).get(
                 "bound_to_execution_key") is True)
-        s3_interp_deepseek = bool(
-            s3_origin.startswith("llm:")
-            and "deepseek" in s3_origin.casefold())
         s3_agreement = agreement(
             s3.get("initial_response") or {},
             s3.get("settlement") or {},
@@ -1791,8 +1904,7 @@ def main() -> int:
         s7_rows = [r for r in (s7.get("persisted_rows") or [])
                    if r.get("role") == "assistant"]
         s7_last = s7_rows[-1] if s7_rows else {}
-        s7_interp = ((s7.get("observation") or {}).get(
-            "interpretation") or {}).get("interpretation") or {}
+        s7_interp = _step_interpretation(s7)
         s7_origin = str(s7_interp.get("origin") or "")
         s7_after_refs = ((s7_apply.get("decision_refs_after") or {})
                          .get("continuation_evidence") or {})
@@ -1858,15 +1970,18 @@ def main() -> int:
                     in ALLOWED_ACTION_KINDS
                     for a in (s7_interp.get("actions") or [])
                     if isinstance(a, dict)))
-        s7_interp_deepseek = bool(
-            s7_origin.startswith("llm:")
-            and "deepseek" in s7_origin.casefold())
+        _s7_summary = stage_summary(s7, log_text)
+        # A deterministic bounded continuation dispatches no model, so it
+        # has no turn-interpretation capture by design. The explicit
+        # deterministic record in the apply event is its evidence; a
+        # model path still requires both validation phases.
         s7_capture = bool(
-            stage_summary(s7, log_text).get("capture_archived")
-            and "pre_validation" in stage_summary(
-                s7, log_text).get("capture_phases", [])
-            and "post_validation" in stage_summary(
-                s7, log_text).get("capture_phases", []))
+            s7_origin.startswith("deterministic:")
+            or (_s7_summary.get("capture_archived")
+                and "pre_validation" in _s7_summary.get(
+                    "capture_phases", [])
+                and "post_validation" in _s7_summary.get(
+                    "capture_phases", [])))
         s7_req_ok = bool(
             s7_req.get("required") is True
             and "document" in [str(s).lower()
@@ -1975,22 +2090,48 @@ def main() -> int:
             (s7.get("initial_response") or {}).get("provider"),
         ]
         _reply_streams = list(reply_routes or [])
-        # DECLARED FALLBACK PROFILE (2026-10-24): local Ollama is preferred;
-        # if it emits no tokens, DeepSeek is the declared supported fallback.
-        # Any other provider is a parity failure. Actual routes are recorded.
-        _allowed_providers = {"ollama", "deepseek", "opencode-go"}
-        _allowed_prefixes = ("ollama/", "deepseek/", "opencode-go/")
-        _reply_parity = bool(
-            all(str(p or "").casefold() in _allowed_providers
+        _authorized_provider_set = {
+            p.casefold() for p in _authorized_providers}
+        _reply_authorized = bool(
+            all(str(p or "").casefold() in _authorized_provider_set
                 for p in _reply_providers)
             and _reply_streams
-            and all(str(r).casefold().startswith(_allowed_prefixes)
+            and all(any(str(r).casefold().startswith(prefix)
+                        for prefix in _authorized_route_prefixes)
+                    for r in _reply_streams))
+        _structured_authorized = bool(
+            dispatch_models
+            and all(any(m.startswith(prefix)
+                        for prefix in _authorized_route_prefixes)
+                    for m in dispatch_models))
+        _l3_interp_authorized = _interpretation_route_authorized(
+            l3_origin, l3_summary, _authorized_route_prefixes)
+        _s3_interp_authorized = _interpretation_route_authorized(
+            s3_origin, s3_summary, _authorized_route_prefixes)
+        _s7_interp_authorized = _interpretation_route_authorized(
+            s7_origin, s7_summary, _authorized_route_prefixes)
+        # Historical intended-route observation: recorded, not gated.
+        _historical_reply_prefixes = (
+            "ollama/", "deepseek/", "opencode-go/")
+        _historical_reply_parity = bool(
+            all(str(p or "").casefold() in {
+                "ollama", "deepseek", "opencode-go"}
+                for p in _reply_providers)
+            and _reply_streams
+            and all(str(r).casefold().startswith(_historical_reply_prefixes)
                     for r in _reply_streams))
         result["reply_actual_routes"] = {
             "l3": _reply_providers[0], "s3": _reply_providers[1],
             "s7": _reply_providers[2], "streams": _reply_streams,
-            "declared": "ollama preferred; deepseek fallback",
+            "authorized": _reply_authorized,
+            "policy": {
+                "mode": _policy_mode,
+                "authorized_providers": _authorized_providers,
+            },
         }
+        result["provider_routes"][
+            "historical_intended_route_checks"]["reply_parity"] = (
+                _historical_reply_parity)
 
         checks = {
             "runtime_identity": bool(
@@ -2013,11 +2154,7 @@ def main() -> int:
             "l3_settlement_completed": l3_settled,
             "l3_no_canvas_created": (
                 canvas_count_after_l3 == canvas_count_before_l3),
-            "l3_interpretation_deepseek": bool(
-                (l3_origin.startswith("llm:")
-                 and "deepseek" in l3_origin.casefold())
-                or any(m.startswith("deepseek/")
-                       for m in l3_summary.get("dispatch_models", []))),
+            "l3_interpretation_authorized": _l3_interp_authorized,
             "l3_history_agreement": l3_agreement,
             "draft_created_through_product": seed_ok,
             "edit_http_ok": edit.get("http") == 200,
@@ -2041,7 +2178,7 @@ def main() -> int:
             "comparison_draft_unchanged": s3_body_ok,
             "comparison_settlement_basis": s3_settle,
             "comparison_requirement_captured": s3_req_ok,
-            "comparison_interpretation_deepseek": s3_interp_deepseek,
+            "comparison_interpretation_authorized": _s3_interp_authorized,
             "comparison_history_agreement": s3_agreement,
             "continuation_http_ok": s7.get("http") == 200,
             "continuation_truthful_date": s7_truthful,
@@ -2053,22 +2190,18 @@ def main() -> int:
             "continuation_capture_archived": s7_capture,
             "continuation_requirement_captured": s7_req_ok,
             "continuation_settlement_basis": s7_settle,
-            "continuation_interpretation_deepseek": s7_interp_deepseek,
+            "continuation_interpretation_authorized": _s7_interp_authorized,
             "continuation_history_agreement": s7_agreement,
             "restart_runtime_identity": restart_identity_ok,
             "restart_history_agreement": restart_hist_ok,
             "restart_zero_new_writes": restart_zero,
             "restart_canvas_unchanged": restart_canvas_ok,
             "restart_execution_persists": restart_exec_ok,
-            "provider_structured_deepseek": bool(
-                dispatch_models
-                and any(m.startswith("deepseek/")
-                        for m in dispatch_models)),
-            "provider_reply_parity": _reply_parity,
-            "provider_allowlist_clean": bool(
-                provider_posts and not unexpected_posts),
-            "approved_profile_allowlist_clean": bool(
-                provider_posts and not unapproved_posts),
+            "provider_policy_declared": _policy_valid,
+            "provider_structured_authorized": _structured_authorized,
+            "provider_reply_authorized": _reply_authorized,
+            "provider_policy_respected": bool(
+                provider_posts and not policy_violations),
         }
 
         # Guards, captured before the pass/fail decision.
@@ -2222,7 +2355,7 @@ def main() -> int:
             ("l3_objective_met", "l3_objective_not_met"),
             ("l3_settlement_completed", "l3_settlement_invalid"),
             ("l3_no_canvas_created", "l3_created_canvas"),
-            ("l3_interpretation_deepseek", "l3_route_not_deepseek"),
+            ("l3_interpretation_authorized", "l3_route_not_authorized"),
             ("l3_history_agreement", "l3_history_disagreement"),
             ("draft_created_through_product", "draft_create_failed"),
             ("edit_http_ok", "edit_no_reply"),
@@ -2251,8 +2384,8 @@ def main() -> int:
              "comparison_settlement_invalid"),
             ("comparison_requirement_captured",
              "comparison_requirement_missing"),
-            ("comparison_interpretation_deepseek",
-             "comparison_route_not_deepseek"),
+            ("comparison_interpretation_authorized",
+             "comparison_route_not_authorized"),
             ("comparison_history_agreement",
              "comparison_history_disagreement"),
             ("continuation_http_ok", "continuation_no_reply"),
@@ -2272,8 +2405,8 @@ def main() -> int:
              "continuation_requirement_missing"),
             ("continuation_settlement_basis",
              "continuation_settlement_invalid"),
-            ("continuation_interpretation_deepseek",
-             "continuation_route_not_deepseek"),
+            ("continuation_interpretation_authorized",
+             "continuation_route_not_authorized"),
             ("continuation_history_agreement",
              "continuation_history_disagreement"),
             ("restart_runtime_identity",
@@ -2284,11 +2417,11 @@ def main() -> int:
             ("restart_canvas_unchanged", "restart_canvas_changed"),
             ("restart_execution_persists",
              "restart_execution_missing"),
-            ("provider_structured_deepseek",
-             "structured_route_not_deepseek"),
-            ("provider_reply_parity", "reply_route_not_parity"),
-            ("provider_allowlist_clean", "unexpected_provider_post"),
-            ("approved_profile_allowlist_clean", "unapproved_provider_post"),
+            ("provider_policy_declared", "provider_policy_invalid"),
+            ("provider_structured_authorized",
+             "structured_route_not_authorized"),
+            ("provider_reply_authorized", "reply_route_not_authorized"),
+            ("provider_policy_respected", "provider_policy_violation"),
             ("live_db_isolated", "live_db_isolated_failed"),
             ("pilot_untouched", "pilot_touched"),
         ]

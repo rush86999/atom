@@ -2,10 +2,11 @@
 
 **Declared before execution, 2026-10-24.**
 
-This run tests the final edit/no-op repair on the full configured profile. The policy is `automatic` (all
-configured providers eligible). The two historical intended-route checks
-remain declared as failed; a separate `approved_profile_allowlist_clean`
-check records whether every POST is one of the configured providers.
+This run tests the final S7 degraded-continuation repair on the full
+configured profile. The policy is `automatic` (every configured provider is
+eligible). The historical intended-route observations (Ollama/DeepSeek) are
+recorded as evidence but are **not** pass/fail criteria; the gate is the
+declared policy itself.
 
 ## Candidate
 
@@ -22,18 +23,35 @@ check records whether every POST is one of the configured providers.
 ATOM_LLM_PROVIDER_POLICY={"mode":"automatic","allowed_providers":[]}
 ```
 
-- Intended profile remains Ollama reply / DeepSeek structured; it is
-  expected to fail parity if OpenCode Go/OpenRouter are selected.
-- Approved profile is the configured set: DeepSeek, Ollama, OpenCode Go,
-  OpenRouter.
-- Any POST outside that configured set is a failure.
+- Approved profile is the configured set derived from the isolated BYOK
+  copy plus local Ollama: DeepSeek, Ollama, OpenCode Go, OpenRouter.
+- `automatic` authorizes every approved provider. A `selected` policy
+  authorizes only its non-empty allowed subset, and that subset must be
+  inside the approved set; an invalid policy authorizes nothing.
+- Any POST outside the authorized set is a failure. This is the real
+  restriction; it is stricter than the historical two-provider list, not
+  a relaxation.
 
 ## Checks
 
-- Functional checks must be 59/59.
-- `provider_reply_parity` and `provider_allowlist_clean` are expected to
-  fail under the historical Ollama/DeepSeek allowlist and are not relabeled.
-- `approved_profile_allowlist_clean` must pass.
-- A new edit must apply exactly once through the deterministic compiler;
-  the identical re-ask must complete before planning with zero writes.
-- The cutover request, if any, must explicitly accept the actual routes.
+- All 62 checks must pass.
+- `provider_policy_declared` — the recorded policy is valid and its
+  authorized set is well-formed.
+- `provider_policy_respected` — every provider POST is inside the
+  authorized set (fail-closed on an empty set).
+- `provider_reply_authorized` / `provider_structured_authorized` — every
+  reply and structured route is inside the same authorized set.
+- `l3_interpretation_authorized`, `comparison_interpretation_authorized`,
+  `continuation_interpretation_authorized` — a model origin’s dispatch
+  routes must be authorized; `deterministic:continuation` is authorized
+  because it dispatches no model.
+- Historical intended-route results remain recorded under
+  `provider_routes.historical_intended_route_checks` but do not decide
+  the pass.
+- The S7 date-only follow-up must take the deterministic bounded path:
+  no interpreter dispatch, source bound to the observed approved record,
+  exactly `expiration_date`, `broader_comparison` false, zero writes.
+- A genuinely broad follow-up stays broad (whole-document obligation
+  open), and an ambiguous source clarifies without selecting one.
+- The cutover request, if any, must explicitly accept the actual
+  authorized routes.

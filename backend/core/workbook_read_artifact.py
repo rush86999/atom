@@ -4757,9 +4757,15 @@ def verified_comparison_reply(
     # WRONG-SOURCE / AMBIGUOUS-SOURCE PROTECTION: when the requirement
     # names the source, only that source's observations may supply
     # values; several distinct source identities cannot produce a
-    # deterministic replacement.
+    # deterministic replacement. An AMBIGUOUS or UNRESOLVED named
+    # reference composes NOTHING — retrieval may have returned one of
+    # several candidates, but choosing it here would silently select a
+    # source the request did not disambiguate.
+    _identity = (requirement or {}).get("identity") or {}
+    if str(_identity.get("state") or "") in ("ambiguous", "unresolved"):
+        return None
     _required_name = _display_text(
-        ((requirement or {}).get("identity") or {}).get("file_name")
+        _identity.get("file_name")
         or ((requirement or {}).get("file") or {}).get("file_name")
         or "")
     if _required_name:

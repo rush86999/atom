@@ -6271,13 +6271,22 @@ def _build_evidence_requirement(
                 or _accepted.get("requested_fields")))
         if _accepted and _has_contract:
             # The accepted request's constraints/requested fields are the
-            # request contract. A degraded/unresolved interpretation falls
-            # back to the message shape so a broad obligation is not lost.
+            # request contract.
             broader_comparison = accepted_comparison_scope(
                 _accepted, str(message or ""))
+        elif fields:
+            # DEGRADED/DIRECT CALLERS: the request's own canonical typed
+            # fields are a deterministic contract. A date-only ask remains
+            # date-only even when the interpreter is unavailable; a
+            # genuinely broad ask ("flag anything that differs") still
+            # carries its whole-document obligation. The prior turn's
+            # broader contract is never imported into a narrower request.
+            broader_comparison = accepted_comparison_scope(
+                {"requested_fields": list(fields), "constraints": []},
+                str(message or ""))
         else:
-            # Legacy/direct callers and degraded interpretations retain
-            # the message-shaped contract.
+            # No typed contract to narrow: retain the message-shaped
+            # obligation rather than guessing a scope.
             broader_comparison = comparison_request_shaped(
                 str(message or ""))
     except Exception:  # noqa: BLE001 — flag is additive
@@ -10623,8 +10632,11 @@ class ChatOrchestrator:
                 if os.getenv("ATOM_TURN_DECISION_ROUTING", "1").lower() not in ("0", "off", "false"):
                     try:
                         from core.turn_decision import (
+                            apply_degraded_continuation_references,
                             apply_interpretation_references,
                             build_turn_decision,
+                            deterministic_continuation_ready,
+                            interpretation_deterministic_continuation,
                             interpret_turn_request,
                         )
 
@@ -10632,6 +10644,21 @@ class ChatOrchestrator:
                             message, session, history or [],
                             context or {}, session_id=session_id)
                         _td_decision = _td
+                        # BOUNDED DETERMINISTIC CONTINUATION (owner
+                        # assignment 2026-10-24): when the request itself
+                        # supplies a named, uniquely observed source and one
+                        # canonical typed field, the model has nothing to
+                        # add. The interpretation wait is what consumed the
+                        # S7 budget in attempt 14; skip it for this exact
+                        # shape instead of paying 60s to rediscover facts
+                        # the durable state already holds.
+                        _det_continuation = None
+                        try:
+                            _det_continuation = (
+                                deterministic_continuation_ready(
+                                    message, session, _td))
+                        except Exception:  # noqa: BLE001 — optional
+                            _det_continuation = None
                         # ONE STRUCTURED INTERPRETATION PER REQUEST
                         # (2026-10-08 Phase-2 slice): the async entry
                         # point proposes subjects/actions/scope-change
@@ -10647,12 +10674,32 @@ class ChatOrchestrator:
                                 _deadline.remaining())
                             _interp_request_id = str(
                                 (context or {}).get("request_id") or "")
-                            logger.info(
-                                "[turn-interpretation] bounded wait=%.1fs "
-                                "(remaining=%.1fs reserve=%.1fs)",
-                                _interp_wait, _deadline.remaining(),
-                                _TURN_REPLY_RESERVE_SECONDS)
-                            if _interp_wait <= 0.0:
+                            if _det_continuation is None:
+                                logger.info(
+                                    "[turn-interpretation] bounded wait=%.1fs "
+                                    "(remaining=%.1fs reserve=%.1fs)",
+                                    _interp_wait, _deadline.remaining(),
+                                    _TURN_REPLY_RESERVE_SECONDS)
+                            if _det_continuation is not None:
+                                _td = (
+                                    apply_degraded_continuation_references(
+                                        _td, None, session, message))
+                                _td_decision = _td
+                                _det_ref = (
+                                    _det_continuation.get("reference") or {})
+                                _td_interpretation = (
+                                    interpretation_deterministic_continuation(
+                                        message, _interp_request_id, _td,
+                                        _det_ref))
+                                logger.info(
+                                    "[turn-interpretation] skipped — "
+                                    "deterministic continuation "
+                                    "(source=%s field=%s); model not "
+                                    "required",
+                                    _det_ref.get("resolved_file"),
+                                    (_det_continuation.get(
+                                        "fields") or [""])[0])
+                            elif _interp_wait <= 0.0:
                                 from core.turn_decision import (
                                     interpretation_budget_unresolved,
                                 )
@@ -10724,6 +10771,16 @@ class ChatOrchestrator:
                         # reference changes nothing.
                         _td = apply_interpretation_references(
                             _td, _td_interpretation, session)
+                        # DEGRADED CONTINUATION (owner assignment
+                        # 2026-10-24): when the interpreter is unavailable,
+                        # an explicitly named source ("the approved
+                        # record") is still resolvable from the request
+                        # itself and the conversation's OBSERVED evidence.
+                        # This composes only the durable reference; it never
+                        # invents an action, source, or authorization, and
+                        # a resolved interpretation is untouched.
+                        _td = apply_degraded_continuation_references(
+                            _td, _td_interpretation, session, message)
                         _td_decision = _td
                         _td_sources = ((_td.get("references")
                                         or {}).get("sources")) or []
