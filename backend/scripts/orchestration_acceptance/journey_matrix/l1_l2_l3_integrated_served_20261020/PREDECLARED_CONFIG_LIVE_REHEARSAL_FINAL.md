@@ -10,11 +10,11 @@ declared policy itself.
 
 ## Candidate
 
-- Product `a7b17bb380e59be806db62febdd94e9f69704e78`
-- Launch `a7b17bb380e5`
+- Product `d1c52b02ea6c380fa0255ece6743ad5e485607ac`
+- Launch `d1c52b02ea6c`
 - Frontend `P5jHbHKTzj_38xHIMFoe9`
 - World: 09:19 876 MB snapshot; scratch
-  `…/l1-l2-l3-live-rehearsal-20261024-final3`
+  `…/l1-l2-l3-live-rehearsal-20261024-final4`
 - Full 13-key / 37-provider BYOK copy in isolation.
 
 ## Policy
