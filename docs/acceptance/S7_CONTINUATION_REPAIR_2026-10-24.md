@@ -185,9 +185,11 @@ or unchanged full campaign is justified here.
   "Update the draft for rows 1-5 with approved prices" as an
   `additional_action`; it does not create a marker for that non-seek
   edit, and the primary edit/no-op receipt suite passes.
-- An uncaptured refinement dispatch is indistinguishable from no attempt
-  in the log-derived route check; logged unauthorized POSTs are still
-  caught by `provider_policy_respected`.
+- Refinement observability is explicit: `skipped` / `started` /
+  `completed` / `failed` / `cancelled`; a missing status is **unknown**
+  and fails the route/capture checks, and any attempted refinement
+  requires captured authorized routes. Product BYOK policy enforcement
+  remains immediately before transport.
 
 ## Evidence
 
