@@ -90,6 +90,15 @@ _LEADING_DOMAIN_WORDS = {
 #: Extensions that mark a tabular/data file (workbook answer contracts and
 #: read-only routing key off these).
 SPREADSHEET_EXTENSIONS = ("xlsx", "xls", "xlsm", "csv", "tsv")
+# Explicit non-tabular file types. An explicit extension is a capability
+# fact and outranks the word-based workbook hints below ("price list.txt"
+# is a text document, not a workbook).
+DOCUMENT_EXTENSIONS = (
+    "txt", "md", "markdown", "pdf", "doc", "docx", "rtf", "odt",
+    "html", "htm", "pptx", "ppt", "odp", "eml", "msg", "json",
+    "xml", "yaml", "yml", "log", "tex", "epub",
+)
+
 
 _EXTENSION_WORDS = {
     "xlsx", "xls", "xlsm", "csv", "tsv", "pdf", "docx", "doc", "pptx",
@@ -333,12 +342,46 @@ def spreadsheet_mentions(message: str) -> List[str]:
     ]
 
 
+def explicit_file_kind(mention: str) -> Optional[str]:
+    """Classify a mention by its EXPLICIT extension: ``spreadsheet``,
+    ``document`` or ``None`` (no known extension).
+
+    This is deliberately stricter than the word-based hints: a file named
+    ``price list.txt`` is a document even though the words look tabular.
+    Unknown/missing extensions return ``None`` so callers can resolve
+    catalog identity before choosing a reader.
+    """
+    value = (mention or "").strip().lower()
+    if not value:
+        return None
+    tail = value.rsplit("/", 1)[-1]
+    if "." not in tail:
+        return None
+    tail = tail.split("?", 1)[0].rstrip(".,;:)]}'\"")
+    ext = tail.rsplit(".", 1)[-1].strip()
+    if ext in SPREADSHEET_EXTENSIONS:
+        return "spreadsheet"
+    if ext in DOCUMENT_EXTENSIONS:
+        return "document"
+    return None
+
+
 def is_spreadsheet_task_mention(mention: str) -> bool:
+    """True only when the mention is a tabular file or an extensionless
+    workbook phrase.
+
+    Explicit file type wins over wording: ``price list.txt`` is not a
+    spreadsheet. Extensionless names keep the existing workbook hints
+    (``price list``, ``workbook``, ``spreadsheet``, ``excel``).
+    """
+    kind = explicit_file_kind(mention)
+    if kind == "spreadsheet":
+        return True
+    if kind == "document":
+        return False
     value = (mention or "").strip().lower()
     if not value:
         return False
-    if value.rsplit(".", 1)[-1] in SPREADSHEET_EXTENSIONS:
-        return True
     return bool(re.search(
         r"\b(?:price\s+list|workbook|spreadsheet|excel)\b",
         value,

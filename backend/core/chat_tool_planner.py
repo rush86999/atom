@@ -7170,6 +7170,8 @@ async def _datasets_named_file_block(
     try:
         from core.agent_file_context import (
             detect_file_mentions,
+            explicit_file_kind,
+            is_spreadsheet_task_mention,
             score_file_match,
         )
         from core.sheet_dataset_service import (
@@ -7203,7 +7205,79 @@ async def _datasets_named_file_block(
             mentions = [pinned]
     if not mentions:
         return None
+    # FILE TYPE / CAPABILITY PRECEDENCE (2026-10-25): the dataset catalog
+    # is a workbook reader. An explicit document extension is not a
+    # workbook, even when the words look tabular ("price list.txt").
+    # Extensionless names are resolved by the catalog layer before this
+    # lane is chosen; when this lane is reached without a spreadsheet
+    # mention, return None so the document/research lane can read it. A
+    # dataset miss must never be rendered as "the document is absent".
     ws = (context or {}).get("workspace_id")
+    dataset_mentions = [
+        m for m in mentions if is_spreadsheet_task_mention(m)
+    ]
+    document_mentions = [
+        m for m in mentions if explicit_file_kind(m) == "document"
+    ]
+    if document_mentions:
+        if plan is not None:
+            _scope_meta = getattr(plan, "_result_meta", None)
+            if not isinstance(_scope_meta, dict):
+                _scope_meta = {}
+                plan._result_meta = _scope_meta
+            _scope_meta["named_file_scope"] = {
+                "mentions": list(mentions),
+                "document_mentions": list(document_mentions),
+                "dataset_mentions": list(dataset_mentions),
+                "reader": (
+                    "mixed" if dataset_mentions else "documents"
+                ),
+                "note": "dataset catalog is not applicable to this file type",
+            }
+        return None
+    if not dataset_mentions:
+        # EXTENSIONLESS IDENTITY BEFORE READER CHOICE: a name without a
+        # suffix may be a workbook that the wording hints do not catch.
+        # Resolve it against both workspace catalogs; only enter the
+        # dataset lane when the dataset catalog actually owns it.
+        try:
+            from core.named_file_resolution import (
+                resolve_named_file_intent,
+            )
+
+            _intent = resolve_named_file_intent(
+                lookup_text, user_id, ws,
+                pinned_mention=mentions[0],
+            )
+            _dataset_sources = [
+                s for s in (_intent.get("sources") or [])
+                if s.get("reader") == "datasets"
+            ]
+            if _intent.get("reader") == "datasets" and _dataset_sources:
+                dataset_mentions = [
+                    str(s.get("mention") or mentions[0])
+                    for s in _dataset_sources
+                ]
+            else:
+                if plan is not None:
+                    _scope_meta = getattr(plan, "_result_meta", None)
+                    if not isinstance(_scope_meta, dict):
+                        _scope_meta = {}
+                        plan._result_meta = _scope_meta
+                    _scope_meta["named_file_scope"] = {
+                        "mentions": list(mentions),
+                        "document_mentions": list(document_mentions),
+                        "dataset_mentions": list(dataset_mentions),
+                        "reader": _intent.get("reader") or "unknown",
+                        "note": ("dataset catalog is not applicable to "
+                                 "this file type"),
+                    }
+                return None
+        except Exception as _intent_err:  # noqa: BLE001
+            logger.debug(
+                "extensionless named-file resolution skipped: %r",
+                _intent_err)
+            return None
     entries = await asyncio.to_thread(
         find_entries_sync, "", user_id, ws, 500)
     catalog_rows_seen = len(entries or [])
@@ -10356,6 +10430,18 @@ async def execute_tool_plan(
         block = await _datasets_named_file_block(
             user_id, query, context, plan=plan)
         if block is None:
+            _named_scope = (
+                (getattr(plan, "_result_meta", {}) or {})
+                .get("named_file_scope") or {}
+            )
+            if _named_scope.get("reader") in (
+                    "documents", "mixed", "unknown"):
+                return _with_grounding(
+                    "LIVE TOOL RESULTS (datasets.named-file) — the named "
+                    "source is a document/mixed request, so the dataset "
+                    "catalog was NOT searched. Do not substitute workbook "
+                    "rows for it; use the document capability."
+                )
             block = await _datasets_search_block(
                 user_id, query, context, plan=plan)
         if block:

@@ -10664,6 +10664,7 @@ class ChatOrchestrator:
             try:
                 from core.agent_file_context import (
                     detect_file_task_mentions,
+                    is_spreadsheet_task_mention,
                     spreadsheet_mentions,
                 )
 
@@ -10677,8 +10678,12 @@ class ChatOrchestrator:
                     # spreadsheet_mentions. Use the existing task-phrase
                     # resolver as the fallback — it resolves "price list
                     # 2019" to the same canonical name the catalog
-                    # indexes under.
-                    _task_mentions = detect_file_task_mentions(message)
+                    # indexes under. Explicit documents are excluded: the
+                    # dataset reader is not their capability.
+                    _task_mentions = [
+                        m for m in detect_file_task_mentions(message)
+                        if is_spreadsheet_task_mention(m)
+                    ]
                     _ask_mention = _task_mentions[0] if _task_mentions else ""
                 if not _ask_mention:
                     pass  # mention resolution continues below
@@ -11076,6 +11081,66 @@ class ChatOrchestrator:
                     except Exception as _ld_err:  # noqa: BLE001 — additive floor
                         logger.debug(
                             f"lesson-designated source skipped: {_ld_err}")
+                if not locals().get("_teaching_cue_turn"):
+                    # FILE TYPE / CATALOG PRECEDENCE (2026-10-25): choose
+                    # the reader from explicit type and workspace-scoped
+                    # catalog identity, not from wording. A document
+                    # mention (including "price list.txt") or a mixed
+                    # document/workbook ask must not enter the dataset
+                    # reader lane. Extensionless names are resolved
+                    # against both catalogs here. Runs even when the
+                    # lexical mention is empty: an explicit document must
+                    # still suppress the dataset ask lane.
+                    try:
+                        from core.named_file_resolution import (
+                            resolve_named_file_intent,
+                        )
+
+                        _named_intent = await asyncio.to_thread(
+                            resolve_named_file_intent,
+                            message or "",
+                            user_id,
+                            (context or {}).get("workspace_id"),
+                            pinned_mention=_ask_mention or None,
+                        )
+                        if isinstance(context, dict):
+                            context["named_file_intent"] = _named_intent
+                        if _named_intent.get("mentions"):
+                            if _named_intent.get("reader") == "datasets":
+                                if not _ask_mention:
+                                    for _src in (
+                                            _named_intent.get("sources")
+                                            or []):
+                                        if _src.get("reader") == "datasets":
+                                            _ask_mention = str(
+                                                _src.get("mention") or "")
+                                            break
+                            elif _named_intent.get("reader") in (
+                                    "documents", "mixed"):
+                                # Keep the direct-read lane: it now has a
+                                # document branch that resolves the
+                                # workspace catalog and returns a
+                                # deterministic, source-named read (or a
+                                # clarification) instead of the dataset
+                                # "not found" verdict.
+                                if not _ask_mention:
+                                    _ask_mention = str(
+                                        (_named_intent.get("mentions")
+                                         or [""])[0])
+                            else:
+                                logger.info(
+                                    "[file-ask] named-file lane not "
+                                    "applicable: reader=%r state=%r "
+                                    "mentions=%r",
+                                    _named_intent.get("reader"),
+                                    _named_intent.get("state"),
+                                    _named_intent.get("mentions"),
+                                )
+                                _ask_mention = ""
+                                _ask_direct = False
+                    except Exception as _nfr_err:  # noqa: BLE001
+                        logger.debug(
+                            "named-file routing skipped: %r", _nfr_err)
                 if _ask_mention and _FILE_READ_SHAPE_RE.search(message or ""):
                     # A TEACHING DIRECTIVE IS NOT A READ (2026-10-01
                     # consistency-run T3: 'always include the tennsmith
@@ -12019,7 +12084,8 @@ class ChatOrchestrator:
                         _ask_structured or {}
                     ).get("requested_items") or []
                     if not _ask_items_used and not isinstance(
-                            _ask_structured, dict):
+                            _ask_structured, dict) and not _ask_result.get(
+                                "named_document"):
                         _ask_verdict = _ask_result.get("meta") or {}
                         _ask_note = str(
                             _ask_verdict.get("note") or "")
@@ -12049,7 +12115,8 @@ class ChatOrchestrator:
                                    else ""))
                         _ask_handoff_block = None
                         _ask_miss_handoff = False
-                    elif not _ask_items_used:
+                    elif not _ask_items_used and not _ask_result.get(
+                            "named_document"):
                         _offer = ""
                         try:
                             from core import dialogue_state as _ds
@@ -12454,7 +12521,13 @@ class ChatOrchestrator:
                             "intent": "search",
                             "confidence": 0.9,
                             "data": {
-                                "workbook_result": _ask_card,
+                                "workbook_result": (
+                                    None if _ask_result.get(
+                                        "named_document") else _ask_card),
+                                "document_result": (
+                                    _ask_result.get("meta")
+                                    if _ask_result.get(
+                                        "named_document") else None),
                                 "deterministic_delivery": True,
                                 "file_identity": _ask_identity,
                                 "coverage_complete": _ask_complete,
@@ -12506,9 +12579,10 @@ class ChatOrchestrator:
                             authorized_actions=["read"],
                         )
                         logger.info(
-                            "[file-ask] spreadsheet ask answered "
-                            "directly by the file-scoped reader (no "
-                            "narration path)")
+                            "[file-ask] %s ask answered directly by the "
+                            "file-scoped reader (no narration path)",
+                            "document" if _ask_result.get(
+                                "named_document") else "spreadsheet")
                         return _ask_response
                 # Read did not complete: fall through to the normal flow,
                 # which stores the pending task and tells the user plainly.
@@ -13575,7 +13649,13 @@ class ChatOrchestrator:
                         "intent": "search",
                         "confidence": 0.9,
                         "data": {
-                            "workbook_result": _direct_card,
+                            "workbook_result": (
+                                None if _direct_result.get(
+                                    "named_document") else _direct_card),
+                            "document_result": (
+                                _direct_result.get("meta")
+                                if _direct_result.get("named_document")
+                                else None),
                             "deterministic_delivery": True,
                             "file_identity": _direct_identity,
                             "workbook_read": _direct_result_row["workbook_read"],
@@ -17827,6 +17907,352 @@ class ChatOrchestrator:
             logger.warning(f"file-mention canvas creation failed: {e}")
             return None
 
+    async def _direct_named_document_read(
+        self,
+        intent: Dict[str, Any],
+        user_id: Optional[str],
+        workspace_id: Optional[str],
+    ) -> Dict[str, Any]:
+        """Deterministic named-document read through the workspace catalog.
+
+        The dataset lane is never consulted here. A resolved catalog
+        identity is read through ``documents.search``; ambiguity and
+        unresolved names return explicit verdicts, never a single-source
+        pick and never a "document absent" claim derived from a dataset
+        miss. Mixed document/workbook asks are preserved as a
+        clarification instead of silently answering one source.
+        """
+        def _finish(
+            answer: str,
+            meta: Dict[str, Any],
+            *,
+            complete: bool = False,
+            identity_verified: bool = False,
+            publish_identity: bool = False,
+        ) -> Dict[str, Any]:
+            identity = {}
+            if publish_identity:
+                identity = {
+                    "service": meta.get("service"),
+                    "file_id": meta.get("file_id"),
+                    "resource_id": meta.get("resource_id")
+                    or meta.get("file_id"),
+                    "file_name": meta.get("file_name"),
+                    "source": meta.get("source"),
+                    "content_hash": None,
+                    "content_hash_algorithm": None,
+                    "ingested_at": None,
+                    "source_modified_at": None,
+                    "version_verified": False,
+                    "identity_verified": identity_verified,
+                    "coverage_complete": complete,
+                    "coverage_limits": meta.get("coverage_limits") or {},
+                    "workbook_read": None,
+                    "execution_id": None,
+                }
+            return {
+                "ok": True,
+                "block": "",
+                "meta": meta,
+                "identity": identity,
+                "identity_verified": identity_verified,
+                "coverage_complete": complete,
+                "retrieval_complete": complete,
+                "rendered_answer": answer,
+                "structured_result": None,
+                "named_document": True,
+                "reason": "",
+            }
+
+        sources = list(intent.get("sources") or [])
+        workspace_required = [
+            s for s in sources
+            if s.get("state") == "workspace_required"
+        ]
+        if workspace_required:
+            return _finish(
+                "I need the workspace scope before reading a named file; "
+                "nothing was read.",
+                {
+                    "service": "documents",
+                    "identity_verified": False,
+                    "completed": False,
+                    "coverage_complete": False,
+                    "note": "workspace scope was not provided",
+                },
+            )
+        doc_sources = [
+            s for s in sources if s.get("reader") == "documents"
+        ]
+        data_sources = [
+            s for s in sources if s.get("reader") == "datasets"
+        ]
+        if intent.get("reader") == "mixed":
+            doc_names = [
+                str((s.get("document") or {}).get("file_name")
+                    or s.get("mention") or "")
+                for s in doc_sources
+            ]
+            data_names = [
+                str((s.get("dataset") or {}).get("file_name")
+                    or s.get("mention") or "")
+                for s in data_sources
+            ]
+            answer = (
+                "This ask names more than one source: document(s) "
+                + ", ".join(f"`{n}`" for n in doc_names if n)
+                + " and workbook(s) "
+                + ", ".join(f"`{n}`" for n in data_names if n)
+                + ". I did not read either source or answer from one of "
+                "them. Ask about one source at a time, or confirm which "
+                "one should be read first."
+            )
+            return _finish(
+                answer,
+                {
+                    "service": "mixed",
+                    "identity_verified": False,
+                    "completed": False,
+                    "coverage_complete": False,
+                    "note": ("mixed document/workbook sources preserved; "
+                             "nothing was read"),
+                    "sources": [
+                        {
+                            "mention": s.get("mention"),
+                            "reader": s.get("reader"),
+                            "state": s.get("state"),
+                        }
+                        for s in sources
+                    ],
+                },
+            )
+
+        ambiguous = [
+            s for s in doc_sources if s.get("state") == "ambiguous"
+        ]
+        unavailable = [
+            s for s in sources
+            if s.get("state") == "catalog_unavailable"
+        ]
+        if unavailable:
+            answer = (
+                "I couldn't reach the workspace document catalog, so "
+                "nothing was read. This is a catalog-access failure, not "
+                "a statement that the document is absent."
+            )
+            return _finish(
+                answer,
+                {
+                    "service": "documents",
+                    "identity_verified": False,
+                    "completed": False,
+                    "coverage_complete": False,
+                    "note": "workspace document catalog unavailable",
+                },
+            )
+        if ambiguous:
+            candidates: List[str] = []
+            for source in ambiguous:
+                for cand in source.get("candidates") or []:
+                    name = str(
+                        cand.get("file_name") or cand.get("file_id") or ""
+                    )
+                    if name and name not in candidates:
+                        candidates.append(name)
+            answer = (
+                "More than one uploaded document matches the name you "
+                "gave: " + "; ".join(f"`{c}`" for c in candidates[:8])
+                + ". Which one should I use? Nothing was read yet."
+            )
+            return _finish(
+                answer,
+                {
+                    "service": "documents",
+                    "identity_verified": False,
+                    "completed": False,
+                    "coverage_complete": False,
+                    "note": ("multiple uploaded documents match the named "
+                             "file"),
+                    "candidates": candidates,
+                },
+            )
+
+        unresolved = [
+            s for s in doc_sources if s.get("state") != "resolved"
+        ]
+        if unresolved:
+            names = [
+                str(s.get("mention") or "") for s in unresolved
+            ]
+            answer = (
+                "No uploaded document in this workspace matches "
+                + ", ".join(f"`{n}`" for n in names if n)
+                + ". Nothing was read from another source."
+            )
+            return _finish(
+                answer,
+                {
+                    "service": "documents",
+                    "identity_verified": False,
+                    "completed": False,
+                    "coverage_complete": False,
+                    "note": ("named document is not present in the "
+                             "workspace document catalog"),
+                    "file_name": names[0] if names else None,
+                },
+            )
+
+        from core.action_registry import action_registry
+
+        answers: List[str] = []
+        read_meta: List[Dict[str, Any]] = []
+        for source in doc_sources:
+            doc = source.get("document") or {}
+            fname = str(doc.get("file_name") or "")
+            fid = str(doc.get("file_id") or "")
+            try:
+                res = await action_registry.execute_action(
+                    "documents.search",
+                    {"query": fname, "limit": 10},
+                    {"user_id": user_id, "workspace_id": workspace_id},
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "[named-document] documents.search failed: %r", exc
+                )
+                res = {"success": False}
+            if res and res.get("success") is False:
+                answer = (
+                    f"The document search for `{fname}` failed; nothing "
+                    "was read. This is a search failure, not a statement "
+                    "that the document is absent."
+                )
+                return _finish(
+                    answer,
+                    {
+                        "service": "documents",
+                        "file_id": fid,
+                        "file_name": fname,
+                        "identity_verified": False,
+                        "completed": False,
+                        "coverage_complete": False,
+                        "note": "document search failed",
+                    },
+                )
+            hits = list((res or {}).get("results") or [])
+            exact = [
+                h for h in hits
+                if str(h.get("id") or "") == fid
+            ]
+            if len(exact) > 1:
+                names = [
+                    str(h.get("title") or h.get("id") or "")
+                    for h in exact
+                ]
+                answer = (
+                    "More than one document search result matches "
+                    + f"`{fname}`: "
+                    + "; ".join(f"`{n}`" for n in names[:8])
+                    + ". Which one should I use? Nothing was read yet."
+                )
+                return _finish(
+                    answer,
+                    {
+                        "service": "documents",
+                        "identity_verified": False,
+                        "completed": False,
+                        "coverage_complete": False,
+                        "note": ("multiple document search results match "
+                                 "the named file"),
+                        "candidates": names,
+                    },
+                )
+            hit = exact[0] if exact else None
+            if not hit:
+                answer = (
+                    f"The catalog resolved `{fname}`, but the document "
+                    "search returned no VERIFIED hit for that file. "
+                    "Nothing was read from another source."
+                )
+                return _finish(
+                    answer,
+                    {
+                        "service": "documents",
+                        "file_id": fid,
+                        "file_name": fname,
+                        "identity_verified": False,
+                        "completed": False,
+                        "coverage_complete": False,
+                        "note": ("document search returned no verified "
+                                 "exact hit"),
+                    },
+                )
+            content = str(
+                hit.get("content") or hit.get("preview") or ""
+            ).strip()
+            if not content:
+                answer = (
+                    f"The catalog resolved `{fname}`, but the document "
+                    "read returned an empty body. Nothing was answered "
+                    "from it."
+                )
+                return _finish(
+                    answer,
+                    {
+                        "service": "documents",
+                        "file_id": fid,
+                        "file_name": fname,
+                        "identity_verified": False,
+                        "completed": False,
+                        "coverage_complete": False,
+                        "note": "document body was empty",
+                    },
+                )
+            answers.append(
+                f"From `{fname}` (matching excerpt):\n{content[:4000]}"
+                f"\n\nSource: `{fname}`."
+            )
+            read_meta.append(
+                {
+                    "file_id": fid,
+                    "file_name": fname,
+                    "hit_id": hit.get("id"),
+                    "match_count": len(exact),
+                    "returned_chars": len(content[:4000]),
+                    "excerpt": True,
+                }
+            )
+
+        meta = {
+            "service": "documents",
+            "file_id": (doc_sources[0].get("document") or {}).get("file_id")
+            if doc_sources else None,
+            "file_name": (doc_sources[0].get("document") or {}).get(
+                "file_name"
+            ) if doc_sources else None,
+            "identity_verified": True,
+            "completed": False,
+            "coverage_complete": False,
+            "coverage_limits": {
+                "excerpt": True,
+                "returned_chars": sum(
+                    int(r.get("returned_chars") or 0) for r in read_meta
+                ),
+                "max_chars_per_source": 4000,
+                "search": "documents.search",
+            },
+            "note": ("workspace-scoped document catalog + document search; "
+                     "matching excerpt, not a full-document read"),
+            "results": read_meta,
+        }
+        return _finish(
+            "\n\n---\n\n".join(answers),
+            meta,
+            complete=False,
+            identity_verified=True,
+            publish_identity=True,
+        )
+
     async def _direct_confirmed_file_read(
         self,
         pending_task: Dict[str, Any],
@@ -17851,6 +18277,45 @@ class ChatOrchestrator:
 
         if not mention or not original:
             return {"ok": False, "block": "", "reason": "pending task has no file identity"}
+        # DOCUMENT / MIXED NAMED-FILE BRANCH (2026-10-25): explicit
+        # document types and extensionless names resolved to the document
+        # catalog must use the workspace-scoped document reader. The
+        # dataset lane is not applicable to them, and its catalog miss
+        # must never become a "document absent" answer.
+        try:
+            from core.named_file_resolution import (
+                resolve_named_file_intent,
+            )
+
+            _named_intent = await asyncio.to_thread(
+                resolve_named_file_intent,
+                original or mention,
+                user_id,
+                workspace_id,
+                pinned_mention=mention,
+            )
+            if _named_intent.get("reader") in ("documents", "mixed"):
+                logger.info(
+                    "[named-document] direct branch reader=%r state=%r "
+                    "mentions=%r",
+                    _named_intent.get("reader"),
+                    _named_intent.get("state"),
+                    _named_intent.get("mentions"),
+                )
+                return await self._direct_named_document_read(
+                    _named_intent, user_id, workspace_id,
+                )
+            logger.info(
+                "[named-document] branch not taken reader=%r state=%r "
+                "mentions=%r",
+                _named_intent.get("reader"),
+                _named_intent.get("state"),
+                _named_intent.get("mentions"),
+            )
+        except Exception as _ndr_err:  # noqa: BLE001
+            logger.debug(
+                "[named-document] direct read routing skipped: %r",
+                _ndr_err)
         timeout = 25.0
         if deadline is not None:
             try:
