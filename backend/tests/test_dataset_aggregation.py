@@ -712,3 +712,121 @@ async def test_refresh_reread_replaces_aggregate_receipt(monkeypatch):
     assert result["rendered_answer"] == "REFRESHED ANSWER"
     assert result["aggregate_record"] == new_record
     assert result["datasets_aggregate"] is True
+
+
+@pytest.mark.asyncio
+async def test_sql_projections_cannot_supply_calculation_inputs(tmp_path):
+    entries = _entries(tmp_path)
+    adj = next(e for e in entries if e["entity_name"] == "Adjustments")
+
+    # CASE turns 0055's missing quantity into 1 in the projection. The
+    # harness must ignore that projection and read the authoritative
+    # frame: the gap stays, and no invented 75 CAD appears.
+    case_sql = (
+        'SELECT "__sheet_row", '
+        'CASE WHEN "Qty" > 0 THEN "Qty" '
+        'WHEN "Qty" <= 0 THEN "Qty" '
+        'WHEN "Qty" IS DISTINCT FROM 0 THEN 1 END AS "Qty", '
+        '"Unit Price", "Currency", "Status" FROM df '
+        'WHERE "Status" = \'Approved\'')
+    result = await execute_validated_aggregate_plan(
+        entries, _plan(adj, case_sql), "Adjustments sheet approved totals")
+    assert result["status"] == "partial"
+    assert result["known_count"] == 2
+    assert result["subtotals"]["CAD"]["value"] == "-700.00"
+    assert result["gaps"] == [{
+        "identity": "0055", "row": 5, "missing": "quantity", "cell": "C5"
+    }]
+    assert "75.00" not in result["block"]
+
+    # A constant under the original price name is ignored; the frame's
+    # real prices still produce the known subtotal.
+    price_sql = (
+        'SELECT "__sheet_row", "Qty", 999 AS "Unit Price", '
+        '"Currency", "Status" FROM df WHERE "Status" = \'Approved\'')
+    result = await execute_validated_aggregate_plan(
+        entries, _plan(adj, price_sql), "Adjustments sheet approved totals")
+    assert result["status"] == "partial"
+    assert result["subtotals"]["CAD"]["value"] == "-700.00"
+    assert result["gaps"][0]["identity"] == "0055"
+
+
+@pytest.mark.asyncio
+async def test_row_identity_must_be_plain_integer_not_expression(tmp_path):
+    entries = _entries(tmp_path)
+    po = next(e for e in entries if e["entity_name"] == "PO Register")
+    for sql in (
+        'SELECT 999 AS "__sheet_row" FROM df',
+        'SELECT 2.5 AS "__sheet_row" FROM df',
+        'SELECT CAST("__sheet_row" AS INTEGER) AS "__sheet_row" FROM df',
+        'SELECT "__sheet_row" + 0 AS "__sheet_row" FROM df',
+        'WITH x AS (SELECT 2 AS __sheet_row) SELECT __sheet_row FROM x',
+        'SELECT __sheet_row FROM (SELECT 2 AS __sheet_row) x',
+        'SELECT __sheet_row FROM df, df d',
+    ):
+        result = await execute_validated_aggregate_plan(
+            entries, _plan(po, sql), "PO Register sheet approved totals")
+        assert result["status"] == "error", sql
+        assert "No total was computed" in result["block"]
+
+
+@pytest.mark.asyncio
+async def test_planner_sheet_row_identity_is_corrected_to_business_key(tmp_path):
+    entries = _entries(tmp_path)
+    adj = next(e for e in entries if e["entity_name"] == "Adjustments")
+    plan = _plan(
+        adj,
+        'SELECT "PO ID", "__sheet_row" FROM df WHERE "Status" = \'Approved\'',
+        {"identity_column": "__sheet_row"},
+    )
+    result = await execute_validated_aggregate_plan(
+        entries, plan, "Adjustments sheet approved totals")
+    assert result["gaps"][0]["identity"] == "0055"
+    assert [r["identity"] for r in result["rows"]] == ["0007", "0012"]
+    assert all(r["identity_source"] == "identity_column"
+               for r in result["rows"])
+
+
+@pytest.mark.asyncio
+async def test_nl_plan_projection_cannot_substitute_values(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    import core.llm.pinned_planning as pp
+    from core.dataset_aggregation import aggregate_named_dataset
+
+    entries = _entries(tmp_path)
+    adj = next(e for e in entries if e["entity_name"] == "Adjustments")
+    plan = SimpleNamespace(
+        dataset_name=adj["dataset_name"],
+        sql=('SELECT "__sheet_row", '
+             'CASE WHEN "Qty" > 0 THEN "Qty" '
+             'WHEN "Qty" <= 0 THEN "Qty" '
+             'WHEN "Qty" IS DISTINCT FROM 0 THEN 1 END AS "Qty", '
+             '"Unit Price", "Currency", "Status" FROM df '
+             'WHERE "Status" = \'Approved\''),
+        identity_column="PO ID",
+        quantity_column="Qty",
+        price_column="Unit Price",
+        currency_column="Currency",
+        status_column="Status",
+        note="",
+    )
+
+    async def fake_plan(*args, **kwargs):
+        return plan
+
+    monkeypatch.setattr(pp, "pinned_structured_call", fake_plan)
+    monkeypatch.setattr(
+        pp, "resolve_pinned_provider_model", lambda *a, **k: {}
+    )
+    result = await aggregate_named_dataset(
+        entries,
+        "Adjustments sheet approved rows total; name missing inputs.",
+        object(),
+        file_name="spreadsheet_job_20261025.xlsx",
+    )
+    assert result["status"] == "partial"
+    assert result["gaps"] == [{
+        "identity": "0055", "row": 5, "missing": "quantity", "cell": "C5"
+    }]
+    assert result["subtotals"]["CAD"]["value"] == "-700.00"
+    assert "75.00" not in result["block"]

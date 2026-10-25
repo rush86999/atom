@@ -22,8 +22,37 @@ and its inputs were present.
    precedence. Aggregate dispatch happens before `_resolve_active_items`.
 2. **Controlled execution first.** `core/dataset_aggregation.py` adds a
    deterministic adapter over the existing sheet-dataset planner and DuckDB
-   executor: detail-row SELECT only, `__sheet_row` and identity required,
-   Decimal aggregation over the full eligible set, no SQL totals/LIMIT.
+   executor: SQL selects ROW IDENTITIES only (`__sheet_row` as a plain
+   column); row references must be exact, unique integers present in the
+   bound workbook/sheet/version. Quantity, price, currency, status and item
+   identity are re-read from the authoritative materialized frame, never
+   from SQL projections/aliases/CASE/casts. Decimal aggregation then runs
+   over the full eligible set with no SQL totals/LIMIT.
+
+### Evidence-binding correction (successor to `04fd550be`)
+
+The prior candidate still let a generated projection supply calculation
+values: a `CASE`/constant/cast could replace a missing quantity or price
+before aggregation. The successor closes that trust boundary:
+
+- generated SQL determines MEMBERSHIP only; `__sheet_row` must be a plain
+  column reference and only the registered frame may supply it;
+- row references are validated as exact integers (floats/fractional values
+  are rejected), unique, and present in the bound workbook/sheet/version;
+- CTE, derived-table, comma-join and other-table forms that could fabricate
+  real-looking row references are rejected;
+- all quantity/price/currency/status/identity values are read back from the
+  authoritative materialized frame, so projections are ignored;
+- if a planner returns `__sheet_row` as the identity role while projecting
+  a real business key, the role is corrected deterministically to that key;
+  values still come from the frame.
+
+Local controls include the malicious `CASE` projection (0055 remains a
+missing-quantity gap; no invented 75 CAD), a constant price under the
+original column name, fabricated/fractional row references, and the
+ordinary positive twin (8050.00 CAD / 3999.96 USD). This closes value
+substitution; it does NOT prove that the generated selection predicate
+matches the user's intent — predicate correctness is tested separately.
 3. **Completeness separate from summation.** Blank, empty, NaN/Inf sentinel,
    and null-like values are named gaps, never zero. A partial result publishes
    a known subtotal and withholds the complete/grand total. Provenance is the
@@ -51,13 +80,13 @@ Scratch only: backend `:8121`, database
 
 | Case | Session | Delivered result |
 |---|---|---|
-| PO Register, approved rows, totals by currency | `418e98cd-7bb6-4691-be3e-b791876679bd` | CAD **8050.00** (3 rows, qty 10); USD **3999.96** (1 row, qty 4); cancelled row excluded; rows 2/3/4/6 with C/D provenance |
-| Adjustments, approved rows, name missing inputs | `7029bbfa-d5fd-4168-a175-c90b9cff5717` | Known subtotal **−700.00 CAD**; gap **0055**, missing quantity at **C5**; complete/grand total withheld |
-| Formula reference, D8 | `ca47f822-0b1e-457b-ade8-66e9e8e0258d` | **8050.00** neutral workbook arithmetic; 7 dependencies; no pricing policy |
-| Formula reference, row-qualified D8 | `0fbb11ad-74fe-48d4-942d-d4d5f3b297a3` | **8050.00**; same neutral basis |
-| Aggregate with no sheet named | `41464758-3eab-436f-b803-33bdc6251fee` | `SHEET AMBIGUOUS`; no total computed |
-| Explicit missing sheet | `58d93f54-6d37-4c92-93f6-7c3a64b4d1ca` | `SHEET NOT FOUND`; no fallback; no total computed |
-| Ordinary item lookup | `bb51a247-766f-406b-be97-0e5b38503302` | `0007` remains ambiguous between Adjustments row 2 (D2 = 100) and PO Register row 2 (D2 = 1,250) |
+| PO Register, approved rows, totals by currency | `42dea6af-c316-4bf9-9c91-c113fe1b7959` | CAD **8050.00** (3 rows, qty 10); USD **3999.96** (1 row, qty 4); cancelled row excluded; rows 2/3/4/6 with C/D provenance |
+| Adjustments, approved rows, name missing inputs | `1f11ca63-5909-4e6b-9936-99d4360201fe` | Known subtotal **−700.00 CAD**; gap **0055**, missing quantity at **C5**; complete/grand total withheld |
+| Formula reference, D8 | `32c69d18-16cd-4553-8c00-5a38587de920` | **8050.00** neutral workbook arithmetic; 7 dependencies; no pricing policy |
+| Formula reference, row-qualified D8 | `7998207b-0138-49d9-ad62-27fb36dc7574` | **8050.00**; same neutral basis |
+| Aggregate with no sheet named | `ea20ac32-9ba8-4d0c-918c-fc6253e2c2d2` | `SHEET AMBIGUOUS`; no total computed |
+| Explicit missing sheet | `fe8351a5-7cab-4ff0-8dba-0cf831bbc69e` | `SHEET NOT FOUND`; no fallback; no total computed |
+| Ordinary item lookup | `882bfeea-9c5c-447e-95e2-ac1014fafa58` | `0007` remains ambiguous between Adjustments row 2 (D2 = 100) and PO Register row 2 (D2 = 1,250) |
 
 PO response also reports `Sheet rows: 5; selected: 4; not selected: 1` and
 `Sheet status counts: Approved=4, Cancelled=1`, making the exclusion auditable.
@@ -84,7 +113,7 @@ Focused suite (aggregation, routing, pending-file, workbook delivery, turn
 program, source-ask, pricing):
 
 ```
-612 passed, 4 skipped, 2 xfailed, 11 failed
+616 passed, 4 skipped, 2 xfailed, 11 failed
 ```
 
 The same 11 failures reproduce on parent `c912375de` (refresh verdict/fixture
@@ -92,11 +121,21 @@ tests unrelated to this job). New controls in `tests/test_dataset_aggregation.py
 cover: operation precedence, whole-token/longest/filename sheet binding
 (including space-containing filenames), generic sheet words without a cue,
 ambiguous/missing sheet, DISTINCT/UNION/path/missing-`__sheet_row` rejection,
-COALESCE/IFNULL/NULL filtering of required inputs, quoted keyword columns,
-string NaN/Inf/null gaps, duplicate rows, version ambiguity, truncated
-materialization, display cap, formula grammar ordering, neutral priced-scope
-refusal, neutral stored-value record shape, and refreshed aggregate receipt
-replacement.
+CASE/constant projection substitution, fabricated/fractional row references,
+CTE/derived-table identity fabrication, COALESCE/IFNULL/NULL filtering of
+required inputs, quoted keyword columns, string NaN/Inf/null gaps, duplicate
+rows, version ambiguity, truncated materialization, display cap, formula
+grammar ordering, neutral priced-scope refusal, neutral stored-value record
+shape, and refreshed aggregate receipt replacement.
+
+## Documented limitation
+
+The selection guard rejects filters on required-input columns (quantity,
+price, currency) because filtering a row out is indistinguishable from
+erasing a missing-input gap. That also rejects legitimate asks such as
+“approved CAD rows.” Separating user-requested selection authority from
+missing-input protection is future work; this correction intentionally does
+not broaden that behavior.
 
 ## Freeze decision
 

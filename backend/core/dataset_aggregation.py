@@ -17,7 +17,9 @@ It deliberately does not add another SQL engine or formula evaluator.
 """
 from __future__ import annotations
 
+import logging
 import math
+import numbers
 import os
 import re
 from collections import Counter
@@ -28,6 +30,8 @@ from core.data.dataset_manager import _validate_dataset_sql
 from core.formula_engine import col_letter
 from core.pending_file_task import is_aggregate_request
 from core.sheet_dataset_service import SHEET_ROW_COL, _schema_block
+
+logger = logging.getLogger(__name__)
 
 _MAX_AGGREGATE_ROWS = 50000
 _MAX_DISPLAY_ROWS = 50
@@ -512,6 +516,197 @@ def aggregate_selected_rows(
     return result
 
 
+def _split_top_level_items(body: str) -> List[str]:
+    items: List[str] = []
+    start = 0
+    depth = 0
+    quote: Optional[str] = None
+    i = 0
+    while i < len(body):
+        ch = body[i]
+        if quote:
+            if ch == quote:
+                if i + 1 < len(body) and body[i + 1] == quote:
+                    i += 2
+                    continue
+                quote = None
+            i += 1
+            continue
+        if ch in ("'", '"'):
+            quote = ch
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth = max(0, depth - 1)
+        elif ch == "," and depth == 0:
+            items.append(body[start:i].strip())
+            start = i + 1
+        i += 1
+    items.append(body[start:].strip())
+    return [item for item in items if item]
+
+
+def _outer_select_bounds(sql: str) -> Optional[Tuple[int, int]]:
+    """(end of outermost SELECT keyword, start of its FROM)."""
+    lower = sql.lower()
+    depth = 0
+    quote: Optional[str] = None
+    selects: List[int] = []
+    froms: List[int] = []
+    last_word = ""
+    i = 0
+    while i < len(sql):
+        ch = sql[i]
+        if quote:
+            if ch == quote:
+                if i + 1 < len(sql) and sql[i + 1] == quote:
+                    i += 2
+                    continue
+                quote = None
+            i += 1
+            continue
+        if ch in ("'", '"'):
+            quote = ch
+            i += 1
+            continue
+        if ch == "(":
+            depth += 1
+            i += 1
+            continue
+        if ch == ")":
+            depth = max(0, depth - 1)
+            i += 1
+            continue
+        if depth == 0 and (ch.isalpha() or ch == "_"):
+            j = i + 1
+            while j < len(sql) and (sql[j].isalnum() or sql[j] == "_"):
+                j += 1
+            word = lower[i:j]
+            if word == "select":
+                selects.append(j)
+            elif word == "from" and last_word != "distinct":
+                froms.append(i)
+            last_word = word
+            i = j
+            continue
+        i += 1
+    for select_end in reversed(selects):
+        outer_from = next((f for f in froms if f > select_end), None)
+        if outer_from is not None:
+            return select_end, outer_from
+    return None
+
+
+def _outer_select_items(sql: str) -> List[str]:
+    """Select-list items of the outermost SELECT."""
+    bounds = _outer_select_bounds(sql)
+    if bounds is None:
+        return []
+    select_end, outer_from = bounds
+    return _split_top_level_items(sql[select_end:outer_from])
+
+
+def _sheet_row_projection_violation(sql: str) -> Optional[str]:
+    """Row identity must be selected as a role/reference, never computed.
+
+    The calculation inputs are read from the authoritative frame. If
+    ``__sheet_row`` itself is produced by CASE/arithmetic, the SQL can
+    choose arbitrary real rows and bypass the predicate.
+    """
+    items = _outer_select_items(sql)
+    if not items:
+        return None
+    has_star = False
+    found = False
+    for item in items:
+        normalized = re.sub(r"\s+", "", item)
+        if normalized == "*" or normalized.endswith(".*"):
+            has_star = True
+            continue
+        if "__sheet_row" not in normalized.lower():
+            continue
+        found = True
+        if not re.fullmatch(
+                r'(?:"?[A-Za-z_][A-Za-z0-9_]*"?\.)?'
+                r'(?:"__sheet_row"|__sheet_row)',
+                normalized):
+            return (
+                "The selection query must project __sheet_row as a plain "
+                "column reference (never an expression or alias); the "
+                "authoritative frame supplies all calculation inputs."
+            )
+    if not found and not has_star:
+        return (
+            "The selection query must project __sheet_row; the harness "
+            "reads the selected rows from the authoritative frame."
+        )
+    return None
+
+
+def _plain_projected_columns(sql: str) -> List[str]:
+    """Plain column references in the outer projection (no expressions)."""
+    out: List[str] = []
+    for item in _outer_select_items(sql):
+        text = item.strip()
+        if not text or text == "*" or text.endswith(".*"):
+            continue
+        if re.search(r"\s+as\s+", text, re.IGNORECASE):
+            continue
+        if any(token in text for token in ("(", ")", "+", "-", "/", "*",
+                                           "||", "=", "<", ">")):
+            continue
+        match = re.fullmatch(
+            r'(?:(?:"[^"]+"|[A-Za-z_][A-Za-z0-9_]*)\.)?'
+            r'(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*))',
+            text)
+        if match:
+            out.append(match.group(1) or match.group(2))
+    return out
+
+
+def _table_binding_violation(
+    sql: str, allowed_tables: List[str]
+) -> Optional[str]:
+    """Only the directly registered frame may supply row identities.
+
+    CTEs and derived tables can compute a real-looking ``__sheet_row``
+    without touching the bound frame; fail closed (2026-10-25 final
+    correction).
+    """
+    if re.match(r"(?is)^\s*with\b", sql):
+        return (
+            "The selection query must be a single SELECT reading the "
+            "registered dataset directly; WITH/CTE forms are not allowed."
+        )
+    bounds = _outer_select_bounds(sql)
+    if bounds is None:
+        return "The selection query must read the registered dataset."
+    suffix = sql[bounds[1] + 4:]  # after the outer FROM keyword
+    if re.match(r"(?is)^\s*\(", suffix):
+        return (
+            "The selection query must read the registered dataset directly; "
+            "derived tables/subqueries in FROM are not allowed."
+        )
+    match = re.match(
+        r"(?is)^\s+(\"[^\"]+\"|'[^']+'|[^\s,;()]+)", suffix)
+    if not match:
+        return "The selection query must read the registered dataset."
+    table = match.group(1).strip().strip('"').strip("'")
+    remainder = suffix[match.end():].lstrip()
+    if remainder.startswith(","):
+        return (
+            "The selection query may read only the registered dataset; "
+            "comma-separated/joined tables are not allowed."
+        )
+    allowed = {str(name).lower() for name in allowed_tables if name}
+    if table.lower() not in allowed:
+        return (
+            f"The selection query reads '{table}', but only the registered "
+            "dataset may supply row identities."
+        )
+    return None
+
+
 def _strip_sql_noise(sql: str) -> str:
     """Literals and quoted identifiers are not SQL keywords/paths."""
     text = re.sub(r"'(?:[^'\\]|\\.)*'", " ", sql)
@@ -533,12 +728,17 @@ def _selection_sql_violation(
     """
     stripped = _strip_sql_noise(sql)
     if re.search(
-            r"\b(?:union|intersect|except|distinct|join|group\s+by|having|"
+            r"\b(?:union|intersect|except|join|group\s+by|having|"
             r"qualify|limit|offset)\b",
             stripped, re.IGNORECASE):
         return (
-            "The selection query must return detail rows only: DISTINCT, "
-            "UNION/INTERSECT/EXCEPT, JOIN, GROUP BY, and LIMIT/OFFSET are "
+            "The selection query must return detail rows only: UNION/"
+            "INTERSECT/EXCEPT, JOIN, GROUP BY, and LIMIT/OFFSET are not "
+            "allowed."
+        )
+    if re.search(r"\bselect\s+distinct\b", stripped, re.IGNORECASE):
+        return (
+            "The selection query must return detail rows only: DISTINCT is "
             "not allowed."
         )
     if re.search(r"\bover\s*\(", stripped, re.IGNORECASE):
@@ -571,6 +771,12 @@ def _selection_sql_violation(
         r"(?is)\bwhere\b(.*?)(?:\bgroup\s+by\b|\border\s+by\b|\blimit\b|$)",
         sql)
     if where:
+        # DOCUMENTED LIMITATION (2026-10-25 final correction): this
+        # rejects legitimate selections such as "approved CAD rows"
+        # because currency is a required input. Distinct authority for
+        # user-requested filtering vs missing-input protection is future
+        # work; do not broaden this casually — a filtered-out row is an
+        # erased gap.
         for column in required_columns or []:
             if column and re.search(
                     r"(?<![A-Za-z0-9_])" + re.escape(column)
@@ -643,25 +849,56 @@ async def _execute_selection_plan(
         "currency_column": str(getattr(plan, "currency_column", "") or ""),
         "status_column": str(getattr(plan, "status_column", "") or ""),
     }
-    violation = _validate_dataset_sql(sql) or _selection_sql_violation(
-        sql,
-        required_columns=[
-            roles["quantity_column"],
-            roles["price_column"],
-            roles["currency_column"],
-        ],
+    alias = re.sub(
+        r"[^a-z0-9_]+", "_", str(chosen.get("entity_name")).lower())
+    violation = (
+        _validate_dataset_sql(sql)
+        or _selection_sql_violation(
+            sql,
+            required_columns=[
+                roles["quantity_column"],
+                roles["price_column"],
+                roles["currency_column"],
+            ],
+        )
+        or _sheet_row_projection_violation(sql)
+        or _table_binding_violation(
+            sql,
+            ["df", str(chosen.get("dataset_name") or ""), alias],
+        )
     )
     if violation:
         return _error_block("SQL REJECTED", violation)
-    if not re.match(r"(?is)^\s*(select|with)\b", sql) or ";" in sql:
+    if not re.match(r"(?is)^\s*select\b", sql) or ";" in sql:
         return _error_block("SQL REJECTED", "Only one SELECT statement is allowed.")
 
+    logger.debug(
+        "[datasets.aggregate] plan dataset=%s sql=%r roles=%s",
+        dataset_name, sql[:800], roles)
     try:
         import duckdb
         import pandas as pd
 
         df = pd.read_parquet(chosen["parquet_path"])
         columns = [str(c) for c in df.columns]
+        if roles["identity_column"] in ("", SHEET_ROW_COL):
+            # The planner sometimes returns __sheet_row as the identity
+            # role even when it projected a real business key. Values
+            # still come from the frame; only the ROLE is corrected.
+            _role_cols = {
+                roles["quantity_column"], roles["price_column"],
+                roles["currency_column"], roles["status_column"],
+                SHEET_ROW_COL,
+            }
+            _candidate = next(
+                (
+                    name for name in _plain_projected_columns(sql)
+                    if name in columns and name not in _role_cols
+                ),
+                None,
+            )
+            if _candidate:
+                roles["identity_column"] = _candidate
         for role, col in roles.items():
             if col and col not in columns:
                 return _error_block(
@@ -695,7 +932,6 @@ async def _execute_selection_plan(
         try:
             con.register("df", df)
             con.register(chosen["dataset_name"], df)
-            alias = re.sub(r"[^a-z0-9_]+", "_", str(chosen["entity_name"]).lower())
             con.register(alias, df)
             # The registered frame is the ONLY readable source. This
             # closes path/URL reads even if a validator token is missed.
@@ -709,26 +945,6 @@ async def _execute_selection_plan(
         return _error_block(
             "AGGREGATION EXECUTION FAILED",
             f"The selection query failed ({type(exc).__name__}); no total was computed.",
-        )
-
-    out_columns = [str(c) for c in out.columns]
-    if SHEET_ROW_COL not in out_columns:
-        return _error_block(
-            "ROW PROVENANCE MISSING",
-            f"The selection query did not project {SHEET_ROW_COL}; sheet row "
-            "identity is required, so no total was computed.",
-        )
-    if roles["identity_column"] not in out_columns:
-        return _error_block(
-            "ROW IDENTITY MISSING",
-            f"The selection query did not project the identity column "
-            f"'{roles['identity_column']}'; no total was computed.",
-        )
-    if out[SHEET_ROW_COL].isna().any():
-        return _error_block(
-            "ROW PROVENANCE MISSING",
-            f"One or more selected rows have no {SHEET_ROW_COL} value; no "
-            "total was computed.",
         )
 
     if len(out) > max_rows:
@@ -752,6 +968,8 @@ async def _execute_selection_plan(
             "subtotals": {},
             "rows": [],
             "coverage": coverage,
+            "source_status_counts": source_status_counts,
+            "selected_status_counts": {},
         }) + "\nNo rows matched the selection; no total was computed."
         return {
             "status": "no_rows",
@@ -762,8 +980,74 @@ async def _execute_selection_plan(
             "subtotals": {},
         }
 
+    out_columns = [str(c) for c in out.columns]
+    if SHEET_ROW_COL not in out_columns:
+        return _error_block(
+            "ROW PROVENANCE MISSING",
+            f"The selection query did not project {SHEET_ROW_COL}; sheet row "
+            "identity is required, so no total was computed.",
+        )
+
+    # EVIDENCE BINDING (2026-10-25 final correction): SQL selects ROW
+    # IDENTITIES only. Every calculation input is read back from the
+    # authoritative materialized frame — a projection alias, constant,
+    # CASE, cast or expression can never supply quantity/price/currency/
+    # status/identity.
+    selected_ids: List[int] = []
+    seen_ids = set()
+    for value in out[SHEET_ROW_COL].tolist():
+        if isinstance(value, bool) or value is None:
+            return _error_block(
+                "ROW IDENTITY INVALID",
+                f"A selected {SHEET_ROW_COL} was not an exact integer; no "
+                "total was computed.",
+            )
+        if isinstance(value, numbers.Integral):
+            row_id = int(value)
+        elif isinstance(value, str) and re.fullmatch(
+                r"[0-9]+", value.strip()):
+            row_id = int(value.strip())
+        else:
+            return _error_block(
+                "ROW IDENTITY INVALID",
+                f"A selected {SHEET_ROW_COL} was not an exact integer "
+                f"({value!r}); no total was computed.",
+            )
+        if row_id < 2 or row_id in seen_ids:
+            return _error_block(
+                "ROW IDENTITY INVALID",
+                f"A selected {SHEET_ROW_COL} was out of range or duplicated "
+                f"({row_id}); no total was computed.",
+            )
+        seen_ids.add(row_id)
+        selected_ids.append(row_id)
+
+    authoritative_by_row: Dict[int, Dict[str, Any]] = {}
+    for record in df.to_dict(orient="records"):
+        raw_row = record.get(SHEET_ROW_COL)
+        try:
+            row_id = int(raw_row)
+        except (TypeError, ValueError):
+            continue
+        authoritative_by_row[row_id] = record
+    missing_ids = [
+        row_id for row_id in selected_ids
+        if row_id not in authoritative_by_row
+    ]
+    if missing_ids:
+        return _error_block(
+            "ROW IDENTITY NOT FOUND",
+            "The selection returned row reference(s) that do not exist in "
+            "the bound sheet/version ("
+            + ", ".join(str(r) for r in missing_ids[:8])
+            + "); no total was computed.",
+        )
+    selected_records = [
+        authoritative_by_row[row_id] for row_id in selected_ids
+    ]
+
     return aggregate_selected_rows(
-        out.to_dict(orient="records"),
+        selected_records,
         columns,
         roles,
         sheet=str(chosen.get("entity_name") or ""),
@@ -905,11 +1189,16 @@ async def aggregate_named_dataset(
         "name the gap instead of zeroing or dropping it.\n"
         "- Do NOT use SUM, COUNT, AVG, MIN, MAX, GROUP BY, or any aggregate. "
         "The harness computes totals deterministically over the returned rows.\n"
-        "- Project __sheet_row plus the exact identity, quantity, unit-price, "
-        "currency and status/grouping columns. Quote column names exactly as "
-        "listed.\n"
-        "- Set the role fields to the exact column names used in the SQL. Use "
-        "an empty string for a role the sheet does not have.\n"
+        "- SELECT ROW IDENTITIES: project __sheet_row as a plain column "
+        "reference (never an expression, CASE, cast, or alias). The harness "
+        "reads quantity, unit price, currency, status and identity from the "
+        "authoritative frame for those rows, so projections of those fields "
+        "are ignored.\n"
+        "- Set the role fields to the exact FRAME column names (listed "
+        "above), not SQL aliases. identity_column is the sheet's business "
+        "identifier column (never __sheet_row); use an empty string if the "
+        "sheet has no business identifier and for any other role the sheet "
+        "does not have.\n"
         "- If no dataset plausibly matches, set dataset_name and sql to empty.\n\n"
         "Return JSON: dataset_name, sql, identity_column, quantity_column, "
         "price_column, currency_column, status_column, note"
