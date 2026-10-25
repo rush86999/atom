@@ -639,6 +639,20 @@ _SOURCE_FAMILY_ALIASES = {
     "workbook": "spreadsheet", "workbooks": "spreadsheet",
     "sheet": "spreadsheet",
 }
+#: Families a BARE back-reference ("the record", "the file") may bind.
+#: A user's "record" commonly means an ingested document, never an email;
+#: "file"/"document"/"report" stay in the document family. A family noun
+#: is a constraint, not a wildcard over every observed source.
+_BACKREF_FAMILIES = {
+    "record": frozenset({"record", "document"}),
+    "records": frozenset({"record", "document"}),
+    "file": frozenset({"document"}),
+    "files": frozenset({"document"}),
+    "document": frozenset({"document"}),
+    "documents": frozenset({"document"}),
+    "report": frozenset({"document"}),
+    "reports": frozenset({"document"}),
+}
 
 
 def _source_family_key(source: Any) -> str:
@@ -756,9 +770,16 @@ def resolve_request_source_reference(
         if not candidates and bare_kind:
             # "the record" / "the same document" / "the file" with no
             # same-family observed source is a BACK-REFERENCE to the
-            # conversation's observed evidence. One candidate resolves;
-            # several stay ambiguous (never insertion-order).
-            candidates = list(observed)
+            # conversation's observed evidence — WITHIN the named family.
+            # One candidate resolves; several stay ambiguous; a different
+            # family (an email for "the record") is never adopted.
+            allowed_families = _BACKREF_FAMILIES.get(
+                phrase.casefold()) or frozenset({
+                    _source_family_key(phrase)})
+            candidates = [
+                entry for entry in observed
+                if _source_family_key(entry.get("kind"))
+                in allowed_families]
         resolutions.append({
             "phrase": phrase,
             "kind": normalize_source_kind(phrase),
@@ -1010,12 +1031,22 @@ _COMPOUND_ACTION_VETO_RE = re.compile(
     r"replac(?:e|es|ed|ing)|correct(?:s|ed|ing)?|fix(?:es|ed|ing)?)\b"
     r"\s+(?:the|a|an|this|that|my|our|your|their|its|it|them|him|her|"
     r"me|us)\b"
-    # A creative/build verb can take a bare object noun ("prepare
-    # summary", "compose reply"). "on the draft" is not a verb use.
+    # A determinerless imperative still names an artifact object: "update
+    # draft", "send draft", "add terms". An inflected ADJECTIVE
+    # ("updated draft") is not in this verb list.
+    r"|\b(?:update|edit|change|set|apply|send|create|add|remove|delete|"
+    r"write|schedule|book|pay|submit|upload|replace|correct|fix)\b\s+"
+    r"(?:draft|document|email|message|summary|terms?|price|prices|row|"
+    r"rows|field|fields|footer|list|quote|quotation|canvas|sheet|slide|"
+    r"text|copy|content|subject|body|table)\b"
+    # A creative/build verb can take a bare or lightly qualified object
+    # ("prepare summary", "prepare short summary"). "on the draft" is not
+    # a verb use.
     r"|\b(?:draft|prepare|compose|write|rewrite|revise|adjust|insert|"
     r"replace|correct|fix)\b\s+"
     r"(?:a|an|the|my|our|your|it|this|that|summary|reply|email|"
-    r"message|paragraph|section|terms?|name)\b",
+    r"message|paragraph|section|terms?|name|short|new|brief|final|"
+    r"clean)\b",
     re.IGNORECASE,
 )
 
@@ -1117,9 +1148,10 @@ def apply_degraded_continuation_references(
     * the semantic interpretation is unresolved/absent (the degraded
       path); or
     * ``fill_missing_source`` is set and the resolved record left NO
-      reference marker, file identity, or source capture. A schema-valid
-      record with ``sources=[]`` made no source decision; the request's
-      own named reference is still the contract.
+      reference marker. A schema-valid record with ``sources=[]`` made no
+      source decision; a generic floor capture ("document") is a
+      nomination, not a model decision. The request's own named reference
+      is still the contract.
 
     A model that supplied a resolved/ambiguous/unresolved marker is
     respected. A specific floor file is preserved; a named reference to a
@@ -1148,14 +1180,12 @@ def apply_degraded_continuation_references(
         return decision
     refs = decision.get("references")
     refs = refs if isinstance(refs, dict) else {}
-    if resolved_interpretation and (
-            refs.get("continuation_evidence")
-            or (fill_missing_source and (
-                refs.get("file") or refs.get("sources")))):
-        # The model made a source decision, OR the floor already captured
-        # a source and the model merely left the details alone. Do not
-        # overwrite either; fill_missing_source is only for a completely
-        # empty reference set.
+    if resolved_interpretation and refs.get("continuation_evidence"):
+        # The model made a source decision (including an honest
+        # unresolved/ambiguous one); do not overwrite it. A generic floor
+        # capture without a marker is only a nomination and may be
+        # refined below; a specific floor file is preserved by the
+        # mixed-marker branch.
         return decision
     resolved = resolve_request_source_reference(text, session)
     if not resolved:

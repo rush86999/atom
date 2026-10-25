@@ -54,8 +54,10 @@ ATOM_LLM_PROVIDER_POLICY={"mode":"automatic","allowed_providers":[]}
   origin, or a schema-valid record that names no source — the
   deterministic reference fill is used: source bound to the observed
   approved record, exactly `expiration_date`, `broader_comparison`
-  false, zero writes. Any refinement attempt must still use an
-  authorized route.
+  false, zero writes. A generic floor capture is refined by the named
+  reference; a floor file plus a DIFFERENT named record is preserved as
+  an unresolved mixed obligation, never a one-source completion. Any
+  refinement attempt must still use an authorized route.
 - A genuinely broad follow-up stays broad (whole-document obligation
   open), and an ambiguous source clarifies without selecting one.
 - The cutover request, if any, must explicitly accept the actual

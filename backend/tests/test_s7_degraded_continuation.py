@@ -199,6 +199,51 @@ def test_resolved_empty_source_record_is_filled_from_the_named_reference(
     assert req["identity"]["file_name"] == PRIOR_FILE, req
 
 
+def test_resolved_empty_source_with_generic_floor_is_refined(monkeypatch):
+    """A generic floor `document` capture is a nomination, not a model
+    source decision. The named reference must still refine it."""
+    message = ("Does the Valid until date on the draft still match the "
+               "approved record document?")
+    session = _session((PRIOR_FILE,))
+    decision = build_turn_decision(message, session, [])
+    assert "document" in (decision["references"]["sources"] or []), (
+        decision["references"])
+    empty = dict(_degraded())
+    empty.update({
+        "origin": "llm:test-model", "scope_change": "continue",
+        "sources": []})
+    composed = apply_degraded_continuation_references(
+        decision, empty, session, message, fill_missing_source=True)
+    marker = composed["references"]["continuation_evidence"]
+    assert marker["state"] == "resolved", marker
+    assert composed["references"]["file"] == {"file_name": PRIOR_FILE}
+    req = _requirement(composed, message=message, accepted=empty,
+                       monkeypatch=monkeypatch)
+    assert req["identity"]["state"] == "resolved", req
+    assert req["identity"]["file_name"] == PRIOR_FILE, req
+
+
+def test_resolved_empty_source_with_floor_file_marks_mixed(monkeypatch):
+    message = ("Does the Valid until date in catalog_2019.xlsx match the "
+               "approved record?")
+    session = _session((PRIOR_FILE,))
+    decision = build_turn_decision(message, session, [])
+    empty = dict(_degraded())
+    empty.update({
+        "origin": "llm:test-model", "scope_change": "continue",
+        "sources": []})
+    composed = apply_degraded_continuation_references(
+        decision, empty, session, message, fill_missing_source=True)
+    marker = composed["references"]["continuation_evidence"]
+    assert marker["state"] == "unresolved", marker
+    assert marker.get("mixed_source_families") == (
+        "floor_file_and_named_reference"), marker
+    req = _requirement(composed, message=message, accepted=empty,
+                       monkeypatch=monkeypatch)
+    assert req["identity"]["state"] == "unresolved", req
+    assert req["identity"]["names"] == ["approved record"], req
+
+
 def test_floor_file_plus_named_record_is_an_unresolved_mixed_obligation(
         monkeypatch):
     message = ("Does the Valid until date in catalog_2019.xlsx match the "
@@ -236,6 +281,30 @@ def test_bare_back_reference_resolves_the_sole_observed_source():
         observed_files=(PRIOR_FILE, OTHER_FILE))
     marker = ambiguous["references"]["continuation_evidence"]
     assert marker["state"] == "ambiguous", marker
+
+
+def test_bare_back_reference_respects_the_named_family():
+    """A family noun is a constraint: `the record`/`the file` must not
+    adopt the conversation's only EMAIL observation."""
+    session = {
+        "_retrieval_source_observations_prior": [{
+            "observation_id": "email-1",
+            "source": "communication",
+            "file_name": "thread-42.eml",
+            "title": "thread-42",
+            "workspace_id": "ws-1",
+            "content_hash": "",
+        }]}
+    for message in (
+            "Does the Valid until date still match the record?",
+            "Does the Valid until date still match the file?",
+            "Does the Valid until date still match the same document?"):
+        decision = build_turn_decision(message, session, [])
+        composed = apply_degraded_continuation_references(
+            decision, _degraded(), session, message)
+        marker = composed["references"].get("continuation_evidence") or {}
+        assert marker.get("state") == "unresolved", (message, marker)
+        assert "thread-42.eml" not in str(marker), (message, marker)
 
 
 def test_casual_source_mention_is_not_an_evidence_request():
@@ -310,6 +379,25 @@ def test_concrete_date_difference_stays_narrow_and_fast_pathed(monkeypatch):
     assert req["broader_comparison"] is False, req
 
 
+def test_explicit_ignore_language_stays_narrow_and_fast_pathed(monkeypatch):
+    for message in (
+            "Does the valid until date match the approved record? Ignore "
+            "everything else.",
+            "Compare the valid until date with the approved record; "
+            "everything else is fine.",
+            "Compare the valid until date with the approved record. The "
+            "rest of the draft can stay as is."):
+        session = _session((PRIOR_FILE,))
+        decision = build_turn_decision(message, session, [])
+        composed = apply_degraded_continuation_references(
+            decision, _degraded(), session, message)
+        req = _requirement(composed, message=message,
+                           monkeypatch=monkeypatch)
+        assert req["broader_comparison"] is False, (message, req)
+        assert deterministic_continuation_ready(
+            message, session, decision) is not None, message
+
+
 def test_compound_action_vetoes_cover_bare_objects_and_adjectives():
     one = _session((PRIOR_FILE,))
     for mixed in (
@@ -324,7 +412,21 @@ def test_compound_action_vetoes_cover_bare_objects_and_adjectives():
             "Check the valid until date matches the approved record and "
             "adjust the terms.",
             "Check the valid until date matches the approved record and "
-            "insert the client name."):
+            "insert the client name.",
+            "Check the valid until date matches the approved record and "
+            "update draft.",
+            "Check the valid until date matches the approved record and "
+            "edit draft.",
+            "Check the valid until date matches the approved record and "
+            "send draft.",
+            "Check the valid until date matches the approved record and "
+            "add terms.",
+            "Check the valid until date matches the approved record and "
+            "delete draft.",
+            "Check the valid until date matches the approved record and "
+            "prepare short summary.",
+            "Check the valid until date matches the approved record and "
+            "rewrite short summary."):
         decision = build_turn_decision(mixed, one, [])
         assert deterministic_continuation_ready(
             mixed, one, decision) is None, mixed
@@ -437,6 +539,14 @@ def test_broad_phrasings_are_not_fast_pathed_and_stay_broad(monkeypatch):
         "Compare the price and every part of the draft against the "
         "approved record.",
         "Compare the price and check the rest against the approved record.",
+        "Compare the price and flag any further differences with the "
+        "approved record.",
+        "Compare the price and flag any new differences with the "
+        "approved record.",
+        "Compare the price and flag any more differences with the "
+        "approved record.",
+        "Compare the price and flag any unexpected differences with the "
+        "approved record.",
     )
     session = _session((PRIOR_FILE,))
     for message in messages:

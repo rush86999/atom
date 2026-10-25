@@ -4629,7 +4629,18 @@ def accepted_comparison_scope(
         r"\b(?:compare|check|assess|verify|look\s+at)\b)"
         r"|(?:\b(?:only|just)\b[^\n]{0,30}"
         r"\b(?:compare|check|assess|verify|look\s+at)\b)"
-        r"|\bnothing\s+else\b|\bexcept\b",
+        r"|\bnothing\s+else\b|\bexcept\b"
+        # Explicit ignore/relevance language: the rest of the document is
+        # OUT of scope, even though "everything else"/"the rest" are
+        # broad markers when they are the requested scope.
+        r"|\b(?:ignore|leave|keep)\b[^\n]{0,40}"
+        r"\b(?:everything|anything|the\s+rest)\b"
+        r"|\b(?:everything|anything)\s+else\s+(?:is\s+)?"
+        r"(?:fine|okay|unchanged|can\s+stay|stays?)\b"
+        r"|\bthe\s+rest\b[^\n]{0,40}"
+        r"\b(?:can\s+stay|stays?|unchanged|as\s+is|fine)\b"
+        r"|\b(?:don't|do\s+not)\s+(?:compare|check|assess|verify)\b"
+        r"[^\n]{0,30}\b(?:anything|everything|the\s+rest)\b",
         re.IGNORECASE)
     # A broad field contract names plural field/attribute nouns after a
     # universal/other marker. A concrete date phrase ("any date
@@ -4673,7 +4684,8 @@ def accepted_comparison_scope(
         # date difference") is NARROW and deliberately does not match.
         r"|\b(?:flag|report|identify|list|show|assess|check)\b"
         r"[^\n]{0,40}\b(?:all|any|other)\b"
-        r"(?:\s+(?:other|remaining|additional|differing))?\s+"
+        r"(?:\s+(?:other|remaining|additional|differing|further|new|"
+        r"more|unexpected|extra|notable|material))?\s+"
         r"(?:differs?|differences?|discrepanc(?:y|ies))\b",
         re.IGNORECASE)
     relevant = [text for text in candidates
