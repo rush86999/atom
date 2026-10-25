@@ -719,14 +719,27 @@ async def test_sql_projections_cannot_supply_calculation_inputs(tmp_path):
     entries = _entries(tmp_path)
     adj = next(e for e in entries if e["entity_name"] == "Adjustments")
 
-    # CASE turns 0055's missing quantity into 1 in the projection. The
-    # harness must ignore that projection and read the authoritative
-    # frame: the gap stays, and no invented 75 CAD appears.
-    case_sql = (
+    # An aliased projection is rejected outright (no-alias policy).
+    case_alias_sql = (
         'SELECT "__sheet_row", '
         'CASE WHEN "Qty" > 0 THEN "Qty" '
         'WHEN "Qty" <= 0 THEN "Qty" '
         'WHEN "Qty" IS DISTINCT FROM 0 THEN 1 END AS "Qty", '
+        '"Unit Price", "Currency", "Status" FROM df '
+        'WHERE "Status" = \'Approved\'')
+    result = await execute_validated_aggregate_plan(
+        entries, _plan(adj, case_alias_sql),
+        "Adjustments sheet approved totals")
+    assert result["status"] == "error"
+    assert "SQL REJECTED" in result["block"]
+
+    # An UNALIASED CASE projection is ignored; the authoritative frame
+    # keeps 0055's missing quantity and no invented 75 CAD appears.
+    case_sql = (
+        'SELECT "__sheet_row", '
+        'CASE WHEN "Qty" > 0 THEN "Qty" '
+        'WHEN "Qty" <= 0 THEN "Qty" '
+        'WHEN "Qty" IS DISTINCT FROM 0 THEN 1 END, '
         '"Unit Price", "Currency", "Status" FROM df '
         'WHERE "Status" = \'Approved\'')
     result = await execute_validated_aggregate_plan(
@@ -739,10 +752,9 @@ async def test_sql_projections_cannot_supply_calculation_inputs(tmp_path):
     }]
     assert "75.00" not in result["block"]
 
-    # A constant under the original price name is ignored; the frame's
-    # real prices still produce the known subtotal.
+    # A constant projection (no alias) is ignored too.
     price_sql = (
-        'SELECT "__sheet_row", "Qty", 999 AS "Unit Price", '
+        'SELECT "__sheet_row", "Qty", 999, '
         '"Currency", "Status" FROM df WHERE "Status" = \'Approved\'')
     result = await execute_validated_aggregate_plan(
         entries, _plan(adj, price_sql), "Adjustments sheet approved totals")
@@ -814,7 +826,7 @@ async def test_nl_plan_projection_cannot_substitute_values(tmp_path, monkeypatch
         sql=('SELECT "__sheet_row", '
              'CASE WHEN "Qty" > 0 THEN "Qty" '
              'WHEN "Qty" <= 0 THEN "Qty" '
-             'WHEN "Qty" IS DISTINCT FROM 0 THEN 1 END AS "Qty", '
+             'WHEN "Qty" IS DISTINCT FROM 0 THEN 1 END, '
              '"Unit Price", "Currency", "Status" FROM df '
              'WHERE "Status" = \'Approved\''),
         identity_column="PO ID",
@@ -1012,3 +1024,29 @@ async def test_meta_row_cannot_be_a_calculation_role(tmp_path):
     )
     assert result["status"] == "error"
     assert "REQUIRED COLUMN NOT IDENTIFIED" in result["block"]
+
+
+@pytest.mark.asyncio
+async def test_predicate_aliases_columns_and_positionals_are_rejected(tmp_path):
+    entries = _entries(tmp_path)
+    adj = next(e for e in entries if e["entity_name"] == "Adjustments")
+    cases = {
+        "select_alias": (
+            'SELECT "__sheet_row", "Qty" AS q FROM df '
+            'WHERE "Status" = \'Approved\' AND q > 0'),
+        "columns": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND COLUMNS(\'^Qty$\') > 0'),
+        "positional": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND #3 > 0'),
+        "nested_alias": (
+            'SELECT "__sheet_row" FROM df WHERE EXISTS '
+            '(SELECT 1, "Qty" AS q FROM df d '
+            'WHERE d."Status" = \'Approved\' AND q > 0)'),
+    }
+    for label, sql in cases.items():
+        result = await execute_validated_aggregate_plan(
+            entries, _plan(adj, sql), "Adjustments sheet approved totals")
+        assert result["status"] == "error", label
+        assert "SQL REJECTED" in result["block"]

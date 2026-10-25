@@ -612,6 +612,31 @@ def _ast_contains_sample(value: Any) -> bool:
     return False
 
 
+def _ast_has_select_alias(value: Any) -> bool:
+    """Any SELECT projection alias, including nested SELECT nodes."""
+    if isinstance(value, dict):
+        if str(value.get("type") or "").upper() == "SELECT_NODE":
+            for item in value.get("select_list") or []:
+                if str(item.get("alias") or "").strip():
+                    return True
+        return any(_ast_has_select_alias(v) for v in value.values())
+    if isinstance(value, list):
+        return any(_ast_has_select_alias(v) for v in value)
+    return False
+
+
+def _ast_has_unsafe_reference(value: Any) -> bool:
+    """STAR/COLUMNS and positional refs can hide a physical column."""
+    if isinstance(value, dict):
+        cls = str(value.get("class") or "").upper()
+        if cls in ("STAR", "POSITIONAL_REFERENCE"):
+            return True
+        return any(_ast_has_unsafe_reference(v) for v in value.values())
+    if isinstance(value, list):
+        return any(_ast_has_unsafe_reference(v) for v in value)
+    return False
+
+
 def _ast_identity_violation(
     node: Dict[str, Any], allowed_tables: List[str]
 ) -> Optional[str]:
@@ -632,6 +657,17 @@ def _ast_identity_violation(
         return (
             "The selection query may not sample rows (outer or nested); the "
             "full eligible selection is required."
+        )
+    if _ast_has_unsafe_reference(node):
+        return (
+            "The selection query may not use STAR/COLUMNS expansion or "
+            "positional column references; name physical frame columns "
+            "explicitly."
+        )
+    if _ast_has_select_alias(node):
+        return (
+            "Projected columns must not be aliased (including nested "
+            "SELECTs); name the physical frame columns directly."
         )
     from_table = node.get("from_table") or {}
     if str(from_table.get("type") or "").upper() != "BASE_TABLE":
@@ -676,10 +712,9 @@ def _ast_identity_violation(
                 "Project __sheet_row explicitly as a plain column; SELECT * "
                 "is not allowed."
             )
-        alias = str(item.get("alias") or "").strip()
         names = item.get("column_names") or []
         last = str(names[-1]) if names else ""
-        if alias == "__sheet_row" or last == "__sheet_row":
+        if last == "__sheet_row":
             sheet_refs.append(item)
     if len(sheet_refs) != 1:
         return (
@@ -1239,6 +1274,9 @@ async def aggregate_named_dataset(
         "reads quantity, unit price, currency, status and identity from the "
         "authoritative frame for those rows, so projections of those fields "
         "are ignored.\n"
+        "- Do NOT alias any projected column. Predicates must name physical "
+        "frame columns directly; never use COLUMNS(...) expansion or #n "
+        "positional references.\n"
         "- Set the role fields to the exact FRAME column names (listed "
         "above), not SQL aliases. identity_column is the sheet's business "
         "identifier column (never __sheet_row); use an empty string if the "
