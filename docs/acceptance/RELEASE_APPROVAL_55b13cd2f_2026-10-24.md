@@ -48,7 +48,7 @@ there is no second attempt in the same window.
   earlier lenient predicate (`f40d2a881`) was withdrawn because it could
   accept swapped/contradictory assignments; the original strict gate is
   restored.
-- **518 focused tests passed** on the final local batch. Two
+- **517 focused tests passed** on the final local batch. Two
   `test_fallback_honesty` receipt fixtures fail identically on parent
   `73bcae400` (pre-existing).
 - **S7 date-only:** `deterministic:continuation`; 5s DeepSeek refinement

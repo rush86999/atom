@@ -133,11 +133,11 @@ experiment, a deadline change, or another full campaign.
   `completed`; zero writes; outcome `partial` for the captured prior
   outlook obligation; `success=true`; **38.64s**.
 - Edit applied exactly once; identical re-ask completed with zero writes;
-  provider-policy gates passed. 518 focused tests passed.
+  provider-policy gates passed. 517 focused tests passed.
 
 ## Verification
 
-- **518 focused backend tests passed** on the final local batch
+- **517 focused backend tests passed** on the final local batch
   (continuation, comparison, provider contract, pilot preflight,
   edit/no-op, orchestrator). Two `test_fallback_honesty` receipt fixtures
   fail identically on parent `73bcae400`; they are pre-existing and

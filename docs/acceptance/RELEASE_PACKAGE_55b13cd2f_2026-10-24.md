@@ -48,7 +48,7 @@ tree and the candidate.
   - Edit applied exactly once; identical re-ask completed with zero writes;
     provider policy gates passed (automatic; DeepSeek/Ollama/OpenCode
     Go/OpenRouter).
-- **518 focused tests passed** on the final local batch. Two
+- **517 focused tests passed** on the final local batch. Two
   `test_fallback_honesty` receipt fixtures fail identically on parent
   `73bcae400` (pre-existing; outside this slice).
 - Attempt 15 remains **functional verification passed; original

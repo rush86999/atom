@@ -60,7 +60,7 @@ narrow scopes; see `EDIT_NOOP_REPAIR_2026-10-24.md` and
 (`55b13cd2f`) closes the two review residuals — unresolved mixed sources
 surviving every completion path, and additional mutation/insertion/send
 clauses blocking read-only completion — and adds explicit refinement
-status plus the pilot preflight. **518 focused tests passed**; the two
+status plus the pilot preflight. **517 focused tests passed**; the two
 `test_fallback_honesty` receipt fixtures remain pre-existing failures on
 parent `73bcae400`.
 
