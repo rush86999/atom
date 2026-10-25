@@ -1388,7 +1388,7 @@ async def test_resume_turn_delivers_file_evidence_even_when_planned_elsewhere():
         return ("LIVE TOOL RESULTS (outlook.search): mailbox scanned, "
                 "no relevant messages")
 
-    async def fake_named_file(uid, query, context, plan=None):
+    async def fake_named_file(uid, query, context, plan=None, llm_service=None):
         # stamps the lifecycle meta exactly as the real lane does
         if plan is not None:
             plan._result_meta = {"storage_read": {
@@ -3671,7 +3671,7 @@ async def test_refresh_with_unavailable_source_never_claims_current():
     async def failing_read(service, action, params, context):
         raise RuntimeError("workdrive unreachable")
 
-    async def fake_named_block(user_id, query, ctx, plan=None):
+    async def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         return _direct_read_result_meta(plan, "| OLD COPY VALUES |")
 
     with (
@@ -3727,7 +3727,7 @@ async def test_refresh_with_live_source_reports_updated_content():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads["count"] += 1
         if reads["count"] > 1:
             # The re-read of the REFRESHED copy: new ingestion stamp and
@@ -3807,7 +3807,7 @@ async def test_refresh_unchanged_content_reports_current_not_refreshed():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads["count"] += 1
         plan._result_meta = {"storage_read": {
             "service": "zoho_workdrive", "file_id": "wd-77",
@@ -3871,7 +3871,7 @@ async def test_refresh_with_unchanged_index_labels_the_old_copy():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads["count"] += 1
         plan._result_meta = {"storage_read": {
             "service": "zoho_workdrive", "file_id": "wd-77",
@@ -3932,7 +3932,7 @@ async def test_refresh_with_incomplete_extraction_is_unverified():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads_inc["count"] += 1
         done = reads_inc["count"] > 1
         plan._result_meta = {"storage_read": {
@@ -4082,7 +4082,7 @@ async def test_current_requires_positive_hash_equality():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads["count"] += 1
         plan._result_meta = {"storage_read": {
             "service": "zoho_workdrive", "file_id": "wd-77",
@@ -4149,7 +4149,7 @@ async def test_refresh_reread_must_resolve_the_fetched_resource():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads["count"] += 1
         # First read pins wd-77; the POST-refetch read resolves a
         # DIFFERENT resource — the copy cannot be bound to the fetched
@@ -4329,7 +4329,7 @@ async def test_non_refreshed_verdict_preserves_last_good_result():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads["count"] += 1
         plan._result_meta = {"storage_read": {
             "service": "zoho_workdrive", "file_id": "wd-77",

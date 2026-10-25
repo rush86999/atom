@@ -11198,8 +11198,26 @@ class ChatOrchestrator:
                     _ask_direct = (
                         _is_substantive_request(message)
                         and not locals().get("_teaching_cue_turn"))
+                    if _ask_mention:
+                        from core.pending_file_task import (
+                            is_aggregate_request,
+                            is_formula_reference_request,
+                        )
+
+                        if (is_aggregate_request(message)
+                                or is_formula_reference_request(message)):
+                            _ask_direct = True
             except Exception:  # noqa: BLE001 — shape gate only
                 _ask_direct = False
+            if _ask_mention:
+                from core.pending_file_task import (
+                    is_aggregate_request,
+                    is_formula_reference_request,
+                )
+
+                if (is_aggregate_request(message)
+                        or is_formula_reference_request(message)):
+                    _ask_direct = True
             # R4 EARLY RECOVERY CHECK (2026-10-16): one request-local
             # decision BEFORE any planner-independent retrieval. When the
             # turn is recovery-shaped with a resolved durable payload, the
@@ -11840,7 +11858,12 @@ class ChatOrchestrator:
                     _ask_structured = _ask_result.get("structured_result")
                     _ask_action_summary = None
                     _ask_full_action = None
-                    if isinstance(_ask_structured, dict):
+                    if (_ask_result.get("datasets_aggregate")
+                            or _ask_result.get("formula_reference")):
+                        _ask_content = str(
+                            _ask_result.get("rendered_answer")
+                            or _ask_result.get("block") or "")
+                    elif isinstance(_ask_structured, dict):
                         # ARTIFACT-NATIVE (structured renderer is the one
                         # presentation path); legacy text-only results fall
                         # through to the compatibility cleaner below.
@@ -12085,7 +12108,9 @@ class ChatOrchestrator:
                     ).get("requested_items") or []
                     if not _ask_items_used and not isinstance(
                             _ask_structured, dict) and not _ask_result.get(
-                                "named_document"):
+                                "named_document") and not _ask_result.get(
+                                "datasets_aggregate") and not _ask_result.get(
+                                "formula_reference"):
                         _ask_verdict = _ask_result.get("meta") or {}
                         _ask_note = str(
                             _ask_verdict.get("note") or "")
@@ -12116,7 +12141,9 @@ class ChatOrchestrator:
                         _ask_handoff_block = None
                         _ask_miss_handoff = False
                     elif not _ask_items_used and not _ask_result.get(
-                            "named_document"):
+                            "named_document") and not _ask_result.get(
+                            "datasets_aggregate") and not _ask_result.get(
+                            "formula_reference"):
                         _offer = ""
                         try:
                             from core import dialogue_state as _ds
@@ -12208,6 +12235,10 @@ class ChatOrchestrator:
                         "evidence_action": (
                             _ask_structured or {}).get("evidence_action")
                         if isinstance(_ask_structured, dict) else None,
+                        "datasets_aggregate": _ask_result.get(
+                            "aggregate_record"),
+                        "formula_reference": bool(
+                            _ask_result.get("formula_reference")),
                     }
                     try:
                         # PIN-AFTER-FINALIZATION: the pinned text is the
@@ -13366,6 +13397,12 @@ class ChatOrchestrator:
                         "evidence_action": (
                             _direct_structured or {}).get("evidence_action")
                         if isinstance(_direct_structured, dict) else None,
+                        "datasets_aggregate": _direct_result.get(
+                            "aggregate_record"),
+                        "aggregate_record": _direct_result.get(
+                            "aggregate_record"),
+                        "formula_reference": bool(
+                            _direct_result.get("formula_reference")),
                     }
                     try:
                         # PIN-AFTER-FINALIZATION (as the ask lane): the
@@ -18277,6 +18314,109 @@ class ChatOrchestrator:
 
         if not mention or not original:
             return {"ok": False, "block": "", "reason": "pending task has no file identity"}
+        # FORMULA-REFERENCE OPERATION (2026-10-25 work order): use the
+        # existing workbook evaluator, not the item/derivation lane. The
+        # accepted operation is carried by the turn program; the grammar
+        # fallback covers planner-only callers. Neutral arithmetic is
+        # handled inside calculate_workbook_from_query; pricing policy
+        # still goes through its teaching gate.
+        try:
+            from core.pending_file_task import is_formula_reference_request
+
+            _tp_operation = str(
+                ((pending_task or {}).get("turn_program") or {}).get(
+                    "operation") or ""
+            )
+            if (_tp_operation == "formula_reference"
+                    or is_formula_reference_request(original)):
+                from core.pricing_calculation import (
+                    calculate_workbook_from_query,
+                )
+
+                _calc_diag: Dict[str, Any] = {}
+                _calc_block = await calculate_workbook_from_query(
+                    original, user_id, workspace_id,
+                    conversation_id=session_id,
+                    execution_id=execution_id,
+                    diagnostics=_calc_diag,
+                )
+                if _calc_block:
+                    _answer_lines = []
+                    for _line in str(_calc_block).splitlines():
+                        if _line.startswith("GROUNDING RULE"):
+                            break
+                        if _line.startswith("LIVE TOOL RESULTS"):
+                            continue
+                        if _line.lstrip().startswith("[calc:"):
+                            continue
+                        _answer_lines.append(_line)
+                    _answer = "\n".join(_answer_lines).strip()
+                    _state = str(_calc_diag.get("state") or "")
+                    _computed = _state in (
+                        "succeeded", "computed_substituted")
+                    _content_hash = str(
+                        _calc_diag.get("content_hash") or "")
+                    _file_name = str(
+                        _calc_diag.get("file_name") or "")
+                    _identity = {
+                        "service": "datasets",
+                        "file_id": None,
+                        "resource_id": None,
+                        "file_name": _file_name or None,
+                        "source": _calc_diag.get("source"),
+                        "content_hash": _content_hash or None,
+                        "content_hash_algorithm": "sha1",
+                        "ingested_at": _calc_diag.get("ingested_at"),
+                        "source_modified_at": _calc_diag.get(
+                            "source_modified_at"),
+                        "version_verified": bool(_content_hash),
+                        "identity_verified": bool(_content_hash),
+                        "coverage_complete": _computed,
+                        "coverage_limits": {},
+                        "workbook_read": {
+                            "sheet": _calc_diag.get("exact_sheet")
+                            or _calc_diag.get("sheet"),
+                            "row": _calc_diag.get("row"),
+                            "cell": _calc_diag.get("cell"),
+                            "neutral_reference": True,
+                            "state": _state,
+                        },
+                        "execution_id": execution_id,
+                    }
+                    _storage_read = {
+                        **_identity,
+                        "completed": _computed,
+                        "note": (
+                            "neutral workbook formula reference"
+                            if _computed else
+                            f"formula reference not computed ({_state})"),
+                        "rendered_answer": _answer,
+                        "formula_reference": True,
+                    }
+                    return {
+                        "ok": True,
+                        "block": _calc_block,
+                        "rendered_answer": _answer,
+                        "meta": {
+                            "service": "datasets",
+                            "formula_reference": True,
+                            "completed": _computed,
+                            "coverage_complete": _computed,
+                            "note": _storage_read["note"],
+                            "storage_read": _storage_read,
+                            "calculation_state": _state,
+                        },
+                        "identity": _identity,
+                        "identity_verified": bool(_content_hash),
+                        "coverage_complete": _computed,
+                        "retrieval_complete": _computed,
+                        "structured_result": None,
+                        "formula_reference": True,
+                        "reason": "" if _computed else _state,
+                    }
+        except Exception as _formula_err:  # noqa: BLE001
+            logger.debug(
+                "[formula-reference] direct lane skipped: %r", _formula_err)
         # DOCUMENT / MIXED NAMED-FILE BRANCH (2026-10-25): explicit
         # document types and extensionless names resolved to the document
         # catalog must use the workspace-scoped document reader. The
@@ -18423,6 +18563,7 @@ class ChatOrchestrator:
                         "canvas": canvas,
                     },
                     plan=direct_plan,
+                    llm_service=self.llm_service,
                 ),
                 timeout=timeout,
             )
@@ -18467,6 +18608,9 @@ class ChatOrchestrator:
             ),
             "rendered_answer": meta.get("rendered_answer") or "",
             "structured_result": meta.get("structured_result"),
+            "datasets_aggregate": bool(meta.get("datasets_aggregate")),
+            "aggregate_record": meta.get("datasets_aggregate"),
+            "formula_reference": bool(meta.get("formula_reference")),
             "reason": "" if block else "file-scoped reader returned no result",
         }
         if (pending_task or {}).get("operation") in ("refresh", "compare"):
@@ -18771,6 +18915,18 @@ class ChatOrchestrator:
             # the evidence revision is unchanged (same copy, new read).
             "structured_result": reread.get("structured_result")
             or result.get("structured_result"),
+            # The durable aggregate/formula receipt must describe the
+            # SAME copy the refreshed answer came from (second review,
+            # 2026-10-25) — never the pre-refresh record.
+            "datasets_aggregate": bool(
+                reread.get("datasets_aggregate")
+                or result.get("datasets_aggregate")),
+            "aggregate_record": (
+                reread.get("aggregate_record")
+                or result.get("aggregate_record")),
+            "formula_reference": bool(
+                reread.get("formula_reference")
+                or result.get("formula_reference")),
         })
         # EVIDENCE-BASED VERDICT (2026-09-24 review rounds 4-5): a new
         # ingestion timestamp alone does not prove refreshed evidence.
@@ -21470,6 +21626,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                      "history": (planner_history
                                                  or history or [])[-6:]},
                                     plan=_plan,
+                                    llm_service=self.llm_service,
                                 )
                                 if _file_ev:
                                     logger.info(
@@ -22271,7 +22428,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                              or history or [])[-6:],
                                  "requested_targets": _stored_requested_items(
                                      session)},
-                                plan=_direct_plan),
+                                plan=_direct_plan,
+                                llm_service=self.llm_service),
                             timeout=25,
                         )
                         if _file_ev:
@@ -23748,7 +23906,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                                 "replace",
                                                         },
                                                     },
-                                                    plan=_attempt_plan),
+                                                    plan=_attempt_plan,
+                                                    llm_service=self.llm_service),
                                                 timeout=min(
                                                     20.0,
                                                     _chain_turn_left()

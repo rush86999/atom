@@ -524,10 +524,47 @@ def render_comparison(item_label: str, draft_price: Optional[Money],
     freshness, approval need. Internal diagnostics stay out; the
     qualifications that prevent unsupported commitments stay in."""
     lines: List[str] = [f"**{item_label or 'Item'} — price check**"]
+    _neutral = bool((result.workbook or {}).get("neutral"))
+    if _neutral:
+        lines[0] = f"**{item_label or 'Item'} — workbook calculation**"
     if draft_price is not None:
         lines.append(f"- Draft price: {draft_price.currency} "
                      f"{draft_price.amount}")
-    if result.status == "succeeded" and result.proposed is not None:
+    _neutral_value = (
+        (result.verification or {}).get("computed_value")
+        or (str(result.proposed.amount) if result.proposed is not None
+            else None)
+    )
+    if _neutral:
+        if result.status in ("succeeded", "computed_substituted"):
+            qualifier = (
+                " (with substituted stored operands — not fully "
+                "reconstructed)" if result.status == "computed_substituted"
+                else "")
+            lines.append(
+                f"- Computed value (neutral workbook arithmetic): "
+                f"{_neutral_value}{qualifier}")
+        elif result.status == "stored_value":
+            wb0 = result.workbook or {}
+            lines.append(
+                f"- STORED VALUE — NOT COMPUTED: "
+                f"{result.verification.get('stored_value')} observed at "
+                f"{wb0.get('sheet', '')}!{wb0.get('output_cell', '')} in "
+                f"{wb0.get('file', '')} (typed literal; no formula was "
+                f"evaluated)")
+        elif result.status == "incomplete":
+            lines.append(
+                "- Value: NOT COMPUTED — the workbook calculation is "
+                "incomplete: "
+                f"{result.missing_dependency or 'a dependency could not be reconstructed'}")
+            lines.append("  (No partial value was published.)")
+        elif result.status == "unresolved":
+            lines.append(
+                f"- Value: NOT COMPUTED — {result.unresolved_reason}")
+        else:
+            lines.append(
+                f"- Value: REJECTED — {result.rejection_reason}")
+    elif result.status == "succeeded" and result.proposed is not None:
         lines.append(f"- Proposed price (computed): "
                      f"{result.proposed.currency} {result.proposed.amount} "
                      f"per {result.proposed.unit}")
@@ -567,7 +604,7 @@ def render_comparison(item_label: str, draft_price: Optional[Money],
                 if src.get("observed_at") else ", date unknown")
         lines.append(f"- Source: {src.get('kind')} — "
                      f"{src.get('reference')}{seen}")
-    if result.policy_id:
+    if result.policy_id and not _neutral:
         lines.append(f"- Policy applied: {result.policy_id} "
                      f"(v{result.policy_version})")
     if result.workbook:
@@ -577,7 +614,11 @@ def render_comparison(item_label: str, draft_price: Optional[Money],
                      f"{wb.get('output_cell')}; workbook version "
                      f"{str(wb.get('version') or 'unknown')[:12]}")
         ab = wb.get("authorized_by") or {}
-        if ab.get("lesson_id"):
+        if _neutral:
+            lines.append(
+                "- Applicability: neutral workbook arithmetic — no "
+                "pricing teaching/policy was applied")
+        elif ab.get("lesson_id"):
             lines.append(f"- Applicability: authorized by teaching "
                          f"(lesson {ab.get('lesson_id')}, "
                          f"v{ab.get('version')}) — the workbook defines "
@@ -830,7 +871,8 @@ def record_calculation(
         result: CalculationResult,
         draft_price: Optional[Money] = None,
         *,
-        execution_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        execution_id: Optional[str] = None,
+        neutral: bool = False) -> Optional[Dict[str, Any]]:
     """Persist a calculation as a job operation with its full typed
     record (round 66 §4). The operation's `extra` carries the result
     record (inputs snapshot, steps, policy id + version, freshness) so
@@ -867,6 +909,7 @@ def record_calculation(
                       f"{_prop.amount}|{_prop.currency}|{_prop.unit}")
         _idem = "calc:" + _calc_hash.sha256("|".join((
             f"exec={execution_id or ''}",
+            "neutral_reference" if neutral else "pricing",
             str(result.policy_id), str(result.policy_version),
             str(result.status), str(_snap.get("item") or item_label),
             _key_value,
@@ -875,6 +918,10 @@ def record_calculation(
         op = lifecycle.create_operation(
             run_id, op_type="calculate",
             requested_change=(
+                f"evaluate workbook cell reference for "
+                f"{item_label or 'item'} (neutral arithmetic; no pricing "
+                f"policy applied)"
+                if neutral else
                 f"calculate proposed price for {item_label or 'item'} "
                 f"under policy {result.policy_id} "
                 f"(v{result.policy_version})"),
@@ -917,7 +964,16 @@ def record_calculation(
         lifecycle.attach_operation_field(
             run_id, op["operation_id"], "calculation",
             result.to_record())
-        if draft_price is not None:
+        if neutral:
+            lifecycle.attach_operation_field(
+                run_id, op["operation_id"], "calculation_basis",
+                {
+                    "kind": "neutral_formula_reference",
+                    "note": ("the workbook's own formula chain was "
+                             "evaluated; no pricing policy, teaching, "
+                             "proposed price, or draft change is implied"),
+                })
+        if draft_price is not None and not neutral:
             lifecycle.attach_operation_field(
                 run_id, op["operation_id"], "draft_price",
                 {"amount": str(draft_price.amount),
@@ -942,14 +998,18 @@ def record_calculation(
                     f"{_sub_cells} were "
                     f"unavailable and their stored values stand in"),
                 "evidence": (
-                    f"policy {result.policy_id} v{result.policy_version}; "
-                    "computed_substituted — a fully-reconstructed "
-                    "obligation is not satisfied"),
+                    ("neutral workbook arithmetic; "
+                     "computed_substituted — a fully-reconstructed "
+                     "reference is not satisfied")
+                    if neutral else
+                    (f"policy {result.policy_id} v{result.policy_version}; "
+                     "computed_substituted — a fully-reconstructed "
+                     "obligation is not satisfied")),
                 "next_action": (
                     "a live read of the workbook can restore the "
                     "missing formulas and complete the reconstruction"),
             }], source_operation=op["operation_id"])
-        if result.status == "stored_value":
+        if result.status == "stored_value" and not neutral:
             from core.task_lifecycle import add_unresolved_questions
 
             add_unresolved_questions(lifecycle, run_id, [{
@@ -972,15 +1032,20 @@ def record_calculation(
             from core.task_lifecycle import add_unresolved_questions
 
             gap = (result.missing_dependency or result.unresolved_reason)
+            _calc_noun = ("workbook calculation" if neutral
+                          else "price calculation")
             add_unresolved_questions(lifecycle, run_id, [{
                 "item": item_label,
                 "kind": "verification",
                 "question": (
-                    f"the price calculation for {item_label} cannot "
+                    f"the {_calc_noun} for {item_label} cannot "
                     f"complete: {gap}"),
                 "evidence": (
-                    f"policy {result.policy_id} v{result.policy_version}; "
-                    "no value invented, no partial price published"),
+                    ("neutral workbook arithmetic; no value invented, "
+                     "no partial value published")
+                    if neutral else
+                    (f"policy {result.policy_id} v{result.policy_version}; "
+                     "no value invented, no partial price published")),
                 "next_action": (
                     f"provide or research the missing dependency "
                     f"({gap})"),
@@ -1402,7 +1467,8 @@ def workbook_calculation_result(
         item_label: str = "",
         authorized_by: Optional[Dict[str, str]] = None,
         freshness_window_days: Optional[int] = None,
-        live_read_cells: Optional[List[str]] = None) -> CalculationResult:
+        live_read_cells: Optional[List[str]] = None,
+        neutral: bool = False) -> CalculationResult:
     """Adapt an engine FormulaResult into the pricing record. INCOMPLETE
     calculations carry NO proposed value — the blocking rule — and name
     the exact missing dependency."""
@@ -1415,7 +1481,8 @@ def workbook_calculation_result(
         "row": origin.get("row"),
         "output_cell": origin.get("output_cell", ""),
         "version": origin.get("version", ""),
-        "authorized_by": authorized_by,
+        "authorized_by": None if neutral else authorized_by,
+        "neutral": bool(neutral),
         "live_read_cells": live_read_cells or [],
     }
     result = CalculationResult(
@@ -1423,9 +1490,13 @@ def workbook_calculation_result(
                 "computed_substituted": "computed_substituted",
                 "stored_value": "stored_value",
                 "incomplete": "incomplete"}.get(calc.status, "incomplete"),
-        policy_id=f"workbook:{origin.get('sheet', '').strip()}!" \
-                  f"{origin.get('output_cell', '')}",
-        policy_version=(origin.get("version", "")[:12] or "unknown"),
+        # NEUTRAL ARITHMETIC IS NOT A PRICING POLICY: no policy id, no
+        # authorization identity, and (below) no proposed Money value.
+        policy_id=("" if neutral else
+                   f"workbook:{origin.get('sheet', '').strip()}!"
+                   f"{origin.get('output_cell', '')}"),
+        policy_version=("" if neutral else
+                        (origin.get("version", "")[:12] or "unknown")),
         freshness=_freshness_of(
             SourceRef(kind="workbook_cell",
                       reference=(f"{origin.get('file', '')}!"
@@ -1440,7 +1511,7 @@ def workbook_calculation_result(
             "basis": ("the source's own formula chain, evaluated by the "
                       "general formula engine (core.formula_engine); "
                       "constants preserved as decimals"),
-            "currency": currency,
+            "currency": (None if neutral else currency),
         })
     if calc.status == "stored_value":
         # A STORED VALUE IS AN OBSERVATION, NOT A CALCULATION: no
@@ -1455,6 +1526,13 @@ def workbook_calculation_result(
         result.missing_dependency = (
             calc.missing or calc.unsupported or
             "the calculation could not be evaluated completely")
+        return result
+    if neutral:
+        result.verification["computed_value"] = str(calc.value)
+        result.steps = list(calc.steps)
+        if calc.cache_substituted:
+            result.verification["cache_substituted_cells"] = \
+                list(calc.cache_substituted)
         return result
     result.proposed = Money(calc.value, currency)
     result.steps = list(calc.steps)
@@ -1535,11 +1613,27 @@ def authorized_workbook_basis(
 # ---------------------------------------------------------------------------
 
 _WB_QUERY_RE = _re.compile(
-    r"calculate\s+(?:price\s+(?:for|of)\s+)?"
+    r"calculate\s+(?!\s*(?:formula|reference|cell)\b)"
+    r"(?:price\s+(?:for|of)\s+)?"
     r"(?P<file>.+?\.xlsx)\s+"
     r"(?P<sheet>.+?)\s+row\s+(?P<row>\d+)\s+cell\s+"
     r"(?P<cell>[A-Za-z]{1,3}\d+)"
     r"(?P<rest>.*)$", _re.IGNORECASE)
+
+#: Neutral formula-reference grammar: the workbook's own arithmetic, not a
+#: vendor-pricing policy. The output cell still resolves through the SAME
+#: formula engine; no teaching is manufactured for neutral arithmetic.
+#: Row-qualified and cell-first phrasings both parse (2026-10-25 review).
+_FORMULA_QUERY_RE = _re.compile(
+    r"calculate\s+(?:formula|reference|cell)\s+(?:for\s+)?"
+    r"(?P<file1>.+?\.xlsx)\s+"
+    r"(?P<sheet1>.+?)\s+(?:row\s+(?P<row1>\d+)\s+)?cell\s+"
+    r"(?P<cell1>[A-Za-z]{1,3}\d+)"
+    r"(?P<rest1>.*)$"
+    r"|calculate\s+cell\s+(?P<cell2>[A-Za-z]{1,3}\d+)\s+in\s+"
+    r"(?P<file2>.+?\.xlsx)\s+(?P<sheet2>.+?)"
+    r"(?P<rest2>\s*$)",
+    _re.IGNORECASE)
 
 
 def _workspace_lessons(user_id: Optional[str],
@@ -1619,6 +1713,9 @@ class _FileSheetBooks:
                     "source_modified_at": (
                         e.source_modified_at.isoformat()
                         if e.source_modified_at else None),
+                    "ingested_at": (
+                        e.ingested_at.isoformat()
+                        if e.ingested_at else None),
                 })
         self.resolution_problems: Dict[str, str] = {}
         best: Dict[str, Dict[str, Any]] = {}
@@ -1708,13 +1805,32 @@ class _FileSheetBooks:
         return book
 
 
+def _known_cached_value(values: Dict[str, str], cell: str) -> Optional[str]:
+    """A cached output is evidence only when it is a real value.
+
+    Materialized frames encode absent cached results as None/NaN/empty;
+    treating "nan" as a cached number produced a false mismatch and blocked
+    an otherwise complete neutral calculation.
+    """
+    value = (values or {}).get(str(cell or "").upper())
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text.lower() in (
+            "nan", "none", "null", "inf", "+inf", "-inf",
+            "infinity", "+infinity", "-infinity"):
+        return None
+    return str(value)
+
+
 async def calculate_workbook_from_query(
         query: str,
         user_id: Optional[str],
         workspace_id: Optional[str],
         conversation_id: Optional[str] = None,
         canvas_id: Optional[str] = None,
-        execution_id: Optional[str] = None) -> Optional[str]:
+        execution_id: Optional[str] = None,
+        diagnostics: Optional[Dict[str, Any]] = None) -> Optional[str]:
     """The planner lane's WORKBOOK entry (rounds 69-70):
 
         calculate price for FILE.xlsx SHEET row N cell XN [currency=CAD] [item=..]
@@ -1731,24 +1847,65 @@ async def calculate_workbook_from_query(
     from core.formula_engine import evaluate_reference
 
     q = " ".join(str(query or "").split())
-    # search, not match: the planner may embed the grammar mid-query
-    m = _WB_QUERY_RE.search(q)
-    if m is None:
-        return None
-    file_name = m.group("file").strip()
-    sheet_name = m.group("sheet").strip()
-    row_number = int(m.group("row"))
-    cell = m.group("cell").upper()
-    currency = "CAD"
+    # NEUTRAL FORMULA REFERENCE FIRST: a row-qualified formula ask also
+    # matches the looser pricing grammar, and pricing previously parsed
+    # the file group as "formula for FILE.xlsx" (2026-10-25 review).
+    m = _FORMULA_QUERY_RE.search(q)
+    neutral = m is not None
+    if m is not None:
+        file_name = (m.groupdict().get("file1")
+                     or m.groupdict().get("file2") or "").strip()
+        sheet_name = (m.groupdict().get("sheet1")
+                      or m.groupdict().get("sheet2") or "").strip()
+        row_text = (m.groupdict().get("row1") or "").strip()
+        cell = (m.groupdict().get("cell1")
+                or m.groupdict().get("cell2") or "").upper()
+        rest = (m.groupdict().get("rest1")
+                or m.groupdict().get("rest2") or "")
+    else:
+        m = _WB_QUERY_RE.search(q)
+        if m is None:
+            return None
+        file_name = m.group("file").strip()
+        sheet_name = m.group("sheet").strip()
+        row_text = m.groupdict().get("row")
+        cell = m.group("cell").upper()
+        rest = m.group("rest") or ""
+    if row_text:
+        row_number = int(row_text)
+    else:
+        _rm = _re.search(r"(\d+)$", str(cell or ""))
+        row_number = int(_rm.group(1)) if _rm else 1
+    if diagnostics is not None:
+        diagnostics.update({
+            "file_name": file_name,
+            "sheet": sheet_name,
+            "row": row_number,
+            "cell": cell,
+            "neutral": bool(neutral),
+        })
+    if neutral and _re.search(
+            r"\b(?:currency|cur|item)\s*=", str(rest or ""),
+            _re.IGNORECASE):
+        if diagnostics is not None:
+            diagnostics["state"] = "neutral_scope_rejected"
+        return _grounded(
+            "LIVE TOOL RESULTS (datasets.calculate — workbook) — NEUTRAL "
+            "ARITHMETIC ONLY: currency= and item= belong to the pricing "
+            "lane, which requires permanent teaching. This reference is "
+            "evaluated as neutral workbook arithmetic only; no priced "
+            "result was recorded.")
+    currency = "XXX" if neutral else "CAD"
     item_label = ""
-    for tok in (m.group("rest") or "").split():
-        if "=" not in tok:
-            continue
-        k, v = tok.split("=", 1)
-        if k.strip().lower() in ("currency", "cur"):
-            currency = v.strip().upper()[:3] or "CAD"
-        elif k.strip().lower() == "item":
-            item_label = v.strip()
+    if not neutral:
+        for tok in str(rest or "").split():
+            if "=" not in tok:
+                continue
+            k, v = tok.split("=", 1)
+            if k.strip().lower() in ("currency", "cur"):
+                currency = v.strip().upper()[:3] or "CAD"
+            elif k.strip().lower() == "item":
+                item_label = v.strip()
 
     books = _FileSheetBooks(file_name, workspace_id, prefer_hash="")
     entry = books.entry_for(sheet_name)
@@ -1757,6 +1914,9 @@ async def calculate_workbook_from_query(
         if problem:
             # AMBIGUOUS VERSION (round 71): several active workbook
             # versions — refused, never chosen by name/query order.
+            if diagnostics is not None:
+                diagnostics.update({
+                    "state": "version_ambiguous", "problem": problem})
             return _grounded(
                 "LIVE TOOL RESULTS (datasets.calculate — workbook) — "
                 f"AMBIGUOUS WORKBOOK VERSION: {problem}. Name the exact "
@@ -1765,18 +1925,35 @@ async def calculate_workbook_from_query(
         available = [
             str(e["entity_name"]).strip()
             for e in books._load_entries()][:20]  # noqa: SLF001
+        if diagnostics is not None:
+            diagnostics.update({
+                "state": "sheet_not_found", "available_sheets": available})
         return _grounded(
             "LIVE TOOL RESULTS (datasets.calculate — workbook) — SHEET "
             f"NOT FOUND: '{sheet_name}' is not a cataloged sheet of "
             f"{file_name} (cataloged: {', '.join(available) or 'none'}). "
             "Name the sheet exactly as the search result reported it.")
     books.prefer_hash = entry.get("content_hash") or ""
+    if diagnostics is not None:
+        diagnostics.update({
+            "content_hash": entry.get("content_hash") or "",
+            "source_modified_at": entry.get("source_modified_at"),
+            "ingested_at": entry.get("ingested_at"),
+            "source": entry.get("source"),
+            "exact_sheet": entry.get("entity_name"),
+        })
 
     # GOVERNANCE GATE: teaching authorizes when the workbook's
     # calculation applies — never the formula's mere existence.
     lessons = _workspace_lessons(user_id, workspace_id)
     authorized = authorized_workbook_basis(lessons, file_name, sheet_name)
-    if authorized is None:
+    if authorized is None and not neutral:
+        if diagnostics is not None:
+            diagnostics.update({
+                "state": "not_authorized",
+                "authorized": False,
+                "teaching_lessons": len(lessons),
+            })
         return _grounded(
             "LIVE TOOL RESULTS (datasets.calculate — workbook) — NOT "
             f"AUTHORIZED: no permanent teaching authorizes pricing from "
@@ -1786,6 +1963,16 @@ async def calculate_workbook_from_query(
             "approved pricing policy. State the intended basis and ask "
             "for the teaching if it is missing; do not compute a price "
             "another way.")
+    if diagnostics is not None:
+        diagnostics.update({
+            "authorized": bool(authorized),
+            "neutral_arithmetic": bool(neutral and authorized is None),
+        })
+    # NEUTRAL WORKBOOK ARITHMETIC (2026-10-25): a user-requested
+    # reference to the workbook's own formula is not a vendor-pricing
+    # policy decision. NO authorization identity is fabricated and the
+    # pricing record below is not produced; the governance gate above
+    # remains intact for every pricing ask.
 
     from core.formula_engine import sheet_grid_from_parquet
     from core.sheet_dataset_service import load_formulas_for_parquet
@@ -1794,6 +1981,8 @@ async def calculate_workbook_from_query(
         formulas = load_formulas_for_parquet(entry["parquet_path"])
         values, empty = sheet_grid_from_parquet(entry["parquet_path"])
     except Exception as exc:  # noqa: BLE001 — named, never silent
+        if diagnostics is not None:
+            diagnostics["state"] = "source_unreadable"
         return _grounded(
             "LIVE TOOL RESULTS (datasets.calculate — workbook) — SOURCE "
             f"UNREADABLE: the materialized sheet for {file_name} "
@@ -1811,7 +2000,7 @@ async def calculate_workbook_from_query(
     calc = evaluate_reference(
         entry["entity_name"], cell, target_book,
         books.provider, row_of_interest=row_number,
-        cached_value=values.get(cell), origin=_origin())
+        cached_value=_known_cached_value(values, cell), origin=_origin())
 
     # LIVE-READ COMPLETION (bounded): references above the materialized
     # frame (parameter blocks) AND cells whose formulas the sidecar lost
@@ -1869,6 +2058,12 @@ async def calculate_workbook_from_query(
                     books.live_only = True
                     live_target = live.get(target_key)
                     if not live_target:
+                        if diagnostics is not None:
+                            diagnostics.update({
+                                "state": "version_conflict",
+                                "live_version": live_hash,
+                                "cataloged_version": catalog_hash,
+                            })
                         return _grounded(
                             "LIVE TOOL RESULTS (datasets.calculate — "
                             "workbook) — VERSION CONFLICT: the live "
@@ -1888,11 +2083,19 @@ async def calculate_workbook_from_query(
                 calc = evaluate_reference(
                     entry["entity_name"], cell, target_book,
                     books.provider, row_of_interest=row_number,
-                    cached_value=values.get(cell), origin=_origin())
+                    cached_value=_known_cached_value(values, cell), origin=_origin())
                 if books.live_only and books.live_missing_sheets:
                     # EXPLICIT VERSION CONFLICT (round 72): the live
                     # version lacks a sheet the calculation needs —
                     # refuse rather than mix versions.
+                    if diagnostics is not None:
+                        diagnostics.update({
+                            "state": "version_conflict",
+                            "live_version": live_hash,
+                            "cataloged_version": catalog_hash,
+                            "missing_sheets": sorted(
+                                books.live_missing_sheets),
+                        })
                     return _grounded(
                         "LIVE TOOL RESULTS (datasets.calculate — "
                         "workbook) — VERSION CONFLICT: the live "
@@ -1949,7 +2152,7 @@ async def calculate_workbook_from_query(
                                     f"reconstruction"),
                                 dependencies=calc.dependencies,
                                 steps=calc.steps,
-                                cached_value=values.get(cell),
+                                cached_value=_known_cached_value(values, cell),
                                 origin=_origin())
                         else:
                             calc._engine_check = {  # noqa: SLF001
@@ -1974,7 +2177,8 @@ async def calculate_workbook_from_query(
                      else entry.get("source_modified_at")),
         item_label=item_label or f"{sheet_name} row {row_number}",
         authorized_by=authorized,
-        live_read_cells=live_cells)
+        live_read_cells=live_cells,
+        neutral=neutral)
     eng = getattr(calc, "_engine_check", None)  # noqa: SLF001
     if isinstance(eng, dict):
         result.verification.update(eng)
@@ -1982,6 +2186,18 @@ async def calculate_workbook_from_query(
         result.verification.update(result_notes)
         result.workbook["live_read_version"] = \
             result_notes["live_read_version"]
+    if diagnostics is not None:
+        diagnostics.update({
+            "state": result.status,
+            "computed_value": (
+                (result.verification or {}).get("computed_value")
+                if neutral else
+                (str(result.proposed.amount) if result.proposed else None)),
+            "missing_dependency": result.missing_dependency,
+            "policy_id": result.policy_id,
+            "neutral": bool(neutral),
+            "result_id": result.result_id,
+        })
     # JOB INTEGRATION (round 71): calculation identity, inputs,
     # dependencies, result type and provenance persist on the
     # conversation's ACTUAL job run — this was required work, not an
@@ -1993,7 +2209,7 @@ async def calculate_workbook_from_query(
     _recorded = _record_on_job(conversation_id, workspace_id,
                                item_label or f"{sheet_name} row {row_number}",
                                result, canvas_id=canvas_id, user_id=user_id,
-                               execution_id=execution_id)
+                               execution_id=execution_id, neutral=neutral)
     _publish_calc_record(
         result, user_id=user_id,
         conversation_id=conversation_id, canvas_id=canvas_id,
@@ -2080,7 +2296,8 @@ def _record_on_job(
         result: CalculationResult,
         canvas_id: Optional[str] = None,
         user_id: Optional[str] = None,
-        execution_id: Optional[str] = None) -> bool:
+        execution_id: Optional[str] = None,
+        neutral: bool = False) -> bool:
     """Persist a calculation onto the conversation's job run.
 
     Canvas-free requests create their job on first calculation (via
@@ -2119,7 +2336,7 @@ def _record_on_job(
             # REMOVED — request identity comes from the caller, and the
             # caller is now fixed at both completion seams).
         record_calculation(lifecycle, run_id, item_label, result,
-                           execution_id=execution_id)
+                           execution_id=execution_id, neutral=neutral)
         return True
     except Exception as exc:  # noqa: BLE001 — recording is best-effort
         import logging as _logging

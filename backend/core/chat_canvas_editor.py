@@ -4054,6 +4054,7 @@ async def fetch_fresh_data_section(
                     **({"canvas": exec_canvas_context(canvas)}
                        if canvas else {}),
                 },
+                llm_service=llm_service,
             )
             result_meta = getattr(plan, "_result_meta", None) or {}
             workbook_read = (
