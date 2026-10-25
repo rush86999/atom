@@ -6406,20 +6406,29 @@ def _context_backed_fulfillment(
     req = session.get(f"_evidence_requirement_{execution_id}")
     if not isinstance(req, dict) or req.get("required") is not True:
         return None
+    # THE REQUEST-BOUND VERDICT COMES BEFORE OBSERVATIONS. An unresolved
+    # or ambiguous named source (or an unaccounted additional action) is
+    # an open obligation even when this execution retrieved nothing: a
+    # valid result for one source must never erase the unresolved second
+    # source. Observations are only needed to certify a resolved or
+    # kind-only requirement.
+    identity = req.get("identity") if isinstance(
+        req.get("identity"), dict) else {"state": "kind_only"}
+    id_state = str(identity.get("state") or "kind_only")
+    if id_state == "ambiguous":
+        return {"state": "ambiguous",
+                "reason": identity.get("unresolved_reason"),
+                "candidates": identity.get("candidates") or []}
+    if id_state == "unresolved":
+        return {"state": "unresolved",
+                "reason": identity.get("unresolved_reason"),
+                "names": identity.get("names") or []}
     obs = session.get(f"_retrieval_source_observations_{execution_id}")
     if not isinstance(obs, list) or not obs:
         return None
     kinds = [str(k) for k in (req.get("sources") or []) if str(k or "").strip()]
     if not kinds:
         return None
-    identity = req.get("identity") if isinstance(
-        req.get("identity"), dict) else {"state": "kind_only"}
-    id_state = str(identity.get("state") or "kind_only")
-    if id_state == "ambiguous":
-        return {"state": "ambiguous",
-                "candidates": identity.get("candidates") or []}
-    if id_state == "unresolved":
-        return {"state": "unresolved", "names": identity.get("names") or []}
     try:
         _turn_ws = workspace_id or resolve_user_workspace(
             session.get("user_id") if isinstance(session, dict) else None)
@@ -6962,10 +6971,17 @@ def _fallback_turn_outcome(
                 validated = True
                 _cf_names = [str(n) for n in (
                     context_fulfillment.get("names") or [])][:3]
-                open_work.append(
-                    "no ingested document matches "
-                    + (", ".join(_cf_names) if _cf_names
-                       else "the named source"))
+                if str(context_fulfillment.get("reason") or "") == (
+                        "additional_action"):
+                    open_work.append(
+                        "the request also asks to "
+                        + (", ".join(_cf_names) if _cf_names
+                           else "an additional action"))
+                else:
+                    open_work.append(
+                        "no ingested document matches "
+                        + (", ".join(_cf_names) if _cf_names
+                           else "the named source"))
             elif _cf_state == "unsupplied":
                 validated = True
                 _cf_missing = [
@@ -10682,6 +10698,9 @@ class ChatOrchestrator:
                         # the reader context below (requested_targets +
                         # request_scope) so executor inputs stop being
                         # re-derived by independent miners.
+                        _refinement = (
+                            {"status": "skipped"}
+                            if _det_continuation is not None else {})
                         try:
                             _interp_wait = _interpretation_wait_seconds(
                                 _deadline.remaining())
@@ -10729,6 +10748,9 @@ class ChatOrchestrator:
                                         _deadline.remaining(),
                                         _TURN_REPLY_RESERVE_SECONDS)
                             else:
+                                if _det_continuation is not None:
+                                    _refinement.update({
+                                        "status": "started"})
                                 try:
                                     _td_interpretation = (
                                         await asyncio.wait_for(
@@ -10749,7 +10771,27 @@ class ChatOrchestrator:
                                                 # 2026-10-16).
                                                 llm_service=_scope_llm),
                                             timeout=_interp_wait))
+                                    if _det_continuation is not None:
+                                        _origin = str(
+                                            (_td_interpretation or {}).get(
+                                                "origin") or "")
+                                        _scope = str(
+                                            (_td_interpretation or {}).get(
+                                                "scope_change") or "")
+                                        _refinement.update({
+                                            "status": "completed",
+                                            "outcome": (
+                                                "unresolved"
+                                                if (_origin == "unresolved"
+                                                    or _scope == "unresolved")
+                                                else "resolved"),
+                                            "origin": _origin[:80],
+                                        })
                                 except asyncio.TimeoutError:
+                                    if _det_continuation is not None:
+                                        _refinement.update({
+                                            "status": "cancelled",
+                                            "reason": "wait_timeout"})
                                     if _det_continuation is not None:
                                         _td_interpretation = (
                                             interpretation_deterministic_continuation(
@@ -10778,6 +10820,11 @@ class ChatOrchestrator:
                                             _interp_wait)
                                 except Exception as _interp_err:  # noqa: BLE001
                                     if _det_continuation is not None:
+                                        _refinement.update({
+                                            "status": "failed",
+                                            "reason": repr(
+                                                _interp_err)[:200]})
+                                    if _det_continuation is not None:
                                         _td_interpretation = (
                                             interpretation_deterministic_continuation(
                                                 message, _interp_request_id,
@@ -10797,6 +10844,9 @@ class ChatOrchestrator:
                                             _interp_err)
                         except Exception as _interp_outer_err:  # noqa: BLE001
                             if _det_continuation is not None:
+                                _refinement.update({
+                                    "status": "failed",
+                                    "reason": "outer_budget_seam"})
                                 _td_interpretation = (
                                     interpretation_deterministic_continuation(
                                         message, locals().get(
@@ -10861,6 +10911,15 @@ class ChatOrchestrator:
                                      "note": "deterministic read-only "
                                              "continuation"},
                                 ]
+                        if (_det_continuation is not None
+                                and isinstance(_td_interpretation, dict)):
+                            # EXPLICIT REFINEMENT OBSERVABILITY. Missing
+                            # capture is UNKNOWN, never "no dispatch": the
+                            # runner and the durable evidence carry the
+                            # status they can see.
+                            _td_interpretation = dict(_td_interpretation)
+                            _td_interpretation["refinement"] = dict(
+                                _refinement)
                         # L2 repair (2026-10-18): CONSUME the resolved
                         # interpretation's source references when the
                         # deterministic floor found none. A continuation

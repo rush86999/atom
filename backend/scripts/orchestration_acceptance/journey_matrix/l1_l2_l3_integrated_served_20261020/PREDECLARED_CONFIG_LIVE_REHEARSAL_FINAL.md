@@ -33,6 +33,19 @@ ATOM_LLM_PROVIDER_POLICY={"mode":"automatic","allowed_providers":[]}
   list: under `automatic` it authorizes the configured OpenRouter and
   OpenCode Go routes as well, and the declaration says so explicitly.
 
+## Pilot isolation
+
+- Default `ATOM_REHEARSAL_PILOT_MODE=required`: the preflight stops
+  **before creating the scratch world or launching the candidate** if the
+  pilot backend `:8001` / frontend `:3000` are not listening.
+- `ATOM_REHEARSAL_PILOT_MODE=absent` requires an explicit
+  `ATOM_REHEARSAL_NO_PILOT_ASSERTION`. It uses a DIFFERENT gate,
+  `no_pilot_isolation_asserted`: the pilot is consistently absent before
+  and after, no identity is claimed, and the live DB is isolated. It is
+  never reported as `pilot_untouched`.
+- Attempt 15 is preserved as **functional verification passed; original
+  pilot-preservation assertion not established**. It is not 62/62.
+
 ## Checks
 
 - All 62 checks must pass.
@@ -44,8 +57,12 @@ ATOM_LLM_PROVIDER_POLICY={"mode":"automatic","allowed_providers":[]}
   reply and structured route is inside the same authorized set.
 - `l3_interpretation_authorized`, `comparison_interpretation_authorized`,
   `continuation_interpretation_authorized` — a model origin’s dispatch
-  routes must be authorized; `deterministic:continuation` is authorized
-  because it dispatches no model.
+  routes must be authorized. `deterministic:continuation` carries an
+  explicit refinement status (`skipped` / `started` / `completed` /
+  `failed` / `cancelled`); any attempted refinement route must still be
+  authorized. A missing status is **unknown**, not “no dispatch”, and
+  fails closed. Provider-policy enforcement remains immediately before
+  transport in the BYOK handler.
 - Historical intended-route results remain recorded under
   `provider_routes.historical_intended_route_checks` but do not decide
   the pass.

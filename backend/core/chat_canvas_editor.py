@@ -2391,7 +2391,9 @@ def single_explicit_assignment(message: str) -> bool:
         from core.turn_decision import extract_request_assignments
 
         parsed = extract_request_assignments(str(message or ""))
-        if parsed.get("unresolved_additions") or parsed.get("source_references"):
+        if (parsed.get("unresolved_additions")
+                or parsed.get("additional_actions")
+                or parsed.get("source_references")):
             return False
         assignments = [
             entry for entry in (parsed.get("assignments") or [])

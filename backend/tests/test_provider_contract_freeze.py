@@ -119,24 +119,91 @@ def test_deterministic_continuation_is_authorized_without_a_model():
     runner = _runner()
     prefixes = ("deepseek/", "opencode-go/", "openrouter/")
     assert runner._interpretation_route_authorized(
-        "deterministic:continuation", {"dispatch_models": []}, prefixes)
+        "deterministic:continuation",
+        {"dispatch_models": [], "refinement": {"status": "skipped"}},
+        prefixes)
+    assert runner._interpretation_route_authorized(
+        "deterministic:continuation",
+        {"dispatch_models": ["deepseek/deepseek-v4-pro"],
+         "refinement": {"status": "completed", "outcome": "unresolved"}},
+        prefixes)
+    assert not runner._interpretation_route_authorized(
+        "deterministic:continuation",
+        {"dispatch_models": [], "refinement": {"status": "completed"}},
+        prefixes), (
+        "a completed refinement with no captured dispatch is UNKNOWN, "
+        "not no-dispatch")
+    assert not runner._interpretation_route_authorized(
+        "deterministic:continuation",
+        {"dispatch_models": [], "refinement": {"status": "unknown"}},
+        prefixes)
+    assert not runner._interpretation_route_authorized(
+        "deterministic:continuation",
+        {"dispatch_models": ["openrouter/z-ai/glm-5.3-flash"],
+         "refinement": {"status": "cancelled"}},
+        ("deepseek/", "ollama/")), (
+        "an attempted refinement outside the declared policy is never "
+        "authorized")
     assert runner._interpretation_route_authorized(
         "llm:glm-5.3-flash",
         {"dispatch_models": ["openrouter/z-ai/glm-5.3-flash"]},
         prefixes)
     assert not runner._interpretation_route_authorized(
-        "llm:glm-5.3-flash",
-        {"dispatch_models": ["openrouter/z-ai/glm-5.3-flash"]},
-        ("deepseek/", "ollama/")), (
-        "a route outside the declared policy is never authorized")
-    assert not runner._interpretation_route_authorized(
         "llm:glm-5.3-flash", {"dispatch_models": []}, prefixes), (
         "a model origin with no captured dispatch is not evidence that an "
         "authorized provider served it")
-    assert not runner._interpretation_route_authorized(
-        "deterministic:continuation",
-        {"dispatch_models": ["unknown/model"]}, prefixes), (
-        "a bounded refinement attempt must still be authorized")
+
+
+def test_stage_summary_carries_refinement_or_unknown():
+    runner = _runner()
+    step = {"observation": {"apply": {"interpretation": {
+        "origin": "deterministic:continuation",
+        "refinement": {
+            "status": "cancelled", "reason": "wait_timeout"}}}}}
+    assert runner.stage_summary(step, "")["refinement"]["status"] == (
+        "cancelled")
+    bare = {"observation": {"apply": {"interpretation": {
+        "origin": "deterministic:continuation"}}}}
+    assert runner.stage_summary(bare, "")["refinement"]["status"] == (
+        "unknown"), "missing capture must be unknown, not no-dispatch"
+
+
+def test_pilot_preflight_requires_a_listening_pilot_by_default():
+    runner = _runner()
+    absent = {"backend_8001_listening": False,
+              "frontend_3000_listening": False}
+    listening = {"backend_8001_listening": True,
+                 "frontend_3000_listening": True}
+    assert runner.pilot_preflight(absent)["ok"] is False
+    assert runner.pilot_preflight(absent)["reason"] == "pilot_not_listening"
+    assert runner.pilot_preflight(listening)["ok"] is True
+
+
+def test_pilot_preflight_absent_mode_needs_an_explicit_assertion():
+    runner = _runner()
+    absent = {"backend_8001_listening": False,
+              "frontend_3000_listening": False}
+    listening = {"backend_8001_listening": True,
+                 "frontend_3000_listening": True}
+    assert runner.pilot_preflight(
+        absent, "absent", "")["ok"] is False
+    assert runner.pilot_preflight(
+        absent, "absent", "pilot intentionally stopped; candidate on :8121"
+    )["ok"] is True
+    assert runner.pilot_preflight(
+        listening, "absent", "pilot intentionally stopped")["ok"] is False
+    assert runner.pilot_preflight(
+        absent, "unknown-mode", "asserted")["ok"] is False
+
+
+def test_pilot_preflight_stops_before_the_candidate_launch():
+    source = RUNNER.read_text()
+    preflight = source.index(
+        'if not cfg["pilot_preflight"]["ok"]:')
+    launch = source.index('launch("pre")')
+    assert preflight < launch, (
+        "an absent required pilot must stop before creating the world or "
+        "launching the candidate")
 
 
 def test_historical_intended_routes_are_observations_not_gates():

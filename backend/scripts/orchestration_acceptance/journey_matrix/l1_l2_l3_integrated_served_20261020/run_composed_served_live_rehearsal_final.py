@@ -692,6 +692,58 @@ def _step_interpretation(step: dict) -> dict:
         or {})
 
 
+def pilot_preflight(pilot_before, mode: str = "required",
+                    assertion: str = "") -> dict:
+    """Fail BEFORE launch when the pilot-preservation precondition is not met.
+
+    ``required`` (default): the pilot backend/frontend must be listening;
+    otherwise the run stops before any scratch world or candidate process
+    is created. ``absent``: the pilot must NOT be listening, and the
+    caller must supply an explicit isolation assertion; this is a
+    different assertion, never a pilot-preservation pass.
+    """
+    before = pilot_before if isinstance(pilot_before, dict) else {}
+    listening = bool(
+        before.get("backend_8001_listening")
+        and before.get("frontend_3000_listening"))
+    mode = str(mode or "required").strip().lower()
+    assertion = str(assertion or "").strip()
+    if mode == "required":
+        return {
+            "ok": listening,
+            "mode": mode,
+            "assertion": "",
+            "reason": "" if listening else "pilot_not_listening",
+        }
+    if mode == "absent":
+        if listening:
+            return {
+                "ok": False,
+                "mode": mode,
+                "assertion": assertion,
+                "reason": "pilot_is_listening",
+            }
+        if not assertion:
+            return {
+                "ok": False,
+                "mode": mode,
+                "assertion": "",
+                "reason": "no_pilot_assertion_missing",
+            }
+        return {
+            "ok": True,
+            "mode": mode,
+            "assertion": assertion,
+            "reason": "declared_absent",
+        }
+    return {
+        "ok": False,
+        "mode": mode,
+        "assertion": assertion,
+        "reason": "unknown_pilot_mode",
+    }
+
+
 def _authorized_provider_contract(policy: dict) -> dict:
     """The declared policy's authorized provider set, fail-closed.
 
@@ -748,12 +800,21 @@ def _interpretation_route_authorized(
     origin = str(origin or "")
     models = [str(m) for m in ((summary or {}).get(
         "dispatch_models") or [])]
+    refinement = (summary or {}).get("refinement") or {}
+    status = str(refinement.get("status") or "unknown")
     if origin.startswith("deterministic:"):
         # The deterministic record may have taken a bounded optional
-        # refinement; any attempt it made must still be authorized. No
-        # dispatch at all is the normal deterministic case.
-        return all(any(m.startswith(prefix) for prefix in prefixes)
-                   for m in models)
+        # refinement. Its EXPLICIT status decides what the missing or
+        # present dispatch means; a missing status is UNKNOWN, never "no
+        # dispatch".
+        if status == "skipped":
+            return not models
+        if status in ("started", "completed", "failed", "cancelled"):
+            if not models:
+                return False
+            return all(any(m.startswith(prefix) for prefix in prefixes)
+                       for m in models)
+        return False
     if models:
         return all(any(m.startswith(prefix) for prefix in prefixes)
                    for m in models)
@@ -802,6 +863,8 @@ def stage_summary(step: dict, log_text: str) -> dict:
         "interpretation_unresolved_reason": interp.get(
             "unresolved_reason"),
         "scope_change": interp.get("scope_change"),
+        # Missing refinement capture is UNKNOWN, not "no dispatch".
+        "refinement": interp.get("refinement") or {"status": "unknown"},
         "action_count": len(actions),
         "action_kinds": [str(a.get("kind") or "") for a in actions],
         "capture_archived": bool(capture_lines),
@@ -986,6 +1049,11 @@ def main() -> int:
         },
         "pilot_before": base.pilot_identity(),
     }
+    _pilot_mode = os.environ.get("ATOM_REHEARSAL_PILOT_MODE", "required")
+    _pilot_assertion = os.environ.get(
+        "ATOM_REHEARSAL_NO_PILOT_ASSERTION", "")
+    cfg["pilot_preflight"] = pilot_preflight(
+        cfg.get("pilot_before"), _pilot_mode, _pilot_assertion)
     actual_sources = cfg["candidate"]["source_sha256"]
     for key, expected in EXPECTED_SOURCE_SHA256.items():
         if actual_sources.get(key) != expected:
@@ -993,6 +1061,13 @@ def main() -> int:
                 f"frozen source hash mismatch for {key}; no launch")
     (HERE / "live_rehearsal_config.json").write_text(
         json.dumps(cfg, indent=2, sort_keys=True, default=str))
+    if not cfg["pilot_preflight"]["ok"]:
+        raise RuntimeError(
+            "pilot preflight failed (%s); refusing to launch. Restore/"
+            "authorize the pilot, or declare a no-pilot run with "
+            "ATOM_REHEARSAL_PILOT_MODE=absent plus an explicit "
+            "ATOM_REHEARSAL_NO_PILOT_ASSERTION." % (
+                cfg["pilot_preflight"]["reason"]))
 
     SCRATCH.mkdir(parents=True, exist_ok=True)
     freeze = run([str(PY), "-m", "pip", "freeze"])
@@ -1979,12 +2054,16 @@ def main() -> int:
                     for a in (s7_interp.get("actions") or [])
                     if isinstance(a, dict)))
         _s7_summary = stage_summary(s7, log_text)
-        # A deterministic bounded continuation dispatches no model, so it
-        # has no turn-interpretation capture by design. The explicit
-        # deterministic record in the apply event is its evidence; a
-        # model path still requires both validation phases.
+        _s7_refinement = str(
+            (_s7_summary.get("refinement") or {}).get(
+                "status") or "unknown")
+        # A deterministic bounded continuation has no model capture by
+        # design, but it MUST carry an explicit refinement status. A
+        # missing status is UNKNOWN, not "no dispatch", and cannot pass.
         s7_capture = bool(
-            s7_origin.startswith("deterministic:")
+            (s7_origin.startswith("deterministic:")
+             and _s7_refinement in (
+                 "skipped", "started", "completed", "failed", "cancelled"))
             or (_s7_summary.get("capture_archived")
                 and "pre_validation" in _s7_summary.get(
                     "capture_phases", [])
@@ -2234,7 +2313,26 @@ def main() -> int:
         # not by an unattributable mtime/hash change.
         checks["live_db_isolated"] = bool(
             (result.get("live_db_guard_after") or {}).get("isolated"))
-        checks["pilot_untouched"] = result["pilot_untouched"]
+        _pilot_mode = str(
+            (cfg.get("pilot_preflight") or {}).get("mode") or "required")
+        if _pilot_mode == "absent":
+            # A declared no-pilot run uses a DIFFERENT assertion: the
+            # pilot must be consistently absent before and after, its
+            # identity must stay unclaimed, and the live DB must be
+            # isolated. It is never a pilot-preservation pass.
+            checks["no_pilot_isolation_asserted"] = bool(
+                not (cfg.get("pilot_before") or {}).get(
+                    "backend_8001_listening")
+                and not (cfg.get("pilot_before") or {}).get(
+                    "frontend_3000_listening")
+                and not pilot_after.get("backend_8001_listening")
+                and not pilot_after.get("frontend_3000_listening")
+                and not pilot_before_ident
+                and not pilot_after_ident
+                and (result.get("live_db_guard_after") or {}).get(
+                    "isolated"))
+        else:
+            checks["pilot_untouched"] = result["pilot_untouched"]
 
         result["stage_summary"] = {
             "l3_sourced_answer": {
@@ -2433,6 +2531,11 @@ def main() -> int:
             ("live_db_isolated", "live_db_isolated_failed"),
             ("pilot_untouched", "pilot_touched"),
         ]
+        if _pilot_mode == "absent":
+            order = [item for item in order
+                     if item[0] != "pilot_untouched"]
+            order.append(("no_pilot_isolation_asserted",
+                          "pilot_isolation_not_asserted"))
         result["first_failure"] = next(
             (cls for key, cls in order if not checks.get(key)), None)
         result["classification"] = (

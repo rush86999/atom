@@ -1046,7 +1046,12 @@ _COMPOUND_ACTION_VETO_RE = re.compile(
     r"replace|correct|fix)\b\s+"
     r"(?:a|an|the|my|our|your|it|this|that|summary|reply|email|"
     r"message|paragraph|section|terms?|name|short|new|brief|final|"
-    r"clean)\b",
+    r"clean)\b"
+    # A mutation/send verb with ANY object is still an additional
+    # obligation. This is the general action clause the obligation
+    # extractor records; it is not a phrase-specific blacklist.
+    r"|\b(?:insert|append|prepend|send|submit|upload|schedule|book|"
+    r"pay|create|write|remove|delete|add)\b\s+\w+",
     re.IGNORECASE,
 )
 
@@ -1078,6 +1083,16 @@ def deterministic_continuation_ready(
     if not text.strip() or _COMPOUND_ACTION_VETO_RE.search(text):
         return None
     if not _looks_seek_shaped(text):
+        return None
+    try:
+        # The accepted assignment/obligation table is the authority: any
+        # additional mutation/send/insertion clause means the request is
+        # more than the bounded read-only continuation.
+        _obligations = extract_request_assignments(text)
+        if (_obligations.get("unresolved_additions")
+                or _obligations.get("additional_actions")):
+            return None
+    except Exception:  # noqa: BLE001 — fail closed on the fast path
         return None
     try:
         from core.workbook_read_artifact import (
@@ -1180,16 +1195,6 @@ def apply_degraded_continuation_references(
         return decision
     refs = decision.get("references")
     refs = refs if isinstance(refs, dict) else {}
-    if resolved_interpretation and refs.get("continuation_evidence"):
-        # The model made a source decision (including an honest
-        # unresolved/ambiguous one); do not overwrite it. A generic floor
-        # capture without a marker is only a nomination and may be
-        # refined below; a specific floor file is preserved by the
-        # mixed-marker branch.
-        return decision
-    resolved = resolve_request_source_reference(text, session)
-    if not resolved:
-        return decision
 
     def _compose(marker: Dict[str, Any]) -> Dict[str, Any]:
         composed = dict(decision)
@@ -1204,6 +1209,39 @@ def apply_degraded_continuation_references(
         provenance["signals"] = signals
         composed["provenance"] = provenance
         return composed
+
+    # AN ADDITIONAL ACTION OBLIGATION BLOCKS READ-ONLY COMPLETION even
+    # when the model resolved a source or the source itself resolves.
+    # The existing assignment/obligation table is the authority; this is
+    # not a phrase list. The marker reuses the request-bound unresolved
+    # identity, so every settlement path sees unfinished work.
+    try:
+        _actions = extract_request_assignments(text).get(
+            "additional_actions") or []
+    except Exception:  # noqa: BLE001 — the obligation extractor is total
+        _actions = []
+    if _actions:
+        return _compose({
+            "origin": "deterministic_floor",
+            "state": "unresolved",
+            "resolved_file": "",
+            "resolved_kinds": [],
+            "phrases": [str(a.get("text") or "")[:120]
+                        for a in _actions][:4],
+            "names": [str(a.get("text") or "")[:120]
+                      for a in _actions][:4],
+            "unresolved_reason": "additional_action",
+        })
+    if resolved_interpretation and refs.get("continuation_evidence"):
+        # The model made a source decision (including an honest
+        # unresolved/ambiguous one); do not overwrite it. A generic floor
+        # capture without a marker is only a nomination and may be
+        # refined below; a specific floor file is preserved by the
+        # mixed-marker branch.
+        return decision
+    resolved = resolve_request_source_reference(text, session)
+    if not resolved:
+        return decision
 
     def _mixed_marker(reason: str) -> Dict[str, Any]:
         marker = dict(resolved)
@@ -1698,9 +1736,26 @@ def extract_request_assignments(
             r"\bfrom\s+(our\s+)?(records|systems?|files?|crm|workbook|"
             r"database|hr\s+system|personnel\s+record)\b", text, _re.IGNORECASE):
         source_refs.append(m.group(0))
+    # ADDITIONAL ACTION OBLIGATIONS. The accepted assignment spans are
+    # already accounted for above; any OTHER mutation/send/insertion
+    # clause is an unresolved obligation. The fast read-only path must
+    # refuse the whole request, not just the exact object noun.
+    occupied = [
+        (int(span[0]), int(span[1]))
+        for span in (a.get("span") for a in assignments)
+        if isinstance(span, (list, tuple)) and len(span) == 2]
+    additional_actions: List[Dict[str, Any]] = []
+    for m in _COMPOUND_ACTION_VETO_RE.finditer(text):
+        if any(start <= m.start() < end or start < m.end() <= end
+               for start, end in occupied):
+            continue
+        snippet = m.group(0).strip()[:120]
+        if snippet:
+            additional_actions.append({"text": snippet})
     return {
         "assignments": assignments,
         "unresolved_additions": unresolved,
+        "additional_actions": additional_actions,
         "source_references": source_refs,
     }
 
@@ -1743,7 +1798,9 @@ def turn_evidence_required(
     # a research action must not prove the evidence unnecessary.
     try:
         message = str(decision.get("message") or "")
-        if extract_request_assignments(message).get("source_references"):
+        _obligations = extract_request_assignments(message)
+        if (_obligations.get("source_references")
+                or _obligations.get("additional_actions")):
             return True
     except Exception:  # noqa: BLE001 — additive; never blocks the lane
         pass
