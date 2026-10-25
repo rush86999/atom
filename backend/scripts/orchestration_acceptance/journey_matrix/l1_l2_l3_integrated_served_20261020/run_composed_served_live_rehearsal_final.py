@@ -71,28 +71,28 @@ CAND_BACKEND = CAND / "backend"
 PY = MAIN / "backend/venv314/bin/python"
 SCRATCH = Path(
     "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/"
-    "l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-final2")
+    "l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-final3")
 PORT = 8121
 BASE = f"http://127.0.0.1:{PORT}"
 LIVE_DB = MAIN / "backend/data/atom.db"
 PILOT_BACKEND = "http://127.0.0.1:8001"
 PILOT_FRONTEND = "http://127.0.0.1:3000"
-PRODUCT_SHA = "8912eba5dac56e3c6a29d18e380b1b1cf5adb3ea"
+PRODUCT_SHA = "8a855d82956cc9274b555b6d4b96ef71d1c66fa9"
 CANDIDATE_SHA = PRODUCT_SHA
-HARNESS_GATE_COMMIT = "f2f8329971129bc14e9f107aa234b98db7f18379"
+HARNESS_GATE_COMMIT = "8a855d82956cc9274b555b6d4b96ef71d1c66fa9"
 HARNESS_GATE_TAG = "successor/live-rehearsal-20261024-policy"
 EXPECTED_GATES_SHA256 = (
-    "6d66d0b8b3b2c9a24efbe111a750c477f623a207d34692dcd4fa07cfceb88dd2")
+    "38e51ef092defdf9ec32d291772e803ff0b432d8de8c6219a2f38f4eb464014c")
 PRE_DECL = HERE / "PREDECLARED_CONFIG_LIVE_REHEARSAL_FINAL.md"
 
 EXPECTED_SOURCE_SHA256 = {
     "chat_tool_planner": "807dd65eb83fe7676ac29fba475ef188cac6ad82146c02321d66564a023414c5",
-    "chat_orchestrator": "0dfa3c83efada00cd28bec99e17604092357a9851278d45ba19872703f65db00",
+    "chat_orchestrator": "9c74693b03b82a7ad6a4729f9185b42f8a32bd86317739ed5f5e9443ca4c2e9b",
     "answer_boundary": "3a36a5dd99cd11e1767c036461f84342fbf41e4f20d6644e147f5047a6b49db3",
-    "workbook_read_artifact": "db23d66749eb79ed37f0011b96b0096ad0e746cc0c981fd5f5f6edb89889da67",
+    "workbook_read_artifact": "8c614bc6d1e4a614e6ad1ad00ff3c3a7bc3cd1c6e8f9345a080622a599e98b67",
     "chat_canvas_editor": "8b1e9ed7a2585d4039cd6e54d32b05a39286c6ce58fddc95cdee90031cf43e91",
     "chat_routes": "d86d0be9334e8927c6811b998a5cc8c28a3b535d03cace57e8f9529679ffa0e0",
-    "turn_decision": "f5342f1d8deac03a917142d5931efec190fe58a52889e8acf9cc551963508065",
+    "turn_decision": "42f003b87c6061333edac5662e324566f10a14cb6968ffa838a2773218d44d64",
 }
 
 base.BASE = BASE
