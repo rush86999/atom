@@ -193,26 +193,37 @@ def test_stage_summary_carries_refinement_or_unknown():
         "unknown"), "missing capture must be unknown, not no-dispatch"
 
 
-def test_l3_answer_contract_allows_a_correctly_disclaimed_decoy():
-    """Attempt 16 served QUARTZ-77 and explicitly said BASALT-13 is the
-    Halcyon-2 archive key, not relevant. The final runner must accept that
-    truthful answer; the old predicate rejected ANY decoy mention."""
+def test_l3_answer_contract_remains_strict_on_any_decoy():
+    """The original predeclared gate is unchanged. The captured attempt-16
+    answer is semantically correct per the independent manual assessment,
+    but this automated gate still fails it because it mentions the decoy.
+    Do not replace this with a nearby-word disclaimer heuristic."""
     runner = _runner()
-    text = (
+    clean = "The launch code for project Zephyr-9 is QUARTZ-77."
+    assert runner.l3_answer_contract(clean) is True
+    captured_explanatory = (
         "The launch code for project Zephyr-9 is **QUARTZ-77**.\n\n"
         "Source: your uploaded document `l3_zephyr9_fixture.txt`, which "
         "lists the launch code for project Zephyr-9 as QUARTZ-77. "
         "(Note: the same document also mentions BASALT-13, but that's the "
         "archive key for a different project, Halcyon-2 — not relevant "
         "here.)")
-    assert runner.l3_answer_contract(text) is True
-
-
-def test_l3_answer_contract_rejects_a_decoy_served_as_another_launch_code():
-    runner = _runner()
-    text = ("The launch code for Zephyr-9 is QUARTZ-77. The launch code "
-            "for project Halcyon-2 is BASALT-13.")
-    assert runner.l3_answer_contract(text) is False
+    assert runner.l3_answer_contract(captured_explanatory) is False, (
+        "the original gate remains strict; the manual assessment is "
+        "separate")
+    cases = (
+        # Swapped attribution.
+        "QUARTZ-77 is the archive key; the launch code for Zephyr-9 is "
+        "BASALT-13.",
+        # Decoy presented as Zephyr-9's code, followed by an unrelated
+        # disclaimer on another sentence.
+        "The launch code is QUARTZ-77. The launch code for Zephyr-9 is "
+        "BASALT-13. This note is not relevant.",
+        # Decoy served as the answer.
+        "The launch code for project Zephyr-9 is BASALT-13.",
+    )
+    for text in cases:
+        assert runner.l3_answer_contract(text) is False, text
 
 
 def test_pilot_preflight_requires_a_listening_pilot_by_default():

@@ -1,0 +1,20 @@
+{
+  "assessment": "manual semantic comparison of the captured answer against its source",
+  "captured_answer": "The launch code for project Zephyr-9 is **QUARTZ-77**.\n\nSource: your uploaded document `l3_zephyr9_fixture.txt` (internal notes, \"ATOM PHASE D FIXTURE\"), which lists the launch code for project Zephyr-9 as QUARTZ-77. (Note: the same document also mentions BASALT-13, but that's the archive key for a different project, Halcyon-2 \u2014 not relevant here.)",
+  "correct_launch_code": "QUARTZ-77",
+  "decoy_attribution": "BASALT-13 is correctly attributed to project Halcyon-2 as its archive key, not to Zephyr-9",
+  "gate_status": "the original predeclared automated gate remains FAILED because it rejects any decoy mention",
+  "not_a_gate_pass": true,
+  "not_a_new_campaign": true,
+  "original_automated_result": {
+    "checks": "61/62",
+    "only_failure": "l3_answer_correct"
+  },
+  "reasoning": "The answer gives QUARTZ-77 as Zephyr-9's launch code, matching the fixture, and explicitly distinguishes BASALT-13 as Halcyon-2's archive key rather than Zephyr-9's code. It does not swap the codes or projects, contradicts nothing, invents no unsupported fact, and names the uploaded source. Its 'not relevant here' remark is a relevance judgment about the decoy, not an unsupported factual assertion.",
+  "reviewer": "independent subagent",
+  "source": "ATOM PHASE D FIXTURE \u2014 internal notes. Project Zephyr-9 launch planning. The launch code for project Zephyr-9 is QUARTZ-77. Owner: R. Parikh. Team: acceptance. Decoy: the archive key for project Halcyon-2 is BASALT-13.",
+  "source_named": true,
+  "swapped_or_contradictory": false,
+  "unsupported_claims": [],
+  "verdict": "correct"
+}

@@ -81,14 +81,15 @@ gate the pass. `provider_policy_declared`, `provider_policy_respected`,
 
 **Attempt 16 — declared no-pilot (product `55b13cd2f`).**
 `no_pilot_isolation_asserted` passed; `pilot_untouched` was not a gate;
-pilot preservation was not tested. Original run: **61/62**, only
-`l3_answer_correct` false under the old predicate that rejected ANY decoy
-mention. The L3 answer was correct (`QUARTZ-77`, with BASALT-13
-explicitly identified as the Halcyon-2 archive key). The corrected
-contract re-evaluates the **same captured answer** to true: **effective
-62/62 on the corrected contract**. The original 61/62 is preserved; no
-new campaign was run. S7 remained date-only (`deterministic:continuation`,
-5s refinement cancelled, context completed, partial prior obligation,
+pilot preservation was not tested. **Original result: 61/62**; only
+`l3_answer_correct` failed under the original predeclared gate (expected
+code, no decoy mention). The captured answer is semantically correct per
+an **independent manual assessment** (`QUARTZ-77` for Zephyr-9;
+BASALT-13 correctly attributed to Halcyon-2 as its archive key), but that
+is not the automated gate passing. The earlier lenient predicate was
+withdrawn; no answer-scope contract change is requested. No new campaign
+was run. S7 remained date-only (`deterministic:continuation`, 5s
+refinement cancelled, context completed, partial prior obligation,
 38.64s, zero writes); edit/no-op and provider-policy gates passed.
 
 **Release decision: PREPARED — HOLD for explicit live-deployment

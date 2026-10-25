@@ -35,14 +35,19 @@ there is no second attempt in the same window.
 
 ## Evidence
 
-- **Attempt 16** (declared no-pilot): `no_pilot_isolation_asserted=true`. The L3 contract correction is `f40d2a881`; it rechecked the same captured answer and did not run a new campaign.
-  Original run **61/62**, only `l3_answer_correct` false under the old
-  predicate that rejected **any** decoy mention.
-- The L3 answer was correct: **QUARTZ-77**, with BASALT-13 explicitly
-  identified as the Halcyon-2 archive key and not relevant. The corrected
-  contract re-evaluates the **same captured answer** to true: **effective
-  62/62 on the corrected contract**. The original 61/62 is preserved and
-  is not relabeled.
+- **Attempt 16** (declared no-pilot): `no_pilot_isolation_asserted=true`.
+  **Original result: 61/62**, only `l3_answer_correct` failed under the
+  original predeclared gate (expected code, **no decoy mention**). The
+  gate remains failed; this is **not** an automated 62/62.
+- **Independent manual answer assessment:** the captured L3 answer is
+  semantically correct — QUARTZ-77 for Zephyr-9; BASALT-13 correctly
+  attributed to Halcyon-2 as its archive key; no swapped or contradictory
+  assignment; source named. This is a manual semantic assessment, not the
+  original gate passing.
+- **Answer-scope contract:** no change is requested in this package. The
+  earlier lenient predicate (`f40d2a881`) was withdrawn because it could
+  accept swapped/contradictory assignments; the original strict gate is
+  restored.
 - **518 focused tests passed** on the final local batch. Two
   `test_fallback_honesty` receipt fixtures fail identically on parent
   `73bcae400` (pre-existing).
@@ -75,6 +80,12 @@ WAL size 0. Immediately before cutover, re-verify the live DB is
 unchanged; if any writer touched it, take a new fresh WAL-safe snapshot.
 The 09:19 rehearsal backup is not the cutover rollback source.
 
+Private config/secret backup (outside committed evidence, mode 700):
+`/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-cutover-55b13cd2f-20261024/private_config_backup`.
+Copy `byok_config.json`, `byok_keys.json`, `byok_encryption_key`, `.env`
+there with `cp -p` and mode 600 at cutover. Archive only the redacted
+manifest; never commit those file contents.
+
 ## Smoke gate (must pass before declaring success)
 
 1. `/api/health` 200, `identity.revision=55b13cd2f`, clean, live DB/BYOK
@@ -97,7 +108,8 @@ The 09:19 rehearsal backup is not the cutover rollback source.
 
 Stop candidate PIDs; free `:8001`/`:3000`; remove WAL/SHM; restore the
 fresh backup; verify `quick_check`/row counts; restore the four pre-cutover
-config/secret files; restart the old backend from
+config/secret files from the private backup directory; restart the old
+backend from
 `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-rollback-8c593e/backend`
 on `:8001` and the old frontend from
 `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-release-910bf85a6/frontend-nextjs`
@@ -113,17 +125,18 @@ the backup, smoke, and rollback above.
 
 **Does not cover:** a second attempt after rollback; a different product
 or provider profile; a deadline change; a claim that attempt 15 was
-62/62; a pilot-preservation claim; treating the L3 contract correction as
-a substitute for the preserved original 61/62 result.
+62/62; a pilot-preservation claim; a change to the answer-scope contract;
+or treating the manual L3 assessment as the automated gate passing.
 
 ## Known limitations
 
 - The pilot was absent before the rehearsal; its disappearance is
   unexplained. The live start would start the candidate, not restore the
   old pilot first.
-- Attempt 16's original 61/62 is preserved; the effective 62/62 is the
-  corrected L3 contract applied to the same captured answer, not a new
-  campaign.
+- Attempt 16 is **61/62** under the original predeclared gate. The
+  captured L3 answer is semantically correct by independent manual
+  assessment, but it is not an automated gate pass. No new campaign was
+  run to change that.
 - The S7 date-only settlement is `partial` because the captured prior
   outlook obligation remains open; this is truthful, not a failure.
 - The direct harness does not always persist the detailed
@@ -137,8 +150,11 @@ a substitute for the preserved original 61/62 result.
 - `docs/acceptance/RELEASE_PACKAGE_55b13cd2f_2026-10-24.md`
 - `docs/acceptance/release_evidence_20261024/release_55b13cd2f/`
   (`release_config.json`, `no_pilot_preflight.json`,
-  `l3_answer_contract_recheck.json`, `backup_verification.json`,
-  attempt-16 config/summary/result/console, checksums)
+  `manual_answer_semantic_assessment.json`,
+  `pre_cutover_config_manifest.redacted.json`, `backup_verification.json`,
+  attempt-16 config/summary/result/console, checksums). Secret/config
+  files go only to the private backup directory, never committed
+  evidence.
 - `docs/acceptance/S7_CONTINUATION_REPAIR_2026-10-24.md`
 
 **Requested: Approve / Do not approve this one reversible cutover.**

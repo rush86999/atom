@@ -28,13 +28,17 @@ tree and the candidate.
 - **Attempt 16: declared no-pilot isolated rehearsal.**
   - `no_pilot_isolation_asserted`: **true**; `pilot_untouched` was not a
     gate in this mode.
-  - Original run: **61/62**, only `l3_answer_correct` failed under the old
-    predicate that rejected ANY decoy mention.
-  - The L3 answer was correct: it served **QUARTZ-77** and explicitly
-    identified BASALT-13 as the Halcyon-2 archive key, not relevant. The
-    corrected contract re-evaluates the **same captured answer** to true:
-    **effective 62/62 on the corrected contract**. The original run is
-    preserved as 61/62 and is not relabeled.
+  - **Original result: 61/62.** The only failure is `l3_answer_correct`
+    under the original predeclared gate (expected code, **no decoy
+    mention**). The gate remains failed and the run is **not** an
+    automated 62/62.
+  - The captured L3 answer is **semantically correct per an independent
+    manual assessment**: it serves **QUARTZ-77** for Zephyr-9 and
+    correctly attributes BASALT-13 to Halcyon-2 as its archive key. That
+    assessment is a separate human review, not the automated gate
+    passing. The earlier lenient predicate was withdrawn; it could accept
+    swapped or contradictory assignments. **No answer-scope contract
+    change is requested in this package.**
   - S7: `deterministic:continuation`; 5s DeepSeek refinement was attempted
     and cancelled (`wait_timeout`); source
     `approved_records_q2026_114.txt`; fields exactly
@@ -80,9 +84,15 @@ unchanged; if any writer touched it, take a new fresh snapshot.** The
 
 1. Confirm the live DB fingerprint is still `4b25241...`, WAL size 0, and
    no live-DB/WAL/SHM holder exists.
-2. Copy the four live config/secret files to the evidence directory with
-   `cp -p`, mode 600, unchanged:
+2. Copy the four live config/secret files to the **private backup
+   directory outside committed evidence**:
+   `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-cutover-55b13cd2f-20261024/private_config_backup`
+   (directory mode 700, files mode 600, via `cp -p`):
    `byok_config.json`, `byok_keys.json`, `byok_encryption_key`, `.env`.
+   **Never copy their contents into `docs/` or any committed evidence.**
+   Archive only the redacted metadata manifest
+   (`pre_cutover_config_manifest.redacted.json`): file names, modes, and
+   backup references, no secret values.
 3. Record the candidate PIDs, ports, and the fresh backup manifest.
 4. If the DB changed since the prepared backup, take a new fresh
    WAL-safe snapshot with SQLite's backup API and verify `quick_check` and
@@ -267,9 +277,11 @@ user-visible delta, or owner abort.
 
 `docs/acceptance/release_evidence_20261024/release_55b13cd2f/` contains the
 attempt-16 config/summary/result/console, predeclared config, no-pilot
-preflight, L3 contract recheck, backup verification, release config, and
-checksums. The backup DB itself remains outside the repo at the path
-above.
+preflight, independent manual L3 answer assessment, redacted config
+manifest, backup verification, release config, and checksums. The backup
+DB and any secret/config files remain outside the repo at the private
+paths above; committed evidence contains only redacted metadata and
+references.
 
 **No deployment has been executed. This package is the material for the
 approval decision.**

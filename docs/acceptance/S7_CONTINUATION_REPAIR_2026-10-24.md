@@ -117,12 +117,15 @@ experiment, a deadline change, or another full campaign.
 - The run used the pinned product `55b13cd2f` and the `a0c185e35` harness
   content. `no_pilot_isolation_asserted` passed; `pilot_untouched` was
   not a gate. Pilot preservation was **not tested**.
-- Original run: **61/62**, only `l3_answer_correct` failed under the old
-  predicate that rejected ANY decoy mention. The L3 answer was correct:
-  **QUARTZ-77**, with BASALT-13 explicitly identified as the Halcyon-2
-  archive key and not relevant. The corrected contract re-evaluates the
-  **same captured answer** to true: **effective 62/62 on the corrected
-  contract**. The original 61/62 is preserved; no new campaign was run.
+- **Original result: 61/62.** Only `l3_answer_correct` failed under the
+  original predeclared gate (expected code, **no decoy mention**). The
+  gate remains failed; this is **not** an automated 62/62.
+- **Independent manual assessment:** the captured answer is semantically
+  correct — QUARTZ-77 for Zephyr-9; BASALT-13 correctly attributed to
+  Halcyon-2 as its archive key; no swapped or contradictory assignment;
+  source named. This is a manual semantic assessment, not the gate
+  passing. The earlier lenient predicate was withdrawn; no answer-scope
+  contract change is requested. No new campaign was run.
 - S7: `deterministic:continuation`; the 5s DeepSeek refinement was
   attempted and cancelled (`wait_timeout`); source
   `approved_records_q2026_114.txt`; fields exactly
@@ -176,10 +179,12 @@ the explicit assertion and uses the distinct isolation gate.
 
 **PREPARED — HOLD for explicit live-deployment approval.** The S7
 date-only path and the two false-completion residuals are closed on their
-scopes. Attempt 16 establishes the declared no-pilot environment claim;
-the corrected L3 contract re-evaluates the captured answer to effective
-62/62, while the original 61/62 is preserved. The operational release
-package and approval request are prepared:
+scopes. Attempt 16 establishes the declared no-pilot environment claim
+and remains **61/62** under the original predeclared gate; the captured
+L3 answer is semantically correct by independent manual assessment, but
+that is not an automated gate pass and no answer-scope contract change is
+requested. The operational release package and approval request are
+prepared:
 
 - `docs/acceptance/RELEASE_PACKAGE_55b13cd2f_2026-10-24.md`
 - `docs/acceptance/RELEASE_APPROVAL_55b13cd2f_2026-10-24.md`

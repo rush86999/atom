@@ -1,0 +1,27 @@
+{
+  "committed_evidence_contains_secrets": false,
+  "files": [
+    {
+      "archived": false,
+      "mode": "0600",
+      "name": "byok_config.json"
+    },
+    {
+      "archived": false,
+      "mode": "0600",
+      "name": "byok_keys.json"
+    },
+    {
+      "archived": false,
+      "mode": "0600",
+      "name": "byok_encryption_key"
+    },
+    {
+      "archived": false,
+      "mode": "0600",
+      "name": ".env"
+    }
+  ],
+  "instruction": "At cutover, copy the four live files into the private directory with cp -p and mode 600. Do not copy them into docs/ or committed evidence. Archive only this redacted metadata manifest.",
+  "private_backup_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-cutover-55b13cd2f-20261024/private_config_backup"
+}

@@ -5,7 +5,9 @@
     "gz_sha256": "fd6eefd678d1caa73dc51a57beae6779565dcc50eaf2cbe966955485fcb58a51",
     "note": "Fresh read-only SQLite backup taken 2026-10-25T03:47:53Z. Re-verify the live DB is unchanged immediately before cutover; if any writer has touched it, take a new fresh snapshot.",
     "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-cutover-55b13cd2f-20261024/pre_cutover/atom-pre-cutover-55b13cd2f-20261025T034740Z.db",
+    "private_config_backup_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-cutover-55b13cd2f-20261024/private_config_backup",
     "quick_check": "ok",
+    "redacted_manifest": "pre_cutover_config_manifest.redacted.json",
     "row_counts": {
       "agent_executions": 4257,
       "canvas_audit": 1116,
@@ -16,6 +18,7 @@
       "task_operation_records": 269,
       "users": 49
     },
+    "secret_files_in_committed_evidence": false,
     "sha256": "de62922c9d826d133e6813bd0455a6668a5576c175d2a3486a97310e58a82f6b",
     "source_sha256": "4b25241ef0754e33424bdaac74f5ee063e5b750eeaedf0f7c596429eb13aca7e",
     "source_wal_size_bytes": 0
@@ -30,24 +33,24 @@
     "product_commit": "55b13cd2fcab67ba8436618f7032339649cbdffc",
     "python": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python"
   },
-  "l3_contract_recheck": {
-    "corrected_l3_answer_correct": true,
-    "effective_check_totals": {
-      "total": 62,
-      "true": 62
-    },
-    "new_campaign": false,
-    "original_l3_answer_correct": false
-  },
   "package_doc": "docs/acceptance/RELEASE_PACKAGE_55b13cd2f_2026-10-24.md",
   "rehearsal": {
+    "answer_scope_contract_changed": false,
     "attempt": 16,
-    "checks_effective": "62/62 on the corrected L3 contract applied to the SAME captured answer",
-    "checks_original": "61/62; only l3_answer_correct false under the old any-decoy predicate",
+    "checks_automated_62_62": false,
+    "checks_original": "61/62; only l3_answer_correct failed under the original predeclared expected-code/no-decoy gate",
     "head_at_run": "331b9eeac",
     "kind": "declared no-pilot isolated rehearsal",
     "l3_correction": "The answer served QUARTZ-77 and explicitly disclaimed BASALT-13 as the Halcyon-2 archive key; the old predicate rejected any decoy mention. Corrected contract accepts a correctly disclaimed decoy. No new campaign.",
     "l3_correction_commit": "f40d2a881",
+    "l3_correction_withdrawn": true,
+    "manual_assessment": {
+      "file": "manual_answer_semantic_assessment.json",
+      "gate_status": "the original predeclared gate remains FAILED because it rejects any decoy mention",
+      "not_a_gate_pass": true,
+      "reviewer": "independent subagent",
+      "verdict": "correct"
+    },
     "no_pilot_isolation_asserted": true,
     "pilot_claim": "Pilot :8001/:3000 absent before launch; cause unexplained; no live-DB holders at capture; candidate isolated on :8121.",
     "pilot_preservation_tested": false,
