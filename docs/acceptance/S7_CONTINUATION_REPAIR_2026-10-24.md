@@ -107,9 +107,34 @@ experiment, a deadline change, or another full campaign.
    distinct `no_pilot_isolation_asserted` gate; it is never reported as
    `pilot_untouched`.
 
+## Attempt 16 — declared no-pilot (product 55b13cd2f)
+
+- Environment: `ATOM_REHEARSAL_PILOT_MODE=absent` with an explicit
+  assertion. Before launch, `:8001`/`:3000` were not listening, pids
+  16055/16488 were absent, no live-DB/WAL/SHM holder existed, `final4`
+  did not exist, and the fresh backup was hash-recorded. The pilot's
+  disappearance is **unexplained**; this work did not stop or restore it.
+- The run used the pinned product `55b13cd2f` and the `a0c185e35` harness
+  content. `no_pilot_isolation_asserted` passed; `pilot_untouched` was
+  not a gate. Pilot preservation was **not tested**.
+- Original run: **61/62**, only `l3_answer_correct` failed under the old
+  predicate that rejected ANY decoy mention. The L3 answer was correct:
+  **QUARTZ-77**, with BASALT-13 explicitly identified as the Halcyon-2
+  archive key and not relevant. The corrected contract re-evaluates the
+  **same captured answer** to true: **effective 62/62 on the corrected
+  contract**. The original 61/62 is preserved; no new campaign was run.
+- S7: `deterministic:continuation`; the 5s DeepSeek refinement was
+  attempted and cancelled (`wait_timeout`); source
+  `approved_records_q2026_114.txt`; fields exactly
+  `["expiration_date"]`; `broader_comparison=false`; context
+  `completed`; zero writes; outcome `partial` for the captured prior
+  outlook obligation; `success=true`; **38.64s**.
+- Edit applied exactly once; identical re-ask completed with zero writes;
+  provider-policy gates passed. 518 focused tests passed.
+
 ## Verification
 
-- **421 focused backend tests passed** on the final local batch
+- **518 focused backend tests passed** on the final local batch
   (continuation, comparison, provider contract, pilot preflight,
   edit/no-op, orchestrator). Two `test_fallback_honesty` receipt fixtures
   fail identically on parent `73bcae400`; they are pre-existing and
@@ -131,49 +156,39 @@ experiment, a deadline change, or another full campaign.
   `allowlist_clean` is recorded `false` (OpenCode Go/OpenRouter POSTs)
   and `reply_parity` `true`; neither is a gate.
 
-## Pilot guard: functional verification passed, preservation not established
+## Pilot environment: two distinct claims
 
-The pilot backend `:8001` and frontend `:3000` were **already absent
-before** attempt 15 launched. The declared config captured:
+- **Attempt 15:** functional verification passed; the **original
+  pilot-preservation assertion was not established**. The pilot was
+  already absent before launch; both identity captures were null; pids
+  16055/16488 were gone. It is **not** 62/62.
+- **Attempt 16:** a declared no-pilot run. `no_pilot_isolation_asserted`
+  passed: the pilot remained absent before and after, no identity was
+  claimed, the live DB was isolated, and the candidate ran on `:8121`.
+  This is **not** pilot preservation and does not relabel attempt 15.
 
-```
-pilot_before: backend_8001_listening=false,
-              frontend_3000_listening=false,
-              health_error="ConnectError('[Errno 61] Connection refused')"
-```
-
-Both identity captures are null; the pilot pids from the earlier
-checkpoint (16055/16488) no longer exist. The candidate ran on isolated
-`:8121`. The guard therefore cannot pass: `pilot_untouched` requires a
-live pilot identity and listening ports.
-
-**Preserve attempt 15 as: functional verification passed; original
-pilot-preservation assertion not established.** It is **not** 62/62.
-No cutover was executed; this work did not start or restore the pilot.
-The pilot's actual listener/process/store state should be verified before
-any operational action; restore it only with established authorization
-and the verified launcher/configuration.
-
-The new preflight stops a required-pilot run before launch while the
-pilot is absent. A declared no-pilot environment is a different,
-explicitly asserted isolation run, not a pilot-preservation pass.
+The pilot's disappearance is unexplained. No pilot was started or
+restored. The new required-pilot preflight stops before world/candidate
+launch while `:8001`/`:3000` are absent; a declared no-pilot run requires
+the explicit assertion and uses the distinct isolation gate.
 
 ## Release decision
 
-**HOLD.** The S7 date-only path is closed on its narrow scope, and the two
-false-completion residuals are locally verified. The full workflow is not
-called clean because the original pilot-preservation assertion is not
-established and no new full campaign was run on the final local batch.
-The owner decision is:
+**PREPARED — HOLD for explicit live-deployment approval.** The S7
+date-only path and the two false-completion residuals are closed on their
+scopes. Attempt 16 establishes the declared no-pilot environment claim;
+the corrected L3 contract re-evaluates the captured answer to effective
+62/62, while the original 61/62 is preserved. The operational release
+package and approval request are prepared:
 
-1. restore/authorize the pilot and run one fresh campaign on the `final4`
-   world with the required-pilot preflight; or
-2. explicitly declare a no-pilot environment, supply the isolation
-   assertion, and accept the different `no_pilot_isolation_asserted`
-   gate.
+- `docs/acceptance/RELEASE_PACKAGE_55b13cd2f_2026-10-24.md`
+- `docs/acceptance/RELEASE_APPROVAL_55b13cd2f_2026-10-24.md`
 
-Neither option is a cutover. No provider experiment, deadline increase,
-or unchanged full campaign is justified here.
+The next decision is **approval to start the verified candidate against
+the intended live world**, with the prepared fresh backup, smoke checks,
+and rollback. It is not another development brief. No cutover has been
+executed; no provider experiment, deadline increase, or unchanged full
+campaign was run.
 
 ## Known residuals (review comments, not false completions)
 

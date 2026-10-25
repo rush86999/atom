@@ -1,0 +1,38 @@
+{
+  "backup_db": {
+    "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-cutover-55b13cd2f-20261024/pre_cutover/atom-pre-cutover-55b13cd2f-20261025T034740Z.db",
+    "quick_check": "ok",
+    "row_counts": {
+      "agent_executions": 4257,
+      "canvas_audit": 1116,
+      "canvases": 197,
+      "chat_messages": 5430,
+      "chat_sessions": 1025,
+      "ingested_documents": 3747,
+      "task_operation_records": 269,
+      "users": 49
+    },
+    "sha256": "de62922c9d826d133e6813bd0455a6668a5576c175d2a3486a97310e58a82f6b",
+    "size_bytes": 876240896
+  },
+  "backup_gz": {
+    "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-cutover-55b13cd2f-20261024/pre_cutover/atom-pre-cutover-55b13cd2f-20261025T034740Z.db.gz",
+    "sha256": "fd6eefd678d1caa73dc51a57beae6779565dcc50eaf2cbe966955485fcb58a51",
+    "size_bytes": 141610724
+  },
+  "captured_at": "2026-10-25T03:47:53Z",
+  "pilot_state": {
+    "backend_8001_listening": false,
+    "frontend_3000_listening": false,
+    "note": "pilot absent before backup; cause unexplained; no live-DB holders at capture"
+  },
+  "read_only_source": true,
+  "source": {
+    "path": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+    "sha256": "4b25241ef0754e33424bdaac74f5ee063e5b750eeaedf0f7c596429eb13aca7e",
+    "shm_size_bytes": 32768,
+    "size_bytes": 876240896,
+    "wal_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "wal_size_bytes": 0
+  }
+}

@@ -60,7 +60,7 @@ narrow scopes; see `EDIT_NOOP_REPAIR_2026-10-24.md` and
 (`55b13cd2f`) closes the two review residuals — unresolved mixed sources
 surviving every completion path, and additional mutation/insertion/send
 clauses blocking read-only completion — and adds explicit refinement
-status plus the pilot preflight. **421 focused tests passed**; the two
+status plus the pilot preflight. **518 focused tests passed**; the two
 `test_fallback_honesty` receipt fixtures remain pre-existing failures on
 parent `73bcae400`.
 
@@ -79,20 +79,31 @@ Ollama/DeepSeek intended-route observations are recorded but no longer
 gate the pass. `provider_policy_declared`, `provider_policy_respected`,
 `provider_reply_authorized` and `provider_structured_authorized` passed.
 
-**Release decision: HOLD.** Still open:
+**Attempt 16 — declared no-pilot (product `55b13cd2f`).**
+`no_pilot_isolation_asserted` passed; `pilot_untouched` was not a gate;
+pilot preservation was not tested. Original run: **61/62**, only
+`l3_answer_correct` false under the old predicate that rejected ANY decoy
+mention. The L3 answer was correct (`QUARTZ-77`, with BASALT-13
+explicitly identified as the Halcyon-2 archive key). The corrected
+contract re-evaluates the **same captured answer** to true: **effective
+62/62 on the corrected contract**. The original 61/62 is preserved; no
+new campaign was run. S7 remained date-only (`deterministic:continuation`,
+5s refinement cancelled, context completed, partial prior obligation,
+38.64s, zero writes); edit/no-op and provider-policy gates passed.
 
-- verify the pilot's actual listener/process/store state before any
-  operational action; restore/authorize it only with the verified
-  launcher/configuration and run one fresh `final4` campaign (the default
-  required-pilot preflight stops before launch while it is absent); or
-- explicitly declare a no-pilot environment with
-  `ATOM_REHEARSAL_NO_PILOT_ASSERTION` and accept the different
-  `no_pilot_isolation_asserted` gate.
-- No cutover has been executed. The pilot deployment/processes are
-  currently absent; this work did not start or restore them.
+**Release decision: PREPARED — HOLD for explicit live-deployment
+approval.** The operational package is
+`docs/acceptance/RELEASE_PACKAGE_55b13cd2f_2026-10-24.md`; the approval
+request is `docs/acceptance/RELEASE_APPROVAL_55b13cd2f_2026-10-24.md`. It
+includes the clean backend tree at `55b13cd2f`, the verified frontend
+build `P5jHbHKTzj_38xHIMFoe9`, the fresh verified backup, smoke checks,
+and rollback. The next decision is approval to start the verified
+candidate against the intended live world—not another development brief.
 
-No provider experiment, deadline increase, or unchanged full campaign was
-run for this local batch.
+No cutover has been executed. The pilot deployment/processes are
+currently absent; this work did not start or restore them. No provider
+experiment, deadline increase, or unchanged full campaign was run for
+this local batch.
 
 Evidence: `release_evidence_20261024/byok_policy_attempts/` (attempts
 10–15 preserved) and `release_evidence_20261024/cutover_09cccb5b0/`

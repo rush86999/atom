@@ -1,0 +1,110 @@
+{
+  "backup": {
+    "exists": true,
+    "mtime": 1792847977.624538,
+    "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-cutover-final-20261024/atom-pre-cutover-final-20261024-091936.db.gz",
+    "sha256": "e54d2dbb92ff43f7afa062810d204d25b690a47f775964dbb90930f4e447e5c3",
+    "size_bytes": 141600956
+  },
+  "candidate": {
+    "byok_config": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-final4/byok_config.json",
+    "byok_enc_key": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-final4/byok_encryption_key",
+    "byok_keys": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-final4/byok_keys.json",
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-final4/data",
+    "database_url": "sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-final4/atom.db",
+    "head": "331b9eeac",
+    "lancedb_uri": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-final4/atom_memory",
+    "port": 8121,
+    "port_8121": {
+      "evidence": "",
+      "listening": false
+    },
+    "product_commit": "55b13cd2fcab67ba8436618f7032339649cbdffc",
+    "runner_pin": "a0c185e35",
+    "scratch": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/l2-fix/scratch/l1-l2-l3-live-rehearsal-20261024-final4",
+    "scratch_exists": false
+  },
+  "captured_at": "2026-10-24T23:29:53-0400",
+  "live_db": {
+    "exists": true,
+    "path": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+    "sha256": "4b25241ef0754e33424bdaac74f5ee063e5b750eeaedf0f7c596429eb13aca7e",
+    "size_bytes": 876240896
+  },
+  "no_pilot_assertion": "PILOT ABSENT \u2014 CAUSE UNEXPLAINED. Pilot :8001/:3000 are not listening and pids 16055/16488 are absent before launch. This run does NOT test pilot preservation. The candidate runs on isolated :8121 with its own scratch DB/BYOK/vector/session paths; the live DB has no holders at capture. Use the distinct no_pilot_isolation_asserted gate.",
+  "pilot": {
+    "backend_8001": {
+      "evidence": "",
+      "listening": false
+    },
+    "disappearance": "unexplained at capture time; this work did not intentionally stop or restore the pilot",
+    "frontend_3000": {
+      "evidence": "",
+      "listening": false
+    },
+    "pids_16055_16488": {
+      "evidence": [
+        "no matching process"
+      ],
+      "present": false
+    }
+  },
+  "pilot_mode": "absent",
+  "pilot_preservation_tested": false,
+  "remaining_writers": {
+    "live_db": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+    "live_db_holders": {
+      "holders": [],
+      "rc": 1
+    },
+    "live_db_shm_holders": {
+      "holders": [],
+      "rc": 1
+    },
+    "live_db_wal_holders": {
+      "holders": [],
+      "rc": 1
+    },
+    "main_api_app_ports": [
+      "18100",
+      "49795",
+      "50671",
+      "51908",
+      "52312",
+      "53021",
+      "53329",
+      "53595",
+      "53767",
+      "54144",
+      "54684",
+      "54808",
+      "55396",
+      "55470",
+      "56115",
+      "56521",
+      "56855",
+      "56968",
+      "57938",
+      "58430",
+      "58751",
+      "59042",
+      "60029",
+      "60197",
+      "60837",
+      "60959",
+      "61444",
+      "61852",
+      "62584",
+      "62755",
+      "62880",
+      "63009",
+      "63674",
+      "64140",
+      "64978",
+      "65083",
+      "65433"
+    ],
+    "main_api_app_process_count": 37,
+    "note": "No live-DB/WAL/SHM holder at capture. The listed main_api_app processes are unrelated scratch/test servers on non-pilot ports; the candidate disables scheduler/ingestion and uses its own scratch DB."
+  }
+}
