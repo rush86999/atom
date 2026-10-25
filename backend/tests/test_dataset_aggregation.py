@@ -957,3 +957,58 @@ async def test_ambiguous_normalized_role_names_fail_closed(tmp_path):
     )
     assert result["status"] == "error"
     assert "REQUIRED COLUMN NOT IDENTIFIED" in result["block"]
+
+
+@pytest.mark.asyncio
+async def test_required_column_guard_uses_ast_not_token_boundaries(tmp_path):
+    entries = _entries(tmp_path)
+    adj = next(e for e in entries if e["entity_name"] == "Adjustments")
+    for predicate in (
+        '"PO ID" <> \'limit\' AND "Qty" > 0',
+        '/* limit */ "Qty" > 0',
+        '"Credit Limit" > 0 AND "Qty" > 0',
+    ):
+        plan = _plan(
+            adj,
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            f'AND {predicate}',
+            {"quantity_column": ""},
+        )
+        result = await execute_validated_aggregate_plan(
+            entries, plan, "Adjustments sheet approved totals")
+        assert result["status"] == "error", predicate
+        assert "required input column 'Qty'" in result["block"]
+
+
+@pytest.mark.asyncio
+async def test_meta_row_cannot_be_a_calculation_role(tmp_path):
+    df = pd.DataFrame([
+        {"PO ID": "0007", "Status": "Approved", "Unit Price": 1250.0,
+         "Currency": "CAD", "__sheet_row": 2},
+    ])
+    path = tmp_path / "no_qty.parquet"
+    df.to_parquet(path, index=False)
+    entry = {
+        "dataset_name": "wb_no_qty",
+        "entity_name": "Sheet1",
+        "file_name": "no_qty.xlsx",
+        "parquet_path": str(path),
+        "content_hash": "abc123",
+        "columns": list(df.columns),
+        "row_count": len(df),
+    }
+    result = await execute_validated_aggregate_plan(
+        [entry],
+        {
+            "dataset_name": "wb_no_qty",
+            "sql": 'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\'',
+            "identity_column": "PO ID",
+            "quantity_column": "__sheet_row",
+            "price_column": "Unit Price",
+            "currency_column": "Currency",
+            "status_column": "Status",
+        },
+        "Sheet1 approved totals",
+    )
+    assert result["status"] == "error"
+    assert "REQUIRED COLUMN NOT IDENTIFIED" in result["block"]

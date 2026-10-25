@@ -561,6 +561,46 @@ def _ast_plain_projected_columns(node: Dict[str, Any]) -> List[str]:
     return out
 
 
+def _ast_column_refs(value: Any) -> set:
+    """All COLUMN_REF last names in an AST subtree (case-preserved)."""
+    out = set()
+    if isinstance(value, dict):
+        if str(value.get("class") or "").upper() == "COLUMN_REF":
+            names = value.get("column_names") or []
+            if names:
+                out.add(str(names[-1]))
+        for child in value.values():
+            out.update(_ast_column_refs(child))
+    elif isinstance(value, list):
+        for child in value:
+            out.update(_ast_column_refs(child))
+    return out
+
+
+def _ast_predicate_columns(node: Dict[str, Any]) -> set:
+    """Column references used in WHERE/HAVING/QUALIFY/GROUP positions.
+
+    Structural: comments, strings and quoted identifiers cannot act as
+    clause boundaries or hide a required-input predicate.
+    """
+    out = set()
+
+    def _visit(value: Any) -> None:
+        if isinstance(value, dict):
+            if str(value.get("type") or "").upper() == "SELECT_NODE":
+                for key in ("where_clause", "having", "qualify",
+                            "group_expressions", "group_sets"):
+                    out.update(_ast_column_refs(value.get(key)))
+            for child in value.values():
+                _visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                _visit(child)
+
+    _visit(node)
+    return out
+
+
 def _ast_contains_sample(value: Any) -> bool:
     """Any SELECT/table node in the tree may carry a sample."""
     if isinstance(value, dict):
@@ -719,9 +759,7 @@ def _strip_sql_noise(sql: str) -> str:
     return text
 
 
-def _selection_sql_violation(
-    sql: str, required_columns: Optional[List[str]] = None
-) -> Optional[str]:
+def _selection_sql_violation(sql: str) -> Optional[str]:
     """Fail-closed detail-row shape.
 
     The aggregate is computed in Python over the returned rows; a query
@@ -770,26 +808,6 @@ def _selection_sql_violation(
             "The selection query may not filter rows by NULL presence: a "
             "row with a missing required input must remain visible as a gap."
         )
-    where = re.search(
-        r"(?is)\bwhere\b(.*?)(?:\bgroup\s+by\b|\border\s+by\b|\blimit\b|$)",
-        sql)
-    if where:
-        # DOCUMENTED LIMITATION (2026-10-25 final correction): this
-        # rejects legitimate selections such as "approved CAD rows"
-        # because currency is a required input. Distinct authority for
-        # user-requested filtering vs missing-input protection is future
-        # work; do not broaden this casually — a filtered-out row is an
-        # erased gap.
-        for column in required_columns or []:
-            if column and re.search(
-                    r"(?<![A-Za-z0-9_])" + re.escape(column)
-                    + r"(?![A-Za-z0-9_])",
-                    where.group(1), re.IGNORECASE):
-                return (
-                    f"The selection query may not filter on the required "
-                    f"input column '{column}'; missing inputs must remain "
-                    "visible as gaps."
-                )
     if re.search(r"(?is)\b(?:from|join)\s*'", sql):
         return (
             "The selection query may read only the registered dataset; a "
@@ -889,6 +907,10 @@ async def _execute_selection_plan(
         )
         if _candidate:
             roles["identity_column"] = _candidate
+    for role in ("quantity_column", "price_column",
+                 "currency_column", "status_column"):
+        if roles[role] == SHEET_ROW_COL:
+            roles[role] = ""
     for role, col in roles.items():
         if col and col not in columns:
             return _error_block(
@@ -904,16 +926,21 @@ async def _execute_selection_plan(
                 f"The planner did not identify the {required.replace('_column', '')} "
                 "column; a complete total was withheld.",
             )
+    predicate_columns = {
+        name.lower() for name in _ast_predicate_columns(ast_node)
+    }
+    for required in ("quantity_column", "price_column", "currency_column"):
+        column = roles[required]
+        if column and column.lower() in predicate_columns:
+            return _error_block(
+                "SQL REJECTED",
+                f"The selection query may not filter on the required input "
+                f"column '{column}'; missing inputs must remain visible as "
+                "gaps.",
+            )
     violation = (
         _validate_dataset_sql(sql)
-        or _selection_sql_violation(
-            sql,
-            required_columns=[
-                roles["quantity_column"],
-                roles["price_column"],
-                roles["currency_column"],
-            ],
-        )
+        or _selection_sql_violation(sql)
         or _ast_identity_violation(
             ast_node,
             ["df", str(chosen.get("dataset_name") or ""), alias],

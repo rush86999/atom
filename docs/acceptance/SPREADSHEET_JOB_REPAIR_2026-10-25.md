@@ -52,8 +52,12 @@ before aggregation. The successor closes that trust boundary:
 - missing/aliased role fields are filled from exact generic FRAME column
   names (`Qty`/`Quantity`, `Unit Price`/`Price`, `Currency`, etc.)
   BEFORE the required-column SQL guard, so omitting a role cannot disable
-  gap protection; case/punctuation-colliding names remain ambiguous and
-  fail closed;
+  gap protection; required-input predicate columns are read from the
+  DuckDB AST (WHERE/HAVING/QUALIFY/GROUP across nested selects), so a
+  quoted identifier, literal or comment containing `limit`/`order by`
+  cannot hide `"Qty" > 0`; case/punctuation-colliding names remain
+  ambiguous and fail closed; `__sheet_row` is rejected as any calculation
+  role;
 - if a planner returns `__sheet_row` as the identity role while projecting
   a real business key, the role is corrected deterministically to that key;
   values still come from the frame.
@@ -91,13 +95,13 @@ Scratch only: backend `:8121`, database
 
 | Case | Session | Delivered result |
 |---|---|---|
-| PO Register, approved rows, totals by currency | `1c1dc216-f4fe-4c9a-b2fb-1f44c80f2619` | CAD **8050.00** (3 rows, qty 10); USD **3999.96** (1 row, qty 4); cancelled row excluded; rows 2/3/4/6 with C/D provenance |
-| Adjustments, approved rows, name missing inputs | `902a8707-60e6-43d6-97bc-72d2606ac452` | Known subtotal **−700.00 CAD**; gap **0055**, missing quantity at **C5**; complete/grand total withheld |
-| Formula reference, D8 | `0cf582b5-699a-4e4e-8249-9aa1d1790882` | **8050.00** neutral workbook arithmetic; 7 dependencies; no pricing policy |
-| Formula reference, row-qualified D8 | `ea243bf3-d41c-4318-b4bb-5de2ea0c2ed1` | **8050.00**; same neutral basis |
-| Aggregate with no sheet named | `50cf5199-4189-4d15-8fbc-8fa67a9ecd4c` | `SHEET AMBIGUOUS`; no total computed |
-| Explicit missing sheet | `83f7c165-6e9e-4580-ac67-670fc0ddc03e` | `SHEET NOT FOUND`; no fallback; no total computed |
-| Ordinary item lookup | `beee3d16-e69c-4257-836f-e4f5891b3f1a` | `0007` remains ambiguous between Adjustments row 2 (D2 = 100) and PO Register row 2 (D2 = 1,250) |
+| PO Register, approved rows, totals by currency | `01be45c5-71f6-4cb4-bfe2-1787f251c956` | CAD **8050.00** (3 rows, qty 10); USD **3999.96** (1 row, qty 4); cancelled row excluded; rows 2/3/4/6 with C/D provenance |
+| Adjustments, approved rows, name missing inputs | `b01eec34-2f6e-4a2f-b843-8fc3615c7a5c` | Known subtotal **−700.00 CAD**; gap **0055**, missing quantity at **C5**; complete/grand total withheld |
+| Formula reference, D8 | `42cc5399-9435-458a-87b7-8673180ed19e` | **8050.00** neutral workbook arithmetic; 7 dependencies; no pricing policy |
+| Formula reference, row-qualified D8 | `9d5932bd-9337-45da-a1ad-a3011bb82f1a` | **8050.00**; same neutral basis |
+| Aggregate with no sheet named | `20c10692-e087-4bb7-88a0-f30751b03038` | `SHEET AMBIGUOUS`; no total computed |
+| Explicit missing sheet | `b0a440d3-02d4-4ddf-a8dc-c433cf34c7a2` | `SHEET NOT FOUND`; no fallback; no total computed |
+| Ordinary item lookup | `af1b5f6a-b4d1-47b5-b439-8beb1a439e00` | `0007` remains ambiguous between Adjustments row 2 (D2 = 100) and PO Register row 2 (D2 = 1,250) |
 
 PO response also reports `Sheet rows: 5; selected: 4; not selected: 1` and
 `Sheet status counts: Approved=4, Cancelled=1`, making the exclusion auditable.
@@ -124,7 +128,7 @@ Focused suite (aggregation, routing, pending-file, workbook delivery, turn
 program, source-ask, pricing):
 
 ```
-620 passed, 4 skipped, 2 xfailed, 11 failed
+622 passed, 4 skipped, 2 xfailed, 11 failed
 ```
 
 The same 11 failures reproduce on parent `c912375de` (refresh verdict/fixture
@@ -135,8 +139,9 @@ ambiguous/missing sheet, DISTINCT/UNION/path/missing-`__sheet_row` rejection,
 CASE/constant projection substitution, fabricated/fractional row references,
 CTE/derived-table identity fabrication via comments and dollar-quoted
 strings, outer/nested `USING SAMPLE`, case-variant header shadowing,
-missing-role inference before the SQL guard, ambiguous normalized role
-names, COALESCE/IFNULL/NULL filtering of
+missing-role inference before the SQL AST predicate guard, predicate
+columns after `limit`/`order by` tokens in literals/comments, ambiguous
+normalized role names, meta-role rejection, COALESCE/IFNULL/NULL filtering of
 required inputs, quoted keyword columns, string NaN/Inf/null gaps, duplicate
 rows, version ambiguity, truncated materialization, display cap, formula
 grammar ordering, neutral priced-scope refusal, neutral stored-value record
