@@ -1501,3 +1501,123 @@ def test_formula_travels_from_sidecar_to_candidate_value(tmp_path):
         "evidence carries the matched row's whole formula map"
     assert cand.get("row_formulas") == ev_item["row_formulas"], \
         "candidate carries the row's formula map into the target"
+
+
+def test_review_field_requests_include_record_decision_fields():
+    fields = set(extract_field_requests([
+        "Review order O-1010 against the order processing policy. Cite Order ID, "
+        "Status, Qty, Unit Price, Currency, Approval 1, Approval 2, Manager "
+        "Exception, and Notes. State process or escalate."
+    ]))
+    assert {
+        "order_id", "status", "quantity", "price", "currency",
+        "approval_1", "approval_2", "manager_exception", "notes",
+    } <= fields
+
+
+def test_include_all_selects_the_whole_row_and_keeps_unmatched_contract():
+    from core.workbook_read_artifact import (
+        _column_descriptors,
+        _select_value_columns,
+    )
+
+    headers = [
+        "Order ID", "Status", "Qty", "Unit Price", "Currency",
+        "Approval 1", "Approval 2", "Manager Exception", "Notes",
+    ]
+    selection = _select_value_columns(
+        _column_descriptors(headers),
+        requested_fields=["currency", "approval_1", "approval_2"],
+        include_all=True,
+    )
+    assert [item["label"] for item in selection["selected"]] == headers
+    assert selection["unmatched_fields"] == []
+
+    missing = _select_value_columns(
+        _column_descriptors(["Order ID", "Status"]),
+        requested_fields=["currency"],
+        include_all=True,
+    )
+    assert [item["label"] for item in missing["selected"]] == [
+        "Order ID", "Status"]
+    assert missing["unmatched_fields"] == ["currency"]
+
+
+def test_dataset_review_returns_full_row_and_exposes_missing_field_gap(tmp_path):
+    import pandas as pd
+
+    from core.workbook_read_artifact import (
+        inspect_dataset_entries,
+        render_workbook_artifact,
+    )
+
+    headers = [
+        "Order ID", "Status", "Qty", "Unit Price", "Currency",
+        "Approval 1", "Approval 2", "Manager Exception", "Notes",
+    ]
+    row = [
+        "O-1010", "Approved", 7, 11, "CAD", "Approved", "Approved",
+        "", "Routine CAD reorder.",
+    ]
+    path = tmp_path / "orders.parquet"
+    pd.DataFrame([row], columns=headers).to_parquet(path, index=False)
+    entries = [{
+        "parquet_path": str(path),
+        "entity_name": "Orders",
+        "row_count": 1,
+        "coverage": {"known": True},
+    }]
+    query = (
+        "Review order O-1010 against the order processing policy. Cite Order "
+        "ID, Status, Qty, Unit Price, Currency, Approval 1, Approval 2, "
+        "Manager Exception, and Notes."
+    )
+    fields = [
+        "order_id", "status", "quantity", "price", "currency",
+        "approval_1", "approval_2", "manager_exception", "notes",
+    ]
+
+    artifact = inspect_dataset_entries(
+        entries, "orders.xlsx", query=query, context_texts=[query],
+        targets=["O-1010"], requested_fields=fields,
+        include_all_fields=True, require_requested_fields=True)
+    assert artifact["coverage"]["complete"] is True
+    assert artifact["coverage"]["field_gaps"] == []
+    values = artifact["coverage"]["outcomes"][0]["evidence"][0]["values"]
+    by_field = {item["field"]: item["value"] for item in values}
+    assert by_field["Currency"] == "CAD"
+    assert by_field["Approval 1"] == "Approved"
+    assert by_field["Approval 2"] == "Approved"
+    assert by_field["Qty"] == "7"
+
+    missing_path = tmp_path / "orders_missing.parquet"
+    pd.DataFrame(
+        [["O-1010", "Approved"]], columns=["Order ID", "Status"]
+    ).to_parquet(missing_path, index=False)
+    missing_entries = [{
+        "parquet_path": str(missing_path),
+        "entity_name": "Orders",
+        "row_count": 1,
+        "coverage": {"known": True},
+    }]
+    missing = inspect_dataset_entries(
+        missing_entries, "orders.xlsx", query=query, context_texts=[query],
+        targets=["O-1010"], requested_fields=fields,
+        include_all_fields=True, require_requested_fields=True)
+    assert missing["coverage"]["complete"] is False
+    assert "currency" in missing["coverage"]["field_gaps"]
+    rendered = render_workbook_artifact(missing)
+    assert "WORKBOOK FIELD GAPS" in rendered
+    assert "currency" in rendered
+
+
+def test_record_review_detection_is_general():
+    from core.chat_tool_planner import _assessment_request
+
+    assert _assessment_request(
+        "Review order O-1010 against the order processing policy. State "
+        "process or escalate and cite the row values.")
+    assert _assessment_request(
+        "Assess the vendor record against the approval policy.")
+    assert not _assessment_request(
+        "Find the unit price for GSL48-16 in the price list.")

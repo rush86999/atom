@@ -124,7 +124,8 @@ def build_turn_program(
     # and carries the stronger answer contract (per-item outcome or an
     # explicit unable-to-verify — never an ordinary search answer).
     op = classify_file_operation(msg)
-    if _COMPARE_RE.search(msg) and op in ("read", "refresh", "re-run"):
+    if _COMPARE_RE.search(msg) and op in (
+            "read", "refresh", "re-run", "aggregate"):
         op = "compare"
     program["operation"] = op
     _fact("operation", op, "classifier+compare-shape")

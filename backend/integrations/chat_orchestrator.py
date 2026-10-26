@@ -1119,6 +1119,13 @@ _INTERPRETATION_MAX_SECONDS = float(
     os.getenv("ATOM_INTERPRETATION_MAX_SECONDS", "75") or 75)
 _TURN_REPLY_RESERVE_SECONDS = float(
     os.getenv("ATOM_TURN_REPLY_RESERVE_SECONDS", "35") or 35)
+#: A bounded deterministic continuation may take a SHORT optional model
+#: refinement (an identifier, exclusion, or section the message did not
+#: spell out). It must never consume the turn's interpretation budget:
+#: attempt 14 spent 59.9s here and lost the reply. On expiry the durable
+#: deterministic facts are used instead.
+_DETERMINISTIC_REFINEMENT_WAIT_S = float(
+    os.getenv("ATOM_DETERMINISTIC_REFINEMENT_SECONDS", "5") or 5)
 
 
 def _interpretation_wait_seconds(remaining: float) -> float:
@@ -6198,25 +6205,18 @@ def _build_evidence_requirement(
     _cont = refs.get("continuation_evidence") if isinstance(
         refs.get("continuation_evidence"), dict) else None
     _cont_state = str((_cont or {}).get("state") or "")
-    if file_ref and (file_ref.get("file_name") or file_ref.get("name")
-                     or file_ref.get("resource_id")):
-        identity = _resolve_requirement_identity(
-            [str(file_ref.get("file_name") or file_ref.get("name") or "")],
-            workspace_id)
-        if (identity.get("state") == "unresolved"
-                and file_ref.get("resource_id")):
-            identity = {
-                "state": "resolved",
-                "file_id": str(file_ref.get("resource_id")),
-                "file_name": (file_ref.get("file_name")
-                              or file_ref.get("name")),
-            }
-    elif _cont is not None and _cont_state in ("ambiguous", "unresolved"):
+    if _cont is not None and _cont_state in ("ambiguous", "unresolved"):
         # L2 correction (2026-10-18, owner review): the reference
         # resolution preserved an AMBIGUOUS or UNRESOLVED antecedent —
         # carry that state into the requirement's identity verbatim
         # (the settlement reports the clarification / the honest
         # non-match; never a silently chosen source).
+        #
+        # MIXED-SOURCE PRECEDENCE (2026-10-24): an unresolved named
+        # reference blocks completion even when a floor file exists. The
+        # floor file stays in `references.file`/`sources`, but the
+        # identity is the unaccounted obligation, not a one-source
+        # certification.
         if _cont_state == "ambiguous":
             identity = {
                 "state": "ambiguous",
@@ -6231,6 +6231,19 @@ def _build_evidence_requirement(
                 "state": "unresolved",
                 "names": [str(n)[:120]
                           for n in (_cont.get("names") or [])][:4],
+            }
+    elif file_ref and (file_ref.get("file_name") or file_ref.get("name")
+                       or file_ref.get("resource_id")):
+        identity = _resolve_requirement_identity(
+            [str(file_ref.get("file_name") or file_ref.get("name") or "")],
+            workspace_id)
+        if (identity.get("state") == "unresolved"
+                and file_ref.get("resource_id")):
+            identity = {
+                "state": "resolved",
+                "file_id": str(file_ref.get("resource_id")),
+                "file_name": (file_ref.get("file_name")
+                              or file_ref.get("name")),
             }
     elif mentions:
         identity = _resolve_requirement_identity(
@@ -6271,13 +6284,22 @@ def _build_evidence_requirement(
                 or _accepted.get("requested_fields")))
         if _accepted and _has_contract:
             # The accepted request's constraints/requested fields are the
-            # request contract. A degraded/unresolved interpretation falls
-            # back to the message shape so a broad obligation is not lost.
+            # request contract.
             broader_comparison = accepted_comparison_scope(
                 _accepted, str(message or ""))
+        elif fields:
+            # DEGRADED/DIRECT CALLERS: the request's own canonical typed
+            # fields are a deterministic contract. A date-only ask remains
+            # date-only even when the interpreter is unavailable; a
+            # genuinely broad ask ("flag anything that differs") still
+            # carries its whole-document obligation. The prior turn's
+            # broader contract is never imported into a narrower request.
+            broader_comparison = accepted_comparison_scope(
+                {"requested_fields": list(fields), "constraints": []},
+                str(message or ""))
         else:
-            # Legacy/direct callers and degraded interpretations retain
-            # the message-shaped contract.
+            # No typed contract to narrow: retain the message-shaped
+            # obligation rather than guessing a scope.
             broader_comparison = comparison_request_shaped(
                 str(message or ""))
     except Exception:  # noqa: BLE001 — flag is additive
@@ -6384,20 +6406,29 @@ def _context_backed_fulfillment(
     req = session.get(f"_evidence_requirement_{execution_id}")
     if not isinstance(req, dict) or req.get("required") is not True:
         return None
+    # THE REQUEST-BOUND VERDICT COMES BEFORE OBSERVATIONS. An unresolved
+    # or ambiguous named source (or an unaccounted additional action) is
+    # an open obligation even when this execution retrieved nothing: a
+    # valid result for one source must never erase the unresolved second
+    # source. Observations are only needed to certify a resolved or
+    # kind-only requirement.
+    identity = req.get("identity") if isinstance(
+        req.get("identity"), dict) else {"state": "kind_only"}
+    id_state = str(identity.get("state") or "kind_only")
+    if id_state == "ambiguous":
+        return {"state": "ambiguous",
+                "reason": identity.get("unresolved_reason"),
+                "candidates": identity.get("candidates") or []}
+    if id_state == "unresolved":
+        return {"state": "unresolved",
+                "reason": identity.get("unresolved_reason"),
+                "names": identity.get("names") or []}
     obs = session.get(f"_retrieval_source_observations_{execution_id}")
     if not isinstance(obs, list) or not obs:
         return None
     kinds = [str(k) for k in (req.get("sources") or []) if str(k or "").strip()]
     if not kinds:
         return None
-    identity = req.get("identity") if isinstance(
-        req.get("identity"), dict) else {"state": "kind_only"}
-    id_state = str(identity.get("state") or "kind_only")
-    if id_state == "ambiguous":
-        return {"state": "ambiguous",
-                "candidates": identity.get("candidates") or []}
-    if id_state == "unresolved":
-        return {"state": "unresolved", "names": identity.get("names") or []}
     try:
         _turn_ws = workspace_id or resolve_user_workspace(
             session.get("user_id") if isinstance(session, dict) else None)
@@ -6940,10 +6971,17 @@ def _fallback_turn_outcome(
                 validated = True
                 _cf_names = [str(n) for n in (
                     context_fulfillment.get("names") or [])][:3]
-                open_work.append(
-                    "no ingested document matches "
-                    + (", ".join(_cf_names) if _cf_names
-                       else "the named source"))
+                if str(context_fulfillment.get("reason") or "") == (
+                        "additional_action"):
+                    open_work.append(
+                        "the request also asks to "
+                        + (", ".join(_cf_names) if _cf_names
+                           else "an additional action"))
+                else:
+                    open_work.append(
+                        "no ingested document matches "
+                        + (", ".join(_cf_names) if _cf_names
+                           else "the named source"))
             elif _cf_state == "unsupplied":
                 validated = True
                 _cf_missing = [
@@ -8516,6 +8554,36 @@ class ChatOrchestrator:
                 "_pending_file_task"
             ) or {}
             objective = str(task.get("original_message") or message or "")[:4000]
+            # TASK-DEFINED REVIEW CONTRACT (2026-10-26). The platform does not
+            # decide what a "review" or a "decision" means: the agent's
+            # teaching supplies the allowed choices, and the read supplies the
+            # requested subjects. A lookup stays a lookup.
+            _review_assessment = False
+            _review_allowed_decisions: List[str] = []
+            _review_lessons: List[Dict[str, Any]] = []
+            try:
+                from core.chat_tool_planner import _assessment_request
+
+                _review_assessment = _assessment_request(objective)
+            except Exception:  # noqa: BLE001 — flag is additive
+                _review_assessment = False
+            if _review_assessment:
+                try:
+                    from core.review_result import (
+                        decision_options_from_lessons,
+                    )
+
+                    _review_lessons = (
+                        self._agent_lessons(agent_id, objective) or [])
+                    _review_allowed_decisions = (
+                        decision_options_from_lessons(_review_lessons))
+                except Exception:  # noqa: BLE001 — teaching is additive
+                    _review_allowed_decisions = []
+            _review_required = False
+            _review_delivered = False
+            _review_result: Optional[Dict[str, Any]] = None
+            _review_contract: Optional[Dict[str, Any]] = None
+            _review_requested_records: List[str] = []
             result = session.get("_pending_file_result") or {}
             result_execution_id = result.get("execution_id")
             if not allow_persisted_evidence and (
@@ -8523,6 +8591,41 @@ class ChatOrchestrator:
                 or str(result_execution_id or "") != str(execution_id)
             ):
                 result = {}
+            if _review_assessment and _review_allowed_decisions:
+                _review_structured = (
+                    result.get("structured_result")
+                    if isinstance(result.get("structured_result"), dict)
+                    else {})
+                _review_records = list(
+                    _review_structured.get("requested_items") or [])
+                if not _review_records:
+                    _review_records = [
+                        str(target.get("item") or "")
+                        for target in (_review_structured.get("targets") or [])
+                        if isinstance(target, dict) and target.get("item")
+                    ]
+                if not _review_records:
+                    _review_records = [
+                        str(item) for item in (
+                            task.get("requested_targets") or [])
+                        if str(item or "").strip()
+                    ]
+                if not _review_records:
+                    try:
+                        from core.workbook_read_artifact import (
+                            extract_targets,
+                        )
+
+                        _review_records = extract_targets(
+                            objective, [objective],
+                            task.get("requested_targets") or [])
+                    except Exception:  # noqa: BLE001 — subjects additive
+                        _review_records = []
+                _review_requested_records = list(dict.fromkeys(
+                    str(record).strip() for record in _review_records
+                    if str(record or "").strip()))[:12]
+                _review_required = bool(
+                    _review_requested_records and result)
             response_data = response.get("data") or {}
             response_identity = response_data.get("file_identity")
             session_identity = session.get(
@@ -8768,6 +8871,45 @@ class ChatOrchestrator:
                 item for item in comparison.get("gaps") or []
                 if isinstance(item, dict)
             ]
+            # PERSIST THE REQUEST-BOUND FULFILLMENT VERDICT. A partial/
+            # unresolved/ambiguous source obligation must outlive the
+            # response text; it rides the durable task-outcome gaps even
+            # though the outcome contract has no separate CF field.
+            _recorded_cf = (
+                ((response or {}).get("_recorded_outcome") or {}).get(
+                    "context_fulfillment"))
+            if not isinstance(_recorded_cf, dict) and isinstance(
+                    session, dict):
+                _recorded_cf = (
+                    (session.get("_recorded_outcome") or {}).get(
+                        "context_fulfillment"))
+            if isinstance(_recorded_cf, dict) and str(
+                    _recorded_cf.get("state") or "") in (
+                        "unresolved", "ambiguous", "partial",
+                        "unsupplied"):
+                _cf_reasons = [
+                    str(n) for n in (_recorded_cf.get("names") or [])
+                    if str(n)][:4]
+                if not _cf_reasons and _recorded_cf.get("candidates"):
+                    _cf_reasons = [
+                        str(c.get("file_name") or c.get("file_id") or "")
+                        for c in (_recorded_cf.get("candidates") or [])
+                        if isinstance(c, dict)][:4]
+                if not _cf_reasons:
+                    _cf_reasons = [
+                        str(f) for f in (
+                            _recorded_cf.get("missing_fields") or [])
+                        if str(f)][:4]
+                comparison_gaps.append({
+                    "criterion_id": "context_fulfillment",
+                    "status": str(_recorded_cf.get("state")),
+                    "reasons": [r for r in _cf_reasons if r],
+                    "next_evidence_needed": (
+                        "complete the additional action"
+                        if str(_recorded_cf.get("reason") or "")
+                        == "additional_action"
+                        else "resolve the named source"),
+                })
             comparison_implications = [
                 {
                     **item,
@@ -9127,6 +9269,140 @@ class ChatOrchestrator:
                 and mutation.get("readback_matched") is True
             ):
                 objective_met = True
+            # A verified read is evidence, not a review. The task-defined
+            # contract binds decisions to the requested subjects, execution,
+            # source evidence and policy refs; only a validated result can
+            # certify the review.
+            if _review_required:
+                try:
+                    from core.review_result import (
+                        build_evidence_index,
+                        build_policy_index,
+                        build_review_result,
+                        render_review_result,
+                    )
+
+                    # CONSUME THE VALIDATED DELIVERY RESULT (2026-10-26):
+                    # the prose has the rendered block, not the raw
+                    # review_result JSON. Re-parsing it would fail or invite
+                    # prose reinterpretation; the generation seam already
+                    # validated the structured block, so carry that result.
+                    _precomputed_review = (
+                        (response.get("data") or {}).get("review_result")
+                        if isinstance(response.get("data"), dict) else None)
+                    if not isinstance(_precomputed_review, dict):
+                        _precomputed_review = (
+                            ai_response or {}).get("review_result")
+                    _review_precomputed_accepted = True
+                    if isinstance(_precomputed_review, dict):
+                        _precomputed_contract = (
+                            (response.get("data") or {}).get(
+                                "review_contract")
+                            if isinstance(response.get("data"), dict)
+                            else None) or (ai_response or {}).get(
+                                "review_contract")
+                        _precomputed_valid = bool(
+                            _precomputed_review.get("ok") is True
+                            and _precomputed_review.get(
+                                "schema_version") == "review-result-2"
+                            and str(_precomputed_review.get(
+                                "execution_id") or "") == str(
+                                    execution_id or "")
+                            and list(_precomputed_review.get(
+                                "requested_subjects") or [])
+                                == list(_review_requested_records)
+                            and list(_precomputed_review.get(
+                                "allowed_decisions") or [])
+                                == list(_review_allowed_decisions))
+                        _review_result = _precomputed_review
+                        _review_contract = _precomputed_contract
+                        if not _precomputed_valid:
+                            _review_precomputed_accepted = False
+                            logger.warning(
+                                "[review-result] precomputed result rejected "
+                                "(execution/subjects/schema mismatch): "
+                                "execution=%s subjects=%s allowed=%s",
+                                _precomputed_review.get("execution_id"),
+                                _precomputed_review.get(
+                                    "requested_subjects"),
+                                _precomputed_review.get(
+                                    "allowed_decisions"))
+                    else:
+                        _review_struct = (
+                            result.get("structured_result")
+                            if isinstance(
+                                result.get("structured_result"), dict)
+                            else {})
+                        _review_struct = dict(_review_struct)
+                        if not _review_struct.get("source_execution_id"):
+                            _review_struct["source_execution_id"] = str(
+                                result.get("source_execution_id")
+                                or result.get("execution_id")
+                                or "")
+                        _review_evidence_index = build_evidence_index(
+                            _review_struct)
+                        _review_policy_index = build_policy_index(
+                            _review_lessons, _review_allowed_decisions)
+                        _review_contract = {
+                            "subjects": list(_review_requested_records),
+                            "required_evidence": [
+                                dict(entry.get("source_identity") or {})
+                                for entry in _review_evidence_index
+                                if entry.get("source_identity")
+                            ][:4],
+                            "allowed_decisions": list(
+                                _review_allowed_decisions),
+                            "evidence_ids": [
+                                entry.get("evidence_id")
+                                for entry in _review_evidence_index
+                            ],
+                            "policy_ids": [
+                                entry.get("policy_id")
+                                for entry in _review_policy_index
+                            ],
+                        }
+                        _review_result = build_review_result(
+                            execution_id=execution_id,
+                            expected_execution_id=execution_id,
+                            requested_records=_review_requested_records,
+                            answer=str(response.get("message") or ""),
+                            allowed_decisions=_review_allowed_decisions,
+                            evidence_index=_review_evidence_index,
+                            policy_index=_review_policy_index,
+                        )
+                    _review_delivered = bool(
+                        _review_result.get("ok")
+                        and _review_precomputed_accepted)
+                    _review_data = response.setdefault("data", {})
+                    if isinstance(_review_data, dict):
+                        _review_data["review_contract"] = _review_contract
+                        _review_data["review_result"] = _review_result
+                        if _review_result.get("ok"):
+                            _review_data["review_summary"] = (
+                                render_review_result(_review_result))
+                    # The client response model declares `metadata`, not the
+                    # internal `data` bag. Carry the structured result there
+                    # so response, persistence and history expose the SAME
+                    # machine record while the raw fenced block stays hidden.
+                    _review_meta = response.setdefault("metadata", {})
+                    if isinstance(_review_meta, dict):
+                        _review_meta["review_contract"] = _review_contract
+                        _review_meta["review_result"] = _review_result
+                        if _review_result.get("ok"):
+                            _review_meta["review_summary"] = (
+                                render_review_result(_review_result))
+                    if not _review_delivered:
+                        logger.info(
+                            "[review-result] not certified: %s",
+                            _review_result.get("errors"))
+                except Exception as _review_err:  # noqa: BLE001 — fail closed
+                    logger.warning(
+                        "[review-result] validation failed closed: %r",
+                        _review_err)
+                    _review_result = None
+                    _review_delivered = False
+            if _review_required and not _review_delivered:
+                objective_met = False
             failure_layer = None
             failure_owner = None
             if not delivered and status in {"failed", "cancelled"}:
@@ -9151,6 +9427,7 @@ class ChatOrchestrator:
                     ([{"kind": "source_comparison"}] if comparison else
                      [{"kind": "source_scoped_retrieval"}] if mentions else [])
                     + ([{"kind": "mutation"}] if canvas_edit else [])
+                    + ([{"kind": "record_review"}] if _review_required else [])
                     + ([{"kind": "context_source_fulfillment"}]
                        if _cf_record else [])
                 ),
@@ -9213,6 +9490,10 @@ class ChatOrchestrator:
                     "channel": "chat",
                     "model": response.get("model"),
                     "deterministic": deterministic,
+                    "review_required": _review_required,
+                    "review_delivered": _review_delivered,
+                    "review_contract": _review_contract,
+                    "review_result": _review_result,
                 },
                 limitations=(
                     [task.get("status")]
@@ -9274,6 +9555,21 @@ class ChatOrchestrator:
                 status=status,
                 allow_persisted_evidence=allow_persisted_evidence,
             )
+        # A required review that was not certified is a FAILED turn, even
+        # when the underlying read succeeded and the drafted envelope was
+        # already completed. Align machine status, execution status and the
+        # durable outcome at one boundary (independent-review F1).
+        try:
+            from core.review_result import align_review_failure
+
+            if align_review_failure(response, task_outcome):
+                status = "failed"
+        except Exception:  # noqa: BLE001 — alignment is fail-closed below
+            status = "failed" if (
+                isinstance(task_outcome, dict)
+                and (task_outcome.get("delivery") or {}).get(
+                    "review_required") is True
+                and task_outcome.get("objective_met") is False) else status
         try:
             from datetime import datetime as _dt
             from core.database import get_db_session
@@ -10044,6 +10340,7 @@ class ChatOrchestrator:
                     matching_pending_task,
                 )
 
+
                 _stored_task = session.get(FILE_TASK_SESSION_KEY)
                 if _edit_retry is not None:
                     _stored_task = None  # the edit retry owns this turn
@@ -10128,11 +10425,11 @@ class ChatOrchestrator:
                 # search the current copy, an approval re-delivers.
                 try:
                     from core.pending_file_task import (
-                        classify_file_operation,
+                        resume_operation,
                     )
 
                     _pending_file_task["operation"] = (
-                        classify_file_operation(message))
+                        resume_operation(_pending_file_task, message))
                 except Exception as _op_err:  # noqa: BLE001 — observable,
                     # never silent: a programming defect here must not
                     # masquerade as ordinary fallback behavior (review
@@ -10587,6 +10884,7 @@ class ChatOrchestrator:
             try:
                 from core.agent_file_context import (
                     detect_file_task_mentions,
+                    is_spreadsheet_task_mention,
                     spreadsheet_mentions,
                 )
 
@@ -10600,8 +10898,12 @@ class ChatOrchestrator:
                     # spreadsheet_mentions. Use the existing task-phrase
                     # resolver as the fallback — it resolves "price list
                     # 2019" to the same canonical name the catalog
-                    # indexes under.
-                    _task_mentions = detect_file_task_mentions(message)
+                    # indexes under. Explicit documents are excluded: the
+                    # dataset reader is not their capability.
+                    _task_mentions = [
+                        m for m in detect_file_task_mentions(message)
+                        if is_spreadsheet_task_mention(m)
+                    ]
                     _ask_mention = _task_mentions[0] if _task_mentions else ""
                 if not _ask_mention:
                     pass  # mention resolution continues below
@@ -10623,8 +10925,11 @@ class ChatOrchestrator:
                 if os.getenv("ATOM_TURN_DECISION_ROUTING", "1").lower() not in ("0", "off", "false"):
                     try:
                         from core.turn_decision import (
+                            apply_degraded_continuation_references,
                             apply_interpretation_references,
                             build_turn_decision,
+                            deterministic_continuation_ready,
+                            interpretation_deterministic_continuation,
                             interpret_turn_request,
                         )
 
@@ -10632,6 +10937,21 @@ class ChatOrchestrator:
                             message, session, history or [],
                             context or {}, session_id=session_id)
                         _td_decision = _td
+                        # BOUNDED DETERMINISTIC CONTINUATION (owner
+                        # assignment 2026-10-24): when the request itself
+                        # supplies a named, uniquely observed source and one
+                        # canonical typed field, the model has nothing to
+                        # add. The interpretation wait is what consumed the
+                        # S7 budget in attempt 14; skip it for this exact
+                        # shape instead of paying 60s to rediscover facts
+                        # the durable state already holds.
+                        _det_continuation = None
+                        try:
+                            _det_continuation = (
+                                deterministic_continuation_ready(
+                                    message, session, _td))
+                        except Exception:  # noqa: BLE001 — optional
+                            _det_continuation = None
                         # ONE STRUCTURED INTERPRETATION PER REQUEST
                         # (2026-10-08 Phase-2 slice): the async entry
                         # point proposes subjects/actions/scope-change
@@ -10642,30 +10962,59 @@ class ChatOrchestrator:
                         # the reader context below (requested_targets +
                         # request_scope) so executor inputs stop being
                         # re-derived by independent miners.
+                        _refinement = (
+                            {"status": "skipped"}
+                            if _det_continuation is not None else {})
                         try:
                             _interp_wait = _interpretation_wait_seconds(
                                 _deadline.remaining())
                             _interp_request_id = str(
                                 (context or {}).get("request_id") or "")
+                            if _det_continuation is not None:
+                                # OPTIONAL REFINEMENT, NOT A REQUIREMENT:
+                                # a specific model proposal (identifier,
+                                # exclusion) may still win, but it gets a
+                                # short bounded window. The durable facts
+                                # are used when it does not resolve.
+                                _interp_wait = min(
+                                    _interp_wait,
+                                    _DETERMINISTIC_REFINEMENT_WAIT_S)
                             logger.info(
                                 "[turn-interpretation] bounded wait=%.1fs "
-                                "(remaining=%.1fs reserve=%.1fs)",
+                                "(remaining=%.1fs reserve=%.1fs%s)",
                                 _interp_wait, _deadline.remaining(),
-                                _TURN_REPLY_RESERVE_SECONDS)
+                                _TURN_REPLY_RESERVE_SECONDS,
+                                "; deterministic refinement"
+                                if _det_continuation is not None else "")
                             if _interp_wait <= 0.0:
-                                from core.turn_decision import (
-                                    interpretation_budget_unresolved,
-                                )
-                                _td_interpretation = (
-                                    interpretation_budget_unresolved(
-                                        message, _interp_request_id, _td))
-                                logger.warning(
-                                    "[turn-interpretation] skipped — stage "
-                                    "budget exhausted (remaining=%.1fs "
-                                    "reserve=%.1fs); deterministic floor "
-                                    "retained", _deadline.remaining(),
-                                    _TURN_REPLY_RESERVE_SECONDS)
+                                if _det_continuation is not None:
+                                    _td_interpretation = (
+                                        interpretation_deterministic_continuation(
+                                            message, _interp_request_id, _td,
+                                            _det_continuation.get(
+                                                "reference") or {}))
+                                    logger.warning(
+                                        "[turn-interpretation] skipped — "
+                                        "no budget for refinement; using "
+                                        "deterministic continuation")
+                                else:
+                                    from core.turn_decision import (
+                                        interpretation_budget_unresolved,
+                                    )
+                                    _td_interpretation = (
+                                        interpretation_budget_unresolved(
+                                            message, _interp_request_id, _td))
+                                    logger.warning(
+                                        "[turn-interpretation] skipped — "
+                                        "stage budget exhausted "
+                                        "(remaining=%.1fs reserve=%.1fs); "
+                                        "deterministic floor retained",
+                                        _deadline.remaining(),
+                                        _TURN_REPLY_RESERVE_SECONDS)
                             else:
+                                if _det_continuation is not None:
+                                    _refinement.update({
+                                        "status": "started"})
                                 try:
                                     _td_interpretation = (
                                         await asyncio.wait_for(
@@ -10686,30 +11035,155 @@ class ChatOrchestrator:
                                                 # 2026-10-16).
                                                 llm_service=_scope_llm),
                                             timeout=_interp_wait))
+                                    if _det_continuation is not None:
+                                        _origin = str(
+                                            (_td_interpretation or {}).get(
+                                                "origin") or "")
+                                        _scope = str(
+                                            (_td_interpretation or {}).get(
+                                                "scope_change") or "")
+                                        _refinement.update({
+                                            "status": "completed",
+                                            "outcome": (
+                                                "unresolved"
+                                                if (_origin == "unresolved"
+                                                    or _scope == "unresolved")
+                                                else "resolved"),
+                                            "origin": _origin[:80],
+                                        })
                                 except asyncio.TimeoutError:
-                                    from core.turn_decision import (
-                                        interpretation_budget_unresolved,
-                                    )
-                                    _td_interpretation = (
-                                        interpretation_budget_unresolved(
-                                            message, _interp_request_id, _td))
-                                    logger.warning(
-                                        "[turn-interpretation] wait %.1fs "
-                                        "expired — preserving explicit "
-                                        "stage_budget_exhausted and the "
-                                        "deterministic floor", _interp_wait)
+                                    if _det_continuation is not None:
+                                        _refinement.update({
+                                            "status": "cancelled",
+                                            "reason": "wait_timeout"})
+                                    if _det_continuation is not None:
+                                        _td_interpretation = (
+                                            interpretation_deterministic_continuation(
+                                                message, _interp_request_id,
+                                                _td,
+                                                _det_continuation.get(
+                                                    "reference") or {}))
+                                        logger.warning(
+                                            "[turn-interpretation] refinement "
+                                            "wait %.1fs expired — using "
+                                            "deterministic continuation",
+                                            _interp_wait)
+                                    else:
+                                        from core.turn_decision import (
+                                            interpretation_budget_unresolved,
+                                        )
+                                        _td_interpretation = (
+                                            interpretation_budget_unresolved(
+                                                message, _interp_request_id,
+                                                _td))
+                                        logger.warning(
+                                            "[turn-interpretation] wait %.1fs "
+                                            "expired — preserving explicit "
+                                            "stage_budget_exhausted and the "
+                                            "deterministic floor",
+                                            _interp_wait)
                                 except Exception as _interp_err:  # noqa: BLE001
-                                    _td_interpretation = None
-                                    logger.debug(
-                                        "[turn-interpretation] invocation "
-                                        "failed (floor retained): %r",
-                                        _interp_err)
+                                    if _det_continuation is not None:
+                                        _refinement.update({
+                                            "status": "failed",
+                                            "reason": repr(
+                                                _interp_err)[:200]})
+                                    if _det_continuation is not None:
+                                        _td_interpretation = (
+                                            interpretation_deterministic_continuation(
+                                                message, _interp_request_id,
+                                                _td,
+                                                _det_continuation.get(
+                                                    "reference") or {}))
+                                        logger.warning(
+                                            "[turn-interpretation] refinement "
+                                            "failed — using deterministic "
+                                            "continuation: %r",
+                                            _interp_err)
+                                    else:
+                                        _td_interpretation = None
+                                        logger.debug(
+                                            "[turn-interpretation] invocation "
+                                            "failed (floor retained): %r",
+                                            _interp_err)
                         except Exception as _interp_outer_err:  # noqa: BLE001
-                            _td_interpretation = None
+                            if _det_continuation is not None:
+                                _refinement.update({
+                                    "status": "failed",
+                                    "reason": "outer_budget_seam"})
+                                _td_interpretation = (
+                                    interpretation_deterministic_continuation(
+                                        message, locals().get(
+                                            "_interp_request_id", ""), _td,
+                                        _det_continuation.get(
+                                            "reference") or {}))
+                            else:
+                                _td_interpretation = None
                             logger.debug(
                                 "[turn-interpretation] outer budget seam "
                                 "failed (floor retained): %r",
                                 _interp_outer_err)
+                        # If the bounded refinement did not resolve, the
+                        # explicit deterministic record is the accepted
+                        # interpretation. Compose the durable references
+                        # BEFORE the observation hook so the runner sees
+                        # the same decision the requirement consumes.
+                        _det_accepted = False
+                        if _det_continuation is not None and (
+                                not isinstance(_td_interpretation, dict)
+                                or str(_td_interpretation.get(
+                                    "origin") or "") == "unresolved"
+                                or str(_td_interpretation.get(
+                                    "scope_change") or "") == "unresolved"):
+                            _td_interpretation = (
+                                interpretation_deterministic_continuation(
+                                    message, _interp_request_id, _td,
+                                    _det_continuation.get("reference") or {}))
+                            _det_accepted = True
+                        if _det_accepted:
+                            _td = apply_degraded_continuation_references(
+                                _td, None, session, message)
+                            _td_decision = _td
+                            logger.info(
+                                "[turn-interpretation] accepted deterministic "
+                                "continuation (source=%s field=%s)",
+                                (_det_continuation.get(
+                                    "reference") or {}).get(
+                                        "resolved_file"),
+                                (_det_continuation.get("fields") or [""])[0])
+                        if (_det_continuation is not None
+                                and isinstance(_td_interpretation, dict)):
+                            _interp_actions = [
+                                action for action in (
+                                    _td_interpretation.get("actions") or [])
+                                if isinstance(action, dict)]
+                            if not any(
+                                    action.get("kind") == "research"
+                                    for action in _interp_actions):
+                                # The bounded shape IS a read-only
+                                # comparison. A schema-valid model record
+                                # that left actions empty still needs the
+                                # same truthful action receipt; this adds
+                                # no capability and changes no source or
+                                # scope decision.
+                                _td_interpretation = dict(
+                                    _td_interpretation)
+                                _td_interpretation["actions"] = [
+                                    *_interp_actions,
+                                    {"kind": "research",
+                                     "authorization": "granted",
+                                     "note": "deterministic read-only "
+                                             "continuation"},
+                                ]
+                        if (_det_continuation is not None
+                                and isinstance(_td_interpretation, dict)):
+                            # EXPLICIT REFINEMENT OBSERVABILITY. Missing
+                            # capture is UNKNOWN, never "no dispatch": the
+                            # runner and the durable evidence carry the
+                            # status they can see.
+                            _td_interpretation = dict(_td_interpretation)
+                            _td_interpretation["refinement"] = dict(
+                                _refinement)
                         # L2 repair (2026-10-18): CONSUME the resolved
                         # interpretation's source references when the
                         # deterministic floor found none. A continuation
@@ -10724,6 +11198,27 @@ class ChatOrchestrator:
                         # reference changes nothing.
                         _td = apply_interpretation_references(
                             _td, _td_interpretation, session)
+                        # DEGRADED CONTINUATION (owner assignment
+                        # 2026-10-24): when the interpreter is unavailable,
+                        # an explicitly named source ("the approved
+                        # record") is still resolvable from the request
+                        # itself and the conversation's OBSERVED evidence.
+                        # This composes only the durable reference; it never
+                        # invents an action, source, or authorization, and
+                        # a resolved interpretation is untouched.
+                        _refs_before_fill = dict(
+                            _td.get("references") or {})
+                        _td = apply_degraded_continuation_references(
+                            _td, _td_interpretation, session, message,
+                            fill_missing_source=True)
+                        if dict(_td.get("references") or {}) != (
+                                _refs_before_fill):
+                            # The fill composed a reference the model left
+                            # out. Re-run the observation seam (pure) so
+                            # the harness's LAST apply event carries the
+                            # same refs the requirement consumes.
+                            _td = apply_interpretation_references(
+                                _td, _td_interpretation, session)
                         _td_decision = _td
                         _td_sources = ((_td.get("references")
                                         or {}).get("sources")) or []
@@ -10806,6 +11301,66 @@ class ChatOrchestrator:
                     except Exception as _ld_err:  # noqa: BLE001 — additive floor
                         logger.debug(
                             f"lesson-designated source skipped: {_ld_err}")
+                if not locals().get("_teaching_cue_turn"):
+                    # FILE TYPE / CATALOG PRECEDENCE (2026-10-25): choose
+                    # the reader from explicit type and workspace-scoped
+                    # catalog identity, not from wording. A document
+                    # mention (including "price list.txt") or a mixed
+                    # document/workbook ask must not enter the dataset
+                    # reader lane. Extensionless names are resolved
+                    # against both catalogs here. Runs even when the
+                    # lexical mention is empty: an explicit document must
+                    # still suppress the dataset ask lane.
+                    try:
+                        from core.named_file_resolution import (
+                            resolve_named_file_intent,
+                        )
+
+                        _named_intent = await asyncio.to_thread(
+                            resolve_named_file_intent,
+                            message or "",
+                            user_id,
+                            (context or {}).get("workspace_id"),
+                            pinned_mention=_ask_mention or None,
+                        )
+                        if isinstance(context, dict):
+                            context["named_file_intent"] = _named_intent
+                        if _named_intent.get("mentions"):
+                            if _named_intent.get("reader") == "datasets":
+                                if not _ask_mention:
+                                    for _src in (
+                                            _named_intent.get("sources")
+                                            or []):
+                                        if _src.get("reader") == "datasets":
+                                            _ask_mention = str(
+                                                _src.get("mention") or "")
+                                            break
+                            elif _named_intent.get("reader") in (
+                                    "documents", "mixed"):
+                                # Keep the direct-read lane: it now has a
+                                # document branch that resolves the
+                                # workspace catalog and returns a
+                                # deterministic, source-named read (or a
+                                # clarification) instead of the dataset
+                                # "not found" verdict.
+                                if not _ask_mention:
+                                    _ask_mention = str(
+                                        (_named_intent.get("mentions")
+                                         or [""])[0])
+                            else:
+                                logger.info(
+                                    "[file-ask] named-file lane not "
+                                    "applicable: reader=%r state=%r "
+                                    "mentions=%r",
+                                    _named_intent.get("reader"),
+                                    _named_intent.get("state"),
+                                    _named_intent.get("mentions"),
+                                )
+                                _ask_mention = ""
+                                _ask_direct = False
+                    except Exception as _nfr_err:  # noqa: BLE001
+                        logger.debug(
+                            "named-file routing skipped: %r", _nfr_err)
                 if _ask_mention and _FILE_READ_SHAPE_RE.search(message or ""):
                     # A TEACHING DIRECTIVE IS NOT A READ (2026-10-01
                     # consistency-run T3: 'always include the tennsmith
@@ -10863,8 +11418,26 @@ class ChatOrchestrator:
                     _ask_direct = (
                         _is_substantive_request(message)
                         and not locals().get("_teaching_cue_turn"))
+                    if _ask_mention:
+                        from core.pending_file_task import (
+                            is_aggregate_request,
+                            is_formula_reference_request,
+                        )
+
+                        if (is_aggregate_request(message)
+                                or is_formula_reference_request(message)):
+                            _ask_direct = True
             except Exception:  # noqa: BLE001 — shape gate only
                 _ask_direct = False
+            if _ask_mention:
+                from core.pending_file_task import (
+                    is_aggregate_request,
+                    is_formula_reference_request,
+                )
+
+                if (is_aggregate_request(message)
+                        or is_formula_reference_request(message)):
+                    _ask_direct = True
             # R4 EARLY RECOVERY CHECK (2026-10-16): one request-local
             # decision BEFORE any planner-independent retrieval. When the
             # turn is recovery-shaped with a resolved durable payload, the
@@ -11300,10 +11873,11 @@ class ChatOrchestrator:
                     # upstream source check instead of silently serving
                     # the materialized copy as current.
                     from core.pending_file_task import (
-                        classify_file_operation,
+                        resume_operation,
                     )
 
-                    _ask_task["operation"] = classify_file_operation(message)
+                    _ask_task["operation"] = resume_operation(
+                        _pending_file_task, message)
                 except Exception as _ask_op_err:  # noqa: BLE001 — observable
                     logger.warning(
                         "[file-ask] operation classification failed — "
@@ -11505,7 +12079,12 @@ class ChatOrchestrator:
                     _ask_structured = _ask_result.get("structured_result")
                     _ask_action_summary = None
                     _ask_full_action = None
-                    if isinstance(_ask_structured, dict):
+                    if (_ask_result.get("datasets_aggregate")
+                            or _ask_result.get("formula_reference")):
+                        _ask_content = str(
+                            _ask_result.get("rendered_answer")
+                            or _ask_result.get("block") or "")
+                    elif isinstance(_ask_structured, dict):
                         # ARTIFACT-NATIVE (structured renderer is the one
                         # presentation path); legacy text-only results fall
                         # through to the compatibility cleaner below.
@@ -11749,7 +12328,10 @@ class ChatOrchestrator:
                         _ask_structured or {}
                     ).get("requested_items") or []
                     if not _ask_items_used and not isinstance(
-                            _ask_structured, dict):
+                            _ask_structured, dict) and not _ask_result.get(
+                                "named_document") and not _ask_result.get(
+                                "datasets_aggregate") and not _ask_result.get(
+                                "formula_reference"):
                         _ask_verdict = _ask_result.get("meta") or {}
                         _ask_note = str(
                             _ask_verdict.get("note") or "")
@@ -11779,7 +12361,10 @@ class ChatOrchestrator:
                                    else ""))
                         _ask_handoff_block = None
                         _ask_miss_handoff = False
-                    elif not _ask_items_used:
+                    elif not _ask_items_used and not _ask_result.get(
+                            "named_document") and not _ask_result.get(
+                            "datasets_aggregate") and not _ask_result.get(
+                            "formula_reference"):
                         _offer = ""
                         try:
                             from core import dialogue_state as _ds
@@ -11871,6 +12456,10 @@ class ChatOrchestrator:
                         "evidence_action": (
                             _ask_structured or {}).get("evidence_action")
                         if isinstance(_ask_structured, dict) else None,
+                        "datasets_aggregate": _ask_result.get(
+                            "aggregate_record"),
+                        "formula_reference": bool(
+                            _ask_result.get("formula_reference")),
                     }
                     try:
                         # PIN-AFTER-FINALIZATION: the pinned text is the
@@ -12184,7 +12773,13 @@ class ChatOrchestrator:
                             "intent": "search",
                             "confidence": 0.9,
                             "data": {
-                                "workbook_result": _ask_card,
+                                "workbook_result": (
+                                    None if _ask_result.get(
+                                        "named_document") else _ask_card),
+                                "document_result": (
+                                    _ask_result.get("meta")
+                                    if _ask_result.get(
+                                        "named_document") else None),
                                 "deterministic_delivery": True,
                                 "file_identity": _ask_identity,
                                 "coverage_complete": _ask_complete,
@@ -12236,9 +12831,10 @@ class ChatOrchestrator:
                             authorized_actions=["read"],
                         )
                         logger.info(
-                            "[file-ask] spreadsheet ask answered "
-                            "directly by the file-scoped reader (no "
-                            "narration path)")
+                            "[file-ask] %s ask answered directly by the "
+                            "file-scoped reader (no narration path)",
+                            "document" if _ask_result.get(
+                                "named_document") else "spreadsheet")
                         return _ask_response
                 # Read did not complete: fall through to the normal flow,
                 # which stores the pending task and tells the user plainly.
@@ -12778,7 +13374,68 @@ class ChatOrchestrator:
                                 execution_id=_execution_id,
                                 request_id=(context or {}).get("request_id"),
                             )
-                if _direct_result.get("ok"):
+                _direct_review_ask = False
+                try:
+                    from core.chat_tool_planner import _assessment_request
+
+                    _direct_review_ask = _assessment_request(
+                        str((_direct_task or {}).get("original_message")
+                            or message or ""))
+                except Exception:  # noqa: BLE001 — flag is additive
+                    _direct_review_ask = False
+                if _direct_result.get("ok") and _direct_review_ask:
+                    # A review ask needs the row as EVIDENCE, not as the
+                    # answer. Persist the read and continue to narration;
+                    # the deterministic read block must not settle the
+                    # policy-review obligation.
+                    _review_identity = _direct_result.get("identity") or {}
+                    if isinstance(_review_identity, dict) and _review_identity:
+                        _review_identity = {
+                            **_review_identity,
+                            "execution_id": _execution_id,
+                        }
+                        session["_resolved_file_identity"] = _review_identity
+                    _review_structured = _direct_result.get(
+                        "structured_result")
+                    _review_row = {
+                        "status": "retrieved",
+                        "target_extraction_version":
+                            _TARGET_EXTRACTION_VERSION_NOW,
+                        "rendered": str(
+                            _direct_result.get("rendered_answer")
+                            or _direct_result.get("block") or "")[:24000],
+                        "identity": _review_identity,
+                        "workbook_read": (
+                            _direct_result.get("meta") or {}
+                        ).get("workbook_read"),
+                        "coverage_complete": bool(
+                            _direct_result.get("retrieval_complete")),
+                        "execution_id": _execution_id,
+                        "source_execution_id": _execution_id,
+                        "retrieved_at": time.time(),
+                        "structured_result": (
+                            _review_structured
+                            if isinstance(_review_structured, dict) else None),
+                    }
+                    _adopt_pending_file_result(
+                        session, _review_row, source="review_read")
+                    try:
+                        from core.pending_file_task import (
+                            FILE_TASK_SESSION_KEY,
+                            mark_task_retrieved,
+                        )
+
+                        _review_task = session.get(FILE_TASK_SESSION_KEY)
+                        if isinstance(_review_task, dict):
+                            session[FILE_TASK_SESSION_KEY] = (
+                                mark_task_retrieved(
+                                    _review_task, _review_identity))
+                    except Exception:  # noqa: BLE001 — task bookkeeping
+                        pass
+                    logger.info(
+                        "[pending-file-task] review ask — read retrieved; "
+                        "narration required")
+                if _direct_result.get("ok") and not _direct_review_ask:
                     _direct_structured = _direct_result.get("structured_result")
                     _direct_full_action = None
                     _direct_action_summary = None
@@ -13010,6 +13667,7 @@ class ChatOrchestrator:
                         # record: refreshed / refresh_failed / unverified.
                         "freshness": _freshness.get("status") or None,
                         "execution_id": _execution_id,
+                        "source_execution_id": _execution_id,
                         "retrieved_at": time.time(),
                         "structured_result": _direct_structured
                         if isinstance(_direct_structured, dict) else None,
@@ -13022,6 +13680,12 @@ class ChatOrchestrator:
                         "evidence_action": (
                             _direct_structured or {}).get("evidence_action")
                         if isinstance(_direct_structured, dict) else None,
+                        "datasets_aggregate": _direct_result.get(
+                            "aggregate_record"),
+                        "aggregate_record": _direct_result.get(
+                            "aggregate_record"),
+                        "formula_reference": bool(
+                            _direct_result.get("formula_reference")),
                     }
                     try:
                         # PIN-AFTER-FINALIZATION (as the ask lane): the
@@ -13305,7 +13969,13 @@ class ChatOrchestrator:
                         "intent": "search",
                         "confidence": 0.9,
                         "data": {
-                            "workbook_result": _direct_card,
+                            "workbook_result": (
+                                None if _direct_result.get(
+                                    "named_document") else _direct_card),
+                            "document_result": (
+                                _direct_result.get("meta")
+                                if _direct_result.get("named_document")
+                                else None),
                             "deterministic_delivery": True,
                             "file_identity": _direct_identity,
                             "workbook_read": _direct_result_row["workbook_read"],
@@ -13841,6 +14511,35 @@ class ChatOrchestrator:
                 # identities; refresh performs a new authorized read.
                 if _recovery_decision == "deliver_stored_result" \
                         and _recovery_payload:
+                    try:
+                        from core.chat_tool_planner import (
+                            _assessment_request,
+                        )
+
+                        _r4_review_ask = _assessment_request(
+                            str(_recovery_payload.get("original_request")
+                                or message or ""))
+                    except Exception:  # noqa: BLE001 — flag is additive
+                        _r4_review_ask = False
+                    if _r4_review_ask:
+                        # A recovered read is still only the evidence for a
+                        # review. Stage it for narration instead of serving
+                        # the stored block as a completed answer.
+                        _r4_stored = dict(_recovery_payload)
+                        _r4_stored.setdefault(
+                            "source_execution_id",
+                            _recovery_payload.get("recovery_execution_id")
+                            or _recovery_payload.get("execution_id"))
+                        _r4_stored["status"] = "retrieved"
+                        _r4_stored["execution_id"] = _execution_id
+                        session["_pending_file_result"] = _r4_stored
+                        logger.info(
+                            "[r4-recovery] review ask — stored read staged; "
+                            "narration required")
+                        _recovery_decision = "normal_work"
+                        _recovery_payload = None
+                if _recovery_decision == "deliver_stored_result" \
+                        and _recovery_payload:
                     _r4_identity = _recovery_payload.get("identity") or {}
                     _r4_file = str(_r4_identity.get("file_name")
                                    or "the file")
@@ -13936,6 +14635,10 @@ class ChatOrchestrator:
                     # operation.
                     try:
                         _r4_stored = dict(_recovery_payload)
+                        _r4_stored.setdefault(
+                            "source_execution_id",
+                            _recovery_payload.get("recovery_execution_id")
+                            or _recovery_payload.get("execution_id"))
                         _r4_stored["status"] = "delivered"
                         try:
                             import time as _r4_time
@@ -16616,6 +17319,32 @@ class ChatOrchestrator:
                     logger.warning(
                         "[canvas-claim] receipt gate crashed — check "
                         "skipped: %r", _cc_err)
+                # REVIEW/DELIVERY CONSISTENCY (independent-review F3): any
+                # honesty gate above may replace the whole answer. A
+                # precomputed validated review must not survive a message
+                # that no longer contains its rendered decision block.
+                if (isinstance(ai_response, dict)
+                        and ai_response.get("review_summary")):
+                    try:
+                        from core.review_result import (
+                            review_matches_delivered_text,
+                        )
+
+                        _review_delivery_ok = review_matches_delivered_text(
+                            ai_response.get("review_summary"),
+                            main_message)
+                    except Exception:  # noqa: BLE001 — fail closed
+                        _review_delivery_ok = False
+                    if not _review_delivery_ok:
+                        logger.warning(
+                            "[review-result] delivered message was replaced "
+                            "after review validation — invalidating the "
+                            "structured review (execution=%s)",
+                            str(_execution_id)[:8])
+                        for _review_key in (
+                                "review_result", "review_contract",
+                                "review_summary"):
+                            ai_response.pop(_review_key, None)
                 used_model = ai_response.get("model")
                 used_provider = ai_response.get("provider")
                 # LKGP: remember which provider/model served this turn so the
@@ -16676,6 +17405,8 @@ class ChatOrchestrator:
                     if _fb_replacement:
                         main_message = _fb_replacement["message"]
                         _fallback_outcome = _fb_replacement["outcome"]
+                        if isinstance(session, dict):
+                            session["_recorded_outcome"] = _fallback_outcome
                         logger.warning(
                             "[fallback-honesty] template completion "
                             "claim replaced with the recorded %s "
@@ -16815,6 +17546,11 @@ class ChatOrchestrator:
             )
             if isinstance(_objective_result, dict):
                 combined_data["objective_evidence"] = _objective_result
+            for _review_key in (
+                    "review_result", "review_contract", "review_summary"):
+                _review_value = (ai_response or {}).get(_review_key)
+                if _review_value is not None:
+                    combined_data[_review_key] = _review_value
             _objective_workbook = (ai_response or {}).get("workbook_read")
             if not isinstance(_objective_workbook, dict):
                 _current_identity = (ai_response or {}).get("file_identity")
@@ -16948,6 +17684,11 @@ class ChatOrchestrator:
                         presentation_only_turn=_fb_presentation)
                 except Exception:  # noqa: BLE001 — additive
                     _fb_outcome = None
+            if isinstance(session, dict) and isinstance(_fb_outcome, dict):
+                # Durable persistence consumes the SAME request-bound
+                # outcome the response/finalizer saw; the route may not
+                # pass the private response field through.
+                session["_recorded_outcome"] = _fb_outcome
             if not _fb_from_gate and not (_fb_outcome or {}).get(
                     "work_turn"):
                 # Conversational turn: nothing was attempted, so there is
@@ -17275,6 +18016,7 @@ class ChatOrchestrator:
                 session_id, _trace_agent_id, _execution_id,
                 "success" if response.get("success", True) else "failed",
             )
+            _bound_pfr = session.get("_pending_file_result")
             self._finish_chat_execution(
                 _execution_id,
                 "success" if response.get("success", True) else "failed",
@@ -17285,6 +18027,12 @@ class ChatOrchestrator:
                 ai_response=ai_response,
                 deadline=_deadline,
                 pending_task=_pending_file_task,
+                # A verified resumed read is THIS execution's evidence: let
+                # the existing task-outcome builder derive settlement from it
+                # instead of rebuilding an evidence-less turn.
+                allow_persisted_evidence=bool(
+                    isinstance(_bound_pfr, dict)
+                    and _bound_pfr.get("status") in ("retrieved", "delivered")),
             )
             # DELIVERED marking (retrieval != delivery, 2026-09-24): the
             # response is about to reach the user — a RETRIEVED result
@@ -17550,6 +18298,352 @@ class ChatOrchestrator:
             logger.warning(f"file-mention canvas creation failed: {e}")
             return None
 
+    async def _direct_named_document_read(
+        self,
+        intent: Dict[str, Any],
+        user_id: Optional[str],
+        workspace_id: Optional[str],
+    ) -> Dict[str, Any]:
+        """Deterministic named-document read through the workspace catalog.
+
+        The dataset lane is never consulted here. A resolved catalog
+        identity is read through ``documents.search``; ambiguity and
+        unresolved names return explicit verdicts, never a single-source
+        pick and never a "document absent" claim derived from a dataset
+        miss. Mixed document/workbook asks are preserved as a
+        clarification instead of silently answering one source.
+        """
+        def _finish(
+            answer: str,
+            meta: Dict[str, Any],
+            *,
+            complete: bool = False,
+            identity_verified: bool = False,
+            publish_identity: bool = False,
+        ) -> Dict[str, Any]:
+            identity = {}
+            if publish_identity:
+                identity = {
+                    "service": meta.get("service"),
+                    "file_id": meta.get("file_id"),
+                    "resource_id": meta.get("resource_id")
+                    or meta.get("file_id"),
+                    "file_name": meta.get("file_name"),
+                    "source": meta.get("source"),
+                    "content_hash": None,
+                    "content_hash_algorithm": None,
+                    "ingested_at": None,
+                    "source_modified_at": None,
+                    "version_verified": False,
+                    "identity_verified": identity_verified,
+                    "coverage_complete": complete,
+                    "coverage_limits": meta.get("coverage_limits") or {},
+                    "workbook_read": None,
+                    "execution_id": None,
+                }
+            return {
+                "ok": True,
+                "block": "",
+                "meta": meta,
+                "identity": identity,
+                "identity_verified": identity_verified,
+                "coverage_complete": complete,
+                "retrieval_complete": complete,
+                "rendered_answer": answer,
+                "structured_result": None,
+                "named_document": True,
+                "reason": "",
+            }
+
+        sources = list(intent.get("sources") or [])
+        workspace_required = [
+            s for s in sources
+            if s.get("state") == "workspace_required"
+        ]
+        if workspace_required:
+            return _finish(
+                "I need the workspace scope before reading a named file; "
+                "nothing was read.",
+                {
+                    "service": "documents",
+                    "identity_verified": False,
+                    "completed": False,
+                    "coverage_complete": False,
+                    "note": "workspace scope was not provided",
+                },
+            )
+        doc_sources = [
+            s for s in sources if s.get("reader") == "documents"
+        ]
+        data_sources = [
+            s for s in sources if s.get("reader") == "datasets"
+        ]
+        if intent.get("reader") == "mixed":
+            doc_names = [
+                str((s.get("document") or {}).get("file_name")
+                    or s.get("mention") or "")
+                for s in doc_sources
+            ]
+            data_names = [
+                str((s.get("dataset") or {}).get("file_name")
+                    or s.get("mention") or "")
+                for s in data_sources
+            ]
+            answer = (
+                "This ask names more than one source: document(s) "
+                + ", ".join(f"`{n}`" for n in doc_names if n)
+                + " and workbook(s) "
+                + ", ".join(f"`{n}`" for n in data_names if n)
+                + ". I did not read either source or answer from one of "
+                "them. Ask about one source at a time, or confirm which "
+                "one should be read first."
+            )
+            return _finish(
+                answer,
+                {
+                    "service": "mixed",
+                    "identity_verified": False,
+                    "completed": False,
+                    "coverage_complete": False,
+                    "note": ("mixed document/workbook sources preserved; "
+                             "nothing was read"),
+                    "sources": [
+                        {
+                            "mention": s.get("mention"),
+                            "reader": s.get("reader"),
+                            "state": s.get("state"),
+                        }
+                        for s in sources
+                    ],
+                },
+            )
+
+        ambiguous = [
+            s for s in doc_sources if s.get("state") == "ambiguous"
+        ]
+        unavailable = [
+            s for s in sources
+            if s.get("state") == "catalog_unavailable"
+        ]
+        if unavailable:
+            answer = (
+                "I couldn't reach the workspace document catalog, so "
+                "nothing was read. This is a catalog-access failure, not "
+                "a statement that the document is absent."
+            )
+            return _finish(
+                answer,
+                {
+                    "service": "documents",
+                    "identity_verified": False,
+                    "completed": False,
+                    "coverage_complete": False,
+                    "note": "workspace document catalog unavailable",
+                },
+            )
+        if ambiguous:
+            candidates: List[str] = []
+            for source in ambiguous:
+                for cand in source.get("candidates") or []:
+                    name = str(
+                        cand.get("file_name") or cand.get("file_id") or ""
+                    )
+                    if name and name not in candidates:
+                        candidates.append(name)
+            answer = (
+                "More than one uploaded document matches the name you "
+                "gave: " + "; ".join(f"`{c}`" for c in candidates[:8])
+                + ". Which one should I use? Nothing was read yet."
+            )
+            return _finish(
+                answer,
+                {
+                    "service": "documents",
+                    "identity_verified": False,
+                    "completed": False,
+                    "coverage_complete": False,
+                    "note": ("multiple uploaded documents match the named "
+                             "file"),
+                    "candidates": candidates,
+                },
+            )
+
+        unresolved = [
+            s for s in doc_sources if s.get("state") != "resolved"
+        ]
+        if unresolved:
+            names = [
+                str(s.get("mention") or "") for s in unresolved
+            ]
+            answer = (
+                "No uploaded document in this workspace matches "
+                + ", ".join(f"`{n}`" for n in names if n)
+                + ". Nothing was read from another source."
+            )
+            return _finish(
+                answer,
+                {
+                    "service": "documents",
+                    "identity_verified": False,
+                    "completed": False,
+                    "coverage_complete": False,
+                    "note": ("named document is not present in the "
+                             "workspace document catalog"),
+                    "file_name": names[0] if names else None,
+                },
+            )
+
+        from core.action_registry import action_registry
+
+        answers: List[str] = []
+        read_meta: List[Dict[str, Any]] = []
+        for source in doc_sources:
+            doc = source.get("document") or {}
+            fname = str(doc.get("file_name") or "")
+            fid = str(doc.get("file_id") or "")
+            try:
+                res = await action_registry.execute_action(
+                    "documents.search",
+                    {"query": fname, "limit": 10},
+                    {"user_id": user_id, "workspace_id": workspace_id},
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "[named-document] documents.search failed: %r", exc
+                )
+                res = {"success": False}
+            if res and res.get("success") is False:
+                answer = (
+                    f"The document search for `{fname}` failed; nothing "
+                    "was read. This is a search failure, not a statement "
+                    "that the document is absent."
+                )
+                return _finish(
+                    answer,
+                    {
+                        "service": "documents",
+                        "file_id": fid,
+                        "file_name": fname,
+                        "identity_verified": False,
+                        "completed": False,
+                        "coverage_complete": False,
+                        "note": "document search failed",
+                    },
+                )
+            hits = list((res or {}).get("results") or [])
+            exact = [
+                h for h in hits
+                if str(h.get("id") or "") == fid
+            ]
+            if len(exact) > 1:
+                names = [
+                    str(h.get("title") or h.get("id") or "")
+                    for h in exact
+                ]
+                answer = (
+                    "More than one document search result matches "
+                    + f"`{fname}`: "
+                    + "; ".join(f"`{n}`" for n in names[:8])
+                    + ". Which one should I use? Nothing was read yet."
+                )
+                return _finish(
+                    answer,
+                    {
+                        "service": "documents",
+                        "identity_verified": False,
+                        "completed": False,
+                        "coverage_complete": False,
+                        "note": ("multiple document search results match "
+                                 "the named file"),
+                        "candidates": names,
+                    },
+                )
+            hit = exact[0] if exact else None
+            if not hit:
+                answer = (
+                    f"The catalog resolved `{fname}`, but the document "
+                    "search returned no VERIFIED hit for that file. "
+                    "Nothing was read from another source."
+                )
+                return _finish(
+                    answer,
+                    {
+                        "service": "documents",
+                        "file_id": fid,
+                        "file_name": fname,
+                        "identity_verified": False,
+                        "completed": False,
+                        "coverage_complete": False,
+                        "note": ("document search returned no verified "
+                                 "exact hit"),
+                    },
+                )
+            content = str(
+                hit.get("content") or hit.get("preview") or ""
+            ).strip()
+            if not content:
+                answer = (
+                    f"The catalog resolved `{fname}`, but the document "
+                    "read returned an empty body. Nothing was answered "
+                    "from it."
+                )
+                return _finish(
+                    answer,
+                    {
+                        "service": "documents",
+                        "file_id": fid,
+                        "file_name": fname,
+                        "identity_verified": False,
+                        "completed": False,
+                        "coverage_complete": False,
+                        "note": "document body was empty",
+                    },
+                )
+            answers.append(
+                f"From `{fname}` (matching excerpt):\n{content[:4000]}"
+                f"\n\nSource: `{fname}`."
+            )
+            read_meta.append(
+                {
+                    "file_id": fid,
+                    "file_name": fname,
+                    "hit_id": hit.get("id"),
+                    "match_count": len(exact),
+                    "returned_chars": len(content[:4000]),
+                    "excerpt": True,
+                }
+            )
+
+        meta = {
+            "service": "documents",
+            "file_id": (doc_sources[0].get("document") or {}).get("file_id")
+            if doc_sources else None,
+            "file_name": (doc_sources[0].get("document") or {}).get(
+                "file_name"
+            ) if doc_sources else None,
+            "identity_verified": True,
+            "completed": False,
+            "coverage_complete": False,
+            "coverage_limits": {
+                "excerpt": True,
+                "returned_chars": sum(
+                    int(r.get("returned_chars") or 0) for r in read_meta
+                ),
+                "max_chars_per_source": 4000,
+                "search": "documents.search",
+            },
+            "note": ("workspace-scoped document catalog + document search; "
+                     "matching excerpt, not a full-document read"),
+            "results": read_meta,
+        }
+        return _finish(
+            "\n\n---\n\n".join(answers),
+            meta,
+            complete=False,
+            identity_verified=True,
+            publish_identity=True,
+        )
+
     async def _direct_confirmed_file_read(
         self,
         pending_task: Dict[str, Any],
@@ -17574,6 +18668,148 @@ class ChatOrchestrator:
 
         if not mention or not original:
             return {"ok": False, "block": "", "reason": "pending task has no file identity"}
+        # FORMULA-REFERENCE OPERATION (2026-10-25 work order): use the
+        # existing workbook evaluator, not the item/derivation lane. The
+        # accepted operation is carried by the turn program; the grammar
+        # fallback covers planner-only callers. Neutral arithmetic is
+        # handled inside calculate_workbook_from_query; pricing policy
+        # still goes through its teaching gate.
+        try:
+            from core.pending_file_task import is_formula_reference_request
+
+            _tp_operation = str(
+                ((pending_task or {}).get("turn_program") or {}).get(
+                    "operation") or ""
+            )
+            if (_tp_operation == "formula_reference"
+                    or is_formula_reference_request(original)):
+                from core.pricing_calculation import (
+                    calculate_workbook_from_query,
+                )
+
+                _calc_diag: Dict[str, Any] = {}
+                _calc_block = await calculate_workbook_from_query(
+                    original, user_id, workspace_id,
+                    conversation_id=session_id,
+                    execution_id=execution_id,
+                    diagnostics=_calc_diag,
+                )
+                if _calc_block:
+                    _answer_lines = []
+                    for _line in str(_calc_block).splitlines():
+                        if _line.startswith("GROUNDING RULE"):
+                            break
+                        if _line.startswith("LIVE TOOL RESULTS"):
+                            continue
+                        if _line.lstrip().startswith("[calc:"):
+                            continue
+                        _answer_lines.append(_line)
+                    _answer = "\n".join(_answer_lines).strip()
+                    _state = str(_calc_diag.get("state") or "")
+                    _computed = _state in (
+                        "succeeded", "computed_substituted")
+                    _content_hash = str(
+                        _calc_diag.get("content_hash") or "")
+                    _file_name = str(
+                        _calc_diag.get("file_name") or "")
+                    _identity = {
+                        "service": "datasets",
+                        "file_id": None,
+                        "resource_id": None,
+                        "file_name": _file_name or None,
+                        "source": _calc_diag.get("source"),
+                        "content_hash": _content_hash or None,
+                        "content_hash_algorithm": "sha1",
+                        "ingested_at": _calc_diag.get("ingested_at"),
+                        "source_modified_at": _calc_diag.get(
+                            "source_modified_at"),
+                        "version_verified": bool(_content_hash),
+                        "identity_verified": bool(_content_hash),
+                        "coverage_complete": _computed,
+                        "coverage_limits": {},
+                        "workbook_read": {
+                            "sheet": _calc_diag.get("exact_sheet")
+                            or _calc_diag.get("sheet"),
+                            "row": _calc_diag.get("row"),
+                            "cell": _calc_diag.get("cell"),
+                            "neutral_reference": True,
+                            "state": _state,
+                        },
+                        "execution_id": execution_id,
+                    }
+                    _storage_read = {
+                        **_identity,
+                        "completed": _computed,
+                        "note": (
+                            "neutral workbook formula reference"
+                            if _computed else
+                            f"formula reference not computed ({_state})"),
+                        "rendered_answer": _answer,
+                        "formula_reference": True,
+                    }
+                    return {
+                        "ok": True,
+                        "block": _calc_block,
+                        "rendered_answer": _answer,
+                        "meta": {
+                            "service": "datasets",
+                            "formula_reference": True,
+                            "completed": _computed,
+                            "coverage_complete": _computed,
+                            "note": _storage_read["note"],
+                            "storage_read": _storage_read,
+                            "calculation_state": _state,
+                        },
+                        "identity": _identity,
+                        "identity_verified": bool(_content_hash),
+                        "coverage_complete": _computed,
+                        "retrieval_complete": _computed,
+                        "structured_result": None,
+                        "formula_reference": True,
+                        "reason": "" if _computed else _state,
+                    }
+        except Exception as _formula_err:  # noqa: BLE001
+            logger.debug(
+                "[formula-reference] direct lane skipped: %r", _formula_err)
+        # DOCUMENT / MIXED NAMED-FILE BRANCH (2026-10-25): explicit
+        # document types and extensionless names resolved to the document
+        # catalog must use the workspace-scoped document reader. The
+        # dataset lane is not applicable to them, and its catalog miss
+        # must never become a "document absent" answer.
+        try:
+            from core.named_file_resolution import (
+                resolve_named_file_intent,
+            )
+
+            _named_intent = await asyncio.to_thread(
+                resolve_named_file_intent,
+                original or mention,
+                user_id,
+                workspace_id,
+                pinned_mention=mention,
+            )
+            if _named_intent.get("reader") in ("documents", "mixed"):
+                logger.info(
+                    "[named-document] direct branch reader=%r state=%r "
+                    "mentions=%r",
+                    _named_intent.get("reader"),
+                    _named_intent.get("state"),
+                    _named_intent.get("mentions"),
+                )
+                return await self._direct_named_document_read(
+                    _named_intent, user_id, workspace_id,
+                )
+            logger.info(
+                "[named-document] branch not taken reader=%r state=%r "
+                "mentions=%r",
+                _named_intent.get("reader"),
+                _named_intent.get("state"),
+                _named_intent.get("mentions"),
+            )
+        except Exception as _ndr_err:  # noqa: BLE001
+            logger.debug(
+                "[named-document] direct read routing skipped: %r",
+                _ndr_err)
         timeout = 25.0
         if deadline is not None:
             try:
@@ -17681,6 +18917,7 @@ class ChatOrchestrator:
                         "canvas": canvas,
                     },
                     plan=direct_plan,
+                    llm_service=self.llm_service,
                 ),
                 timeout=timeout,
             )
@@ -17725,6 +18962,9 @@ class ChatOrchestrator:
             ),
             "rendered_answer": meta.get("rendered_answer") or "",
             "structured_result": meta.get("structured_result"),
+            "datasets_aggregate": bool(meta.get("datasets_aggregate")),
+            "aggregate_record": meta.get("datasets_aggregate"),
+            "formula_reference": bool(meta.get("formula_reference")),
             "reason": "" if block else "file-scoped reader returned no result",
         }
         if (pending_task or {}).get("operation") in ("refresh", "compare"):
@@ -18029,6 +19269,18 @@ class ChatOrchestrator:
             # the evidence revision is unchanged (same copy, new read).
             "structured_result": reread.get("structured_result")
             or result.get("structured_result"),
+            # The durable aggregate/formula receipt must describe the
+            # SAME copy the refreshed answer came from (second review,
+            # 2026-10-25) — never the pre-refresh record.
+            "datasets_aggregate": bool(
+                reread.get("datasets_aggregate")
+                or result.get("datasets_aggregate")),
+            "aggregate_record": (
+                reread.get("aggregate_record")
+                or result.get("aggregate_record")),
+            "formula_reference": bool(
+                reread.get("formula_reference")
+                or result.get("formula_reference")),
         })
         # EVIDENCE-BASED VERDICT (2026-09-24 review rounds 4-5): a new
         # ingestion timestamp alone does not prove refreshed evidence.
@@ -18899,13 +20151,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "SOURCE COMPARISON may use other sources for the "
                             "user's comparison, but never substitute them "
                             "for workbook values or silently convert their "
-                            "currency, units, basis, or effective date."
+                            "currency, units, basis, or effective date. Your "
+                            "TRAINING LESSONS are standing policy, not a "
+                            "source substitute: apply them to the review or "
+                            "recommendation."
                         )
                         if _objective_synthesis_requested else
                         "FILE SOURCE ISOLATION: for this file-scoped request, "
                         "use only the verified storage/workbook artifact and its "
-                        "sheet/cell evidence. Do not use email, chat, or other "
-                        "memory values as substitutes for the requested file."
+                        "sheet/cell evidence for FILE VALUES. Do not use email, "
+                        "chat, or other memory values as substitutes for the "
+                        "requested file. Your TRAINING LESSONS are standing "
+                        "policy, not a source substitute: apply them to the "
+                        "review or recommendation."
                     ),
                 })
             # Unified turn-time memory retrieval (P0, memory unification plan):
@@ -18920,14 +20178,40 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # Resolve agent identity for role-scoped recall
                 _agent_id = agent_id
 
+                # A resumed file task is confirmed with a bare "go ahead";
+                # retrieving lessons for that approval would miss every
+                # lesson that names the original subject. Judge the restored
+                # ask, the same way the planner boundary does.
+                _lesson_query = message
+                if isinstance(pending_file_task, dict):
+                    try:
+                        from core.pending_file_task import (
+                            is_filename_confirmation,
+                        )
+
+                        if is_filename_confirmation(message):
+                            _lesson_query = str(
+                                pending_file_task.get("original_message")
+                                or message)
+                    except Exception:  # noqa: BLE001 — additive detail
+                        pass
+
                 # (HANDOFF EXCEPTION, 2026-10-01: a file-scoped turn whose
                 # read MISSED now continues to narration so the trained
                 # employee can speak — skipping memory/lesson assembly
                 # there left the employee lesson-less ('I found 0
                 # results'). Assembly runs when the handoff fired.)
-                if assembly_enabled() and (
-                        not _file_scoped_request
-                        or miss_handoff):
+                #
+                # FILE-SCOPED LESSONS (2026-10-26 combined control): a
+                # successful file read still needs the agent's standing
+                # training. Reference memory stays out (values come from
+                # the verified artifact), but skipping the lessons leg too
+                # dropped a taught O-1010 correction on the exact review it
+                # governed. Lessons-only keeps the source isolation and
+                # carries policy.
+                _lessons_only = bool(
+                    _file_scoped_request and not miss_handoff)
+                if assembly_enabled():
                     # The integral AI-employee contract: memory must be
                     # retrieved from the USER's workspace, the same workspace
                     # integration syncs write into (get_workspace_id in the
@@ -18943,7 +20227,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # durable outcome's evidence refs.
                     _retrieval_observations: List[Dict[str, Any]] = []
                     memory_block = await assemble_memory_context(
-                        message=message,
+                        message=_lesson_query,
                         workspace_id=user_workspace,
                         tenant_id=self.tenant_id,
                         # the hire's identity → role-aware recall: records
@@ -18956,12 +20240,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # keyword-less playbooks trigger on canvas type
                         canvas_type=(canvas_context or {}).get("canvas_type"),
                         source_observations_out=_retrieval_observations,
+                        lessons_only=_lessons_only,
                     )
                     # C4 (owner directive): observations are committed only
                     # when content reaches the answer context (memory_block
                     # exists) — a failed assembly must not certify sources
-                    # as supplied to narration.
-                    if memory_block and isinstance(session, dict) and execution_id:
+                    # as supplied to narration. A lessons-only block is
+                    # standing policy, not a retrieval source, so it never
+                    # certifies file evidence.
+                    if (memory_block and not _lessons_only
+                            and isinstance(session, dict) and execution_id):
                         # KEYED BY EXECUTION ID (owner C2): a later empty
                         # or skipped retrieval cannot inherit an earlier
                         # turn's sources.
@@ -19216,6 +20504,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _gate_msg = f"{_gate_msg} {_confirmed_mentions[0]}"
                 except Exception:
                     pass
+            # REVIEW INTENT, calculated ONCE from the restored objective.
+            # The earlier placement read _resume_original before its first
+            # assignment; the broad except then silently set False and
+            # disabled the deterministic-answer suppression on this path.
+            _review_ask = False
+            try:
+                from core.chat_tool_planner import _assessment_request
+
+                _review_ask = _assessment_request(_gate_msg)
+            except Exception:  # noqa: BLE001 — flag is additive
+                _review_ask = False
             _plan_mentions: List[str] = []
             try:
                 from core.agent_file_context import (
@@ -20728,6 +22027,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                      "history": (planner_history
                                                  or history or [])[-6:]},
                                     plan=_plan,
+                                    llm_service=self.llm_service,
                                 )
                                 if _file_ev:
                                     logger.info(
@@ -21529,7 +22829,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                              or history or [])[-6:],
                                  "requested_targets": _stored_requested_items(
                                      session)},
-                                plan=_direct_plan),
+                                plan=_direct_plan,
+                                llm_service=self.llm_service),
                             timeout=25,
                         )
                         if _file_ev:
@@ -21597,10 +22898,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 ToolPlan,
                 execute_tool_plan,
             )
-            _research_turn = bool(re.search(
+            _research_turn = bool(_resume_original) or bool(re.search(
                 r"\b(?:research|verify|check|compare|comparison|"
                 r"workbook|quote|pricing|price|update)\b",
-                message or "", re.IGNORECASE))
+                _gate_msg or message or "", re.IGNORECASE))
             # CALCULATION ASKS ARE NOT RESEARCH-RECOVERY TURNS (round 74):
             # an explicit calculation ask on a goal-bound session must run
             # the calculate lane — the research machinery's chained
@@ -21713,8 +23014,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # every research-shaped turn. The method's own
                     # agent_id parameter is the intended value.
                     agent_id=agent_id,
-                    message=message,
+                    # A resume turn must judge the restored original ask,
+                    # not the bare approval that resumed it.
+                    message=_gate_msg or message,
                 ) if _research_turn else set())
+            # A resumed file ask names its source directly. Taught lessons
+            # may add other required sources, but an empty lesson set must not
+            # erase the file the user asked to read.
+            if _resume_original and _plan_mentions:
+                try:
+                    from core.agent_file_context import (
+                        is_spreadsheet_task_mention,
+                    )
+
+                    _file_sources = (
+                        {"datasets"}
+                        if any(is_spreadsheet_task_mention(m)
+                               for m in _plan_mentions)
+                        else {"documents"}
+                    )
+                    _required_sources = set(_required_sources) | _file_sources
+                except Exception:  # noqa: BLE001 — additive detail
+                    pass
             _replanned_service: Optional[str] = None
             # TURN-BUDGET READ (round 34 fix): this method's clock is the
             # ``deadline`` parameter (the block previously referenced
@@ -21775,7 +23096,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
 
                             _rc_subjects = [
-                                i for i in _rc_eift(message)
+                                i for i in _rc_eift(_gate_msg or message)
                                 if i.strip()][:8]
                         except Exception:  # noqa: BLE001 — floor follows
                             _rc_subjects = []
@@ -21786,7 +23107,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
 
                             _rc_fields = [
-                                str(f) for f in (_rc_vfr([message])
+                                str(f) for f in (_rc_vfr([_gate_msg or message])
                                                  or [])][:6]
                         except Exception:  # noqa: BLE001 — optional
                             _rc_fields = []
@@ -21810,7 +23131,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         except Exception:  # noqa: BLE001 — optional
                             _rc_open = []
                         _obligation = (
-                            message
+                            (_gate_msg or message)
                             + "\n\nREQUIRED RESEARCH (prior plan "
                             "produced no executable tool). Consult the "
                             "REQUIRED SOURCES for the resolved subjects "
@@ -21871,12 +23192,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             # message slice carried conversational noise
                             # the source search then matched nothing
                             # against, 2026-10-08 owner correction 2).
+                            _required_order = list(
+                                self._required_source_order(
+                                    agent_id, _gate_msg or message))
+                            # The direct file source is required by the
+                            # restored ask even when no lesson names it.
+                            for _svc in ("datasets", "documents"):
+                                if (_svc in _required_sources
+                                        and _svc not in _required_order):
+                                    _required_order.append(_svc)
                             _fallback_svc = next(
-                                (svc for svc in (
-                                    self._required_source_order(
-                                        agent_id, message))
-                                if svc in _required_sources
-                                and svc not in _consulted_sources),
+                                (svc for svc in _required_order
+                                 if svc in _required_sources
+                                 and svc not in _consulted_sources),
                                 None)
                             if _fallback_svc:
                                 _rc_query = " ".join(
@@ -21987,6 +23315,79 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     "[planner-boundary] replan consultation "
                                     "recorded (%s; receipt=%s)",
                                     _replan.service, _rc_receipt)
+                                if _resume_original and isinstance(
+                                        session, dict):
+                                    try:
+                                        from core.pending_file_task import (
+                                            FILE_TASK_SESSION_KEY,
+                                            mark_task_delivered,
+                                            mark_task_retrieved,
+                                        )
+
+                                        _task_row = session.get(
+                                            FILE_TASK_SESSION_KEY)
+                                        if isinstance(_task_row, dict):
+                                            _rc_payload = (
+                                                _rc_meta.get(_rc_receipt)
+                                                if isinstance(_rc_meta, dict)
+                                                else {}) or {}
+                                            _identity: Dict[str, Any] = {}
+                                            _identity_sources = []
+                                            if isinstance(_rc_payload, dict):
+                                                _identity_sources.append(
+                                                    _rc_payload)
+                                                _sr_payload = _rc_payload.get(
+                                                    "structured_result")
+                                                if isinstance(
+                                                        _sr_payload, dict):
+                                                    _identity_sources.append(
+                                                        _sr_payload)
+                                            for _src in _identity_sources:
+                                                for _ik in (
+                                                        "identity",
+                                                        "source_identity",
+                                                        "file_identity"):
+                                                    _iv = _src.get(_ik)
+                                                    if isinstance(_iv, dict):
+                                                        _identity.update(_iv)
+                                            if not _identity:
+                                                _identity = {
+                                                    "file_name": (
+                                                        _task_row.get(
+                                                            "confirmed_mention")
+                                                        or _task_row.get(
+                                                            "mention"))}
+                                            _retrieved = mark_task_retrieved(
+                                                _task_row, _identity)
+                                            session[FILE_TASK_SESSION_KEY] = (
+                                                mark_task_delivered(
+                                                    _retrieved))
+                                            session["_pending_file_result"] = {
+                                                "status": "delivered",
+                                                "target_extraction_version": 3,
+                                                "rendered": _tool_block[:24000],
+                                                "identity": _identity,
+                                                "execution_id": execution_id,
+                                                "source_execution_id": execution_id,
+                                                "retrieved_at": time.time(),
+                                                "delivered_at": time.time(),
+                                                "structured_result": (
+                                                    _rc_payload.get(
+                                                        "structured_result")
+                                                    if isinstance(
+                                                        _rc_payload, dict)
+                                                    else None),
+                                            }
+                                            logger.info(
+                                                "[pending-file-task] replan "
+                                                "receipt bound: task "
+                                                "delivered (file=%r)",
+                                                _identity.get("file_name"))
+                                    except Exception as _bind_err:
+                                        logger.warning(
+                                            "[pending-file-task] replan "
+                                            "receipt bind failed: %r",
+                                            _bind_err)
                             elif _tool_block:
                                 logger.warning(
                                     "[planner-boundary] replan returned a "
@@ -23006,7 +24407,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                                 "replace",
                                                         },
                                                     },
-                                                    plan=_attempt_plan),
+                                                    plan=_attempt_plan,
+                                                    llm_service=self.llm_service),
                                                 timeout=min(
                                                     20.0,
                                                     _chain_turn_left()
@@ -23525,6 +24927,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             ) if isinstance(_resolved_file_identity, dict) else None,
                             "objective_evidence": _objective_comparison,
                             "execution_id": execution_id,
+                            "source_execution_id": execution_id,
                             "retrieved_at": time.time(),
                             "structured_result": (
                                 _storage_read_meta.get("structured_result")
@@ -23591,7 +24994,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 except Exception as _pft2_err:  # noqa: BLE001 — bookkeeping only
                     logger.debug(f"pending file task store skipped: {_pft2_err}")
 
-            if _deterministic_answer and not _off_request:
+            if _deterministic_answer and not _off_request and not _review_ask:
                 try:
                     from core.chat_tool_planner import (
                         _user_facing_workbook_answer,
@@ -23965,6 +25368,57 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _evidence_msg = {"role": "system",
                                  "content": _evidence_instruction}
                 messages.append(_evidence_msg)
+                if _review_ask:
+                    try:
+                        from core.review_result import (
+                            build_evidence_index,
+                            build_policy_index,
+                            decision_options_from_lessons,
+                            requested_subjects,
+                            review_output_instruction,
+                        )
+
+                        _review_lessons = (
+                            self._agent_lessons(agent_id, _gate_msg) or [])
+                        _allowed = decision_options_from_lessons(
+                            _review_lessons)
+                        _review_pending = (
+                            (session.get("_pending_file_result") or {})
+                            if isinstance(session, dict) else {})
+                        _review_struct = (
+                            _review_pending.get("structured_result")
+                            if isinstance(
+                                _review_pending.get("structured_result"),
+                                dict) else None
+                        ) or _turn_structured_record or {}
+                        _review_struct = dict(_review_struct)
+                        if not _review_struct.get("source_execution_id"):
+                            _review_struct["source_execution_id"] = str(
+                                _review_pending.get("source_execution_id")
+                                or _review_pending.get("execution_id")
+                                or "")
+                        _subjects = requested_subjects(_review_struct)
+                        _evidence_index = build_evidence_index(
+                            _review_struct)
+                        _policy_index = build_policy_index(
+                            _review_lessons, _allowed)
+                        if (_allowed and _subjects
+                                and _evidence_index and _policy_index):
+                            messages.append({
+                                "role": "system",
+                                "content": review_output_instruction(
+                                    {
+                                        "subjects": _subjects,
+                                        "allowed_decisions": _allowed,
+                                    },
+                                    _evidence_index,
+                                    _policy_index,
+                                ),
+                            })
+                    except Exception as _review_prompt_err:  # noqa: BLE001
+                        logger.debug(
+                            "[review-result] output contract skipped: %r",
+                            _review_prompt_err)
             else:
                 # TRUTHFULNESS ENVELOPE (pristine-J2 false-search finding,
                 # 2026-10-12): zero executed tool work must never become a
@@ -26127,7 +27581,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                      _content[:300])
                     except Exception:
                         pass
-                if _deterministic_answer and not _off_request:
+                if _deterministic_answer and not _off_request and not _review_ask:
                     try:
                         from core.chat_tool_planner import (
                             _user_facing_workbook_answer,
@@ -26348,6 +27802,96 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     async_continuation_forked,
                     execution_id=execution_id,
                 )
+                if _review_ask:
+                    try:
+                        from core.review_result import (
+                            build_evidence_index,
+                            build_policy_index,
+                            build_review_result,
+                            decision_options_from_lessons,
+                            render_review_result,
+                            requested_subjects,
+                            strip_review_block,
+                        )
+
+                        _review_lessons = (
+                            self._agent_lessons(agent_id, _gate_msg) or [])
+                        _allowed = decision_options_from_lessons(
+                            _review_lessons)
+                        _review_pending = (
+                            (session.get("_pending_file_result") or {})
+                            if isinstance(session, dict) else {})
+                        _review_struct = (
+                            _review_pending.get("structured_result")
+                            if isinstance(
+                                _review_pending.get("structured_result"),
+                                dict) else None
+                        ) or _turn_structured_record or {}
+                        _review_struct = dict(_review_struct)
+                        if not _review_struct.get("source_execution_id"):
+                            _review_struct["source_execution_id"] = str(
+                                _review_pending.get("source_execution_id")
+                                or _review_pending.get("execution_id")
+                                or "")
+                        _subjects = requested_subjects(_review_struct)
+                        _evidence_index = build_evidence_index(
+                            _review_struct)
+                        _policy_index = build_policy_index(
+                            _review_lessons, _allowed)
+                        if _allowed and _subjects:
+                            _review = build_review_result(
+                                execution_id=execution_id,
+                                expected_execution_id=execution_id,
+                                requested_records=_subjects,
+                                answer=str(_claimed_content or ""),
+                                allowed_decisions=_allowed,
+                                evidence_index=_evidence_index,
+                                policy_index=_policy_index,
+                            )
+                            response_data = dict(response_data or {})
+                            response_data["review_result"] = _review
+                            response_data["review_contract"] = {
+                                "subjects": list(_subjects),
+                                "required_evidence": [
+                                    dict(entry.get("source_identity") or {})
+                                    for entry in _evidence_index
+                                    if entry.get("source_identity")
+                                ][:4],
+                                "allowed_decisions": list(_allowed),
+                                "evidence_ids": [
+                                    entry.get("evidence_id")
+                                    for entry in _evidence_index
+                                ],
+                                "policy_ids": [
+                                    entry.get("policy_id")
+                                    for entry in _policy_index
+                                ],
+                            }
+                            # The fenced machine block is NEVER delivered,
+                            # certified or not. On failure the prose remains
+                            # explanatory; no raw block leaks (F6).
+                            _review_prose = strip_review_block(
+                                str(_claimed_content or ""))
+                            if _review.get("ok"):
+                                _review_block = render_review_result(_review)
+                                _claimed_content = (
+                                    f"{_review_prose.rstrip()}"
+                                    f"\n\n{_review_block}")
+                                response_data["review_summary"] = (
+                                    _review_block)
+                            else:
+                                _claimed_content = (
+                                    _review_prose.rstrip()
+                                    or "I couldn't complete the requested "
+                                       "review.")
+                                logger.info(
+                                    "[review-result] delivery not certified: %s",
+                                    _review.get("errors"))
+                            response_data["content"] = _claimed_content
+                    except Exception as _review_err:  # noqa: BLE001 — fail closed
+                        logger.warning(
+                            "[review-result] render skipped: %r",
+                            _review_err)
                 return {
                     # STRIPPED (restored 2026-10-01): leading/trailing
                     # whitespace on the model's reply leaked to the user
@@ -26360,6 +27904,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "objective_evidence": response_data.get(
                         "objective_evidence"
                     ) or _objective_comparison,
+                    "review_result": (
+                        response_data.get("review_result")
+                        if isinstance(response_data, dict) else None),
+                    "review_summary": (
+                        response_data.get("review_summary")
+                        if isinstance(response_data, dict) else None),
+                    "review_contract": (
+                        response_data.get("review_contract")
+                        if isinstance(response_data, dict) else None),
                 }
 
             return None
@@ -28459,6 +30012,73 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     session, session_id)
             if _outcome_section:
                 fresh_data = f"{fresh_data}\n\n{_outcome_section}".strip()
+        # PROVABLE NO-OP BEFORE PLANNING (owner assignment 2026-10-24):
+        # the identical re-ask must not depend on edit-plan availability.
+        # The authoritative receipt check runs against the current artifact
+        # first; only a complete, authorized, revision-bound receipt may
+        # render the existing no-op confirmation. A genuinely new edit
+        # fails this check and proceeds to planning.
+        if _edit_requested:
+            try:
+                from core.chat_canvas_editor import (
+                    noop_completion_reply as _pre_noop_fn,
+                    requirement_check as _pre_requirement_fn,
+                    single_explicit_assignment as _single_assignment_fn,
+                )
+                if not _single_assignment_fn(message):
+                    raise ValueError("not a single explicit assignment")
+
+                _pre_fresh_contract = (
+                    fresh.evidence_contract
+                    if fresh is not None and isinstance(
+                        getattr(fresh, "evidence_contract", None), dict)
+                    else None)
+                _pre_current_rev = str(
+                    (_pre_fresh_contract or {}).get("source", {})
+                    .get("evidence_revision") or "") or None
+                _pre_session_contract = (
+                    shared_tool_state.get("objective_evidence")
+                    if isinstance(shared_tool_state, dict)
+                    and isinstance(
+                        shared_tool_state.get("objective_evidence"), dict)
+                    else None)
+                _pre_job_contract = (
+                    self._canvas_job_evidence_contract(canvas)
+                    if _pre_session_contract is None else None)
+                _pre_check = _pre_requirement_fn(
+                    message=message,
+                    canvas=canvas,
+                    authorized=True,
+                    expected_prior_audit_id=expected_prior_audit_id,
+                    evidence_contract=(
+                        _pre_session_contract or _pre_job_contract),
+                    current_source_revision=(
+                        _pre_current_rev if _pre_session_contract
+                        is not None else None),
+                )
+                _pre_completion = _pre_noop_fn(_pre_check)
+                if _pre_completion and shared_tool_state is not None:
+                    shared_tool_state[
+                        "canvas_decline_requirement_check"] = _pre_check
+                    shared_tool_state["canvas_edit_decline_noop"] = True
+                    shared_tool_state["canvas_edit_decline_reply"] = (
+                        _pre_completion)
+                    shared_tool_state["canvas_edit_no_apply"] = True
+                    shared_tool_state["canvas_edit_no_apply_reason"] = (
+                        "already_satisfied")
+                    shared_tool_state["canvas_planning_outcome"] = (
+                        "proven_satisfied")
+                    logger.info(
+                        "canvas edit proven no-op before planning: "
+                        "canvas=%s revision=%s",
+                        canvas.get("canvas_id"),
+                        (_pre_check or {}).get("revision"))
+                    return None
+            except Exception as _pre_noop_err:  # noqa: BLE001
+                logger.debug(
+                    "pre-plan requirement check skipped: %r",
+                    _pre_noop_err)
+
         # VALUE-EDIT TBC PROBE (2026-10-03, reliability run A): an edit
         # instruction asking to fill/update prices with no live lookup ran
         # (the planner judged "no tools needed" for an edit-shaped message),
@@ -28530,30 +30150,54 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         try:
             with _stage_span("edit_plan"):
-                plan = await asyncio.wait_for(
-                plan_canvas_edit(
-                    message, history, canvas, self.llm_service,
-                    # THE TURN'S OWN SCOPE (J6 draft finding, same as the
-                    # action lane): the frozen constructor scope never
-                    # sees the workspace-registered local provider — the
-                    # edit planner's pool was empty on a deployment where
-                    # the same registration served the reply lane.
-                    workspace_id=resolve_user_workspace(user_id),
-                    tenant_id=getattr(self, "tenant_id", None),
-                    execution_id=execution_id,
-                    corrections=corrections,
-                    versions=versions,
-                    lessons=lessons,
-                    similar_corrections=similar_corrections,
-                    correction_patterns=correction_patterns,
-                    provenance=provenance,
-                    user_identity=user_identity,
-                    playbooks=playbooks,
-                    fresh_data=fresh_data,
-                    job_findings=job_findings,
-                ),
-                timeout=edit_plan_timeout,
-            )
+                # NARROW DETERMINISTIC COMPILER (owner assignment
+                # 2026-10-24): one explicit user-supplied assignment that
+                # binds uniquely to a verbatim artifact line does not need
+                # a model plan. Ambiguous/negated/source-dependent edits
+                # still go to the planner; the common apply validator,
+                # preservation checks, revision guard, audit and readback
+                # remain in force.
+                from core.chat_canvas_editor import (
+                    deterministic_assignment_plan as _det_assignment_fn,
+                )
+
+                plan = _det_assignment_fn(
+                    message=message,
+                    canvas=canvas,
+                    expected_prior_audit_id=expected_prior_audit_id,
+                )
+                if plan is not None:
+                    if shared_tool_state is not None:
+                        shared_tool_state["canvas_plan_source"] = (
+                            "deterministic_assignment")
+                    logger.info(
+                        "canvas edit compiled deterministically: "
+                        "canvas=%s", canvas.get("canvas_id"))
+                else:
+                    plan = await asyncio.wait_for(
+                        plan_canvas_edit(
+                            message, history, canvas, self.llm_service,
+                            # THE TURN'S OWN SCOPE (J6 draft finding, same as the
+                            # action lane): the frozen constructor scope never
+                            # sees the workspace-registered local provider — the
+                            # edit planner's pool was empty on a deployment where
+                            # the same registration served the reply lane.
+                            workspace_id=resolve_user_workspace(user_id),
+                            tenant_id=getattr(self, "tenant_id", None),
+                            execution_id=execution_id,
+                            corrections=corrections,
+                            versions=versions,
+                            lessons=lessons,
+                            similar_corrections=similar_corrections,
+                            correction_patterns=correction_patterns,
+                            provenance=provenance,
+                            user_identity=user_identity,
+                            playbooks=playbooks,
+                            fresh_data=fresh_data,
+                            job_findings=job_findings,
+                        ),
+                        timeout=edit_plan_timeout,
+                    )
         except asyncio.TimeoutError:
             # TIMEOUT ≠ provider failure (review finding 5): the retrieval
             # may have succeeded and only planning ran out of time. Set ONLY

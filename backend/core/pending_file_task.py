@@ -293,6 +293,92 @@ _RERUN_RE = re.compile(
     r"[^\n]{0,40}\bagain\b",
     re.IGNORECASE,
 )
+#: General row-selection/aggregation shape. Deliberately domain-neutral:
+#: it names operations (totals, grouping, row filtering), never workbook,
+#: vendor, status, currency, or fixture words. A bare "totals" lookup is
+#: not an aggregation; it needs a row-selection/grouping qualifier.
+_AGGREGATE_STRONG_RE = re.compile(
+    r"\bgroup\s+by\s+[A-Za-z_]\w*"
+    r"|\b(?:totals?|subtotals?|sums?|aggregates?)\b[^\n]{0,80}"
+    r"\bby\s+[A-Za-z_]\w*"
+    r"|\b(?:select|list|show|filter)\s+(?:only\s+)?(?:the\s+)?"
+    r"(?:[A-Za-z][\w-]*\s+){0,3}(?:rows?|records?)\b",
+    re.IGNORECASE,
+)
+_AGGREGATE_CALC_RE = re.compile(
+    r"\b(?:totals?|subtotals?|sums?|aggregates?)\b", re.IGNORECASE)
+_AGGREGATE_QUALIFIER_RE = re.compile(
+    r"\b(?:rows?|records?|approved|cancelled|open|closed|active|inactive|"
+    r"filter|by|per)\b", re.IGNORECASE)
+
+
+def is_formula_reference_request(message: str) -> bool:
+    """A request for the workbook's own cell formula, not a pricing policy.
+
+    Matches the documented grammar the evaluator actually parses.
+    """
+    text = " ".join(str(message or "").split())
+    if not text:
+        return False
+    return bool(re.search(
+        r"\bcalculate\s+(?:formula|reference|cell)\s+(?:for\s+)?"
+        r"[^\n]{1,200}?\.xlsx\b[^\n]{0,200}\bcell\s+[A-Za-z]{1,3}\d+\b"
+        r"|\bcalculate\s+cell\s+[A-Za-z]{1,3}\d+\s+in\s+"
+        r"[^\n]{1,200}?\.xlsx\b",
+        text,
+        re.IGNORECASE,
+    ))
+
+
+def is_aggregate_request(message: str) -> bool:
+    """A row-selection/aggregation request, not an item lookup or formula
+    reference. General operation shape only — no workbook/domain words."""
+    text = " ".join(str(message or "").split())
+    if not text:
+        return False
+    if re.search(r"\bcell\s+[A-Za-z]{1,3}\d+\b", text, re.IGNORECASE):
+        return False
+    if _AGGREGATE_STRONG_RE.search(text):
+        return True
+    return bool(
+        _AGGREGATE_CALC_RE.search(text)
+        and _AGGREGATE_QUALIFIER_RE.search(text)
+    )
+
+
+def classify_file_operation(message: str) -> str:
+    """Which operation a continuation turn asks for: explicit refresh/re-run
+    first, then formula reference or row selection/aggregation. Unclassified
+    read-shaped turns are "read"."""
+    t = message or ""
+    if is_source_refresh_request(t):
+        return "refresh"
+    if is_rerun_request(t):
+        return "re-run"
+    if is_formula_reference_request(t):
+        return "formula_reference"
+    if is_aggregate_request(t):
+        return "aggregate"
+    if is_filename_confirmation(t):
+        return "re-deliver"
+    return "read"
+
+
+def resume_operation(task: Optional[Dict[str, Any]], message: str) -> str:
+    """The operation for a continuation turn against a stored task.
+
+    A bare approval re-delivers only when a completed result exists. A task
+    still in ``pending`` has no persisted result; stamping it ``re-deliver``
+    is a no-op, so the read never dispatches. Resume it as a re-run instead.
+    """
+    operation = classify_file_operation(message)
+    if (
+        operation == "re-deliver"
+        and isinstance(task, dict)
+        and str(task.get("status") or "").strip().lower() == "pending"
+    ):
+        return "re-run"
+    return operation
 
 
 def is_source_refresh_request(message: str) -> bool:
@@ -316,20 +402,6 @@ def is_retrieval_refresh_request(message: str) -> bool:
     request to run the lookup again, as opposed to an approval ("go
     ahead"), which may re-deliver an already completed result."""
     return is_source_refresh_request(message) or is_rerun_request(message)
-
-
-def classify_file_operation(message: str) -> str:
-    """Which of the three operations a continuation turn asks for:
-    "refresh" (source check required) wins over "re-run" (copy search);
-    approvals re-deliver. Unclassified read-shaped turns are "read"."""
-    t = message or ""
-    if is_source_refresh_request(t):
-        return "refresh"
-    if is_rerun_request(t):
-        return "re-run"
-    if is_filename_confirmation(t):
-        return "re-deliver"
-    return "read"
 
 
 def _canon(value: str) -> str:
@@ -441,6 +513,19 @@ def merge_pending_task(
     refresh = is_retrieval_refresh_request(message)
     was_terminal = isinstance(existing, dict) and existing.get(
         "status") in ("served", "retrieved", "delivered")
+    # A terminal task that is merely APPROVED is already answered. The
+    # delivery lane owns that turn; re-storing the approval as a new task
+    # replaces the original ask with "go ahead" and loses the objective.
+    if (was_terminal
+            and is_filename_confirmation(message)
+            and not refresh
+            and not request_extends_objective(message, existing)):
+        kept = dict(existing)
+        if (mention or "").strip():
+            kept["confirmed_mention"] = mention.strip().lower()
+        kept["attempts"] = int(kept.get("attempts") or 0) + 1
+        kept["updated_at"] = time.time()
+        return kept
     if (isinstance(existing, dict) and existing.get("original_message")
             and (existing.get("status") not in ("served", "retrieved",
                                                 "delivered") or refresh)
@@ -711,6 +796,14 @@ def request_extends_objective(
         return False
     original = str(task.get("original_message") or "").strip()
     if not original or not (message or "").strip():
+        return False
+    # A bare approval ("go ahead", "yes") confirms the stored objective; it
+    # cannot introduce new work. Keep this before the new-work scan: the
+    # scan compares the approval's empty object set with the original's
+    # objects and otherwise reads as an extension, replacing the task with
+    # the approval text and losing the original ask.
+    if (is_filename_confirmation(message)
+            and not is_retrieval_refresh_request(message)):
         return False
     try:
         if entity_set_edit(message) is not None:

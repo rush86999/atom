@@ -7147,9 +7147,25 @@ def _record_r4_source_counter(
     return "written"
 
 
+def _assessment_request(text: str) -> bool:
+    """Whether the ask requests an assessment/judgment-shaped response.
+
+    This is intentionally only a generic verb shape. The platform does not
+    infer what the task's decisions are — the task-defined review contract
+    supplies ``allowed_decisions`` from teaching/policy. A lookup without an
+    assessment verb stays a lookup even when the agent has decision options.
+    """
+    normalized = str(text or "").lower()
+    return bool(re.search(
+        r"\b(?:assess|evaluate|review|classify|decide|determine|recommend|"
+        r"score|rank|triage)\b",
+        normalized,
+    ))
+
+
 async def _datasets_named_file_block(
     user_id: Optional[str], query: str, context: Optional[Dict[str, Any]],
-    plan: Any = None,
+    plan: Any = None, llm_service: Any = None,
 ) -> Optional[str]:
     """A query that NAMES a catalogued file resolves to THAT file.
 
@@ -7170,7 +7186,13 @@ async def _datasets_named_file_block(
     try:
         from core.agent_file_context import (
             detect_file_mentions,
+            explicit_file_kind,
+            is_spreadsheet_task_mention,
             score_file_match,
+        )
+        from core.dataset_aggregation import (
+            aggregate_named_dataset,
+            looks_like_aggregate_request,
         )
         from core.sheet_dataset_service import (
             SHEET_ROW_COL,
@@ -7203,7 +7225,79 @@ async def _datasets_named_file_block(
             mentions = [pinned]
     if not mentions:
         return None
+    # FILE TYPE / CAPABILITY PRECEDENCE (2026-10-25): the dataset catalog
+    # is a workbook reader. An explicit document extension is not a
+    # workbook, even when the words look tabular ("price list.txt").
+    # Extensionless names are resolved by the catalog layer before this
+    # lane is chosen; when this lane is reached without a spreadsheet
+    # mention, return None so the document/research lane can read it. A
+    # dataset miss must never be rendered as "the document is absent".
     ws = (context or {}).get("workspace_id")
+    dataset_mentions = [
+        m for m in mentions if is_spreadsheet_task_mention(m)
+    ]
+    document_mentions = [
+        m for m in mentions if explicit_file_kind(m) == "document"
+    ]
+    if document_mentions:
+        if plan is not None:
+            _scope_meta = getattr(plan, "_result_meta", None)
+            if not isinstance(_scope_meta, dict):
+                _scope_meta = {}
+                plan._result_meta = _scope_meta
+            _scope_meta["named_file_scope"] = {
+                "mentions": list(mentions),
+                "document_mentions": list(document_mentions),
+                "dataset_mentions": list(dataset_mentions),
+                "reader": (
+                    "mixed" if dataset_mentions else "documents"
+                ),
+                "note": "dataset catalog is not applicable to this file type",
+            }
+        return None
+    if not dataset_mentions:
+        # EXTENSIONLESS IDENTITY BEFORE READER CHOICE: a name without a
+        # suffix may be a workbook that the wording hints do not catch.
+        # Resolve it against both workspace catalogs; only enter the
+        # dataset lane when the dataset catalog actually owns it.
+        try:
+            from core.named_file_resolution import (
+                resolve_named_file_intent,
+            )
+
+            _intent = resolve_named_file_intent(
+                lookup_text, user_id, ws,
+                pinned_mention=mentions[0],
+            )
+            _dataset_sources = [
+                s for s in (_intent.get("sources") or [])
+                if s.get("reader") == "datasets"
+            ]
+            if _intent.get("reader") == "datasets" and _dataset_sources:
+                dataset_mentions = [
+                    str(s.get("mention") or mentions[0])
+                    for s in _dataset_sources
+                ]
+            else:
+                if plan is not None:
+                    _scope_meta = getattr(plan, "_result_meta", None)
+                    if not isinstance(_scope_meta, dict):
+                        _scope_meta = {}
+                        plan._result_meta = _scope_meta
+                    _scope_meta["named_file_scope"] = {
+                        "mentions": list(mentions),
+                        "document_mentions": list(document_mentions),
+                        "dataset_mentions": list(dataset_mentions),
+                        "reader": _intent.get("reader") or "unknown",
+                        "note": ("dataset catalog is not applicable to "
+                                 "this file type"),
+                    }
+                return None
+        except Exception as _intent_err:  # noqa: BLE001
+            logger.debug(
+                "extensionless named-file resolution skipped: %r",
+                _intent_err)
+            return None
     entries = await asyncio.to_thread(
         find_entries_sync, "", user_id, ws, 500)
     catalog_rows_seen = len(entries or [])
@@ -7346,6 +7440,112 @@ async def _datasets_named_file_block(
             + ". Do not select a version by name; ask which source version "
             "to use."
         )
+
+    # OPERATION DISPATCH (2026-10-25 work order): a row-selection /
+    # aggregation request is not an item lookup. Enter the existing
+    # materialized-dataset query planner before _resolve_active_items so
+    # sheet/predicate phrases never become item codes. The detail query
+    # runs first; totals/gaps are computed deterministically in Decimal.
+    _turn_operation = str(
+        ((context or {}).get("turn_program") or {}).get("operation") or "")
+    _aggregate_operation = _turn_operation == "aggregate"
+    # An explicit compare turn outranks aggregation (the compare contract
+    # carries a per-item outcome); the text-shape fallback must not
+    # override that decided operation.
+    if _turn_operation != "compare" and (
+            _aggregate_operation or looks_like_aggregate_request(lookup_text)):
+        try:
+            agg = await aggregate_named_dataset(
+                file_entries,
+                lookup_text,
+                llm_service,
+                file_name=names.get(key),
+            )
+        except Exception as _agg_err:  # noqa: BLE001 — named, never silent
+            logger.warning("named-file aggregation failed: %r", _agg_err)
+            agg = {
+                "status": "error",
+                "complete": False,
+                "gaps": [],
+                "subtotals": {},
+                "block": (
+                    "LIVE TOOL RESULTS (datasets.aggregate — deterministic): "
+                    "the aggregation lane failed; no total was computed."
+                ),
+            }
+        if plan is not None:
+            _agg_meta = getattr(plan, "_result_meta", None)
+            if not isinstance(_agg_meta, dict):
+                _agg_meta = {}
+                plan._result_meta = _agg_meta
+            _chosen_entry = next(
+                (
+                    entry for entry in file_entries
+                    if " ".join(str(entry.get("entity_name") or "").lower().split())
+                    == " ".join(str(agg.get("sheet") or "").lower().split())
+                ),
+                e0,
+            )
+            _content_hash = str(
+                agg.get("version") or _chosen_entry.get("content_hash") or "")
+            _agg_meta["datasets_aggregate"] = {
+                "status": agg.get("status"),
+                "complete": bool(agg.get("complete")),
+                "selected_count": agg.get("selected_count", 0),
+                "known_count": agg.get("known_count", 0),
+                "source_row_count": agg.get("source_row_count"),
+                "not_selected_count": agg.get("not_selected_count"),
+                "source_status_counts": agg.get(
+                    "source_status_counts") or {},
+                "selected_status_counts": agg.get(
+                    "selected_status_counts") or {},
+                "gaps": agg.get("gaps") or [],
+                "subtotals": agg.get("subtotals") or {},
+                "file_name": names.get(key),
+                "sheet": agg.get("sheet"),
+                "content_hash": _content_hash or None,
+                "source_modified_at": _chosen_entry.get(
+                    "source_modified_at"),
+                "ingested_at": _chosen_entry.get("ingested_at"),
+                "coverage": agg.get("coverage") or {},
+            }
+            _agg_meta["storage_read"] = {
+                "service": "datasets",
+                "file_id": key[1] or None,
+                "resource_id": key[1] or None,
+                "file_name": names.get(key),
+                "source": _chosen_entry.get("source"),
+                "content_hash": _content_hash or None,
+                "content_hash_algorithm": "sha1",
+                "source_modified_at": _chosen_entry.get(
+                    "source_modified_at"),
+                "ingested_at": _chosen_entry.get("ingested_at"),
+                # Identity verification is about the FILE, never about
+                # whether the arithmetic happened to be complete.
+                "identity_verified": bool(
+                    names.get(key) and _content_hash),
+                "completed": bool(agg.get("complete")),
+                "coverage_complete": bool(
+                    agg.get("complete")
+                    and not (agg.get("coverage") or {}).get("truncated")),
+                "coverage_limits": agg.get("coverage") or {},
+                "note": (
+                    "deterministic row selection/aggregation"
+                    if agg.get("complete")
+                    else "partial aggregation; named gaps/no complete total"
+                ),
+                "rendered_answer": agg.get("answer") or "",
+                "gaps": agg.get("gaps") or [],
+                "subtotals": agg.get("subtotals") or {},
+                "datasets_aggregate": True,
+            }
+            _agg_meta["datasets_search"] = {
+                "executed": agg.get("status") != "error",
+                "match_count": agg.get("selected_count", 0),
+                "coverage_complete": bool(agg.get("complete")),
+                "aggregate": True,
+            }
+        return _with_grounding(str(agg.get("block") or ""))
 
     sheet_names = sorted({
         str(entry.get("entity_name") or "").strip()
@@ -7899,6 +8099,7 @@ async def _datasets_named_file_block(
                     pass
                 return dis
 
+            _review_ask = _assessment_request(lookup_text)
             workbook_read = await asyncio.to_thread(
                 inspect_dataset_entries,
                 file_entries,
@@ -7908,6 +8109,11 @@ async def _datasets_named_file_block(
                 targets=item_tokens,
                 attributes=_attr_words,
                 requested_fields=_field_requests,
+                # A review gets the whole matched row; its named fields are
+                # the contract that must all resolve, or coverage stays
+                # incomplete (never a verified partial review).
+                include_all_fields=_review_ask,
+                require_requested_fields=_review_ask,
                 provider=prov["source"],
                 resource_id=prov["resource_id"],
                 source_metadata=e0.get("source_metadata") or {},
@@ -10354,8 +10560,21 @@ async def execute_tool_plan(
                     "is absent.")
             return _with_grounding(render_find_all_result(scan))
         block = await _datasets_named_file_block(
-            user_id, query, context, plan=plan)
+            user_id, query, context, plan=plan,
+            llm_service=llm_service)
         if block is None:
+            _named_scope = (
+                (getattr(plan, "_result_meta", {}) or {})
+                .get("named_file_scope") or {}
+            )
+            if _named_scope.get("reader") in (
+                    "documents", "mixed", "unknown"):
+                return _with_grounding(
+                    "LIVE TOOL RESULTS (datasets.named-file) — the named "
+                    "source is a document/mixed request, so the dataset "
+                    "catalog was NOT searched. Do not substitute workbook "
+                    "rows for it; use the document capability."
+                )
             block = await _datasets_search_block(
                 user_id, query, context, plan=plan)
         if block:

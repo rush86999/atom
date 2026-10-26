@@ -99,7 +99,48 @@ def finalize_payload(
         if not payload.get("message") or payload["message"].strip() in (
                 "Message processed successfully", ""):
             payload["message"] = UNKNOWN_OUTCOME_MESSAGE
+    # RESOLVED TASK OUTCOME (2026-10-26). The execution row carries the
+    # criteria-derived verdict (e.g. a verified file read that satisfies
+    # source_scoped_retrieval). Without this mapping the delivered envelope
+    # kept outcome=null even though the turn's own durable outcome said
+    # objective_met=True. Derive only an EXPLICIT verdict: unknown criteria
+    # stay null, and only an ESTABLISHED successful execution may settle.
+    # Unknown/missing/partial/queued states retain their own disposition;
+    # a contradictory task verdict must not turn them into completed.
+    if status in _TASK_OUTCOME_ELIGIBLE_STATUSES:
+        task_state = _task_outcome_state(execution)
+        if task_state is not None and payload.get("outcome") is None:
+            payload["outcome"] = task_state
+            if task_state == "failed":
+                payload["success"] = False
+                payload["error_code"] = (
+                    payload.get("error_code") or "turn_objective_not_met")
     return payload
+
+
+# Only a successful execution has an established state that a criteria
+# verdict may settle. Pending/running/paused/partial/cancelled/timeout and
+# unknown/missing statuses keep their own disposition.
+_TASK_OUTCOME_ELIGIBLE_STATUSES = frozenset({
+    "success", "succeeded", "completed",
+})
+
+
+def _task_outcome_state(execution: Optional[Dict[str, Any]]) -> Optional[str]:
+    """Map an explicit resolved objective verdict to the envelope outcome.
+
+    ``objective_met`` is tri-state. Only True/False are resolved verdicts;
+    None (criteria unknown, evidence missing) must remain unstated.
+    """
+    task_outcome = (execution or {}).get("task_outcome")
+    if not isinstance(task_outcome, dict):
+        return None
+    objective_met = task_outcome.get("objective_met")
+    if objective_met is True:
+        return "completed"
+    if objective_met is False:
+        return "failed"
+    return None
 
 
 def execution_record_from_row(row: Optional[Dict[str, Any]],
@@ -121,12 +162,19 @@ def execution_record_from_row(row: Optional[Dict[str, Any]],
         except Exception:
             meta = {}
     cont = meta.get("continuation") or {}
-    return {
+    record = {
         "execution_id": execution_id or (row or {}).get("id"),
         "status": (row or {}).get("status"),
         "result_summary": (row or {}).get("result_summary"),
         "failure_stage": cont.get("failure_stage") or (row or {}).get("failure_stage"),
     }
+    # Carry the criteria-derived verdict so the envelope can settle from the
+    # same durable task outcome the execution row records. Absent stays
+    # absent (never a synthetic None that reads as a resolved verdict).
+    task_outcome = meta.get("task_outcome")
+    if isinstance(task_outcome, dict):
+        record["task_outcome"] = task_outcome
+    return record
 
 
 RECORDED_OUTCOME_ERROR_CODES = {

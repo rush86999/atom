@@ -595,6 +595,251 @@ def _reference_candidates(
     return matches
 
 
+#: A request can NAME a source by description instead of by filename
+#: ("the approved record", "the same document"). This is not a source
+#: KIND; it is a reference to an antecedent the conversation has already
+#: observed. The deterministic floor resolves it against the observed
+#: pool with the SAME collector used for interpretation proposals, so a
+#: degraded interpretation cannot erase an explicitly named, unambiguous
+#: continuation.
+_SOURCE_REFERENCE_RE = re.compile(
+    r"\b(?:the|that|this|same|my|our|your|their|its)\s+"
+    r"((?:[A-Za-z0-9][A-Za-z0-9&'’._-]*\s+){0,3}?)"
+    r"(records?|documents?|files?|reports?)\b",
+    re.IGNORECASE,
+)
+#: Descriptors that carry no identity constraint in a source reference.
+#: These are participation/attachment modifiers, not names — the same
+#: distinction `_REFERENCE_STOPWORDS` draws for glue words.
+_SOURCE_REFERENCE_MODIFIERS = frozenset({
+    # Attachment/participation verbs do not identify a document; temporal
+    # or versioning adjectives ("original", "latest", "current") DO and
+    # must stay in the identity phrase.
+    "uploaded", "attached", "enclosed", "provided", "supplied", "shared",
+    # A back-reference marker, not an identity token: "the same document"
+    # must resolve like "the document".
+    "same",
+})
+_SOURCE_REFERENCE_KIND_TOKENS = frozenset({
+    "record", "records", "document", "documents", "file", "files",
+    "report", "reports",
+})
+#: Request nouns that name the same evidence family but are not all in the
+#: program's canonical kind vocabulary. Used ONLY to compare a floor
+#: capture with a resolved reference; it never selects a source.
+_SOURCE_FAMILY_ALIASES = {
+    "file": "document", "files": "document", "doc": "document",
+    "docs": "document", "pdf": "document", "pdfs": "document",
+    "document": "document", "documents": "document",
+    "record": "record", "records": "record",
+    "email": "email", "emails": "email", "mail": "email",
+    "mails": "email", "inbox": "email",
+    "thread": "thread", "threads": "thread",
+    "spreadsheet": "spreadsheet", "spreadsheets": "spreadsheet",
+    "workbook": "spreadsheet", "workbooks": "spreadsheet",
+    "sheet": "spreadsheet",
+}
+#: Families a BARE back-reference ("the record", "the file") may bind.
+#: A user's "record" commonly means an ingested document, never an email;
+#: "file"/"document"/"report" stay in the document family. A family noun
+#: is a constraint, not a wildcard over every observed source.
+_BACKREF_FAMILIES = {
+    "record": frozenset({"record", "document"}),
+    "records": frozenset({"record", "document"}),
+    "file": frozenset({"document"}),
+    "files": frozenset({"document"}),
+    "document": frozenset({"document"}),
+    "documents": frozenset({"document"}),
+    "report": frozenset({"document"}),
+    "reports": frozenset({"document"}),
+}
+
+
+def _source_family_key(source: Any) -> str:
+    key = str(source or "").strip().casefold()
+    try:
+        from core.action_program import normalize_source_kind
+
+        kind = normalize_source_kind(key)
+    except Exception:  # noqa: BLE001 — comparison helper only
+        kind = ""
+    return kind or _SOURCE_FAMILY_ALIASES.get(key, key)
+
+
+def _request_source_reference_phrases(message: str) -> List[str]:
+    """Named source references in the request, as identity phrases.
+
+    Only the nearest determiner-led phrase ending in a source noun is
+    kept ("the approved record"), with attachment/participation modifiers
+    removed. Conjunctions and punctuation break the phrase, so
+    "the draft, and ... the approved record" yields the latter, not a
+    merged descriptor."""
+    phrases: List[str] = []
+    seen = set()
+    text = str(message or "")
+    for match in _SOURCE_REFERENCE_RE.finditer(text):
+        descriptor_tokens = [
+            token for token in re.findall(
+                r"[A-Za-z0-9][A-Za-z0-9&'’._-]*", match.group(1))
+            if token.casefold() not in _SOURCE_REFERENCE_MODIFIERS
+            and token.casefold() not in _REFERENCE_STOPWORDS]
+        phrase_tokens = [*descriptor_tokens, match.group(2).casefold()]
+        # Preserve a trailing identifier constraint ("approved record A",
+        # "approved records AB-12", "approved record 381"). Only a
+        # digit-bearing token or a single capital letter qualifies; an
+        # ordinary following word is not part of the name.
+        tail = re.match(
+            r"\s*(?:[\(\[]\s*['\"]?|#\s*)?"
+            r"([A-Za-z0-9][A-Za-z0-9._-]{0,15})\b",
+            text[match.end():])
+        if tail:
+            token = tail.group(1)
+            if (any(ch.isdigit() for ch in token)
+                    or (len(token) == 1 and token.isalpha()
+                        and token.isupper())):
+                phrase_tokens.append(token)
+        phrase = " ".join(phrase_tokens).strip()
+        key = phrase.casefold()
+        if phrase and key not in seen:
+            seen.add(key)
+            phrases.append(phrase)
+    return phrases
+
+
+def _reference_phrase_variants(phrase: str) -> List[str]:
+    """Identity-match variants for one named reference.
+
+    The strongest form is tried first. A trailing CONTAINER noun is
+    removed only when ANOTHER source noun remains in the phrase
+    ("approved records document" -> "approved records"). The sole
+    identity noun is never stripped: "approved record" must not fall
+    through to the bare adjective "approved", which would bind an
+    unrelated file such as approved_quotation.pdf."""
+    tokens = _reference_tokens(phrase)
+    variants: List[str] = []
+    if tokens:
+        variants.append(" ".join(tokens))
+    while (len(tokens) >= 2
+           and tokens[-1] in _SOURCE_REFERENCE_KIND_TOKENS
+           and any(token in _SOURCE_REFERENCE_KIND_TOKENS
+                   for token in tokens[:-1])):
+        tokens = tokens[:-1]
+        candidate = " ".join(tokens)
+        if candidate not in variants:
+            variants.append(candidate)
+    return variants
+
+
+def resolve_request_source_reference(
+    message: str, session: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """Resolve a request's NAMED source against observed evidence.
+
+    Fail-closed by construction:
+
+    * no named reference -> None (the request does not ask for a source);
+    * no observed evidence -> None (a request nominates, it does not
+      establish evidence);
+    * one observed candidate -> resolved;
+    * several candidates -> ambiguous, ALL candidates preserved;
+    * a named reference with no candidate -> unresolved, the name kept.
+
+    No prior requirement carrier is an antecedent, and no candidate is
+    selected by insertion order. This is the deterministic-floor
+    counterpart of ``apply_interpretation_references``; it never consumes
+    a model proposal, so a degraded interpretation cannot invent a source.
+    """
+    phrases = _request_source_reference_phrases(message)
+    if not phrases:
+        return None
+    observed = session_observed_sources(session)
+    if not observed:
+        return None
+    from core.action_program import normalize_source_kind
+
+    resolutions: List[Dict[str, Any]] = []
+    for phrase in phrases:
+        candidates: List[Dict[str, Any]] = []
+        for variant in _reference_phrase_variants(phrase):
+            candidates = _reference_candidates(variant, observed)
+            if candidates:
+                break
+        bare_kind = (
+            len(_reference_tokens(phrase)) == 1
+            and phrase.casefold() in _SOURCE_REFERENCE_KIND_TOKENS)
+        if not candidates and bare_kind:
+            # "the record" / "the same document" / "the file" with no
+            # same-family observed source is a BACK-REFERENCE to the
+            # conversation's observed evidence — WITHIN the named family.
+            # One candidate resolves; several stay ambiguous; a different
+            # family (an email for "the record") is never adopted.
+            allowed_families = _BACKREF_FAMILIES.get(
+                phrase.casefold()) or frozenset({
+                    _source_family_key(phrase)})
+            candidates = [
+                entry for entry in observed
+                if _source_family_key(entry.get("kind"))
+                in allowed_families]
+        resolutions.append({
+            "phrase": phrase,
+            "kind": normalize_source_kind(phrase),
+            "candidates": candidates,
+        })
+    missing = [r for r in resolutions if not r["candidates"]]
+    observed_kinds = sorted({
+        str(entry.get("kind") or "") for entry in observed
+        if str(entry.get("kind") or "")}) or ["document"]
+    if missing:
+        return {
+            "origin": "deterministic_floor",
+            "state": "unresolved",
+            "resolved_file": "",
+            "resolved_kinds": observed_kinds,
+            "phrases": phrases,
+            "names": [r["phrase"] for r in missing][:4],
+        }
+    # Union every candidate before deciding; several distinct files are
+    # ambiguity, never a first-match choice.
+    distinct: List[Dict[str, Any]] = []
+    seen = set()
+    for resolution in resolutions:
+        for candidate in resolution["candidates"]:
+            key = _source_identity_key(
+                candidate.get("kind"), candidate.get("file_name"))
+            if key in seen:
+                continue
+            seen.add(key)
+            distinct.append(candidate)
+    kinds = sorted({
+        str(candidate.get("kind") or "") for candidate in distinct
+        if str(candidate.get("kind") or "")}) or observed_kinds
+    if len(distinct) == 1:
+        candidate = distinct[0]
+        return {
+            "origin": "deterministic_floor",
+            "state": "resolved",
+            "resolved_file": str(candidate.get("file_name") or ""),
+            "resolved_kinds": kinds,
+            "phrases": phrases,
+            "antecedents": [{
+                "kind": candidate.get("kind"),
+                "file_name": candidate.get("file_name"),
+                "execution_id": candidate.get("execution_id"),
+            }],
+        }
+    return {
+        "origin": "deterministic_floor",
+        "state": "ambiguous",
+        "resolved_file": "",
+        "resolved_kinds": kinds,
+        "phrases": phrases,
+        "candidates": [{
+            "kind": candidate.get("kind"),
+            "file_name": candidate.get("file_name"),
+        } for candidate in distinct][:4],
+    }
+
+
 def apply_interpretation_references(
     decision: Optional[Dict[str, Any]],
     interpretation: Optional[Dict[str, Any]],
@@ -763,6 +1008,311 @@ def apply_interpretation_references(
     # No candidates anywhere: generic-kind-only proposals never nominate
     # an antecedent; the decision is unchanged.
     return decision
+
+
+#: Imperative work that makes a turn MORE than a bounded read-only
+#: continuation. A deterministic fast path must never skip planning for a
+#: request that also mutates, sends, schedules, or submits. "draft" is
+#: deliberately absent: it is the ARTIFACT the S7 ask compares, not a verb.
+_COMPOUND_ACTION_VETO_RE = re.compile(
+    # A transitive action verb followed by a determiner/pronoun object
+    # ("send it", "updated the draft", "sending it"). An inflected form
+    # used as an ADJECTIVE ("the updated draft") does not match because
+    # no object follows.
+    r"\b(?:updat(?:e|es|ed|ing)|edit(?:s|ed|ing)?|"
+    r"chang(?:e|es|ed|ing)|set|sets|setting|apply|applies|applied|"
+    r"applying|send|sends|sent|sending|creat(?:e|es|ed|ing)|"
+    r"add|adds|added|adding|remov(?:e|es|ed|ing)|"
+    r"delet(?:e|es|ed|ing)|writ(?:e|es|ten|ing)|"
+    r"schedul(?:e|es|ed|ing)|book|books|booked|booking|"
+    r"pay|pays|paid|paying|submit|submits|submitted|submitting|"
+    r"upload|uploads|uploaded|uploading|remember|remembers|remembered|"
+    r"remembering|learn|learns|learned|learning|"
+    r"replac(?:e|es|ed|ing)|correct(?:s|ed|ing)?|fix(?:es|ed|ing)?)\b"
+    r"\s+(?:the|a|an|this|that|my|our|your|their|its|it|them|him|her|"
+    r"me|us)\b"
+    # A determinerless imperative still names an artifact object: "update
+    # draft", "send draft", "add terms". An inflected ADJECTIVE
+    # ("updated draft") is not in this verb list.
+    r"|\b(?:update|edit|change|set|apply|send|create|add|remove|delete|"
+    r"write|schedule|book|pay|submit|upload|replace|correct|fix)\b\s+"
+    r"(?:draft|document|email|message|summary|terms?|price|prices|row|"
+    r"rows|field|fields|footer|list|quote|quotation|canvas|sheet|slide|"
+    r"text|copy|content|subject|body|table)\b"
+    # A creative/build verb can take a bare or lightly qualified object
+    # ("prepare summary", "prepare short summary"). "on the draft" is not
+    # a verb use.
+    r"|\b(?:draft|prepare|compose|write|rewrite|revise|adjust|insert|"
+    r"replace|correct|fix)\b\s+"
+    r"(?:a|an|the|my|our|your|it|this|that|summary|reply|email|"
+    r"message|paragraph|section|terms?|name|short|new|brief|final|"
+    r"clean)\b"
+    # A mutation/send verb with ANY object is still an additional
+    # obligation. This is the general action clause the obligation
+    # extractor records; it is not a phrase-specific blacklist.
+    r"|\b(?:insert|append|prepend|send|submit|upload|schedule|book|"
+    r"pay|create|write|remove|delete|add)\b\s+\w+",
+    re.IGNORECASE,
+)
+
+
+def deterministic_continuation_ready(
+    message: str,
+    session: Optional[Dict[str, Any]],
+    decision: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """The bounded shape whose facts do not need a model interpretation.
+
+    Ready only when ALL of the following hold:
+
+    * the request is comparison-shaped, seek-shaped, and carries exactly
+      one canonical typed field;
+    * it names a source by description and that source resolves to
+      exactly ONE observed antecedent;
+    * it contains no mutation/send/schedule obligation;
+    * the deterministic decision proposed no action beyond conversation
+      or research.
+
+    The caller may use these facts immediately, with at most a bounded
+    optional model refinement: the named reference and the typed field
+    are the request contract, and the existing comparison renderer
+    consumes them. Anything broader, ambiguous, unresolved, or mixed
+    stays on the normal interpretation path.
+    """
+    text = str(message or "")
+    if not text.strip() or _COMPOUND_ACTION_VETO_RE.search(text):
+        return None
+    if not _looks_seek_shaped(text):
+        return None
+    try:
+        # The accepted assignment/obligation table is the authority: any
+        # additional mutation/send/insertion clause means the request is
+        # more than the bounded read-only continuation.
+        _obligations = extract_request_assignments(text)
+        if (_obligations.get("unresolved_additions")
+                or _obligations.get("additional_actions")):
+            return None
+    except Exception:  # noqa: BLE001 — fail closed on the fast path
+        return None
+    try:
+        from core.workbook_read_artifact import (
+            accepted_comparison_scope, comparison_request_shaped,
+            extract_field_requests,
+        )
+
+        if not comparison_request_shaped(text):
+            return None
+        fields = extract_field_requests([text])
+        # Only a NARROW request may skip the model. A genuinely broad
+        # follow-up keeps its whole-document obligation on the normal
+        # interpretation path (and the degraded fallback if that model is
+        # unavailable).
+        if accepted_comparison_scope(
+                {"requested_fields": fields, "constraints": []}, text):
+            return None
+    except Exception:  # noqa: BLE001 — the fast path is optional
+        return None
+    if len(fields) != 1:
+        return None
+    resolved = resolve_request_source_reference(text, session)
+    if not resolved or str(resolved.get("state") or "") != "resolved":
+        return None
+    if isinstance(decision, dict):
+        refs = decision.get("references")
+        refs = refs if isinstance(refs, dict) else {}
+        if refs.get("file"):
+            # A specific floor file owns the source identity; the named
+            # reference must not silently replace it.
+            return None
+        floor_families = {
+            _source_family_key(source)
+            for source in (refs.get("sources") or []) if str(source)}
+        resolved_families = {
+            _source_family_key(kind)
+            for kind in (resolved.get("resolved_kinds") or []) if str(kind)}
+        phrase_families = {
+            _source_family_key(token)
+            for phrase in (resolved.get("phrases") or [])
+            for token in _reference_tokens(phrase)}
+        if floor_families - resolved_families - phrase_families:
+            # Another source family is part of the request ("also check
+            # my email"); the named-record fast path cannot account for it.
+            return None
+        kinds = {
+            str(action.get("kind") or "")
+            for action in (decision.get("requested_actions") or [])
+            if isinstance(action, dict) and action.get("kind")
+        }
+        if kinds - {_KIND_RESEARCH, "conversation"}:
+            return None
+    return {"reference": resolved, "fields": fields}
+
+
+def apply_degraded_continuation_references(
+    decision: Optional[Dict[str, Any]],
+    interpretation: Optional[Dict[str, Any]],
+    session: Optional[Dict[str, Any]],
+    message: str = "",
+    *,
+    fill_missing_source: bool = False,
+) -> Optional[Dict[str, Any]]:
+    """Compose the request's named source when the model did not.
+
+    Two entry conditions:
+
+    * the semantic interpretation is unresolved/absent (the degraded
+      path); or
+    * ``fill_missing_source`` is set and the resolved record left NO
+      reference marker. A schema-valid record with ``sources=[]`` made no
+      source decision; a generic floor capture ("document") is a
+      nomination, not a model decision. The request's own named reference
+      is still the contract.
+
+    A model that supplied a resolved/ambiguous/unresolved marker is
+    respected. A specific floor file is preserved; a named reference to a
+    different file becomes an unresolved mixed marker so the receipt
+    cannot certify the whole request from the floor file alone.
+
+    Fail-closed: no named reference, no observed evidence, or several
+    candidates composes nothing (or preserves ambiguity); no prior
+    requirement carrier is evidence, and no candidate is selected by
+    insertion order.
+    """
+    if not isinstance(decision, dict):
+        return decision
+    resolved_interpretation = False
+    if isinstance(interpretation, dict):
+        origin = str(interpretation.get("origin") or "")
+        scope_change = str(interpretation.get("scope_change") or "")
+        resolved_interpretation = (
+            origin != "unresolved" and scope_change != "unresolved")
+        if resolved_interpretation and not fill_missing_source:
+            return decision
+    text = message or str(decision.get("message") or "")
+    if not _looks_seek_shaped(text):
+        # A conversational mention ("the approved record was helpful") is
+        # not an evidence request; do not manufacture an obligation.
+        return decision
+    refs = decision.get("references")
+    refs = refs if isinstance(refs, dict) else {}
+
+    def _compose(marker: Dict[str, Any]) -> Dict[str, Any]:
+        composed = dict(decision)
+        new_refs = dict(refs)
+        new_refs["continuation_evidence"] = marker
+        composed["references"] = new_refs
+        provenance = dict(composed.get("provenance") or {})
+        signals = list(provenance.get("signals") or [])
+        signals.append(
+            "degraded_source_reference_%s"
+            % str(marker.get("state") or "unresolved"))
+        provenance["signals"] = signals
+        composed["provenance"] = provenance
+        return composed
+
+    # AN ADDITIONAL ACTION OBLIGATION BLOCKS READ-ONLY COMPLETION even
+    # when the model resolved a source or the source itself resolves.
+    # The existing assignment/obligation table is the authority; this is
+    # not a phrase list. The marker reuses the request-bound unresolved
+    # identity, so every settlement path sees unfinished work.
+    try:
+        _actions = extract_request_assignments(text).get(
+            "additional_actions") or []
+    except Exception:  # noqa: BLE001 — the obligation extractor is total
+        _actions = []
+    if _actions:
+        return _compose({
+            "origin": "deterministic_floor",
+            "state": "unresolved",
+            "resolved_file": "",
+            "resolved_kinds": [],
+            "phrases": [str(a.get("text") or "")[:120]
+                        for a in _actions][:4],
+            "names": [str(a.get("text") or "")[:120]
+                      for a in _actions][:4],
+            "unresolved_reason": "additional_action",
+        })
+    if resolved_interpretation and refs.get("continuation_evidence"):
+        # The model made a source decision (including an honest
+        # unresolved/ambiguous one); do not overwrite it. A generic floor
+        # capture without a marker is only a nomination and may be
+        # refined below; a specific floor file is preserved by the
+        # mixed-marker branch.
+        return decision
+    resolved = resolve_request_source_reference(text, session)
+    if not resolved:
+        return decision
+
+    def _mixed_marker(reason: str) -> Dict[str, Any]:
+        marker = dict(resolved)
+        marker.update({
+            "state": "unresolved",
+            "resolved_file": "",
+            "mixed_source_families": reason,
+            "names": list(
+                resolved.get("names")
+                or resolved.get("phrases")
+                or ["the named source"])[:4],
+        })
+        return marker
+
+    kinds = [
+        str(kind) for kind in (resolved.get("resolved_kinds") or [])
+        if str(kind)] or ["document"]
+    resolved_families = {
+        _source_family_key(kind) for kind in kinds}
+    floor_sources = {
+        str(source) for source in (refs.get("sources") or []) if str(source)}
+    floor_families = {
+        _source_family_key(source) for source in floor_sources}
+    phrase_families = {
+        _source_family_key(token)
+        for phrase in (resolved.get("phrases") or [])
+        for token in _reference_tokens(phrase)}
+
+    if refs.get("file"):
+        floor_file = refs.get("file") if isinstance(
+            refs.get("file"), dict) else {}
+        floor_name = str(
+            floor_file.get("file_name") or floor_file.get("name") or "")
+        if (str(resolved.get("state") or "") == "resolved"
+                and floor_name
+                and str(resolved.get("resolved_file") or "").casefold()
+                == floor_name.casefold()):
+            return decision
+        # Preserve the floor file but record the named reference as an
+        # unresolved mixed obligation. The requirement identity prefers
+        # this marker over the file, so the turn cannot complete from the
+        # floor file alone.
+        return _compose(_mixed_marker("floor_file_and_named_reference"))
+
+    if floor_families - resolved_families - phrase_families:
+        # The turn names ANOTHER source family ("also check my email").
+        # Preserve that obligation but mark the named reference unresolved:
+        # the receipt must not certify the whole request from one family.
+        return _compose(_mixed_marker("additional_source_family"))
+
+    composed = dict(decision)
+    new_refs = dict(refs)
+    # Preserve the floor's own source vocabulary ("documents") while the
+    # named reference supplies the file identity. Only a completely empty
+    # floor capture needs the resolved kind.
+    new_refs["sources"] = sorted(floor_sources) if floor_sources else sorted(
+        resolved_families)
+    if str(resolved.get("state") or "") == "resolved":
+        file_name = str(resolved.get("resolved_file") or "")
+        if file_name:
+            new_refs["file"] = {"file_name": file_name}
+    new_refs["continuation_evidence"] = resolved
+    composed["references"] = new_refs
+    provenance = dict(composed.get("provenance") or {})
+    signals = list(provenance.get("signals") or [])
+    signals.append(
+        "degraded_source_reference_%s"
+        % str(resolved.get("state") or "unresolved"))
+    provenance["signals"] = signals
+    composed["provenance"] = provenance
+    return composed
 
 
 def build_turn_decision(
@@ -1186,9 +1736,26 @@ def extract_request_assignments(
             r"\bfrom\s+(our\s+)?(records|systems?|files?|crm|workbook|"
             r"database|hr\s+system|personnel\s+record)\b", text, _re.IGNORECASE):
         source_refs.append(m.group(0))
+    # ADDITIONAL ACTION OBLIGATIONS. The accepted assignment spans are
+    # already accounted for above; any OTHER mutation/send/insertion
+    # clause is an unresolved obligation. The fast read-only path must
+    # refuse the whole request, not just the exact object noun.
+    occupied = [
+        (int(span[0]), int(span[1]))
+        for span in (a.get("span") for a in assignments)
+        if isinstance(span, (list, tuple)) and len(span) == 2]
+    additional_actions: List[Dict[str, Any]] = []
+    for m in _COMPOUND_ACTION_VETO_RE.finditer(text):
+        if any(start <= m.start() < end or start < m.end() <= end
+               for start, end in occupied):
+            continue
+        snippet = m.group(0).strip()[:120]
+        if snippet:
+            additional_actions.append({"text": snippet})
     return {
         "assignments": assignments,
         "unresolved_additions": unresolved,
+        "additional_actions": additional_actions,
         "source_references": source_refs,
     }
 
@@ -1231,7 +1798,9 @@ def turn_evidence_required(
     # a research action must not prove the evidence unnecessary.
     try:
         message = str(decision.get("message") or "")
-        if extract_request_assignments(message).get("source_references"):
+        _obligations = extract_request_assignments(message)
+        if (_obligations.get("source_references")
+                or _obligations.get("additional_actions")):
             return True
     except Exception:  # noqa: BLE001 — additive; never blocks the lane
         pass
@@ -1483,6 +2052,46 @@ def _interpretation_unresolved(
         "confidence": 0.0,
         # The deterministic decision rides along: an unresolved
         # interpretation leaves the existing floor fully in charge.
+        "deterministic_decision": deterministic,
+    }
+
+
+def interpretation_deterministic_continuation(
+    message: str,
+    request_id: str,
+    deterministic: Optional[Dict[str, Any]],
+    reference: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """An EXPLICIT non-model interpretation for a bounded continuation.
+
+    This is not a degraded record: the request's own named reference and
+    typed field establish the contract, and the deterministic floor has
+    already resolved the source against observed evidence. Recording the
+    origin honestly (instead of a model attribution) keeps the evidence
+    truthful and the turn off the interpretation budget.
+    """
+    reference = reference if isinstance(reference, dict) else {}
+    file_name = str(reference.get("resolved_file") or "")
+    kinds = [str(kind) for kind in (reference.get("resolved_kinds") or [])
+             if str(kind)] or ["document"]
+    return {
+        "schema": INTERPRETATION_SCHEMA,
+        "request_id": request_id,
+        "origin": "deterministic:continuation",
+        "unresolved_reason": "",
+        "message": (message or "")[:500],
+        "actions": [{
+            "kind": _KIND_RESEARCH,
+            "authorization": AUTH_GRANTED,
+            "note": "deterministic read-only continuation",
+        }],
+        "subjects": [],
+        "sources": [file_name] if file_name else kinds,
+        "requested_fields": [],
+        "output_format": "",
+        "constraints": [],
+        "scope_change": "continue",
+        "confidence": 1.0,
         "deterministic_decision": deterministic,
     }
 

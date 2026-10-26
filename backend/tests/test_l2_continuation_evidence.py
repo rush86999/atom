@@ -85,6 +85,17 @@ PRIOR_OBS_KEY = "_retrieval_source_observations_l2prior0001"
 S7_REPLY = ("The draft’s Valid until date is 2026-12-31, which still "
             "matches the approved record’s Approved valid until: "
             "2026-12-31.")
+S7_CANVAS = {
+    "canvas_id": "canvas-s7",
+    "canvas_type": "document",
+    "title": "Quotation Q-2026-114 (DRAFT)",
+    "content": {"body": (
+        "# Quotation Q-2026-114 (DRAFT)\n\n"
+        "Client: Dunmore Fabrication LLC\n"
+        "Unit price: $48,000.00\n"
+        "Terms: Net 45\n"
+        "Valid until: 2026-12-31\n")},
+}
 
 
 def _source_refs_from_prompt(prompt: str) -> dict:
@@ -267,6 +278,9 @@ def _seed_conversation_evidence(session, workspace_id, observed_files=None):
         "subjects": [],
         "identity": {"state": "kind_only", "candidates": []},
         "artifact_attached": True,
+        # The prior S3 turn was broad ("flag anything that differs"); the
+        # S7 date-only follow-up must not inherit it.
+        "broader_comparison": True,
     }
     session[PRIOR_OBS_KEY] = [
         {"observation_id": f"l2-prior-{i}",
@@ -355,7 +369,7 @@ def _drive_continuation_turn(
         scoped_world, world_app, *, interpretation,
         session_id="sess-l2", reply_text=S7_REPLY,
         message=S7_ASK, session_out=None, seed_evidence=True,
-        observed_files=None):
+        observed_files=None, canvas=None, persist_history=False):
     """One real product turn for the continuation ask.
 
     Controlled external seams: the interpretation record, the
@@ -385,9 +399,13 @@ def _drive_continuation_turn(
         if session_out is not None:
             session_out["session"] = session
             session_out["workspace_id"] = ws["workspace_id"]
+            session_out["interpret_calls"] = 0
 
         async def _fake_interpret(message_, session_=None, history=None,
                                   context=None, **kw):
+            if session_out is not None:
+                session_out["interpret_calls"] = (
+                    session_out.get("interpret_calls") or 0) + 1
             return dict(interpretation)
 
         async def _fake_assemble(**kwargs):
@@ -429,10 +447,11 @@ def _drive_continuation_turn(
                 patch.object(orch, "_get_or_create_session",
                              return_value=session),
                 patch.object(orch, "_resolve_canvas_ctx",
-                             new=AsyncMock(return_value=None)),
+                             new=AsyncMock(return_value=canvas)),
                 patch.object(orch, "_record_chat_step", new=AsyncMock()),
                 patch.object(orch, "_emit_agent_status", new=AsyncMock()),
-                patch.object(orch, "_update_session", new=MagicMock()),
+                *([] if persist_history else [
+                    patch.object(orch, "_update_session", new=MagicMock())]),
                 patch.object(orch, "_load_conversation_mail_handles",
                              return_value=([], [])),
                 patch.object(orch, "_route_to_features",
@@ -460,9 +479,11 @@ def _drive_continuation_turn(
                       new=AsyncMock(side_effect=_structured)),
             ]:
                 st.enter_context(cm)
+            _context = {"workspace_id": ws["workspace_id"]}
+            if canvas:
+                _context["canvas_id"] = canvas["canvas_id"]
             out = asyncio.run(orch.process_chat_message(
-                ws["user_id"], message, session_id,
-                context={"workspace_id": ws["workspace_id"]}))
+                ws["user_id"], message, session_id, context=_context))
         return out, session, ep
     finally:
         ep.__exit__()
@@ -1404,7 +1425,9 @@ class TestL2ContinuationChain:
             self, scoped_world, world_app):
         """Owner regression through the real turn: a short identifier
         constraint is preserved — 381 never resolves to 6603; with the
-        381 file observed it resolves and certifies."""
+        381 file observed it resolves and certifies. The bounded
+        refinement keeps the model's more specific proposal authoritative
+        when it resolves inside the short window."""
         session_out = {}
         out, session, ep = _drive_continuation_turn(
             scoped_world, world_app,
@@ -1586,18 +1609,464 @@ class TestL2ContinuationChain:
         assert any("no ingested document matches" in str(w)
                    for w in (settled.get("open_work") or []))
 
-    def test_unresolved_interpretation_keeps_the_turn_unobligated(
+    def test_unresolved_interpretation_recovers_the_named_antecedent(
             self, scoped_world, world_app, monkeypatch):
+        """A degraded interpretation does not erase an EXPLICIT, named
+        source the conversation already observed. The requirement is
+        recovered from the request + observed evidence, not invented by
+        the interpreter: the date-only scope stays narrow and the source
+        identity is the one the user named."""
         degraded = dict(_resolved_interpretation())
         degraded["origin"] = "unresolved"
         degraded["scope_change"] = "unresolved"
+        degraded["sources"] = []
+        degraded["requested_fields"] = []
+        degraded["actions"] = []
         session_out = {}
         out, session, ep = _drive_continuation_turn(
             scoped_world, world_app, interpretation=degraded,
             session_out=session_out)
         eid, req = _turn_requirement(session, out)
+        assert req.get("required") is True, req
+        assert req.get("sources") == ["document"], req
+        assert req.get("fields") == ["expiration_date"], req
+        assert req.get("broader_comparison") is False, req
+        identity = req.get("identity") or {}
+        assert identity.get("state") == "resolved", identity
+        assert identity.get("file_name") == PRIOR_FILE, identity
+        assert identity.get("file_id"), identity
+        verdict, settled = _settlement_from_turn(
+            session, eid, session_out["workspace_id"])
+        assert verdict and verdict.get("state") == "completed", verdict
+        assert settled.get("state") == "completed", settled
+        assert settled.get("delivered") is True, settled
+
+    def test_degraded_turn_certifies_narrow_comparison_zero_writes(
+            self, scoped_world, world_app, monkeypatch):
+        """The captured date-only ask, through the real turn with an
+        attached canvas: the source is bound to THIS execution and
+        workspace, the comparison covers exactly the date, the canvas is
+        untouched, and the response, settlement and fresh history agree."""
+        import copy
+
+        from core.models import CanvasAudit, ChatMessage
+
+        degraded = dict(_resolved_interpretation())
+        degraded["origin"] = "unresolved"
+        degraded["scope_change"] = "unresolved"
+        degraded["sources"] = []
+        degraded["requested_fields"] = []
+        degraded["actions"] = []
+        canvas_before = copy.deepcopy(S7_CANVAS)
+        accepted = {}
+
+        import core.turn_decision as td
+
+        _orig_apply = td.apply_interpretation_references
+
+        def _capture_apply(decision, interpretation, session_arg):
+            accepted["origin"] = (interpretation or {}).get("origin")
+            accepted["refinement"] = (interpretation or {}).get(
+                "refinement")
+            return _orig_apply(decision, interpretation, session_arg)
+
+        monkeypatch.setattr(
+            td, "apply_interpretation_references", _capture_apply)
+        session_out = {}
+        out, session, ep = _drive_continuation_turn(
+            scoped_world, world_app, interpretation=degraded,
+            canvas=S7_CANVAS, session_out=session_out,
+            persist_history=True)
+
+        eid, req = _turn_requirement(session, out)
+        assert req.get("required") is True, req
+        assert req.get("sources") == ["document"], req
+        assert req.get("fields") == ["expiration_date"], req
+        assert req.get("broader_comparison") is False, req
+        assert req.get("artifact_attached") is True, req
+        identity = req.get("identity") or {}
+        assert identity.get("state") == "resolved", identity
+        assert identity.get("file_name") == PRIOR_FILE, identity
+        assert identity.get("file_id"), identity
+        # execution/workspace binding: the requirement key is this turn's
+        # execution and the observation carries the authenticated workspace.
+        assert eid and str(out.get("execution_id") or "") == eid
+        observations = session.get(
+            f"_retrieval_source_observations_{eid}") or []
+        assert observations and all(
+            str(o.get("workspace_id") or "") == session_out["workspace_id"]
+            for o in observations), observations
+
+        assert session_out.get("interpret_calls") == 1, (
+            "the bounded refinement is attempted once inside its short "
+            "window")
+        assert accepted.get("origin") == "deterministic:continuation", (
+            "an unresolved refinement must fall back to the explicit "
+            f"deterministic record; got {accepted!r}")
+        assert (accepted.get("refinement") or {}).get(
+            "status") == "completed", accepted
+        assert (accepted.get("refinement") or {}).get(
+            "outcome") == "unresolved", accepted
+        verdict, settled = _settlement_from_turn(
+            session, eid, session_out["workspace_id"])
+        assert verdict and verdict.get("state") == "completed", verdict
+        assert verdict.get("supplied_fields") == ["expiration_date"], verdict
+        assert verdict.get("missing_comparison") is not True, verdict
+        assert settled.get("state") == "completed", settled
+        assert settled.get("delivered") is True, settled
+
+        message = str(out.get("message") or "")
+        assert message.startswith("Verified comparison"), message
+        assert "expiration date" in message.casefold(), message
+        assert "2026-12-31" in message, message
+        assert "payment terms" not in message.casefold(), message
+        assert "terms" not in message.casefold(), (
+            "the narrow date-only reply must not import the prior broad "
+            f"comparison: {message}")
+        assert out.get("success") is True, out
+        assert out.get("outcome") == settled.get("state"), (
+            out.get("outcome"), settled)
+
+        # ZERO WRITES: the canvas snapshot and the audit trail are
+        # unchanged; the turn is a read-only continuation.
+        assert S7_CANVAS["content"] == canvas_before["content"]
+        db = scoped_world["Session"]()
+        try:
+            audits = (db.query(CanvasAudit)
+                      .filter(CanvasAudit.canvas_id
+                              == S7_CANVAS["canvas_id"]).count())
+            assert audits == 0, audits
+            rows = (db.query(ChatMessage)
+                    .filter(ChatMessage.conversation_id == session["id"])
+                    .order_by(ChatMessage.created_at).all())
+            assistants = [r for r in rows if r.role == "assistant"]
+            if not assistants:
+                _all = db.query(ChatMessage).all()
+                assistants = [r for r in _all if r.role == "assistant"]
+            assert assistants, (
+                "the turn must persist its assistant reply; rows="
+                + repr([(r.conversation_id, r.role, str(r.content)[:50])
+                        for r in db.query(ChatMessage).all()]))
+            assert assistants[-1].content == message, (
+                "fresh history must agree with the delivered response")
+        finally:
+            db.close()
+        # The prior conversation carrier is preserved, not overwritten by
+        # this turn's requirement. The prior S3 carrier is BROAD; the
+        # current date-only requirement is narrow, proving the prior
+        # contract was not imported.
+        assert f"_evidence_requirement_{eid}" in session
+        assert PRIOR_REQ_KEY in session
+        assert session[PRIOR_REQ_KEY]["broader_comparison"] is True
+        assert req["broader_comparison"] is False
+
+    def test_resolved_empty_source_model_still_binds_the_named_reference(
+            self, scoped_world, world_app, monkeypatch):
+        """A schema-valid model record with sources=[] made no source
+        decision. The real turn must fill the named reference instead of
+        falling back to kind_only and certifying a memory answer."""
+        empty = dict(_resolved_interpretation())
+        empty["sources"] = []
+        empty["requested_fields"] = []
+        empty["actions"] = []
+        empty["origin"] = "llm:test-model"
+        accepted = {}
+
+        import core.turn_decision as td
+
+        _orig_apply = td.apply_interpretation_references
+
+        def _capture_apply(decision, interpretation, session_arg):
+            if isinstance(interpretation, dict):
+                accepted.setdefault("actions", [
+                    str(action.get("kind") or "")
+                    for action in (interpretation.get("actions") or [])
+                    if isinstance(action, dict)])
+                accepted.setdefault(
+                    "refinement", interpretation.get("refinement"))
+            return _orig_apply(decision, interpretation, session_arg)
+
+        monkeypatch.setattr(
+            td, "apply_interpretation_references", _capture_apply)
+        session_out = {}
+        out, session, ep = _drive_continuation_turn(
+            scoped_world, world_app, interpretation=empty,
+            canvas=S7_CANVAS, session_out=session_out,
+            persist_history=True)
+        eid, req = _turn_requirement(session, out)
+        assert req.get("required") is True, req
+        assert req.get("sources") == ["document"], req
+        assert req.get("fields") == ["expiration_date"], req
+        assert req.get("broader_comparison") is False, req
+        identity = req.get("identity") or {}
+        assert identity.get("state") == "resolved", identity
+        assert identity.get("file_name") == PRIOR_FILE, identity
+        verdict, settled = _settlement_from_turn(
+            session, eid, session_out["workspace_id"])
+        assert verdict and verdict.get("state") == "completed", verdict
+        assert settled.get("state") == "completed", settled
+        assert str(out.get("message") or "").startswith(
+            "Verified comparison"), out.get("message")
+        assert "research" in (accepted.get("actions") or []), accepted
+        assert (accepted.get("refinement") or {}).get(
+            "status") == "completed", accepted
+        assert (accepted.get("refinement") or {}).get(
+            "outcome") == "resolved", accepted
+
+    def test_mixed_floor_file_unresolved_source_survives_settlement_and_history(
+            self, scoped_world, world_app, monkeypatch):
+        """A valid workbook result cannot erase the unresolved named
+        record. The request-bound verdict must survive the builder,
+        finalizer, persistence and fresh history."""
+        import copy
+
+        from core.models import CanvasAudit, ChatMessage
+        from core.turn_decision import (
+            build_turn_decision as td_build_turn_decision,
+            deterministic_continuation_ready,
+        )
+
+        empty = dict(_resolved_interpretation())
+        empty["sources"] = []
+        empty["requested_fields"] = []
+        empty["actions"] = []
+        empty["origin"] = "llm:test-model"
+        mixed_message = (
+            "Compare the draft with catalog_2019.xlsx and the approved "
+            "record on the valid until date.")
+        canvas_before = copy.deepcopy(S7_CANVAS)
+        # Positive twin: the same source/field without the workbook is the
+        # bounded date-only continuation.
+        positive_session = {"id": "sess-positive", "history": []}
+        _seed_conversation_evidence(
+            positive_session, "ws-positive", observed_files=[PRIOR_FILE])
+        positive_decision = td_build_turn_decision(
+            S7_ASK, positive_session, [])
+        assert deterministic_continuation_ready(
+            S7_ASK, positive_session, positive_decision) is not None
+
+        session_out = {}
+        out, session, ep = _drive_continuation_turn(
+            scoped_world, world_app, interpretation=empty,
+            message=mixed_message, canvas=S7_CANVAS,
+            session_out=session_out, persist_history=True)
+        eid, req = _turn_requirement(session, out)
+        assert req.get("required") is True, req
+        assert req.get("fields") == ["expiration_date"], req
+        identity = req.get("identity") or {}
+        assert identity.get("state") == "unresolved", identity
+        assert identity.get("names") == ["approved record"], identity
+        floor_file = req.get("file") or {}
+        assert "catalog_2019.xlsx" in str(
+            floor_file.get("name") or floor_file.get("file_name") or ""), req
+        assert str(out.get("execution_id") or "") == eid
+
+        verdict, settled = _settlement_from_turn(
+            session, eid, session_out["workspace_id"])
+        assert verdict and verdict.get("state") == "unresolved", verdict
+        assert settled.get("state") == "partial", settled
+        assert settled.get("delivered") is True, settled
+        assert any("approved record" in str(w)
+                   for w in (settled.get("open_work") or [])), settled
+        assert out.get("outcome") == "partial", out
+        durable = _turn_outcome(scoped_world)
+        assert durable.get("execution_id") == eid, durable
+        assert durable.get("objective_met") is not True, durable
+        for gap in durable.get("gaps") or []:
+            if gap.get("criterion_id") == "context_fulfillment":
+                assert gap.get("status") == "unresolved", durable
+                assert gap.get("next_evidence_needed") == (
+                    "resolve the named source"), durable
+        assert S7_CANVAS["content"] == canvas_before["content"]
+        db = scoped_world["Session"]()
+        try:
+            assert (db.query(CanvasAudit)
+                    .filter(CanvasAudit.canvas_id
+                            == S7_CANVAS["canvas_id"]).count()) == 0
+            rows = (db.query(ChatMessage)
+                    .filter(ChatMessage.conversation_id == session["id"])
+                    .order_by(ChatMessage.created_at).all())
+            assistants = [r for r in rows if r.role == "assistant"]
+            assert assistants and assistants[-1].content == out.get(
+                "message"), (
+                "fresh history must agree with the partial response")
+        finally:
+            db.close()
+
+    def test_additional_action_prevents_read_only_completion(
+            self, scoped_world, world_app, monkeypatch):
+        """A date read plus an insertion is not a read-only continuation.
+        The obligation table refuses the fast path and the request-bound
+        marker blocks completion, without an extra phrase blacklist."""
+        import copy
+
+        from core.models import CanvasAudit, ChatMessage
+        from core.turn_decision import (
+            build_turn_decision as td_build_turn_decision,
+            deterministic_continuation_ready,
+        )
+
+        empty = dict(_resolved_interpretation())
+        empty["sources"] = []
+        empty["requested_fields"] = []
+        empty["actions"] = []
+        empty["origin"] = "llm:test-model"
+        message = (
+            "Check the valid until date on the draft matches the approved "
+            "record and insert client name.")
+        canvas_before = copy.deepcopy(S7_CANVAS)
+        # Positive twin: removing the insertion clause is the bounded
+        # date-only continuation.
+        positive_session = {"id": "sess-positive", "history": []}
+        _seed_conversation_evidence(
+            positive_session, "ws-positive", observed_files=[PRIOR_FILE])
+        positive_decision = td_build_turn_decision(
+            S7_ASK, positive_session, [])
+        assert deterministic_continuation_ready(
+            S7_ASK, positive_session, positive_decision) is not None
+        negative_session = {"id": "sess-negative", "history": []}
+        _seed_conversation_evidence(
+            negative_session, "ws-negative", observed_files=[PRIOR_FILE])
+        negative_decision = td_build_turn_decision(
+            message, negative_session, [])
+        assert deterministic_continuation_ready(
+            message, negative_session, negative_decision) is None, (
+            "an additional insertion must not take the read-only fast path")
+
+        session_out = {}
+        out, session, ep = _drive_continuation_turn(
+            scoped_world, world_app, interpretation=empty,
+            message=message, canvas=S7_CANVAS,
+            session_out=session_out, persist_history=True)
+        assert session_out.get("interpret_calls") == 1, (
+            "the fast path must not be taken")
+        eid, req = _turn_requirement(session, out)
+        assert req.get("required") is True, req
+        identity = req.get("identity") or {}
+        assert identity.get("state") == "unresolved", identity
+        assert any("insert client" in str(n).casefold()
+                   for n in (identity.get("names") or [])), identity
+        verdict, settled = _settlement_from_turn(
+            session, eid, session_out["workspace_id"])
+        assert verdict and verdict.get("state") == "unresolved", verdict
+        assert settled.get("state") == "partial", settled
+        assert any("insert client" in str(w).casefold()
+                   for w in (settled.get("open_work") or [])), settled
+        assert out.get("outcome") != "completed", out
+        durable = _turn_outcome(scoped_world)
+        assert durable.get("execution_id") == eid, durable
+        assert durable.get("objective_met") is not True, durable
+        for gap in durable.get("gaps") or []:
+            if gap.get("criterion_id") == "context_fulfillment":
+                assert gap.get("status") == "unresolved", durable
+                assert gap.get("next_evidence_needed") == (
+                    "complete the additional action"), durable
+        assert S7_CANVAS["content"] == canvas_before["content"]
+        db = scoped_world["Session"]()
+        try:
+            assert (db.query(CanvasAudit)
+                    .filter(CanvasAudit.canvas_id
+                            == S7_CANVAS["canvas_id"]).count()) == 0
+            rows = (db.query(ChatMessage)
+                    .filter(ChatMessage.conversation_id == session["id"])
+                    .order_by(ChatMessage.created_at).all())
+            assistants = [r for r in rows if r.role == "assistant"]
+            assert assistants and assistants[-1].content == out.get(
+                "message")
+        finally:
+            db.close()
+
+    def test_degraded_ambiguous_source_clarifies_without_selecting(
+            self, scoped_world, world_app, monkeypatch):
+        """Two observed candidates for the named reference: the turn
+        preserves both, selects neither, and settles partial with the
+        clarification as open work."""
+        degraded = dict(_resolved_interpretation())
+        degraded["origin"] = "unresolved"
+        degraded["scope_change"] = "unresolved"
+        degraded["sources"] = []
+        degraded["requested_fields"] = []
+        degraded["actions"] = []
+        session_out = {}
+        out, session, ep = _drive_continuation_turn(
+            scoped_world, world_app, interpretation=degraded,
+            observed_files=["alpha_approved_records.txt",
+                            "beta_approved_records.txt"],
+            canvas=S7_CANVAS, session_out=session_out)
+        eid, req = _turn_requirement(session, out)
+        identity = req.get("identity") or {}
+        assert req.get("required") is True, req
+        assert identity.get("state") == "ambiguous", identity
+        assert "file_name" not in identity, identity
+        names = sorted(str(c.get("file_name"))
+                       for c in (identity.get("candidates") or []))
+        assert names == ["alpha_approved_records.txt",
+                         "beta_approved_records.txt"], identity
+        assert not str(out.get("message") or "").startswith(
+            "Verified comparison"), (
+            "an ambiguous source must not produce a deterministic "
+            "comparison against whichever candidate retrieval returned")
+        verdict, settled = _settlement_from_turn(
+            session, eid, session_out["workspace_id"])
+        assert verdict and verdict.get("state") == "ambiguous", verdict
+        assert settled.get("state") == "partial", settled
+        assert settled.get("delivered") is True, settled
+        assert any("which source" in str(w)
+                   for w in (settled.get("open_work") or [])), settled
+
+    def test_degraded_broad_followup_keeps_the_obligation_open(
+            self, scoped_world, world_app, monkeypatch):
+        """A genuinely broad follow-up is not narrowed to the date just
+        because interpretation failed: the whole-document obligation stays
+        open and the settlement is partial, not completed."""
+        degraded = dict(_resolved_interpretation())
+        degraded["origin"] = "unresolved"
+        degraded["scope_change"] = "unresolved"
+        degraded["sources"] = []
+        degraded["requested_fields"] = []
+        degraded["actions"] = []
+        broad_ask = (
+            "Compare the draft quotation with my uploaded Approved Records "
+            "document. Does the Valid Until date match? Flag anything that "
+            "differs. Do not change anything yet.")
+        session_out = {}
+        out, session, ep = _drive_continuation_turn(
+            scoped_world, world_app, interpretation=degraded,
+            message=broad_ask, canvas=S7_CANVAS, session_out=session_out)
+        eid, req = _turn_requirement(session, out)
+        assert req.get("required") is True, req
+        assert req.get("fields") == ["expiration_date"], req
+        assert req.get("broader_comparison") is True, req
+        assert session_out.get("interpret_calls") == 1, (
+            "a genuinely broad follow-up stays on the interpretation path")
+        verdict, settled = _settlement_from_turn(
+            session, eid, session_out["workspace_id"])
+        assert settled.get("state") == "partial", settled
+        assert settled.get("delivered") is True, settled
+        assert settled.get("state") != "completed"
+        assert any("comparison" in str(w).casefold()
+                   for w in (settled.get("open_work") or [])), settled
+
+    def test_degraded_interpretation_without_a_named_source_stays_unobligated(
+            self, scoped_world, world_app, monkeypatch):
+        """The degraded fallback resolves only a source the REQUEST names.
+        A bare question ("what is the status?") over prior observations
+        does not become an evidence obligation by implication."""
+        degraded = dict(_resolved_interpretation())
+        degraded["origin"] = "unresolved"
+        degraded["scope_change"] = "unresolved"
+        degraded["sources"] = []
+        degraded["requested_fields"] = []
+        degraded["actions"] = []
+        session_out = {}
+        out, session, ep = _drive_continuation_turn(
+            scoped_world, world_app, interpretation=degraded,
+            message="What is the status?",
+            session_out=session_out)
+        eid, req = _turn_requirement(session, out)
         assert req.get("required") is not True, (
-            "a degraded interpretation never invents an obligation")
+            "an unnamed source is never inferred from prior observations")
+        assert (req.get("identity") or {}).get("state") == "kind_only", req
         verdict, settled = _settlement_from_turn(
             session, eid, session_out["workspace_id"])
         assert verdict is None

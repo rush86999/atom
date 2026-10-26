@@ -871,7 +871,7 @@ class TestAnaphoricPinReachesTheReader:
     async def test_direct_read_threads_the_resolved_pin(self):
         captured = {}
 
-        async def fake_block(user_id, query, context, plan=None):
+        async def fake_block(user_id, query, context, plan=None, llm_service=None):
             captured.update(context or {})
             return "BLOCK"
 

@@ -2348,6 +2348,218 @@ def _assignment_postcondition_obligations(
     return blocker + built
 
 
+_EDIT_VERB_RE = re.compile(
+    r"\b(?:update|set|change|add|rewrite|translate|replace|remove|delete|"
+    r"insert|append|edit|include|sort|trim|rename|apply|fill|restore|"
+    r"rebuild|revise|reformat|reword|prepare|finalize|compose|paste|"
+    r"modify)\b", re.IGNORECASE)
+
+
+def _assignment_value_is_safe(value: str) -> bool:
+    """A scalar replacement, not a clause or a second instruction."""
+    text = str(value or "").strip().rstrip(" \t.,;!?")
+    # Normalize typographic apostrophes so curly-quoted negation cannot
+    # slip past the ASCII guard.
+    text = text.replace("\u2019", "'").replace("\u2018", "'")
+    if not text:
+        return False
+    if re.search(r"\b(?:and|then|plus|thanks|please|instead|previously|"
+                 r"for now|or|vs|versus|not|never|don't|dont|didn't|but|"
+                 r"with|unless|subject|approval|touch|now)\b",
+                 text, re.IGNORECASE):
+        return False
+    if re.search(r"[;!?]", text):
+        return False
+    if "," in text and not re.fullmatch(r"\$?\d[\d,]*(?:\.\d+)?", text):
+        return False
+    # A replacement value is a scalar, not a clause. Five words is already
+    # generous for labels like "Net 30" / "In Stock" / "Best regards".
+    if len(text.split()) > 5:
+        return False
+    return True
+
+
+def single_explicit_assignment(message: str) -> bool:
+    """True only for one safe, user-supplied assignment clause.
+
+    Used to gate the pre-plan no-op and the deterministic compiler. Mixed
+    requests (multiple edit verbs, unresolved additions, source references,
+    header edits, or a value carrying another clause) return False and stay
+    on the existing planner/receipt path.
+    """
+    try:
+        from core.turn_decision import extract_request_assignments
+
+        parsed = extract_request_assignments(str(message or ""))
+        if (parsed.get("unresolved_additions")
+                or parsed.get("additional_actions")
+                or parsed.get("source_references")):
+            return False
+        assignments = [
+            entry for entry in (parsed.get("assignments") or [])
+            if isinstance(entry, dict)
+            and str(entry.get("target") or "").strip()
+            and str(entry.get("value") or "").strip()]
+        if len(assignments) != 1:
+            return False
+        entry = assignments[0]
+        target = str(entry.get("target") or "")
+        value = str(entry.get("value") or "")
+        if not _assignment_value_is_safe(value):
+            return False
+        verbs = _EDIT_VERB_RE.findall(str(message or ""))
+        if len(verbs) != 1:
+            return False
+        span = entry.get("span")
+        if isinstance(span, (list, tuple)) and len(span) == 2:
+            start, end = int(span[0]), int(span[1])
+            residual = (str(message or "")[:start]
+                        + " " + str(message or "")[end:])
+            residual = re.sub(r"[^A-Za-z0-9]+", " ", residual).lower()
+            allowed = {
+                "please", "kindly", "also", "now", "the", "draft", "in",
+                "my", "our", "this", "that", "thanks", "thank", "you",
+            }
+            if set(residual.split()) - allowed:
+                return False
+            clause = str(message or "")[:start].lower()
+            if re.search(r"\b(?:do\s+not|don't|never|without|must\s+not|"
+                         r"should\s+not|not\s+necessary|no\s+need|"
+                         r"rather|didn't)\b", clause):
+                return False
+        else:
+            return False
+        header_targets = set()
+        if _extract_requested_subject(message):
+            header_targets.add("subject")
+        if _extract_requested_cc(message):
+            header_targets.add("cc")
+        if _extract_requested_to(message):
+            header_targets.add("to")
+        target_tokens = set(re.findall(r"[a-z0-9]+", target.lower()))
+        if target_tokens & header_targets:
+            return False
+        return True
+    except Exception:  # noqa: BLE001 — conservative by design
+        return False
+
+
+def deterministic_assignment_plan(
+    *,
+    message: str,
+    canvas: Optional[Dict[str, Any]],
+    expected_prior_audit_id: Optional[str] = None,
+) -> Optional[CanvasEditPlan]:
+    """Compile ONE explicit user-supplied assignment into a patch plan.
+
+    This is deliberately narrower than the LLM planner: exactly one
+    assignment, a unique field binding through the existing vocabulary,
+    a line that appears verbatim in the current content, and a replacement
+    value supplied by the request. Any ambiguity, negation, source
+    reference, header field, stale revision, or non-text line returns None
+    and leaves the normal planner in charge. The shared apply validator,
+    preservation checks, revision guard, audit and readback still run.
+    """
+    try:
+        if not single_explicit_assignment(message):
+            return None
+        from core.turn_decision import extract_request_assignments
+
+        parsed = extract_request_assignments(str(message or ""))
+        entry = (parsed.get("assignments") or [])[0]
+        target = str(entry.get("target") or "").strip()
+        value = str(entry.get("value") or "").strip().rstrip(" \t.,;!?")
+        if not target or not value:
+            return None
+        canvas = canvas or {}
+        current = canvas.get("content")
+        body_text = str(_body_from_content(current) or "")
+        if not body_text.strip():
+            return None
+        observed = str(canvas.get("latest_audit_id")
+                       or canvas.get("audit_id") or "")
+        if expected_prior_audit_id and observed and \
+                str(expected_prior_audit_id) != observed:
+            return None
+        records = _assignment_artifact_lines(current)
+        binding = _resolve_assignment_target(target, records)
+        record = binding.record
+        if record is None or not record.line.strip():
+            return None
+        # Deterministic mutation requires EXACT field identity; the reviewed
+        # completion mapping is safe for read-only satisfaction but can
+        # overwrite a wrong section (e.g. "payment terms" -> Warranty terms).
+        target_words = [
+            word for word in re.findall(
+                r"[a-z0-9]+", _assignment_norm(target))
+            if word not in _ASSIGNMENT_LOCATION_TOKENS]
+        label_words = _assignment_label_words(record.label)
+        if not label_words:
+            return None
+        if target_words != label_words:
+            # A reviewed completion mapping (e.g. "payment terms" ->
+            # "Terms") is safe for deterministic mutation only inside a
+            # document-type section. A warranty/contract section must not
+            # donate its generic "Terms" record.
+            section_words = set(re.findall(
+                r"[a-z0-9]+", _assignment_norm(record.section)))
+            document_types = {
+                "quotation", "quote", "draft", "document", "invoice",
+                "proposal", "estimate",
+            }
+            section_vetoes = {
+                "warranty", "contract", "agreement", "policy", "terms",
+                "conditions",
+            }
+            if (section_words & section_vetoes) or not (
+                    section_words & document_types):
+                return None
+        # The deterministic find must be the exact text the patch engine
+        # will see. HTML-normalized lines are not byte-identical; leave
+        # those to the model planner.
+        if record.line not in body_text:
+            return None
+        line_match = re.match(
+            r"^(\s*[^:\n]{1,160}:\s*)(.*)$", record.line)
+        if not line_match:
+            return None
+        # A current value that negates the requested value ("not Net 30")
+        # is a contradiction, not a simple replacement; leave it to the
+        # planner/validator rather than mechanically overwriting it.
+        if re.search(r"\b(?:not|no|never)\b",
+                     str(record.value or ""), re.IGNORECASE):
+            return None
+        new_line = f"{line_match.group(1)}{value}"
+        if new_line == record.line:
+            # Satisfied, not a new edit; the pre-plan no-op check owns it.
+            return None
+        # For object-shaped content, `field` is the content key holding
+        # this line (normally "body"), never the record label.
+        field_key = None
+        if isinstance(current, dict):
+            field_key = next(
+                (key for key, chunk in current.items()
+                 if isinstance(chunk, str) and record.line in chunk),
+                None)
+            if field_key is None:
+                return None
+        op = CanvasPatchOp(
+            field=field_key,
+            find=record.line,
+            replace=new_line,
+            origin="user_supplied",
+        )
+        return CanvasEditPlan(
+            wants_edit=True,
+            edit_mode="patch",
+            ops=[op],
+            reply=f"Updated {record.label or target} to {value}.",
+        )
+    except Exception as exc:  # noqa: BLE001 — narrow compiler only
+        logger.debug("deterministic assignment plan skipped: %r", exc)
+        return None
+
+
 def requirement_check(
     *,
     message: str,
@@ -2431,9 +2643,34 @@ def requirement_check(
     # arrive here; unresolved additions block.)
     assignment_obligations = _assignment_postcondition_obligations(
         message, current)
+    header_present = _header_obligations_present(message)
     has_assignments = any(
         o.get("kind") == "assignment_postconditions"
         for o in assignment_obligations)
+    if has_assignments and not single_explicit_assignment(message):
+        # Mixed/ambiguous/unsafe request: the assignment half may hold,
+        # but the receipt must not certify the whole request complete.
+        assignment_obligations.append({
+            "kind": "mixed_obligations",
+            "disposition": "unresolved",
+            "detail": ("the request contains other or unsafe edit "
+                       "obligations this receipt cannot account for")[:160],
+        })
+    elif not has_assignments and (
+            len(_EDIT_VERB_RE.findall(str(message or ""))) > 1
+            or (header_present and (
+                ";" in str(message or "")
+                or len(re.findall(r"[.!?]", str(message or ""))) > 1))):
+        # Header-only (or value-only) receipt plus a second clause:
+        # the receipt cannot account for the other obligation. Semicolon
+        # or a second sentence with a header edit is enough — verbless
+        # clauses ("closing line to ...") must not be certified.
+        assignment_obligations.append({
+            "kind": "mixed_obligations",
+            "disposition": "unresolved",
+            "detail": ("the request contains another edit obligation "
+                       "this receipt cannot account for")[:160],
+        })
     # OBLIGATION DISPOSITIONS (owner work order 2026-10-10): every
     # requirement the request names gets an explicit disposition —
     # satisfied / unsatisfied / unresolved — and completion REQUIRES all
@@ -2441,7 +2678,6 @@ def requirement_check(
     # + contractor replacement unmet) is unconfirmed with the unmet
     # obligation named, never certified by its satisfied half.
     obligations: List[Dict[str, Any]] = []
-    header_present = _header_obligations_present(message)
     if header_present:
         header_violation = _header_violation(message, current)
         obligations.append({
@@ -3818,6 +4054,7 @@ async def fetch_fresh_data_section(
                     **({"canvas": exec_canvas_context(canvas)}
                        if canvas else {}),
                 },
+                llm_service=llm_service,
             )
             result_meta = getattr(plan, "_result_meta", None) or {}
             workbook_read = (
@@ -5575,7 +5812,12 @@ async def apply_canvas_edit(
     # values is not an insertion. With no record there is nothing to
     # validate against (a direct programmatic apply) and the caller owns
     # authorization.
-    if request_message or evidence_contract:
+    # Patch-mode validation already ran above against the patch delta.
+    # Re-diffing serialized object content here misparses body lines on
+    # email/form canvases (e.g. "Net 45" -> "Net 30" as an unlabelled
+    # numeric change) and refuses a valid patch.
+    if (request_message or evidence_contract) and not (
+            plan.ops and isinstance(current, dict)):
         from core.factual_change_validation import (
             validate_factual_changes as _validate_factual,
         )

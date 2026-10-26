@@ -1233,6 +1233,7 @@ async def assemble_memory_context(
     user_id: Optional[str] = None,
     canvas_type: Optional[str] = None,
     source_observations_out: Optional[List[Dict[str, Any]]] = None,
+    lessons_only: bool = False,
 ) -> Optional[str]:
     """Return a bounded `RELEVANT MEMORY` prompt block, or None if nothing
     relevant (or the flag is off). Never raises.
@@ -1243,9 +1244,20 @@ async def assemble_memory_context(
 
     canvas_type (when the turn is canvas-scoped) feeds playbook retrieval —
     keyword-less playbooks trigger on canvas type alone.
+
+    lessons_only returns ONLY the agent's permanent training lessons. A
+    file-scoped turn must ground its VALUES in the verified file, so it keeps
+    the reference-memory legs out; its standing policy still has to reach the
+    answer, or a taught correction is silently dropped on exactly the work it
+    was meant to govern (2026-10-26 combined-control failure).
     """
     if not message or not message.strip():
         return None
+    if lessons_only:
+        return await _safe(
+            _lessons_leg(message, agent_id), "lessons",
+            timeout=float(os.getenv("ATOM_MEMORY_LESSONS_TIMEOUT", "5")),
+        ) or None
     try:
         started = time.monotonic()
         # Round 80 role loop (recall half): the operating AI employee's role

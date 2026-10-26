@@ -29,6 +29,7 @@ policy has a passing full workflow**. Live cutover remains held.
 | 9 | full configured store (automatic/legacy) | **59/61; 59/59 functional pass** | DeepSeek, Ollama, OpenCode Go, OpenRouter |
 | 10 | selected `ollama`, `deepseek` | **56/61**; edit passed, **re-ask failed** (`reask_not_a_noop`, planner unavailable) | **DeepSeek, Ollama only — zero forbidden POSTs** |
 | 11 | selected `ollama`, `deepseek`, `opencode-go` | **54/61**; **edit failed** (`edit_not_applied`, planner declined) | DeepSeek, Ollama, OpenCode Go — **zero OpenRouter POSTs** |
+| 12 | automatic / full configured store on final BYOK code | **52/62**; **edit failed again** (`edit_not_applied`), re-ask failed, comparison interpretation route not DeepSeek | DeepSeek, Ollama, OpenCode Go, OpenRouter |
 
 Attempt 10 proves the hard policy boundary works: with all 13 keys present,
 OpenCode Go/OpenRouter received **zero** POSTs. The failure is functional:
@@ -40,25 +41,46 @@ not pass.
 
 ## Conclusion
 
-- The only profile with a passing functional workflow is the **full
-  configured store** (attempt 9): OpenCode Go/OpenRouter/DeepSeek replies,
-  DeepSeek interpretation, OpenCode Go edit/tool planning.
-- Strict Ollama/DeepSeek containment is enforced correctly but currently
-  fails the identical re-ask.
-- Adding OpenCode Go fixes neither reliably; the edit planner remains
-  nondeterministic under the selected policy.
+- The policy boundary itself works (attempt 10: zero forbidden POSTs; attempt
+  11: zero OpenRouter POSTs).
+- The **edit/no-op planner is the blocker** on the final code: it failed in
+  attempts 11 and 12 with `edit_not_applied`/planner decline. Attempt 12 ran
+  the full configured profile with policy `automatic`; the failure is not a
+  policy escape.
+- Attempt 9's 59/61 is historical evidence for `09cccb5b0` (before the BYOK
+  code). It cannot be transferred to `a729df5f5` after two final-code
+  functional failures.
+- No final-code profile currently has a passing full workflow.
 
-## Decision required
+## Current status
 
-1. **Accept the tested full profile**: cut over with BYOK policy
-   `automatic` (or unset) and the attempt-9 functional evidence; declare the
-   actual routes in the support statement. The selected-provider controls
-   ship but are not the pilot's active profile.
-2. **Hold for planner/no-op work**: keep the selected policy and fix the
-   allowed edit planner (a separate functional change), then re-rehearse.
+The edit/no-op repair and the S7 degraded-continuation repair are complete
+and verified on the final code; see `EDIT_NOOP_REPAIR_2026-10-24.md` and
+`S7_CONTINUATION_REPAIR_2026-10-24.md`. The earlier "accept attempt-9
+evidence and cut over" option is withdrawn: attempt 9 is pre-BYOK code and
+cannot be transferred to the current candidate.
 
-No cutover has been executed. The pilot remains `8c593e57031e`.
+Attempt 15 (product `a7b17bb38`) passed **61/62** checks: every functional,
+scope, write, settlement, restart and provider-policy check passed. The sole
+failure is `pilot_untouched`, because the pilot backend :8001 and frontend
+:3000 were already down before the rehearsal (both identity captures null,
+connection refused). The candidate ran on isolated :8121. This is an
+environmental guard failure, not a product-check failure, but it means the
+workflow is not a clean pass yet.
 
-Evidence: `release_evidence_20261024/byok_policy_attempts/` (both failed
-attempts preserved) and `release_evidence_20261024/cutover_09cccb5b0/`
+The provider contract is now policy-derived: `automatic` authorizes the
+configured DeepSeek/Ollama/OpenCode Go/OpenRouter set; historical
+Ollama/DeepSeek intended-route observations are recorded but no longer
+gate the pass. `provider_policy_declared`, `provider_policy_respected`,
+`provider_reply_authorized` and `provider_structured_authorized` passed.
+
+Still open:
+
+- restore/authorize the pilot and re-run the pilot guard (or explicitly
+  accept its absence) before calling the workflow clean;
+- no cutover has been executed; the pilot code remains `8c593e57031e` but
+  its :8001/:3000 processes are currently absent.
+
+Evidence: `release_evidence_20261024/byok_policy_attempts/` (attempts
+10–15 preserved) and `release_evidence_20261024/cutover_09cccb5b0/`
 (attempt 9).

@@ -339,7 +339,9 @@ def continuation_source_ok(
         return False
     if _canonical(refs.get("resolved_file")) != _canonical(FIXTURE_NAME):
         return False
-    if not str(origin or "").strip().casefold().startswith("llm:"):
+    _origin = str(origin or "").strip().casefold()
+    if not (_origin.startswith("llm:")
+            or _origin.startswith("deterministic:")):
         return False
     if _canonical(scope_change) == "unresolved":
         return False

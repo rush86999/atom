@@ -539,6 +539,41 @@ def test_restart_agreement_requires_exact_status_content_execution_delivery():
 # ---------------------------------------------------------------------------
 # Runner wiring: structured obligations are preferred, fallback is bounded
 # ---------------------------------------------------------------------------
+def _load_live_gate_module():
+    spec = importlib.util.spec_from_file_location(
+        "live_successor_gates_under_test",
+        EVIDENCE / "successor_gates_live.py")
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_live_gate_accepts_a_deterministic_source_origin():
+    """The final runner consumes successor_gates_live; a deterministic
+    bounded continuation is a legitimate source origin even though it has
+    no llm: prefix (it need not dispatch a model)."""
+    live = _load_live_gate_module()
+    assert live.continuation_source_ok(
+        refs=_antecedent_refs(),
+        observed=_observed(),
+        origin="deterministic:continuation",
+        scope_change=SCOPE_CHANGE,
+        expected_conversation_id=CONVERSATION,
+        expected_workspace_id=WORKSPACE,
+        antecedent_records={ANTECEDENT_ID: _antecedent_record()},
+    ) is True
+    assert live.continuation_source_ok(
+        refs=_antecedent_refs(),
+        observed=_observed(),
+        origin="fallback",
+        scope_change=SCOPE_CHANGE,
+        expected_conversation_id=CONVERSATION,
+        expected_workspace_id=WORKSPACE,
+        antecedent_records={ANTECEDENT_ID: _antecedent_record()},
+    ) is False
+
+
 def test_runner_uses_the_frozen_gate_module():
     runner = _load_runner()
     assert runner.cf_completed_scope is gates.cf_completed_scope

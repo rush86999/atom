@@ -44,6 +44,7 @@ from core.pending_file_task import (
     is_filename_confirmation,
     matching_pending_task,
     merge_pending_task,
+    resume_operation,
 )
 
 
@@ -1388,7 +1389,7 @@ async def test_resume_turn_delivers_file_evidence_even_when_planned_elsewhere():
         return ("LIVE TOOL RESULTS (outlook.search): mailbox scanned, "
                 "no relevant messages")
 
-    async def fake_named_file(uid, query, context, plan=None):
+    async def fake_named_file(uid, query, context, plan=None, llm_service=None):
         # stamps the lifecycle meta exactly as the real lane does
         if plan is not None:
             plan._result_meta = {"storage_read": {
@@ -3671,7 +3672,7 @@ async def test_refresh_with_unavailable_source_never_claims_current():
     async def failing_read(service, action, params, context):
         raise RuntimeError("workdrive unreachable")
 
-    async def fake_named_block(user_id, query, ctx, plan=None):
+    async def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         return _direct_read_result_meta(plan, "| OLD COPY VALUES |")
 
     with (
@@ -3727,7 +3728,7 @@ async def test_refresh_with_live_source_reports_updated_content():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads["count"] += 1
         if reads["count"] > 1:
             # The re-read of the REFRESHED copy: new ingestion stamp and
@@ -3807,7 +3808,7 @@ async def test_refresh_unchanged_content_reports_current_not_refreshed():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads["count"] += 1
         plan._result_meta = {"storage_read": {
             "service": "zoho_workdrive", "file_id": "wd-77",
@@ -3871,7 +3872,7 @@ async def test_refresh_with_unchanged_index_labels_the_old_copy():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads["count"] += 1
         plan._result_meta = {"storage_read": {
             "service": "zoho_workdrive", "file_id": "wd-77",
@@ -3932,7 +3933,7 @@ async def test_refresh_with_incomplete_extraction_is_unverified():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads_inc["count"] += 1
         done = reads_inc["count"] > 1
         plan._result_meta = {"storage_read": {
@@ -4082,7 +4083,7 @@ async def test_current_requires_positive_hash_equality():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads["count"] += 1
         plan._result_meta = {"storage_read": {
             "service": "zoho_workdrive", "file_id": "wd-77",
@@ -4149,7 +4150,7 @@ async def test_refresh_reread_must_resolve_the_fetched_resource():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads["count"] += 1
         # First read pins wd-77; the POST-refetch read resolves a
         # DIFFERENT resource — the copy cannot be bound to the fetched
@@ -4329,7 +4330,7 @@ async def test_non_refreshed_verdict_preserves_last_good_result():
         return {"status": "success", "data": {
             "file_id": "wd-77", "found": True, "served": True}}
 
-    def fake_named_block(user_id, query, ctx, plan=None):
+    def fake_named_block(user_id, query, ctx, plan=None, llm_service=None):
         reads["count"] += 1
         plan._result_meta = {"storage_read": {
             "service": "zoho_workdrive", "file_id": "wd-77",
@@ -4661,3 +4662,237 @@ class TestEmptyItemReads:
         ds.append_event(ds.OBJECTIVE_SET, cid,
                         {"items": ["381", "U-22"], "file": "f.xlsx"})
         assert ds.active_objective_items(cid) == ["381", "U-22"]
+
+
+def test_pending_approval_resumes_as_rerun_not_redeliver():
+    """A task with no retrieved result cannot be re-delivered.
+
+    Live failure (2026-10-26): the pending task was matched on a bare
+    "Go ahead.", stamped operation="re-deliver", and the read never
+    dispatched because there was no persisted result to re-deliver.
+    """
+    task = build_pending_task(
+        ORIGINAL_ASK, "Consolidated Price List 2019.xlsx")
+    assert task["status"] == "pending"
+    assert resume_operation(task, "Go ahead.") == "re-run"
+
+
+def test_retrieved_approval_stays_redeliver():
+    task = build_pending_task(
+        ORIGINAL_ASK, "Consolidated Price List 2019.xlsx")
+    task["status"] = "retrieved"
+    assert resume_operation(task, "Go ahead.") == "re-deliver"
+
+
+def test_explicit_rerun_stays_rerun_for_any_status():
+    task = build_pending_task(
+        ORIGINAL_ASK, "Consolidated Price List 2019.xlsx")
+    for status in ("pending", "retrieved", "delivered"):
+        task["status"] = status
+        assert resume_operation(task, "Search the workbook again.") == "re-run"
+
+
+def test_no_pending_task_keeps_classifier_operation():
+    assert resume_operation(None, "Go ahead.") == "re-deliver"
+
+
+@pytest.mark.asyncio
+async def test_bare_approval_resumes_pending_task_through_direct_read():
+    """The exact 2026-10-26 failure: "Go ahead." on a pending task.
+
+    The approval names no file, so the pending task's mention must carry the
+    read. The task has no persisted result; it must be re-run, not stamped
+    as a no-op re-delivery.
+    """
+    orch = _orch()
+    session = {
+        "id": "s-bare-approval",
+        "history": [],
+        FILE_TASK_SESSION_KEY: build_pending_task(
+            ORIGINAL_ASK, "consolidated price list 2019.xlsx"
+        ),
+    }
+    rendered = (
+        "Workbook read: Consolidated Price List 2019.xlsx\n"
+        "| 381 | FOUND | Sheet1!A1 R1 [basis=U.S. LIST; currency=unspecified] |"
+    )
+    direct = {
+        "ok": True,
+        "block": rendered,
+        "rendered_answer": rendered,
+        "identity": {
+            "file_id": "r1",
+            "resource_id": "r1",
+            "file_name": "Consolidated Price List 2019.xlsx",
+            "identity_verified": True,
+            "coverage_complete": True,
+        },
+        "meta": {
+            "workbook_read": {"coverage": {"complete": True}},
+            "completed": True,
+            "identity_verified": True,
+            "coverage_complete": True,
+        },
+        "retrieval_complete": True,
+    }
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_start_chat_execution", return_value="exec-bare"),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            return_value=direct)) as direct_read,
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        response = await orch.process_chat_message(
+            "u1", "Go ahead.", session_id="s-bare-approval", context={}
+        )
+
+    assert response["success"] is True
+    assert "| 381 | FOUND |" in response["message"]
+    direct_read.assert_awaited()
+    assert session[FILE_TASK_SESSION_KEY]["status"] == "delivered"
+
+
+def test_terminal_task_is_not_replaced_by_bare_approval():
+    """A delivered task confirmed with "go ahead" stays the delivered task.
+
+    The post-read merge used to build a replacement task whose
+    original_message was the approval, losing the review objective and
+    recording the original only under supersedes.
+    """
+    task = build_pending_task(
+        ORIGINAL_ASK, "Consolidated Price List 2019.xlsx")
+    task["status"] = "delivered"
+    task["resolved_file"] = {"file_name": "Consolidated Price List 2019.xlsx"}
+    merged = merge_pending_task(
+        task, "go ahead", "Consolidated Price List 2019.xlsx")
+    assert merged["task_id"] == task["task_id"]
+    assert merged["original_message"] == ORIGINAL_ASK
+    assert merged["status"] == "delivered"
+    assert "supersedes" not in merged
+
+
+@pytest.mark.asyncio
+async def test_resumed_review_request_reaches_narration_not_raw_read():
+    """The resumed review must be narrated, not served as a raw read block.
+
+    This is the production path for the review-specific deterministic-answer
+    suppression: _review_ask is calculated from the RESTORED objective, after
+    _resume_original is initialized. If the flag is False, the stored
+    rendered_answer returns without the narration model ever running.
+    """
+    orch = _orch()
+    orch.llm_service.generate_completion = AsyncMock(return_value={
+        "success": True,
+        "content": (
+            "V-200: the insurance certificate is missing.\n\n"
+            "```review_result\n"
+            '{"assessments":[{"subject_id":"V-200","decision":"Deny",'
+            '"evidence_ids":["ev:V-200:no-row"],'
+            '"policy_ids":["vendor-policy"],'
+            '"unresolved_requirements":["insurance certificate"]}]}\n'
+            "```"),
+        "model": "m",
+        "provider": "p",
+    })
+    orch._agent_lessons = lambda agent_id, query, limit=5: [{
+        "id": "vendor-policy",
+        "topic": "Vendor risk policy",
+        "lesson": "Deny vendors without an insurance certificate.",
+        "decision_options": ["Approve", "Deny"],
+    }]
+    review_ask = (
+        "Assess vendor V-200 against the vendor risk policy and decide "
+        "approve or deny using the row values.")
+    review_structured = {
+        "requested_items": ["V-200"],
+        "attempt_id": "attempt-vendor",
+        "source_identity": {
+            "file_name": "vendors.xlsx",
+            "resource_id": "sha1:v1",
+            "content_hash": "v1",
+        },
+        "targets": [],
+    }
+    session = {
+        "id": "review-resume",
+        "history": [],
+        FILE_TASK_SESSION_KEY: build_pending_task(review_ask, "vendors.xlsx"),
+        "_pending_file_result": {
+            "status": "retrieved",
+            "execution_id": "e-review",
+            "identity": review_structured["source_identity"],
+            "structured_result": review_structured,
+            "rendered": "V-200 row",
+        },
+    }
+    plan = planner.ToolPlan(
+        use_tool=True, service="outlook", intent="search",
+        query="vendor V-200")
+
+    async def fake_execute(p, uid, tenant, context=None, llm_service=None):
+        return ("LIVE TOOL RESULTS (outlook.search): mailbox scanned, "
+                "no relevant messages")
+
+    async def fake_named_file(uid, query, context, plan=None, llm_service=None):
+        if plan is not None:
+            plan._result_meta = {"storage_read": {
+                "service": "datasets",
+                "file_id": "v1",
+                "resource_id": "sha1:v1",
+                "file_name": "vendors.xlsx",
+                "identity_verified": True,
+                "completed": True,
+                "coverage_complete": True,
+                "rendered_answer": (
+                    "LIVE TOOL RESULTS (datasets.named-file): V-200 row "
+                    "read complete; narration pending"),
+                "workbook_read": {
+                    "requested_items": ["V-200"],
+                    "attempt_id": "attempt-vendor",
+                    "source_execution_id": "e-review",
+                    "source_identity": {
+                        "file_name": "vendors.xlsx",
+                        "resource_id": "sha1:v1",
+                        "content_hash": "v1",
+                    },
+                    "targets": [],
+                },
+            }}
+        return "LIVE TOOL RESULTS (datasets.named-file): V-200 row"
+
+    with (
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            return_value=plan)),
+        patch("core.chat_tool_planner.execute_tool_plan",
+              new=fake_execute),
+        patch("core.chat_tool_planner._datasets_named_file_block",
+              new=AsyncMock(side_effect=fake_named_file)),
+        patch("core.chat_tool_planner._provenance_menu", new=AsyncMock(
+            return_value="")),
+        patch("core.memory_context_assembler.assembly_enabled",
+              return_value=False),
+        patch.object(chat, "_verbatim_mail_evidence", new=AsyncMock(
+            return_value=[])),
+    ):
+        result = await orch._get_qwen_response(
+            "go ahead", [], user_id="u1", session_id="review-resume",
+            execution_id="e-review", session=session,
+            pending_file_task=session[FILE_TASK_SESSION_KEY],
+        )
+
+    orch.llm_service.generate_completion.assert_awaited()
+    system_texts = [
+        " ".join(m.get("content", "") for m in call.kwargs.get("messages", [])
+                 if isinstance(m, dict) and m.get("role") == "system")
+        for call in orch.llm_service.generate_completion.call_args_list
+    ]
+    assert any("REVIEW OUTPUT CONTRACT" in text for text in system_texts)
+    assert result, "the resumed review must return a narrated response"
+    assert result.get("model") != "deterministic", (
+        "a review ask must not be served as the raw deterministic read")
+    assert "Decision:" in (result.get("content") or "")
+    assert "review_result" not in (result.get("content") or "")

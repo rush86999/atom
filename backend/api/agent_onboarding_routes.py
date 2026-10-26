@@ -12,7 +12,7 @@ Design goal (per Brennan Machinery product direction):
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, Query
 from pydantic import BaseModel, Field
@@ -358,6 +358,13 @@ class TeachRequest(BaseModel):
 
     lesson: str = Field(min_length=5, max_length=4000, description="The lesson, correction, or worked example")
     topic: Optional[str] = Field(None, max_length=200)
+    # TASK-DEFINED REVIEW SCHEMA (2026-10-26): the task's policy supplies the
+    # decision choices its assessments may use. The platform never hardcodes a
+    # business vocabulary; a review is certified against THESE choices.
+    decision_options: Optional[List[str]] = Field(
+        None, max_length=20,
+        description="Task-defined decision labels (e.g. approve/deny/request-more-info)",
+    )
     # The canvas the lesson was taught from (TrainingPanel on /canvas/{id}).
     # When present the endpoint snapshots the canvas (name, app, content
     # digest) into the lesson entry, so every later retrieval — chat turn,
@@ -470,6 +477,7 @@ async def teach_agent(
         teacher_agent_id=req.acting_agent_id or "human_supervisor",
         scope="goal" if req.scope == "goal" and req.goal_id else "global",
         goal_id=req.goal_id,
+        decision_options=req.decision_options,
     )
     delivery_status = delivery.get("status")
 

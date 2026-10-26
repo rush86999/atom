@@ -2142,3 +2142,279 @@ def test_task_outcome_records_verified_canvas_mutation():
     assert outcome["actions"][0]["status"] == "applied"
     assert outcome["actions"][0]["applied"] is True
     assert outcome["success_kinds"]["task_success"] is True
+
+
+def test_mixed_verifier_results_keep_individual_verdicts():
+    """The aggregate objective verdict must not be copied onto each criterion.
+
+    One satisfied verifier and one failed verifier produce objective_met=False,
+    but the satisfied criterion must still read met=True. The previous code
+    distributed the aggregate False onto both results.
+    """
+    from core import task_outcome_contract as contract
+
+    met_kind = "test_mixed_met"
+    unmet_kind = "test_mixed_unmet"
+    contract.register_criteria_verifier(met_kind, lambda outcome: True)
+    contract.register_criteria_verifier(unmet_kind, lambda outcome: False)
+    try:
+        outcome = build_task_outcome(
+            objective="mixed criteria",
+            completion_criteria=[
+                {"kind": met_kind},
+                {"kind": unmet_kind},
+            ],
+            tool_outcomes=[{
+                "tool": "file_scoped_read",
+                "verified": True,
+                "evidence_refs": [{
+                    "kind": "file",
+                    "file_name": "book.xlsx",
+                    "content_hash": "hash-1",
+                    "addresses_requested": True,
+                }],
+            }],
+        )
+        basis, verdict = contract.criteria_verdict(outcome)
+    finally:
+        contract._VERIFIERS.pop(met_kind, None)
+        contract._VERIFIERS.pop(unmet_kind, None)
+
+    results = {r["criterion"]: r["met"] for r in outcome["criterion_results"]}
+    assert results == {met_kind: True, unmet_kind: False}
+    assert outcome["objective_met"] is False
+    assert (basis, verdict) == ("criteria_not_met", False)
+    assert outcome["success_kinds"]["task_success"] is False
+    assert outcome["success_kinds"]["task_success_basis"] == "objective_not_met"
+
+
+def test_verified_read_does_not_certify_an_undelivered_review():
+    """A complete read is evidence; the policy decision is the obligation."""
+    tool = {
+        "tool": "file_scoped_read",
+        "verified": True,
+        "evidence_refs": [{
+            "kind": "file",
+            "file_name": "orders.xlsx",
+            "content_hash": "hash-orders",
+            "addresses_requested": True,
+        }],
+    }
+    outcome = build_task_outcome(
+        objective="Review O-1010 against the order processing policy.",
+        completion_criteria=[
+            {"kind": "source_scoped_retrieval"},
+            {"kind": "record_review"},
+        ],
+        tool_outcomes=[tool],
+        evidence_refs=tool["evidence_refs"],
+        delivery={
+            "delivered": True,
+            "review_required": True,
+            "review_delivered": False,
+        },
+    )
+    results = {r["criterion"]: r["met"] for r in outcome["criterion_results"]}
+    assert results["source_scoped_retrieval"] is True
+    assert results["record_review"] is False
+    assert outcome["objective_met"] is False
+
+
+def test_delivered_review_with_complete_read_is_complete():
+    tool = {
+        "tool": "file_scoped_read",
+        "verified": True,
+        "evidence_refs": [{
+            "kind": "file",
+            "file_name": "orders.xlsx",
+            "content_hash": "hash-orders",
+            "addresses_requested": True,
+        }],
+    }
+    outcome = build_task_outcome(
+        objective="Review O-1010 against the order processing policy.",
+        completion_criteria=[
+            {"kind": "source_scoped_retrieval"},
+            {"kind": "record_review"},
+        ],
+        tool_outcomes=[tool],
+        evidence_refs=tool["evidence_refs"],
+        delivery={
+            "delivered": True,
+            "review_required": True,
+            "review_delivered": True,
+        },
+    )
+    results = {r["criterion"]: r["met"] for r in outcome["criterion_results"]}
+    assert results["source_scoped_retrieval"] is True
+    assert results["record_review"] is True
+    assert outcome["objective_met"] is True
+
+
+def _review_session_and_response(message, decision_text):
+    structured = {
+        "requested_items": ["V-200"],
+        "requested_fields": ["status", "certificate"],
+        "attempt_id": "attempt-vendor",
+        "source_identity": {
+            "file_name": "vendors.xlsx",
+            "resource_id": "sha1:vendor",
+            "content_hash": "vendor",
+            "evidence_kind": "materialized_copy",
+        },
+        "targets": [],
+    }
+    task = {
+        "mention": "vendors.xlsx",
+        "original_message": (
+            "Assess vendor V-200 against the vendor risk policy and decide "
+            "approve or deny using the row values."),
+        "requested_targets": ["V-200"],
+    }
+    session = {
+        "_pending_file_task": task,
+        "_pending_file_result": {
+            "status": "delivered",
+            "execution_id": "e-vendor",
+            "identity": structured["source_identity"],
+            "coverage_complete": True,
+            "structured_result": structured,
+            "rendered": "V-200 row",
+        },
+    }
+    response = {
+        "success": True,
+        "message": decision_text,
+        "model": "glm-test",
+        "data": {},
+    }
+    return session, task, response
+
+
+def test_outcome_builder_accepts_task_defined_review_schema(monkeypatch):
+    orch = ChatOrchestrator()
+    orch._agent_lessons = lambda agent_id, query, limit=5: [{
+        "id": "vendor-policy",
+        "topic": "Vendor risk policy",
+        "lesson": "Deny vendors without an insurance certificate.",
+        "decision_options": ["Approve", "Deny"],
+    }]
+    session, task, response = _review_session_and_response(
+        "Assess V-200",
+        "V-200: the certificate is missing.\n\n"
+        "```review_result\n"
+        '{"assessments":[{"subject_id":"V-200","decision":"Deny",'
+        '"evidence_ids":["ev:V-200:no-row"],'
+        '"policy_ids":["vendor-policy"],'
+        '"unresolved_requirements":["insurance certificate"]}]}\n'
+        "```",
+    )
+    outcome = orch._build_turn_task_outcome(
+        session, "go ahead", response, None, None,
+        execution_id="e-vendor", pending_task=task,
+        allow_persisted_evidence=True, agent_id="agent-vendor",
+    )
+    assert outcome["delivery"]["review_contract"] == {
+        "subjects": ["V-200"],
+        "required_evidence": [{
+            "file_name": "vendors.xlsx",
+            "resource_id": "sha1:vendor",
+            "content_hash": "vendor",
+        }],
+        "allowed_decisions": ["Approve", "Deny"],
+        "evidence_ids": ["ev:V-200:no-row"],
+        "policy_ids": ["vendor-policy"],
+    }
+    assert outcome["delivery"]["review_result"]["ok"] is True
+    assert outcome["objective_met"] is True
+    assert outcome["success_kinds"]["task_success"] is True
+
+
+def test_outcome_builder_rejects_refusal_for_task_defined_review():
+    orch = ChatOrchestrator()
+    orch._agent_lessons = lambda agent_id, query, limit=5: [{
+        "id": "vendor-policy",
+        "topic": "Vendor risk policy",
+        "lesson": "Deny vendors without an insurance certificate.",
+        "decision_options": ["Approve", "Deny"],
+    }]
+    session, task, response = _review_session_and_response(
+        "Assess V-200",
+        "I cannot recommend approving this vendor: the certificate is missing.",
+    )
+    outcome = orch._build_turn_task_outcome(
+        session, "go ahead", response, None, None,
+        execution_id="e-vendor", pending_task=task,
+        allow_persisted_evidence=True, agent_id="agent-vendor",
+    )
+    assert outcome["delivery"]["review_result"]["ok"] is False
+    assert outcome["objective_met"] is False
+    assert outcome["success_kinds"]["task_success"] is False
+
+
+def test_outcome_builder_keeps_order_review_as_a_regression():
+    """The original order Process/Escalate cases still work as regressions.
+
+    Their decisions are supplied by the order-policy teaching, not by a
+    platform-wide vocabulary.
+    """
+    orch = ChatOrchestrator()
+    orch._agent_lessons = lambda agent_id, query, limit=5: [{
+        "id": "order-policy",
+        "topic": "Order processing policy",
+        "lesson": "Process routine orders; escalate exceptions.",
+        "decision_options": ["Process", "Escalate"],
+    }]
+    structured = {
+        "requested_items": ["O-1010"],
+        "requested_fields": ["status", "price", "currency"],
+        "attempt_id": "attempt-order",
+        "source_identity": {
+            "file_name": "orders.xlsx",
+            "resource_id": "sha1:orders",
+            "content_hash": "orders",
+            "evidence_kind": "materialized_copy",
+        },
+        "targets": [],
+    }
+    task = {
+        "mention": "orders.xlsx",
+        "original_message": (
+            "Review order O-1010 against the order processing policy and "
+            "state process or escalate."),
+        "requested_targets": ["O-1010"],
+    }
+    session = {
+        "_pending_file_task": task,
+        "_pending_file_result": {
+            "status": "delivered",
+            "execution_id": "e-order",
+            "identity": structured["source_identity"],
+            "coverage_complete": True,
+            "structured_result": structured,
+            "rendered": "O-1010 row",
+        },
+    }
+    response = {
+        "success": True,
+        "message": (
+            "O-1010: the record is complete.\n\n"
+            "```review_result\n"
+            '{"assessments":[{"subject_id":"O-1010","decision":"Process",'
+            '"evidence_ids":["ev:O-1010:no-row"],'
+            '"policy_ids":["order-policy"],'
+            '"unresolved_requirements":[]}]}\n'
+            "```"),
+        "model": "glm-test",
+        "data": {},
+    }
+    outcome = orch._build_turn_task_outcome(
+        session, "go ahead", response, None, None,
+        execution_id="e-order", pending_task=task,
+        allow_persisted_evidence=True, agent_id="agent-order",
+    )
+    assert outcome["delivery"]["review_contract"]["allowed_decisions"] == [
+        "Process", "Escalate"]
+    assert outcome["delivery"]["review_result"]["ok"] is True
+    assert outcome["objective_met"] is True
+    assert outcome["success_kinds"]["task_success"] is True
