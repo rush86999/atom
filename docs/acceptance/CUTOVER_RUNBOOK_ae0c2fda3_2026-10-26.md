@@ -47,6 +47,9 @@ Fixes prepared for a second attempt:
 - `--check-only` now verifies the password against the admin bcrypt hash, so a
   stale file fails **preflight** instead of stopping the pilot;
 - every `lsof` port probe treats “no listener” as a valid state;
+- both smoke confirmation paths send exactly `go ahead` (no verbose prose), and
+  a no-network parity test runs against the development and packaged helpers
+  and the frozen candidate classifier;
 - the recorded pilot PID is read from `evidence/cutover/pilot_pid.txt`
   (currently `5322`) and still checked against command/cwd/port.
 
