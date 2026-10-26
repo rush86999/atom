@@ -612,6 +612,41 @@ def _ast_contains_sample(value: Any) -> bool:
     return False
 
 
+def _ast_has_extract_or_random(value: Any) -> bool:
+    """Struct/array field access and random() can hide a required input."""
+    extract_types = {"STRUCT_EXTRACT", "ARRAY_EXTRACT", "LIST_EXTRACT",
+                     "MAP_EXTRACT"}
+    extract_funcs = {
+        "struct_extract", "array_extract", "list_extract", "map_extract",
+        "json_extract", "json_extract_string", "struct_values",
+        "struct_keys", "map_keys", "map_values", "row",
+        "random", "setseed",
+    }
+    if isinstance(value, dict):
+        kind = str(value.get("type") or "").upper()
+        cls = str(value.get("class") or "").upper()
+        func = str(value.get("function_name") or "").lower()
+        if kind in extract_types or cls in extract_types:
+            return True
+        if func in extract_funcs:
+            return True
+        return any(_ast_has_extract_or_random(v) for v in value.values())
+    if isinstance(value, list):
+        return any(_ast_has_extract_or_random(v) for v in value)
+    return False
+
+
+def _ast_has_column_alias_list(value: Any) -> bool:
+    """FROM (...) AS t(a,b) can rename a required input."""
+    if isinstance(value, dict):
+        if value.get("column_name_alias"):
+            return True
+        return any(_ast_has_column_alias_list(v) for v in value.values())
+    if isinstance(value, list):
+        return any(_ast_has_column_alias_list(v) for v in value)
+    return False
+
+
 def _ast_has_select_alias(value: Any) -> bool:
     """Any SELECT projection alias, including nested SELECT nodes."""
     if isinstance(value, dict):
@@ -657,6 +692,17 @@ def _ast_identity_violation(
         return (
             "The selection query may not sample rows (outer or nested); the "
             "full eligible selection is required."
+        )
+    if _ast_has_extract_or_random(node):
+        return (
+            "The selection query may not use struct/array field extraction "
+            "or random()/setseed() in a predicate; name physical frame "
+            "columns directly and keep the selection deterministic."
+        )
+    if _ast_has_column_alias_list(node):
+        return (
+            "The selection query may not rename columns in FROM; physical "
+            "frame column names are required."
         )
     if _ast_has_unsafe_reference(node):
         return (

@@ -1044,6 +1044,21 @@ async def test_predicate_aliases_columns_and_positionals_are_rejected(tmp_path):
             'SELECT "__sheet_row" FROM df WHERE EXISTS '
             '(SELECT 1, "Qty" AS q FROM df d '
             'WHERE d."Status" = \'Approved\' AND q > 0)'),
+        "struct_extract": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND struct_extract(df, \'Qty\') IS DISTINCT FROM NULL'),
+        "array_extract": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND df[\'Qty\'] IS DISTINCT FROM NULL'),
+        "struct_dot": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND (df).Qty IS DISTINCT FROM NULL'),
+        "random": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND random() < 0.6'),
+        "struct_values": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND list_contains(struct_values(df), 75)'),
     }
     for label, sql in cases.items():
         result = await execute_validated_aggregate_plan(

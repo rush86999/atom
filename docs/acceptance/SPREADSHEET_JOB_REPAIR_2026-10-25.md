@@ -57,8 +57,10 @@ before aggregation. The successor closes that trust boundary:
   quoted identifier, literal or comment containing `limit`/`order by`
   cannot hide `"Qty" > 0`; projected columns may not be aliased (including
   nested SELECTs); `COLUMNS(...)` expansion and `#n` positional references
-  are rejected; case/punctuation-colliding names remain ambiguous and fail
-  closed; `__sheet_row` is rejected as any calculation role;
+  are rejected; struct/array/JSON field extraction and random()/setseed()
+  are rejected; FROM column-alias lists are rejected; case/punctuation-
+  colliding names remain ambiguous and fail closed; `__sheet_row` is
+  rejected as any calculation role;
 - if a planner returns `__sheet_row` as the identity role while projecting
   a real business key, the role is corrected deterministically to that key;
   values still come from the frame.
@@ -96,13 +98,13 @@ Scratch only: backend `:8121`, database
 
 | Case | Session | Delivered result |
 |---|---|---|
-| PO Register, approved rows, totals by currency | `ade22a00-1d0d-425d-b9ca-757b22c553a1` | CAD **8050.00** (3 rows, qty 10); USD **3999.96** (1 row, qty 4); cancelled row excluded; rows 2/3/4/6 with C/D provenance |
-| Adjustments, approved rows, name missing inputs | `d896faa8-2553-4535-8f12-87218f305020` | Known subtotal **−700.00 CAD**; gap **0055**, missing quantity at **C5**; complete/grand total withheld |
-| Formula reference, D8 | `c144dcff-caa6-4eaf-a907-ef2909dfd9d0` | **8050.00** neutral workbook arithmetic; 7 dependencies; no pricing policy |
-| Formula reference, row-qualified D8 | `ebebf28e-58da-48da-892b-aa0a06273d1e` | **8050.00**; same neutral basis |
-| Aggregate with no sheet named | `1c474cc7-2b40-4867-b1ed-8e47e65b659c` | `SHEET AMBIGUOUS`; no total computed |
-| Explicit missing sheet | `227a3077-02d3-4193-a839-232ba4424914` | `SHEET NOT FOUND`; no fallback; no total computed |
-| Ordinary item lookup | `2af8af84-87f2-4fd2-a276-0c7e133bc9f1` | `0007` remains ambiguous between Adjustments row 2 (D2 = 100) and PO Register row 2 (D2 = 1,250) |
+| PO Register, approved rows, totals by currency | `de5aaf71-623c-4b8a-ba2a-bfff3c36fa49` | CAD **8050.00** (3 rows, qty 10); USD **3999.96** (1 row, qty 4); cancelled row excluded; rows 2/3/4/6 with C/D provenance |
+| Adjustments, approved rows, name missing inputs | `1b51ae5a-3b00-47df-9e62-1bda1126f95d` | Known subtotal **−700.00 CAD**; gap **0055**, missing quantity at **C5**; complete/grand total withheld |
+| Formula reference, D8 | `834c7fe7-f46c-4d65-b9a0-3d8b51f2ab93` | **8050.00** neutral workbook arithmetic; 7 dependencies; no pricing policy |
+| Formula reference, row-qualified D8 | `4f4d94d9-db9c-4bdb-b317-026abc7a9c6a` | **8050.00**; same neutral basis |
+| Aggregate with no sheet named | `70ebccc4-9ae0-4c7a-b4ea-5f50ecf08ed2` | `SHEET AMBIGUOUS`; no total computed |
+| Explicit missing sheet | `c719cd2f-937f-4fc5-ac9d-ac3ccaa28c5c` | `SHEET NOT FOUND`; no fallback; no total computed |
+| Ordinary item lookup | `09b2fdee-3f1e-4728-8616-ede37b8e9fe6` | `0007` remains ambiguous between Adjustments row 2 (D2 = 100) and PO Register row 2 (D2 = 1,250) |
 
 PO response also reports `Sheet rows: 5; selected: 4; not selected: 1` and
 `Sheet status counts: Approved=4, Cancelled=1`, making the exclusion auditable.
@@ -142,8 +144,9 @@ CTE/derived-table identity fabrication via comments and dollar-quoted
 strings, outer/nested `USING SAMPLE`, case-variant header shadowing,
 missing-role inference before the SQL AST predicate guard, predicate
 columns after `limit`/`order by` tokens in literals/comments, predicate
-aliases/COLUMNS/positional/nested aliases, ambiguous normalized role names,
-meta-role rejection, COALESCE/IFNULL/NULL filtering of
+aliases/COLUMNS/positional/nested aliases, struct/array field extraction,
+random(), ambiguous normalized role names, meta-role rejection,
+COALESCE/IFNULL/NULL filtering of
 required inputs, quoted keyword columns, string NaN/Inf/null gaps, duplicate
 rows, version ambiguity, truncated materialization, display cap, formula
 grammar ordering, neutral priced-scope refusal, neutral stored-value record
