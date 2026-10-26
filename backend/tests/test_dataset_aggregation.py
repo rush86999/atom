@@ -1096,3 +1096,72 @@ async def test_projection_cannot_expand_or_drop_rows(tmp_path):
             entries, _plan(adj, sql), "Adjustments sheet approved totals")
         assert result["status"] == "error"
         assert "SQL REJECTED" in result["block"]
+
+
+@pytest.mark.asyncio
+async def test_role_substitution_is_rejected(tmp_path):
+    entries = _entries(tmp_path)
+    adj = next(e for e in entries if e["entity_name"] == "Adjustments")
+    # quantity points at the price column (duplicate of price role)
+    plan = _plan(
+        adj,
+        'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\'',
+        {"quantity_column": "Unit Price"},
+    )
+    result = await execute_validated_aggregate_plan(
+        entries, plan, "Adjustments sheet approved totals")
+    assert result["status"] == "error"
+    assert "ROLE CONFLICT" in result["block"]
+
+    # swapped numeric roles are also rejected
+    plan = _plan(
+        adj,
+        'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\'',
+        {"quantity_column": "Unit Price", "price_column": "Qty"},
+    )
+    result = await execute_validated_aggregate_plan(
+        entries, plan, "Adjustments sheet approved totals")
+    assert result["status"] == "error"
+    assert "ROLE CONFLICT" in result["block"]
+
+
+@pytest.mark.asyncio
+async def test_whole_row_relation_reference_is_rejected(tmp_path):
+    df = pd.DataFrame([
+        {"PO ID": "0007", "Status": "Approved", "Qty": 1.0,
+         "Unit Price": 100.0, "Currency": "CAD",
+         "df": {"Qty": 1.0}, "__sheet_row": 2},
+        {"PO ID": "0055", "Status": "Approved", "Qty": None,
+         "Unit Price": 75.0, "Currency": "CAD",
+         "df": {"Qty": None}, "__sheet_row": 5},
+    ])
+    path = tmp_path / "whole_row.parquet"
+    # parquet cannot hold dict cells cleanly; store a JSON-ish scalar
+    df["df"] = ['{"Qty":1.0}', '{"Qty":null}']
+    df.to_parquet(path, index=False)
+    entry = {
+        "dataset_name": "wb_whole_row",
+        "entity_name": "Sheet1",
+        "file_name": "whole_row.xlsx",
+        "parquet_path": str(path),
+        "content_hash": "abc123",
+        "columns": list(df.columns),
+        "row_count": len(df),
+    }
+    result = await execute_validated_aggregate_plan(
+        [entry],
+        {
+            "dataset_name": "wb_whole_row",
+            "sql": ('SELECT "__sheet_row" FROM df WHERE "Status" = '
+                    '\'Approved\' AND main.df::JSON NOT LIKE '
+                    '\'%"Qty":null%\' '),
+            "identity_column": "PO ID",
+            "quantity_column": "Qty",
+            "price_column": "Unit Price",
+            "currency_column": "Currency",
+            "status_column": "Status",
+        },
+        "Sheet1 approved totals",
+    )
+    assert result["status"] == "error"
+    assert "SQL REJECTED" in result["block"]

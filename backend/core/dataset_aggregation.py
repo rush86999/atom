@@ -577,20 +577,28 @@ def _ast_column_refs(value: Any) -> set:
     return out
 
 
-def _ast_predicate_columns(node: Dict[str, Any]) -> set:
-    """Column references used in WHERE/HAVING/QUALIFY/GROUP positions.
+def _ast_predicate_paths(node: Dict[str, Any]) -> List[List[str]]:
+    """Column-reference paths used in WHERE/HAVING/QUALIFY/GROUP."""
+    out: List[List[str]] = []
 
-    Structural: comments, strings and quoted identifiers cannot act as
-    clause boundaries or hide a required-input predicate.
-    """
-    out = set()
+    def _paths(value: Any) -> None:
+        if isinstance(value, dict):
+            if str(value.get("class") or "").upper() == "COLUMN_REF":
+                names = [str(n) for n in (value.get("column_names") or [])]
+                if names:
+                    out.append(names)
+            for child in value.values():
+                _paths(child)
+        elif isinstance(value, list):
+            for child in value:
+                _paths(child)
 
     def _visit(value: Any) -> None:
         if isinstance(value, dict):
             if str(value.get("type") or "").upper() == "SELECT_NODE":
                 for key in ("where_clause", "having", "qualify",
                             "group_expressions", "group_sets"):
-                    out.update(_ast_column_refs(value.get(key)))
+                    _paths(value.get(key))
             for child in value.values():
                 _visit(child)
         elif isinstance(value, list):
@@ -599,6 +607,11 @@ def _ast_predicate_columns(node: Dict[str, Any]) -> set:
 
     _visit(node)
     return out
+
+
+def _ast_predicate_columns(node: Dict[str, Any]) -> set:
+    """Last names of predicate column refs (see predicate_paths)."""
+    return {path[-1] for path in _ast_predicate_paths(node) if path}
 
 
 def _ast_contains_sample(value: Any) -> bool:
@@ -636,7 +649,8 @@ def _ast_has_extract_or_random(value: Any) -> bool:
         "json_extract_path", "json_extract_path_text", "json_type",
         "json_each", "json_tree", "to_json", "json_serialize_sql",
         "json_deserialize_sql", "json_execute_serialized_sql",
-        "struct_values", "struct_keys", "map_keys", "map_values", "row",
+        "struct_values", "struct_keys", "struct_pack", "struct_insert",
+        "map_keys", "map_values", "row",
         "->", "->>", "query", "query_table",
         "random", "setseed", "uuid", "gen_random_uuid", "uuidv4", "uuidv7",
     }
@@ -1021,6 +1035,30 @@ async def _execute_selection_plan(
                  "currency_column", "status_column"):
         if roles[role] == SHEET_ROW_COL:
             roles[role] = ""
+    _seen_roles: Dict[str, str] = {}
+    for role in ("identity_column", "quantity_column", "price_column",
+                 "currency_column", "status_column"):
+        column = roles[role]
+        if not column:
+            continue
+        norm = _norm_role_name(column)
+        if norm in _seen_roles:
+            return _error_block(
+                "ROLE CONFLICT",
+                f"{role} and {_seen_roles[norm]} both map to '{column}'; "
+                "each calculation role must be a distinct frame column.",
+            )
+        _seen_roles[norm] = role
+        for other_role, hints in _ROLE_HINTS.items():
+            if other_role == role:
+                continue
+            if norm in hints and norm not in _ROLE_HINTS.get(role, ()):
+                return _error_block(
+                    "ROLE CONFLICT",
+                    f"{role} is mapped to '{column}', which matches the "
+                    f"{other_role} role; no silent role substitution is "
+                    "allowed.",
+                )
     for role, col in roles.items():
         if col and col not in columns:
             return _error_block(
@@ -1036,8 +1074,25 @@ async def _execute_selection_plan(
                 f"The planner did not identify the {required.replace('_column', '')} "
                 "column; a complete total was withheld.",
             )
+    predicate_paths = _ast_predicate_paths(ast_node)
+    _from_table = ast_node.get("from_table") or {}
+    relation_names = {
+        "df",
+        str(chosen.get("dataset_name") or "").lower(),
+        str(chosen.get("entity_name") or "").lower(),
+        alias,
+        str(_from_table.get("alias") or "").lower(),
+    }
+    for path in predicate_paths:
+        if path and path[-1].lower() in relation_names:
+            return _error_block(
+                "SQL REJECTED",
+                "The selection query references a whole-row/relation name "
+                f"'{'.'.join(path)}' in a predicate; name physical frame "
+                "columns directly.",
+            )
     predicate_columns = {
-        name.lower() for name in _ast_predicate_columns(ast_node)
+        path[-1].lower() for path in predicate_paths if path
     }
     frame_columns = {name.lower() for name in columns}
     unexpected = sorted(
