@@ -57,10 +57,12 @@ before aggregation. The successor closes that trust boundary:
   quoted identifier, literal or comment containing `limit`/`order by`
   cannot hide `"Qty" > 0`; projected columns may not be aliased (including
   nested SELECTs); `COLUMNS(...)` expansion and `#n` positional references
-  are rejected; struct/array/JSON field extraction and random()/setseed()
-  are rejected; FROM column-alias lists are rejected; case/punctuation-
-  colliding names remain ambiguous and fail closed; `__sheet_row` is
-  rejected as any calculation role;
+  are rejected; struct/array/JSON field extraction, whole-row `->`/`->>`,
+  `json_value`/`json_each`/`query()` table functions, random()/uuid()/
+  setseed(), and FROM column-alias lists are rejected at any depth;
+  predicate COLUMN_REFs must resolve to physical frame columns; case/
+  punctuation-colliding names remain ambiguous and fail closed;
+  `__sheet_row` is rejected as any calculation role;
 - if a planner returns `__sheet_row` as the identity role while projecting
   a real business key, the role is corrected deterministically to that key;
   values still come from the frame.
@@ -98,13 +100,13 @@ Scratch only: backend `:8121`, database
 
 | Case | Session | Delivered result |
 |---|---|---|
-| PO Register, approved rows, totals by currency | `de5aaf71-623c-4b8a-ba2a-bfff3c36fa49` | CAD **8050.00** (3 rows, qty 10); USD **3999.96** (1 row, qty 4); cancelled row excluded; rows 2/3/4/6 with C/D provenance |
-| Adjustments, approved rows, name missing inputs | `1b51ae5a-3b00-47df-9e62-1bda1126f95d` | Known subtotal **−700.00 CAD**; gap **0055**, missing quantity at **C5**; complete/grand total withheld |
-| Formula reference, D8 | `834c7fe7-f46c-4d65-b9a0-3d8b51f2ab93` | **8050.00** neutral workbook arithmetic; 7 dependencies; no pricing policy |
-| Formula reference, row-qualified D8 | `4f4d94d9-db9c-4bdb-b317-026abc7a9c6a` | **8050.00**; same neutral basis |
-| Aggregate with no sheet named | `70ebccc4-9ae0-4c7a-b4ea-5f50ecf08ed2` | `SHEET AMBIGUOUS`; no total computed |
-| Explicit missing sheet | `c719cd2f-937f-4fc5-ac9d-ac3ccaa28c5c` | `SHEET NOT FOUND`; no fallback; no total computed |
-| Ordinary item lookup | `09b2fdee-3f1e-4728-8616-ede37b8e9fe6` | `0007` remains ambiguous between Adjustments row 2 (D2 = 100) and PO Register row 2 (D2 = 1,250) |
+| PO Register, approved rows, totals by currency | `30335b47-a560-48f2-a69e-dd1d3c71e21d` | CAD **8050.00** (3 rows, qty 10); USD **3999.96** (1 row, qty 4); cancelled row excluded; rows 2/3/4/6 with C/D provenance |
+| Adjustments, approved rows, name missing inputs | `f8b66856-f5b2-4cc7-af49-30a57de64330` | Known subtotal **−700.00 CAD**; gap **0055**, missing quantity at **C5**; complete/grand total withheld |
+| Formula reference, D8 | `57ad0844-96b6-42e0-9a0b-d58e2a7556c0` | **8050.00** neutral workbook arithmetic; 7 dependencies; no pricing policy |
+| Formula reference, row-qualified D8 | `5ad26b9d-155c-4403-9f81-54ab5201251a` | **8050.00**; same neutral basis |
+| Aggregate with no sheet named | `7de56681-37c1-4010-936d-3e9bdc25815f` | `SHEET AMBIGUOUS`; no total computed |
+| Explicit missing sheet | `7aadb358-970e-44dd-a8f8-231f429e7521` | `SHEET NOT FOUND`; no fallback; no total computed |
+| Ordinary item lookup | `a12a459e-0a8e-42c3-9565-a3232aae0fca` | `0007` remains ambiguous between Adjustments row 2 (D2 = 100) and PO Register row 2 (D2 = 1,250) |
 
 PO response also reports `Sheet rows: 5; selected: 4; not selected: 1` and
 `Sheet status counts: Approved=4, Cancelled=1`, making the exclusion auditable.
@@ -144,9 +146,10 @@ CTE/derived-table identity fabrication via comments and dollar-quoted
 strings, outer/nested `USING SAMPLE`, case-variant header shadowing,
 missing-role inference before the SQL AST predicate guard, predicate
 columns after `limit`/`order by` tokens in literals/comments, predicate
-aliases/COLUMNS/positional/nested aliases, struct/array field extraction,
-random(), ambiguous normalized role names, meta-role rejection,
-COALESCE/IFNULL/NULL filtering of
+aliases/COLUMNS/positional/nested aliases, struct/array/JSON/whole-row
+field extraction, query()/json_each table functions, random()/uuid(),
+non-frame predicate names, ambiguous normalized role names, meta-role
+rejection, COALESCE/IFNULL/NULL filtering of
 required inputs, quoted keyword columns, string NaN/Inf/null gaps, duplicate
 rows, version ambiguity, truncated materialization, display cap, formula
 grammar ordering, neutral priced-scope refusal, neutral stored-value record

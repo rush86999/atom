@@ -612,15 +612,33 @@ def _ast_contains_sample(value: Any) -> bool:
     return False
 
 
+def _ast_has_nonbase_from(value: Any) -> bool:
+    """Any nested FROM that is not the registered base table/empty."""
+    if isinstance(value, dict):
+        from_table = value.get("from_table")
+        if isinstance(from_table, dict):
+            kind = str(from_table.get("type") or "").upper()
+            if kind and kind not in ("BASE_TABLE", "EMPTY"):
+                return True
+        return any(_ast_has_nonbase_from(v) for v in value.values())
+    if isinstance(value, list):
+        return any(_ast_has_nonbase_from(v) for v in value)
+    return False
+
+
 def _ast_has_extract_or_random(value: Any) -> bool:
     """Struct/array field access and random() can hide a required input."""
     extract_types = {"STRUCT_EXTRACT", "ARRAY_EXTRACT", "LIST_EXTRACT",
                      "MAP_EXTRACT"}
     extract_funcs = {
         "struct_extract", "array_extract", "list_extract", "map_extract",
-        "json_extract", "json_extract_string", "struct_values",
-        "struct_keys", "map_keys", "map_values", "row",
-        "random", "setseed",
+        "json_extract", "json_extract_string", "json_value",
+        "json_extract_path", "json_extract_path_text", "json_type",
+        "json_each", "json_tree", "to_json", "json_serialize_sql",
+        "json_deserialize_sql", "json_execute_serialized_sql",
+        "struct_values", "struct_keys", "map_keys", "map_values", "row",
+        "->", "->>", "query", "query_table",
+        "random", "setseed", "uuid", "gen_random_uuid", "uuidv4", "uuidv7",
     }
     if isinstance(value, dict):
         kind = str(value.get("type") or "").upper()
@@ -692,6 +710,11 @@ def _ast_identity_violation(
         return (
             "The selection query may not sample rows (outer or nested); the "
             "full eligible selection is required."
+        )
+    if _ast_has_nonbase_from(node):
+        return (
+            "The selection query may not use nested derived tables, joins "
+            "or table functions; only the registered base table is readable."
         )
     if _ast_has_extract_or_random(node):
         return (
@@ -1010,6 +1033,17 @@ async def _execute_selection_plan(
     predicate_columns = {
         name.lower() for name in _ast_predicate_columns(ast_node)
     }
+    frame_columns = {name.lower() for name in columns}
+    unexpected = sorted(
+        name for name in predicate_columns if name not in frame_columns)
+    if unexpected:
+        return _error_block(
+            "SQL REJECTED",
+            "The selection query references names that are not physical "
+            "frame columns ("
+            + ", ".join(unexpected[:8])
+            + "); predicates must name physical columns directly.",
+        )
     for required in ("quantity_column", "price_column", "currency_column"):
         column = roles[required]
         if column and column.lower() in predicate_columns:

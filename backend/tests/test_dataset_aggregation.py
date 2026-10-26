@@ -978,7 +978,7 @@ async def test_required_column_guard_uses_ast_not_token_boundaries(tmp_path):
     for predicate in (
         '"PO ID" <> \'limit\' AND "Qty" > 0',
         '/* limit */ "Qty" > 0',
-        '"Credit Limit" > 0 AND "Qty" > 0',
+        '"PO ID" <> \'order by\' AND "Qty" > 0',
     ):
         plan = _plan(
             adj,
@@ -1059,6 +1059,26 @@ async def test_predicate_aliases_columns_and_positionals_are_rejected(tmp_path):
         "struct_values": (
             'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
             'AND list_contains(struct_values(df), 75)'),
+        "json_arrow": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND (df ->> \'Qty\') IS DISTINCT FROM NULL'),
+        "json_value": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND json_value(df, \'$.Qty\') IS DISTINCT FROM NULL'),
+        "whole_row": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND df IS NOT NULL'),
+        "query_table": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND EXISTS (SELECT 1 FROM query('
+            '\'SELECT __sheet_row FROM df WHERE "Qty" IS NOT NULL\') q '
+            'WHERE q.__sheet_row = df.__sheet_row)'),
+        "uuid": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND uuid()::VARCHAR > \'8\''),
+        "non_frame_name": (
+            'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+            'AND "Credit Limit" > 0'),
     }
     for label, sql in cases.items():
         result = await execute_validated_aggregate_plan(
