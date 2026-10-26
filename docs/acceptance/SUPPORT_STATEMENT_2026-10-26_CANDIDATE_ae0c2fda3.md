@@ -70,6 +70,10 @@ For the tested candidate/configuration, the candidate supports:
 - **No automatic DB restore.** Code rollback keeps the database. Restore is
   manual only for demonstrated corruption, after preserving the post-cutover
   DB/WAL/SHM.
+- **Exit guard added after failure.** Unexpected exits after pilot shutdown now
+  invoke rollback; pre-shutdown failures do not restart the pilot; committed
+  attempts do not roll back. Fake-release guard tests pass; no second live
+  attempt has run.
 - **Candidate not deployed.** Pilot remains `c912375de`.
 
 ## Explicit non-claims

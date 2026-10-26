@@ -186,6 +186,10 @@ A second attempt has not run. `c912375de` remains the served pilot.
 - The fake-release `rollback_after_failure` regression starts and
   health-checks the rollback release, writes failed/served identity, and exits
   nonzero as intended.
+- Fake-release exit-guard tests pass: unexpected exit after shutdown preserves
+  status and rolls back; stop-evidence write failure after shutdown rolls back
+  and publishes failure identity; pre-shutdown failure does not restart the
+  pilot; committed success does not roll back.
 - A second live attempt has **not** been executed; new authorization is
   outstanding.
 
@@ -196,8 +200,9 @@ A second attempt has not run. `c912375de` remains the served pilot.
 - Unknown-header confirmation UX and required-input filters remain the
   disclosed spreadsheet limitation.
 - General policy transfer beyond tested order/vendor controls is not claimed.
-- The existing product smoke evidence is scratch-world; the new live smoke
-  gate has not yet run because approval is outstanding.
+- The existing product smoke evidence is scratch-world. The live smoke gate
+  ran only far enough to reach admin login; it failed there before any product
+  turn, so it establishes no new product failure.
 - The live smoke covers successful reviews; failure-path envelope and
   post-generation invalidation remain covered by focused local controls, not a
   served failure smoke.
@@ -210,8 +215,11 @@ A second attempt has not run. `c912375de` remains the served pilot.
 
 ## Approval requested
 
-Approve **one reversible attempt** for `ae0c2fda3`: backup, scoped cutover,
-immediate live smoke, scoped restart/post-restart smoke, automatic code
-rollback to `c912375de` on any failure, preserved post-cutover data, and final
-served-identity publication. Database restore is not part of normal rollback;
-it requires demonstrated corruption and a separate manual decision.
+The first authorization is consumed. Approve **one second complete reversible
+attempt** for `ae0c2fda3` with the same product/smoke contract, using the
+corrected password precheck, fixed no-listener probes, and the new general
+exit guard: backup, scoped cutover, immediate live smoke, scoped
+restart/post-restart smoke, automatic code rollback to `c912375de` on any
+failure including unexpected post-shutdown exits, preserved post-cutover data,
+and final served-identity publication. Database restore is not part of normal
+rollback; it requires demonstrated corruption and a separate manual decision.

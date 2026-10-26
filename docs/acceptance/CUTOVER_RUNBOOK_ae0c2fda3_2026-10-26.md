@@ -214,6 +214,39 @@ If rollback itself fails, publish `status=rollback_failed` and require manual
 recovery. The candidate and rollback releases remain separate; `c912375de` is
 never overwritten.
 
+### General exit guard
+
+Automatic rollback is not limited to the explicitly handled failure sites. The
+script arms an `EXIT` handler before preflight and tracks:
+
+- `PILOT_STOPPED` — set only after the pilot process is gone and port `8001`
+  is free;
+- `CANDIDATE_PID` / `CANDIDATE_LOG` — set as soon as a candidate process is
+  started, including the restart;
+- `ATTEMPT_COMMITTED` — set only after smoke, restart, DB check, and success
+  identity publication;
+- `ROLLBACK_ACTIVE` — set before any rollback so the guard cannot recurse.
+
+If the script exits unexpectedly after the pilot has stopped and before the
+attempt is committed, the guard invokes the same rollback path, then exits
+with the **original** failure status. If preflight/snapshot/preparation fails
+before the pilot stops, the guard does nothing and the running pilot is not
+restarted or disturbed. If the attempt is committed, a normal exit is not
+treated as a failure.
+
+The stop-evidence write is checked explicitly; a write failure after the pilot
+is gone returns nonzero and therefore reaches the guard.
+
+Guard tests use only fake releases on spare ports and no model calls:
+
+1. unexpected `exit 7` immediately after pilot shutdown → rollback starts,
+   health passes, failure identity published, exit status remains `7`;
+2. stop-evidence write failure after shutdown → rollback starts, health passes,
+   failure identity published, exits nonzero;
+3. preflight/backup failure before shutdown (`PILOT_STOPPED=0`) → no rollback,
+   exit status preserved;
+4. committed attempt (`PILOT_STOPPED=1`, `ATTEMPT_COMMITTED=1`) → no rollback.
+
 ## Database restore rule
 
 The snapshot is for disaster recovery, not normal rollback. The script never
@@ -235,6 +268,10 @@ evidence path. Normal code rollback keeps the post-cutover data.
   the no-listener `lsof` case that broke the first rollback.
 - Isolated fake-release `rollback_after_failure`: pass (starts rollback,
   health-checks it, writes failed/served identity).
+- Fake-release exit-guard tests: unexpected exit after shutdown (status
+  preserved), stop-evidence write failure after shutdown (rollback + failure
+  identity), pre-shutdown failure (no rollback), committed success (no
+  rollback): all pass.
 - Wrong approval token: exit `1`, no snapshot/link/stop/start.
 - Pilot is `c912375de` PID `5322`, healthy on `:8001`; candidate is prepared,
   not running, and not deployed.

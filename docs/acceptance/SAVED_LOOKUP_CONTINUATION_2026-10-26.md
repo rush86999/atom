@@ -299,8 +299,9 @@ agreement, and automatic code rollback to `c912375de` on any failure. Database
 restore is not part of normal rollback. One authorized attempt was executed and
 failed at smoke admin login (HTTP 401) before creating smoke data; automatic
 rollback hit an `lsof`/`pipefail` defect and the pilot was manually restored as
-PID `5322`. The defects are fixed; a second attempt requires new authorization
-and has not run.
+PID `5322`. The defects are fixed, including a general post-shutdown exit guard
+that invokes rollback on unexpected failure; fake-release guard tests pass. A
+second attempt requires new authorization and has not run.
 
 ## Tests
 
