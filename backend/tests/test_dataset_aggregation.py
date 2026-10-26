@@ -733,8 +733,9 @@ async def test_sql_projections_cannot_supply_calculation_inputs(tmp_path):
     assert result["status"] == "error"
     assert "SQL REJECTED" in result["block"]
 
-    # An UNALIASED CASE projection is ignored; the authoritative frame
-    # keeps 0055's missing quantity and no invented 75 CAD appears.
+    # An UNALIASED CASE projection is also rejected: projections may
+    # contain only plain frame columns/constants, never row-expanding or
+    # expression values.
     case_sql = (
         'SELECT "__sheet_row", '
         'CASE WHEN "Qty" > 0 THEN "Qty" '
@@ -744,13 +745,8 @@ async def test_sql_projections_cannot_supply_calculation_inputs(tmp_path):
         'WHERE "Status" = \'Approved\'')
     result = await execute_validated_aggregate_plan(
         entries, _plan(adj, case_sql), "Adjustments sheet approved totals")
-    assert result["status"] == "partial"
-    assert result["known_count"] == 2
-    assert result["subtotals"]["CAD"]["value"] == "-700.00"
-    assert result["gaps"] == [{
-        "identity": "0055", "row": 5, "missing": "quantity", "cell": "C5"
-    }]
-    assert "75.00" not in result["block"]
+    assert result["status"] == "error"
+    assert "SQL REJECTED" in result["block"]
 
     # A constant projection (no alias) is ignored too.
     price_sql = (
@@ -823,10 +819,7 @@ async def test_nl_plan_projection_cannot_substitute_values(tmp_path, monkeypatch
     adj = next(e for e in entries if e["entity_name"] == "Adjustments")
     plan = SimpleNamespace(
         dataset_name=adj["dataset_name"],
-        sql=('SELECT "__sheet_row", '
-             'CASE WHEN "Qty" > 0 THEN "Qty" '
-             'WHEN "Qty" <= 0 THEN "Qty" '
-             'WHEN "Qty" IS DISTINCT FROM 0 THEN 1 END, '
+        sql=('SELECT "__sheet_row", 999, '
              '"Unit Price", "Currency", "Status" FROM df '
              'WHERE "Status" = \'Approved\''),
         identity_column="PO ID",
@@ -1084,4 +1077,22 @@ async def test_predicate_aliases_columns_and_positionals_are_rejected(tmp_path):
         result = await execute_validated_aggregate_plan(
             entries, _plan(adj, sql), "Adjustments sheet approved totals")
         assert result["status"] == "error", label
+        assert "SQL REJECTED" in result["block"]
+
+
+@pytest.mark.asyncio
+async def test_projection_cannot_expand_or_drop_rows(tmp_path):
+    entries = _entries(tmp_path)
+    adj = next(e for e in entries if e["entity_name"] == "Adjustments")
+    cases = (
+        ('SELECT "__sheet_row", unnest(list_filter([1], '
+         'x -> "Qty" IS DISTINCT FROM NULL)) FROM df '
+         'WHERE "Status" = \'Approved\''),
+        ('SELECT "__sheet_row", unnest(CASE WHEN "Qty" > 0 THEN [1] END) '
+         'FROM df WHERE "Status" = \'Approved\''),
+    )
+    for sql in cases:
+        result = await execute_validated_aggregate_plan(
+            entries, _plan(adj, sql), "Adjustments sheet approved totals")
+        assert result["status"] == "error"
         assert "SQL REJECTED" in result["block"]

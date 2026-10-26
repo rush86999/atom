@@ -781,6 +781,12 @@ def _ast_identity_violation(
                 "Project __sheet_row explicitly as a plain column; SELECT * "
                 "is not allowed."
             )
+        if cls not in ("COLUMN_REF", "CONSTANT", "VALUE_CONSTANT"):
+            return (
+                "The projection may contain only plain frame columns and "
+                "constants; functions, CASE, unnest, casts and subqueries "
+                "are not allowed."
+            )
         names = item.get("column_names") or []
         last = str(names[-1]) if names else ""
         if last == "__sheet_row":
@@ -1353,7 +1359,8 @@ async def aggregate_named_dataset(
         "reference (never an expression, CASE, cast, or alias). The harness "
         "reads quantity, unit price, currency, status and identity from the "
         "authoritative frame for those rows, so projections of those fields "
-        "are ignored.\n"
+        "are ignored. Other projection items may be plain frame columns or "
+        "constants only — no functions/unnest/CASE/casts/subqueries.\n"
         "- Do NOT alias any projected column. Predicates must name physical "
         "frame columns directly; never use COLUMNS(...) expansion or #n "
         "positional references.\n"
