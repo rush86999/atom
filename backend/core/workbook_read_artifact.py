@@ -111,6 +111,25 @@ _FIELD_ALIASES: Dict[str, Sequence[str]] = {
     "payment_terms": (
         "payment terms", "payment term", "terms", "payment conditions",
     ),
+    # RECORD-REVIEW FIELDS (2026-10-26 bounded repair): a review against a
+    # policy needs the record's own decision fields, not only price/status.
+    # These are generic business-record columns; the request's own words
+    # establish which ones the review requires.
+    "currency": (
+        "currency", "currency code", "iso currency", "currency iso",
+    ),
+    "approval_1": (
+        "approval 1", "first approval", "approval one", "approver 1",
+    ),
+    "approval_2": (
+        "approval 2", "second approval", "approval two", "approver 2",
+    ),
+    "manager_exception": (
+        "manager exception", "exception details", "exception detail",
+        "exception approval", "manager approval",
+    ),
+    "notes": ("notes", "comments", "remarks"),
+    "order_id": ("order id", "order number", "order no"),
 }
 _UNIT_TOKENS = {
     "kg", "g", "mg", "lb", "lbs", "oz", "cm", "mm", "m", "in", "ft",
@@ -143,6 +162,8 @@ _FIELD_REQUEST_GROUPS = {
     # preserve domain dependence. These groups are domain-general
     # business fields, not pricing-specific vocabulary.
     "warranty", "material",
+    "currency", "approval_1", "approval_2", "manager_exception",
+    "notes", "order_id",
 }
 
 
@@ -281,6 +302,8 @@ def _select_value_columns(
     descriptors: Sequence[Dict[str, Any]],
     attributes: Sequence[str] = (),
     requested_fields: Sequence[str] = (),
+    *,
+    include_all: bool = False,
 ) -> Dict[str, Any]:
     requested = []
     for field in requested_fields or ():
@@ -303,12 +326,20 @@ def _select_value_columns(
     selected: List[Dict[str, Any]] = []
     for item in descriptors:
         label = item.get("label") or ""
+        matched = False
         if requested:
             for field in requested:
                 if _field_phrase_matches(label, field):
                     matches.setdefault(field, []).append(item)
-                    if item not in selected:
-                        selected.append(item)
+                    matched = True
+        if include_all:
+            # A record review needs the row, not a price-shaped projection.
+            # Keep the requested-field matches above so an absent required
+            # header still surfaces in unmatched_fields.
+            selected.append(item)
+        elif requested:
+            if matched:
+                selected.append(item)
         elif any(
             _stem(term) in _stem(_normalize_field_text(label))
             or _stem(_normalize_field_text(label)) in _stem(term)
@@ -317,7 +348,7 @@ def _select_value_columns(
             selected.append(item)
         elif _VALUE_HEADER_RE.search(str(label)):
             selected.append(item)
-    if not requested and not raw_terms:
+    if not requested and not raw_terms and not include_all:
         matches["generic_value"] = [
             item for item in selected
             if _VALUE_HEADER_RE.search(str(item.get("label") or ""))
@@ -2483,6 +2514,8 @@ def inspect_dataset_entries(
     targets: Optional[Sequence[str]] = None,
     attributes: Optional[Sequence[str]] = None,
     requested_fields: Optional[Sequence[str]] = None,
+    include_all_fields: bool = False,
+    require_requested_fields: bool = False,
     provider: Optional[str] = None,
     resource_id: Optional[str] = None,
     source_metadata: Optional[Dict[str, Any]] = None,
@@ -2608,6 +2641,7 @@ def inspect_dataset_entries(
             header_descriptors,
             attributes or (),
             requested_fields or (),
+            include_all=include_all_fields,
         )
         selected_columns = field_selection["selected"]
         # STRUCTURED field ambiguity (2026-09-24 review): the gross/net
@@ -3147,6 +3181,21 @@ def inspect_dataset_entries(
     algorithm = content_hash_algorithm if content_hash else (
         "sha256" if sha256 else None
     )
+    # A review's named fields are a contract: if the workbook has no matching
+    # header, the read may still retrieve a row, but it cannot certify the
+    # full review. Preserve the gaps as data (never silently drop them).
+    required_field_gaps = (
+        sorted({
+            str(field)
+            for outcome in outcomes
+            if outcome.get("status") in ("found", "ambiguous")
+            for field in (
+                (outcome.get("field_selection") or {}).get(
+                    "unmatched_fields") or []
+            )
+        })
+        if require_requested_fields else []
+    )
     return {
         "target_extraction_version": TARGET_EXTRACTION_VERSION,
         "provider": provider,
@@ -3176,8 +3225,14 @@ def inspect_dataset_entries(
                 _dominant_read_category(unreadable_categories)
                 if read_failed_legs else None
             ),
+            "required_fields": (
+                list(requested_fields or [])
+                if require_requested_fields else []
+            ),
+            "field_gaps": required_field_gaps,
             "complete": (
                 complete
+                and not required_field_gaps
                 and all(
                     outcome["status"] in ("found", "ambiguous", "absent")
                     for outcome in outcomes
@@ -4327,6 +4382,13 @@ def render_workbook_artifact(artifact: Dict[str, Any]) -> str:
         lines.append(
             "WORKBOOK COVERAGE LIMITS: "
             + json.dumps(artifact["coverage_limits"], sort_keys=True, default=str)
+        )
+    if coverage.get("field_gaps"):
+        lines.append(
+            "WORKBOOK FIELD GAPS: "
+            + ", ".join(str(g) for g in coverage["field_gaps"])
+            + " — the review's named field(s) have no matching header; do not "
+              "certify the full review from this read."
         )
     if not coverage.get("complete", False):
         lines.append("WORKBOOK COVERAGE: INCOMPLETE")

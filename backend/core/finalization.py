@@ -104,8 +104,10 @@ def finalize_payload(
     # source_scoped_retrieval). Without this mapping the delivered envelope
     # kept outcome=null even though the turn's own durable outcome said
     # objective_met=True. Derive only an EXPLICIT verdict: unknown criteria
-    # stay null, and a failed execution is never rounded to completed.
-    if status != "failed":
+    # stay null, and only an ESTABLISHED successful execution may settle.
+    # Unknown/missing/partial/queued states retain their own disposition;
+    # a contradictory task verdict must not turn them into completed.
+    if status in _TASK_OUTCOME_ELIGIBLE_STATUSES:
         task_state = _task_outcome_state(execution)
         if task_state is not None and payload.get("outcome") is None:
             payload["outcome"] = task_state
@@ -114,6 +116,14 @@ def finalize_payload(
                 payload["error_code"] = (
                     payload.get("error_code") or "turn_objective_not_met")
     return payload
+
+
+# Only a successful execution has an established state that a criteria
+# verdict may settle. Pending/running/paused/partial/cancelled/timeout and
+# unknown/missing statuses keep their own disposition.
+_TASK_OUTCOME_ELIGIBLE_STATUSES = frozenset({
+    "success", "succeeded", "completed",
+})
 
 
 def _task_outcome_state(execution: Optional[Dict[str, Any]]) -> Optional[str]:

@@ -2142,3 +2142,110 @@ def test_task_outcome_records_verified_canvas_mutation():
     assert outcome["actions"][0]["status"] == "applied"
     assert outcome["actions"][0]["applied"] is True
     assert outcome["success_kinds"]["task_success"] is True
+
+
+def test_mixed_verifier_results_keep_individual_verdicts():
+    """The aggregate objective verdict must not be copied onto each criterion.
+
+    One satisfied verifier and one failed verifier produce objective_met=False,
+    but the satisfied criterion must still read met=True. The previous code
+    distributed the aggregate False onto both results.
+    """
+    from core import task_outcome_contract as contract
+
+    met_kind = "test_mixed_met"
+    unmet_kind = "test_mixed_unmet"
+    contract.register_criteria_verifier(met_kind, lambda outcome: True)
+    contract.register_criteria_verifier(unmet_kind, lambda outcome: False)
+    try:
+        outcome = build_task_outcome(
+            objective="mixed criteria",
+            completion_criteria=[
+                {"kind": met_kind},
+                {"kind": unmet_kind},
+            ],
+            tool_outcomes=[{
+                "tool": "file_scoped_read",
+                "verified": True,
+                "evidence_refs": [{
+                    "kind": "file",
+                    "file_name": "book.xlsx",
+                    "content_hash": "hash-1",
+                    "addresses_requested": True,
+                }],
+            }],
+        )
+        basis, verdict = contract.criteria_verdict(outcome)
+    finally:
+        contract._VERIFIERS.pop(met_kind, None)
+        contract._VERIFIERS.pop(unmet_kind, None)
+
+    results = {r["criterion"]: r["met"] for r in outcome["criterion_results"]}
+    assert results == {met_kind: True, unmet_kind: False}
+    assert outcome["objective_met"] is False
+    assert (basis, verdict) == ("criteria_not_met", False)
+    assert outcome["success_kinds"]["task_success"] is False
+    assert outcome["success_kinds"]["task_success_basis"] == "objective_not_met"
+
+
+def test_verified_read_does_not_certify_an_undelivered_review():
+    """A complete read is evidence; the policy decision is the obligation."""
+    tool = {
+        "tool": "file_scoped_read",
+        "verified": True,
+        "evidence_refs": [{
+            "kind": "file",
+            "file_name": "orders.xlsx",
+            "content_hash": "hash-orders",
+            "addresses_requested": True,
+        }],
+    }
+    outcome = build_task_outcome(
+        objective="Review O-1010 against the order processing policy.",
+        completion_criteria=[
+            {"kind": "source_scoped_retrieval"},
+            {"kind": "record_review"},
+        ],
+        tool_outcomes=[tool],
+        evidence_refs=tool["evidence_refs"],
+        delivery={
+            "delivered": True,
+            "review_required": True,
+            "review_delivered": False,
+        },
+    )
+    results = {r["criterion"]: r["met"] for r in outcome["criterion_results"]}
+    assert results["source_scoped_retrieval"] is True
+    assert results["record_review"] is False
+    assert outcome["objective_met"] is False
+
+
+def test_delivered_review_with_complete_read_is_complete():
+    tool = {
+        "tool": "file_scoped_read",
+        "verified": True,
+        "evidence_refs": [{
+            "kind": "file",
+            "file_name": "orders.xlsx",
+            "content_hash": "hash-orders",
+            "addresses_requested": True,
+        }],
+    }
+    outcome = build_task_outcome(
+        objective="Review O-1010 against the order processing policy.",
+        completion_criteria=[
+            {"kind": "source_scoped_retrieval"},
+            {"kind": "record_review"},
+        ],
+        tool_outcomes=[tool],
+        evidence_refs=tool["evidence_refs"],
+        delivery={
+            "delivered": True,
+            "review_required": True,
+            "review_delivered": True,
+        },
+    )
+    results = {r["criterion"]: r["met"] for r in outcome["criterion_results"]}
+    assert results["source_scoped_retrieval"] is True
+    assert results["record_review"] is True
+    assert outcome["objective_met"] is True

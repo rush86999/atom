@@ -8554,6 +8554,34 @@ class ChatOrchestrator:
                 "_pending_file_task"
             ) or {}
             objective = str(task.get("original_message") or message or "")[:4000]
+            # A policy/record review is not complete when the read alone is
+            # delivered. Record the review obligation and whether the
+            # delivered response actually states a decision; the
+            # record_review criterion consumes both.
+            _review_required = False
+            try:
+                from core.chat_tool_planner import _record_review_request
+
+                _review_required = _record_review_request(objective)
+            except Exception:  # noqa: BLE001 — review flag is additive
+                _review_required = False
+            _review_delivered = False
+            if _review_required:
+                _review_text = str(response.get("message") or "")
+                _review_model = str(response.get("model") or "")
+                _review_delivered = bool(
+                    _review_model != "deterministic"
+                    and (
+                        re.search(
+                            r"(?:recommendation|recommend|decision|verdict)"
+                            r"\s*[:\-]?\s*\**\s*(?:process|escalat)",
+                            _review_text, re.I)
+                        or re.search(
+                            r"\brecommend(?:ation)?\b[^.\n]{0,40}"
+                            r"\b(?:process|escalat)",
+                            _review_text, re.I)
+                    )
+                )
             result = session.get("_pending_file_result") or {}
             result_execution_id = result.get("execution_id")
             if not allow_persisted_evidence and (
@@ -9204,6 +9232,12 @@ class ChatOrchestrator:
                 and mutation.get("readback_matched") is True
             ):
                 objective_met = True
+            # A verified read is evidence, not a review. Without a delivered
+            # decision, the review obligation remains unmet even when the
+            # retrieval itself is complete (2026-10-26 row-projection run:
+            # a deterministic read block was settling as completed).
+            if _review_required and not _review_delivered:
+                objective_met = False
             failure_layer = None
             failure_owner = None
             if not delivered and status in {"failed", "cancelled"}:
@@ -9228,6 +9262,7 @@ class ChatOrchestrator:
                     ([{"kind": "source_comparison"}] if comparison else
                      [{"kind": "source_scoped_retrieval"}] if mentions else [])
                     + ([{"kind": "mutation"}] if canvas_edit else [])
+                    + ([{"kind": "record_review"}] if _review_required else [])
                     + ([{"kind": "context_source_fulfillment"}]
                        if _cf_record else [])
                 ),
@@ -9290,6 +9325,8 @@ class ChatOrchestrator:
                     "channel": "chat",
                     "model": response.get("model"),
                     "deterministic": deterministic,
+                    "review_required": _review_required,
+                    "review_delivered": _review_delivered,
                 },
                 limitations=(
                     [task.get("status")]
@@ -13155,7 +13192,67 @@ class ChatOrchestrator:
                                 execution_id=_execution_id,
                                 request_id=(context or {}).get("request_id"),
                             )
-                if _direct_result.get("ok"):
+                _direct_review_ask = False
+                try:
+                    from core.chat_tool_planner import _record_review_request
+
+                    _direct_review_ask = _record_review_request(
+                        str((_direct_task or {}).get("original_message")
+                            or message or ""))
+                except Exception:  # noqa: BLE001 — flag is additive
+                    _direct_review_ask = False
+                if _direct_result.get("ok") and _direct_review_ask:
+                    # A review ask needs the row as EVIDENCE, not as the
+                    # answer. Persist the read and continue to narration;
+                    # the deterministic read block must not settle the
+                    # policy-review obligation.
+                    _review_identity = _direct_result.get("identity") or {}
+                    if isinstance(_review_identity, dict) and _review_identity:
+                        _review_identity = {
+                            **_review_identity,
+                            "execution_id": _execution_id,
+                        }
+                        session["_resolved_file_identity"] = _review_identity
+                    _review_structured = _direct_result.get(
+                        "structured_result")
+                    _review_row = {
+                        "status": "retrieved",
+                        "target_extraction_version":
+                            _TARGET_EXTRACTION_VERSION_NOW,
+                        "rendered": str(
+                            _direct_result.get("rendered_answer")
+                            or _direct_result.get("block") or "")[:24000],
+                        "identity": _review_identity,
+                        "workbook_read": (
+                            _direct_result.get("meta") or {}
+                        ).get("workbook_read"),
+                        "coverage_complete": bool(
+                            _direct_result.get("retrieval_complete")),
+                        "execution_id": _execution_id,
+                        "retrieved_at": time.time(),
+                        "structured_result": (
+                            _review_structured
+                            if isinstance(_review_structured, dict) else None),
+                    }
+                    _adopt_pending_file_result(
+                        session, _review_row, source="review_read")
+                    try:
+                        from core.pending_file_task import (
+                            FILE_TASK_SESSION_KEY,
+                            mark_task_retrieved,
+                        )
+
+                        _review_task = session.get(FILE_TASK_SESSION_KEY)
+                        if isinstance(_review_task, dict):
+                            session[FILE_TASK_SESSION_KEY] = (
+                                mark_task_retrieved(
+                                    _review_task, _review_identity))
+                    except Exception:  # noqa: BLE001 — task bookkeeping
+                        pass
+                    logger.info(
+                        "[pending-file-task] review ask — read retrieved; "
+                        "narration required")
+                if _direct_result.get("ok") and not _direct_review_ask:
                     _direct_structured = _direct_result.get("structured_result")
                     _direct_full_action = None
                     _direct_action_summary = None
@@ -14228,6 +14325,31 @@ class ChatOrchestrator:
                 # normal); a new explicit display request receives an
                 # intentional reply with its own execution/delivery
                 # identities; refresh performs a new authorized read.
+                if _recovery_decision == "deliver_stored_result" \
+                        and _recovery_payload:
+                    try:
+                        from core.chat_tool_planner import (
+                            _record_review_request,
+                        )
+
+                        _r4_review_ask = _record_review_request(
+                            str(_recovery_payload.get("original_request")
+                                or message or ""))
+                    except Exception:  # noqa: BLE001 — flag is additive
+                        _r4_review_ask = False
+                    if _r4_review_ask:
+                        # A recovered read is still only the evidence for a
+                        # review. Stage it for narration instead of serving
+                        # the stored block as a completed answer.
+                        _r4_stored = dict(_recovery_payload)
+                        _r4_stored["status"] = "retrieved"
+                        _r4_stored["execution_id"] = _execution_id
+                        session["_pending_file_result"] = _r4_stored
+                        logger.info(
+                            "[r4-recovery] review ask — stored read staged; "
+                            "narration required")
+                        _recovery_decision = "normal_work"
+                        _recovery_payload = None
                 if _recovery_decision == "deliver_stored_result" \
                         and _recovery_payload:
                     _r4_identity = _recovery_payload.get("identity") or {}
@@ -20083,6 +20205,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _planned: Optional[str] = None
             _off_request = False
             _deterministic_answer: Optional[str] = None
+            _review_ask = False
+            try:
+                from core.chat_tool_planner import _record_review_request
+
+                _review_ask = _record_review_request(
+                    _resume_original
+                    or str((pending_file_task or {}).get("original_message")
+                           or message or ""))
+            except Exception:  # noqa: BLE001 — flag is additive
+                _review_ask = False
             _objective_comparison: Optional[Dict[str, Any]] = None
             # THIS TURN'S structured workbook record, for the evidence-bound
             # narration guard below. It must be bound HERE, beside the read
@@ -24636,7 +24768,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 except Exception as _pft2_err:  # noqa: BLE001 — bookkeeping only
                     logger.debug(f"pending file task store skipped: {_pft2_err}")
 
-            if _deterministic_answer and not _off_request:
+            if _deterministic_answer and not _off_request and not _review_ask:
                 try:
                     from core.chat_tool_planner import (
                         _user_facing_workbook_answer,
@@ -27172,7 +27304,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                      _content[:300])
                     except Exception:
                         pass
-                if _deterministic_answer and not _off_request:
+                if _deterministic_answer and not _off_request and not _review_ask:
                     try:
                         from core.chat_tool_planner import (
                             _user_facing_workbook_answer,

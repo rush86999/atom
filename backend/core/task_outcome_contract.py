@@ -333,34 +333,21 @@ def build_task_outcome(
     # verified receipt stayed invisible to derive_success_kinds (objective
     # unknown) and the response settled as outcome=null. Unknown evidence
     # still stays unknown; only a concrete verifier verdict is persisted.
+    #
+    # Each criterion keeps ITS OWN verifier result. Distributing an aggregate
+    # verdict onto every result turned a satisfied criterion into a failure
+    # whenever a sibling criterion failed (2026-10-26 mixed-verifier control).
     if outcome.get("objective_met") is None and outcome.get(
             "completion_criteria"):
+        if not outcome.get("criterion_results"):
+            outcome["criterion_results"] = (
+                _criterion_results_from_verifiers(outcome))
         try:
             _criteria_basis, _criteria_verdict = criteria_verdict(outcome)
         except Exception:  # noqa: BLE001 — verifier is fail-open
             _criteria_basis, _criteria_verdict = "criteria_unknown", None
         if _criteria_verdict is not None:
             outcome["objective_met"] = _criteria_verdict
-            if not outcome.get("criterion_results"):
-                _criterion_evidence = [
-                    _copy_ref(ref)
-                    for tool in outcome.get("tool_outcomes") or []
-                    if isinstance(tool, dict)
-                    for ref in tool.get("evidence_refs") or []
-                    if isinstance(ref, dict)
-                ][:8]
-                outcome["criterion_results"] = [
-                    {
-                        "criterion": str(
-                            criterion.get("kind") or "").strip(),
-                        "met": _criteria_verdict,
-                        "verifier": str(
-                            criterion.get("kind") or "").strip(),
-                        "evidence_refs": _criterion_evidence,
-                    }
-                    for criterion in outcome["completion_criteria"]
-                    if isinstance(criterion, dict) and criterion.get("kind")
-                ]
     diagnosis = diagnose_failure(outcome)
     if diagnosis is not None:
         outcome["failure"] = diagnosis
@@ -496,6 +483,54 @@ def criteria_verdict(outcome: Dict[str, Any]) -> "tuple[str, bool | None]":
     return "criteria_met", True
 
 
+def _criterion_results_from_verifiers(
+    outcome: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    """One result per declared criterion, from that criterion's verifier.
+
+    The verifier interface returns a tri-state verdict per kind; it does not
+    return an aggregate. Copying the aggregate onto every result made a
+    satisfied criterion look failed whenever a sibling criterion failed. A
+    kind with no registered verifier gets no manufactured result, so the
+    overall verdict stays unknown rather than being guessed.
+    """
+    criteria = outcome.get("completion_criteria") or []
+    evidence_refs = [
+        _copy_ref(ref)
+        for tool in outcome.get("tool_outcomes") or []
+        if isinstance(tool, dict)
+        for ref in tool.get("evidence_refs") or []
+        if isinstance(ref, dict)
+    ][:8]
+    results: List[Dict[str, Any]] = []
+    seen = set()
+    for criterion in criteria:
+        if isinstance(criterion, dict):
+            kind = str(criterion.get("kind") or "").strip()
+        else:
+            kind = str(criterion or "").strip()
+        key = kind.lower()
+        if not kind or key in seen:
+            continue
+        seen.add(key)
+        fn = _VERIFIERS.get(key)
+        if fn is None:
+            continue
+        try:
+            verdict = fn(outcome)
+        except Exception:  # noqa: BLE001 — a verifier failure is unknown
+            verdict = None
+        results.append({
+            "criterion": kind,
+            "met": _tri_state(verdict),
+            "verifier": kind,
+            # The verifier returns a verdict, not per-criterion refs. Attach
+            # the outcome's evidence only when it supports a met verdict.
+            "evidence_refs": evidence_refs if verdict is True else [],
+        })
+    return results
+
+
 def _retrieval_verifier(outcome: Dict[str, Any]) -> "bool | None":
     """Retrieval criteria: verified tool evidence whose identity
     addresses the request (file/resource/hash), as before — now one
@@ -515,6 +550,22 @@ def _retrieval_verifier(outcome: Dict[str, Any]) -> "bool | None":
 
 register_criteria_verifier("retrieval", _retrieval_verifier)
 register_criteria_verifier("source_scoped_retrieval", _retrieval_verifier)
+
+
+def _record_review_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    """A policy/record review is complete only when a decision was delivered.
+
+    A verified file read is necessary evidence, not the review itself. The
+    delivery record states both facts; a deterministic read (or a read-only
+    render) must never certify the review obligation.
+    """
+    delivery = outcome.get("delivery") or {}
+    if not isinstance(delivery, dict) or delivery.get("review_required") is not True:
+        return None
+    return delivery.get("review_delivered") is True
+
+
+register_criteria_verifier("record_review", _record_review_verifier)
 
 
 def _calculation_verifier(outcome: Dict[str, Any]) -> "bool | None":

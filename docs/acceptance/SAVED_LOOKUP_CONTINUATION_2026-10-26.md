@@ -130,43 +130,92 @@ O-1010 read returned Status and Unit Price but not the Currency field, so the
 model escalated on the base policy's “uncertain currency” rule rather than
 recommending Process. This is the known file-read projection limitation (the
 read does not return the full row contract); it is not a correction failure.
-The correction itself is applied and persists across restart.
+The correction itself is applied and persists across restart. The bounded
+row-projection repair below supersedes this limitation for review asks.
+
+## Bounded outcome + row-projection repair
+
+Two local outcome controls were corrected before another expensive run:
+
+- **Per-criterion verdicts.** `build_task_outcome` no longer copies the
+  aggregate verdict onto every criterion. Each declared criterion keeps its
+  own registered-verifier result; a mixed True/False control now yields
+  `source_scoped_retrieval=True` and `record_review=False` for an incomplete
+  review, never two false rows.
+- **Execution-state eligibility.** The finalizer maps a task verdict only for
+  an established successful execution (`success` / `succeeded` /
+  `completed`). Unknown, missing, failed, partial and queued dispositions are
+  never rounded to `completed`; existing partial/queued envelope outcomes are
+  preserved.
+
+The row projection was then repaired for review asks:
+
+- A review's named fields (Order ID, Status, Qty, Unit Price, Currency,
+  Approval 1, Approval 2, Manager Exception, Notes) are extracted before the
+  read.
+- A review ask selects the whole matched row, so Currency, both approvals,
+  exception and notes are returned; genuinely absent headers are recorded as
+  `coverage.field_gaps` and rendered explicitly.
+- A new `record_review` criterion requires a delivered decision, not just a
+  verified read. Deterministic read blocks and r4 recovered scans are staged
+  as evidence and narrated for review asks; a read alone cannot certify the
+  review obligation.
+
+Bounded evidence: `combined_eval_row_projection_20261026/evidence.json`
+(fresh scratch world, planner enabled, no supplied rows):
+
+- O-1010 before correction → **Process**, complete row (Currency CAD,
+  approvals, notes) → `outcome=completed`.
+- O-1010 after correction, pre-restart → **Escalate**, citing **M. Chen /
+  2026-10-25** → `outcome=completed`.
+- O-1010 after restart → **Escalate**, same citation → `outcome=completed`.
+- O-1001 positive twin → **Process**, unchanged → `outcome=completed`.
+- All four: metadata outcome agrees, history persists, no unauthorized
+  task/canvas/outbound writes, source hash unchanged.
+- `checks_all_true: true` for the bounded checks.
+
+The earlier budget failure is preserved as
+`combined_eval_row_projection_20261026/evidence_before_budget_retry.json`; a
+single retry re-delivered the stored read. The earlier full-run evidence
+remains under `combined_eval_repair_20261026/` and is not overwritten.
 
 ## Tests
 
-Focused suite (`test_memory_context_assembler.py`,
-`test_l2_guard_order.py`, `test_pending_file_task_resume.py`,
-`test_cross_source_followup_routing.py`, `test_dataset_aggregation.py`,
-`test_finalization_m1.py`, `test_finalization_m2.py`,
-`test_outcome_resolution.py`, `test_fallback_honesty.py`,
-`test_objective_evidence_flow.py`, `test_search_outcome_contracts.py`,
-`test_acceptance_harness_integrity.py`):
+Focused suite (`test_workbook_read_artifact.py`,
+`test_memory_context_assembler.py`, `test_l2_guard_order.py`,
+`test_pending_file_task_resume.py`, `test_cross_source_followup_routing.py`,
+`test_dataset_aggregation.py`, `test_finalization_m1.py`,
+`test_finalization_m2.py`, `test_outcome_resolution.py`,
+`test_fallback_honesty.py`, `test_objective_evidence_flow.py`,
+`test_search_outcome_contracts.py`, `test_acceptance_harness_integrity.py`):
 
-- Repair branch: **519 passed, 23 failed, 2 xfailed**.
-- Frozen baseline: **507 passed, 23 failed, 2 xfailed**.
+- Repair branch: **579 passed, 23 failed, 2 xfailed**.
+- Frozen baseline: **557 passed, 23 failed, 2 xfailed**.
 - The same 23 named failures exist on both sides (known refresh/cross-source
   and objective-evidence test gaps, plus one order-dependent shared-state
   failure that passes in isolation on both sides). No new failure was
   introduced.
 - New tests cover bare-approval resume, `resume_operation`, terminal-task
-  merge, the finalizer's explicit-verdict mapping (completed / failed /
-  unknown / failed-execution precedence), and lessons-only assembly for
-  file-scoped turns.
+  merge, the finalizer's explicit-verdict mapping and status eligibility,
+  mixed per-criterion verdicts, lessons-only assembly for file-scoped turns,
+  review-field extraction, whole-row selection, field gaps, and the
+  `record_review` settlement guard.
 
 ## Remaining gaps and limits
 
-- The one-order controls and the combined teaching/correction/restart run are
-  green on retrieval, settlement, correction, and zero unauthorized actions.
-  A five-order / full-group review still reaches the product's fixed turn
-  budget (`turn_budget_exceeded`); the captured
-  `ATOM_CHAT_TURN_BUDGET_SECONDS=180` does not change the product's
-  `budget=95.0s` deadline. A full group review is therefore still not
-  demonstrated.
-- The file-scoped read still returns a partial row projection (for O-1010,
-  Status and Unit Price but not Currency), so the pre-correction baseline
-  escalated on the base policy's uncertain-currency rule instead of
-  recommending Process. The full row contract (currency, both approvals,
-  manager exception, notes) is not yet demonstrated.
+- The four bounded checks (O-1010 before/after correction, after restart, and
+  the O-1001 positive twin) are green on complete-row retrieval, correction,
+  settlement, and zero unauthorized actions. A five-order / full-group review
+  still reaches the product's fixed turn budget (`turn_budget_exceeded`); the
+  captured `ATOM_CHAT_TURN_BUDGET_SECONDS=180` does not change the product's
+  `budget=95.0s` deadline. The broader five-order latency problem remains
+  separate and is not claimed solved.
+- Review asks now retrieve the whole row and expose absent named headers as
+  `coverage.field_gaps`. Blank values that are genuinely part of the record
+  (for example a blank Manager Exception meaning “none”) are returned as
+  explicit blanks, not converted into invented values. The full-row behavior
+  is demonstrated for these bounded review asks; broader field-contract
+  coverage is not claimed.
 - The policy basis in the one-order response is explicitly a draft: the
   workbook was retrieved, but the policy document itself was not. Do not
   describe the prior behavioral result — policy-conditioned recommendations

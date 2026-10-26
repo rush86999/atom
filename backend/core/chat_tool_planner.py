@@ -7147,6 +7147,23 @@ def _record_r4_source_counter(
     return "written"
 
 
+def _record_review_request(text: str) -> bool:
+    """Whether the ask reviews a record against a policy/decision rule.
+
+    A review needs the record's own fields, not a price-shaped projection.
+    The shape is domain-general: an evaluation verb plus a policy/decision
+    vocabulary. It never names a specific column or business domain.
+    """
+    normalized = str(text or "").lower()
+    return bool(
+        re.search(r"\b(?:review|assess|evaluate)\b", normalized)
+        and re.search(
+            r"\b(?:policy|process|escalate|approve|reject|recommend)\b",
+            normalized,
+        )
+    )
+
+
 async def _datasets_named_file_block(
     user_id: Optional[str], query: str, context: Optional[Dict[str, Any]],
     plan: Any = None, llm_service: Any = None,
@@ -8083,6 +8100,7 @@ async def _datasets_named_file_block(
                     pass
                 return dis
 
+            _review_ask = _record_review_request(lookup_text)
             workbook_read = await asyncio.to_thread(
                 inspect_dataset_entries,
                 file_entries,
@@ -8092,6 +8110,11 @@ async def _datasets_named_file_block(
                 targets=item_tokens,
                 attributes=_attr_words,
                 requested_fields=_field_requests,
+                # A review gets the whole matched row; its named fields are
+                # the contract that must all resolve, or coverage stays
+                # incomplete (never a verified partial review).
+                include_all_fields=_review_ask,
+                require_requested_fields=_review_ask,
                 provider=prov["source"],
                 resource_id=prov["resource_id"],
                 source_metadata=e0.get("source_metadata") or {},
