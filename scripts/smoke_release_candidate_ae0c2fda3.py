@@ -753,6 +753,16 @@ def run_pre(args: argparse.Namespace) -> int:
     try:
         health = get_health(args.base_url)
         evidence["health_before"] = health
+        health_identity = health.get("identity") or {}
+        health_checks = {
+            "healthy": health.get("status") == "healthy",
+            "database_operational": health.get("database") == "operational",
+            "cwd_matches_candidate": (
+                health_identity.get("cwd") == args.expected_cwd),
+            "database_matches_candidate": (
+                health_identity.get("database") == args.expected_db),
+        }
+        evidence["health_checks"] = health_checks
         password = Path(args.admin_password_file).read_text().strip()
         token, user = login(args.base_url, args.admin_email, password)
         user_id = str(user.get("id"))
@@ -956,7 +966,7 @@ def run_pre(args: argparse.Namespace) -> int:
             "canvas_actions_setup_only": (
                 evidence["final"]["canvas_actions_unchanged"]
                 and evidence["final"]["canvas_actions_allowed"]),
-            "health_healthy": health.get("status") == "healthy",
+            "health_identity": all(health_checks.values()),
         }
         evidence["checks"] = checks
         evidence["checks_all_true"] = all(checks.values())

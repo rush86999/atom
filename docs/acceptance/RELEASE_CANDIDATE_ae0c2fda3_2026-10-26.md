@@ -53,6 +53,9 @@ See `evidence/archive/README.md`, `checksums.txt`, and `verification.txt`.
   invalidates the review; source-execution provenance is explicit; precomputed
   results require schema/execution/subject/decision agreement; raw machine
   blocks are stripped on failure; uncertified assessments are not exposed.
+- Live cutover gate: `scripts/smoke_release_candidate_ae0c2fda3.py` plus the
+  validated workbook fixtures in `scripts/smoke_inputs/`. It is implemented
+  and read-only prechecked; the live attempt has not run.
 
 ## Served smoke evidence
 
