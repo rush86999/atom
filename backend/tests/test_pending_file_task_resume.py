@@ -4884,7 +4884,14 @@ async def test_resumed_review_request_reaches_narration_not_raw_read():
         )
 
     orch.llm_service.generate_completion.assert_awaited()
+    system_texts = [
+        " ".join(m.get("content", "") for m in call.kwargs.get("messages", [])
+                 if isinstance(m, dict) and m.get("role") == "system")
+        for call in orch.llm_service.generate_completion.call_args_list
+    ]
+    assert any("REVIEW OUTPUT CONTRACT" in text for text in system_texts)
     assert result, "the resumed review must return a narrated response"
     assert result.get("model") != "deterministic", (
         "a review ask must not be served as the raw deterministic read")
     assert "Decision:" in (result.get("content") or "")
+    assert "review_result" not in (result.get("content") or "")
