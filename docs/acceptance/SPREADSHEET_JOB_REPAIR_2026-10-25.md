@@ -176,6 +176,12 @@ erasing a missing-input gap. That also rejects legitimate asks such as
 missing-input protection is future work; this correction intentionally does
 not broaden that behavior.
 
+Role binding is deterministic when a frame header matches a generic role
+hint (Qty/Quantity, Unit Price/Price, Currency, Status). If a required
+header matches none of those hints, the planner's role field is still
+trusted after conflict/ambiguity checks; failing closed on zero hint matches
+is future work and is not exercised by this workbook.
+
 ## Freeze decision
 
 The candidate is frozen for review. Deployment is intentionally not part of
