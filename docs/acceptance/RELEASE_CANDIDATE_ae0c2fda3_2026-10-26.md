@@ -38,6 +38,9 @@ command.
 - The canonical tar extracts to the staged source tree with 0 differences.
 - The original gzip is preserved with its own hash and manifest; nothing was
   relabeled.
+- The served smoke evidence JSON was written before this correction; its
+  embedded candidate identity still records the gzip hash and is preserved
+  as-run, not rewritten. It is not the canonical archive record.
 
 See `evidence/archive/README.md`, `checksums.txt`, and `verification.txt`.
 
