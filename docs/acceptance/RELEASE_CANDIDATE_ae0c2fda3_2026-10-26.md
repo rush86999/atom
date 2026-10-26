@@ -96,6 +96,9 @@ The pilot remains `c912375de` until that approval.
   disclosed spreadsheet limitation.
 - General policy transfer beyond tested order/vendor controls is not claimed.
 - The release candidate's smoke is scratch-world evidence, not a pilot soak.
+- The served smoke covers successful reviews; failure-path envelope and
+  post-generation invalidation are covered by focused local controls, not a
+  served failure smoke.
 - Decision-turn binding is explicit; read provenance is preserved via
   `source_execution_ids`/`resumed_read`.
 

@@ -268,6 +268,29 @@ restart; O-1001 stayed Process.
 **Separate, not claimed:** five-order latency, general policy transfer beyond
 the tested controls, and deployment. The pilot remains `c912375de`.
 
+## Release candidate package
+
+Candidate source `ae0c2fda340e9a85e840e310d84d4d0da4fedab8` (includes the
+spreadsheet fix and trained-review fixes, plus the independent-review release
+blockers). Frozen source directory:
+`/Users/rushiparikh/projects/atom-releases/ae0c2fda3`, archive SHA-256
+`3b4caf8cf9fa0be9bc3ef20e7505eb62af3a73b4bc7e6c13698142e112cc5fc5`.
+
+Combined served smoke on the candidate (`checks_all_true=true`):
+
+- PO Register approved rows: CAD **8050.00** / USD **3999.96**;
+- Adjustments: known subtotal **−700.00 CAD**, gap **0055** at **C5**,
+  grand total withheld;
+- O-1010 Process → Escalate after correction and after restart, citing
+  M. Chen / 2026-10-25; O-1001 Process;
+- structured reviews persisted, raw blocks hidden, response/persistence/
+  history agree, workbook hashes unchanged, zero unintended writes.
+
+Package/docs:
+`docs/acceptance/RELEASE_CANDIDATE_ae0c2fda3_2026-10-26.md` and
+`docs/acceptance/SUPPORT_STATEMENT_2026-10-26_CANDIDATE_ae0c2fda3.md`.
+Deployment remains a separate approval boundary.
+
 ## Tests
 
 Focused suite (`test_review_result.py`,
@@ -279,7 +302,7 @@ Focused suite (`test_review_result.py`,
 `test_objective_evidence_flow.py`, `test_search_outcome_contracts.py`,
 `test_acceptance_harness_integrity.py`):
 
-- Repair branch: **596 passed, 23 failed, 2 xfailed**.
+- Repair branch: **602 passed, 23 failed, 2 xfailed**.
 - Frozen baseline: **557 passed, 23 failed, 2 xfailed** (same existing
   files; the new `test_review_result.py` is repair-only).
 - The same 23 named failures exist on both sides (known refresh/cross-source

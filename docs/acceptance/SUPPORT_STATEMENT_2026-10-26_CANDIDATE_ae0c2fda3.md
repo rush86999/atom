@@ -51,6 +51,10 @@ For the tested candidate/configuration, the candidate supports:
   decision/delivery turn; the read's provenance rides
   `source_execution_ids`/`resumed_read`. Saved/recovered reads can be reviewed;
   this is not a claim that every review read the file in the same execution.
+- **Successful-path smoke only.** The served smoke exercises successful
+  reviews. The failure-path envelope (uncertified review → failed) and the
+  post-generation message-replacement invalidation are covered by focused
+  local controls, not by a served failure smoke.
 - **Scratch evidence.** The served smoke is scratch-world evidence, not a
   pilot/deployment soak.
 - **Candidate not deployed.** Pilot remains `c912375de`.
