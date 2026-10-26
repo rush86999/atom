@@ -14,7 +14,7 @@
 | Archive SHA-256 | `3b4caf8cf9fa0be9bc3ef20e7505eb62af3a73b4bc7e6c13698142e112cc5fc5` |
 | Served review acceptance base | `c0c0d2e87` |
 | Preserved failing predecessor | `d4d0576d1` |
-| Documentation closeout | `ca90762bd` (this package adds the support/deployment docs) |
+| Documentation closeout | `14d27cf8e` (support/deployment docs + independent-review record) |
 | Includes spreadsheet fix | `e14d3efdd` |
 | Pilot to preserve | `c912375de` |
 
