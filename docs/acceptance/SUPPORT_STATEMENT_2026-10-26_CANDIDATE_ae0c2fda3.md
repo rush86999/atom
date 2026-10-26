@@ -62,8 +62,11 @@ For the tested candidate/configuration, the candidate supports:
 - **Live gate failed twice before a product turn.** Attempt one failed at admin
   login (HTTP 401) and manual recovery; attempt two failed at guided-agent
   creation (HTTP 201) after creating one smoke agent. Automatic code rollback
-  was healthy. The 201 acceptance mismatch remains for a bounded future
-  correction; no third attempt has run.
+  was healthy. The smoke contract now accepts only 201 with a valid payload/id,
+  rejects 202 pending approval and malformed/failure payloads, and validates the
+  rest of setup; 51 no-network setup tests pass against both helper copies and
+  the actual guided route with the generation seam mocked. No third attempt has
+  run.
 - **Smoke data persists.** The live gate creates a named agent/canvas and
   uniquely named workbook uploads; rollback preserves them rather than erasing
   post-cutover work.

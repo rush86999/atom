@@ -3,7 +3,9 @@
 **Status:** two authorized attempts executed; **both failed before product
 smoke**. The second attempt failed at guided-agent creation (HTTP 201) and
 automatic code rollback succeeded. `c912375de` is serving as PID `13038`.
-Candidate is not deployed. A third attempt requires new authorization.
+The guided-agent contract and the full setup battery are now corrected and
+frozen; candidate is not deployed. A third attempt remains separately
+unauthorized.
 **Approval token:** `ATOM_DEPLOY_APPROVED=ae0c2fda3`
 **Script:** `scripts/deploy_release_candidate_ae0c2fda3.sh`
 
@@ -63,11 +65,35 @@ Fixes prepared for a second attempt:
   `886b86b4-6917-4fec-831a-1f5a9ee22f4f` (`Order Review Ops Specialist`).
 - Automatic code rollback succeeded: `c912375de` PID `13038`, healthy on
   `:8001`, `database_restored=false`.
-- No repair, retry or product-code change was performed. The HTTP-201
-  acceptance mismatch remains for a bounded future correction.
+- No repair, retry or product-code change was performed at the time. The
+  HTTP-201 acceptance mismatch was then corrected in the smoke harness, not in
+  application code.
 - Attempt evidence:
   `evidence/cutover/attempt-20261026T225346Z/`, including
   `failure-detail.json` and `smoke-created-records.json`.
+
+## Setup-contract correction
+
+The smoke now accepts guided-agent creation only as **HTTP 201** and requires
+`success is True`, a `data` object, and a non-empty string `agent_id`. It
+explicitly rejects HTTP 202 pending approval, HTTP 200, missing/non-string/blank
+ids, failure payloads and malformed JSON. It does not treat arbitrary 2xx
+responses as success.
+
+The rest of setup validates response bodies and identifiers:
+
+- login requires a non-empty token and authenticated user id;
+- canvas create requires `success=True` and a valid `canvas_id`;
+- attachment requires matching `canvas_id` and `agent_id`;
+- upload requires success, matching canvas/file names, a valid agent id and
+  `ingestion.status=ingested`;
+- teaching requires `success=True` and `data.status=ok` (rejects skipped/failed).
+
+The no-network setup battery runs the actual helpers against both development
+and packaged copies, exercises the full setup sequence, and includes an actual
+candidate guided-route integration check with the generation factory mocked.
+It also retains the exact-`go ahead` confirmation controls. **51 tests pass**
+in `evidence/cutover/setup-contract-20261026.txt`.
 
 ## Fixed identities
 
@@ -296,6 +322,10 @@ evidence path. Normal code rollback keeps the post-cutover data.
   token. The no-network branch test passes against the development helper, the
   packaged helper, and the frozen candidate's `is_filename_confirmation`
   classifier (9 passed). The old verbose confirmations are explicitly rejected.
+- Full setup battery: login, guided-agent 201 + payload/id, 202/missing/malformed
+  rejection, canvas create/attach, upload, teaching and full sequence pass
+  against both helper copies; the actual candidate guided route is exercised
+  with the generation factory mocked. 51 tests pass.
 - Wrong approval token: exit `1`, no snapshot/link/stop/start.
 - Pilot is `c912375de` PID `13038`, healthy on `:8001`; candidate is prepared,
   not running, and not deployed.

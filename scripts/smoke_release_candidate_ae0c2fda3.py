@@ -104,6 +104,16 @@ def write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2, default=str) + "\n")
 
 
+def response_json(response, label: str) -> dict:
+    try:
+        body = response.json()
+    except Exception as exc:  # noqa: BLE001 — contract boundary
+        raise RuntimeError(f"{label} returned malformed JSON") from exc
+    if not isinstance(body, dict):
+        raise RuntimeError(f"{label} returned a non-object JSON payload")
+    return body
+
+
 def read_db(db_path: str, sql: str, params: tuple = ()) -> list[dict]:
     last_error: Exception | None = None
     for _ in range(5):
@@ -243,10 +253,10 @@ def login(base: str, email: str, password: str) -> tuple[str, dict]:
     )
     if response.status_code != 200:
         raise RuntimeError(f"login failed: {response.status_code}")
-    body = response.json()
+    body = response_json(response, "login")
     token = body.get("access_token")
-    if not token:
-        raise RuntimeError("login returned no access_token")
+    if not isinstance(token, str) or not token.strip():
+        raise RuntimeError("login returned no valid access_token")
     me_response = httpx.get(
         f"{base}/api/auth/me",
         headers={"Authorization": f"Bearer {token}"},
@@ -255,11 +265,11 @@ def login(base: str, email: str, password: str) -> tuple[str, dict]:
     )
     if me_response.status_code != 200:
         raise RuntimeError(f"auth/me failed: {me_response.status_code}")
-    me = me_response.json()
+    me = response_json(me_response, "auth/me")
     user = me.get("data") if isinstance(me.get("data"), dict) else me
     user_id = user.get("id") or me.get("id")
-    if not user_id:
-        raise RuntimeError("auth/me returned no user id")
+    if not isinstance(user_id, str) or not user_id.strip():
+        raise RuntimeError("auth/me returned no valid user id")
     return token, user
 
 
@@ -370,10 +380,15 @@ def teach(base: str, token: str, agent_id: str, lesson: str, topic: str) -> dict
         timeout=180,
         trust_env=False,
     )
-    try:
-        body = response.json()
-    except Exception:
-        body = {"_raw": response.text[:1500]}
+    if response.status_code != 200:
+        raise RuntimeError(f"teaching failed: {response.status_code}")
+    body = response_json(response, "teaching")
+    data = body.get("data")
+    if body.get("success") is not True or not isinstance(data, dict):
+        raise RuntimeError("teaching returned invalid payload")
+    if data.get("status") != "ok":
+        raise RuntimeError(
+            f"teaching did not land: {data.get('status') or 'missing status'}")
     return {"http": response.status_code, "body": body}
 
 
@@ -398,13 +413,21 @@ def create_agent(base: str, token: str, smoke_id: str) -> str:
         timeout=180,
         trust_env=False,
     )
-    if response.status_code != 200:
-        raise RuntimeError(f"guided agent creation failed: {response.status_code}")
-    body = response.json()
-    agent_id = (body.get("data") or {}).get("agent_id") or body.get("agent_id")
-    if not agent_id:
-        raise RuntimeError("guided agent creation returned no agent id")
-    return str(agent_id)
+    if response.status_code == 202:
+        raise RuntimeError(
+            "guided agent creation pending approval (HTTP 202); "
+            "no agent created")
+    if response.status_code != 201:
+        raise RuntimeError(
+            f"guided agent creation failed: {response.status_code}")
+    body = response_json(response, "guided agent creation")
+    data = body.get("data")
+    if body.get("success") is not True or not isinstance(data, dict):
+        raise RuntimeError("guided agent creation returned invalid payload")
+    agent_id = data.get("agent_id")
+    if not isinstance(agent_id, str) or not agent_id.strip():
+        raise RuntimeError("guided agent creation returned no valid agent id")
+    return agent_id
 
 
 def create_canvas(base: str, token: str, smoke_id: str, agent_id: str) -> str:
@@ -419,10 +442,12 @@ def create_canvas(base: str, token: str, smoke_id: str, agent_id: str) -> str:
     )
     if response.status_code != 200:
         raise RuntimeError(f"canvas create failed: {response.status_code}")
-    body = response.json()
-    canvas_id = body.get("canvas_id") or (body.get("data") or {}).get("id")
-    if not canvas_id:
-        raise RuntimeError("canvas create returned no id")
+    body = response_json(response, "canvas create")
+    if body.get("success") is not True:
+        raise RuntimeError("canvas create returned invalid payload")
+    canvas_id = body.get("canvas_id")
+    if not isinstance(canvas_id, str) or not canvas_id.strip():
+        raise RuntimeError("canvas create returned no valid canvas id")
     attach = httpx.post(
         f"{base}/api/canvas/{canvas_id}/agents",
         headers={"Authorization": f"Bearer {token}"},
@@ -432,7 +457,14 @@ def create_canvas(base: str, token: str, smoke_id: str, agent_id: str) -> str:
     )
     if attach.status_code != 200:
         raise RuntimeError(f"canvas agent attach failed: {attach.status_code}")
-    return str(canvas_id)
+    attach_body = response_json(attach, "canvas agent attach")
+    if attach_body.get("success") is not True:
+        raise RuntimeError("canvas agent attach returned invalid payload")
+    if attach_body.get("canvas_id") != canvas_id:
+        raise RuntimeError("canvas agent attach returned a different canvas id")
+    if attach_body.get("agent_id") != agent_id:
+        raise RuntimeError("canvas agent attach returned a different agent id")
+    return canvas_id
 
 
 def upload_workbook(base: str, token: str, canvas_id: str,
@@ -454,10 +486,21 @@ def upload_workbook(base: str, token: str, canvas_id: str,
             timeout=300,
             trust_env=False,
         )
-    try:
-        body = response.json()
-    except Exception:
-        body = {"_raw": response.text[:1500]}
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"workbook upload failed: {response.status_code}")
+    body = response_json(response, "workbook upload")
+    ingestion = body.get("ingestion")
+    if body.get("success") is not True:
+        raise RuntimeError("workbook upload returned invalid payload")
+    if body.get("canvas_id") != canvas_id:
+        raise RuntimeError("workbook upload returned a different canvas id")
+    if not isinstance(body.get("agent_id"), str) or not body["agent_id"].strip():
+        raise RuntimeError("workbook upload returned no valid agent id")
+    if body.get("file_name") != path.name:
+        raise RuntimeError("workbook upload returned a different file name")
+    if not isinstance(ingestion, dict) or ingestion.get("status") != "ingested":
+        raise RuntimeError("workbook upload did not ingest the file")
     return {"http": response.status_code, "body": body}
 
 

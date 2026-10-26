@@ -188,6 +188,14 @@ performed. Evidence:
 `886b86b4-6917-4fec-831a-1f5a9ee22f4f` is preserved and recorded in
 `smoke-created-records.json`.
 
+The guided-agent contract was then corrected in the smoke: accept only HTTP
+201 with `success=true`, a `data` object and a non-empty string `agent_id`;
+reject 202 pending approval, 200, malformed/failure payloads and missing ids.
+Canvas create/attach, upload and teaching now validate bodies and identifiers.
+A 51-test no-network setup battery passes against both helper copies and the
+actual candidate guided route with the generation factory mocked. No
+application code changed.
+
 ## Checks after the failed attempts
 
 - `bash -n` passes.
@@ -238,8 +246,8 @@ performed. Evidence:
 
 ## Approval requested
 
-Both authorizations are consumed. No third attempt is authorized. A future
-attempt would require a new decision and a bounded correction of the smoke's
-HTTP-201 acceptance mismatch; application code is unchanged. Database restore
-is not part of normal rollback; it requires demonstrated corruption and a
-separate manual decision.
+Both authorizations are consumed. No third attempt is authorized. The smoke
+HTTP-201 acceptance contract and the full setup battery are corrected and
+frozen; application code is unchanged. A third live attempt remains a separate
+authorization. Database restore is not part of normal rollback; it requires
+demonstrated corruption and a separate manual decision.

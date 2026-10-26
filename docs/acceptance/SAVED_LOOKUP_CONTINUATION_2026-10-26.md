@@ -303,8 +303,11 @@ startup, created one smoke agent, then failed at guided-agent HTTP 201 and
 automatically rolled code back to `c912375de` (PID `13038`, healthy). No
 database restore occurred. The confirmation helper now uses exactly `go ahead`
 and passes parity tests against the packaged helper and frozen classifier. The
-HTTP-201 acceptance mismatch remains for a bounded future correction; no third
-attempt has run.
+guided-agent contract now accepts only HTTP 201 with a valid payload/id,
+rejects 202 pending approval and malformed/failure payloads, and the rest of
+setup validates bodies/identifiers; 51 no-network setup tests pass against both
+helper copies and the actual guided route with the generation seam mocked. No
+third attempt has run.
 
 ## Tests
 
