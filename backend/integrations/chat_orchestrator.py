@@ -9293,20 +9293,52 @@ class ChatOrchestrator:
                     if not isinstance(_precomputed_review, dict):
                         _precomputed_review = (
                             ai_response or {}).get("review_result")
+                    _review_precomputed_accepted = True
                     if isinstance(_precomputed_review, dict):
-                        _review_result = _precomputed_review
-                        _review_contract = (
+                        _precomputed_contract = (
                             (response.get("data") or {}).get(
                                 "review_contract")
                             if isinstance(response.get("data"), dict)
                             else None) or (ai_response or {}).get(
                                 "review_contract")
+                        _precomputed_valid = bool(
+                            _precomputed_review.get("ok") is True
+                            and _precomputed_review.get(
+                                "schema_version") == "review-result-2"
+                            and str(_precomputed_review.get(
+                                "execution_id") or "") == str(
+                                    execution_id or "")
+                            and list(_precomputed_review.get(
+                                "requested_subjects") or [])
+                                == list(_review_requested_records)
+                            and list(_precomputed_review.get(
+                                "allowed_decisions") or [])
+                                == list(_review_allowed_decisions))
+                        _review_result = _precomputed_review
+                        _review_contract = _precomputed_contract
+                        if not _precomputed_valid:
+                            _review_precomputed_accepted = False
+                            logger.warning(
+                                "[review-result] precomputed result rejected "
+                                "(execution/subjects/schema mismatch): "
+                                "execution=%s subjects=%s allowed=%s",
+                                _precomputed_review.get("execution_id"),
+                                _precomputed_review.get(
+                                    "requested_subjects"),
+                                _precomputed_review.get(
+                                    "allowed_decisions"))
                     else:
                         _review_struct = (
                             result.get("structured_result")
                             if isinstance(
                                 result.get("structured_result"), dict)
                             else {})
+                        _review_struct = dict(_review_struct)
+                        if not _review_struct.get("source_execution_id"):
+                            _review_struct["source_execution_id"] = str(
+                                result.get("source_execution_id")
+                                or result.get("execution_id")
+                                or "")
                         _review_evidence_index = build_evidence_index(
                             _review_struct)
                         _review_policy_index = build_policy_index(
@@ -9338,7 +9370,9 @@ class ChatOrchestrator:
                             evidence_index=_review_evidence_index,
                             policy_index=_review_policy_index,
                         )
-                    _review_delivered = bool(_review_result.get("ok"))
+                    _review_delivered = bool(
+                        _review_result.get("ok")
+                        and _review_precomputed_accepted)
                     _review_data = response.setdefault("data", {})
                     if isinstance(_review_data, dict):
                         _review_data["review_contract"] = _review_contract
@@ -9521,6 +9555,21 @@ class ChatOrchestrator:
                 status=status,
                 allow_persisted_evidence=allow_persisted_evidence,
             )
+        # A required review that was not certified is a FAILED turn, even
+        # when the underlying read succeeded and the drafted envelope was
+        # already completed. Align machine status, execution status and the
+        # durable outcome at one boundary (independent-review F1).
+        try:
+            from core.review_result import align_review_failure
+
+            if align_review_failure(response, task_outcome):
+                status = "failed"
+        except Exception:  # noqa: BLE001 — alignment is fail-closed below
+            status = "failed" if (
+                isinstance(task_outcome, dict)
+                and (task_outcome.get("delivery") or {}).get(
+                    "review_required") is True
+                and task_outcome.get("objective_met") is False) else status
         try:
             from datetime import datetime as _dt
             from core.database import get_db_session
@@ -13362,6 +13411,7 @@ class ChatOrchestrator:
                         "coverage_complete": bool(
                             _direct_result.get("retrieval_complete")),
                         "execution_id": _execution_id,
+                        "source_execution_id": _execution_id,
                         "retrieved_at": time.time(),
                         "structured_result": (
                             _review_structured
@@ -13617,6 +13667,7 @@ class ChatOrchestrator:
                         # record: refreshed / refresh_failed / unverified.
                         "freshness": _freshness.get("status") or None,
                         "execution_id": _execution_id,
+                        "source_execution_id": _execution_id,
                         "retrieved_at": time.time(),
                         "structured_result": _direct_structured
                         if isinstance(_direct_structured, dict) else None,
@@ -14475,6 +14526,10 @@ class ChatOrchestrator:
                         # review. Stage it for narration instead of serving
                         # the stored block as a completed answer.
                         _r4_stored = dict(_recovery_payload)
+                        _r4_stored.setdefault(
+                            "source_execution_id",
+                            _recovery_payload.get("recovery_execution_id")
+                            or _recovery_payload.get("execution_id"))
                         _r4_stored["status"] = "retrieved"
                         _r4_stored["execution_id"] = _execution_id
                         session["_pending_file_result"] = _r4_stored
@@ -14580,6 +14635,10 @@ class ChatOrchestrator:
                     # operation.
                     try:
                         _r4_stored = dict(_recovery_payload)
+                        _r4_stored.setdefault(
+                            "source_execution_id",
+                            _recovery_payload.get("recovery_execution_id")
+                            or _recovery_payload.get("execution_id"))
                         _r4_stored["status"] = "delivered"
                         try:
                             import time as _r4_time
@@ -17260,6 +17319,32 @@ class ChatOrchestrator:
                     logger.warning(
                         "[canvas-claim] receipt gate crashed — check "
                         "skipped: %r", _cc_err)
+                # REVIEW/DELIVERY CONSISTENCY (independent-review F3): any
+                # honesty gate above may replace the whole answer. A
+                # precomputed validated review must not survive a message
+                # that no longer contains its rendered decision block.
+                if (isinstance(ai_response, dict)
+                        and ai_response.get("review_summary")):
+                    try:
+                        from core.review_result import (
+                            review_matches_delivered_text,
+                        )
+
+                        _review_delivery_ok = review_matches_delivered_text(
+                            ai_response.get("review_summary"),
+                            main_message)
+                    except Exception:  # noqa: BLE001 — fail closed
+                        _review_delivery_ok = False
+                    if not _review_delivery_ok:
+                        logger.warning(
+                            "[review-result] delivered message was replaced "
+                            "after review validation — invalidating the "
+                            "structured review (execution=%s)",
+                            str(_execution_id)[:8])
+                        for _review_key in (
+                                "review_result", "review_contract",
+                                "review_summary"):
+                            ai_response.pop(_review_key, None)
                 used_model = ai_response.get("model")
                 used_provider = ai_response.get("provider")
                 # LKGP: remember which provider/model served this turn so the
@@ -23283,6 +23368,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                 "rendered": _tool_block[:24000],
                                                 "identity": _identity,
                                                 "execution_id": execution_id,
+                                                "source_execution_id": execution_id,
                                                 "retrieved_at": time.time(),
                                                 "delivered_at": time.time(),
                                                 "structured_result": (
@@ -24841,6 +24927,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             ) if isinstance(_resolved_file_identity, dict) else None,
                             "objective_evidence": _objective_comparison,
                             "execution_id": execution_id,
+                            "source_execution_id": execution_id,
                             "retrieved_at": time.time(),
                             "structured_result": (
                                 _storage_read_meta.get("structured_result")
@@ -25295,11 +25382,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             self._agent_lessons(agent_id, _gate_msg) or [])
                         _allowed = decision_options_from_lessons(
                             _review_lessons)
+                        _review_pending = (
+                            (session.get("_pending_file_result") or {})
+                            if isinstance(session, dict) else {})
                         _review_struct = (
-                            ((session.get("_pending_file_result") or {})
-                             .get("structured_result"))
-                            if isinstance(session, dict) else None
+                            _review_pending.get("structured_result")
+                            if isinstance(
+                                _review_pending.get("structured_result"),
+                                dict) else None
                         ) or _turn_structured_record or {}
+                        _review_struct = dict(_review_struct)
+                        if not _review_struct.get("source_execution_id"):
+                            _review_struct["source_execution_id"] = str(
+                                _review_pending.get("source_execution_id")
+                                or _review_pending.get("execution_id")
+                                or "")
                         _subjects = requested_subjects(_review_struct)
                         _evidence_index = build_evidence_index(
                             _review_struct)
@@ -27721,11 +27818,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             self._agent_lessons(agent_id, _gate_msg) or [])
                         _allowed = decision_options_from_lessons(
                             _review_lessons)
+                        _review_pending = (
+                            (session.get("_pending_file_result") or {})
+                            if isinstance(session, dict) else {})
                         _review_struct = (
-                            ((session.get("_pending_file_result") or {})
-                             .get("structured_result"))
-                            if isinstance(session, dict) else None
+                            _review_pending.get("structured_result")
+                            if isinstance(
+                                _review_pending.get("structured_result"),
+                                dict) else None
                         ) or _turn_structured_record or {}
+                        _review_struct = dict(_review_struct)
+                        if not _review_struct.get("source_execution_id"):
+                            _review_struct["source_execution_id"] = str(
+                                _review_pending.get("source_execution_id")
+                                or _review_pending.get("execution_id")
+                                or "")
                         _subjects = requested_subjects(_review_struct)
                         _evidence_index = build_evidence_index(
                             _review_struct)
@@ -27760,20 +27867,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     for entry in _policy_index
                                 ],
                             }
+                            # The fenced machine block is NEVER delivered,
+                            # certified or not. On failure the prose remains
+                            # explanatory; no raw block leaks (F6).
+                            _review_prose = strip_review_block(
+                                str(_claimed_content or ""))
                             if _review.get("ok"):
                                 _review_block = render_review_result(_review)
-                                _review_prose = strip_review_block(
-                                    str(_claimed_content or ""))
                                 _claimed_content = (
                                     f"{_review_prose.rstrip()}"
                                     f"\n\n{_review_block}")
-                                response_data["content"] = _claimed_content
                                 response_data["review_summary"] = (
                                     _review_block)
                             else:
+                                _claimed_content = (
+                                    _review_prose.rstrip()
+                                    or "I couldn't complete the requested "
+                                       "review.")
                                 logger.info(
                                     "[review-result] delivery not certified: %s",
                                     _review.get("errors"))
+                            response_data["content"] = _claimed_content
                     except Exception as _review_err:  # noqa: BLE001 — fail closed
                         logger.warning(
                             "[review-result] render skipped: %r",

@@ -17,6 +17,12 @@ subject-bound evidence IDs and the retrieval identity. The platform validates:
   schema;
 * unresolved requirements (a missing input can justify an Escalate / Ask /
   Request-More-Info decision without making the review incomplete).
+
+``execution_id`` identifies the DECISION/DELIVERY turn. The read's own
+provenance rides each assessment as ``source_execution_ids`` and
+``resumed_read``; a saved/recovered read may be reviewed, but the distinction
+between "read now" and "reviewed a persisted read" is explicit rather than
+silently rewritten.
 """
 from __future__ import annotations
 
@@ -113,6 +119,10 @@ def build_evidence_index(structured: Dict[str, Any]) -> List[Dict[str, Any]]:
         return []
     source = _source_identity(structured)
     operation = _retrieval_operation(structured)
+    retrieval_execution_id = _clean(
+        structured.get("source_execution_id")
+        or structured.get("retrieval_execution_id")
+        or structured.get("execution_id"))
     subjects = requested_subjects(structured)
     targets = [
         target for target in (structured.get("targets") or [])
@@ -135,6 +145,7 @@ def build_evidence_index(structured: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "subject_id": subject,
                 "source_identity": dict(source),
                 "retrieval_operation": operation,
+                "retrieval_execution_id": retrieval_execution_id,
                 "row_ref": None,
                 "target_status": _clean(target.get("status")),
                 "values": [],
@@ -150,6 +161,7 @@ def build_evidence_index(structured: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "subject_id": subject,
                 "source_identity": dict(source),
                 "retrieval_operation": operation,
+                "retrieval_execution_id": retrieval_execution_id,
                 "row_ref": row_ref or None,
                 "target_status": _clean(target.get("status")),
                 "values": list(candidate.get("values") or []),
@@ -383,12 +395,21 @@ def build_review_result(
                     "evidence_id": evidence_id,
                 })
                 continue
+            if not _clean(entry.get("retrieval_execution_id")):
+                errors.append({
+                    "code": "missing_retrieval_execution_id",
+                    "subject_id": subject,
+                    "evidence_id": evidence_id,
+                })
+                continue
             resolved_evidence.append({
                 "evidence_id": evidence_id,
                 "subject_id": subject,
                 "row_ref": entry.get("row_ref"),
                 "source_identity": dict(entry.get("source_identity") or {}),
                 "retrieval_operation": entry.get("retrieval_operation"),
+                "retrieval_execution_id": entry.get(
+                    "retrieval_execution_id"),
                 "values": list(entry.get("values") or []),
             })
         policy_ids = [
@@ -415,6 +436,11 @@ def build_review_result(
                 "topic": entry.get("topic"),
                 "lesson": entry.get("lesson"),
             })
+        _source_execs = sorted({
+            str(ref.get("retrieval_execution_id") or "")
+            for ref in resolved_evidence
+            if ref.get("retrieval_execution_id")
+        })
         assessments.append({
             "subject_id": subject,
             "decision": decision,
@@ -422,6 +448,10 @@ def build_review_result(
             "policy_refs": resolved_policy,
             "unresolved_requirements": _unique(
                 raw.get("unresolved_requirements") or []),
+            "source_execution_ids": _source_execs,
+            "resumed_read": any(
+                source_execution_id != _clean(execution_id)
+                for source_execution_id in _source_execs),
         })
     missing = [
         subject for subject in requested
@@ -431,15 +461,65 @@ def build_review_result(
         errors.append({"code": "missing_decision", "subject_id": subject})
     if len(assessments) != len(requested) and not missing:
         errors.append({"code": "incomplete_subject_coverage"})
+    _ok = not errors and len(assessments) == len(requested)
     return {
         "schema_version": "review-result-2",
         "execution_id": _clean(execution_id) or None,
         "requested_subjects": requested,
         "allowed_decisions": allowed,
-        "assessments": assessments,
+        "source_execution_ids": sorted({
+            str(ref.get("retrieval_execution_id") or "")
+            for assessment in assessments
+            for ref in (assessment.get("evidence_refs") or [])
+            if ref.get("retrieval_execution_id")
+        }),
+        # An uncertified result is NOT an assessment a consumer may act on.
+        # Keep the candidates under a separate diagnostic key (F7).
+        "assessments": assessments if _ok else [],
+        "candidate_assessments": [] if _ok else assessments,
         "errors": errors,
-        "ok": not errors and len(assessments) == len(requested),
+        "ok": _ok,
     }
+
+
+def review_matches_delivered_text(
+    review_summary: Any, delivered_text: Any,
+) -> bool:
+    """A validated review may certify only the text that carries its block."""
+    summary = _clean(review_summary)
+    delivered = _clean(delivered_text)
+    return bool(summary) and summary in delivered
+
+
+def align_review_failure(
+    response: Optional[Dict[str, Any]],
+    task_outcome: Optional[Dict[str, Any]],
+) -> bool:
+    """Force a failed review envelope to agree with the task outcome.
+
+    The read may have resolved ``completed`` before the review contract was
+    evaluated. When a required review was not certified, the envelope must
+    not ship success/completed (independent-review F1).
+    """
+    if not isinstance(task_outcome, dict):
+        return False
+    if (task_outcome.get("delivery") or {}).get(
+            "review_required") is not True:
+        return False
+    if task_outcome.get("objective_met") is not False:
+        return False
+    if isinstance(response, dict):
+        response["success"] = False
+        response["outcome"] = "failed"
+        response["error_code"] = (
+            response.get("error_code") or "turn_objective_not_met")
+        response["_recorded_outcome"] = {
+            "state": "failed",
+            "work_turn": True,
+            "noop": False,
+            "delivered": False,
+        }
+    return True
 
 
 def render_review_result(review: Dict[str, Any]) -> str:

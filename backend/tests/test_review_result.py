@@ -1,10 +1,12 @@
 import json
 
 from core.review_result import (
+    align_review_failure,
     build_evidence_index,
     build_policy_index,
     build_review_result,
     render_review_result,
+    review_matches_delivered_text,
     review_output_instruction,
     strip_review_block,
 )
@@ -21,6 +23,7 @@ EVIDENCE_INDEX = [{
     "subject_id": "O-1010",
     "source_identity": dict(SOURCE),
     "retrieval_operation": "attempt-1",
+    "retrieval_execution_id": "exec-review-1",
     "row_ref": "Orders!R11",
     "values": [],
 }]
@@ -97,6 +100,7 @@ def test_vendor_domain_uses_its_own_structured_schema():
         "subject_id": "V-200",
         "source_identity": source,
         "retrieval_operation": "attempt-vendor",
+        "retrieval_execution_id": "exec-review-1",
         "row_ref": "Vendors!R7",
         "values": [],
     }]
@@ -137,6 +141,7 @@ def test_wrong_subject_evidence_cannot_certify():
         "subject_id": "O-1001",
         "source_identity": dict(SOURCE),
         "retrieval_operation": "attempt-1",
+        "retrieval_execution_id": "exec-review-1",
         "row_ref": "Orders!R2",
         "values": [],
     }]
@@ -163,6 +168,7 @@ def test_swapped_evidence_between_two_subjects_fails():
             "subject_id": "O-1010",
             "source_identity": dict(SOURCE),
             "retrieval_operation": "attempt-1",
+            "retrieval_execution_id": "exec-review-1",
             "row_ref": "Orders!R11",
             "values": [],
         },
@@ -171,6 +177,7 @@ def test_swapped_evidence_between_two_subjects_fails():
             "subject_id": "O-1001",
             "source_identity": dict(SOURCE),
             "retrieval_operation": "attempt-1",
+            "retrieval_execution_id": "exec-review-1",
             "row_ref": "Orders!R2",
             "values": [],
         },
@@ -316,3 +323,96 @@ def test_instruction_and_block_stripping():
         "unresolved_requirements": [],
     }])
     assert "review_result" not in strip_review_block(answer)
+
+
+def test_uncertified_required_review_forces_failed_envelope():
+    response = {
+        "success": True,
+        "outcome": "completed",
+        "_recorded_outcome": {"state": "completed"},
+    }
+    outcome = {
+        "delivery": {"review_required": True},
+        "objective_met": False,
+    }
+    assert align_review_failure(response, outcome) is True
+    assert response["success"] is False
+    assert response["outcome"] == "failed"
+    assert response["_recorded_outcome"]["state"] == "failed"
+
+
+def test_certified_or_absent_review_does_not_force_failure():
+    response = {"success": True, "outcome": "completed"}
+    assert align_review_failure(
+        response, {"delivery": {"review_required": True},
+                   "objective_met": True}) is False
+    assert response["success"] is True
+    assert align_review_failure(
+        response, {"delivery": {"review_required": False},
+                   "objective_met": False}) is False
+
+
+def test_review_delivery_must_carry_the_rendered_block():
+    summary = "VALIDATED REVIEW (request-bound):\n- O-1010: Decision: Process"
+    assert review_matches_delivered_text(
+        summary, "review text\n\n" + summary) is True
+    assert review_matches_delivered_text(
+        summary, "The lookup did not run this turn.") is False
+
+
+def test_evidence_index_preserves_retrieval_execution_id():
+    structured = {
+        "requested_items": ["O-1010"],
+        "attempt_id": "attempt-1",
+        "source_execution_id": "read-execution-7",
+        "source_identity": dict(SOURCE),
+        "targets": [{
+            "item": "O-1010",
+            "status": "found",
+            "identity": {"candidates": [{
+                "ref": "Orders!R11",
+                "values": [],
+            }]},
+        }],
+    }
+    index = build_evidence_index(structured)
+    assert index[0]["retrieval_execution_id"] == "read-execution-7"
+
+
+def test_missing_retrieval_execution_id_fails_closed():
+    evidence = [dict(EVIDENCE_INDEX[0])]
+    evidence[0].pop("retrieval_execution_id", None)
+    review = _build(
+        _block([{
+            "subject_id": "O-1010",
+            "decision": "Process",
+            "evidence_ids": ["ev:O-1010:Orders!R11"],
+            "policy_ids": ["lesson-1"],
+            "unresolved_requirements": [],
+        }]),
+        evidence=evidence,
+    )
+    assert review["ok"] is False
+    assert any(
+        error["code"] == "missing_retrieval_execution_id"
+        for error in review["errors"])
+
+
+def test_resumed_read_provenance_is_recorded_not_rewritten():
+    evidence = [dict(EVIDENCE_INDEX[0])]
+    evidence[0]["retrieval_execution_id"] = "read-execution-old"
+    review = _build(
+        _block([{
+            "subject_id": "O-1010",
+            "decision": "Escalate",
+            "evidence_ids": ["ev:O-1010:Orders!R11"],
+            "policy_ids": ["lesson-1"],
+            "unresolved_requirements": ["credit hold"],
+        }]),
+        evidence=evidence,
+    )
+    assert review["ok"] is True
+    assert review["source_execution_ids"] == ["read-execution-old"]
+    assert review["assessments"][0]["resumed_read"] is True
+    assert review["assessments"][0]["evidence_refs"][0][
+        "retrieval_execution_id"] == "read-execution-old"

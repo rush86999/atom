@@ -4853,6 +4853,7 @@ async def test_resumed_review_request_reaches_narration_not_raw_read():
                 "workbook_read": {
                     "requested_items": ["V-200"],
                     "attempt_id": "attempt-vendor",
+                    "source_execution_id": "e-review",
                     "source_identity": {
                         "file_name": "vendors.xlsx",
                         "resource_id": "sha1:v1",
