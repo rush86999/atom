@@ -1,10 +1,11 @@
 # Release candidate — `ae0c2fda3` (deployment approval package)
 
 **Prepared:** 2026-10-26
-**Status:** one authorized attempt executed; **failed before product smoke**.
-Automatic rollback hit a tooling defect and the pilot was manually restored.
-Candidate is **not deployed**. A second attempt requires new authorization.
-**Deployed pilot:** `c912375de`, PID `5322`, healthy on `:8001`.
+**Status:** two authorized attempts executed; **both failed before product
+smoke**. The second attempt failed at guided-agent creation (HTTP 201) and
+automatic code rollback succeeded. Candidate is **not deployed**. A third
+attempt requires new authorization.
+**Deployed pilot:** `c912375de`, PID `13038`, healthy on `:8001`.
 
 ## Candidate identity
 
@@ -20,8 +21,10 @@ Candidate is **not deployed**. A second attempt requires new authorization.
 | Preserved failing predecessor | `d4d0576d1` |
 | Package docs | support statement, independent-review record, cutover runbook (this directory) |
 | Includes spreadsheet fix | `e14d3efdd` |
-| Pilot restored | `c912375de`, PID `5322` |
-| One-attempt result | failed at smoke login 401; manual recovery; not deployed |
+| Pilot restored | `c912375de`, PID `13038` |
+| First attempt | failed at smoke login 401; manual recovery |
+| Second attempt | failed at guided-agent HTTP 201; automatic code rollback healthy |
+| Smoke-created record | agent `886b86b4-6917-4fec-831a-1f5a9ee22f4f`, preserved |
 
 The candidate directory contains source, scripts, docs, and evidence. After
 the failed attempt it is **prepared** with candidate-local data/env/venv links
@@ -167,14 +170,28 @@ The stale-password and rollback defects are fixed:
 - smoke default is the live acceptance-admin password file, and
   `--check-only` verifies it against the admin bcrypt hash;
 - all port probes treat “no listener” as valid;
-- pilot PID is read from `evidence/cutover/pilot_pid.txt` (currently `5322`).
+- pilot PID is read from `evidence/cutover/pilot_pid.txt` (currently `13038`).
 
-A second attempt has not run. `c912375de` remains the served pilot.
+### Second attempt (2026-10-26T22:53:46Z)
 
-## Checks after the failed attempt
+The second authorized attempt ran after the confirmation parity and exit-guard
+fixes. Preflight, snapshot, candidate start, and health passed. The pre-restart
+smoke then failed at guided-agent creation because the endpoint returned
+**HTTP 201 Created** while the smoke accepted only HTTP 200. The agent was
+created; no canvas, upload, chat session, execution, task or canvas-audit record
+was created.
+
+Automatic code rollback succeeded: `c912375de` is serving as PID `13038`,
+healthy on `:8001`, with `database_restored=false`. No repair or retry was
+performed. Evidence:
+`evidence/cutover/attempt-20261026T225346Z/`; smoke-created agent
+`886b86b4-6917-4fec-831a-1f5a9ee22f4f` is preserved and recorded in
+`smoke-created-records.json`.
+
+## Checks after the failed attempts
 
 - `bash -n` passes.
-- `--preflight` on the prepared candidate passes with pilot PID `5322`,
+- `--preflight` on the prepared candidate passes with pilot PID `13038`,
   live-link/database match, DB `quick_check ok`, and live-smoke precheck `OK`.
 - `smoke...py --check-only` passes with the live acceptance-admin password,
   including `admin_password_matches=true`; the stale bootstrap file fails
@@ -195,8 +212,8 @@ A second attempt has not run. `c912375de` remains the served pilot.
   no-network branch test passes against the development helper, the packaged
   helper, and the frozen candidate classifier (9 passed). Old verbose
   confirmations are rejected by the candidate.
-- A second live attempt has **not** been executed; new authorization is
-  outstanding.
+- The second live attempt failed at setup and rolled back; no third attempt has
+  been executed or authorized.
 
 ## Limitations / backlog (visible)
 
@@ -205,9 +222,10 @@ A second attempt has not run. `c912375de` remains the served pilot.
 - Unknown-header confirmation UX and required-input filters remain the
   disclosed spreadsheet limitation.
 - General policy transfer beyond tested order/vendor controls is not claimed.
-- The existing product smoke evidence is scratch-world. The live smoke gate
-  ran only far enough to reach admin login; it failed there before any product
-  turn, so it establishes no new product failure.
+- The existing product smoke evidence is scratch-world. The live gate has not
+  completed a product turn: attempt one failed at login, attempt two failed at
+  guided-agent creation after creating the agent. Neither establishes a new
+  product failure.
 - The live smoke covers successful reviews; failure-path envelope and
   post-generation invalidation remain covered by focused local controls, not a
   served failure smoke.
@@ -220,11 +238,8 @@ A second attempt has not run. `c912375de` remains the served pilot.
 
 ## Approval requested
 
-The first authorization is consumed. Approve **one second complete reversible
-attempt** for `ae0c2fda3` with the same product/smoke contract, using the
-corrected password precheck, fixed no-listener probes, and the new general
-exit guard: backup, scoped cutover, immediate live smoke, scoped
-restart/post-restart smoke, automatic code rollback to `c912375de` on any
-failure including unexpected post-shutdown exits, preserved post-cutover data,
-and final served-identity publication. Database restore is not part of normal
-rollback; it requires demonstrated corruption and a separate manual decision.
+Both authorizations are consumed. No third attempt is authorized. A future
+attempt would require a new decision and a bounded correction of the smoke's
+HTTP-201 acceptance mismatch; application code is unchanged. Database restore
+is not part of normal rollback; it requires demonstrated corruption and a
+separate manual decision.

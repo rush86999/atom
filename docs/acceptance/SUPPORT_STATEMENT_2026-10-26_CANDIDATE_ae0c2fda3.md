@@ -1,11 +1,11 @@
 # Support statement — release candidate `ae0c2fda3`
 
-**Status:** candidate-bound support statement; **not deployed**. One
-authorized attempt was executed and failed before product smoke; the pilot was
-manually restored.
+**Status:** candidate-bound support statement; **not deployed**. Two
+authorized attempts were executed and failed before product smoke; the second
+attempt created one smoke agent and then rolled back automatically.
 **Candidate source:** `ae0c2fda3` (includes spreadsheet `e14d3efdd` and
 trained-review fixes through `ae0c2fda3`).
-**Pilot:** `c912375de`, PID `5322`, healthy after manual recovery.
+**Pilot:** `c912375de`, PID `13038`, healthy after automatic rollback.
 **Served acceptance base:** `c0c0d2e87` for the four review checks; combined
 served smoke on the candidate source `ae0c2fda3`.
 
@@ -59,11 +59,11 @@ For the tested candidate/configuration, the candidate supports:
   local controls, not by a served failure smoke.
 - **Scratch evidence.** The existing product smoke is scratch-world evidence,
   not a pilot/deployment soak.
-- **Live gate failed; second attempt not run.** The one authorized attempt
-  stopped the pilot and started the candidate, then failed at smoke admin login
-  (HTTP 401) before creating smoke data. Automatic rollback hit an
-  `lsof`/`pipefail` defect; the pilot was manually restored. The password
-  precheck and rollback guard are fixed, but no second live attempt has run.
+- **Live gate failed twice before a product turn.** Attempt one failed at admin
+  login (HTTP 401) and manual recovery; attempt two failed at guided-agent
+  creation (HTTP 201) after creating one smoke agent. Automatic code rollback
+  was healthy. The 201 acceptance mismatch remains for a bounded future
+  correction; no third attempt has run.
 - **Smoke data persists.** The live gate creates a named agent/canvas and
   uniquely named workbook uploads; rollback preserves them rather than erasing
   post-cutover work.

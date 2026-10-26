@@ -1,9 +1,9 @@
 # Cutover runbook — `ae0c2fda3` over pilot `c912375de`
 
-**Status:** one authorized attempt executed; **failed before product smoke**.
-Automatic rollback hit an `lsof`/`pipefail` defect; `c912375de` was manually
-restored as PID `5322`. The candidate is not deployed. A second attempt
-requires new authorization.
+**Status:** two authorized attempts executed; **both failed before product
+smoke**. The second attempt failed at guided-agent creation (HTTP 201) and
+automatic code rollback succeeded. `c912375de` is serving as PID `13038`.
+Candidate is not deployed. A third attempt requires new authorization.
 **Approval token:** `ATOM_DEPLOY_APPROVED=ae0c2fda3`
 **Script:** `scripts/deploy_release_candidate_ae0c2fda3.sh`
 
@@ -51,7 +51,23 @@ Fixes prepared for a second attempt:
   a no-network parity test runs against the development and packaged helpers
   and the frozen candidate classifier;
 - the recorded pilot PID is read from `evidence/cutover/pilot_pid.txt`
-  (currently `5322`) and still checked against command/cwd/port.
+  (currently `13038`) and still checked against command/cwd/port.
+
+## Second attempt outcome (2026-10-26T22:53:46Z)
+
+- Preflight, snapshot, candidate startup and health passed.
+- Smoke authenticated and entered setup.
+- Guided-agent creation returned **HTTP 201 Created**; the smoke accepted only
+  HTTP 200 and aborted before any canvas, upload, chat turn or review.
+- The agent was created and is preserved:
+  `886b86b4-6917-4fec-831a-1f5a9ee22f4f` (`Order Review Ops Specialist`).
+- Automatic code rollback succeeded: `c912375de` PID `13038`, healthy on
+  `:8001`, `database_restored=false`.
+- No repair, retry or product-code change was performed. The HTTP-201
+  acceptance mismatch remains for a bounded future correction.
+- Attempt evidence:
+  `evidence/cutover/attempt-20261026T225346Z/`, including
+  `failure-detail.json` and `smoke-created-records.json`.
 
 ## Fixed identities
 
@@ -63,7 +79,7 @@ Fixes prepared for a second attempt:
 | Archive SHA-256 | `33a317c2b981f5947f854056aad8b11ffce4ac8c0a6b908e96f998d5dca4f526` |
 | Rollback release | `/Users/rushiparikh/projects/atom-releases/c912375de` |
 | Rollback commit | `c912375de81b55465e61fe468bf0bc2b405fd206` |
-| Pilot PID / port | `5322` / `8001` (recorded in `evidence/cutover/pilot_pid.txt`) |
+| Pilot PID / port | `13038` / `8001` (recorded in `evidence/cutover/pilot_pid.txt`) |
 | Smoke admin credential | `/Users/rushiparikh/projects/atom/backend/logs/acceptance_admin_password.txt` |
 | Live data | `/Users/rushiparikh/projects/atom/backend/data` |
 | Live env | `/Users/rushiparikh/projects/atom/backend/.env` |
@@ -86,7 +102,7 @@ Recorded result on 2026-10-26:
 ```
 ==> preflight candidate ae0c2fda340e9a85e840e310d84d4d0da4fedab8
 ==> candidate state: prepared
-==> pilot pid=5322 port=8001
+==> pilot pid=13038 port=8001
 ==> live smoke precheck (read-only)
 ==> live smoke precheck OK
 ==> preflight OK; no changes made
@@ -101,7 +117,7 @@ Preflight fails closed if any of these is false:
 
 - candidate/rollback identity commits and the canonical archive checksum;
 - candidate source tree matches the archive (source-only state);
-- recorded pilot PID (currently `5322`, from
+- recorded pilot PID (currently `13038`, from
   `evidence/cutover/pilot_pid.txt`) is alive, owns `--port 8001`, and its cwd
   is `c912375de/backend`;
 - `/api/health` reports healthy, that PID, cwd, and
@@ -260,7 +276,7 @@ evidence path. Normal code rollback keeps the post-cutover data.
 ## Checks after the failed attempt
 
 - `bash -n`: pass.
-- `--preflight` on the prepared candidate: pass with pilot PID `5322`, live
+- `--preflight` on the prepared candidate: pass with pilot PID `13038`, live
   smoke precheck OK, and zero live-DB writes.
 - `smoke...py --check-only` with the live acceptance-admin password: pass,
   including `admin_password_matches=true`.
@@ -281,5 +297,5 @@ evidence path. Normal code rollback keeps the post-cutover data.
   packaged helper, and the frozen candidate's `is_filename_confirmation`
   classifier (9 passed). The old verbose confirmations are explicitly rejected.
 - Wrong approval token: exit `1`, no snapshot/link/stop/start.
-- Pilot is `c912375de` PID `5322`, healthy on `:8001`; candidate is prepared,
+- Pilot is `c912375de` PID `13038`, healthy on `:8001`; candidate is prepared,
   not running, and not deployed.

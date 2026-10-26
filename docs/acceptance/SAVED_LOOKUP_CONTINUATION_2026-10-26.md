@@ -296,12 +296,15 @@ Package/docs:
 `docs/acceptance/CUTOVER_RUNBOOK_ae0c2fda3_2026-10-26.md`.
 The cutover now requires immediate live smoke, a scoped restart, post-restart
 agreement, and automatic code rollback to `c912375de` on any failure. Database
-restore is not part of normal rollback. One authorized attempt was executed and
-failed at smoke admin login (HTTP 401) before creating smoke data; automatic
-rollback hit an `lsof`/`pipefail` defect and the pilot was manually restored as
-PID `5322`. The defects are fixed, including a general post-shutdown exit guard
-that invokes rollback on unexpected failure; fake-release guard tests pass. A
-second attempt requires new authorization and has not run.
+restore is not part of normal rollback. Two authorized attempts were executed
+before any product turn. The first failed at smoke admin login (HTTP 401) and
+was manually recovered; the second passed preflight, backup and candidate
+startup, created one smoke agent, then failed at guided-agent HTTP 201 and
+automatically rolled code back to `c912375de` (PID `13038`, healthy). No
+database restore occurred. The confirmation helper now uses exactly `go ahead`
+and passes parity tests against the packaged helper and frozen classifier. The
+HTTP-201 acceptance mismatch remains for a bounded future correction; no third
+attempt has run.
 
 ## Tests
 
