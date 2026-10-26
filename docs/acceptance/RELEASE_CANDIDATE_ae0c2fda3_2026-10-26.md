@@ -1,8 +1,10 @@
 # Release candidate — `ae0c2fda3` (deployment approval package)
 
 **Prepared:** 2026-10-26
-**Status:** frozen release candidate; **awaiting deployment approval**.
-**Deployed pilot:** `c912375de` (unchanged).
+**Status:** one authorized attempt executed; **failed before product smoke**.
+Automatic rollback hit a tooling defect and the pilot was manually restored.
+Candidate is **not deployed**. A second attempt requires new authorization.
+**Deployed pilot:** `c912375de`, PID `5322`, healthy on `:8001`.
 
 ## Candidate identity
 
@@ -18,11 +20,14 @@
 | Preserved failing predecessor | `d4d0576d1` |
 | Package docs | support statement, independent-review record, cutover runbook (this directory) |
 | Includes spreadsheet fix | `e14d3efdd` |
-| Pilot to preserve | `c912375de` |
+| Pilot restored | `c912375de`, PID `5322` |
+| One-attempt result | failed at smoke login 401; manual recovery; not deployed |
 
-The candidate directory contains source, docs, and evidence only. It has **no
-live data, live environment, or BYOK links** and is not running. The cutover
-creates those links and a candidate-local config copy.
+The candidate directory contains source, scripts, docs, and evidence. After
+the failed attempt it is **prepared** with candidate-local data/env/venv links
+and a config copy, but it is **not running**. Its original tracked
+`backend/data` is preserved under
+`evidence/cutover/attempt-20261026T221610Z/source-backend-data/`.
 
 ## Archive record correction
 
@@ -54,8 +59,10 @@ See `evidence/archive/README.md`, `checksums.txt`, and `verification.txt`.
   results require schema/execution/subject/decision agreement; raw machine
   blocks are stripped on failure; uncertified assessments are not exposed.
 - Live cutover gate: `scripts/smoke_release_candidate_ae0c2fda3.py` plus the
-  validated workbook fixtures in `scripts/smoke_inputs/`. It is implemented
-  and read-only prechecked; the live attempt has not run.
+  validated workbook fixtures in `scripts/smoke_inputs/`. It failed the one
+  authorized attempt at admin login (HTTP 401) before creating any smoke data.
+  The stale-password and rollback defects are fixed; a second attempt has not
+  run.
 
 ## Served smoke evidence
 
@@ -106,10 +113,9 @@ This package does **not** deploy or restart the pilot. The generic
 Uvicorn process, continues after a snapshot failure, and resolves paths
 relative to the script.
 
-Approval is requested for **one reversible attempt**: verified backup, scoped
-cutover to `ae0c2fda3`, immediate live smoke, scoped restart, post-restart
-agreement, automatic code rollback on any failure, and final served-identity
-publication. The runbook is
+**One authorized attempt has been consumed and failed before product smoke.**
+The pilot was manually restored. A second attempt requires new authorization;
+the same command would be used after approval. The runbook is
 [`CUTOVER_RUNBOOK_ae0c2fda3_2026-10-26.md`](CUTOVER_RUNBOOK_ae0c2fda3_2026-10-26.md):
 
 ```bash
@@ -125,8 +131,8 @@ The script:
    quick_check, gzip, or size check fails;
 3. prepares candidate-local data/env/venv links and a candidate-local BYOK
    config copy **before** the stop;
-4. stops only recorded PID `33426`, verifies the port is free, and starts
-   `ae0c2fda3` from its own versioned directory;
+4. stops only the recorded pilot PID (`5322` after manual recovery), verifies
+   the port is free, and starts `ae0c2fda3` from its own versioned directory;
 5. requires the new PID, cwd, and `ae0c2fda3/backend/data/atom.db` in
    `/api/health`;
 6. runs the pre-restart live smoke:
@@ -149,28 +155,39 @@ The script:
 The database is **never restored automatically**. Restore only for
 demonstrated corruption, after preserving the post-cutover DB/WAL/SHM.
 
-Smoke data (agent, canvas, uniquely named uploads, lessons, sessions,
-executions) is deliberately preserved; it is not cleaned up by rollback.
+The first authorized attempt stopped pilot PID `33426`, started candidate PID
+`5188`, then failed at smoke login (HTTP 401) before creating smoke data. Its
+automatic rollback exited before starting `c912375de` because `lsof` returns
+`1` under `pipefail` when no listener remains. The pilot was manually restored
+as PID `5322`. Evidence:
+`evidence/cutover/attempt-20261026T221610Z/`.
 
-`c912375de` is never used as the candidate source and is never overwritten.
-The pilot remains `c912375de` until approval.
+The stale-password and rollback defects are fixed:
 
-## Cutover checks already performed
+- smoke default is the live acceptance-admin password file, and
+  `--check-only` verifies it against the admin bcrypt hash;
+- all port probes treat “no listener” as valid;
+- pilot PID is read from `evidence/cutover/pilot_pid.txt` (currently `5322`).
+
+A second attempt has not run. `c912375de` remains the served pilot.
+
+## Checks after the failed attempt
 
 - `bash -n` passes.
-- `--preflight` passes: candidate source matches the canonical archive
-  (0 differences), pilot PID `33426`/cwd/database/live-link match, DB
-  quick_check `ok`, and live-smoke precheck `OK`.
-- `smoke...py --check-only` passes against the live DB: active admin user,
-  required tables/columns, password file, fixture hashes, `httpx`; no network
-  and no writes.
-- Wrong approval token exits `1` before any snapshot/link/stop/start; the
-  pilot remained healthy and the candidate remained source-only.
-- Isolated self-tests of candidate preparation, config copy, snapshot
-  gzip/quick_check, health parsing (including wrong-database rejection),
-  scoped PID/port stop, and served-identity publication passed.
-- The cutover and the live smoke itself have **not** been executed; approval
-  is outstanding.
+- `--preflight` on the prepared candidate passes with pilot PID `5322`,
+  live-link/database match, DB `quick_check ok`, and live-smoke precheck `OK`.
+- `smoke...py --check-only` passes with the live acceptance-admin password,
+  including `admin_password_matches=true`; the stale bootstrap file fails
+  `admin_password_matches=false` and exits `1`.
+- Wrong approval token exits `1` before any snapshot/link/stop/start.
+- Isolated self-tests of preparation, config copy, snapshot gzip/quick_check,
+  health parsing, direct scoped PID/port stop under `set -euo pipefail`, and
+  served-identity publication pass.
+- The fake-release `rollback_after_failure` regression starts and
+  health-checks the rollback release, writes failed/served identity, and exits
+  nonzero as intended.
+- A second live attempt has **not** been executed; new authorization is
+  outstanding.
 
 ## Limitations / backlog (visible)
 

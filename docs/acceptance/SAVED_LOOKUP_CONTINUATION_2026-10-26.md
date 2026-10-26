@@ -296,8 +296,11 @@ Package/docs:
 `docs/acceptance/CUTOVER_RUNBOOK_ae0c2fda3_2026-10-26.md`.
 The cutover now requires immediate live smoke, a scoped restart, post-restart
 agreement, and automatic code rollback to `c912375de` on any failure. Database
-restore is not part of normal rollback. The live attempt has not run; one
-reversible-attempt approval remains outstanding.
+restore is not part of normal rollback. One authorized attempt was executed and
+failed at smoke admin login (HTTP 401) before creating smoke data; automatic
+rollback hit an `lsof`/`pipefail` defect and the pilot was manually restored as
+PID `5322`. The defects are fixed; a second attempt requires new authorization
+and has not run.
 
 ## Tests
 

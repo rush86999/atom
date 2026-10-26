@@ -31,7 +31,7 @@ CANDIDATE_ARCHIVE="$CANDIDATE_DIR/evidence/archive/atom-ae0c2fda3-backend.tar"
 CANDIDATE_ARCHIVE_SHA="33a317c2b981f5947f854056aad8b11ffce4ac8c0a6b908e96f998d5dca4f526"
 APPROVAL_TOKEN="ae0c2fda3"
 
-PILOT_PID="33426"
+PILOT_PID="${ATOM_PILOT_PID:-33426}"
 PORT="8001"
 LIVE_DATA="/Users/rushiparikh/projects/atom/backend/data"
 LIVE_ENV="/Users/rushiparikh/projects/atom/backend/.env"
@@ -39,12 +39,13 @@ LIVE_VENV="/Users/rushiparikh/projects/atom/backend/venv314"
 DB_PATH="$LIVE_DATA/atom.db"
 BACKUP_DIR="$LIVE_DATA/backups"
 CUTOVER_DIR="$CANDIDATE_DIR/evidence/cutover"
+PILOT_PID_FILE="$CUTOVER_DIR/pilot_pid.txt"
 SERVED_IDENTITY_FILE="$RELEASES_DIR/SERVED_IDENTITY.json"
 
 SMOKE_SCRIPT="$CANDIDATE_DIR/scripts/smoke_release_candidate_ae0c2fda3.py"
 SMOKE_FIXTURES="$CANDIDATE_DIR/scripts/smoke_inputs"
 SMOKE_ADMIN_EMAIL="${ATOM_SMOKE_ADMIN_EMAIL:-admin@example.com}"
-SMOKE_PASSWORD_FILE="${ATOM_SMOKE_PASSWORD_FILE:-$ROLLBACK_DIR/backend/logs/bootstrap_admin_password.txt}"
+SMOKE_PASSWORD_FILE="${ATOM_SMOKE_PASSWORD_FILE:-/Users/rushiparikh/projects/atom/backend/logs/acceptance_admin_password.txt}"
 
 PREFERRED_PROVIDER="opencode-go"
 PREFERRED_MODEL="deepseek-v4.1-flash"
@@ -211,9 +212,21 @@ assert doc.get("checks_all_true") is True, doc.get("checks")
   say "live smoke precheck OK"
 }
 
+resolve_pilot_pid() {
+  if [ -n "${ATOM_PILOT_PID:-}" ]; then
+    PILOT_PID="$ATOM_PILOT_PID"
+  elif [ -f "$PILOT_PID_FILE" ]; then
+    PILOT_PID="$(tr -d '[:space:]' < "$PILOT_PID_FILE")"
+    case "$PILOT_PID" in
+      ''|*[!0-9]*) fail "invalid pilot PID file: $PILOT_PID_FILE" ;;
+    esac
+  fi
+}
+
 preflight() {
   local state pilot_cmd pilot_cwd_value port_pids health free_gb
 
+  resolve_pilot_pid
   say "preflight candidate $CANDIDATE_COMMIT"
   need_dir "$CANDIDATE_DIR"
   need_dir "$ROLLBACK_DIR"
@@ -263,7 +276,7 @@ preflight() {
     || fail "pilot cwd is '$pilot_cwd_value', expected '$ROLLBACK_DIR/backend'"
 
   port_pids="$(lsof -nP -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null \
-    | sort -u | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+    | sort -u | tr '\n' ' ' | sed 's/[[:space:]]*$//')" || true
   [ "$port_pids" = "$PILOT_PID" ] \
     || fail "port $PORT is owned by '${port_pids:-none}', expected only pilot $PILOT_PID"
 
@@ -425,7 +438,7 @@ stop_scoped_pid() {
     return 1
   }
   port_pids="$(lsof -nP -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null \
-    | sort -u | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+    | sort -u | tr '\n' ' ' | sed 's/[[:space:]]*$//')" || true
   [ "$port_pids" = "$pid" ] || {
     printf 'FAILED: port %s is owned by %s, expected only %s pid %s\n' \
       "$PORT" "${port_pids:-none}" "$label" "$pid" >&2
@@ -453,7 +466,7 @@ stop_scoped_pid() {
     esac
   fi
   port_pids="$(lsof -nP -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null \
-    | sort -u | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+    | sort -u | tr '\n' ' ' | sed 's/[[:space:]]*$//')" || true
   [ -z "$port_pids" ] || {
     printf 'FAILED: port %s still has a listener after %s stop: %s\n' \
       "$PORT" "$label" "$port_pids" >&2
@@ -647,7 +660,7 @@ rollback_after_failure() {
   fi
   for i in $(seq 1 10); do
     port_pids="$(lsof -nP -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null \
-      | sort -u | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+      | sort -u | tr '\n' ' ' | sed 's/[[:space:]]*$//')" || true
     [ -z "$port_pids" ] && break
     sleep 1
   done

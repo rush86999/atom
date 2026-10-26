@@ -1,9 +1,11 @@
 # Support statement — release candidate `ae0c2fda3`
 
-**Status:** candidate-bound support statement; **not deployed**.
+**Status:** candidate-bound support statement; **not deployed**. One
+authorized attempt was executed and failed before product smoke; the pilot was
+manually restored.
 **Candidate source:** `ae0c2fda3` (includes spreadsheet `e14d3efdd` and
 trained-review fixes through `ae0c2fda3`).
-**Pilot:** `c912375de` (unchanged).
+**Pilot:** `c912375de`, PID `5322`, healthy after manual recovery.
 **Served acceptance base:** `c0c0d2e87` for the four review checks; combined
 served smoke on the candidate source `ae0c2fda3`.
 
@@ -57,10 +59,11 @@ For the tested candidate/configuration, the candidate supports:
   local controls, not by a served failure smoke.
 - **Scratch evidence.** The existing product smoke is scratch-world evidence,
   not a pilot/deployment soak.
-- **Live gate not yet run.** The cutover now requires immediate live smoke,
-  scoped restart, post-restart agreement, and automatic code rollback on any
-  failure. Only its read-only precheck and local self-tests have run; the live
-  attempt awaits approval.
+- **Live gate failed; second attempt not run.** The one authorized attempt
+  stopped the pilot and started the candidate, then failed at smoke admin login
+  (HTTP 401) before creating smoke data. Automatic rollback hit an
+  `lsof`/`pipefail` defect; the pilot was manually restored. The password
+  precheck and rollback guard are fixed, but no second live attempt has run.
 - **Smoke data persists.** The live gate creates a named agent/canvas and
   uniquely named workbook uploads; rollback preserves them rather than erasing
   post-cutover work.
@@ -75,6 +78,6 @@ For the tested candidate/configuration, the candidate supports:
 - No claim of general policy transfer.
 - No claim that the earlier supplied-row behavioral result was autonomous
   workbook retrieval.
-- No deployment approval by this statement. Approval is requested for one
-  reversible cutover–smoke–restart–automatic-code-rollback attempt; no live
-  attempt has run.
+- No deployment approval by this statement. The one authorized reversible
+  attempt failed before product smoke and was manually recovered; a second
+  attempt requires new authorization.

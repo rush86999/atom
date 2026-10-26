@@ -714,6 +714,23 @@ def check_only(args: argparse.Namespace) -> dict:
     ) if checks["db_exists"] else []
     checks["active_admin_user"] = int(
         (admin_rows[0] if admin_rows else {}).get("n") or 0) >= 1
+    checks["admin_password_matches"] = False
+    if checks["active_admin_user"] and checks["password_file_nonempty"]:
+        rows = read_db(
+            db_path,
+            "select hashed_password from users "
+            "where lower(email)=lower(?) and status='active'",
+            (args.admin_email,),
+        )
+        try:
+            import bcrypt
+
+            stored = str((rows[0] if rows else {}).get("hashed_password") or "")
+            password = Path(args.admin_password_file).read_text().strip().encode()
+            checks["admin_password_matches"] = bool(
+                stored and bcrypt.checkpw(password, stored.encode()))
+        except Exception:
+            checks["admin_password_matches"] = False
     for name, expected in EXPECTED_FIXTURE_HASHES.items():
         path = Path(args.fixtures_dir) / name
         checks[f"fixture_{name}"] = (
