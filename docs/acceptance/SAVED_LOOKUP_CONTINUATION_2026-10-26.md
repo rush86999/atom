@@ -273,8 +273,12 @@ the tested controls, and deployment. The pilot remains `c912375de`.
 Candidate source `ae0c2fda340e9a85e840e310d84d4d0da4fedab8` (includes the
 spreadsheet fix and trained-review fixes, plus the independent-review release
 blockers). Frozen source directory:
-`/Users/rushiparikh/projects/atom-releases/ae0c2fda3`, archive SHA-256
-`3b4caf8cf9fa0be9bc3ef20e7505eb62af3a73b4bc7e6c13698142e112cc5fc5`.
+`/Users/rushiparikh/projects/atom-releases/ae0c2fda3`; canonical plain-tar
+archive SHA-256
+`33a317c2b981f5947f854056aad8b11ffce4ac8c0a6b908e96f998d5dca4f526`.
+The preserved original gzip artifact and its different SHA-256
+(`3b4caf8cf9fa0be9bc3ef20e7505eb62af3a73b4bc7e6c13698142e112cc5fc5`)
+are recorded in `evidence/archive/`.
 
 Combined served smoke on the candidate (`checks_all_true=true`):
 
@@ -287,8 +291,9 @@ Combined served smoke on the candidate (`checks_all_true=true`):
   history agree, workbook hashes unchanged, zero unintended writes.
 
 Package/docs:
-`docs/acceptance/RELEASE_CANDIDATE_ae0c2fda3_2026-10-26.md` and
-`docs/acceptance/SUPPORT_STATEMENT_2026-10-26_CANDIDATE_ae0c2fda3.md`.
+`docs/acceptance/RELEASE_CANDIDATE_ae0c2fda3_2026-10-26.md`,
+`docs/acceptance/SUPPORT_STATEMENT_2026-10-26_CANDIDATE_ae0c2fda3.md`, and
+`docs/acceptance/CUTOVER_RUNBOOK_ae0c2fda3_2026-10-26.md`.
 Deployment remains a separate approval boundary.
 
 ## Tests
