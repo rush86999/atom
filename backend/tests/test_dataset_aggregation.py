@@ -969,7 +969,8 @@ async def test_ambiguous_normalized_role_names_fail_closed(tmp_path):
         )
         assert result["status"] == "error"
         assert ("REQUIRED COLUMN NOT IDENTIFIED" in result["block"]
-                or "AMBIGUOUS COLUMN NAME" in result["block"])
+                or "AMBIGUOUS COLUMN NAME" in result["block"]
+                or "AMBIGUOUS ROLE COLUMN" in result["block"])
 
 
 @pytest.mark.asyncio
@@ -1110,7 +1111,8 @@ async def test_projection_cannot_expand_or_drop_rows(tmp_path):
 async def test_role_substitution_is_rejected(tmp_path):
     entries = _entries(tmp_path)
     adj = next(e for e in entries if e["entity_name"] == "Adjustments")
-    # quantity points at the price column (duplicate of price role)
+    # quantity points at the price column; the frame's Qty/Unit Price
+    # columns deterministically win, preserving the 0055 gap.
     plan = _plan(
         adj,
         'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\'',
@@ -1118,10 +1120,11 @@ async def test_role_substitution_is_rejected(tmp_path):
     )
     result = await execute_validated_aggregate_plan(
         entries, plan, "Adjustments sheet approved totals")
-    assert result["status"] == "error"
-    assert "ROLE CONFLICT" in result["block"]
+    assert result["status"] == "partial"
+    assert result["gaps"][0]["identity"] == "0055"
+    assert result["subtotals"]["CAD"]["value"] == "-700.00"
 
-    # swapped numeric roles are also rejected
+    # swapped numeric roles resolve back to Qty/Unit Price.
     plan = _plan(
         adj,
         'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\'',
@@ -1129,8 +1132,9 @@ async def test_role_substitution_is_rejected(tmp_path):
     )
     result = await execute_validated_aggregate_plan(
         entries, plan, "Adjustments sheet approved totals")
-    assert result["status"] == "error"
-    assert "ROLE CONFLICT" in result["block"]
+    assert result["status"] == "partial"
+    assert result["gaps"][0]["identity"] == "0055"
+    assert result["subtotals"]["CAD"]["value"] == "-700.00"
 
 
 @pytest.mark.asyncio
@@ -1211,4 +1215,5 @@ async def test_decorated_price_column_cannot_be_used_as_quantity(tmp_path):
             "Sheet1 approved totals",
         )
         assert result["status"] == "error", quantity
-        assert "ROLE CONFLICT" in result["block"]
+        assert ("ROLE CONFLICT" in result["block"]
+                or "AMBIGUOUS ROLE COLUMN" in result["block"])

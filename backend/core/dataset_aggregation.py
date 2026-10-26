@@ -843,6 +843,7 @@ _ROLE_HINTS: Dict[str, Tuple[str, ...]] = {
     "identity_column": (
         "po id", "po number", "order id", "order number", "item id",
         "item number", "reference", "ref", "sku", "code", "id",
+        "line no", "line number", "row no", "row number",
     ),
     "quantity_column": (
         "qty", "quantity", "units", "unit quantity",
@@ -861,8 +862,18 @@ _ROLE_HINTS: Dict[str, Tuple[str, ...]] = {
 
 
 def _norm_role_name(value: str) -> str:
-    return " ".join(
-        re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).split())
+    text = str(value or "")
+    text = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", text)
+    text = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", text)
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", text.lower()).split())
+
+
+def _role_hint_matches(column: str, hints: Tuple[str, ...]) -> bool:
+    tokens = set(_norm_role_name(column).split())
+    return any(
+        all(token in tokens for token in hint.split())
+        for hint in hints
+    )
 
 
 def _infer_roles(
@@ -887,6 +898,29 @@ def _infer_roles(
         if len(matches) == 1:
             roles[role] = next(iter(matches))
     return roles
+
+
+def _resolve_roles(
+    roles: Dict[str, str], columns: List[str]
+) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
+    """Bind required/status roles to the frame's own matching columns.
+
+    A model-provided role never outranks a single physical column that
+    matches that role's generic name. Multiple matches are ambiguous and
+    fail closed; no matches leave the planner's value in place.
+    """
+    ambiguous: Dict[str, List[str]] = {}
+    for role in ("quantity_column", "price_column",
+                 "currency_column", "status_column"):
+        hints = _ROLE_HINTS.get(role, ())
+        matches = [
+            col for col in columns if _role_hint_matches(col, hints)
+        ]
+        if len(matches) == 1:
+            roles[role] = matches[0]
+        elif len(matches) > 1:
+            ambiguous[role] = matches
+    return roles, ambiguous
 
 
 def _strip_sql_noise(sql: str) -> str:
@@ -1031,6 +1065,14 @@ async def _execute_selection_plan(
     # Role inference precedes the required-column SQL guard: a planner
     # that omits quantity_column must not thereby disable the guard.
     roles = _infer_roles(roles, columns)
+    roles, _ambiguous_roles = _resolve_roles(roles, columns)
+    if _ambiguous_roles:
+        return _error_block(
+            "AMBIGUOUS ROLE COLUMN",
+            "More than one frame column matches "
+            + ", ".join(sorted(_ambiguous_roles))
+            + "; no role was chosen by name or planner order.",
+        )
     if roles["identity_column"] in ("", SHEET_ROW_COL):
         # The planner sometimes returns __sheet_row as the identity
         # role even when it projected a real business key. Values
@@ -1079,18 +1121,11 @@ async def _execute_selection_plan(
             )
         _seen_roles[norm] = role
         own_hints = _ROLE_HINTS.get(role, ())
-        norm_tokens = set(norm.split())
-        own_match = any(
-            all(token in norm_tokens for token in hint.split())
-            for hint in own_hints
-        )
+        own_match = _role_hint_matches(column, own_hints)
         for other_role, hints in _ROLE_HINTS.items():
             if other_role == role:
                 continue
-            other_match = any(
-                all(token in norm_tokens for token in hint.split())
-                for hint in hints
-            )
+            other_match = _role_hint_matches(column, hints)
             if other_match and not own_match:
                 return _error_block(
                     "ROLE CONFLICT",
@@ -1144,6 +1179,16 @@ async def _execute_selection_plan(
             + ", ".join(unexpected[:8])
             + "); predicates must name physical columns directly.",
         )
+    required_like_columns = set()
+    for required in ("quantity_column", "price_column", "currency_column"):
+        column = roles[required]
+        if column:
+            required_like_columns.add(column.lower())
+        hints = _ROLE_HINTS.get(required, ())
+        required_like_columns.update(
+            col.lower() for col in columns
+            if _role_hint_matches(col, hints)
+        )
     for required in ("quantity_column", "price_column", "currency_column"):
         column = roles[required]
         if column and column.lower() in predicate_columns:
@@ -1153,6 +1198,16 @@ async def _execute_selection_plan(
                 f"column '{column}'; missing inputs must remain visible as "
                 "gaps.",
             )
+    filtered_required = sorted(
+        predicate_columns & required_like_columns)
+    if filtered_required:
+        return _error_block(
+            "SQL REJECTED",
+            "The selection query may not filter on required-input/like "
+            "columns ("
+            + ", ".join(filtered_required[:8])
+            + "); missing inputs must remain visible as gaps.",
+        )
     violation = (
         _validate_dataset_sql(sql)
         or _selection_sql_violation(sql)

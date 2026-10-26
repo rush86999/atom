@@ -65,11 +65,13 @@ before aggregation. The successor closes that trust boundary:
   functions/unnest/CASE/casts/subqueries), so a projection cannot expand
   or drop rows; whole-row/relation refs (e.g. `main.df::JSON`), struct_pack
   and similar row serializers are rejected in predicates; calculation
-  roles must be distinct and may not match another role's column hints
-  (token-level, so decorated Price/Amount headers are caught); nested
-  SELECTs/subqueries are rejected entirely, closing nested FETCH/aggregate
-  evasions; case/punctuation-colliding frame names make a role ambiguous
-  and fail closed; `__sheet_row` is rejected as any calculation role;
+  required/status roles are deterministically re-bound to the frame's
+  single matching column (camelCase-aware; `UnitPrice`/`Amount`/decorated
+  Price headers cannot displace Qty); multiple matches are ambiguous and
+  fail closed; roles must be distinct; nested SELECTs/subqueries are
+  rejected entirely, closing nested FETCH/aggregate evasions; predicate
+  checks cover all quantity/price/currency-like columns, not just the
+  mapped role; `__sheet_row` is rejected as any calculation role;
 - if a planner returns `__sheet_row` as the identity role while projecting
   a real business key, the role is corrected deterministically to that key;
   values still come from the frame.
@@ -107,13 +109,13 @@ Scratch only: backend `:8121`, database
 
 | Case | Session | Delivered result |
 |---|---|---|
-| PO Register, approved rows, totals by currency | `28c82fd8-ba62-4fcc-8918-6ae3c3873b5e` | CAD **8050.00** (3 rows, qty 10); USD **3999.96** (1 row, qty 4); cancelled row excluded; rows 2/3/4/6 with C/D provenance |
-| Adjustments, approved rows, name missing inputs | `31472aac-5b6a-44f4-a7c7-39fa13afeab9` | Known subtotal **−700.00 CAD**; gap **0055**, missing quantity at **C5**; complete/grand total withheld |
-| Formula reference, D8 | `7361a24f-a616-464f-b4fa-3938bc01cec9` | **8050.00** neutral workbook arithmetic; 7 dependencies; no pricing policy |
-| Formula reference, row-qualified D8 | `4c4ca069-8307-4ea5-bba9-6d5edba37125` | **8050.00**; same neutral basis |
-| Aggregate with no sheet named | `19e41901-7cd1-4d8c-9c57-b7bbe7f16dc3` | `SHEET AMBIGUOUS`; no total computed |
-| Explicit missing sheet | `116443b7-3f26-41ae-9b0c-30da92688c4b` | `SHEET NOT FOUND`; no fallback; no total computed |
-| Ordinary item lookup | `fb91640f-83b3-4224-90b0-05b095952313` | `0007` remains ambiguous between Adjustments row 2 (D2 = 100) and PO Register row 2 (D2 = 1,250) |
+| PO Register, approved rows, totals by currency | `ab1ae599-87ef-4553-b04d-3f41f6a7b666` | CAD **8050.00** (3 rows, qty 10); USD **3999.96** (1 row, qty 4); cancelled row excluded; rows 2/3/4/6 with C/D provenance |
+| Adjustments, approved rows, name missing inputs | `c26f01bd-c618-41c1-89ae-3fb72597ffeb` | Known subtotal **−700.00 CAD**; gap **0055**, missing quantity at **C5**; complete/grand total withheld |
+| Formula reference, D8 | `491241f7-c20e-4ea0-a9d7-387193d8a5d4` | **8050.00** neutral workbook arithmetic; 7 dependencies; no pricing policy |
+| Formula reference, row-qualified D8 | `5638fcb9-6939-431d-98da-f08290b76b6e` | **8050.00**; same neutral basis |
+| Aggregate with no sheet named | `8628ddc5-2d77-4f16-9b31-857649cf2603` | `SHEET AMBIGUOUS`; no total computed |
+| Explicit missing sheet | `604f0f86-b860-4c7e-8743-dd64e716d815` | `SHEET NOT FOUND`; no fallback; no total computed |
+| Ordinary item lookup | `e00fcfe5-59fc-49cb-8b26-d96a9a711da9` | `0007` remains ambiguous between Adjustments row 2 (D2 = 100) and PO Register row 2 (D2 = 1,250) |
 
 PO response also reports `Sheet rows: 5; selected: 4; not selected: 1` and
 `Sheet status counts: Approved=4, Cancelled=1`, making the exclusion auditable.
@@ -156,9 +158,10 @@ columns after `limit`/`order by` tokens in literals/comments, predicate
 aliases/COLUMNS/positional/nested aliases, struct/array/JSON/whole-row
 field extraction, query()/json_each table functions, random()/uuid(),
 non-frame predicate names, whole-row/relation refs, struct_pack,
-projection unnest/CASE expansion, nested SELECT/FETCH/aggregates, role
-substitution/duplicates, decorated price headers, ambiguous normalized
-role names, meta-role rejection, COALESCE/IFNULL/NULL filtering of
+projection unnest/CASE expansion, nested SELECT/FETCH/aggregates,
+deterministic role rebinding, role substitution/duplicates, decorated/
+camelCase price headers, ambiguous role columns, meta-role rejection,
+COALESCE/IFNULL/NULL filtering of
 required inputs, quoted keyword columns, string NaN/Inf/null gaps, duplicate
 rows, version ambiguity, truncated materialization, display cap, formula
 grammar ordering, neutral priced-scope refusal, neutral stored-value record
