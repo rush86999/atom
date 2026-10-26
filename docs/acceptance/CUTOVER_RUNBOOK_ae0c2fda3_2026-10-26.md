@@ -272,6 +272,11 @@ evidence path. Normal code rollback keeps the post-cutover data.
   preserved), stop-evidence write failure after shutdown (rollback + failure
   identity), pre-shutdown failure (no rollback), committed success (no
   rollback): all pass.
+- Confirmation parity: both the ordinary confirmation and the authorized
+  timeout retry send exactly `go ahead` with the original session, agent and
+  token. The no-network branch test passes against the development helper, the
+  packaged helper, and the frozen candidate's `is_filename_confirmation`
+  classifier (9 passed). The old verbose confirmations are explicitly rejected.
 - Wrong approval token: exit `1`, no snapshot/link/stop/start.
 - Pilot is `c912375de` PID `5322`, healthy on `:8001`; candidate is prepared,
   not running, and not deployed.

@@ -74,6 +74,10 @@ For the tested candidate/configuration, the candidate supports:
   invoke rollback; pre-shutdown failures do not restart the pilot; committed
   attempts do not roll back. Fake-release guard tests pass; no second live
   attempt has run.
+- **Confirmation helper parity.** Both confirmation paths now send exactly
+  `go ahead` in the original session; the branch test passes against the
+  development and packaged helpers and the frozen candidate classifier. This
+  is a harness correction, not a product change.
 - **Candidate not deployed.** Pilot remains `c912375de`.
 
 ## Explicit non-claims

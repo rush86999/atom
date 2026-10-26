@@ -53,6 +53,10 @@ CONFIRM_PHRASES = (
     "will run automatically", "next message", "could you confirm",
     "confirm to proceed", 'say "go ahead"', "just say",
 )
+# The frozen ae0c2fda3 classifier accepts a bare "go ahead" and rejects
+# verbose confirmation prose. Use this exact value for both the ordinary
+# confirmation and the authorized timeout retry.
+CONFIRM_PENDING_READ = "go ahead"
 REQUIRED_TABLES = {
     "users": {"id", "email", "status"},
     "agent_registry": {"id", "configuration"},
@@ -334,8 +338,7 @@ def ask_confirmed(db_path: str, base: str, token: str, user_id: str,
         record["confirmation_sent"] = True
         second = ask(
             base, token, user_id, agent_id,
-            "Yes, go ahead. This is the confirmation — run the saved workbook "
-            "lookup now and return the requested result with the source rows.",
+            CONFIRM_PENDING_READ,
             session_id=session_id,
         )
         record["second"] = second
@@ -343,8 +346,7 @@ def ask_confirmed(db_path: str, base: str, token: str, user_id: str,
         if second.get("error_code") == "turn_budget_exceeded":
             third = ask(
                 base, token, user_id, agent_id,
-                "Yes, go ahead. This is the confirmation — run the saved "
-                "workbook lookup now.",
+                CONFIRM_PENDING_READ,
                 session_id=session_id,
             )
             record["budget_retry"] = third

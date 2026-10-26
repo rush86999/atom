@@ -190,6 +190,11 @@ A second attempt has not run. `c912375de` remains the served pilot.
   status and rolls back; stop-evidence write failure after shutdown rolls back
   and publishes failure identity; pre-shutdown failure does not restart the
   pilot; committed success does not roll back.
+- Confirmation parity passes: ordinary confirmation and authorized retry both
+  send exactly `go ahead` with the original session/agent/token; the
+  no-network branch test passes against the development helper, the packaged
+  helper, and the frozen candidate classifier (9 passed). Old verbose
+  confirmations are rejected by the candidate.
 - A second live attempt has **not** been executed; new authorization is
   outstanding.
 
