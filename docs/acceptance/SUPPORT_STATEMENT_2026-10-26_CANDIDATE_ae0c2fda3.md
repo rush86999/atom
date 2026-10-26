@@ -55,8 +55,18 @@ For the tested candidate/configuration, the candidate supports:
   reviews. The failure-path envelope (uncertified review → failed) and the
   post-generation message-replacement invalidation are covered by focused
   local controls, not by a served failure smoke.
-- **Scratch evidence.** The served smoke is scratch-world evidence, not a
-  pilot/deployment soak.
+- **Scratch evidence.** The existing product smoke is scratch-world evidence,
+  not a pilot/deployment soak.
+- **Live gate not yet run.** The cutover now requires immediate live smoke,
+  scoped restart, post-restart agreement, and automatic code rollback on any
+  failure. Only its read-only precheck and local self-tests have run; the live
+  attempt awaits approval.
+- **Smoke data persists.** The live gate creates a named agent/canvas and
+  uniquely named workbook uploads; rollback preserves them rather than erasing
+  post-cutover work.
+- **No automatic DB restore.** Code rollback keeps the database. Restore is
+  manual only for demonstrated corruption, after preserving the post-cutover
+  DB/WAL/SHM.
 - **Candidate not deployed.** Pilot remains `c912375de`.
 
 ## Explicit non-claims
@@ -65,5 +75,6 @@ For the tested candidate/configuration, the candidate supports:
 - No claim of general policy transfer.
 - No claim that the earlier supplied-row behavioral result was autonomous
   workbook retrieval.
-- No deployment approval by this statement; deployment remains a separate
-  approval boundary.
+- No deployment approval by this statement. Approval is requested for one
+  reversible cutover–smoke–restart–automatic-code-rollback attempt; no live
+  attempt has run.

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Narrow, fail-closed cutover runbook for release candidate ae0c2fda3.
+# Narrow, fail-closed cutover for release candidate ae0c2fda3.
 #
 # Read-only preflight (default):
 #   ./scripts/deploy_release_candidate_ae0c2fda3.sh --preflight
 #
-# Apply (requires explicit approval token):
+# One authorized, reversible attempt (cutover + live smoke + restart + rollback):
 #   ATOM_DEPLOY_APPROVED=ae0c2fda3 \
 #     ./scripts/deploy_release_candidate_ae0c2fda3.sh --apply
 #
@@ -14,14 +14,17 @@
 #     failure aborts before the stop;
 #   - the candidate is launched from its own versioned directory;
 #   - c912375de is never overwritten or used as the candidate source;
-#   - both data and config are candidate-local: data is a link to the verified
-#     live data path, config is copied from the pilot release so writes cannot
-#     mutate the rollback release.
+#   - candidate data/env/venv links are candidate-local; config is copied so
+#     runtime writes cannot mutate the rollback release;
+#   - success requires the immediate live smoke (pre-restart and post-restart);
+#   - any smoke/restart/DB-health failure automatically rolls the code back to
+#     c912375de; the database is never restored automatically.
 
 set -euo pipefail
 
 CANDIDATE_DIR="/Users/rushiparikh/projects/atom-releases/ae0c2fda3"
 ROLLBACK_DIR="/Users/rushiparikh/projects/atom-releases/c912375de"
+RELEASES_DIR="/Users/rushiparikh/projects/atom-releases"
 CANDIDATE_COMMIT="ae0c2fda340e9a85e840e310d84d4d0da4fedab8"
 ROLLBACK_COMMIT="c912375de81b55465e61fe468bf0bc2b405fd206"
 CANDIDATE_ARCHIVE="$CANDIDATE_DIR/evidence/archive/atom-ae0c2fda3-backend.tar"
@@ -36,6 +39,12 @@ LIVE_VENV="/Users/rushiparikh/projects/atom/backend/venv314"
 DB_PATH="$LIVE_DATA/atom.db"
 BACKUP_DIR="$LIVE_DATA/backups"
 CUTOVER_DIR="$CANDIDATE_DIR/evidence/cutover"
+SERVED_IDENTITY_FILE="$RELEASES_DIR/SERVED_IDENTITY.json"
+
+SMOKE_SCRIPT="$CANDIDATE_DIR/scripts/smoke_release_candidate_ae0c2fda3.py"
+SMOKE_FIXTURES="$CANDIDATE_DIR/scripts/smoke_inputs"
+SMOKE_ADMIN_EMAIL="${ATOM_SMOKE_ADMIN_EMAIL:-admin@example.com}"
+SMOKE_PASSWORD_FILE="${ATOM_SMOKE_PASSWORD_FILE:-$ROLLBACK_DIR/backend/logs/bootstrap_admin_password.txt}"
 
 PREFERRED_PROVIDER="opencode-go"
 PREFERRED_MODEL="deepseek-v4.1-flash"
@@ -43,7 +52,10 @@ PROVIDER_POLICY='{"mode":"automatic","allowed_providers":["opencode-go"],"prefer
 
 MODE="${1:---preflight}"
 RUN_TS=""
+ATTEMPT_DIR=""
+SMOKE_DIR=""
 CANDIDATE_STATE=""
+RESTARTED_PID=""
 
 fail() { printf 'FAILED: %s\n' "$*" >&2; exit 1; }
 say() { printf '==> %s\n' "$*"; }
@@ -92,8 +104,9 @@ assert identity.get("database") == sys.argv[3], identity.get("database")
 ' "$want_cwd" "$want_pid" "$want_db" 2>/dev/null
 }
 
-pilot_cwd() {
-  lsof -a -p "$PILOT_PID" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1
+pid_cwd() {
+  local pid="$1"
+  lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1
 }
 
 candidate_state() {
@@ -172,12 +185,39 @@ verify_prepared_candidate() {
   done
 }
 
+smoke_precheck() {
+  local smoke_json
+  say "live smoke precheck (read-only)"
+  need_file "$SMOKE_SCRIPT"
+  need_file "$SMOKE_FIXTURES/spreadsheet_job_20261025.xlsx"
+  need_file "$SMOKE_FIXTURES/trained_eval_orders_20261025.xlsx"
+  need_file "$SMOKE_PASSWORD_FILE"
+  smoke_json="$("$LIVE_VENV/bin/python" "$SMOKE_SCRIPT" --check-only \
+    --db-path "$DB_PATH" \
+    --admin-email "$SMOKE_ADMIN_EMAIL" \
+    --admin-password-file "$SMOKE_PASSWORD_FILE" \
+    --fixtures-dir "$SMOKE_FIXTURES")" \
+    || fail "live smoke precheck failed"
+  printf '%s' "$smoke_json" | python3 -c '
+import json
+import sys
+
+doc = json.load(sys.stdin)
+assert doc.get("checks_all_true") is True, doc.get("checks")
+' 2>/dev/null || {
+    printf '%s\n' "$smoke_json" >&2
+    fail "live smoke precheck checks failed"
+  }
+  say "live smoke precheck OK"
+}
+
 preflight() {
   local state pilot_cmd pilot_cwd_value port_pids health free_gb
 
   say "preflight candidate $CANDIDATE_COMMIT"
   need_dir "$CANDIDATE_DIR"
   need_dir "$ROLLBACK_DIR"
+  need_dir "$RELEASES_DIR"
   need_file "$CANDIDATE_DIR/RELEASE_IDENTITY.json"
   need_file "$ROLLBACK_DIR/RELEASE_IDENTITY.json"
   need_file "$CANDIDATE_ARCHIVE"
@@ -189,6 +229,7 @@ preflight() {
   need_file "$ROLLBACK_DIR/config/byok_config.release.json"
   need_file "$ROLLBACK_DIR/config/byok_keys.json"
   need_file "$ROLLBACK_DIR/config/byok_encryption_key"
+  [ -w "$RELEASES_DIR" ] || fail "releases directory not writable: $RELEASES_DIR"
 
   [ "$(json_get "$CANDIDATE_DIR/RELEASE_IDENTITY.json" commit)" = "$CANDIDATE_COMMIT" ] \
     || fail "candidate identity commit mismatch"
@@ -217,7 +258,7 @@ preflight() {
     *"uvicorn main_api_app:app"*"--port $PORT"*) ;;
     *) fail "recorded pilot pid does not look like uvicorn on port $PORT: $pilot_cmd" ;;
   esac
-  pilot_cwd_value="$(pilot_cwd)"
+  pilot_cwd_value="$(pid_cwd "$PILOT_PID")"
   [ "$pilot_cwd_value" = "$ROLLBACK_DIR/backend" ] \
     || fail "pilot cwd is '$pilot_cwd_value', expected '$ROLLBACK_DIR/backend'"
 
@@ -258,14 +299,16 @@ preflight() {
     command -v "$tool" >/dev/null 2>&1 || fail "$tool is required"
   done
 
+  smoke_precheck
   say "preflight OK; no changes made"
   say "apply: ATOM_DEPLOY_APPROVED=$APPROVAL_TOKEN $0 --apply"
+  say "authorization covers cutover, live smoke, scoped restart, and automatic code rollback"
 }
 
 snapshot() {
   local tmp snap sha size
   say "snapshotting the live DB before any stop"
-  mkdir -p "$BACKUP_DIR" "$CUTOVER_DIR"
+  mkdir -p "$BACKUP_DIR" "$ATTEMPT_DIR"
   tmp="$(mktemp "$BACKUP_DIR/.atom-pre-ae0c2fda3-$RUN_TS.XXXXXX.db")"
   snap="$BACKUP_DIR/atom-pre-ae0c2fda3-$RUN_TS.db.gz"
   rm -f "$snap"
@@ -287,16 +330,17 @@ snapshot() {
   sha="$(shasum -a 256 "$snap" | awk '{print $1}')"
   size="$(wc -c < "$snap" | tr -d ' ')"
   rm -f "$tmp"
-  python3 - "$CUTOVER_DIR/snapshot-$RUN_TS.json" <<PY
+  python3 - "$ATTEMPT_DIR/snapshot.json" "$snap" "$sha" "$size" \
+    "$DB_PATH" "$RUN_TS" <<'PY'
 import json
 import sys
 
 json.dump({
-    "snapshot": "$snap",
-    "sha256": "$sha",
-    "size": $size,
-    "source_db": "$DB_PATH",
-    "created_at": "$RUN_TS",
+    "snapshot": sys.argv[2],
+    "sha256": sys.argv[3],
+    "size": int(sys.argv[4]),
+    "source_db": sys.argv[5],
+    "created_at": sys.argv[6],
 }, open(sys.argv[1], "w"), indent=2)
 PY
   say "snapshot OK: $snap ($sha)"
@@ -314,11 +358,11 @@ prepare_candidate() {
     || fail "candidate is not in a preparable state"
 
   say "preparing candidate-local data/env/venv links and config copy"
-  mkdir -p "$CUTOVER_DIR"
+  mkdir -p "$ATTEMPT_DIR"
 
   source_data=""
   if [ -d "$CANDIDATE_DIR/backend/data" ]; then
-    source_data="$CUTOVER_DIR/source-backend-data-$RUN_TS"
+    source_data="$ATTEMPT_DIR/source-backend-data"
     mv "$CANDIDATE_DIR/backend/data" "$source_data" \
       || fail "could not preserve tracked backend/data"
   fi
@@ -340,58 +384,99 @@ prepare_candidate() {
   chmod 600 "$CANDIDATE_DIR/config/"*
 
   verify_prepared_candidate
-  python3 - "$CUTOVER_DIR/prepare-$RUN_TS.json" "$source_data" <<PY
+  python3 - "$ATTEMPT_DIR/prepare.json" "$source_data" "$CANDIDATE_DIR" \
+    "$LIVE_DATA" "$LIVE_ENV" "$LIVE_VENV" "$ROLLBACK_DIR/config" \
+    "$RUN_TS" <<'PY'
 import json
 import sys
 
 json.dump({
-    "candidate": "$CANDIDATE_DIR",
-    "live_data_link": "$LIVE_DATA",
-    "live_env_link": "$LIVE_ENV",
-    "live_venv_link": "$LIVE_VENV",
-    "config_source": "$ROLLBACK_DIR/config",
+    "candidate": sys.argv[3],
+    "live_data_link": sys.argv[4],
+    "live_env_link": sys.argv[5],
+    "live_venv_link": sys.argv[6],
+    "config_source": sys.argv[7],
     "preserved_source_data": sys.argv[2] or None,
-    "created_at": "$RUN_TS",
+    "created_at": sys.argv[8],
 }, open(sys.argv[1], "w"), indent=2)
 PY
   say "candidate preparation OK"
 }
 
-stop_pilot() {
-  local i stat port_pids
-  say "stopping ONLY recorded pilot pid $PILOT_PID"
-  kill -TERM "$PILOT_PID" \
-    || fail "could not TERM pilot pid $PILOT_PID"
+stop_scoped_pid() {
+  local pid="$1" expected_cwd="$2" label="$3"
+  local command cwd port_pids i stat
+
+  say "stopping ONLY $label pid $pid"
+  kill -0 "$pid" 2>/dev/null || {
+    printf 'FAILED: %s pid %s is not running\n' "$label" "$pid" >&2
+    return 1
+  }
+  command="$(ps -p "$pid" -o command= 2>/dev/null | sed 's/^[[:space:]]*//')"
+  case "$command" in
+    *"uvicorn main_api_app:app"*"--port $PORT"*) ;;
+    *) printf 'FAILED: %s pid %s does not look like uvicorn on port %s\n' \
+         "$label" "$pid" "$PORT" >&2; return 1 ;;
+  esac
+  cwd="$(pid_cwd "$pid")"
+  [ "$cwd" = "$expected_cwd" ] || {
+    printf 'FAILED: %s pid %s cwd is %s, expected %s\n' \
+      "$label" "$pid" "$cwd" "$expected_cwd" >&2
+    return 1
+  }
+  port_pids="$(lsof -nP -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null \
+    | sort -u | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+  [ "$port_pids" = "$pid" ] || {
+    printf 'FAILED: port %s is owned by %s, expected only %s pid %s\n' \
+      "$PORT" "${port_pids:-none}" "$label" "$pid" >&2
+    return 1
+  }
+
+  kill -TERM "$pid" 2>/dev/null || {
+    printf 'FAILED: could not TERM %s pid %s\n' "$label" "$pid" >&2
+    return 1
+  }
   for i in $(seq 1 30); do
-    if ! kill -0 "$PILOT_PID" 2>/dev/null; then
+    if ! kill -0 "$pid" 2>/dev/null; then
       break
     fi
-    stat="$(ps -p "$PILOT_PID" -o stat= 2>/dev/null | tr -d '[:space:]')"
+    stat="$(ps -p "$pid" -o stat= 2>/dev/null | tr -d '[:space:]')"
     case "$stat" in Z*) break ;; esac
     sleep 1
   done
-  if kill -0 "$PILOT_PID" 2>/dev/null; then
-    stat="$(ps -p "$PILOT_PID" -o stat= 2>/dev/null | tr -d '[:space:]')"
+  if kill -0 "$pid" 2>/dev/null; then
+    stat="$(ps -p "$pid" -o stat= 2>/dev/null | tr -d '[:space:]')"
     case "$stat" in
       Z*) ;;
-      *) fail "pilot pid $PILOT_PID still alive after 30s; refusing to start a second instance" ;;
+      *) printf 'FAILED: %s pid %s still alive after 30s\n' \
+           "$label" "$pid" >&2; return 1 ;;
     esac
   fi
   port_pids="$(lsof -nP -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null \
     | sort -u | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
-  [ -z "$port_pids" ] \
-    || fail "port $PORT still has a listener after pilot stop: $port_pids"
-  python3 - "$CUTOVER_DIR/stop-$RUN_TS.json" <<PY
+  [ -z "$port_pids" ] || {
+    printf 'FAILED: port %s still has a listener after %s stop: %s\n' \
+      "$PORT" "$label" "$port_pids" >&2
+    return 1
+  }
+  python3 - "$ATTEMPT_DIR/stop-$label.json" "$pid" "$label" "$PORT" \
+    "$RUN_TS" <<'PY'
 import json
 import sys
 
 json.dump({
-    "stopped_pid": $PILOT_PID,
-    "port": $PORT,
-    "at": "$RUN_TS",
+    "stopped_pid": int(sys.argv[2]),
+    "label": sys.argv[3],
+    "port": int(sys.argv[4]),
+    "at": sys.argv[5],
 }, open(sys.argv[1], "w"), indent=2)
 PY
-  say "pilot stopped; port $PORT free"
+  say "$label stopped; port $PORT free"
+}
+
+stop_pilot() {
+  stop_scoped_pid "$PILOT_PID" "$ROLLBACK_DIR/backend" "pilot" \
+    || fail "could not stop recorded pilot pid $PILOT_PID"
 }
 
 start_release() {
@@ -436,12 +521,125 @@ wait_health() {
   return 1
 }
 
+run_smoke() {
+  local phase="$1"
+  say "running immediate live smoke: $phase"
+  mkdir -p "$SMOKE_DIR/logs"
+  "$LIVE_VENV/bin/python" "$SMOKE_SCRIPT" \
+    --phase "$phase" \
+    --base-url "http://127.0.0.1:$PORT" \
+    --db-path "$DB_PATH" \
+    --admin-email "$SMOKE_ADMIN_EMAIL" \
+    --admin-password-file "$SMOKE_PASSWORD_FILE" \
+    --fixtures-dir "$SMOKE_FIXTURES" \
+    --state-file "$SMOKE_DIR/state.json" \
+    --evidence-dir "$SMOKE_DIR" \
+    --candidate-dir "$CANDIDATE_DIR" \
+    --expected-cwd "$CANDIDATE_DIR/backend" \
+    --expected-db "$CANDIDATE_DIR/backend/data/atom.db" \
+    > "$SMOKE_DIR/logs/smoke-$phase.out" 2>&1
+}
+
+restart_candidate() {
+  local old_pid="$1"
+  local new_log new_pid
+  say "scoped candidate restart for persistence agreement"
+  if ! stop_scoped_pid "$old_pid" "$CANDIDATE_DIR/backend" "candidate"; then
+    return 1
+  fi
+  new_log="$SMOKE_DIR/logs/uvicorn_8001_candidate-restart.log"
+  if ! new_pid="$(start_release "$CANDIDATE_DIR" "$CANDIDATE_DIR/config" "$new_log")"; then
+    return 1
+  fi
+  [ -n "$new_pid" ] || return 1
+  if ! wait_health "$CANDIDATE_DIR/backend" \
+      "$CANDIDATE_DIR/backend/data/atom.db" "$new_pid" "$new_log"; then
+    kill -TERM "$new_pid" 2>/dev/null || true
+    sleep 3
+    kill -KILL "$new_pid" 2>/dev/null || true
+    return 1
+  fi
+  RESTARTED_PID="$new_pid"
+  say "candidate restarted healthy: pid $new_pid"
+  return 0
+}
+
+write_failed_evidence() {
+  local reason="$1" rb_pid="$2" health="$3" status="$4"
+  python3 - "$ATTEMPT_DIR/failed.json" "$reason" "$rb_pid" "$health" \
+    "$status" "$ROLLBACK_DIR" "$ATTEMPT_DIR" "$SMOKE_DIR" "$RUN_TS" <<'PY'
+import json
+import os
+import sys
+
+json.dump({
+    "reason": sys.argv[2],
+    "rollback_pid": int(sys.argv[3]) if sys.argv[3] else None,
+    "rollback_dir": sys.argv[6],
+    "rollback_health": json.loads(sys.argv[4] or "{}"),
+    "status": sys.argv[5],
+    "database_restored": False,
+    "attempt_dir": sys.argv[7],
+    "smoke_evidence": {
+        "pre": os.path.join(sys.argv[8], "pre.json"),
+        "post": os.path.join(sys.argv[8], "post.json"),
+        "pre_failure": os.path.join(sys.argv[8], "pre-failure.json"),
+        "post_failure": os.path.join(sys.argv[8], "post-failure.json"),
+    },
+    "at": sys.argv[9],
+}, open(sys.argv[1], "w"), indent=2)
+PY
+}
+
+publish_served_identity() {
+  local release="$1" commit="$2" pid="$3" health="$4" status="$5" reason="$6"
+  python3 - "$SERVED_IDENTITY_FILE" "$ATTEMPT_DIR/served-identity.json" \
+    "$release" "$commit" "$pid" "$health" "$status" "$reason" \
+    "$CANDIDATE_DIR" "$CANDIDATE_COMMIT" "$CANDIDATE_ARCHIVE_SHA" \
+    "$ROLLBACK_DIR" "$ATTEMPT_DIR" "$SMOKE_DIR" "$RUN_TS" <<'PY'
+import json
+import os
+import sys
+
+(served_file, attempt_file, release, commit, pid, health, status, reason,
+ candidate_dir, candidate_commit, archive_sha, rollback_dir, attempt_dir,
+ smoke_dir, run_ts) = sys.argv[1:16]
+payload = {
+    "served_release": release,
+    "served_commit": commit,
+    "pid": int(pid) if pid else None,
+    "health": json.loads(health or "{}"),
+    "status": status,
+    "reason": reason or None,
+    "candidate_release": candidate_dir,
+    "candidate_commit": candidate_commit,
+    "candidate_archive_sha256": archive_sha,
+    "rollback_release": rollback_dir,
+    "attempt_dir": attempt_dir,
+    "snapshot_metadata": os.path.join(attempt_dir, "snapshot.json"),
+    "smoke_evidence": {
+        "pre": os.path.join(smoke_dir, "pre.json"),
+        "post": os.path.join(smoke_dir, "post.json"),
+        "pre_failure": os.path.join(smoke_dir, "pre-failure.json"),
+        "post_failure": os.path.join(smoke_dir, "post-failure.json"),
+    },
+    "database_restored": False,
+    "published_at": run_ts,
+}
+for path in (served_file, attempt_file):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as handle:
+        json.dump(payload, handle, indent=2)
+        handle.write("\n")
+PY
+}
+
 rollback_after_failure() {
   local reason="$1" failed_pid="$2" failed_log="$3"
   local rb_log rb_pid health i port_pids
 
-  say "candidate cutover failed: $reason"
-  say "rolling back to $ROLLBACK_DIR"
+  say "candidate attempt failed: $reason"
+  say "rolling code back to $ROLLBACK_DIR"
   if [ -n "$failed_pid" ] && kill -0 "$failed_pid" 2>/dev/null; then
     kill -TERM "$failed_pid" 2>/dev/null || true
     sleep 3
@@ -455,75 +653,120 @@ rollback_after_failure() {
   done
   [ -z "$port_pids" ] \
     || fail "port $PORT still has a listener after failed-candidate cleanup: $port_pids"
-  [ -f "$failed_log" ] && cp "$failed_log" "$CUTOVER_DIR/candidate-failed-$RUN_TS.log" || true
+  [ -f "$failed_log" ] && cp "$failed_log" "$ATTEMPT_DIR/candidate-failed.log" || true
 
-  rb_log="$CUTOVER_DIR/uvicorn_8001_rollback-$RUN_TS.log"
+  rb_log="$SMOKE_DIR/logs/uvicorn_8001_rollback.log"
   if ! rb_pid="$(start_release "$ROLLBACK_DIR" "$ROLLBACK_DIR/config" "$rb_log")"; then
+    write_failed_evidence "$reason" "" "" "rollback_failed" || true
+    publish_served_identity "unknown" "" "" "" "rollback_failed" "$reason" || true
     fail "ROLLBACK FAILED TO START — manual recovery required"
   fi
-  [ -n "$rb_pid" ] || fail "ROLLBACK FAILED TO START — manual recovery required"
+  [ -n "$rb_pid" ] || {
+    write_failed_evidence "$reason" "" "" "rollback_failed" || true
+    publish_served_identity "unknown" "" "" "" "rollback_failed" "$reason" || true
+    fail "ROLLBACK FAILED TO START — manual recovery required"
+  }
   if wait_health "$ROLLBACK_DIR/backend" \
       "$ROLLBACK_DIR/backend/data/atom.db" "$rb_pid" "$rb_log"; then
     health="$(health_json 2>/dev/null || true)"
-    python3 - "$CUTOVER_DIR/failed-$RUN_TS.json" "$reason" "$rb_pid" <<PY
-import json
-import sys
-
-json.dump({
-    "reason": sys.argv[2],
-    "rollback_pid": int(sys.argv[3]),
-    "rollback_dir": "$ROLLBACK_DIR",
-    "at": "$RUN_TS",
-}, open(sys.argv[1], "w"), indent=2)
-PY
-    fail "$reason; rollback is healthy (pid $rb_pid), candidate NOT deployed"
+    write_failed_evidence "$reason" "$rb_pid" "$health" "rolled_back" || true
+    publish_served_identity "atom-c912375de" "$ROLLBACK_COMMIT" "$rb_pid" \
+      "$health" "rolled_back" "$reason" || \
+      say "WARNING: could not publish served identity after rollback"
+    fail "$reason; code rollback is healthy (pid $rb_pid), database preserved"
   fi
+  write_failed_evidence "$reason" "$rb_pid" "" "rollback_failed" || true
+  publish_served_identity "unknown" "" "" "" "rollback_failed" "$reason" || true
   fail "ROLLBACK ALSO FAILED — manual recovery required"
 }
 
 apply_cutover() {
-  local new_pid new_log health
+  local new_pid new_log health initial_pid
 
   [ "${ATOM_DEPLOY_APPROVED:-}" = "$APPROVAL_TOKEN" ] \
     || fail "explicit approval missing: set ATOM_DEPLOY_APPROVED=$APPROVAL_TOKEN"
   RUN_TS="$(date -u +%Y%m%dT%H%M%SZ)"
+  ATTEMPT_DIR="$CUTOVER_DIR/attempt-$RUN_TS"
+  SMOKE_DIR="$ATTEMPT_DIR/smoke"
 
   preflight
-  mkdir -p "$CUTOVER_DIR"
+  mkdir -p "$ATTEMPT_DIR" "$SMOKE_DIR/logs"
   snapshot
   prepare_candidate
   stop_pilot
 
-  new_log="$CUTOVER_DIR/uvicorn_8001_candidate-$RUN_TS.log"
+  new_log="$SMOKE_DIR/logs/uvicorn_8001_candidate-initial.log"
   say "starting candidate from $CANDIDATE_DIR"
   if ! new_pid="$(start_release "$CANDIDATE_DIR" "$CANDIDATE_DIR/config" "$new_log")"; then
     rollback_after_failure "candidate failed to start" "" "$new_log"
   fi
   [ -n "$new_pid" ] \
     || rollback_after_failure "candidate returned no pid" "" "$new_log"
-
-  if wait_health "$CANDIDATE_DIR/backend" \
+  if ! wait_health "$CANDIDATE_DIR/backend" \
       "$CANDIDATE_DIR/backend/data/atom.db" "$new_pid" "$new_log"; then
-    health="$(health_json)"
-    python3 - "$CUTOVER_DIR/deployed-$RUN_TS.json" "$new_pid" "$health" <<PY
+    rollback_after_failure "candidate health check failed" "$new_pid" "$new_log"
+  fi
+  initial_pid="$new_pid"
+  say "candidate healthy: pid $new_pid; running functional smoke before success"
+
+  if ! run_smoke pre; then
+    tail -80 "$SMOKE_DIR/logs/smoke-pre.out" >&2 || true
+    rollback_after_failure "pre-restart live smoke failed" "$new_pid" "$new_log"
+  fi
+
+  if ! restart_candidate "$new_pid"; then
+    tail -80 "$SMOKE_DIR/logs/uvicorn_8001_candidate-restart.log" >&2 || true
+    rollback_after_failure "candidate restart or restart health failed" \
+      "$new_pid" "$new_log"
+  fi
+  new_pid="$RESTARTED_PID"
+
+  if ! run_smoke post; then
+    tail -80 "$SMOKE_DIR/logs/smoke-post.out" >&2 || true
+    rollback_after_failure "post-restart live smoke failed" "$new_pid" "$new_log"
+  fi
+
+  [ "$(sqlite3 "$DB_PATH" 'PRAGMA quick_check;' 2>/dev/null)" = "ok" ] \
+    || rollback_after_failure "live DB quick_check failed after smoke" \
+         "$new_pid" "$new_log"
+
+  health="$(health_json)" || \
+    rollback_after_failure "candidate health disappeared after smoke" \
+      "$new_pid" "$new_log"
+  health_identity_ok "$CANDIDATE_DIR/backend" "$new_pid" \
+    "$CANDIDATE_DIR/backend/data/atom.db" "$health" \
+    || rollback_after_failure "candidate health identity changed after smoke" \
+         "$new_pid" "$new_log"
+
+  python3 - "$ATTEMPT_DIR/deployed.json" "$initial_pid" "$new_pid" \
+    "$health" "$CANDIDATE_DIR" "$CANDIDATE_COMMIT" "$CANDIDATE_ARCHIVE_SHA" \
+    "$ATTEMPT_DIR" "$SMOKE_DIR" "$RUN_TS" <<'PY'
 import json
+import os
 import sys
 
 json.dump({
-    "candidate": "$CANDIDATE_DIR",
-    "commit": "$CANDIDATE_COMMIT",
-    "pid": int(sys.argv[2]),
-    "health": json.loads(sys.argv[3]),
-    "snapshot_metadata": "$CUTOVER_DIR/snapshot-$RUN_TS.json",
-    "at": "$RUN_TS",
+    "candidate": sys.argv[5],
+    "commit": sys.argv[6],
+    "archive_sha256": sys.argv[7],
+    "initial_pid": int(sys.argv[2]),
+    "final_pid": int(sys.argv[3]),
+    "health": json.loads(sys.argv[4]),
+    "restarted_for_smoke": True,
+    "snapshot_metadata": os.path.join(sys.argv[8], "snapshot.json"),
+    "smoke_pre": os.path.join(sys.argv[9], "pre.json"),
+    "smoke_post": os.path.join(sys.argv[9], "post.json"),
+    "database_restored": False,
+    "at": sys.argv[10],
 }, open(sys.argv[1], "w"), indent=2)
 PY
-    say "candidate healthy: pid $new_pid, cwd $CANDIDATE_DIR/backend"
-    say "post-deploy smoke is a separate approved step"
-    return 0
-  fi
-
-  rollback_after_failure "candidate health check failed" "$new_pid" "$new_log"
+  publish_served_identity "atom-ae0c2fda3" "$CANDIDATE_COMMIT" "$new_pid" \
+    "$health" "deployed" "" || \
+    say "WARNING: could not publish served identity"
+  say "candidate passed immediate live smoke: pid $new_pid"
+  say "final served identity: $SERVED_IDENTITY_FILE"
+  say "attempt evidence preserved: $ATTEMPT_DIR"
+  return 0
 }
 
 case "$MODE" in

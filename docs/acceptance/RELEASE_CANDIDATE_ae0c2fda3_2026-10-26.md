@@ -103,7 +103,10 @@ This package does **not** deploy or restart the pilot. The generic
 Uvicorn process, continues after a snapshot failure, and resolves paths
 relative to the script.
 
-Approval is requested for the candidate-specific, fail-closed cutover in
+Approval is requested for **one reversible attempt**: verified backup, scoped
+cutover to `ae0c2fda3`, immediate live smoke, scoped restart, post-restart
+agreement, automatic code rollback on any failure, and final served-identity
+publication. The runbook is
 [`CUTOVER_RUNBOOK_ae0c2fda3_2026-10-26.md`](CUTOVER_RUNBOOK_ae0c2fda3_2026-10-26.md):
 
 ```bash
@@ -114,7 +117,7 @@ ATOM_DEPLOY_APPROVED=ae0c2fda3 \
 The script:
 
 1. re-runs the read-only preflight (identities, archive, source, pilot
-   PID/port/cwd, live paths, DB quick_check, backup space);
+   PID/port/cwd, live paths, DB quick_check, backup space, live-smoke precheck);
 2. snapshots the live DB and aborts before stopping anything if the snapshot,
    quick_check, gzip, or size check fails;
 3. prepares candidate-local data/env/venv links and a candidate-local BYOK
@@ -123,25 +126,48 @@ The script:
    `ae0c2fda3` from its own versioned directory;
 5. requires the new PID, cwd, and `ae0c2fda3/backend/data/atom.db` in
    `/api/health`;
-6. on candidate start/health failure, starts the untouched `c912375de`
-   release and verifies its health, then exits nonzero.
+6. runs the pre-restart live smoke:
+   - sourced O-1001 answer with structured file/row evidence;
+   - PO totals and Adjustments gap;
+   - O-1010 Process → Escalate after correction;
+   - repeated O-1001 as an identical no-op (same decision/evidence/outcome,
+     zero new task/operation/canvas writes);
+   - history/outcome agreement and zero unintended writes;
+7. restarts only the candidate PID and requires matching health;
+8. runs the post-restart smoke (same O-1010 session, Escalate, persisted
+   pre-restart history/outcomes, correction lesson, zero new writes);
+9. rechecks live DB `quick_check`;
+10. on any failure, automatically rolls **code** back to untouched
+    `c912375de`, preserves the post-cutover data, verifies rollback health, and
+    publishes `SERVED_IDENTITY.json` with `status=rolled_back`;
+11. on success, publishes `SERVED_IDENTITY.json` with the candidate PID,
+    health, smoke evidence, and `database_restored=false`.
 
-`c912375de` is never used as the candidate source and is never overwritten. A
-post-deploy served smoke is a separate approved step; a failure there is a
-separate rollback decision using the same pinned PID/port rules.
+The database is **never restored automatically**. Restore only for
+demonstrated corruption, after preserving the post-cutover DB/WAL/SHM.
 
-The pilot remains `c912375de` until that approval.
+Smoke data (agent, canvas, uniquely named uploads, lessons, sessions,
+executions) is deliberately preserved; it is not cleaned up by rollback.
+
+`c912375de` is never used as the candidate source and is never overwritten.
+The pilot remains `c912375de` until approval.
 
 ## Cutover checks already performed
 
 - `bash -n` passes.
 - `--preflight` passes: candidate source matches the canonical archive
-  (0 differences), pilot PID `33426`/cwd/database match, DB quick_check `ok`.
+  (0 differences), pilot PID `33426`/cwd/database/live-link match, DB
+  quick_check `ok`, and live-smoke precheck `OK`.
+- `smoke...py --check-only` passes against the live DB: active admin user,
+  required tables/columns, password file, fixture hashes, `httpx`; no network
+  and no writes.
 - Wrong approval token exits `1` before any snapshot/link/stop/start; the
   pilot remained healthy and the candidate remained source-only.
-- An isolated self-test of candidate preparation, config copy, snapshot
-  gzip/quick_check, and health parsing (including wrong-database rejection)
-  passed. The cutover itself has **not** been executed.
+- Isolated self-tests of candidate preparation, config copy, snapshot
+  gzip/quick_check, health parsing (including wrong-database rejection),
+  scoped PID/port stop, and served-identity publication passed.
+- The cutover and the live smoke itself have **not** been executed; approval
+  is outstanding.
 
 ## Limitations / backlog (visible)
 
@@ -150,14 +176,22 @@ The pilot remains `c912375de` until that approval.
 - Unknown-header confirmation UX and required-input filters remain the
   disclosed spreadsheet limitation.
 - General policy transfer beyond tested order/vendor controls is not claimed.
-- The release candidate's smoke is scratch-world evidence, not a pilot soak.
-- The served smoke covers successful reviews; failure-path envelope and
-  post-generation invalidation are covered by focused local controls, not a
+- The existing product smoke evidence is scratch-world; the new live smoke
+  gate has not yet run because approval is outstanding.
+- The live smoke covers successful reviews; failure-path envelope and
+  post-generation invalidation remain covered by focused local controls, not a
   served failure smoke.
+- Live smoke creates and preserves a named agent/canvas/uploads/lessons and
+  chat history in the live DB; rollback does not erase them.
 - Decision-turn binding is explicit; read provenance is preserved via
   `source_execution_ids`/`resumed_read`.
+- Database restore is manual and only for demonstrated corruption, after
+  preserving the post-cutover database.
 
 ## Approval requested
 
-Approve deployment of `ae0c2fda3` with the configuration above and the
-rollback boundary to `c912375de`.
+Approve **one reversible attempt** for `ae0c2fda3`: backup, scoped cutover,
+immediate live smoke, scoped restart/post-restart smoke, automatic code
+rollback to `c912375de` on any failure, preserved post-cutover data, and final
+served-identity publication. Database restore is not part of normal rollback;
+it requires demonstrated corruption and a separate manual decision.

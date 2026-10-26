@@ -294,7 +294,10 @@ Package/docs:
 `docs/acceptance/RELEASE_CANDIDATE_ae0c2fda3_2026-10-26.md`,
 `docs/acceptance/SUPPORT_STATEMENT_2026-10-26_CANDIDATE_ae0c2fda3.md`, and
 `docs/acceptance/CUTOVER_RUNBOOK_ae0c2fda3_2026-10-26.md`.
-Deployment remains a separate approval boundary.
+The cutover now requires immediate live smoke, a scoped restart, post-restart
+agreement, and automatic code rollback to `c912375de` on any failure. Database
+restore is not part of normal rollback. The live attempt has not run; one
+reversible-attempt approval remains outstanding.
 
 ## Tests
 
