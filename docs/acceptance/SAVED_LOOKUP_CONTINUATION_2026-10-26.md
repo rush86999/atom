@@ -222,8 +222,51 @@ the raw read block.
 
 The four-check behavioral evidence below was produced before this structured
 contract refactor and is preserved as **scoped behavioral evidence**; the
-refactor is validated by the local controls, not by another broad model
-campaign.
+refactor is validated by the local controls.
+
+## Served acceptance on the structured contract
+
+Canonical run: clean commit `c0c0d2e87262` (`d4d0576d1` plus the
+response/outcome propagation fix), scratch world, planner enabled,
+finalization/task lifecycle on, no supplied rows. Evidence:
+`served_freeze_d4d0576d1_20261026/evidence.json`.
+
+| Check | Decision | Structured review | Outcome |
+|---|---|---|---|
+| O-1010 before correction | **Process** | valid, persisted | completed |
+| O-1010 after correction, pre-restart | **Escalate**, cites **M. Chen / 2026-10-25** | valid, persisted | completed |
+| O-1010 after restart | **Escalate**, same directive | valid, persisted | completed |
+| O-1001 positive twin | **Process** | valid, persisted | completed |
+
+All four: raw fenced machine blocks hidden; validated block visible; complete
+row retrieved; response/persistence/history agree; workbook SHA-256 unchanged;
+canvas audit unchanged; `task_operation_records=0`; `tasks=0`; no
+outbound/send/edit/approve. `checks_all_true=true`.
+
+All four completed through the **confirmation path** (pending task → short
+confirmation → review). No timeout recovery was required in the canonical run;
+this establishes confirmation-path completion, not first-request completion or
+recovery-after-timeout completion.
+
+Attempt trail preserved in the same directory:
+
+- `attempt1_propagation_failure.json` — run on `d4d0576d1`: decisions rendered,
+  but the structured result was not propagated to response/outcome.
+- `attempt2_response_metadata_gap.json` — run on `d4d0576d1`: outcomes
+  completed, but the response metadata lacked the structured result.
+- `attempt3_uncommitted_success.json` — propagation fix, uncommitted: all four
+  green.
+- `evidence.json` — clean `c0c0d2e87`: all four green (canonical).
+
+**Closed slice (tested candidate/configuration):** task-defined,
+evidence-bound recommendations with scoped correction and restart persistence.
+Order teaching supplied `["Process", "Escalate"]`; the structured review was
+bound to the requested subject, accepted source/retrieval identity and task
+policy; O-1010 changed Process → Escalate and stayed Escalate after a real
+restart; O-1001 stayed Process.
+
+**Separate, not claimed:** five-order latency, general policy transfer beyond
+the tested controls, and deployment. The pilot remains `c912375de`.
 
 ## Tests
 
@@ -252,11 +295,13 @@ Focused suite (`test_review_result.py`,
 
 ## Remaining gaps and limits
 
-- The four bounded checks (O-1010 before/after correction, after restart, and
-  the O-1001 positive twin) are green on complete-row retrieval, correction,
-  settlement, and zero unauthorized actions. A five-order / full-group review
-  still reaches the product's fixed turn budget (`turn_budget_exceeded`); the
-  captured `ATOM_CHAT_TURN_BUDGET_SECONDS=180` does not change the product's
+- The four served checks on `c0c0d2e87` (O-1010 before/after correction,
+  after restart, and the O-1001 positive twin) are green on complete-row
+  retrieval, structured decisions, correction, settlement, and zero
+  unauthorized actions; all four used the confirmation path. A five-order /
+  full-group review still reaches the product's fixed turn budget
+  (`turn_budget_exceeded`); the captured
+  `ATOM_CHAT_TURN_BUDGET_SECONDS=180` does not change the product's
   `budget=95.0s` deadline. The broader five-order latency problem remains
   separate and is not claimed solved.
 - Review asks now retrieve the whole row and expose absent named headers as
