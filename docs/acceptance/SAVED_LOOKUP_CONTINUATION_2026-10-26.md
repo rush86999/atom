@@ -95,30 +95,78 @@ The response is a genuine settlement of the verified read, not a success
 override: `objective_met` comes from the existing `criteria_verdict` and the
 envelope maps that explicit verdict.
 
+## Combined evaluation (planner enabled, no supplied rows)
+
+Evidence: `combined_eval_repair_20261026/evidence.json` (scratch world). The
+run taught the policy, reviewed O-1001, reviewed O-1010 before correction,
+taught the O-1010 credit-hold correction, reviewed O-1010 before restart,
+performed a real app restart, and reviewed O-1010 again. No Order rows were
+supplied in any prompt.
+
+- **Teaching:** O-1001 → **Process**, citing `Orders` row 2 and the values.
+- **Correction, pre-restart:** O-1010 → **Escalate**, citing **M. Chen** and
+  **2026-10-25** (credit hold).
+- **Correction, post-restart:** O-1010 → **Escalate**, citing **M. Chen** and
+  **2026-10-25**; the lesson log and retrieval still contain the correction.
+- **Settlement:** every reviewed turn returned `outcome=completed`; the
+  execution `task_outcome.objective_met` is `true`; assistant metadata and
+  fresh history agree in every case.
+- **Zero unauthorized actions:** canvas audit unchanged (`create`,
+  `agent_attached`, `data_loaded`), `task_operation_records=0`, `tasks=0`, no
+  outbound/send/edit/approve operation, workbook SHA-256 unchanged.
+
+The first combined run exposed a real product failure behind the corrected
+configuration: file-scoped turns skipped **all** memory/lesson assembly when
+the read succeeded. The correction was stored and retrievable, but never
+entered the prompt, so O-1010 was processed after restart. The repair adds a
+lessons-only assembly path for file-scoped turns, retrieves lessons for the
+pending task's original ask (not the bare `go ahead`), and states explicitly
+that training lessons are policy, not a file-value substitute. The failing
+pre-fix evidence is preserved as
+`combined_eval_repair_20261026/evidence_before_lesson_fix.json`.
+
+**Disclosed baseline limitation:** with no supplied rows, the pre-correction
+O-1010 read returned Status and Unit Price but not the Currency field, so the
+model escalated on the base policy's “uncertain currency” rule rather than
+recommending Process. This is the known file-read projection limitation (the
+read does not return the full row contract); it is not a correction failure.
+The correction itself is applied and persists across restart.
+
 ## Tests
 
-Focused suite (`test_pending_file_task_resume.py`,
+Focused suite (`test_memory_context_assembler.py`,
+`test_l2_guard_order.py`, `test_pending_file_task_resume.py`,
 `test_cross_source_followup_routing.py`, `test_dataset_aggregation.py`,
 `test_finalization_m1.py`, `test_finalization_m2.py`,
 `test_outcome_resolution.py`, `test_fallback_honesty.py`,
 `test_objective_evidence_flow.py`, `test_search_outcome_contracts.py`,
 `test_acceptance_harness_integrity.py`):
 
-- Repair branch: **482 passed, 22 failed, 2 xfailed**.
-- Frozen baseline: **472 passed, 22 failed, 2 xfailed**.
-- The same 22 named failures exist on both sides (known refresh/cross-source
-  and objective-evidence test gaps). No new failure was introduced.
+- Repair branch: **519 passed, 23 failed, 2 xfailed**.
+- Frozen baseline: **507 passed, 23 failed, 2 xfailed**.
+- The same 23 named failures exist on both sides (known refresh/cross-source
+  and objective-evidence test gaps, plus one order-dependent shared-state
+  failure that passes in isolation on both sides). No new failure was
+  introduced.
 - New tests cover bare-approval resume, `resume_operation`, terminal-task
-  merge, and the finalizer's explicit-verdict mapping (completed / failed /
-  unknown / failed-execution precedence).
+  merge, the finalizer's explicit-verdict mapping (completed / failed /
+  unknown / failed-execution precedence), and lessons-only assembly for
+  file-scoped turns.
 
 ## Remaining gaps and limits
 
-- The one-order control is green. A five-order / full-group review still
-  reaches the product's fixed turn budget (`turn_budget_exceeded`); the
-  captured `ATOM_CHAT_TURN_BUDGET_SECONDS=180` does not change the product's
-  `budget=95.0s` deadline. The full combined evaluation is therefore **not yet
-  passed**.
+- The one-order controls and the combined teaching/correction/restart run are
+  green on retrieval, settlement, correction, and zero unauthorized actions.
+  A five-order / full-group review still reaches the product's fixed turn
+  budget (`turn_budget_exceeded`); the captured
+  `ATOM_CHAT_TURN_BUDGET_SECONDS=180` does not change the product's
+  `budget=95.0s` deadline. A full group review is therefore still not
+  demonstrated.
+- The file-scoped read still returns a partial row projection (for O-1010,
+  Status and Unit Price but not Currency), so the pre-correction baseline
+  escalated on the base policy's uncertain-currency rule instead of
+  recommending Process. The full row contract (currency, both approvals,
+  manager exception, notes) is not yet demonstrated.
 - The policy basis in the one-order response is explicitly a draft: the
   workbook was retrieved, but the policy document itself was not. Do not
   describe the prior behavioral result — policy-conditioned recommendations

@@ -659,3 +659,44 @@ async def test_lessons_leg_failure_isolated(monkeypatch):
 async def test_lessons_leg_skipped_without_agent():
     """No operating agent (platform turn) → no lessons leg at all."""
     assert await mca._lessons_leg("hello", None) == ""
+
+
+@pytest.mark.asyncio
+async def test_lessons_only_returns_training_without_reference_legs(monkeypatch):
+    """A file-scoped turn keeps reference memory out but still gets policy.
+
+    The 2026-10-26 combined control read the workbook correctly and still
+    recommended Process for a corrected O-1010: the whole memory assembly
+    was skipped for file-scoped turns, so the taught correction never
+    reached the prompt. lessons_only carries just the standing training.
+    """
+    monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
+
+    async def lessons(message, agent):
+        assert message == "review O-1010"
+        assert agent == "agent-1"
+        return "TRAINING LESSONS — PERMANENT INSTRUCTIONS: escalate O-1010."
+
+    async def must_not_run(*args, **kwargs):
+        raise AssertionError("reference-memory leg ran on a lessons-only turn")
+
+    with patch.object(mca, "_lessons_leg", lessons), \
+         patch.object(mca, "_graph_leg", must_not_run), \
+         patch.object(mca, "_knowledge_leg", must_not_run), \
+         patch.object(mca, "_integration_records_leg", must_not_run), \
+         patch.object(mca, "_episodes_leg", must_not_run), \
+         patch.object(mca, "_facts_leg", must_not_run), \
+         patch.object(mca, "_playbooks_leg", must_not_run):
+        block = await assemble_memory_context(
+            "review O-1010", agent_id="agent-1", lessons_only=True)
+
+    assert block == "TRAINING LESSONS — PERMANENT INSTRUCTIONS: escalate O-1010."
+    assert "RELEVANT MEMORY" not in block
+
+
+@pytest.mark.asyncio
+async def test_lessons_only_empty_returns_none(monkeypatch):
+    monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
+    with patch.object(mca, "_lessons_leg", AsyncMock(return_value="")):
+        assert await assemble_memory_context(
+            "review O-1010", lessons_only=True) is None

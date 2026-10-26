@@ -19806,13 +19806,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "SOURCE COMPARISON may use other sources for the "
                             "user's comparison, but never substitute them "
                             "for workbook values or silently convert their "
-                            "currency, units, basis, or effective date."
+                            "currency, units, basis, or effective date. Your "
+                            "TRAINING LESSONS are standing policy, not a "
+                            "source substitute: apply them to the review or "
+                            "recommendation."
                         )
                         if _objective_synthesis_requested else
                         "FILE SOURCE ISOLATION: for this file-scoped request, "
                         "use only the verified storage/workbook artifact and its "
-                        "sheet/cell evidence. Do not use email, chat, or other "
-                        "memory values as substitutes for the requested file."
+                        "sheet/cell evidence for FILE VALUES. Do not use email, "
+                        "chat, or other memory values as substitutes for the "
+                        "requested file. Your TRAINING LESSONS are standing "
+                        "policy, not a source substitute: apply them to the "
+                        "review or recommendation."
                     ),
                 })
             # Unified turn-time memory retrieval (P0, memory unification plan):
@@ -19827,14 +19833,40 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # Resolve agent identity for role-scoped recall
                 _agent_id = agent_id
 
+                # A resumed file task is confirmed with a bare "go ahead";
+                # retrieving lessons for that approval would miss every
+                # lesson that names the original subject. Judge the restored
+                # ask, the same way the planner boundary does.
+                _lesson_query = message
+                if isinstance(pending_file_task, dict):
+                    try:
+                        from core.pending_file_task import (
+                            is_filename_confirmation,
+                        )
+
+                        if is_filename_confirmation(message):
+                            _lesson_query = str(
+                                pending_file_task.get("original_message")
+                                or message)
+                    except Exception:  # noqa: BLE001 — additive detail
+                        pass
+
                 # (HANDOFF EXCEPTION, 2026-10-01: a file-scoped turn whose
                 # read MISSED now continues to narration so the trained
                 # employee can speak — skipping memory/lesson assembly
                 # there left the employee lesson-less ('I found 0
                 # results'). Assembly runs when the handoff fired.)
-                if assembly_enabled() and (
-                        not _file_scoped_request
-                        or miss_handoff):
+                #
+                # FILE-SCOPED LESSONS (2026-10-26 combined control): a
+                # successful file read still needs the agent's standing
+                # training. Reference memory stays out (values come from
+                # the verified artifact), but skipping the lessons leg too
+                # dropped a taught O-1010 correction on the exact review it
+                # governed. Lessons-only keeps the source isolation and
+                # carries policy.
+                _lessons_only = bool(
+                    _file_scoped_request and not miss_handoff)
+                if assembly_enabled():
                     # The integral AI-employee contract: memory must be
                     # retrieved from the USER's workspace, the same workspace
                     # integration syncs write into (get_workspace_id in the
@@ -19850,7 +19882,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # durable outcome's evidence refs.
                     _retrieval_observations: List[Dict[str, Any]] = []
                     memory_block = await assemble_memory_context(
-                        message=message,
+                        message=_lesson_query,
                         workspace_id=user_workspace,
                         tenant_id=self.tenant_id,
                         # the hire's identity → role-aware recall: records
@@ -19863,12 +19895,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # keyword-less playbooks trigger on canvas type
                         canvas_type=(canvas_context or {}).get("canvas_type"),
                         source_observations_out=_retrieval_observations,
+                        lessons_only=_lessons_only,
                     )
                     # C4 (owner directive): observations are committed only
                     # when content reaches the answer context (memory_block
                     # exists) — a failed assembly must not certify sources
-                    # as supplied to narration.
-                    if memory_block and isinstance(session, dict) and execution_id:
+                    # as supplied to narration. A lessons-only block is
+                    # standing policy, not a retrieval source, so it never
+                    # certifies file evidence.
+                    if (memory_block and not _lessons_only
+                            and isinstance(session, dict) and execution_id):
                         # KEYED BY EXECUTION ID (owner C2): a later empty
                         # or skipped retrieval cannot inherit an earlier
                         # turn's sources.
