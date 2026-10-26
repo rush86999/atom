@@ -9282,41 +9282,62 @@ class ChatOrchestrator:
                         render_review_result,
                     )
 
-                    _review_struct = (
-                        result.get("structured_result")
-                        if isinstance(result.get("structured_result"), dict)
-                        else {})
-                    _review_evidence_index = build_evidence_index(
-                        _review_struct)
-                    _review_policy_index = build_policy_index(
-                        _review_lessons, _review_allowed_decisions)
-                    _review_contract = {
-                        "subjects": list(_review_requested_records),
-                        "required_evidence": [
-                            dict(entry.get("source_identity") or {})
-                            for entry in _review_evidence_index
-                            if entry.get("source_identity")
-                        ][:4],
-                        "allowed_decisions": list(
-                            _review_allowed_decisions),
-                        "evidence_ids": [
-                            entry.get("evidence_id")
-                            for entry in _review_evidence_index
-                        ],
-                        "policy_ids": [
-                            entry.get("policy_id")
-                            for entry in _review_policy_index
-                        ],
-                    }
-                    _review_result = build_review_result(
-                        execution_id=execution_id,
-                        expected_execution_id=execution_id,
-                        requested_records=_review_requested_records,
-                        answer=str(response.get("message") or ""),
-                        allowed_decisions=_review_allowed_decisions,
-                        evidence_index=_review_evidence_index,
-                        policy_index=_review_policy_index,
-                    )
+                    # CONSUME THE VALIDATED DELIVERY RESULT (2026-10-26):
+                    # the prose has the rendered block, not the raw
+                    # review_result JSON. Re-parsing it would fail or invite
+                    # prose reinterpretation; the generation seam already
+                    # validated the structured block, so carry that result.
+                    _precomputed_review = (
+                        (response.get("data") or {}).get("review_result")
+                        if isinstance(response.get("data"), dict) else None)
+                    if not isinstance(_precomputed_review, dict):
+                        _precomputed_review = (
+                            ai_response or {}).get("review_result")
+                    if isinstance(_precomputed_review, dict):
+                        _review_result = _precomputed_review
+                        _review_contract = (
+                            (response.get("data") or {}).get(
+                                "review_contract")
+                            if isinstance(response.get("data"), dict)
+                            else None) or (ai_response or {}).get(
+                                "review_contract")
+                    else:
+                        _review_struct = (
+                            result.get("structured_result")
+                            if isinstance(
+                                result.get("structured_result"), dict)
+                            else {})
+                        _review_evidence_index = build_evidence_index(
+                            _review_struct)
+                        _review_policy_index = build_policy_index(
+                            _review_lessons, _review_allowed_decisions)
+                        _review_contract = {
+                            "subjects": list(_review_requested_records),
+                            "required_evidence": [
+                                dict(entry.get("source_identity") or {})
+                                for entry in _review_evidence_index
+                                if entry.get("source_identity")
+                            ][:4],
+                            "allowed_decisions": list(
+                                _review_allowed_decisions),
+                            "evidence_ids": [
+                                entry.get("evidence_id")
+                                for entry in _review_evidence_index
+                            ],
+                            "policy_ids": [
+                                entry.get("policy_id")
+                                for entry in _review_policy_index
+                            ],
+                        }
+                        _review_result = build_review_result(
+                            execution_id=execution_id,
+                            expected_execution_id=execution_id,
+                            requested_records=_review_requested_records,
+                            answer=str(response.get("message") or ""),
+                            allowed_decisions=_review_allowed_decisions,
+                            evidence_index=_review_evidence_index,
+                            policy_index=_review_policy_index,
+                        )
                     _review_delivered = bool(_review_result.get("ok"))
                     _review_data = response.setdefault("data", {})
                     if isinstance(_review_data, dict):
@@ -9324,6 +9345,17 @@ class ChatOrchestrator:
                         _review_data["review_result"] = _review_result
                         if _review_result.get("ok"):
                             _review_data["review_summary"] = (
+                                render_review_result(_review_result))
+                    # The client response model declares `metadata`, not the
+                    # internal `data` bag. Carry the structured result there
+                    # so response, persistence and history expose the SAME
+                    # machine record while the raw fenced block stays hidden.
+                    _review_meta = response.setdefault("metadata", {})
+                    if isinstance(_review_meta, dict):
+                        _review_meta["review_contract"] = _review_contract
+                        _review_meta["review_result"] = _review_result
+                        if _review_result.get("ok"):
+                            _review_meta["review_summary"] = (
                                 render_review_result(_review_result))
                     if not _review_delivered:
                         logger.info(
@@ -17429,6 +17461,11 @@ class ChatOrchestrator:
             )
             if isinstance(_objective_result, dict):
                 combined_data["objective_evidence"] = _objective_result
+            for _review_key in (
+                    "review_result", "review_contract", "review_summary"):
+                _review_value = (ai_response or {}).get(_review_key)
+                if _review_value is not None:
+                    combined_data[_review_key] = _review_value
             _objective_workbook = (ai_response or {}).get("workbook_read")
             if not isinstance(_objective_workbook, dict):
                 _current_identity = (ai_response or {}).get("file_identity")
@@ -27706,6 +27743,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
                             response_data = dict(response_data or {})
                             response_data["review_result"] = _review
+                            response_data["review_contract"] = {
+                                "subjects": list(_subjects),
+                                "required_evidence": [
+                                    dict(entry.get("source_identity") or {})
+                                    for entry in _evidence_index
+                                    if entry.get("source_identity")
+                                ][:4],
+                                "allowed_decisions": list(_allowed),
+                                "evidence_ids": [
+                                    entry.get("evidence_id")
+                                    for entry in _evidence_index
+                                ],
+                                "policy_ids": [
+                                    entry.get("policy_id")
+                                    for entry in _policy_index
+                                ],
+                            }
                             if _review.get("ok"):
                                 _review_block = render_review_result(_review)
                                 _review_prose = strip_review_block(
@@ -27736,6 +27790,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "objective_evidence": response_data.get(
                         "objective_evidence"
                     ) or _objective_comparison,
+                    "review_result": (
+                        response_data.get("review_result")
+                        if isinstance(response_data, dict) else None),
+                    "review_summary": (
+                        response_data.get("review_summary")
+                        if isinstance(response_data, dict) else None),
+                    "review_contract": (
+                        response_data.get("review_contract")
+                        if isinstance(response_data, dict) else None),
                 }
 
             return None
