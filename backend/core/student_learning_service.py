@@ -26,7 +26,7 @@ import logging
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -498,6 +498,7 @@ def journal_standing_lesson_entry(
     canvas_context: Optional[Dict[str, Any]] = None,
     scope: str = "global",
     goal_id: Optional[str] = None,
+    decision_options: Optional[Sequence[str]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Append a permanent lesson DIRECTLY to an agent's registry lesson log —
     status-independent, so a taught rule reaches SUPERVISED and graduated
@@ -554,6 +555,13 @@ def journal_standing_lesson_entry(
             entry["goal_id"] = str(goal_id)
         else:
             entry["scope"] = "global"
+        if decision_options:
+            cleaned_decisions = [
+                str(option).strip() for option in decision_options
+                if str(option or "").strip()
+            ][:20]
+            if cleaned_decisions:
+                entry["decision_options"] = cleaned_decisions
 
         from sqlalchemy.orm.attributes import flag_modified
 
@@ -730,6 +738,7 @@ class StudentLearningService:
         canvas_context: Optional[Dict[str, Any]] = None,
         scope: str = "global",
         goal_id: Optional[str] = None,
+        decision_options: Optional[Sequence[str]] = None,
     ) -> Dict[str, Any]:
         """Record a teacher-delivered lesson (fast path). ``canvas_context``
         (see build_canvas_context) pins the lesson to the canvas it was
@@ -755,6 +764,13 @@ class StudentLearningService:
             entry["goal_id"] = str(goal_id)
         else:
             entry["scope"] = "global"
+        if decision_options:
+            cleaned_decisions = [
+                str(option).strip() for option in decision_options
+                if str(option or "").strip()
+            ][:20]
+            if cleaned_decisions:
+                entry["decision_options"] = cleaned_decisions
         result = self._apply_learning(student, entry, boost=_TEACHER_BOOST)
 
         # Pedagogy circuit: a taught lesson is a POSITIVE exposure for its
@@ -1043,6 +1059,7 @@ def deliver_teacher_lesson(
     record_session_lesson: bool = True,
     scope: str = "global",
     goal_id: Optional[str] = None,
+    decision_options: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """One human/mentor-delivered lesson → permanent training, at ANY tier.
 
@@ -1120,6 +1137,7 @@ def deliver_teacher_lesson(
         canvas_context=canvas_context,
         scope=scope,
         goal_id=goal_id,
+        decision_options=decision_options,
     )
     if student_result.get("status") == "ok":
         entry = None
@@ -1161,6 +1179,7 @@ def deliver_teacher_lesson(
         canvas_context=canvas_context,
         scope=scope,
         goal_id=goal_id,
+        decision_options=decision_options,
     )
     if entry is not None:
         return {

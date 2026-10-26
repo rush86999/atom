@@ -7147,21 +7147,20 @@ def _record_r4_source_counter(
     return "written"
 
 
-def _record_review_request(text: str) -> bool:
-    """Whether the ask reviews a record against a policy/decision rule.
+def _assessment_request(text: str) -> bool:
+    """Whether the ask requests an assessment/judgment-shaped response.
 
-    A review needs the record's own fields, not a price-shaped projection.
-    The shape is domain-general: an evaluation verb plus a policy/decision
-    vocabulary. It never names a specific column or business domain.
+    This is intentionally only a generic verb shape. The platform does not
+    infer what the task's decisions are — the task-defined review contract
+    supplies ``allowed_decisions`` from teaching/policy. A lookup without an
+    assessment verb stays a lookup even when the agent has decision options.
     """
     normalized = str(text or "").lower()
-    return bool(
-        re.search(r"\b(?:review|assess|evaluate)\b", normalized)
-        and re.search(
-            r"\b(?:policy|process|escalate|approve|reject|recommend)\b",
-            normalized,
-        )
-    )
+    return bool(re.search(
+        r"\b(?:assess|evaluate|review|classify|decide|determine|recommend|"
+        r"score|rank|triage)\b",
+        normalized,
+    ))
 
 
 async def _datasets_named_file_block(
@@ -8100,7 +8099,7 @@ async def _datasets_named_file_block(
                     pass
                 return dis
 
-            _review_ask = _record_review_request(lookup_text)
+            _review_ask = _assessment_request(lookup_text)
             workbook_read = await asyncio.to_thread(
                 inspect_dataset_entries,
                 file_entries,

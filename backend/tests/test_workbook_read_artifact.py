@@ -1612,12 +1612,12 @@ def test_dataset_review_returns_full_row_and_exposes_missing_field_gap(tmp_path)
 
 
 def test_record_review_detection_is_general():
-    from core.chat_tool_planner import _record_review_request
+    from core.chat_tool_planner import _assessment_request
 
-    assert _record_review_request(
+    assert _assessment_request(
         "Review order O-1010 against the order processing policy. State "
         "process or escalate and cite the row values.")
-    assert _record_review_request(
+    assert _assessment_request(
         "Assess the vendor record against the approval policy.")
-    assert not _record_review_request(
+    assert not _assessment_request(
         "Find the unit price for GSL48-16 in the price list.")

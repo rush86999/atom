@@ -179,18 +179,57 @@ The earlier budget failure is preserved as
 single retry re-delivered the stored read. The earlier full-run evidence
 remains under `combined_eval_repair_20261026/` and is not overwritten.
 
+## Task-defined review contract (domain-independent)
+
+The review completion path no longer hardcodes order vocabulary. Review
+recognition is only the generic assessment-verb shape (`assess`, `evaluate`,
+`review`, `classify`, `decide`, `determine`, `recommend`, `score`, `rank`,
+`triage`). The choices themselves come from the task's own teaching:
+
+- `POST /api/agents/{id}/teach` accepts `decision_options`; the lesson entry
+  stores them.
+- A review turn builds a `review_contract` with the accepted `subjects`, the
+  `required_evidence`, and the task's `allowed_decisions`.
+- `core/review_result.py` validates `assessments`, each carrying `subject_id`,
+  `decision`, `evidence_refs`, `policy_refs`, and
+  `unresolved_requirements`. It enforces execution scope, exact subject
+  coverage, allowed-decision vocabulary, required source evidence and policy
+  refs. It never decides what the decision means.
+- `record_review` consumes only that validated result. A raw read block,
+  a refusal, a wrong-subject decision, or a decision outside the task schema
+  cannot certify completion.
+- The delivered answer carries the rendered, request-bound validated block.
+
+The order cases remain regressions: the order policy teaches
+`["Process", "Escalate"]`. A second-domain control uses the same mechanism
+with `["Approve", "Deny", "Request More Info"]` for vendor risk — no platform
+change between them.
+
+Local controls cover: valid order Process/Escalate twins; a valid vendor
+review with different decisions; wrong-record, missing-second-subject,
+refusal-containing-decision-words, missing source/policy evidence,
+execution-mismatch and out-of-schema decisions all rejected; the resumed
+review production path reaching narration rather than the raw read block.
+
+The four-check behavioral evidence below was produced before this
+task-defined-contract refactor and is preserved as **scoped behavioral
+evidence**; the refactor is validated by the local controls, not by another
+broad model campaign.
+
 ## Tests
 
-Focused suite (`test_workbook_read_artifact.py`,
-`test_memory_context_assembler.py`, `test_l2_guard_order.py`,
-`test_pending_file_task_resume.py`, `test_cross_source_followup_routing.py`,
-`test_dataset_aggregation.py`, `test_finalization_m1.py`,
-`test_finalization_m2.py`, `test_outcome_resolution.py`,
-`test_fallback_honesty.py`, `test_objective_evidence_flow.py`,
-`test_search_outcome_contracts.py`, `test_acceptance_harness_integrity.py`):
+Focused suite (`test_review_result.py`,
+`test_workbook_read_artifact.py`, `test_memory_context_assembler.py`,
+`test_l2_guard_order.py`, `test_pending_file_task_resume.py`,
+`test_cross_source_followup_routing.py`, `test_dataset_aggregation.py`,
+`test_finalization_m1.py`, `test_finalization_m2.py`,
+`test_outcome_resolution.py`, `test_fallback_honesty.py`,
+`test_objective_evidence_flow.py`, `test_search_outcome_contracts.py`,
+`test_acceptance_harness_integrity.py`):
 
-- Repair branch: **579 passed, 23 failed, 2 xfailed**.
-- Frozen baseline: **557 passed, 23 failed, 2 xfailed**.
+- Repair branch: **594 passed, 23 failed, 2 xfailed**.
+- Frozen baseline: **557 passed, 23 failed, 2 xfailed** (same existing
+  files; the new `test_review_result.py` is repair-only).
 - The same 23 named failures exist on both sides (known refresh/cross-source
   and objective-evidence test gaps, plus one order-dependent shared-state
   failure that passes in isolation on both sides). No new failure was
@@ -198,8 +237,9 @@ Focused suite (`test_workbook_read_artifact.py`,
 - New tests cover bare-approval resume, `resume_operation`, terminal-task
   merge, the finalizer's explicit-verdict mapping and status eligibility,
   mixed per-criterion verdicts, lessons-only assembly for file-scoped turns,
-  review-field extraction, whole-row selection, field gaps, and the
-  `record_review` settlement guard.
+  review-field extraction, whole-row selection, field gaps, the task-defined
+  `review_result` contract, order regressions, a vendor-domain control, and
+  the resumed-review narration production path.
 
 ## Remaining gaps and limits
 
@@ -216,6 +256,11 @@ Focused suite (`test_workbook_read_artifact.py`,
   explicit blanks, not converted into invented values. The full-row behavior
   is demonstrated for these bounded review asks; broader field-contract
   coverage is not claimed.
+- Domain independence describes the completion mechanism, not universal
+  capability. Supported formats, operations, formula functions and judgment
+  quality remain evidence-bound. The vendor-risk control is a small local
+  regression using the same contract, not a broad second-domain capability
+  claim.
 - The policy basis in the one-order response is explicitly a draft: the
   workbook was retrieved, but the policy document itself was not. Do not
   describe the prior behavioral result — policy-conditioned recommendations

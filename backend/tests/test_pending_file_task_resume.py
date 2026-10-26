@@ -4773,3 +4773,93 @@ def test_terminal_task_is_not_replaced_by_bare_approval():
     assert merged["original_message"] == ORIGINAL_ASK
     assert merged["status"] == "delivered"
     assert "supersedes" not in merged
+
+
+@pytest.mark.asyncio
+async def test_resumed_review_request_reaches_narration_not_raw_read():
+    """The resumed review must be narrated, not served as a raw read block.
+
+    This is the production path for the review-specific deterministic-answer
+    suppression: _review_ask is calculated from the RESTORED objective, after
+    _resume_original is initialized. If the flag is False, the stored
+    rendered_answer returns without the narration model ever running.
+    """
+    orch = _orch()
+    orch.llm_service.generate_completion = AsyncMock(return_value={
+        "success": True,
+        "content": "V-200: Decision: Deny — the insurance certificate is missing.",
+        "model": "m",
+        "provider": "p",
+    })
+    orch._agent_lessons = lambda agent_id, query, limit=5: [{
+        "id": "vendor-policy",
+        "topic": "Vendor risk policy",
+        "lesson": "Deny vendors without an insurance certificate.",
+        "decision_options": ["Approve", "Deny"],
+    }]
+    review_ask = (
+        "Assess vendor V-200 against the vendor risk policy and decide "
+        "approve or deny using the row values.")
+    session = {
+        "id": "review-resume",
+        "history": [],
+        FILE_TASK_SESSION_KEY: build_pending_task(review_ask, "vendors.xlsx"),
+    }
+    plan = planner.ToolPlan(
+        use_tool=True, service="outlook", intent="search",
+        query="vendor V-200")
+
+    async def fake_execute(p, uid, tenant, context=None, llm_service=None):
+        return ("LIVE TOOL RESULTS (outlook.search): mailbox scanned, "
+                "no relevant messages")
+
+    async def fake_named_file(uid, query, context, plan=None, llm_service=None):
+        if plan is not None:
+            plan._result_meta = {"storage_read": {
+                "service": "datasets",
+                "file_id": "v1",
+                "resource_id": "sha1:v1",
+                "file_name": "vendors.xlsx",
+                "identity_verified": True,
+                "completed": True,
+                "coverage_complete": True,
+                "rendered_answer": (
+                    "LIVE TOOL RESULTS (datasets.named-file): V-200 row "
+                    "read complete; narration pending"),
+                "workbook_read": {
+                    "requested_items": ["V-200"],
+                    "source_identity": {
+                        "file_name": "vendors.xlsx",
+                        "resource_id": "sha1:v1",
+                        "content_hash": "v1",
+                    },
+                    "targets": [],
+                },
+            }}
+        return "LIVE TOOL RESULTS (datasets.named-file): V-200 row"
+
+    with (
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            return_value=plan)),
+        patch("core.chat_tool_planner.execute_tool_plan",
+              new=fake_execute),
+        patch("core.chat_tool_planner._datasets_named_file_block",
+              new=AsyncMock(side_effect=fake_named_file)),
+        patch("core.chat_tool_planner._provenance_menu", new=AsyncMock(
+            return_value="")),
+        patch("core.memory_context_assembler.assembly_enabled",
+              return_value=False),
+        patch.object(chat, "_verbatim_mail_evidence", new=AsyncMock(
+            return_value=[])),
+    ):
+        result = await orch._get_qwen_response(
+            "go ahead", [], user_id="u1", session_id="review-resume",
+            execution_id="e-review", session=session,
+            pending_file_task=session[FILE_TASK_SESSION_KEY],
+        )
+
+    orch.llm_service.generate_completion.assert_awaited()
+    assert result, "the resumed review must return a narrated response"
+    assert result.get("model") != "deterministic", (
+        "a review ask must not be served as the raw deterministic read")
+    assert "Decision:" in (result.get("content") or "")

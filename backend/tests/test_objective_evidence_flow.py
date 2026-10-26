@@ -2249,3 +2249,155 @@ def test_delivered_review_with_complete_read_is_complete():
     assert results["source_scoped_retrieval"] is True
     assert results["record_review"] is True
     assert outcome["objective_met"] is True
+
+
+def _review_session_and_response(message, decision_text):
+    structured = {
+        "requested_items": ["V-200"],
+        "requested_fields": ["status", "certificate"],
+        "source_identity": {
+            "file_name": "vendors.xlsx",
+            "resource_id": "sha1:vendor",
+            "content_hash": "vendor",
+            "evidence_kind": "materialized_copy",
+        },
+        "targets": [],
+    }
+    task = {
+        "mention": "vendors.xlsx",
+        "original_message": (
+            "Assess vendor V-200 against the vendor risk policy and decide "
+            "approve or deny using the row values."),
+        "requested_targets": ["V-200"],
+    }
+    session = {
+        "_pending_file_task": task,
+        "_pending_file_result": {
+            "status": "delivered",
+            "execution_id": "e-vendor",
+            "identity": structured["source_identity"],
+            "coverage_complete": True,
+            "structured_result": structured,
+            "rendered": "V-200 row",
+        },
+    }
+    response = {
+        "success": True,
+        "message": decision_text,
+        "model": "glm-test",
+        "data": {},
+    }
+    return session, task, response
+
+
+def test_outcome_builder_accepts_task_defined_review_schema(monkeypatch):
+    orch = ChatOrchestrator()
+    orch._agent_lessons = lambda agent_id, query, limit=5: [{
+        "id": "vendor-policy",
+        "topic": "Vendor risk policy",
+        "lesson": "Deny vendors without an insurance certificate.",
+        "decision_options": ["Approve", "Deny"],
+    }]
+    session, task, response = _review_session_and_response(
+        "Assess V-200",
+        "V-200: Decision: Deny — the insurance certificate is missing.",
+    )
+    outcome = orch._build_turn_task_outcome(
+        session, "go ahead", response, None, None,
+        execution_id="e-vendor", pending_task=task,
+        allow_persisted_evidence=True, agent_id="agent-vendor",
+    )
+    assert outcome["delivery"]["review_contract"] == {
+        "subjects": ["V-200"],
+        "required_evidence": [{
+            "file_name": "vendors.xlsx",
+            "resource_id": "sha1:vendor",
+            "content_hash": "vendor",
+        }],
+        "allowed_decisions": ["Approve", "Deny"],
+    }
+    assert outcome["delivery"]["review_result"]["ok"] is True
+    assert outcome["objective_met"] is True
+    assert outcome["success_kinds"]["task_success"] is True
+
+
+def test_outcome_builder_rejects_refusal_for_task_defined_review():
+    orch = ChatOrchestrator()
+    orch._agent_lessons = lambda agent_id, query, limit=5: [{
+        "id": "vendor-policy",
+        "topic": "Vendor risk policy",
+        "lesson": "Deny vendors without an insurance certificate.",
+        "decision_options": ["Approve", "Deny"],
+    }]
+    session, task, response = _review_session_and_response(
+        "Assess V-200",
+        "I cannot recommend approving this vendor: the certificate is missing.",
+    )
+    outcome = orch._build_turn_task_outcome(
+        session, "go ahead", response, None, None,
+        execution_id="e-vendor", pending_task=task,
+        allow_persisted_evidence=True, agent_id="agent-vendor",
+    )
+    assert outcome["delivery"]["review_result"]["ok"] is False
+    assert outcome["objective_met"] is False
+    assert outcome["success_kinds"]["task_success"] is False
+
+
+def test_outcome_builder_keeps_order_review_as_a_regression():
+    """The original order Process/Escalate cases still work as regressions.
+
+    Their decisions are supplied by the order-policy teaching, not by a
+    platform-wide vocabulary.
+    """
+    orch = ChatOrchestrator()
+    orch._agent_lessons = lambda agent_id, query, limit=5: [{
+        "id": "order-policy",
+        "topic": "Order processing policy",
+        "lesson": "Process routine orders; escalate exceptions.",
+        "decision_options": ["Process", "Escalate"],
+    }]
+    structured = {
+        "requested_items": ["O-1010"],
+        "requested_fields": ["status", "price", "currency"],
+        "source_identity": {
+            "file_name": "orders.xlsx",
+            "resource_id": "sha1:orders",
+            "content_hash": "orders",
+            "evidence_kind": "materialized_copy",
+        },
+        "targets": [],
+    }
+    task = {
+        "mention": "orders.xlsx",
+        "original_message": (
+            "Review order O-1010 against the order processing policy and "
+            "state process or escalate."),
+        "requested_targets": ["O-1010"],
+    }
+    session = {
+        "_pending_file_task": task,
+        "_pending_file_result": {
+            "status": "delivered",
+            "execution_id": "e-order",
+            "identity": structured["source_identity"],
+            "coverage_complete": True,
+            "structured_result": structured,
+            "rendered": "O-1010 row",
+        },
+    }
+    response = {
+        "success": True,
+        "message": "O-1010: Recommendation: Process.",
+        "model": "glm-test",
+        "data": {},
+    }
+    outcome = orch._build_turn_task_outcome(
+        session, "go ahead", response, None, None,
+        execution_id="e-order", pending_task=task,
+        allow_persisted_evidence=True, agent_id="agent-order",
+    )
+    assert outcome["delivery"]["review_contract"]["allowed_decisions"] == [
+        "Process", "Escalate"]
+    assert outcome["delivery"]["review_result"]["ok"] is True
+    assert outcome["objective_met"] is True
+    assert outcome["success_kinds"]["task_success"] is True

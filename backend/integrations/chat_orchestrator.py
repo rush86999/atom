@@ -8554,34 +8554,36 @@ class ChatOrchestrator:
                 "_pending_file_task"
             ) or {}
             objective = str(task.get("original_message") or message or "")[:4000]
-            # A policy/record review is not complete when the read alone is
-            # delivered. Record the review obligation and whether the
-            # delivered response actually states a decision; the
-            # record_review criterion consumes both.
-            _review_required = False
+            # TASK-DEFINED REVIEW CONTRACT (2026-10-26). The platform does not
+            # decide what a "review" or a "decision" means: the agent's
+            # teaching supplies the allowed choices, and the read supplies the
+            # requested subjects. A lookup stays a lookup.
+            _review_assessment = False
+            _review_allowed_decisions: List[str] = []
+            _review_lessons: List[Dict[str, Any]] = []
             try:
-                from core.chat_tool_planner import _record_review_request
+                from core.chat_tool_planner import _assessment_request
 
-                _review_required = _record_review_request(objective)
-            except Exception:  # noqa: BLE001 — review flag is additive
-                _review_required = False
-            _review_delivered = False
-            if _review_required:
-                _review_text = str(response.get("message") or "")
-                _review_model = str(response.get("model") or "")
-                _review_delivered = bool(
-                    _review_model != "deterministic"
-                    and (
-                        re.search(
-                            r"(?:recommendation|recommend|decision|verdict)"
-                            r"\s*[:\-]?\s*\**\s*(?:process|escalat)",
-                            _review_text, re.I)
-                        or re.search(
-                            r"\brecommend(?:ation)?\b[^.\n]{0,40}"
-                            r"\b(?:process|escalat)",
-                            _review_text, re.I)
+                _review_assessment = _assessment_request(objective)
+            except Exception:  # noqa: BLE001 — flag is additive
+                _review_assessment = False
+            if _review_assessment:
+                try:
+                    from core.review_result import (
+                        decision_options_from_lessons,
                     )
-                )
+
+                    _review_lessons = (
+                        self._agent_lessons(agent_id, objective) or [])
+                    _review_allowed_decisions = (
+                        decision_options_from_lessons(_review_lessons))
+                except Exception:  # noqa: BLE001 — teaching is additive
+                    _review_allowed_decisions = []
+            _review_required = False
+            _review_delivered = False
+            _review_result: Optional[Dict[str, Any]] = None
+            _review_contract: Optional[Dict[str, Any]] = None
+            _review_requested_records: List[str] = []
             result = session.get("_pending_file_result") or {}
             result_execution_id = result.get("execution_id")
             if not allow_persisted_evidence and (
@@ -8589,6 +8591,41 @@ class ChatOrchestrator:
                 or str(result_execution_id or "") != str(execution_id)
             ):
                 result = {}
+            if _review_assessment and _review_allowed_decisions:
+                _review_structured = (
+                    result.get("structured_result")
+                    if isinstance(result.get("structured_result"), dict)
+                    else {})
+                _review_records = list(
+                    _review_structured.get("requested_items") or [])
+                if not _review_records:
+                    _review_records = [
+                        str(target.get("item") or "")
+                        for target in (_review_structured.get("targets") or [])
+                        if isinstance(target, dict) and target.get("item")
+                    ]
+                if not _review_records:
+                    _review_records = [
+                        str(item) for item in (
+                            task.get("requested_targets") or [])
+                        if str(item or "").strip()
+                    ]
+                if not _review_records:
+                    try:
+                        from core.workbook_read_artifact import (
+                            extract_targets,
+                        )
+
+                        _review_records = extract_targets(
+                            objective, [objective],
+                            task.get("requested_targets") or [])
+                    except Exception:  # noqa: BLE001 — subjects additive
+                        _review_records = []
+                _review_requested_records = list(dict.fromkeys(
+                    str(record).strip() for record in _review_records
+                    if str(record or "").strip()))[:12]
+                _review_required = bool(
+                    _review_requested_records and result)
             response_data = response.get("data") or {}
             response_identity = response_data.get("file_identity")
             session_identity = session.get(
@@ -9232,10 +9269,65 @@ class ChatOrchestrator:
                 and mutation.get("readback_matched") is True
             ):
                 objective_met = True
-            # A verified read is evidence, not a review. Without a delivered
-            # decision, the review obligation remains unmet even when the
-            # retrieval itself is complete (2026-10-26 row-projection run:
-            # a deterministic read block was settling as completed).
+            # A verified read is evidence, not a review. The task-defined
+            # contract binds decisions to the requested subjects, execution,
+            # source evidence and policy refs; only a validated result can
+            # certify the review.
+            if _review_required:
+                try:
+                    from core.review_result import (
+                        build_review_result,
+                        render_review_result,
+                    )
+
+                    _review_contract = {
+                        "subjects": list(_review_requested_records),
+                        "required_evidence": [
+                            {
+                                key: ref.get(key)
+                                for key in (
+                                    "file_name", "resource_id", "content_hash")
+                                if ref.get(key)
+                            }
+                            for ref in evidence_refs
+                            if isinstance(ref, dict)
+                            and any(
+                                ref.get(key) for key in (
+                                    "file_name", "resource_id", "content_hash"))
+                        ],
+                        "allowed_decisions": list(
+                            _review_allowed_decisions),
+                    }
+                    _review_result = build_review_result(
+                        execution_id=execution_id,
+                        expected_execution_id=execution_id,
+                        requested_records=_review_requested_records,
+                        answer=str(response.get("message") or ""),
+                        allowed_decisions=_review_allowed_decisions,
+                        evidence_refs=evidence_refs,
+                        required_evidence=(
+                            _review_contract["required_evidence"]),
+                        policy_refs=_review_lessons,
+                        unresolved_requirements=[],
+                    )
+                    _review_delivered = bool(_review_result.get("ok"))
+                    _review_data = response.setdefault("data", {})
+                    if isinstance(_review_data, dict):
+                        _review_data["review_contract"] = _review_contract
+                        _review_data["review_result"] = _review_result
+                        if _review_result.get("ok"):
+                            _review_data["review_summary"] = (
+                                render_review_result(_review_result))
+                    if not _review_delivered:
+                        logger.info(
+                            "[review-result] not certified: %s",
+                            _review_result.get("errors"))
+                except Exception as _review_err:  # noqa: BLE001 — fail closed
+                    logger.warning(
+                        "[review-result] validation failed closed: %r",
+                        _review_err)
+                    _review_result = None
+                    _review_delivered = False
             if _review_required and not _review_delivered:
                 objective_met = False
             failure_layer = None
@@ -9327,6 +9419,8 @@ class ChatOrchestrator:
                     "deterministic": deterministic,
                     "review_required": _review_required,
                     "review_delivered": _review_delivered,
+                    "review_contract": _review_contract,
+                    "review_result": _review_result,
                 },
                 limitations=(
                     [task.get("status")]
@@ -13194,9 +13288,9 @@ class ChatOrchestrator:
                             )
                 _direct_review_ask = False
                 try:
-                    from core.chat_tool_planner import _record_review_request
+                    from core.chat_tool_planner import _assessment_request
 
-                    _direct_review_ask = _record_review_request(
+                    _direct_review_ask = _assessment_request(
                         str((_direct_task or {}).get("original_message")
                             or message or ""))
                 except Exception:  # noqa: BLE001 — flag is additive
@@ -14329,10 +14423,10 @@ class ChatOrchestrator:
                         and _recovery_payload:
                     try:
                         from core.chat_tool_planner import (
-                            _record_review_request,
+                            _assessment_request,
                         )
 
-                        _r4_review_ask = _record_review_request(
+                        _r4_review_ask = _assessment_request(
                             str(_recovery_payload.get("original_request")
                                 or message or ""))
                     except Exception:  # noqa: BLE001 — flag is additive
@@ -20205,16 +20299,6 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _planned: Optional[str] = None
             _off_request = False
             _deterministic_answer: Optional[str] = None
-            _review_ask = False
-            try:
-                from core.chat_tool_planner import _record_review_request
-
-                _review_ask = _record_review_request(
-                    _resume_original
-                    or str((pending_file_task or {}).get("original_message")
-                           or message or ""))
-            except Exception:  # noqa: BLE001 — flag is additive
-                _review_ask = False
             _objective_comparison: Optional[Dict[str, Any]] = None
             # THIS TURN'S structured workbook record, for the evidence-bound
             # narration guard below. It must be bound HERE, beside the read
@@ -20291,6 +20375,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _gate_msg = f"{_gate_msg} {_confirmed_mentions[0]}"
                 except Exception:
                     pass
+            # REVIEW INTENT, calculated ONCE from the restored objective.
+            # The earlier placement read _resume_original before its first
+            # assignment; the broad except then silently set False and
+            # disabled the deterministic-answer suppression on this path.
+            _review_ask = False
+            try:
+                from core.chat_tool_planner import _assessment_request
+
+                _review_ask = _assessment_request(_gate_msg)
+            except Exception:  # noqa: BLE001 — flag is additive
+                _review_ask = False
             _plan_mentions: List[str] = []
             try:
                 from core.agent_file_context import (
@@ -27525,6 +27620,60 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     async_continuation_forked,
                     execution_id=execution_id,
                 )
+                if _review_ask:
+                    try:
+                        from core.review_result import (
+                            build_review_result,
+                            decision_options_from_lessons,
+                            evidence_refs_from_structured,
+                            render_review_result,
+                            requested_subjects,
+                        )
+
+                        _review_lessons = (
+                            self._agent_lessons(agent_id, _gate_msg) or [])
+                        _allowed = decision_options_from_lessons(
+                            _review_lessons)
+                        _review_struct = (
+                            ((session.get("_pending_file_result") or {})
+                             .get("structured_result"))
+                            if isinstance(session, dict) else None
+                        ) or _turn_structured_record or {}
+                        _subjects = requested_subjects(_review_struct)
+                        _evidence = evidence_refs_from_structured(
+                            _review_struct)
+                        if _allowed and _subjects:
+                            _review = build_review_result(
+                                execution_id=execution_id,
+                                expected_execution_id=execution_id,
+                                requested_records=_subjects,
+                                answer=str(_claimed_content or ""),
+                                allowed_decisions=_allowed,
+                                evidence_refs=_evidence,
+                                required_evidence=_evidence,
+                                policy_refs=_review_lessons,
+                            )
+                            response_data = dict(response_data or {})
+                            response_data["review_result"] = _review
+                            if _review.get("ok"):
+                                _review_block = render_review_result(_review)
+                                if (_review_block
+                                        and _review_block not in _claimed_content):
+                                    _claimed_content = (
+                                        f"{str(_claimed_content).rstrip()}"
+                                        f"\n\n{_review_block}")
+                                    response_data["content"] = (
+                                        _claimed_content)
+                                    response_data["review_summary"] = (
+                                        _review_block)
+                            else:
+                                logger.info(
+                                    "[review-result] delivery not certified: %s",
+                                    _review.get("errors"))
+                    except Exception as _review_err:  # noqa: BLE001 — fail closed
+                        logger.warning(
+                            "[review-result] render skipped: %r",
+                            _review_err)
                 return {
                     # STRIPPED (restored 2026-10-01): leading/trailing
                     # whitespace on the model's reply leaked to the user

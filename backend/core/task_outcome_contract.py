@@ -562,6 +562,11 @@ def _record_review_verifier(outcome: Dict[str, Any]) -> "bool | None":
     delivery = outcome.get("delivery") or {}
     if not isinstance(delivery, dict) or delivery.get("review_required") is not True:
         return None
+    review = delivery.get("review_result")
+    if isinstance(review, dict):
+        # Task-defined contract, request-bound decision result. The platform
+        # validates coverage/evidence/scope; it does not own the vocabulary.
+        return review.get("ok") is True
     return delivery.get("review_delivered") is True
 
 
