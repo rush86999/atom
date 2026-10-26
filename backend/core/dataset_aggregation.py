@@ -704,6 +704,15 @@ def _ast_has_unsafe_reference(value: Any) -> bool:
     return False
 
 
+def _ast_select_node_count(value: Any) -> int:
+    if isinstance(value, dict):
+        count = 1 if str(value.get("type") or "").upper() == "SELECT_NODE" else 0
+        return count + sum(_ast_select_node_count(v) for v in value.values())
+    if isinstance(value, list):
+        return sum(_ast_select_node_count(v) for v in value)
+    return 0
+
+
 def _ast_identity_violation(
     node: Dict[str, Any], allowed_tables: List[str]
 ) -> Optional[str]:
@@ -719,6 +728,11 @@ def _ast_identity_violation(
         return (
             "The selection query must be a single SELECT reading the "
             "registered dataset directly; WITH/CTE forms are not allowed."
+        )
+    if _ast_select_node_count(node) > 1:
+        return (
+            "The selection query must be one flat SELECT; nested SELECTs/"
+            "subqueries are not allowed."
         )
     if _ast_contains_sample(node):
         return (
@@ -834,7 +848,8 @@ _ROLE_HINTS: Dict[str, Tuple[str, ...]] = {
         "qty", "quantity", "units", "unit quantity",
     ),
     "price_column": (
-        "unit price", "price", "unit cost",
+        "unit price", "price", "unit cost", "amount", "total", "value",
+        "cost",
     ),
     "currency_column": (
         "currency", "ccy", "curr",
@@ -914,7 +929,10 @@ def _selection_sql_violation(sql: str) -> Optional[str]:
     if re.search(
             r"\b(?:sum|count|avg|min|max|median|stddev|variance|"
             r"string_agg|array_agg|list|first|last|any_value|arg_min|"
-            r"arg_max|approx_\w+|percentile\w*)\s*\(",
+            r"arg_max|min_by|max_by|mode|quantile_cont|quantile_disc|"
+            r"approx_quantile|approx_count_distinct|count_if|bool_and|"
+            r"bool_or|bit_and|bit_or|product|fsum|sumkahan|entropy|"
+            r"approx_\w+|percentile\w*)\s*\(",
             stripped, re.IGNORECASE):
         return (
             "The selection query must return detail rows only: aggregate "
@@ -1036,12 +1054,23 @@ async def _execute_selection_plan(
         if roles[role] == SHEET_ROW_COL:
             roles[role] = ""
     _seen_roles: Dict[str, str] = {}
+    _normalized_frame: Dict[str, List[str]] = {}
+    for column in columns:
+        _normalized_frame.setdefault(_norm_role_name(column), []).append(
+            column)
     for role in ("identity_column", "quantity_column", "price_column",
                  "currency_column", "status_column"):
         column = roles[role]
         if not column:
             continue
         norm = _norm_role_name(column)
+        if len(_normalized_frame.get(norm, [])) > 1:
+            return _error_block(
+                "AMBIGUOUS COLUMN NAME",
+                f"{role}='{column}' is ambiguous with another frame column "
+                "after case/punctuation normalization; no similar column "
+                "was chosen.",
+            )
         if norm in _seen_roles:
             return _error_block(
                 "ROLE CONFLICT",
@@ -1049,10 +1078,20 @@ async def _execute_selection_plan(
                 "each calculation role must be a distinct frame column.",
             )
         _seen_roles[norm] = role
+        own_hints = _ROLE_HINTS.get(role, ())
+        norm_tokens = set(norm.split())
+        own_match = any(
+            all(token in norm_tokens for token in hint.split())
+            for hint in own_hints
+        )
         for other_role, hints in _ROLE_HINTS.items():
             if other_role == role:
                 continue
-            if norm in hints and norm not in _ROLE_HINTS.get(role, ()):
+            other_match = any(
+                all(token in norm_tokens for token in hint.split())
+                for hint in hints
+            )
+            if other_match and not own_match:
                 return _error_block(
                     "ROLE CONFLICT",
                     f"{role} is mapped to '{column}', which matches the "

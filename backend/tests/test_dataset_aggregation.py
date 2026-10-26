@@ -784,6 +784,12 @@ async def test_row_identity_must_be_plain_integer_not_expression(tmp_path):
         ('SELECT "__sheet_row" FROM df WHERE "__sheet_row" IN '
          '(SELECT "__sheet_row" FROM df USING SAMPLE 2 ROWS '
          '(reservoir, 7))'),
+        ('SELECT "__sheet_row" FROM df WHERE "__sheet_row" IN '
+         '(SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+         'ORDER BY "__sheet_row" FETCH FIRST 2 ROWS ONLY)'),
+        ('SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\' '
+         'AND "__sheet_row" = (SELECT min_by("__sheet_row", '
+         '"__sheet_row") FROM df)'),
         'SELECT "__SHEET_ROW" FROM df',
     ):
         result = await execute_validated_aggregate_plan(
@@ -947,21 +953,23 @@ async def test_ambiguous_normalized_role_names_fail_closed(tmp_path):
         "columns": list(df.columns),
         "row_count": len(df),
     }
-    result = await execute_validated_aggregate_plan(
-        [entry],
-        {
-            "dataset_name": "wb_ambiguous",
-            "sql": 'SELECT "__sheet_row" FROM df',
-            "identity_column": "PO ID",
-            "quantity_column": "",
-            "price_column": "Unit Price",
-            "currency_column": "Currency",
-            "status_column": "Status",
-        },
-        "Sheet1 approved totals",
-    )
-    assert result["status"] == "error"
-    assert "REQUIRED COLUMN NOT IDENTIFIED" in result["block"]
+    for quantity in ("", "Qty."):
+        result = await execute_validated_aggregate_plan(
+            [entry],
+            {
+                "dataset_name": "wb_ambiguous",
+                "sql": 'SELECT "__sheet_row" FROM df',
+                "identity_column": "PO ID",
+                "quantity_column": quantity,
+                "price_column": "Unit Price",
+                "currency_column": "Currency",
+                "status_column": "Status",
+            },
+            "Sheet1 approved totals",
+        )
+        assert result["status"] == "error"
+        assert ("REQUIRED COLUMN NOT IDENTIFIED" in result["block"]
+                or "AMBIGUOUS COLUMN NAME" in result["block"])
 
 
 @pytest.mark.asyncio
@@ -1165,3 +1173,42 @@ async def test_whole_row_relation_reference_is_rejected(tmp_path):
     )
     assert result["status"] == "error"
     assert "SQL REJECTED" in result["block"]
+
+
+@pytest.mark.asyncio
+async def test_decorated_price_column_cannot_be_used_as_quantity(tmp_path):
+    df = pd.DataFrame([
+        {"PO ID": "0007", "Status": "Approved", "Qty": 1.0,
+         "Unit Price": 100.0, "Price (CAD)": 100.0, "Amount": 100.0,
+         "Currency": "CAD", "__sheet_row": 2},
+        {"PO ID": "0055", "Status": "Approved", "Qty": None,
+         "Unit Price": 75.0, "Price (CAD)": 75.0, "Amount": 75.0,
+         "Currency": "CAD", "__sheet_row": 5},
+    ])
+    path = tmp_path / "decorated_roles.parquet"
+    df.to_parquet(path, index=False)
+    entry = {
+        "dataset_name": "wb_decorated",
+        "entity_name": "Sheet1",
+        "file_name": "decorated.xlsx",
+        "parquet_path": str(path),
+        "content_hash": "abc123",
+        "columns": list(df.columns),
+        "row_count": len(df),
+    }
+    for quantity in ("Price (CAD)", "Amount"):
+        result = await execute_validated_aggregate_plan(
+            [entry],
+            {
+                "dataset_name": "wb_decorated",
+                "sql": 'SELECT "__sheet_row" FROM df WHERE "Status" = \'Approved\'',
+                "identity_column": "PO ID",
+                "quantity_column": quantity,
+                "price_column": "Unit Price",
+                "currency_column": "Currency",
+                "status_column": "Status",
+            },
+            "Sheet1 approved totals",
+        )
+        assert result["status"] == "error", quantity
+        assert "ROLE CONFLICT" in result["block"]
