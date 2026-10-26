@@ -109,13 +109,13 @@ Scratch only: backend `:8121`, database
 
 | Case | Session | Delivered result |
 |---|---|---|
-| PO Register, approved rows, totals by currency | `ab1ae599-87ef-4553-b04d-3f41f6a7b666` | CAD **8050.00** (3 rows, qty 10); USD **3999.96** (1 row, qty 4); cancelled row excluded; rows 2/3/4/6 with C/D provenance |
-| Adjustments, approved rows, name missing inputs | `c26f01bd-c618-41c1-89ae-3fb72597ffeb` | Known subtotal **−700.00 CAD**; gap **0055**, missing quantity at **C5**; complete/grand total withheld |
-| Formula reference, D8 | `491241f7-c20e-4ea0-a9d7-387193d8a5d4` | **8050.00** neutral workbook arithmetic; 7 dependencies; no pricing policy |
-| Formula reference, row-qualified D8 | `5638fcb9-6939-431d-98da-f08290b76b6e` | **8050.00**; same neutral basis |
-| Aggregate with no sheet named | `8628ddc5-2d77-4f16-9b31-857649cf2603` | `SHEET AMBIGUOUS`; no total computed |
-| Explicit missing sheet | `604f0f86-b860-4c7e-8743-dd64e716d815` | `SHEET NOT FOUND`; no fallback; no total computed |
-| Ordinary item lookup | `e00fcfe5-59fc-49cb-8b26-d96a9a711da9` | `0007` remains ambiguous between Adjustments row 2 (D2 = 100) and PO Register row 2 (D2 = 1,250) |
+| PO Register, approved rows, totals by currency | `86951c80-5b06-4c46-afe6-6849b716cf8c` | CAD **8050.00** (3 rows, qty 10); USD **3999.96** (1 row, qty 4); cancelled row excluded; rows 2/3/4/6 with C/D provenance |
+| Adjustments, approved rows, name missing inputs | `a857e95a-11be-4c0a-8164-4899c4fc5284` | Known subtotal **−700.00 CAD**; gap **0055**, missing quantity at **C5**; complete/grand total withheld |
+| Formula reference, D8 | `fc60b6b8-ffef-4397-8d54-af8712e61fc7` | **8050.00** neutral workbook arithmetic; 7 dependencies; no pricing policy |
+| Formula reference, row-qualified D8 | `1dbd6a46-79d4-4519-988f-06bed0f42339` | **8050.00**; same neutral basis |
+| Aggregate with no sheet named | `ddb1c28b-2690-45f4-93b6-567a64524a43` | `SHEET AMBIGUOUS`; no total computed |
+| Explicit missing sheet | `f13bb30f-fb92-45ff-8f17-806697825a89` | `SHEET NOT FOUND`; no fallback; no total computed |
+| Ordinary item lookup | `7ce19535-5ac9-4ab0-ad1d-345bea8b626e` | `0007` remains ambiguous between Adjustments row 2 (D2 = 100) and PO Register row 2 (D2 = 1,250) |
 
 PO response also reports `Sheet rows: 5; selected: 4; not selected: 1` and
 `Sheet status counts: Approved=4, Cancelled=1`, making the exclusion auditable.
@@ -142,7 +142,7 @@ Focused suite (aggregation, routing, pending-file, workbook delivery, turn
 program, source-ask, pricing):
 
 ```
-627 passed, 4 skipped, 2 xfailed, 11 failed
+629 passed, 4 skipped, 2 xfailed, 11 failed
 ```
 
 The same 11 failures reproduce on parent `c912375de` (refresh verdict/fixture
@@ -177,10 +177,29 @@ missing-input protection is future work; this correction intentionally does
 not broaden that behavior.
 
 Role binding is deterministic when a frame header matches a generic role
-hint (Qty/Quantity, Unit Price/Price, Currency, Status). If a required
-header matches none of those hints, the planner's role field is still
-trusted after conflict/ambiguity checks; failing closed on zero hint matches
-is future work and is not exercised by this workbook.
+hint. A required role with ZERO supported matches is not certified from a
+model proposal: the result is `clarification_required` with candidate
+columns. An explicit user-confirmed mapping bound to this dataset/schema
+may resolve it. Two matches are `AMBIGUOUS ROLE COLUMN`; the user chooses.
+This workbook's Qty / Unit Price / Currency / Status headers each have one
+match, so the existing positive path is unchanged. Local revert-only control:
+with the previous resolver restored, the same unknown-header plan certified
+a complete 207.00 CAD with no gaps; with the successor it returns
+`clarification_required`, and an explicit accepted mapping returns the
+correct partial result. The source file hash was unchanged by the control.
+
+## Environment note (2026-10-25)
+
+Internal data volume had ~21 GiB free at final verification. pip cache was
+already empty; `npm cache clean --force` removed no additional packages
+(`~/.npm/_npx` remains a 1 GiB disposable package cache). The 39 GiB
+`atom-rollback-8c593e` tree is held by an active rsync to
+`/Volumes/Seagate Portable Drive/atom-rollback-8c593e-archive-20261025/`;
+it was NOT removed. The Seagate volume was not readable by this process
+(`Operation not permitted`), so the archive manifest could not be verified;
+no local counterpart was deleted. `backend/data/acceptance_worlds` remains
+the configured local layout and was untouched. No live DB, memory store,
+secret, active build or acceptance evidence was deleted.
 
 ## Freeze decision
 

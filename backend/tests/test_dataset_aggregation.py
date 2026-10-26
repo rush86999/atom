@@ -967,10 +967,11 @@ async def test_ambiguous_normalized_role_names_fail_closed(tmp_path):
             },
             "Sheet1 approved totals",
         )
-        assert result["status"] == "error"
+        assert result["status"] in ("error", "clarification_required")
         assert ("REQUIRED COLUMN NOT IDENTIFIED" in result["block"]
                 or "AMBIGUOUS COLUMN NAME" in result["block"]
-                or "AMBIGUOUS ROLE COLUMN" in result["block"])
+                or "AMBIGUOUS ROLE COLUMN" in result["block"]
+                or "ROLE MAPPING REQUIRED" in result["block"])
 
 
 @pytest.mark.asyncio
@@ -1024,8 +1025,9 @@ async def test_meta_row_cannot_be_a_calculation_role(tmp_path):
         },
         "Sheet1 approved totals",
     )
-    assert result["status"] == "error"
-    assert "REQUIRED COLUMN NOT IDENTIFIED" in result["block"]
+    assert result["status"] in ("error", "clarification_required")
+    assert ("REQUIRED COLUMN NOT IDENTIFIED" in result["block"]
+            or "ROLE MAPPING REQUIRED" in result["block"])
 
 
 @pytest.mark.asyncio
@@ -1214,6 +1216,121 @@ async def test_decorated_price_column_cannot_be_used_as_quantity(tmp_path):
             },
             "Sheet1 approved totals",
         )
-        assert result["status"] == "error", quantity
+        assert result["status"] in ("error", "clarification_required"), quantity
         assert ("ROLE CONFLICT" in result["block"]
-                or "AMBIGUOUS ROLE COLUMN" in result["block"])
+                or "AMBIGUOUS ROLE COLUMN" in result["block"]
+                or "ROLE MAPPING REQUIRED" in result["block"])
+
+
+@pytest.mark.asyncio
+async def test_unknown_headers_require_clarification_or_explicit_mapping(tmp_path):
+    df = pd.DataFrame([
+        {"PO ID": "0007", "Status": "Approved", "Ordered": 2.0,
+         "Rate": 10.0, "CurrencyCode": "CAD", "__sheet_row": 2},
+        {"PO ID": "0055", "Status": "Approved", "Ordered": None,
+         "Rate": 7.0, "CurrencyCode": "CAD", "__sheet_row": 5},
+    ])
+    path = tmp_path / "unknown_headers.parquet"
+    df.to_parquet(path, index=False)
+    entry = {
+        "dataset_name": "wb_unknown_headers",
+        "entity_name": "Sheet1",
+        "file_name": "unknown_headers.xlsx",
+        "parquet_path": str(path),
+        "content_hash": "abc123",
+        "columns": list(df.columns),
+        "row_count": len(df),
+    }
+    plan = {
+        "dataset_name": "wb_unknown_headers",
+        "sql": 'SELECT "__sheet_row", "Ordered", "Rate", "CurrencyCode" '
+               'FROM df WHERE "Status" = \'Approved\'',
+        "identity_column": "PO ID",
+        "quantity_column": "Ordered",  # model proposal, no supported hint
+        "price_column": "Rate",
+        "currency_column": "CurrencyCode",
+        "status_column": "Status",
+    }
+    result = await execute_validated_aggregate_plan(
+        [entry], plan, "Sheet1 approved totals")
+    assert result["status"] == "clarification_required"
+    assert "ROLE MAPPING REQUIRED" in result["block"]
+    assert result["subtotals"] == {}
+
+    result = await execute_validated_aggregate_plan(
+        [entry], plan, "Sheet1 approved totals",
+        confirmed_roles={
+            "quantity_column": "Ordered",
+            "price_column": "Rate",
+            "currency_column": "CurrencyCode",
+        },
+    )
+    assert result["status"] == "partial"
+    assert result["subtotals"]["CAD"]["value"] == "20.00"
+    assert result["gaps"] == [{
+        "identity": "0055", "row": 5, "missing": "quantity", "cell": "C5"
+    }]
+
+
+@pytest.mark.asyncio
+async def test_nl_unknown_roles_require_clarification_then_explicit_mapping(
+        tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    import core.llm.pinned_planning as pp
+    from core.dataset_aggregation import aggregate_named_dataset
+
+    df = pd.DataFrame([
+        {"PO ID": "0007", "Status": "Approved", "Ordered": 2.0,
+         "Rate": 10.0, "CurrencyCode": "CAD", "__sheet_row": 2},
+        {"PO ID": "0055", "Status": "Approved", "Ordered": None,
+         "Rate": 7.0, "CurrencyCode": "CAD", "__sheet_row": 5},
+    ])
+    path = tmp_path / "nl_unknown_headers.parquet"
+    df.to_parquet(path, index=False)
+    entry = {
+        "dataset_name": "wb_nl_unknown",
+        "entity_name": "Sheet1",
+        "file_name": "nl_unknown.xlsx",
+        "parquet_path": str(path),
+        "content_hash": "abc123",
+        "columns": list(df.columns),
+        "row_count": len(df),
+    }
+    plan = SimpleNamespace(
+        dataset_name="wb_nl_unknown",
+        sql='SELECT "__sheet_row", "Ordered", "Rate", "CurrencyCode" '
+            'FROM df WHERE "Status" = \'Approved\'',
+        identity_column="PO ID",
+        quantity_column="Ordered",
+        price_column="Rate",
+        currency_column="CurrencyCode",
+        status_column="Status",
+        note="",
+    )
+
+    async def fake_plan(*args, **kwargs):
+        return plan
+
+    monkeypatch.setattr(pp, "pinned_structured_call", fake_plan)
+    monkeypatch.setattr(
+        pp, "resolve_pinned_provider_model", lambda *a, **k: {})
+    result = await aggregate_named_dataset(
+        [entry], "Sheet1 approved totals", object(),
+        file_name="nl_unknown.xlsx",
+    )
+    assert result["status"] == "clarification_required"
+    assert "ROLE MAPPING REQUIRED" in result["block"]
+    assert result["subtotals"] == {}
+
+    result = await aggregate_named_dataset(
+        [entry], "Sheet1 approved totals", object(),
+        file_name="nl_unknown.xlsx",
+        confirmed_roles={
+            "quantity_column": "Ordered",
+            "price_column": "Rate",
+            "currency_column": "CurrencyCode",
+        },
+    )
+    assert result["status"] == "partial"
+    assert result["subtotals"]["CAD"]["value"] == "20.00"
+    assert result["gaps"][0]["identity"] == "0055"

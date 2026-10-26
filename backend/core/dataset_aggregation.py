@@ -283,6 +283,48 @@ def _error_block(title: str, detail: str) -> Dict[str, Any]:
     }
 
 
+def _clarification_block(
+    role: str,
+    candidates: List[str],
+    *,
+    ambiguous: bool,
+) -> Dict[str, Any]:
+    role_label = role.replace("_column", "")
+    title = "AMBIGUOUS ROLE COLUMN" if ambiguous else "ROLE MAPPING REQUIRED"
+    if ambiguous:
+        detail = (
+            f"More than one column could represent {role_label}: "
+            + ", ".join(candidates[:12])
+            + ". No mapping was chosen by name or planner order."
+        )
+    else:
+        detail = (
+            f"No supported header identifies {role_label}. Which column "
+            "represents it? Candidates: "
+            + (", ".join(candidates[:12]) or "none")
+            + "."
+        )
+    block = (
+        "LIVE TOOL RESULTS (datasets.aggregate — deterministic; the "
+        "model did not compute this):\n"
+        f"{title}\n{detail}\n"
+        "No total was computed."
+    )
+    return {
+        "status": "clarification_required",
+        "complete": False,
+        "block": block,
+        "answer": block.split("\n", 1)[1],
+        "gaps": [],
+        "subtotals": {},
+        "clarification": {
+            "role": role,
+            "ambiguous": bool(ambiguous),
+            "candidates": candidates[:20],
+        },
+    }
+
+
 def _render(result: Dict[str, Any]) -> str:
     file_name = result.get("file_name") or ""
     sheet = result.get("sheet") or ""
@@ -901,17 +943,46 @@ def _infer_roles(
 
 
 def _resolve_roles(
-    roles: Dict[str, str], columns: List[str]
-) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
-    """Bind required/status roles to the frame's own matching columns.
+    roles: Dict[str, str],
+    columns: List[str],
+    confirmed_roles: Optional[Dict[str, str]] = None,
+) -> Tuple[
+    Dict[str, str], Dict[str, List[str]], Dict[str, List[str]]
+]:
+    """Bind required roles to supported headers or explicit confirmation.
 
-    A model-provided role never outranks a single physical column that
-    matches that role's generic name. Multiple matches are ambiguous and
-    fail closed; no matches leave the planner's value in place.
+    Returns (roles, ambiguous, unresolved). Ambiguous/unresolved roles
+    are cleared so no total can be certified from a model proposal.
     """
     ambiguous: Dict[str, List[str]] = {}
-    for role in ("quantity_column", "price_column",
-                 "currency_column", "status_column"):
+    unresolved: Dict[str, List[str]] = {}
+    for role in ("quantity_column", "price_column", "currency_column"):
+        hints = _ROLE_HINTS.get(role, ())
+        matches = [
+            col for col in columns if _role_hint_matches(col, hints)
+        ]
+        if len(matches) == 1:
+            roles[role] = matches[0]
+            continue
+        if len(matches) > 1:
+            ambiguous[role] = matches
+            roles[role] = ""
+            continue
+        explicit = str((confirmed_roles or {}).get(role) or "").strip()
+        if explicit and explicit in columns:
+            roles[role] = explicit
+            continue
+        candidates = []
+        proposed = str(roles.get(role) or "").strip()
+        if proposed and proposed in columns:
+            candidates.append(proposed)
+        candidates.extend(
+            col for col in columns
+            if col != SHEET_ROW_COL and col not in candidates
+        )
+        unresolved[role] = candidates
+        roles[role] = ""
+    for role in ("status_column",):
         hints = _ROLE_HINTS.get(role, ())
         matches = [
             col for col in columns if _role_hint_matches(col, hints)
@@ -920,7 +991,8 @@ def _resolve_roles(
             roles[role] = matches[0]
         elif len(matches) > 1:
             ambiguous[role] = matches
-    return roles, ambiguous
+            roles[role] = ""
+    return roles, ambiguous, unresolved
 
 
 def _strip_sql_noise(sql: str) -> str:
@@ -1007,6 +1079,7 @@ async def _execute_selection_plan(
     file_name: Optional[str],
     sheet_name: Optional[str],
     max_rows: int,
+    confirmed_roles: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
     dataset_name = str(getattr(plan, "dataset_name", "") or "").strip()
     sql = str(getattr(plan, "sql", "") or "").strip().rstrip(";").strip()
@@ -1065,14 +1138,16 @@ async def _execute_selection_plan(
     # Role inference precedes the required-column SQL guard: a planner
     # that omits quantity_column must not thereby disable the guard.
     roles = _infer_roles(roles, columns)
-    roles, _ambiguous_roles = _resolve_roles(roles, columns)
+    roles, _ambiguous_roles, _unresolved_roles = _resolve_roles(
+        roles, columns, confirmed_roles)
     if _ambiguous_roles:
-        return _error_block(
-            "AMBIGUOUS ROLE COLUMN",
-            "More than one frame column matches "
-            + ", ".join(sorted(_ambiguous_roles))
-            + "; no role was chosen by name or planner order.",
-        )
+        _role = sorted(_ambiguous_roles)[0]
+        return _clarification_block(
+            _role, _ambiguous_roles[_role], ambiguous=True)
+    if _unresolved_roles:
+        _role = sorted(_unresolved_roles)[0]
+        return _clarification_block(
+            _role, _unresolved_roles[_role], ambiguous=False)
     if roles["identity_column"] in ("", SHEET_ROW_COL):
         # The planner sometimes returns __sheet_row as the identity
         # role even when it projected a real business key. Values
@@ -1384,6 +1459,7 @@ async def execute_validated_aggregate_plan(
     *,
     file_name: Optional[str] = None,
     max_rows: int = _MAX_AGGREGATE_ROWS,
+    confirmed_roles: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
     """Execute a controlled, already-validated selection plan.
 
@@ -1423,6 +1499,7 @@ async def execute_validated_aggregate_plan(
     return await _execute_selection_plan(
         entries, _types.SimpleNamespace(**plan), query,
         file_name=file_name, sheet_name=sheet_name, max_rows=max_rows,
+        confirmed_roles=confirmed_roles,
     )
 
 
@@ -1433,6 +1510,7 @@ async def aggregate_named_dataset(
     *,
     file_name: Optional[str] = None,
     max_rows: int = _MAX_AGGREGATE_ROWS,
+    confirmed_roles: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
     """Run one selection/aggregation request over the named workbook sheets.
 
@@ -1553,4 +1631,5 @@ async def aggregate_named_dataset(
     return await _execute_selection_plan(
         entries, plan, query,
         file_name=file_name, sheet_name=sheet_name, max_rows=max_rows,
+        confirmed_roles=confirmed_roles,
     )
