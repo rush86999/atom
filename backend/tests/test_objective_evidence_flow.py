@@ -2255,6 +2255,7 @@ def _review_session_and_response(message, decision_text):
     structured = {
         "requested_items": ["V-200"],
         "requested_fields": ["status", "certificate"],
+        "attempt_id": "attempt-vendor",
         "source_identity": {
             "file_name": "vendors.xlsx",
             "resource_id": "sha1:vendor",
@@ -2300,7 +2301,13 @@ def test_outcome_builder_accepts_task_defined_review_schema(monkeypatch):
     }]
     session, task, response = _review_session_and_response(
         "Assess V-200",
-        "V-200: Decision: Deny — the insurance certificate is missing.",
+        "V-200: the certificate is missing.\n\n"
+        "```review_result\n"
+        '{"assessments":[{"subject_id":"V-200","decision":"Deny",'
+        '"evidence_ids":["ev:V-200:no-row"],'
+        '"policy_ids":["vendor-policy"],'
+        '"unresolved_requirements":["insurance certificate"]}]}\n'
+        "```",
     )
     outcome = orch._build_turn_task_outcome(
         session, "go ahead", response, None, None,
@@ -2315,6 +2322,8 @@ def test_outcome_builder_accepts_task_defined_review_schema(monkeypatch):
             "content_hash": "vendor",
         }],
         "allowed_decisions": ["Approve", "Deny"],
+        "evidence_ids": ["ev:V-200:no-row"],
+        "policy_ids": ["vendor-policy"],
     }
     assert outcome["delivery"]["review_result"]["ok"] is True
     assert outcome["objective_met"] is True
@@ -2359,6 +2368,7 @@ def test_outcome_builder_keeps_order_review_as_a_regression():
     structured = {
         "requested_items": ["O-1010"],
         "requested_fields": ["status", "price", "currency"],
+        "attempt_id": "attempt-order",
         "source_identity": {
             "file_name": "orders.xlsx",
             "resource_id": "sha1:orders",
@@ -2387,7 +2397,14 @@ def test_outcome_builder_keeps_order_review_as_a_regression():
     }
     response = {
         "success": True,
-        "message": "O-1010: Recommendation: Process.",
+        "message": (
+            "O-1010: the record is complete.\n\n"
+            "```review_result\n"
+            '{"assessments":[{"subject_id":"O-1010","decision":"Process",'
+            '"evidence_ids":["ev:O-1010:no-row"],'
+            '"policy_ids":["order-policy"],'
+            '"unresolved_requirements":[]}]}\n'
+            "```"),
         "model": "glm-test",
         "data": {},
     }

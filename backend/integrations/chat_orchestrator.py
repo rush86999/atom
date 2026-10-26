@@ -9276,27 +9276,37 @@ class ChatOrchestrator:
             if _review_required:
                 try:
                     from core.review_result import (
+                        build_evidence_index,
+                        build_policy_index,
                         build_review_result,
                         render_review_result,
                     )
 
+                    _review_struct = (
+                        result.get("structured_result")
+                        if isinstance(result.get("structured_result"), dict)
+                        else {})
+                    _review_evidence_index = build_evidence_index(
+                        _review_struct)
+                    _review_policy_index = build_policy_index(
+                        _review_lessons, _review_allowed_decisions)
                     _review_contract = {
                         "subjects": list(_review_requested_records),
                         "required_evidence": [
-                            {
-                                key: ref.get(key)
-                                for key in (
-                                    "file_name", "resource_id", "content_hash")
-                                if ref.get(key)
-                            }
-                            for ref in evidence_refs
-                            if isinstance(ref, dict)
-                            and any(
-                                ref.get(key) for key in (
-                                    "file_name", "resource_id", "content_hash"))
-                        ],
+                            dict(entry.get("source_identity") or {})
+                            for entry in _review_evidence_index
+                            if entry.get("source_identity")
+                        ][:4],
                         "allowed_decisions": list(
                             _review_allowed_decisions),
+                        "evidence_ids": [
+                            entry.get("evidence_id")
+                            for entry in _review_evidence_index
+                        ],
+                        "policy_ids": [
+                            entry.get("policy_id")
+                            for entry in _review_policy_index
+                        ],
                     }
                     _review_result = build_review_result(
                         execution_id=execution_id,
@@ -9304,11 +9314,8 @@ class ChatOrchestrator:
                         requested_records=_review_requested_records,
                         answer=str(response.get("message") or ""),
                         allowed_decisions=_review_allowed_decisions,
-                        evidence_refs=evidence_refs,
-                        required_evidence=(
-                            _review_contract["required_evidence"]),
-                        policy_refs=_review_lessons,
-                        unresolved_requirements=[],
+                        evidence_index=_review_evidence_index,
+                        policy_index=_review_policy_index,
                     )
                     _review_delivered = bool(_review_result.get("ok"))
                     _review_data = response.setdefault("data", {})
@@ -25237,6 +25244,47 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _evidence_msg = {"role": "system",
                                  "content": _evidence_instruction}
                 messages.append(_evidence_msg)
+                if _review_ask:
+                    try:
+                        from core.review_result import (
+                            build_evidence_index,
+                            build_policy_index,
+                            decision_options_from_lessons,
+                            requested_subjects,
+                            review_output_instruction,
+                        )
+
+                        _review_lessons = (
+                            self._agent_lessons(agent_id, _gate_msg) or [])
+                        _allowed = decision_options_from_lessons(
+                            _review_lessons)
+                        _review_struct = (
+                            ((session.get("_pending_file_result") or {})
+                             .get("structured_result"))
+                            if isinstance(session, dict) else None
+                        ) or _turn_structured_record or {}
+                        _subjects = requested_subjects(_review_struct)
+                        _evidence_index = build_evidence_index(
+                            _review_struct)
+                        _policy_index = build_policy_index(
+                            _review_lessons, _allowed)
+                        if (_allowed and _subjects
+                                and _evidence_index and _policy_index):
+                            messages.append({
+                                "role": "system",
+                                "content": review_output_instruction(
+                                    {
+                                        "subjects": _subjects,
+                                        "allowed_decisions": _allowed,
+                                    },
+                                    _evidence_index,
+                                    _policy_index,
+                                ),
+                            })
+                    except Exception as _review_prompt_err:  # noqa: BLE001
+                        logger.debug(
+                            "[review-result] output contract skipped: %r",
+                            _review_prompt_err)
             else:
                 # TRUTHFULNESS ENVELOPE (pristine-J2 false-search finding,
                 # 2026-10-12): zero executed tool work must never become a
@@ -27623,11 +27671,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 if _review_ask:
                     try:
                         from core.review_result import (
+                            build_evidence_index,
+                            build_policy_index,
                             build_review_result,
                             decision_options_from_lessons,
-                            evidence_refs_from_structured,
                             render_review_result,
                             requested_subjects,
+                            strip_review_block,
                         )
 
                         _review_lessons = (
@@ -27640,8 +27690,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             if isinstance(session, dict) else None
                         ) or _turn_structured_record or {}
                         _subjects = requested_subjects(_review_struct)
-                        _evidence = evidence_refs_from_structured(
+                        _evidence_index = build_evidence_index(
                             _review_struct)
+                        _policy_index = build_policy_index(
+                            _review_lessons, _allowed)
                         if _allowed and _subjects:
                             _review = build_review_result(
                                 execution_id=execution_id,
@@ -27649,23 +27701,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 requested_records=_subjects,
                                 answer=str(_claimed_content or ""),
                                 allowed_decisions=_allowed,
-                                evidence_refs=_evidence,
-                                required_evidence=_evidence,
-                                policy_refs=_review_lessons,
+                                evidence_index=_evidence_index,
+                                policy_index=_policy_index,
                             )
                             response_data = dict(response_data or {})
                             response_data["review_result"] = _review
                             if _review.get("ok"):
                                 _review_block = render_review_result(_review)
-                                if (_review_block
-                                        and _review_block not in _claimed_content):
-                                    _claimed_content = (
-                                        f"{str(_claimed_content).rstrip()}"
-                                        f"\n\n{_review_block}")
-                                    response_data["content"] = (
-                                        _claimed_content)
-                                    response_data["review_summary"] = (
-                                        _review_block)
+                                _review_prose = strip_review_block(
+                                    str(_claimed_content or ""))
+                                _claimed_content = (
+                                    f"{_review_prose.rstrip()}"
+                                    f"\n\n{_review_block}")
+                                response_data["content"] = _claimed_content
+                                response_data["review_summary"] = (
+                                    _review_block)
                             else:
                                 logger.info(
                                     "[review-result] delivery not certified: %s",

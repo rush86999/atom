@@ -181,22 +181,29 @@ remains under `combined_eval_repair_20261026/` and is not overwritten.
 
 ## Task-defined review contract (domain-independent)
 
-The review completion path no longer hardcodes order vocabulary. Review
-recognition is only the generic assessment-verb shape (`assess`, `evaluate`,
-`review`, `classify`, `decide`, `determine`, `recommend`, `score`, `rank`,
-`triage`). The choices themselves come from the task's own teaching:
+The review completion path no longer hardcodes order vocabulary, and
+certification no longer comes from prose. Review recognition is only the
+generic assessment-verb shape (`assess`, `evaluate`, `review`, `classify`,
+`decide`, `determine`, `recommend`, `score`, `rank`, `triage`). The choices
+themselves come from the task's own teaching:
 
 - `POST /api/agents/{id}/teach` accepts `decision_options`; the lesson entry
   stores them.
 - A review turn builds a `review_contract` with the accepted `subjects`, the
   `required_evidence`, and the task's `allowed_decisions`.
-- `core/review_result.py` validates `assessments`, each carrying `subject_id`,
-  `decision`, `evidence_refs`, `policy_refs`, and
-  `unresolved_requirements`. It enforces execution scope, exact subject
-  coverage, allowed-decision vocabulary, required source evidence and policy
-  refs. It never decides what the decision means.
-- `record_review` consumes only that validated result. A raw read block,
-  a refusal, a wrong-subject decision, or a decision outside the task schema
+- The existing generation call is instructed once to emit a fenced
+  `review_result` block alongside its explanation. Only that structured block
+  is certified; ordinary prose — including a quoted example such as
+  `"Decision: Process"` — cannot create or override a decision.
+- `core/review_result.py` binds each assessment to the read's
+  target-to-row association. An `evidence_id` must name the SAME subject,
+  accepted source identity and accepted retrieval operation. A file/hash alone
+  does not certify a record-level assessment.
+- `policy_ids` must resolve to teaching entries carrying the task's decision
+  schema, not merely any retrieved lesson.
+- `record_review` consumes only the validated result. A raw read block, a
+  refusal, a wrong-subject evidence reference, swapped evidence, missing or
+  unknown IDs, an execution mismatch, or a decision outside the task schema
   cannot certify completion.
 - The delivered answer carries the rendered, request-bound validated block.
 
@@ -205,16 +212,18 @@ The order cases remain regressions: the order policy teaches
 with `["Approve", "Deny", "Request More Info"]` for vendor risk — no platform
 change between them.
 
-Local controls cover: valid order Process/Escalate twins; a valid vendor
-review with different decisions; wrong-record, missing-second-subject,
-refusal-containing-decision-words, missing source/policy evidence,
-execution-mismatch and out-of-schema decisions all rejected; the resumed
-review production path reaching narration rather than the raw read block.
+Local controls cover: quoted/example decision prose rejected; valid order
+Process/Escalate twins; a valid vendor review with different decisions;
+wrong-record evidence, swapped evidence between requested subjects,
+missing/unknown evidence and policy IDs, missing second subject, refusal
+containing decision words, execution mismatch and out-of-schema decisions all
+rejected; the resumed review production path reaching narration rather than
+the raw read block.
 
-The four-check behavioral evidence below was produced before this
-task-defined-contract refactor and is preserved as **scoped behavioral
-evidence**; the refactor is validated by the local controls, not by another
-broad model campaign.
+The four-check behavioral evidence below was produced before this structured
+contract refactor and is preserved as **scoped behavioral evidence**; the
+refactor is validated by the local controls, not by another broad model
+campaign.
 
 ## Tests
 
@@ -227,7 +236,7 @@ Focused suite (`test_review_result.py`,
 `test_objective_evidence_flow.py`, `test_search_outcome_contracts.py`,
 `test_acceptance_harness_integrity.py`):
 
-- Repair branch: **594 passed, 23 failed, 2 xfailed**.
+- Repair branch: **596 passed, 23 failed, 2 xfailed**.
 - Frozen baseline: **557 passed, 23 failed, 2 xfailed** (same existing
   files; the new `test_review_result.py` is repair-only).
 - The same 23 named failures exist on both sides (known refresh/cross-source

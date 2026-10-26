@@ -4787,7 +4787,14 @@ async def test_resumed_review_request_reaches_narration_not_raw_read():
     orch = _orch()
     orch.llm_service.generate_completion = AsyncMock(return_value={
         "success": True,
-        "content": "V-200: Decision: Deny — the insurance certificate is missing.",
+        "content": (
+            "V-200: the insurance certificate is missing.\n\n"
+            "```review_result\n"
+            '{"assessments":[{"subject_id":"V-200","decision":"Deny",'
+            '"evidence_ids":["ev:V-200:no-row"],'
+            '"policy_ids":["vendor-policy"],'
+            '"unresolved_requirements":["insurance certificate"]}]}\n'
+            "```"),
         "model": "m",
         "provider": "p",
     })
@@ -4800,10 +4807,27 @@ async def test_resumed_review_request_reaches_narration_not_raw_read():
     review_ask = (
         "Assess vendor V-200 against the vendor risk policy and decide "
         "approve or deny using the row values.")
+    review_structured = {
+        "requested_items": ["V-200"],
+        "attempt_id": "attempt-vendor",
+        "source_identity": {
+            "file_name": "vendors.xlsx",
+            "resource_id": "sha1:v1",
+            "content_hash": "v1",
+        },
+        "targets": [],
+    }
     session = {
         "id": "review-resume",
         "history": [],
         FILE_TASK_SESSION_KEY: build_pending_task(review_ask, "vendors.xlsx"),
+        "_pending_file_result": {
+            "status": "retrieved",
+            "execution_id": "e-review",
+            "identity": review_structured["source_identity"],
+            "structured_result": review_structured,
+            "rendered": "V-200 row",
+        },
     }
     plan = planner.ToolPlan(
         use_tool=True, service="outlook", intent="search",
@@ -4828,6 +4852,7 @@ async def test_resumed_review_request_reaches_narration_not_raw_read():
                     "read complete; narration pending"),
                 "workbook_read": {
                     "requested_items": ["V-200"],
+                    "attempt_id": "attempt-vendor",
                     "source_identity": {
                         "file_name": "vendors.xlsx",
                         "resource_id": "sha1:v1",
