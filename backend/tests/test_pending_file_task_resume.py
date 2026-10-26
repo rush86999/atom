@@ -4754,3 +4754,22 @@ async def test_bare_approval_resumes_pending_task_through_direct_read():
     assert "| 381 | FOUND |" in response["message"]
     direct_read.assert_awaited()
     assert session[FILE_TASK_SESSION_KEY]["status"] == "delivered"
+
+
+def test_terminal_task_is_not_replaced_by_bare_approval():
+    """A delivered task confirmed with "go ahead" stays the delivered task.
+
+    The post-read merge used to build a replacement task whose
+    original_message was the approval, losing the review objective and
+    recording the original only under supersedes.
+    """
+    task = build_pending_task(
+        ORIGINAL_ASK, "Consolidated Price List 2019.xlsx")
+    task["status"] = "delivered"
+    task["resolved_file"] = {"file_name": "Consolidated Price List 2019.xlsx"}
+    merged = merge_pending_task(
+        task, "go ahead", "Consolidated Price List 2019.xlsx")
+    assert merged["task_id"] == task["task_id"]
+    assert merged["original_message"] == ORIGINAL_ASK
+    assert merged["status"] == "delivered"
+    assert "supersedes" not in merged

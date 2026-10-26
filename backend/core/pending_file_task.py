@@ -513,6 +513,19 @@ def merge_pending_task(
     refresh = is_retrieval_refresh_request(message)
     was_terminal = isinstance(existing, dict) and existing.get(
         "status") in ("served", "retrieved", "delivered")
+    # A terminal task that is merely APPROVED is already answered. The
+    # delivery lane owns that turn; re-storing the approval as a new task
+    # replaces the original ask with "go ahead" and loses the objective.
+    if (was_terminal
+            and is_filename_confirmation(message)
+            and not refresh
+            and not request_extends_objective(message, existing)):
+        kept = dict(existing)
+        if (mention or "").strip():
+            kept["confirmed_mention"] = mention.strip().lower()
+        kept["attempts"] = int(kept.get("attempts") or 0) + 1
+        kept["updated_at"] = time.time()
+        return kept
     if (isinstance(existing, dict) and existing.get("original_message")
             and (existing.get("status") not in ("served", "retrieved",
                                                 "delivered") or refresh)
@@ -783,6 +796,14 @@ def request_extends_objective(
         return False
     original = str(task.get("original_message") or "").strip()
     if not original or not (message or "").strip():
+        return False
+    # A bare approval ("go ahead", "yes") confirms the stored objective; it
+    # cannot introduce new work. Keep this before the new-work scan: the
+    # scan compares the approval's empty object set with the original's
+    # objects and otherwise reads as an extension, replacing the task with
+    # the approval text and losing the original ask.
+    if (is_filename_confirmation(message)
+            and not is_retrieval_refresh_request(message)):
         return False
     try:
         if entity_set_edit(message) is not None:

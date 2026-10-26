@@ -328,6 +328,39 @@ def build_task_outcome(
         "failure_layer": failure_layer,
         "failure_owner": failure_owner,
     }
+    # DERIVE the objective verdict from the DECLARED criteria and their
+    # verified evidence. The verifier already exists; without this write the
+    # verified receipt stayed invisible to derive_success_kinds (objective
+    # unknown) and the response settled as outcome=null. Unknown evidence
+    # still stays unknown; only a concrete verifier verdict is persisted.
+    if outcome.get("objective_met") is None and outcome.get(
+            "completion_criteria"):
+        try:
+            _criteria_basis, _criteria_verdict = criteria_verdict(outcome)
+        except Exception:  # noqa: BLE001 — verifier is fail-open
+            _criteria_basis, _criteria_verdict = "criteria_unknown", None
+        if _criteria_verdict is not None:
+            outcome["objective_met"] = _criteria_verdict
+            if not outcome.get("criterion_results"):
+                _criterion_evidence = [
+                    _copy_ref(ref)
+                    for tool in outcome.get("tool_outcomes") or []
+                    if isinstance(tool, dict)
+                    for ref in tool.get("evidence_refs") or []
+                    if isinstance(ref, dict)
+                ][:8]
+                outcome["criterion_results"] = [
+                    {
+                        "criterion": str(
+                            criterion.get("kind") or "").strip(),
+                        "met": _criteria_verdict,
+                        "verifier": str(
+                            criterion.get("kind") or "").strip(),
+                        "evidence_refs": _criterion_evidence,
+                    }
+                    for criterion in outcome["completion_criteria"]
+                    if isinstance(criterion, dict) and criterion.get("kind")
+                ]
     diagnosis = diagnose_failure(outcome)
     if diagnosis is not None:
         outcome["failure"] = diagnosis

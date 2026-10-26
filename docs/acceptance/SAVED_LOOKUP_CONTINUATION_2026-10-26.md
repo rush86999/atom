@@ -14,84 +14,118 @@ a repair branch, not a deployment.
   task and reported that no search ran.
 - `metadata_dump.json` — session/message metadata for the affected sessions.
 
+## Harness correction (2026-10-26)
+
+The first evaluation harness did not match the release configuration: it set
+`CHAT_FINALIZATION_M1=0`, `CHAT_FINALIZATION_M2=0`,
+`ATOM_TASK_LIFECYCLE_ENABLED=0`, and `ATOM_DISABLE_TOOL_PLANNER=1`. The
+observed `outcome=null` therefore did not establish a settlement defect. It
+also sent a verbose "confirmation" that the production classifier correctly
+rejects because it carries substantial new instructions.
+
+The corrected control uses:
+
+- `CHAT_FINALIZATION_M1=1`
+- `CHAT_FINALIZATION_M2=1`
+- `ATOM_TASK_LIFECYCLE_ENABLED=1`
+- `ATOM_DISABLE_TOOL_PLANNER` unset
+- exactly `go ahead`, in the same session, agent, and authenticated workspace.
+
+The effective settings are captured in the evidence before the request. No
+success override or forced `outcome="completed"` is applied.
+
 ## Trace
 
-1. **Lookup proposed.** A planner-enabled broad review returned “the lookup
-   hasn’t run; it is saved” and stored `_pending_file_task` on the session
+1. **Lookup proposed.** The first planner-enabled review returns "the lookup
+   hasn't run; it is saved" and stores `_pending_file_task` on the session
    (`status=pending`, `attempts=0`).
-2. **Confirmation persisted.** The task stayed on the session and in the
-   assistant message metadata.
-3. **Follow-up resolves pending operation.** A bare “Go ahead.” was matched:
-   `attempts` became 1 and `confirmed_mention` was set. Before the fix the
-   task was stamped `operation="re-deliver"`.
-4. **First missing transition.** A `re-deliver` requires a persisted result.
-   The task was still `pending` and `_pending_file_result` was absent, so the
-   re-delivery was a no-op. The ask-turn direct read is suppressed while a
-   pending task exists, so no read dispatched. The reply honestly said the
-   lookup did not run; the task remained pending.
-5. **Fix.** `resume_operation(task, message)` maps a bare approval of a
-   still-`pending` task to `operation="re-run"`. The existing resume lane then
-   executes the original read. Both operation-stamping sites use the helper;
-   the planner is not disabled and no rows are injected into the prompt.
-6. **Verified receipt.** With the repair, the bare approval:
-   - ran `_direct_confirmed_file_read` against the pending file;
-   - marked the task `delivered`;
-   - recorded a resolved file identity
-     (`trained_eval_orders_20261025.xlsx`, content hash, coverage complete);
-   - recorded `tool_outcome: file_scoped_read`, `verified=true`,
-     `addresses_requested=true`;
-   - returned a source-cited deterministic read answer.
+2. **Confirmation accepted.** On the next turn, exactly `go ahead` matches the
+   existing confirmation contract. The task gains `attempts=1` and
+   `confirmed_mention`, and its stored original ask is preserved.
+3. **First missing transition.** The resume lane restored `_gate_msg` to the
+   original review, but `_research_turn`, `_required_research_sources`, and
+   the replan obligation were still computed from the bare approval. The
+   planner boundary therefore saw `research=False` and never dispatched a
+   read.
+4. **Fix — judge the resumed turn as the original ask.** `_research_turn` is
+   true for a resumed turn, and required-source selection, replan subject /
+   field extraction, and the obligation text all use the restored
+   `_gate_msg`. A resumed file ask admits its named file as a required
+   `datasets` / `documents` source even when no taught lesson names it.
+5. **Continuity.** `request_extends_objective` treats a bare approval as
+   confirmation, not a new objective. `merge_pending_task` keeps the original
+   ask for a still-pending task and does not replace a terminal task with the
+   bare approval; the attempt is counted and `confirmed_mention` refreshed.
+6. **Verified receipt.** The replan executes the dataset read and produces a
+   `file_scoped_read` receipt (`verified=true`, `addresses_requested=true`,
+   file name and content hash). That receipt is bound to the pending task
+   (`retrieved` → `delivered`) and to the persisted result, including the
+   current execution id.
+7. **Machine settlement.** The existing criteria verifier resolves
+   `source_scoped_retrieval` from the verified receipt. `build_task_outcome`
+   now writes that verdict into `objective_met` / `criterion_results` instead
+   of leaving them empty. The finalizer carries the execution row's
+   `task_outcome` into the envelope and maps only an explicit verdict:
+   `true → completed`, `false → failed`, unknown/absent → `null`. A failed
+   execution is never rounded to completed.
 
-## Evidence
+## Corrected control result
 
-- `lookup_resume_repair_20261026/evidence.json` — repaired run: first turn
-  stored pending; second turn delivered; task status `delivered`, attempts 1;
-  file-scoped read receipt; assistant metadata `pending_file_result` status
-  `retrieved` then `delivered`.
-- `lookup_resume_repair_20261026/evidence_run1.json` — earlier dispatch
-  attempt before the mention/direct-read changes (kept for comparison).
-- `trained_eval_ocgo_20261026/planner_failure_preserved/` — original failure.
+One-order release-config control
+(`release_control_20261026/evidence.json`):
+
+- pending task found: **true**
+- `go ahead` accepted: **true**
+- original request restored: **true**
+- planner not disabled: **true**
+- finalization M1/M2 on: **true**
+- task lifecycle on: **true**
+- read dispatched: **true**
+- receipt verified / file + hash: **true**
+- pending task delivered: **true**
+- response cites workbook: **true**
+- response `outcome`: **`completed`**
+- execution `task_outcome.objective_met`: **true**
+- `success_kinds`: `task_success=true`, `tool_success=true`,
+  `delivery_success=true`, basis `criteria_met`
+- assistant metadata outcome matches response: **true**
+- fresh history persisted: **true**
+
+The response is a genuine settlement of the verified read, not a success
+override: `objective_met` comes from the existing `criteria_verdict` and the
+envelope maps that explicit verdict.
 
 ## Tests
 
 Focused suite (`test_pending_file_task_resume.py`,
-`test_cross_source_followup_routing.py`, `test_dataset_aggregation.py`):
+`test_cross_source_followup_routing.py`, `test_dataset_aggregation.py`,
+`test_finalization_m1.py`, `test_finalization_m2.py`,
+`test_outcome_resolution.py`, `test_fallback_honesty.py`,
+`test_objective_evidence_flow.py`, `test_search_outcome_contracts.py`,
+`test_acceptance_harness_integrity.py`):
 
-- Repair branch: **301 passed, 11 failed, 2 xfailed**.
-- Frozen baseline: **296 passed, 11 failed, 2 xfailed**.
-- The 11 failures are the same named pre-existing failures. New tests cover
-  pending-approval → re-run, retrieved-approval → re-deliver, explicit re-run,
-  and the bare “Go ahead.” resume through the direct read.
+- Repair branch: **482 passed, 22 failed, 2 xfailed**.
+- Frozen baseline: **472 passed, 22 failed, 2 xfailed**.
+- The same 22 named failures exist on both sides (known refresh/cross-source
+  and objective-evidence test gaps). No new failure was introduced.
+- New tests cover bare-approval resume, `resume_operation`, terminal-task
+  merge, and the finalizer's explicit-verdict mapping (completed / failed /
+  unknown / failed-execution precedence).
 
-## Machine settlement (traced, not patched)
+## Remaining gaps and limits
 
-The repaired read response returns `success=true` but `outcome=null`. The
-persisted execution record shows:
-
-- `task_outcome.objective_met = null`
-- `completion_criteria = [{kind: "source_scoped_retrieval"}]`
-- `criterion_results = []`
-- `tool_outcomes = [file_scoped_read, verified=true, addresses_requested=true]`
-- `success_kinds.task_success = null`, basis `objective_unknown`
-- `delivery.deterministic = true`
-
-The null originates in the **resolver**, not in serialization: the resolver
-never evaluates the retrieval criterion, even though the read receipt is
-verified. It was not patched to `completed`: the read fulfils retrieval, but
-the original ask was a policy review and the deterministic projection returned
-only part of the row contract. The review obligation is not yet fulfilled.
-
-## Remaining gap
-
-- The resumed item read selected Status/Qty/Unit Price; it did not return the
-  full row contract (currency, both approvals, manager exception, notes) needed
-  for the policy review.
-- A follow-up judgment turn did not receive the persisted read result; it
-  reverted to “nothing searched”.
-- Therefore the combined evaluation — planner enabled, full workbook rows,
-  teaching applied, correction retained across restart, machine outcome and
-  history agreeing — is **not yet passed**. The prior trained-agent result
-  remains policy-conditioned recommendations and an O-1010-specific correction
-  on supplied records; it does not establish autonomous workbook review.
-- This repair is **not deployed**; the pilot is the separate `c912375de`
-  release.
+- The one-order control is green. A five-order / full-group review still
+  reaches the product's fixed turn budget (`turn_budget_exceeded`); the
+  captured `ATOM_CHAT_TURN_BUDGET_SECONDS=180` does not change the product's
+  `budget=95.0s` deadline. The full combined evaluation is therefore **not yet
+  passed**.
+- The policy basis in the one-order response is explicitly a draft: the
+  workbook was retrieved, but the policy document itself was not. Do not
+  describe the prior behavioral result — policy-conditioned recommendations
+  and the O-1010-specific correction on supplied rows — as autonomous workbook
+  retrieval. It remains a separate, prompt-supplied-rows result.
+- The spreadsheet role-clarification flow and the required-input filter
+  limitation remain disclosed; filter-language expansion was not combined
+  with role correction here.
+- This repair branch is **not deployed**. The pilot remains the separate
+  `c912375de` release; deployment is a separate boundary.

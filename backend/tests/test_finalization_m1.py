@@ -104,3 +104,93 @@ def test_m1_frozen_execution_row_maps_to_failed_outcome():
     assert result["execution_id"] == EXECUTION_ID
     assert result["success"] is False
     assert FROZEN_FAILURE in result["message"]
+
+
+def test_resolved_task_outcome_maps_to_completed():
+    """A criteria-derived verdict on the execution row settles the envelope.
+
+    The resumed file read recorded objective_met=True from a verified
+    source_scoped_retrieval receipt, but execution_record_from_row dropped
+    task_outcome and the delivered response stayed outcome=null.
+    """
+    record = execution_record_from_row(
+        {
+            "id": "persisted-row",
+            "status": "success",
+            "result_summary": "delivered",
+            "metadata_json": {"task_outcome": {"objective_met": True}},
+        },
+        EXECUTION_ID,
+    )
+
+    result = finalize_payload(
+        record,
+        {"success": True, "message": "delivered", "data": {}},
+    )
+
+    assert record["task_outcome"]["objective_met"] is True
+    assert result["outcome"] == "completed"
+    assert result["success"] is True
+
+
+def test_unresolved_task_outcome_leaves_outcome_unset():
+    """Unknown/absent criteria must stay null — never rounded to success."""
+    record = execution_record_from_row(
+        {
+            "id": "persisted-row",
+            "status": "success",
+            "result_summary": "delivered",
+            "metadata_json": {"task_outcome": {"objective_met": None}},
+        },
+        EXECUTION_ID,
+    )
+
+    result = finalize_payload(
+        record,
+        {"success": True, "message": "delivered", "data": {}},
+    )
+
+    assert "outcome" not in result
+
+
+def test_failed_task_outcome_maps_to_failed():
+    """An explicitly unmet objective is a failure, not a silent success."""
+    record = execution_record_from_row(
+        {
+            "id": "persisted-row",
+            "status": "success",
+            "result_summary": "reply delivered",
+            "metadata_json": {"task_outcome": {"objective_met": False}},
+        },
+        EXECUTION_ID,
+    )
+
+    result = finalize_payload(
+        record,
+        {"success": True, "message": "reply delivered", "data": {}},
+    )
+
+    assert result["outcome"] == "failed"
+    assert result["success"] is False
+    assert result["error_code"] == "turn_objective_not_met"
+
+
+def test_failed_execution_is_never_rounded_to_completed():
+    """A failed execution outranks a contradictory objective verdict."""
+    record = execution_record_from_row(
+        {
+            "id": "persisted-row",
+            "status": "failed",
+            "result_summary": "write failed",
+            "metadata_json": {"task_outcome": {"objective_met": True}},
+        },
+        EXECUTION_ID,
+    )
+
+    result = finalize_payload(
+        record,
+        {"success": True, "message": "", "data": {}},
+    )
+
+    assert result["success"] is False
+    assert result.get("outcome") != "completed"

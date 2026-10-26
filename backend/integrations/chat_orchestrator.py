@@ -17671,6 +17671,7 @@ class ChatOrchestrator:
                 session_id, _trace_agent_id, _execution_id,
                 "success" if response.get("success", True) else "failed",
             )
+            _bound_pfr = session.get("_pending_file_result")
             self._finish_chat_execution(
                 _execution_id,
                 "success" if response.get("success", True) else "failed",
@@ -17681,6 +17682,12 @@ class ChatOrchestrator:
                 ai_response=ai_response,
                 deadline=_deadline,
                 pending_task=_pending_file_task,
+                # A verified resumed read is THIS execution's evidence: let
+                # the existing task-outcome builder derive settlement from it
+                # instead of rebuilding an evidence-less turn.
+                allow_persisted_evidence=bool(
+                    isinstance(_bound_pfr, dict)
+                    and _bound_pfr.get("status") in ("retrieved", "delivered")),
             )
             # DELIVERED marking (retrieval != delivery, 2026-09-24): the
             # response is about to reach the user — a RETRIEVED result
@@ -22499,10 +22506,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 ToolPlan,
                 execute_tool_plan,
             )
-            _research_turn = bool(re.search(
+            _research_turn = bool(_resume_original) or bool(re.search(
                 r"\b(?:research|verify|check|compare|comparison|"
                 r"workbook|quote|pricing|price|update)\b",
-                message or "", re.IGNORECASE))
+                _gate_msg or message or "", re.IGNORECASE))
             # CALCULATION ASKS ARE NOT RESEARCH-RECOVERY TURNS (round 74):
             # an explicit calculation ask on a goal-bound session must run
             # the calculate lane — the research machinery's chained
@@ -22615,8 +22622,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # every research-shaped turn. The method's own
                     # agent_id parameter is the intended value.
                     agent_id=agent_id,
-                    message=message,
+                    # A resume turn must judge the restored original ask,
+                    # not the bare approval that resumed it.
+                    message=_gate_msg or message,
                 ) if _research_turn else set())
+            # A resumed file ask names its source directly. Taught lessons
+            # may add other required sources, but an empty lesson set must not
+            # erase the file the user asked to read.
+            if _resume_original and _plan_mentions:
+                try:
+                    from core.agent_file_context import (
+                        is_spreadsheet_task_mention,
+                    )
+
+                    _file_sources = (
+                        {"datasets"}
+                        if any(is_spreadsheet_task_mention(m)
+                               for m in _plan_mentions)
+                        else {"documents"}
+                    )
+                    _required_sources = set(_required_sources) | _file_sources
+                except Exception:  # noqa: BLE001 — additive detail
+                    pass
             _replanned_service: Optional[str] = None
             # TURN-BUDGET READ (round 34 fix): this method's clock is the
             # ``deadline`` parameter (the block previously referenced
@@ -22677,7 +22704,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
 
                             _rc_subjects = [
-                                i for i in _rc_eift(message)
+                                i for i in _rc_eift(_gate_msg or message)
                                 if i.strip()][:8]
                         except Exception:  # noqa: BLE001 — floor follows
                             _rc_subjects = []
@@ -22688,7 +22715,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
 
                             _rc_fields = [
-                                str(f) for f in (_rc_vfr([message])
+                                str(f) for f in (_rc_vfr([_gate_msg or message])
                                                  or [])][:6]
                         except Exception:  # noqa: BLE001 — optional
                             _rc_fields = []
@@ -22712,7 +22739,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         except Exception:  # noqa: BLE001 — optional
                             _rc_open = []
                         _obligation = (
-                            message
+                            (_gate_msg or message)
                             + "\n\nREQUIRED RESEARCH (prior plan "
                             "produced no executable tool). Consult the "
                             "REQUIRED SOURCES for the resolved subjects "
@@ -22773,12 +22800,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             # message slice carried conversational noise
                             # the source search then matched nothing
                             # against, 2026-10-08 owner correction 2).
+                            _required_order = list(
+                                self._required_source_order(
+                                    agent_id, _gate_msg or message))
+                            # The direct file source is required by the
+                            # restored ask even when no lesson names it.
+                            for _svc in ("datasets", "documents"):
+                                if (_svc in _required_sources
+                                        and _svc not in _required_order):
+                                    _required_order.append(_svc)
                             _fallback_svc = next(
-                                (svc for svc in (
-                                    self._required_source_order(
-                                        agent_id, message))
-                                if svc in _required_sources
-                                and svc not in _consulted_sources),
+                                (svc for svc in _required_order
+                                 if svc in _required_sources
+                                 and svc not in _consulted_sources),
                                 None)
                             if _fallback_svc:
                                 _rc_query = " ".join(
@@ -22889,6 +22923,78 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     "[planner-boundary] replan consultation "
                                     "recorded (%s; receipt=%s)",
                                     _replan.service, _rc_receipt)
+                                if _resume_original and isinstance(
+                                        session, dict):
+                                    try:
+                                        from core.pending_file_task import (
+                                            FILE_TASK_SESSION_KEY,
+                                            mark_task_delivered,
+                                            mark_task_retrieved,
+                                        )
+
+                                        _task_row = session.get(
+                                            FILE_TASK_SESSION_KEY)
+                                        if isinstance(_task_row, dict):
+                                            _rc_payload = (
+                                                _rc_meta.get(_rc_receipt)
+                                                if isinstance(_rc_meta, dict)
+                                                else {}) or {}
+                                            _identity: Dict[str, Any] = {}
+                                            _identity_sources = []
+                                            if isinstance(_rc_payload, dict):
+                                                _identity_sources.append(
+                                                    _rc_payload)
+                                                _sr_payload = _rc_payload.get(
+                                                    "structured_result")
+                                                if isinstance(
+                                                        _sr_payload, dict):
+                                                    _identity_sources.append(
+                                                        _sr_payload)
+                                            for _src in _identity_sources:
+                                                for _ik in (
+                                                        "identity",
+                                                        "source_identity",
+                                                        "file_identity"):
+                                                    _iv = _src.get(_ik)
+                                                    if isinstance(_iv, dict):
+                                                        _identity.update(_iv)
+                                            if not _identity:
+                                                _identity = {
+                                                    "file_name": (
+                                                        _task_row.get(
+                                                            "confirmed_mention")
+                                                        or _task_row.get(
+                                                            "mention"))}
+                                            _retrieved = mark_task_retrieved(
+                                                _task_row, _identity)
+                                            session[FILE_TASK_SESSION_KEY] = (
+                                                mark_task_delivered(
+                                                    _retrieved))
+                                            session["_pending_file_result"] = {
+                                                "status": "delivered",
+                                                "target_extraction_version": 3,
+                                                "rendered": _tool_block[:24000],
+                                                "identity": _identity,
+                                                "execution_id": execution_id,
+                                                "retrieved_at": time.time(),
+                                                "delivered_at": time.time(),
+                                                "structured_result": (
+                                                    _rc_payload.get(
+                                                        "structured_result")
+                                                    if isinstance(
+                                                        _rc_payload, dict)
+                                                    else None),
+                                            }
+                                            logger.info(
+                                                "[pending-file-task] replan "
+                                                "receipt bound: task "
+                                                "delivered (file=%r)",
+                                                _identity.get("file_name"))
+                                    except Exception as _bind_err:
+                                        logger.warning(
+                                            "[pending-file-task] replan "
+                                            "receipt bind failed: %r",
+                                            _bind_err)
                             elif _tool_block:
                                 logger.warning(
                                     "[planner-boundary] replan returned a "
