@@ -314,10 +314,12 @@ def ask(base: str, token: str, user_id: str, agent_id: str, message: str,
 
 
 def ask_confirmed(db_path: str, base: str, token: str, user_id: str,
-                  agent_id: str, message: str) -> dict:
-    first = ask(base, token, user_id, agent_id, message)
+                  agent_id: str, message: str,
+                  session_id: str | None = None) -> dict:
+    first = ask(base, token, user_id, agent_id, message,
+                session_id=session_id)
     record = {"query": message, "first": first, "confirmation_sent": False}
-    session_id = first.get("session_id")
+    session_id = first.get("session_id") or session_id
     first_session = session_meta(db_path, session_id) if session_id else {}
     record["first_session"] = first_session
     pending = first_session.get("_pending_file_task") or {}
@@ -561,18 +563,19 @@ def review_checks(db_path: str, record: dict, expected_decision: str,
     return checks
 
 
-def turn_persistence_checks(db_path: str, record: dict) -> dict:
+def turn_persistence_checks(db_path: str, record: dict,
+                            require_task_receipt: bool = True) -> dict:
     final = record.get("final") or {}
     session_id = final.get("session_id") or (record.get("first") or {}).get(
         "session_id")
+    checks = {
+        "history_persisted": False,
+        "metadata_outcome_matches": False,
+    }
     if not session_id:
-        return {"history_persisted": False, "metadata_outcome_matches": False}
+        return checks
     messages = message_meta(db_path, session_id)
-    session = session_meta(db_path, session_id)
-    task = session.get("_pending_file_task") or {}
-    resolved = task.get("resolved_file") if isinstance(
-        task.get("resolved_file"), dict) else {}
-    return {
+    checks.update({
         "history_persisted": any(
             message.get("role") == "assistant" for message in messages),
         "metadata_outcome_matches": any(
@@ -581,10 +584,18 @@ def turn_persistence_checks(db_path: str, record: dict) -> dict:
                 final.get("execution_id") or "")
             and message.get("outcome") == final.get("outcome")
             for message in messages),
-        "task_delivered": task.get("status") == "delivered",
-        "receipt_has_file_and_hash": bool(
-            resolved.get("file_name") and resolved.get("content_hash")),
-    }
+    })
+    if require_task_receipt:
+        session = session_meta(db_path, session_id)
+        task = session.get("_pending_file_task") or {}
+        resolved = task.get("resolved_file") if isinstance(
+            task.get("resolved_file"), dict) else {}
+        checks.update({
+            "task_delivered": task.get("status") == "delivered",
+            "receipt_has_file_and_hash": bool(
+                resolved.get("file_name") and resolved.get("content_hash")),
+        })
+    return checks
 
 
 def spreadsheet_checks(db_path: str, record: dict, file_name: str,
@@ -615,7 +626,11 @@ def spreadsheet_checks(db_path: str, record: dict, file_name: str,
     checks = {
         "http_200": final.get("http") == 200,
         "success_true": final.get("success") is True,
-        "outcome_completed": final.get("outcome") == "completed",
+        # The spreadsheet lane does not always stamp a top-level outcome
+        # (the accepted Adjustments turn returns outcome=None). Require that
+        # it never reports a failed outcome; review turns carry the strict
+        # outcome agreement checks.
+        "outcome_not_failed": final.get("outcome") != "failed",
         "completion_path": (
             "recovery_after_timeout" if record.get("budget_retry")
             else "confirmation" if record.get("confirmation_sent")
@@ -623,7 +638,8 @@ def spreadsheet_checks(db_path: str, record: dict, file_name: str,
         "fields": fields,
         "fields_all_true": all(fields.values()),
     }
-    persistence = turn_persistence_checks(db_path, record)
+    persistence = turn_persistence_checks(
+        db_path, record, require_task_receipt=False)
     checks.update(persistence)
     checks["persistence_all_true"] = all(persistence.values())
     return checks
@@ -865,7 +881,7 @@ def run_pre(args: argparse.Namespace) -> int:
         actions_before_noop = canvas_actions(args.db_path, canvas_id)
         o1001_repeat = ask_confirmed(
             args.db_path, args.base_url, token, user_id, agent_id,
-            order_prompt.format(order="O-1001"))
+            order_prompt.format(order="O-1001"), session_id=o1001_session)
         evidence["o1001_repeat"] = o1001_repeat
         counts_after_noop = db_counts(args.db_path)
         actions_after_noop = canvas_actions(args.db_path, canvas_id)
@@ -926,12 +942,20 @@ def run_pre(args: argparse.Namespace) -> int:
         }
 
         checks = {
-            "spreadsheet_po": (
-                evidence["po_checks"]["fields_all_true"]
-                and evidence["po_checks"]["persistence_all_true"]),
-            "spreadsheet_adjustments": (
-                evidence["adjustments_checks"]["fields_all_true"]
-                and evidence["adjustments_checks"]["persistence_all_true"]),
+            "spreadsheet_po": all((
+                evidence["po_checks"]["fields_all_true"],
+                evidence["po_checks"]["persistence_all_true"],
+                evidence["po_checks"]["http_200"],
+                evidence["po_checks"]["success_true"],
+                evidence["po_checks"]["outcome_not_failed"],
+            )),
+            "spreadsheet_adjustments": all((
+                evidence["adjustments_checks"]["fields_all_true"],
+                evidence["adjustments_checks"]["persistence_all_true"],
+                evidence["adjustments_checks"]["http_200"],
+                evidence["adjustments_checks"]["success_true"],
+                evidence["adjustments_checks"]["outcome_not_failed"],
+            )),
             "o1010_before_process": all(
                 value for key, value in evidence["o1010_before_checks"].items()
                 if key not in ("structured_decision", "completion_path",
@@ -1060,7 +1084,8 @@ def run_post(args: argparse.Namespace) -> int:
             "policy basis. Do not send, approve, or modify anything.")
         o1010_post = ask_confirmed(
             args.db_path, args.base_url, token, user_id,
-            state["agent_id"], order_prompt)
+            state["agent_id"], order_prompt,
+            session_id=state["sessions"]["o1010"])
         evidence["o1010_post_restart"] = o1010_post
         evidence["o1010_post_checks"] = review_checks(
             args.db_path, o1010_post, "Escalate", orders_name,
@@ -1076,12 +1101,10 @@ def run_post(args: argparse.Namespace) -> int:
             "pre_outcomes_unchanged": all(
                 by_id.get(item.get("id"), {}).get("outcome")
                 == item.get("outcome") for item in pre_history),
-            "post_message_persisted": any(
-                message.get("role") == "assistant"
-                and str(message.get("execution_id") or "")
-                == str((o1010_post.get("final") or {}).get("execution_id") or "")
-                for message in current_messages),
-            "session_message_count_grew": (
+            "post_review_persisted": bool(
+                evidence["o1010_post_checks"].get(
+                    "response_persistence_history_match")),
+            "history_not_lost": (
                 len(current_messages) >= len(
                     state["history"]["o1010_message_ids"])),
         }

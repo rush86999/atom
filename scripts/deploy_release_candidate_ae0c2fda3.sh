@@ -626,7 +626,7 @@ payload = {
     "database_restored": False,
     "published_at": run_ts,
 }
-for path in (served_file, attempt_file):
+for path in (attempt_file, served_file):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as handle:
         json.dump(payload, handle, indent=2)
