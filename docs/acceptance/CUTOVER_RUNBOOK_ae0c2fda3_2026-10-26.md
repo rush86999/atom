@@ -57,6 +57,8 @@ Preflight fails closed if any of these is false:
   `c912375de/backend`;
 - `/api/health` reports healthy, PID `33426`, that cwd, and
   `c912375de/backend/data/atom.db`;
+- the pilot's `data`, `.env`, and `venv314` links resolve exactly to the live
+  data/env/venv paths above, and its DB resolves to the verified live DB;
 - live data/env/venv and rollback config exist; live DB `quick_check` is `ok`;
 - the backup directory is writable and at least 2 GiB is free.
 

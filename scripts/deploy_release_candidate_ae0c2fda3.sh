@@ -232,6 +232,18 @@ preflight() {
     "$ROLLBACK_DIR/backend/data/atom.db" "$health" \
     || fail "pilot health identity does not match recorded pid/cwd/database"
 
+  [ "$(readlink "$ROLLBACK_DIR/backend/data")" = "$LIVE_DATA" ] \
+    || fail "pilot data link does not resolve to $LIVE_DATA"
+  [ "$(readlink "$ROLLBACK_DIR/backend/.env")" = "$LIVE_ENV" ] \
+    || fail "pilot env link does not resolve to $LIVE_ENV"
+  [ "$(readlink "$ROLLBACK_DIR/backend/venv314")" = "$LIVE_VENV" ] \
+    || fail "pilot venv link does not resolve to $LIVE_VENV"
+  [ "$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' \
+        "$ROLLBACK_DIR/backend/data/atom.db" 2>/dev/null)" \
+    = "$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' \
+        "$DB_PATH" 2>/dev/null)" ] \
+    || fail "pilot database is not the verified live database"
+
   [ "$(sqlite3 "$DB_PATH" 'PRAGMA quick_check;' 2>/dev/null)" = "ok" ] \
     || fail "live DB quick_check failed"
   [ -d "$BACKUP_DIR" ] || fail "backup directory missing: $BACKUP_DIR"
