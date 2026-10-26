@@ -10121,6 +10121,7 @@ class ChatOrchestrator:
                     matching_pending_task,
                 )
 
+
                 _stored_task = session.get(FILE_TASK_SESSION_KEY)
                 if _edit_retry is not None:
                     _stored_task = None  # the edit retry owns this turn
@@ -10205,11 +10206,11 @@ class ChatOrchestrator:
                 # search the current copy, an approval re-delivers.
                 try:
                     from core.pending_file_task import (
-                        classify_file_operation,
+                        resume_operation,
                     )
 
                     _pending_file_task["operation"] = (
-                        classify_file_operation(message))
+                        resume_operation(_pending_file_task, message))
                 except Exception as _op_err:  # noqa: BLE001 — observable,
                     # never silent: a programming defect here must not
                     # masquerade as ordinary fallback behavior (review
@@ -11653,10 +11654,11 @@ class ChatOrchestrator:
                     # upstream source check instead of silently serving
                     # the materialized copy as current.
                     from core.pending_file_task import (
-                        classify_file_operation,
+                        resume_operation,
                     )
 
-                    _ask_task["operation"] = classify_file_operation(message)
+                    _ask_task["operation"] = resume_operation(
+                        _pending_file_task, message)
                 except Exception as _ask_op_err:  # noqa: BLE001 — observable
                     logger.warning(
                         "[file-ask] operation classification failed — "

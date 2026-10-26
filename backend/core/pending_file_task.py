@@ -364,6 +364,23 @@ def classify_file_operation(message: str) -> str:
     return "read"
 
 
+def resume_operation(task: Optional[Dict[str, Any]], message: str) -> str:
+    """The operation for a continuation turn against a stored task.
+
+    A bare approval re-delivers only when a completed result exists. A task
+    still in ``pending`` has no persisted result; stamping it ``re-deliver``
+    is a no-op, so the read never dispatches. Resume it as a re-run instead.
+    """
+    operation = classify_file_operation(message)
+    if (
+        operation == "re-deliver"
+        and isinstance(task, dict)
+        and str(task.get("status") or "").strip().lower() == "pending"
+    ):
+        return "re-run"
+    return operation
+
+
 def is_source_refresh_request(message: str) -> bool:
     """A SOURCE-freshness request: the upstream version must be checked
     and updated content retrieved — stronger than re-running the copy."""

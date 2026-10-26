@@ -44,6 +44,7 @@ from core.pending_file_task import (
     is_filename_confirmation,
     matching_pending_task,
     merge_pending_task,
+    resume_operation,
 )
 
 
@@ -4661,3 +4662,95 @@ class TestEmptyItemReads:
         ds.append_event(ds.OBJECTIVE_SET, cid,
                         {"items": ["381", "U-22"], "file": "f.xlsx"})
         assert ds.active_objective_items(cid) == ["381", "U-22"]
+
+
+def test_pending_approval_resumes_as_rerun_not_redeliver():
+    """A task with no retrieved result cannot be re-delivered.
+
+    Live failure (2026-10-26): the pending task was matched on a bare
+    "Go ahead.", stamped operation="re-deliver", and the read never
+    dispatched because there was no persisted result to re-deliver.
+    """
+    task = build_pending_task(
+        ORIGINAL_ASK, "Consolidated Price List 2019.xlsx")
+    assert task["status"] == "pending"
+    assert resume_operation(task, "Go ahead.") == "re-run"
+
+
+def test_retrieved_approval_stays_redeliver():
+    task = build_pending_task(
+        ORIGINAL_ASK, "Consolidated Price List 2019.xlsx")
+    task["status"] = "retrieved"
+    assert resume_operation(task, "Go ahead.") == "re-deliver"
+
+
+def test_explicit_rerun_stays_rerun_for_any_status():
+    task = build_pending_task(
+        ORIGINAL_ASK, "Consolidated Price List 2019.xlsx")
+    for status in ("pending", "retrieved", "delivered"):
+        task["status"] = status
+        assert resume_operation(task, "Search the workbook again.") == "re-run"
+
+
+def test_no_pending_task_keeps_classifier_operation():
+    assert resume_operation(None, "Go ahead.") == "re-deliver"
+
+
+@pytest.mark.asyncio
+async def test_bare_approval_resumes_pending_task_through_direct_read():
+    """The exact 2026-10-26 failure: "Go ahead." on a pending task.
+
+    The approval names no file, so the pending task's mention must carry the
+    read. The task has no persisted result; it must be re-run, not stamped
+    as a no-op re-delivery.
+    """
+    orch = _orch()
+    session = {
+        "id": "s-bare-approval",
+        "history": [],
+        FILE_TASK_SESSION_KEY: build_pending_task(
+            ORIGINAL_ASK, "consolidated price list 2019.xlsx"
+        ),
+    }
+    rendered = (
+        "Workbook read: Consolidated Price List 2019.xlsx\n"
+        "| 381 | FOUND | Sheet1!A1 R1 [basis=U.S. LIST; currency=unspecified] |"
+    )
+    direct = {
+        "ok": True,
+        "block": rendered,
+        "rendered_answer": rendered,
+        "identity": {
+            "file_id": "r1",
+            "resource_id": "r1",
+            "file_name": "Consolidated Price List 2019.xlsx",
+            "identity_verified": True,
+            "coverage_complete": True,
+        },
+        "meta": {
+            "workbook_read": {"coverage": {"complete": True}},
+            "completed": True,
+            "identity_verified": True,
+            "coverage_complete": True,
+        },
+        "retrieval_complete": True,
+    }
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_start_chat_execution", return_value="exec-bare"),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            return_value=direct)) as direct_read,
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("planner must not run"))),
+    ):
+        response = await orch.process_chat_message(
+            "u1", "Go ahead.", session_id="s-bare-approval", context={}
+        )
+
+    assert response["success"] is True
+    assert "| 381 | FOUND |" in response["message"]
+    direct_read.assert_awaited()
+    assert session[FILE_TASK_SESSION_KEY]["status"] == "delivered"
