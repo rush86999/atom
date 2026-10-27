@@ -1,4 +1,4 @@
-# Supported capabilities — release `414384512`
+# Supported capabilities — release `40a55b283`
 
 **Published:** 2026-10-26
 **Scope:** limited launch use. This statement is the product boundary for this

@@ -1,8 +1,8 @@
-# Release candidate `414384512` — launch-blocker repair and freeze
+# Release candidate `40a55b283` — launch-blocker repair and freeze
 
 **Prepared:** 2026-10-26
 **Predecessor:** `ae0c2fda3` (third attempt failed product smoke; rolled back)
-**Commit:** `4143845121be254c251e70d814fb76e5ab13a77c`
+**Commit:** `40a55b2831be254c251e70d814fb76e5ab13a77c`
 **Status:** code frozen; packaged smoke and isolated rehearsal pending.
 
 ## Launch promise (frozen for this release)
@@ -179,3 +179,12 @@ without Process/Escalate options settles as an ordinary sourced answer.
 - Repeated reviews reuse a validated assessment only when subjects, fields,
   source version, teaching revision and decision schema are unchanged.
 - Stage timings are recorded; no deadline widening or provider rotation.
+
+### Focused-review delta
+
+- The resolved review state is written into `_recorded_outcome` and the
+  session so the M1 route finalizer consumes the same result.
+- Reused assessments are rebound to the new delivery execution; the original
+  read execution remains in source evidence.
+- Repeat reuse requires the current message's subjects/fields to match and
+  uses `validated_contract`; a failed revalidation clears the prior review.
