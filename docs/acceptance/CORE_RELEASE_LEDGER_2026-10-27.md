@@ -2,7 +2,7 @@
 
 Candidate: `f5f3148d24351217b20e4994fe7602131f8ae220` (tree `d5804aed4be4a920a2c6067c253efc7f89cc539f`), branch `whole-app/successor-f5f`.
 
-Generated: 2026-10-27T22:23:52.617382+00:00
+Generated: 2026-10-27T23:01:58.475676+00:00
 
 Supersedes `WHOLE_APP_READINESS_LEDGER_2026-10-27` for launch scope. The whole-app ledger remains history. Product decision: `docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md`.
 
@@ -18,7 +18,7 @@ Machine-readable source: `docs/acceptance/CORE_RELEASE_LEDGER_2026-10-27.json`.
 | not_authorized | 1 |
 | partial | 12 |
 | unproven | 2 |
-| verified | 41 |
+| verified | 42 |
 
 **Core release ready: no.** The core surface is configured and browser-enforced, and the domain-independent calculation/decision contracts pass. The trained-employee loop, deliverable formats and the production build remain open; deferred surfaces are an explicit product decision, not failures.
 
@@ -125,10 +125,11 @@ Machine-readable source: `docs/acceptance/CORE_RELEASE_LEDGER_2026-10-27.json`.
 | CR-006 | trained-agent | Accept codes, references and human labels as review subjects; no fixed ID regex | **verified** | — | — |
 | CR-007 | data | Upload an .eml file and preserve participants, date, subject, body and attachment names | **partial** | The .eml upload has not been exercised through the browser and a durable document row on this successor. | Upload a representative .eml through Data, search its body, and reload. |
 | CR-008 | trained-agent | Teach through chat or the canvas Training tab; inspect, edit and delete teaching points; keep global/goal scope | **partial** | The click path through the Training tab was not exercised; the API teach path and restart persistence were. | Run the same teach/correct/delete actions through the rendered UI. |
-| CR-009 | trained-agent | Teach through the UI, run an unfamiliar task, inspect deliverable/sources, correct, run a different task, restart, verify scoped persistence | **failed** | The lesson persisted across restart, and the assessment now delivers only the deterministic source rows, but no validated decision table was produced; the turn is honestly failed rather than completed. | Bind the model's task-defined decisions to the deterministic subjects, validate them with build_review_result, render the final table from the validated components, then repeat teach -> unfamiliar task -> correct -> different task -> restart. |
+| CR-009 | trained-agent | Teach through the UI, run an unfamiliar task, inspect deliverable/sources, correct, run a different task, restart, verify scoped persistence | **failed** | A validated three-row decision table was produced once (assessment_structurally_valid_wrong_judgment.json), but GR-2026-033 (4800) was labeled FUND while the newest correction says DECLINE; a later run produced no valid block. Teaching is stored and reaches generation, but the judgment does not reliably follow the correction. | Bind the model's task-defined decisions to the deterministic subjects, validate them with build_review_result, render the final table from the validated components, then repeat teach -> unfamiliar task -> correct -> different task -> restart. |
 | CR-012 | calculation | When a deterministic file read computes rows, the delivered answer must cite those rows and not a model-written table that contradicts them | **verified** | — | — |
 | CR-013 | calculation | List named columns for rows matching a condition in a named table (list Application Ref and Requested Amount for Submitted rows) | **verified** | — | Promote after the browser UI check of the same ask. |
-| CR-014 | trained-agent | Use deterministic subjects/facts, accept only task-defined decisions from the model, validate subject/evidence/policy references and render the final table | **partial** | The model produced no review block that validated against the deterministic subjects; the decision table is not delivered. | Prompt/structured-output path that emits the review contract, validate it, then render the decision table from validated components. |
+| CR-014 | trained-agent | Use deterministic subjects/facts, accept only task-defined decisions from the model, validate subject/evidence/policy references and render the final table | **partial** | Judgment quality: GR-2026-033 (4800) was labeled FUND, contradicting the newest taught correction (below 5000 = DECLINE). A later generation emitted no valid block. | Make the newest policy authoritative in generation (e.g. a single current policy) and rerun; the structural pipeline is green. |
+| CR-016 | trained-agent | Selection -> structured review artifact -> one generation -> subject/evidence/policy validation -> table joined to authoritative rows | **verified** | — | — |
 | CR-015 | calculation | A selection turn completes only with a bound source, resolved columns, predicate, row references and delivery | **verified** | — | — |
 | CR-010 | workspace | Produce and reopen an email draft, document, calculated table and presentation in Workspace | **partial** | No browser deliverable check for email/presentation on this successor. | Create one of each in Workspace, reopen after reload and verify content survives. |
 | CR-011 | release | Build the shipping frontend and run the core browser breadth against that build | **verified** | — | — |

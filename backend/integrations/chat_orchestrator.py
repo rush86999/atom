@@ -13325,19 +13325,27 @@ class ChatOrchestrator:
                                 else "turn_objective_not_met"),
                         }
                         if _ask_review_ask:
-                            if _ask_result.get("table_selection"):
-                                # DETERMINISTIC EVIDENCE OWNS THE TABLE.
-                                # A review without a validated assessment
-                                # ships the selected rows and says plainly
-                                # that no decision was accepted; the model's
-                                # unvalidated table is not delivered.
+                            _selection_review = (
+                                _ask_result.get("selection_review")
+                                if _ask_result.get("table_selection")
+                                else None)
+                            if (_ask_result.get("table_selection")
+                                    and not (_selection_review or {}).get("ok")):
+                                # The deterministic rows exist, but they
+                                # cannot be turned into subject-bound review
+                                # evidence (ambiguous/blank subject mapping).
+                                # Deliver the rows and name the exact reason.
+                                _review_reason = str(
+                                    (_selection_review or {}).get("reason")
+                                    or "selection_review_artifact_unavailable")
                                 _review_blocked_message = (
                                     _ask_content
                                     + "\n\nAssessment not delivered: the "
-                                      "decision table was not validated "
-                                      "against these selected rows, so no "
-                                      "decision was accepted. The rows above "
-                                      "are the deterministic source evidence.")
+                                      "selected rows could not be mapped to "
+                                      "review subjects (" + _review_reason
+                                    + "), so no decision was accepted. The "
+                                      "rows above are the deterministic "
+                                      "source evidence.")
                                 _review_blocked_response = dict(_ask_response)
                                 _review_blocked_response.update({
                                     "success": False,
@@ -13349,6 +13357,7 @@ class ChatOrchestrator:
                                         "table_selection": _ask_result.get(
                                             "selection_record"),
                                         "review_blocked": True,
+                                        "review_block_reason": _review_reason,
                                     },
                                 })
                                 self._update_session(
@@ -13371,19 +13380,75 @@ class ChatOrchestrator:
                                     authorized_actions=["read"],
                                 )
                                 logger.info(
-                                    "[file-ask] review ask — deterministic "
-                                    "rows delivered; unvalidated decision "
-                                    "table withheld")
+                                    "[file-ask] review ask — evidence-only "
+                                    "failure (%s)", _review_reason)
                                 return _review_blocked_response
-                            # A review ask is evidence, not the answer: keep
-                            # the read for narration and retain the review
-                            # contract instead of shipping the row block.
-                            _review_objective_hint = str(
-                                _ask_task.get("original_message") or message)
-                            _prefetched_review_block = _ask_content
-                            logger.info(
-                                "[file-ask] review ask — read staged for "
-                                "narration; deterministic read withheld")
+                            if _ask_result.get("table_selection"):
+                                # Stage the validated rows as the SAME review
+                                # artifact the narration path consumes, then
+                                # continue into structured-review generation.
+                                _sel_subjects = list(
+                                    _ask_result.get("selection_subjects")
+                                    or [])
+                                _sel_identity = dict(
+                                    (_ask_result.get("selection_review") or {})
+                                    .get("source_identity") or {})
+                                _turn_structured_record = (
+                                    _ask_result.get("structured_result"))
+                                _sel_task = (
+                                    dict(_pending_file_task)
+                                    if isinstance(_pending_file_task, dict)
+                                    else {
+                                        "mention": str(
+                                            _ask_mention or
+                                            _sel_identity.get(
+                                                "file_name") or ""),
+                                        "original_message": str(
+                                            _ask_task.get("original_message")
+                                            or message),
+                                        "status": "pending",
+                                    })
+                                _sel_task["requested_targets"] = list(
+                                    _sel_subjects)
+                                _sel_task["operation"] = "table_select"
+                                if _sel_identity:
+                                    _sel_task["resolved_file"] = dict(
+                                        _sel_identity)
+                                session[FILE_TASK_SESSION_KEY] = _sel_task
+                                session["_pending_file_task"] = _sel_task
+                                _pending_file_task = _sel_task
+                                if _sel_identity:
+                                    session["_resolved_file_identity"] = (
+                                        _sel_identity)
+                                session["_pending_file_result"] = {
+                                    "status": "retrieved",
+                                    "execution_id": _execution_id,
+                                    "source_execution_id": _execution_id,
+                                    "identity": dict(_sel_identity),
+                                    "structured_result": (
+                                        _ask_result.get("structured_result")),
+                                    "evidence_index": list(
+                                        _ask_result.get("evidence_index")
+                                        or []),
+                                    "rendered": _ask_content,
+                                    "original_request": str(
+                                        _ask_task.get("original_message")
+                                        or message),
+                                    "table_selection": _ask_result.get(
+                                        "selection_record"),
+                                }
+                                _review_objective_hint = str(
+                                    _ask_task.get("original_message")
+                                    or message)
+                                _prefetched_review_block = _ask_content
+                                logger.info(
+                                    "[file-ask] review ask — %d validated "
+                                    "rows staged for structured review "
+                                    "(subjects=%d)",
+                                    len(_ask_result.get("selection_record")
+                                        .get("rows") or []),
+                                    len(_sel_subjects))
+
                         else:
                             self._update_session(
                                 session, message, _ask_response,
@@ -19976,6 +20041,46 @@ class ChatOrchestrator:
             "formula_reference": bool(meta.get("formula_reference")),
             "reason": "" if block else "file-scoped reader returned no result",
         }
+        _selection_review = None
+        if isinstance(_selection_record, dict):
+            try:
+                from core.table_selection import (
+                    build_selection_review_artifact as _build_sel_review,
+                )
+
+                _selection_review = _build_sel_review(
+                    _selection_record, execution_id=execution_id)
+                if _selection_review.get("ok"):
+                    result["structured_result"] = _selection_review[
+                        "structured_result"]
+                    result["evidence_index"] = _selection_review[
+                        "evidence_index"]
+                    result["selection_subjects"] = _selection_review[
+                        "subjects"]
+                    result["selection_subject_column"] = _selection_review[
+                        "subject_column"]
+                    meta["structured_result"] = _selection_review[
+                        "structured_result"]
+                    meta["selection_subjects"] = _selection_review[
+                        "subjects"]
+                    logger.info(
+                        "[table-select] review artifact built "
+                        "(subjects=%d, evidence=%d)",
+                        len(_selection_review["subjects"]),
+                        len(_selection_review["evidence_index"]))
+                else:
+                    logger.info(
+                        "[table-select] review artifact not built: %s",
+                        _selection_review.get("reason"))
+                result["selection_review"] = _selection_review
+            except Exception as _sel_review_err:  # noqa: BLE001
+                logger.warning(
+                    "[table-select] review artifact error: %r",
+                    _sel_review_err)
+                result["selection_review"] = {
+                    "ok": False, "reason": "artifact_error",
+                    "detail": str(_sel_review_err)[:300]}
+
         _requested_operation = str(
             (pending_task or {}).get("operation") or "")
         _program_kind = str(
@@ -26760,6 +26865,31 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _subjects = list(
                         _review_accepted.get("subjects") or [])
                     if not _subjects:
+                        # The deterministic read's targets ARE the accepted
+                        # subject set when the objective did not enumerate
+                        # them ("assess each submitted application").
+                        _subject_sources = [
+                            _turn_structured_record,
+                            ((_review_pending or {}).get(
+                                "structured_result")
+                             if isinstance(_review_pending, dict)
+                             else None),
+                        ]
+                        for _subject_source in _subject_sources:
+                            if not isinstance(_subject_source, dict):
+                                continue
+                            _subjects = [
+                                str(target.get("item"))
+                                for target in (
+                                    _subject_source.get("targets") or [])
+                                if isinstance(target, dict)
+                                and str(target.get("item") or "").strip()
+                            ]
+                            if _subjects:
+                                _review_accepted["subjects"] = list(
+                                    _subjects)
+                                break
+                    if not _subjects:
                         _subjects = [
                             str(item) for item in (
                                 (_review_task_row or {}).get(
@@ -26867,6 +26997,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "the review prompt")
                     _policy_index = build_policy_index(
                         _review_lessons, _allowed)
+                    logger.info(
+                        "[review-result] gate review_ask=%s subjects=%d "
+                        "allowed=%s evidence=%d policy=%d structured=%s",
+                        _review_ask, len(_subjects), _allowed,
+                        len(_evidence_index), len(_policy_index),
+                        bool(_review_struct))
                     if (_allowed and _subjects
                             and _evidence_index and _policy_index):
                         messages.append({
@@ -26884,6 +27020,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             ),
                         })
                         _review_contract_active = True
+                        logger.info(
+                            "[review-diag] generation_started subjects=%d "
+                            "evidence_ids=%s policy_ids=%s",
+                            len(_subjects),
+                            [entry.get("evidence_id")
+                             for entry in _evidence_index],
+                            [entry.get("policy_id")
+                             for entry in _policy_index])
                 except Exception as _review_prompt_err:  # noqa: BLE001
                     logger.debug(
                         "[review-result] output contract skipped: %r",
@@ -29250,6 +29394,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     async_continuation_forked,
                     execution_id=execution_id,
                 )
+                logger.info(
+                    "[review-diag] generation_completed content_len=%d "
+                    "review_ask=%s",
+                    len(str(_claimed_content or "")), _review_ask)
+                logger.debug(
+                    "[review-result] outer validation reached ask=%s "
+                    "content_len=%d contract=%s",
+                    _review_ask, len(str(_claimed_content or "")),
+                    _review_contract_active)
                 if _review_ask:
                     _review_validate_t0 = time.monotonic()
                     try:
@@ -29306,6 +29459,42 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     "source_version") or ""),
                             lessons=_review_lessons,
                         )
+                        _subjects = list(
+                            _review_accepted.get("subjects") or [])
+                        if not _subjects:
+                            for _src in (
+                                    _turn_structured_record,
+                                    (_review_pending.get(
+                                        "structured_result")
+                                     if isinstance(
+                                         _review_pending, dict) else None)):
+                                if not isinstance(_src, dict):
+                                    continue
+                                _subjects = [
+                                    str(t.get("item"))
+                                    for t in (_src.get("targets") or [])
+                                    if isinstance(t, dict)
+                                    and str(t.get("item") or "").strip()]
+                                if _subjects:
+                                    _review_accepted["subjects"] = list(
+                                        _subjects)
+                                    break
+                        if not _subjects:
+                            _subjects = [
+                                str(item) for item in (
+                                    (_review_task_row or {}).get(
+                                        "requested_targets") or [])
+                                if str(item or "").strip()]
+                        logger.info(
+                            "[review-result] validation state "
+                            "subjects=%d pending_keys=%s struct_targets=%d",
+                            len(_subjects),
+                            sorted((_review_pending or {}).keys())
+                            if isinstance(_review_pending, dict) else None,
+                            len(((_review_pending or {}).get(
+                                "structured_result") or {}).get(
+                                    "targets") or [])
+                            if isinstance(_review_pending, dict) else 0)
                         _subjects = list(
                             _review_accepted.get("subjects") or [])
                         if not _subjects:
@@ -29411,6 +29600,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "for the assessment")
                         _policy_index = build_policy_index(
                             _review_lessons, _allowed)
+                        logger.info(
+                            "[review-result] validating allowed=%s "
+                            "subjects=%d evidence=%d policy=%d pending=%s",
+                            _allowed, len(_subjects),
+                            len(_evidence_index), len(_policy_index),
+                            isinstance(_review_pending, dict))
                         if _allowed and _subjects:
                             _review = build_review_result(
                                 execution_id=execution_id,
@@ -29477,17 +29672,53 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _review_prose = strip_review_block(
                                 str(_claimed_content or ""))
                             if _review.get("ok"):
+                                from core.review_result import (
+                                    render_assessment_table as _render_assess,
+                                )
+
+                                _review_table = _render_assess(
+                                    _review, _review_struct
+                                    if isinstance(_review_struct, dict)
+                                    else {})
                                 _review_block = render_review_result(_review)
                                 _claimed_content = (
-                                    f"{_review_prose.rstrip()}"
+                                    (f"{_review_table}\n\n"
+                                     if _review_table else "")
+                                    + f"{_review_prose.rstrip()}"
                                     f"\n\n{_review_block}")
                                 response_data["review_summary"] = (
                                     _review_block)
+                                response_data["structured_result"] = (
+                                    _review_struct if isinstance(
+                                        _review_struct, dict) else None)
+                                response_data["table_selection"] = (
+                                    (_review_pending or {}).get(
+                                        "table_selection")
+                                    if isinstance(_review_pending, dict)
+                                    else None)
+                                response_data["deterministic_delivery"] = True
+                                response_data["coverage_complete"] = True
                             else:
+                                # DETERMINISTIC ROWS OWN THE FACTUAL TABLE.
+                                # An unvalidated assessment does not get to
+                                # deliver the model's table; ship the
+                                # source rows and say no decision was
+                                # accepted. Rejected text stays private.
+                                _review_det_table = ""
+                                if isinstance(_review_pending, dict):
+                                    _review_det_table = str(
+                                        _review_pending.get("rendered")
+                                        or "")
                                 _claimed_content = (
-                                    _review_prose.rstrip()
-                                    or "I couldn't complete the requested "
-                                       "review.")
+                                    (f"{_review_det_table.rstrip()}\n\n"
+                                     if _review_det_table else "")
+                                    + "Assessment not delivered: the "
+                                      "proposed decision table was not "
+                                      "validated against the selected "
+                                      "subjects and evidence, so no "
+                                      "decision was accepted.")
+                                response_data["review_errors"] = list(
+                                    _review.get("errors") or [])
                                 logger.info(
                                     "[review-result] delivery not certified: %s",
                                     _review.get("errors"))
@@ -29517,6 +29748,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "review_contract": (
                         response_data.get("review_contract")
                         if isinstance(response_data, dict) else None),
+                    "structured_result": (
+                        response_data.get("structured_result")
+                        if isinstance(response_data, dict) else None),
+                    "table_selection": (
+                        response_data.get("table_selection")
+                        if isinstance(response_data, dict) else None),
+                    "deterministic_delivery": bool(
+                        (response_data or {}).get(
+                            "deterministic_delivery")),
                     "review_required": bool(_review_contract_active),
                 }
 

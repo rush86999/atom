@@ -129,12 +129,22 @@ The shared **table-selection operation** is now implemented and verified:
   predicate and row references; an unknown file yields `success=false` with
   no table (`selection_missing_file_guard.json`).
 
-The trained-employee loop still **fails at the assessment step**: the lesson
-persists across restart, a correction was taught and listed alongside it, and
-the assessment now delivers only the deterministic source rows. But the
-model's decision table did not validate against those subjects, so no decision
-was accepted. That is recorded as CR-009 (failed) and CR-014 (partial), not
-rounded up. The earlier fabricated `Roper-011`,
+The assessment pipeline is now wired through the existing review machinery:
+validated selection rows are adapted into a structured review artifact
+(subjects, row references, source identity/version, evidence index), one
+generation receives the task-defined decisions + evidence/policy IDs, and the
+final table is rendered from validated assessments joined to authoritative
+rows. Response, persisted row and fresh history agree on one run, and a
+malformed model block delivers the deterministic rows with no accepted
+decision.
+
+The trained-employee loop still **fails at judgment quality**: in the one
+structurally valid run, GR-2026-033 (4800) was labeled FUND although the
+newest taught correction says below 5000 = DECLINE; a later generation emitted
+no valid block and was safely rejected. That is recorded as CR-009 (failed)
+and CR-014 (partial), not rounded up. The structural pipeline is CR-016
+(verified); judgment that reliably follows the current correction remains the
+next repair. The earlier fabricated `Roper-011`,
 `Tennsmith-001`, `GL001` and `GL002` attempts remain preserved as history.
 
 Not yet claimed: a validated assessment decision table, the full teach →

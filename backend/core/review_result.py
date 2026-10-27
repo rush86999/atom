@@ -39,7 +39,7 @@ _IDENTITY_KEYS = ("file_name", "resource_id", "content_hash")
 REVIEW_BLOCK_LANGUAGE = "review_result"
 _REVIEW_BLOCK_RE = re.compile(
     r"```(?:review_result|review-result|json:review_result)\s*"
-    r"(\{.*?\})\s*```",
+    r"(\{.*\})\s*```",
     re.DOTALL | re.IGNORECASE,
 )
 
@@ -432,8 +432,9 @@ def review_output_instruction(
     ]
     required_actions = _as_text_list(contract.get("required_actions"))
     return (
-        "REVIEW OUTPUT CONTRACT. After your normal explanation, include "
-        "exactly one fenced block:\n"
+        "REVIEW OUTPUT CONTRACT. Return ONLY one fenced block with valid "
+        "JSON; no prose before or after it. The outer JSON object MUST have "
+        "its closing brace.\n"
         "```review_result\n"
         '{"assessments":[{"subject_id":"<subject>","decision":"<allowed '
         'decision>","basis":["<why this decision was made>"],'
@@ -442,7 +443,10 @@ def review_output_instruction(
         "```\n"
         "Only the structured block is certified; the prose is explanatory. "
         "Use one assessment for every requested subject, use only the IDs "
-        "listed here, and do not add subjects.\n"
+        "listed here, and do not add subjects. Every assessment MUST set "
+        "`decision` to exactly one allowed label below — not null, not an "
+        "empty string, and not a request to confirm; produce the final "
+        "decisions now.\n"
         "`basis` is WHY you made the decision: the policy, a business "
         "restriction, a negative finding, or an action required of another "
         "person. `unresolved_requirements` is ONLY accepted review work "
@@ -794,6 +798,72 @@ def align_review_failure(
     return True
 
 
+def render_assessment_table(
+    review: Dict[str, Any], structured: Dict[str, Any],
+) -> str:
+    """Render validated decisions joined to authoritative source rows.
+
+    Every selected subject must have both an assessment and a bound target
+    row; otherwise the table is withheld (the model cannot add/remove
+    membership). Values come from the structured read targets, never from
+    model prose.
+    """
+    if (not isinstance(review, dict) or review.get("ok") is not True
+            or not isinstance(structured, dict)):
+        return ""
+    subject_column = str(structured.get("subject_column") or "Subject")
+    fields = [str(f) for f in (structured.get("requested_fields") or [])]
+    subjects = [str(s) for s in (structured.get("requested_items") or [])]
+    targets = {
+        _record_key(t.get("item")): t
+        for t in (structured.get("targets") or [])
+        if isinstance(t, dict) and _clean(t.get("item"))
+    }
+    assessments = {
+        _record_key(a.get("subject_id")): a
+        for a in (review.get("assessments") or [])
+        if isinstance(a, dict) and _clean(a.get("subject_id"))
+    }
+    rows = []
+    for subject in subjects:
+        key = _record_key(subject)
+        target = targets.get(key)
+        assessment = assessments.get(key)
+        if not target or not assessment:
+            return ""
+        candidates = ((target.get("identity") or {}).get("candidates") or [])
+        if not candidates or not isinstance(candidates[0], dict):
+            return ""
+        values = {
+            str(v.get("field")): v.get("value")
+            for v in (candidates[0].get("values") or [])
+            if isinstance(v, dict) and v.get("field")
+        }
+        rows.append((subject, values, _clean(assessment.get("decision"))))
+    if not rows:
+        return ""
+    header = [subject_column] + fields + ["Decision"]
+    lines = [
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join(
+            "---" if i in (0, len(header) - 1) else "---:"
+            for i in range(len(header))
+        ) + " |",
+    ]
+    for subject, values, decision in rows:
+        cells = [subject] + [
+            "" if values.get(f) is None else str(values.get(f))
+            for f in fields
+        ] + [decision]
+        lines.append("| " + " | ".join(cells) + " |")
+    lines.append("")
+    lines.append(
+        "Source: " + str(
+            ((structured.get("source_identity") or {}).get("file_name"))
+            or "") + " · rows from the bound selection")
+    return "\n".join(lines)
+
+
 def render_review_result(review: Dict[str, Any]) -> str:
     """Render the validated decision block from the structured result."""
     if not isinstance(review, dict) or review.get("ok") is not True:
@@ -801,7 +871,7 @@ def render_review_result(review: Dict[str, Any]) -> str:
     lines = ["VALIDATED REVIEW (request-bound):"]
     for assessment in review.get("assessments") or []:
         subject = assessment.get("subject_id")
-        value = _clean(assessment.get("decision")).title()
+        value = _clean(assessment.get("decision"))
         lines.append(f"- {subject}: Decision: {value}")
         evidence = assessment.get("evidence_refs") or []
         if evidence:

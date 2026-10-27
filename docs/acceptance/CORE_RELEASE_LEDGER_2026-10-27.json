@@ -1,7 +1,7 @@
 {
   "schema_version": "core-release-1",
   "title": "Atom core-release readiness ledger \u2014 2026-10-27",
-  "generated_at": "2026-10-27T22:23:52.617382+00:00",
+  "generated_at": "2026-10-27T23:01:58.475676+00:00",
   "supersedes": "WHOLE_APP_READINESS_LEDGER_2026-10-27",
   "decision": "docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md",
   "candidate": {
@@ -35,7 +35,7 @@
     "deferred_scope": "Excluded from the core release by the 2026-10-27 product decision; code and data retained."
   },
   "summary": {
-    "total": 106,
+    "total": 107,
     "by_status": {
       "deferred_scope": 47,
       "environment_limited": 2,
@@ -43,14 +43,14 @@
       "not_authorized": 1,
       "partial": 12,
       "unproven": 2,
-      "verified": 41
+      "verified": 42
     },
     "core_statuses": {
       "environment_limited": 2,
       "failed": 1,
       "partial": 12,
       "unproven": 2,
-      "verified": 41
+      "verified": 42
     },
     "deferred_items": 47,
     "core_release_ready": false,
@@ -2203,7 +2203,7 @@
           "detail": "the four grant rows the answer should have cited"
         }
       ],
-      "first_failed_transition": "The lesson persisted across restart, and the assessment now delivers only the deterministic source rows, but no validated decision table was produced; the turn is honestly failed rather than completed.",
+      "first_failed_transition": "A validated three-row decision table was produced once (assessment_structurally_valid_wrong_judgment.json), but GR-2026-033 (4800) was labeled FUND while the newest correction says DECLINE; a later run produced no valid block. Teaching is stored and reaches generation, but the judgment does not reliably follow the correction.",
       "next_action": "Bind the model's task-defined decisions to the deterministic subjects, validate them with build_review_result, render the final table from the validated components, then repeat teach -> unfamiliar task -> correct -> different task -> restart.",
       "blocking": true,
       "notes": "The turn was correctly marked failed, so the platform did not claim success; the user-visible table is still misleading. This is the core acceptance gate and it is NOT met."
@@ -2284,19 +2284,54 @@
       "evidence": [
         {
           "kind": "api",
-          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assess_final.json",
-          "detail": "deterministic rows delivered; unvalidated decision table withheld; success=false"
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_structurally_valid_wrong_judgment.json",
+          "detail": "one generation, 3 subjects, validated table (HOLD/HOLD/FUND), response+history completed; GR-2026-033 4800 was FUND while the correction says DECLINE"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_malformed_safe_failure.json",
+          "detail": "next generation emitted no valid block; deterministic rows delivered, no decisions, success=false"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_history_after_restart.json",
+          "detail": "green run persisted with the table and outcome=completed after restart"
         },
         {
           "kind": "test",
-          "path": "backend/tests/test_core_domain_independence.py",
-          "detail": "task-defined decisions and subject/evidence/policy contracts pass for three domains"
+          "path": "backend/tests/test_table_selection.py",
+          "detail": "artifact mapping, ambiguous subject clarification, valid/invalid review variants, table join, teaching revision"
         }
       ],
-      "first_failed_transition": "The model produced no review block that validated against the deterministic subjects; the decision table is not delivered.",
-      "next_action": "Prompt/structured-output path that emits the review contract, validate it, then render the decision table from validated components.",
+      "first_failed_transition": "Judgment quality: GR-2026-033 (4800) was labeled FUND, contradicting the newest taught correction (below 5000 = DECLINE). A later generation emitted no valid block.",
+      "next_action": "Make the newest policy authoritative in generation (e.g. a single current policy) and rerun; the structural pipeline is green.",
       "blocking": true,
-      "notes": "This is the remaining step for the defining trained-employee loop."
+      "notes": "The table is evidence-bound and validated; the judgment is not yet reliably applying the correction."
+    },
+    {
+      "id": "CR-016",
+      "area": "trained-agent",
+      "feature": "Structured review pipeline",
+      "action": "Selection -> structured review artifact -> one generation -> subject/evidence/policy validation -> table joined to authoritative rows",
+      "candidate_bound": true,
+      "config": "isolated world + local Ollama",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_structurally_valid_wrong_judgment.json",
+          "detail": "generation started/completed once; 3 subjects; evidence IDs ev:...R2/R3/R4; two policy IDs; validation ok"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_history_after_restart.json",
+          "detail": "response, persisted row and fresh history agree (success=true, outcome=completed, table present)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Validation certifies subject coverage/evidence/policy/decision labels, not the substantive correctness of a decision."
     },
     {
       "id": "CR-015",

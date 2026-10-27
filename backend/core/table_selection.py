@@ -588,3 +588,166 @@ def select_named_dataset(
     result["block"] = render_selection_block(result, source)
     result["answer"] = render_selection(result, source)
     return result
+
+
+_SUBJECT_HINTS = (
+    "id", "identifier", "ref", "reference", "code", "number", "no",
+    "key", "name", "subject", "ticket", "case", "application",
+)
+
+
+def _looks_code_like(value: Any) -> bool:
+    text = str(value or "").strip()
+    if not text:
+        return False
+    if re.search(r"[A-Za-z].*\d|\d.*[A-Za-z]", text):
+        return True
+    return "-" in text or "_" in text
+
+
+def resolve_subject_column(
+    columns: Sequence[str], rows: Sequence[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Resolve the accepted subject identifier from the bound rows.
+
+    Never assumes the first column. Header semantics plus value shape score
+    the candidates; a tie is a clarification, not a guess.
+    """
+    scored: List[Tuple[int, str]] = []
+    for column in columns:
+        values = [
+            (row.get("cells") or {}).get(column) for row in rows
+        ]
+        non_null = [v for v in values if v is not None and str(v).strip()]
+        if not non_null:
+            continue
+        unique = len({str(v) for v in non_null}) == len(non_null)
+        code_like = any(_looks_code_like(v) for v in non_null)
+        textual = any(any(ch.isalpha() for ch in str(v)) for v in non_null)
+        hint = any(
+            h in normalize(column).split() for h in _SUBJECT_HINTS
+        )
+        score = int(hint) * 4 + int(code_like) * 3 + int(unique) * 2 + int(textual)
+        scored.append((score, column))
+    if not scored:
+        return {"ok": False, "reason": "no_subject_candidates", "candidates": []}
+    scored.sort(key=lambda item: -item[0])
+    top = scored[0][0]
+    tied = [column for score, column in scored if score == top]
+    if len(tied) > 1:
+        return {"ok": False, "reason": "ambiguous_subject_column",
+                "candidates": tied}
+    return {"ok": True, "column": scored[0][1], "candidates": []}
+
+
+def build_selection_review_artifact(
+    selection: Dict[str, Any], *, execution_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Adapt a validated selection into the existing review artifact.
+
+    Reuses build_structured_record/build_evidence_index. Source identity,
+    row references and selection membership come from the receipt; nothing
+    is reconstructed from rendered Markdown. Ambiguous subject mapping is a
+    clarification.
+    """
+    if not isinstance(selection, dict) or selection.get("status") != "complete":
+        return {"ok": False, "reason": "selection_not_complete"}
+    columns = list(selection.get("columns") or [])
+    rows = list(selection.get("rows") or [])
+    if not columns or not rows:
+        return {"ok": False, "reason": "selection_has_no_rows"}
+    identity = resolve_subject_column(columns, rows)
+    if not identity.get("ok"):
+        return {
+            "ok": False,
+            "reason": identity.get("reason"),
+            "subject_candidates": identity.get("candidates") or [],
+        }
+    subject_column = identity["column"]
+    subjects = []
+    for row in rows:
+        subject = (row.get("cells") or {}).get(subject_column)
+        text = str(subject or "").strip()
+        if not text:
+            return {"ok": False, "reason": "blank_subject",
+                    "row": row.get("row")}
+        if text in subjects:
+            return {"ok": False, "reason": "duplicate_subject",
+                    "subject": text}
+        subjects.append(text)
+    source = dict(selection.get("source") or {})
+    file_name = str(source.get("file_name") or "")
+    content_hash = str(source.get("content_hash") or "")
+    sheet = str(source.get("sheet") or "")
+    if not file_name or not content_hash:
+        return {"ok": False, "reason": "selection_source_unbound"}
+    fact_columns = [c for c in columns if c != subject_column]
+    targets = []
+    for row in rows:
+        cells = row.get("cells") or {}
+        subject = str(cells.get(subject_column) or "").strip()
+        values = [
+            {"field": column, "value": cells.get(column)}
+            for column in fact_columns
+        ]
+        targets.append({
+            "item": subject,
+            "status": "matched",
+            "identity": {
+                "status": "matched",
+                "candidates": [{
+                    "ref": f"{sheet}!R{row.get('row')}",
+                    "row": row.get("row"),
+                    "values": values,
+                }],
+            },
+        })
+    try:
+        from core.answer_presentation import build_structured_record
+        from core.review_result import build_evidence_index
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "reason": "review_artifact_import_failed",
+                "detail": str(exc)}
+    structured = build_structured_record(
+        source_identity={
+            "file_name": file_name,
+            "service": "datasets",
+            "source": source.get("source"),
+            "resource_id": source.get("resource_id") or content_hash,
+            "content_hash": content_hash,
+            "ingested_at": source.get("ingested_at"),
+            "source_modified_at": source.get("source_modified_at"),
+            "live_vs_saved": "saved copy",
+            "evidence_kind": "materialized_copy",
+        },
+        evidence_revision=(
+            f"{content_hash}:{source.get('ingested_at') or '?'}"),
+        attempt_id=f"select:{content_hash[:12]}:{execution_id or 'turn'}",
+        evidence_action="new_read",
+        requested_items=list(subjects),
+        requested_fields=list(fact_columns),
+        targets=targets,
+        coverage={
+            "selected_count": len(rows),
+            "source_row_count": source.get("source_row_count"),
+            "complete": True,
+            "predicate": selection.get("predicate"),
+            "selection": True,
+        },
+        requested_sheets=[sheet] if sheet else None,
+    )
+    structured["source_execution_id"] = str(execution_id or "")
+    structured["subject_column"] = subject_column
+    evidence_index = build_evidence_index(structured, subjects=subjects)
+    if not evidence_index:
+        return {"ok": False, "reason": "no_subject_bound_evidence"}
+    return {
+        "ok": True,
+        "reason": "",
+        "subject_column": subject_column,
+        "subjects": subjects,
+        "structured_result": structured,
+        "evidence_index": evidence_index,
+        "source_identity": dict(structured.get("source_identity") or {}),
+        "table_selection": selection,
+    }

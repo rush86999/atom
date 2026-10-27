@@ -260,3 +260,162 @@ def test_selection_response_contract_rejects_model_tables():
     assert selection_response_ok(ask, {"table_selection": good}) is True
     # Non-selection asks are outside this contract.
     assert selection_response_ok("find GR-2026-014", {}) is True
+
+
+def _artifact(tmp_path, ask="List Application Ref and Requested Amount for Submitted rows."):
+    from core.table_selection import build_selection_review_artifact
+
+    entry = _grants(tmp_path)
+    selection = select_named_dataset([entry], ask + " in grants_loop.csv.")
+    assert selection["status"] == "complete"
+    artifact = build_selection_review_artifact(selection, execution_id="exec-1")
+    return selection, artifact
+
+
+def test_selection_review_artifact_maps_subjects_and_evidence(tmp_path):
+    selection, artifact = _artifact(tmp_path)
+    assert artifact["ok"] is True
+    assert artifact["subject_column"] == "Application Ref"
+    assert artifact["subjects"] == ["GR-2026-014", "GR-2026-021", "GR-2026-033"]
+    structured = artifact["structured_result"]
+    assert structured["source_identity"]["file_name"] == "grants_loop.csv"
+    assert structured["source_identity"]["content_hash"] == "hash-grants_loop"
+    assert structured["requested_sheets"] == ["grants_loop"]
+    targets = {t["item"]: t for t in structured["targets"]}
+    assert targets["GR-2026-014"]["identity"]["candidates"][0]["ref"] == (
+        "grants_loop!R2")
+    evidence_ids = [e["evidence_id"] for e in artifact["evidence_index"]]
+    assert evidence_ids == [
+        "ev:GR-2026-014:grants_loop!R2",
+        "ev:GR-2026-021:grants_loop!R3",
+        "ev:GR-2026-033:grants_loop!R4",
+    ]
+    assert all(e["source_identity"]["content_hash"] == "hash-grants_loop"
+               for e in artifact["evidence_index"])
+    assert artifact["table_selection"] is selection
+
+
+def test_ambiguous_subject_mapping_requires_clarification(tmp_path):
+    from core.table_selection import (
+        build_selection_review_artifact,
+        select_named_dataset,
+    )
+
+    entry = _entry(tmp_path, pd.DataFrame([
+        {"Grant Ref": "GR-1", "Case Ref": "C-1", "Amount": 10,
+         "__sheet_row": 2},
+        {"Grant Ref": "GR-2", "Case Ref": "C-2", "Amount": 20,
+         "__sheet_row": 3},
+    ]), "amb", "amb.csv")
+    selection = select_named_dataset(
+        [entry], "list the rows for Approvals in amb.csv")
+    if selection["status"] == "complete":
+        artifact = build_selection_review_artifact(selection)
+        assert artifact["ok"] is False
+        assert artifact["reason"] == "ambiguous_subject_column"
+        assert set(artifact["subject_candidates"]) == {"Grant Ref", "Case Ref"}
+
+
+def _valid_review(artifact, decisions):
+    from core.review_result import build_policy_index, build_review_result
+
+    evidence = artifact["evidence_index"]
+    policy = build_policy_index([{
+        "id": "L1", "topic": "thresholds", "lesson": "taught rule",
+        "decision_options": ["FUND", "HOLD", "DECLINE"],
+    }], ["FUND", "HOLD", "DECLINE"])
+    assessments = []
+    for index, subject in enumerate(artifact["subjects"]):
+        assessments.append({
+            "subject_id": subject,
+            "decision": decisions[index],
+            "evidence_ids": [evidence[index]["evidence_id"]],
+            "policy_ids": ["L1"],
+            "unresolved_requirements": [],
+        })
+    import json
+
+    answer = (
+        "Assessed from the bound rows.\n```review_result\n"
+        + json.dumps({"assessments": assessments}) + "\n```")
+    return build_review_result(
+        execution_id="exec-1",
+        requested_records=artifact["subjects"],
+        answer=answer,
+        allowed_decisions=["FUND", "HOLD", "DECLINE"],
+        evidence_index=evidence,
+        policy_index=policy,
+    )
+
+
+def test_assessment_table_joins_validated_decisions(tmp_path):
+    from core.review_result import render_assessment_table
+
+    _, artifact = _artifact(tmp_path)
+    review = _valid_review(artifact, ["FUND", "HOLD", "DECLINE"])
+    assert review["ok"] is True
+    table = render_assessment_table(review, artifact["structured_result"])
+    assert "| Application Ref | Requested Amount | Decision |" in table
+    assert "| GR-2026-014 | 12000 | FUND |" in table
+    assert "| GR-2026-021 | 7000 | HOLD |" in table
+    assert "| GR-2026-033 | 4800 | DECLINE |" in table
+    assert "GR-2026-040" not in table
+
+
+@pytest.mark.parametrize("variant", [
+    "missing_block", "wrong_subject", "swapped_evidence", "unknown_policy",
+])
+def test_invalid_assessment_variants_withhold_decisions(tmp_path, variant):
+    import json
+
+    from core.review_result import build_review_result, render_assessment_table
+
+    selection, artifact = _artifact(tmp_path)
+    evidence = artifact["evidence_index"]
+    assessments = [
+        {"subject_id": "GR-2026-014", "decision": "FUND",
+         "evidence_ids": [evidence[0]["evidence_id"]],
+         "policy_ids": ["L1"], "unresolved_requirements": []},
+        {"subject_id": "GR-2026-021", "decision": "HOLD",
+         "evidence_ids": [evidence[1]["evidence_id"]],
+         "policy_ids": ["L1"], "unresolved_requirements": []},
+        {"subject_id": "GR-2026-033", "decision": "DECLINE",
+         "evidence_ids": [evidence[2]["evidence_id"]],
+         "policy_ids": ["L1"], "unresolved_requirements": []},
+    ]
+    if variant == "wrong_subject":
+        assessments[0]["subject_id"] = "Roper-011"
+    elif variant == "swapped_evidence":
+        assessments[0]["evidence_ids"] = [evidence[1]["evidence_id"]]
+        assessments[1]["evidence_ids"] = [evidence[0]["evidence_id"]]
+    elif variant == "unknown_policy":
+        assessments[0]["policy_ids"] = ["policy-does-not-exist"]
+    answer = "Assessment.\n"
+    if variant != "missing_block":
+        answer += ("```review_result\n"
+                   + json.dumps({"assessments": assessments}) + "\n```")
+    review = build_review_result(
+        execution_id="exec-1",
+        requested_records=artifact["subjects"],
+        answer=answer,
+        allowed_decisions=["FUND", "HOLD", "DECLINE"],
+        evidence_index=evidence,
+        policy_index=[{"policy_id": "L1", "topic": "thresholds",
+                       "lesson": "taught rule"}],
+    )
+    assert review["ok"] is False
+    assert render_assessment_table(review, artifact["structured_result"]) == ""
+    # The deterministic source rows remain available independently.
+    assert selection["rows"]
+
+
+def test_changed_teaching_is_not_reused(tmp_path):
+    from core.review_contract import same_contract_inputs
+
+    old = {"subjects": ["A"], "requested_fields": ["Amount"],
+           "source_version": "hash", "teaching_revision": "r1",
+           "decision_schema": ["FUND", "HOLD", "DECLINE"],
+           "required_actions": []}
+    new = dict(old, teaching_revision="r2")
+    assert same_contract_inputs(old, old) is True
+    assert same_contract_inputs(old, new) is False
