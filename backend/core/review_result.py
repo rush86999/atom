@@ -241,10 +241,9 @@ def review_completion(
     ]
     if not assessments:
         return "incomplete"
-    for assessment in assessments:
-        work = _assessment_work(assessment, contract)
-        if work.get("accepted") or work.get("uncertain"):
-            return "partial"
+    # An accepted action that Atom did not perform is a hard incomplete
+    # outcome, even when the model also reported it as unresolved work.
+    # Check it before the softer accepted-gap/uncertainty classification.
     required_actions = required_action_texts(contract)
     if not required_actions:
         required_actions = _as_text_list(review_result.get("required_actions"))
@@ -253,6 +252,10 @@ def review_completion(
     for action in required_actions:
         if not _mentions_requirement(action, receipts):
             return "incomplete"
+    for assessment in assessments:
+        work = _assessment_work(assessment, contract)
+        if work.get("accepted") or work.get("uncertain"):
+            return "partial"
     return "completed"
 
 

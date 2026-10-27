@@ -229,6 +229,24 @@ def test_requested_send_without_action_receipt_is_incomplete():
     assert _resolve(completed) == (True, "completed", None)
 
 
+def test_requested_action_reported_unresolved_is_incomplete():
+    objective = (
+        ORDER_PROMPT.format(order="O-1010")
+        + " Also send the escalation to the manager."
+    )
+    contract = _contract(objective)
+    review = _build(
+        contract,
+        [_assessment(
+            "Escalate",
+            basis=["Known restriction applies."],
+            unresolved=["send the escalation to the manager"],
+        )],
+    )
+    assert review["completion"] == "incomplete"
+    assert _resolve(review) == (False, "failed", "turn_objective_not_met")
+
+
 def test_unrelated_existing_obligation_is_preserved_and_ignored():
     review = _build(_contract(), [_assessment()])
     unrelated = [{"text": "previous unrelated obligation", "scope": "other"}]

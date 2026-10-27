@@ -10752,17 +10752,35 @@ class ChatOrchestrator:
                                         "delivered": not _reuse_incomplete,
                                     },
                                 }
-                                _pfr["status"] = "delivered"
-                                _pfr["delivered_at"] = time.time()
                                 _reuse_task_row = session.get(
                                     FILE_TASK_SESSION_KEY)
-                                if isinstance(_reuse_task_row, dict):
-                                    from core.pending_file_task import (
-                                        mark_task_delivered,
-                                    )
+                                if _reuse_incomplete:
+                                    # An unperformed accepted action is not a
+                                    # delivered review. Keep the read/task
+                                    # recoverable instead of recording a
+                                    # failed turn as delivered.
+                                    _pfr["status"] = "retrieved"
+                                    _pfr.pop("delivered_at", None)
+                                    if isinstance(_reuse_task_row, dict):
+                                        from core.pending_file_task import (
+                                            mark_task_retrieved,
+                                        )
 
-                                    session[FILE_TASK_SESSION_KEY] = (
-                                        mark_task_delivered(_reuse_task_row))
+                                        session[FILE_TASK_SESSION_KEY] = (
+                                            mark_task_retrieved(
+                                                _reuse_task_row,
+                                                _pfr.get("identity")))
+                                else:
+                                    _pfr["status"] = "delivered"
+                                    _pfr["delivered_at"] = time.time()
+                                    if isinstance(_reuse_task_row, dict):
+                                        from core.pending_file_task import (
+                                            mark_task_delivered,
+                                        )
+
+                                        session[FILE_TASK_SESSION_KEY] = (
+                                            mark_task_delivered(
+                                                _reuse_task_row))
                                 _reuse_status = (
                                     "failed" if _reuse_incomplete
                                     else "success")
@@ -13922,6 +13940,8 @@ class ChatOrchestrator:
                         ):
                             _review_task["resolved_file"] = dict(
                                 _review_identity)
+                        _review_task["retrieval_finished"] = True
+                        _review_task["answer_delivered"] = False
                         _review_task = mark_task_retrieved(
                             _review_task, _review_identity)
                         try:
