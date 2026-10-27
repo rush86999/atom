@@ -1,7 +1,7 @@
 {
   "schema_version": "core-release-1",
   "title": "Atom core-release readiness ledger \u2014 2026-10-27",
-  "generated_at": "2026-10-27T21:01:44.897548+00:00",
+  "generated_at": "2026-10-27T21:03:48.461526+00:00",
   "supersedes": "WHOLE_APP_READINESS_LEDGER_2026-10-27",
   "decision": "docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md",
   "candidate": {
@@ -2190,7 +2190,12 @@
         {
           "kind": "api",
           "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/task2.json",
-          "detail": "sourced assessment turn labeled grants_loop.csv but listed Roper-011/Tennsmith-001 rows from another workbook; outcome failed"
+          "detail": "attempt 1: labeled grants_loop.csv but listed Roper-011/Tennsmith-001 rows from another workbook; outcome failed"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/task2_attempt2.json",
+          "detail": "attempt 2 after removing the implicit price field: still invented GL001/GL002 rows, never bound the four real grant rows; outcome failed"
         },
         {
           "kind": "fixture",
@@ -2198,7 +2203,7 @@
           "detail": "the four grant rows the answer should have cited"
         }
       ],
-      "first_failed_transition": "The unfamiliar-task answer claimed to read grants_loop.csv but named rows that do not exist in that file (Roper-011, Tennsmith-001); the deterministic block and the model narration disagree.",
+      "first_failed_transition": "Twice the unfamiliar-task answer claimed to read grants_loop.csv but named rows that do not exist in that file (Roper-011/Tennsmith-001, then GL001/GL002); the four real rows were never bound to the reply.",
       "next_action": "Make the deterministic result authoritative over model narration, then repeat teach -> unfamiliar task -> correct -> different task -> restart.",
       "blocking": true,
       "notes": "The turn was correctly marked failed, so the platform did not claim success; the user-visible table is still misleading. This is the core acceptance gate and it is NOT met."

@@ -2,7 +2,7 @@
 
 Candidate: `f5f3148d24351217b20e4994fe7602131f8ae220` (tree `d5804aed4be4a920a2c6067c253efc7f89cc539f`), branch `whole-app/successor-f5f`.
 
-Generated: 2026-10-27T21:01:44.897548+00:00
+Generated: 2026-10-27T21:03:48.461526+00:00
 
 Supersedes `WHOLE_APP_READINESS_LEDGER_2026-10-27` for launch scope. The whole-app ledger remains history. Product decision: `docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md`.
 
@@ -125,7 +125,7 @@ Machine-readable source: `docs/acceptance/CORE_RELEASE_LEDGER_2026-10-27.json`.
 | CR-006 | trained-agent | Accept codes, references and human labels as review subjects; no fixed ID regex | **verified** | — | — |
 | CR-007 | data | Upload an .eml file and preserve participants, date, subject, body and attachment names | **partial** | The .eml upload has not been exercised through the browser and a durable document row on this successor. | Upload a representative .eml through Data, search its body, and reload. |
 | CR-008 | trained-agent | Teach through chat or the canvas Training tab; inspect, edit and delete teaching points; keep global/goal scope | **partial** | The click path through the Training tab was not exercised; the API teach path and restart persistence were. | Run the same teach/correct/delete actions through the rendered UI. |
-| CR-009 | trained-agent | Teach through the UI, run an unfamiliar task, inspect deliverable/sources, correct, run a different task, restart, verify scoped persistence | **failed** | The unfamiliar-task answer claimed to read grants_loop.csv but named rows that do not exist in that file (Roper-011, Tennsmith-001); the deterministic block and the model narration disagree. | Make the deterministic result authoritative over model narration, then repeat teach -> unfamiliar task -> correct -> different task -> restart. |
+| CR-009 | trained-agent | Teach through the UI, run an unfamiliar task, inspect deliverable/sources, correct, run a different task, restart, verify scoped persistence | **failed** | Twice the unfamiliar-task answer claimed to read grants_loop.csv but named rows that do not exist in that file (Roper-011/Tennsmith-001, then GL001/GL002); the four real rows were never bound to the reply. | Make the deterministic result authoritative over model narration, then repeat teach -> unfamiliar task -> correct -> different task -> restart. |
 | CR-012 | calculation | When a deterministic file read computes rows, the delivered answer must cite those rows and not a model-written table that contradicts them | **failed** | The reply block preferred the model's narration table over the deterministic contributing rows. | Prefer the deterministic rendered answer (or validate the model table against it) before delivery; regression-test with a wrong-model table. |
 | CR-010 | workspace | Produce and reopen an email draft, document, calculated table and presentation in Workspace | **partial** | No browser deliverable check for email/presentation on this successor. | Create one of each in Workspace, reopen after reload and verify content survives. |
 | CR-011 | release | Build the shipping frontend and run the core browser breadth against that build | **verified** | — | — |

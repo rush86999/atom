@@ -6812,7 +6812,11 @@ def _build_workbook_structured_record(
         attempt_id=attempt_id,
         evidence_action=evidence_action,
         requested_items=resolved,
-        requested_fields=list(field_requests or ["price"]),
+        # No implicit "price" field. A general workspace must not turn every
+        # workbook read into a price lookup; an assessment whose fields the
+        # alias extractor does not know keeps the whole matched row instead
+        # of inventing a price column.
+        requested_fields=list(field_requests or []),
         requested_sheets=list(requested_sheets or []),
         requested_sheets_sources=dict(scope_sources or {}),
         targets=targets,

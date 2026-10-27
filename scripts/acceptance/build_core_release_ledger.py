@@ -211,10 +211,11 @@ def main() -> None:
             "evidence": [
                 {"kind": "api", "path": f"{EVIDENCE}/core_loop_attempt1/agent.json", "detail": "Record Auditor created as STUDENT"},
                 {"kind": "api", "path": f"{EVIDENCE}/core_loop_attempt1/lessons_after_restart.json", "detail": "grant-threshold lesson persisted across a backend restart"},
-                {"kind": "api", "path": f"{EVIDENCE}/core_loop_attempt1/task2.json", "detail": "sourced assessment turn labeled grants_loop.csv but listed Roper-011/Tennsmith-001 rows from another workbook; outcome failed"},
+                {"kind": "api", "path": f"{EVIDENCE}/core_loop_attempt1/task2.json", "detail": "attempt 1: labeled grants_loop.csv but listed Roper-011/Tennsmith-001 rows from another workbook; outcome failed"},
+                {"kind": "api", "path": f"{EVIDENCE}/core_loop_attempt1/task2_attempt2.json", "detail": "attempt 2 after removing the implicit price field: still invented GL001/GL002 rows, never bound the four real grant rows; outcome failed"},
                 {"kind": "fixture", "path": f"{EVIDENCE}/core_loop_attempt1/grants_loop.csv", "detail": "the four grant rows the answer should have cited"},
             ],
-            "first_failed_transition": "The unfamiliar-task answer claimed to read grants_loop.csv but named rows that do not exist in that file (Roper-011, Tennsmith-001); the deterministic block and the model narration disagree.",
+            "first_failed_transition": "Twice the unfamiliar-task answer claimed to read grants_loop.csv but named rows that do not exist in that file (Roper-011/Tennsmith-001, then GL001/GL002); the four real rows were never bound to the reply.",
             "next_action": "Make the deterministic result authoritative over model narration, then repeat teach -> unfamiliar task -> correct -> different task -> restart.",
             "blocking": True,
             "notes": "The turn was correctly marked failed, so the platform did not claim success; the user-visible table is still misleading. This is the core acceptance gate and it is NOT met.",
