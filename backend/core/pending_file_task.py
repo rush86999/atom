@@ -28,7 +28,7 @@ import os
 import re
 import time
 import uuid
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -435,6 +435,67 @@ def build_pending_task(
         "updated_at": now,
         **({"disambiguation": dict(disambiguation)} if disambiguation else {}),
     }
+
+
+def require_original_objective(
+    task: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Fail closed when a task row has lost the accepted request.
+
+    A retrieved task without its objective cannot rebuild the review contract
+    or resume assessment; callers must restore it from the accepted request
+    before advancing state.
+    """
+    if (
+        not isinstance(task, dict)
+        or not str(task.get("original_message") or "").strip()
+    ):
+        raise ValueError("pending file task has no accepted objective")
+    return task
+
+
+def build_task_from_accepted_request(
+    original_message: str,
+    mention: str = "",
+    *,
+    requested_targets: Optional[Sequence[Any]] = None,
+    requested_fields: Optional[Sequence[Any]] = None,
+    accepted_contract: Optional[Dict[str, Any]] = None,
+    agent_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    existing_task: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Create or restore a task from the ACCEPTED request.
+
+    Existing identity (task_id/status/attempts/resolved_file) is preserved.
+    An existing non-empty objective always wins; callers on a later
+    confirmation pass the restored objective, never the bare ``go ahead``.
+    """
+    task = dict(existing_task) if isinstance(existing_task, dict) else (
+        build_pending_task(original_message, mention))
+    if not str(task.get("original_message") or "").strip():
+        task["original_message"] = str(original_message or "").strip()
+    if not str(task.get("mention") or "").strip() and mention:
+        task["mention"] = str(mention).strip().lower()
+    if requested_targets and not task.get("requested_targets"):
+        task["requested_targets"] = [
+            str(item) for item in requested_targets if str(item).strip()]
+    if requested_fields and not task.get("requested_fields"):
+        task["requested_fields"] = [
+            str(item) for item in requested_fields if str(item).strip()]
+    if accepted_contract and not task.get("accepted_contract"):
+        task["accepted_contract"] = dict(accepted_contract)
+    if agent_id and not task.get("agent_id"):
+        task["agent_id"] = str(agent_id)
+    if workspace_id and not task.get("workspace_id"):
+        task["workspace_id"] = str(workspace_id)
+    if not task.get("task_id"):
+        task["task_id"] = uuid.uuid4().hex
+    task.setdefault("created_at", time.time())
+    task.setdefault("updated_at", time.time())
+    task.setdefault("status", "pending")
+    task.setdefault("attempts", 0)
+    return task
 
 
 def mark_task_retrieved(

@@ -13059,6 +13059,23 @@ class ChatOrchestrator:
                         inherit=session.get(
                             "_superseded_file_task_context"),
                     )
+                    _ask_stored = self._accepted_file_task(
+                        session,
+                        original_message=str(
+                            (locals().get("_ask_task") or {}).get(
+                                "original_message")
+                            or message or ""),
+                        mention=str(
+                            (_ask_identity or {}).get("file_name")
+                            or _ask_mention or ""),
+                        requested_targets=(
+                            (locals().get("_ask_task") or {}).get(
+                                "requested_targets")),
+                        identity=_ask_identity,
+                        agent_id=(context or {}).get("agent_id"),
+                        workspace_id=(context or {}).get("workspace_id"),
+                        existing_task=_ask_stored,
+                    )
                     _ask_stored = settle_retrieval_task(
                         _ask_stored,
                         _ask_identity,
@@ -13879,38 +13896,55 @@ class ChatOrchestrator:
                             mark_task_retrieved,
                         )
 
-                        _review_task = session.get(FILE_TASK_SESSION_KEY)
-                        if isinstance(_review_task, dict):
-                            _review_task = dict(_review_task)
-                            if (
-                                not _review_task.get("resolved_file")
-                                and isinstance(_review_identity, dict)
-                            ):
-                                _review_task["resolved_file"] = dict(
-                                    _review_identity)
-                            _review_task = mark_task_retrieved(
-                                _review_task, _review_identity)
-                            try:
-                                from core.source_requirements import (
-                                    attach_source_requirements,
-                                )
+                        _review_task = self._accepted_file_task(
+                            session,
+                            original_message=str(
+                                (locals().get("_direct_task") or {}).get(
+                                    "original_message")
+                                or (_pending_file_task or {}).get(
+                                    "original_message")
+                                or _review_objective_hint
+                                or message or ""),
+                            mention=str(
+                                (_review_identity or {}).get(
+                                    "file_name") or ""),
+                            requested_targets=(
+                                (locals().get("_direct_task") or {}).get(
+                                    "requested_targets")),
+                            identity=_review_identity,
+                            agent_id=(context or {}).get("agent_id"),
+                            workspace_id=(context or {}).get(
+                                "workspace_id"),
+                        )
+                        if (
+                            not _review_task.get("resolved_file")
+                            and isinstance(_review_identity, dict)
+                        ):
+                            _review_task["resolved_file"] = dict(
+                                _review_identity)
+                        _review_task = mark_task_retrieved(
+                            _review_task, _review_identity)
+                        try:
+                            from core.source_requirements import (
+                                attach_source_requirements,
+                            )
 
-                                _review_source_diag = (
-                                    self._source_requirement_diagnostic(
-                                        agent_id=(context or {}).get(
-                                            "agent_id"),
-                                        message=str(
-                                            _review_task.get(
-                                                "original_message")
-                                            or message),
-                                        accepted_task=_review_task,
-                                    ))
-                                _review_task = attach_source_requirements(
-                                    _review_task, _review_source_diag
-                                ) or _review_task
-                            except Exception:  # noqa: BLE001 — additive
-                                pass
-                            session[FILE_TASK_SESSION_KEY] = _review_task
+                            _review_source_diag = (
+                                self._source_requirement_diagnostic(
+                                    agent_id=(context or {}).get(
+                                        "agent_id"),
+                                    message=str(
+                                        _review_task.get(
+                                            "original_message")
+                                        or message),
+                                    accepted_task=_review_task,
+                                ))
+                            _review_task = attach_source_requirements(
+                                _review_task, _review_source_diag
+                            ) or _review_task
+                        except Exception:  # noqa: BLE001 — additive
+                            pass
+                        session[FILE_TASK_SESSION_KEY] = _review_task
                     except Exception:  # noqa: BLE001 — task bookkeeping
                         pass
                     logger.info(
@@ -14367,8 +14401,27 @@ class ChatOrchestrator:
                         )
 
                         if _direct_complete:
+                            _task_for_read = self._accepted_file_task(
+                                session,
+                                original_message=str(
+                                    (locals().get("_direct_task") or {}).get(
+                                        "original_message")
+                                    or (_pending_file_task or {}).get(
+                                        "original_message")
+                                    or message or ""),
+                                mention=str(
+                                    (_direct_identity or {}).get(
+                                        "file_name") or ""),
+                                requested_targets=(
+                                    (_direct_task or {}).get(
+                                        "requested_targets")),
+                                identity=_direct_identity,
+                                agent_id=(context or {}).get("agent_id"),
+                                workspace_id=(context or {}).get(
+                                    "workspace_id"),
+                            )
                             session[FILE_TASK_SESSION_KEY] = mark_task_retrieved(
-                                session.get(FILE_TASK_SESSION_KEY),
+                                _task_for_read,
                                 _direct_identity,
                             )
                             # R4 SCRATCH LATCH (env-gated via
@@ -14527,7 +14580,27 @@ class ChatOrchestrator:
                                 attach_source_requirements,
                             )
 
-                            _task_row = session.get(FILE_TASK_SESSION_KEY)
+                            _task_row = self._accepted_file_task(
+                                session,
+                                original_message=str(
+                                    (locals().get("_ask_task") or {}).get(
+                                        "original_message")
+                                    or (locals().get("_direct_task") or {}).get(
+                                        "original_message")
+                                    or message or ""),
+                                mention=str(
+                                    (_direct_identity or {}).get(
+                                        "file_name") or ""),
+                                requested_targets=(
+                                    (locals().get("_ask_task") or {}).get(
+                                        "requested_targets")
+                                    or (locals().get("_direct_task") or {}).get(
+                                        "requested_targets")),
+                                identity=_direct_identity,
+                                agent_id=(context or {}).get("agent_id"),
+                                workspace_id=(context or {}).get(
+                                    "workspace_id"),
+                            )
                             if isinstance(_task_row, dict):
                                 _task_row = settle_retrieval_task(
                                     _task_row,
@@ -24142,6 +24215,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
                                         _task_row = session.get(
                                             FILE_TASK_SESSION_KEY)
+                                        if not isinstance(_task_row, dict):
+                                            _task_row = {}
                                         if isinstance(_task_row, dict):
                                             _rc_payload = (
                                                 _rc_meta.get(_rc_receipt)
@@ -24172,7 +24247,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                         _task_row.get(
                                                             "confirmed_mention")
                                                         or _task_row.get(
-                                                            "mention"))}
+                                                            "mention")
+                                                        or (
+                                                            _pending_file_task
+                                                            or {}).get(
+                                                                "confirmed_mention")
+                                                        or (
+                                                            _pending_file_task
+                                                            or {}).get(
+                                                                "mention")
+                                                        or (
+                                                            _plan_mentions
+                                                            or [""])[0])}
+                                            _accepted_text = str(
+                                                review_objective
+                                                or _gate_msg
+                                                or message
+                                                or "")
                                             if _review_ask:
                                                 # A REVIEW read is evidence,
                                                 # not the completed answer.
@@ -24199,11 +24290,6 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                     or _resolved_file_identity
                                                     or _identity
                                                     or {})
-                                                _accepted_text = str(
-                                                    review_objective
-                                                    or _gate_msg
-                                                    or message
-                                                    or "")
                                                 _catalogued_names = [
                                                     str(_bound_source.get(
                                                         "file_name") or ""),
@@ -24254,10 +24340,33 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                         _turn_read["carrier"],
                                                         source="replan_read",
                                                     )
+                                                    _task_row = (
+                                                        self._accepted_file_task(
+                                                            session,
+                                                            original_message=(
+                                                                _accepted_text),
+                                                            mention=str(
+                                                                _turn_read[
+                                                                    "identity"].get(
+                                                                    "file_name")
+                                                                or ""),
+                                                            requested_targets=(
+                                                                _rc_subjects
+                                                                or list(
+                                                                    _task_row.get(
+                                                                        "requested_targets")
+                                                                    or [])),
+                                                            identity=(
+                                                                _turn_read[
+                                                                    "identity"]),
+                                                            agent_id=agent_id,
+                                                            workspace_id=(
+                                                                workspace_id),
+                                                        ))
                                                     session[
                                                         FILE_TASK_SESSION_KEY
                                                     ] = mark_task_retrieved(
-                                                        dict(_task_row),
+                                                        _task_row,
                                                         _turn_read["identity"],
                                                     )
                                                     logger.info(
@@ -24281,6 +24390,26 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                         _selected_read.get(
                                                             "reason"))
                                             else:
+                                                _task_row = (
+                                                    self._accepted_file_task(
+                                                        session,
+                                                        original_message=(
+                                                            _accepted_text),
+                                                        mention=str(
+                                                            _identity.get(
+                                                                "file_name")
+                                                            or ""),
+                                                        requested_targets=(
+                                                            _rc_subjects
+                                                            or list(
+                                                                _task_row.get(
+                                                                    "requested_targets")
+                                                                or [])),
+                                                        identity=_identity,
+                                                        agent_id=agent_id,
+                                                        workspace_id=(
+                                                            workspace_id),
+                                                    ))
                                                 _retrieved = mark_task_retrieved(
                                                     _task_row, _identity)
                                                 session[FILE_TASK_SESSION_KEY] = (
@@ -25901,9 +26030,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             aggregate_calculation_facts(
                                 _reply_aggregate_record,
                                 _live_file_lookup_ran))
+                        _task_for_settle = self._accepted_file_task(
+                            session,
+                            original_message=str(
+                                _gate_msg or message or ""),
+                            mention=str(
+                                (_plan_mentions or [""])[0] or ""),
+                            requested_targets=(
+                                list(_requested_targets or [])
+                                or _stored_requested_items(session)),
+                            identity=_identity,
+                            agent_id=agent_id,
+                            workspace_id=workspace_id,
+                        )
                         session[FILE_TASK_SESSION_KEY] = (
                             settle_retrieval_task(
-                                session.get(FILE_TASK_SESSION_KEY),
+                                _task_for_settle,
                                 _identity,
                                 retrieval_finished=True,
                                 answer_delivered=False,
@@ -35719,6 +35861,106 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         except Exception as e:  # noqa: BLE001 — loader is best-effort
             logger.debug(f"pending file result load skipped: {e}")
         return None
+
+    def _accepted_file_task(
+        self,
+        session: Optional[Dict[str, Any]],
+        *,
+        original_message: str,
+        mention: str = "",
+        requested_targets: Optional[Sequence[Any]] = None,
+        requested_fields: Optional[Sequence[Any]] = None,
+        identity: Optional[Dict[str, Any]] = None,
+        agent_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        existing_task: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Create/restore the task from the ACCEPTED request before retrieval.
+
+        Retrieval completion must not manufacture a task from the read or from
+        a bare confirmation. Existing task identity and a non-empty accepted
+        objective are preserved; missing subjects/fields/scope/contract are
+        filled from the accepted request.
+        """
+        from core.chat_tool_planner import review_requested
+        from core.pending_file_task import (
+            FILE_TASK_SESSION_KEY,
+            build_task_from_accepted_request,
+            require_original_objective,
+        )
+
+        existing = (
+            existing_task if isinstance(existing_task, dict)
+            else session.get(FILE_TASK_SESSION_KEY)
+            if isinstance(session, dict) else None)
+        source = existing if isinstance(existing, dict) else {}
+        identity = dict(identity or {})
+        original = str(
+            source.get("original_message")
+            or original_message
+            or "").strip()
+        mention = str(
+            source.get("confirmed_mention")
+            or source.get("mention")
+            or mention
+            or identity.get("file_name")
+            or "").strip()
+        catalogued = [
+            str(value) for value in (
+                mention,
+                identity.get("file_name"),
+                source.get("confirmed_mention"),
+                source.get("mention"),
+            ) if str(value or "").strip()
+        ]
+        fields = list(requested_fields or [])
+        if not fields:
+            try:
+                from core.workbook_read_artifact import (
+                    extract_field_requests,
+                )
+
+                fields = list(extract_field_requests([original]) or [])
+            except Exception:  # noqa: BLE001 — optional
+                fields = []
+        targets = list(requested_targets or [])
+        if not targets:
+            targets = list(source.get("requested_targets") or [])
+        contract = None
+        try:
+            if review_requested(source or None, original):
+                from core.review_contract import build_accepted_contract
+
+                lessons = self._agent_lessons(
+                    agent_id, original, limit=10) or []
+                contract = build_accepted_contract(
+                    original,
+                    catalogued_names=catalogued,
+                    source_version=str(
+                        identity.get("content_hash")
+                        or identity.get("source_version") or ""),
+                    lessons=lessons,
+                )
+                contract_subjects = list(contract.get("subjects") or [])
+                if contract_subjects:
+                    # The accepted contract owns the subject set; raw
+                    # mined targets/field phrases are not substituted.
+                    targets = contract_subjects
+        except Exception as _contract_err:  # noqa: BLE001 — additive
+            logger.debug(
+                "[pending-file-task] accepted contract build skipped: %r",
+                _contract_err)
+        task = build_task_from_accepted_request(
+            original,
+            mention,
+            requested_targets=targets or None,
+            requested_fields=fields or None,
+            accepted_contract=contract,
+            agent_id=agent_id,
+            workspace_id=workspace_id,
+            existing_task=source or None,
+        )
+        return require_original_objective(task)
 
     def _load_pending_file_task(
         self, session_id: Optional[str],

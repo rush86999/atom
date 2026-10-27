@@ -323,6 +323,10 @@ def ask(base: str, token: str, user_id: str, agent_id: str, message: str,
         "message": body.get("message") or body.get("response") or "",
         "error_code": body.get("error_code"),
         "outcome": body.get("outcome"),
+        "review_required": (
+            body.get("review_required")
+            or data.get("review_required")
+            or metadata.get("review_required")),
         "raw": body if not body.get("message") else None,
     }
 
@@ -362,8 +366,31 @@ def ask_confirmed(db_path: str, base: str, token: str, user_id: str,
     pending = first_session.get("_pending_file_task") or {}
     low = str(first.get("message") or "").lower()
     delivered_answer = _answer_is_delivered(first)
+    review_result = first.get("review_result") or {}
+    review_required = bool(first.get("review_required"))
+    if not review_required:
+        try:
+            from core.chat_tool_planner import review_requested
+
+            review_required = bool(review_requested(
+                pending, str(pending.get("original_message") or message)))
+        except Exception:  # noqa: BLE001 — harness-only classification
+            review_required = False
+    # A completed read awaiting assessment is resumable even though it is no
+    # longer `pending`. Require the STRUCTURED review obligation and an
+    # uncertified review, so a delivered-with-gaps non-review result
+    # (Adjustments) is not confirmed again.
+    review_resume = bool(
+        not delivered_answer
+        and review_required
+        and review_result.get("ok") is not True
+        and pending.get("status") in ("pending", "retrieved")
+        and pending.get("retrieval_finished") is not False
+        and pending.get("answer_delivered") is False
+    )
     wants_confirmation = False if delivered_answer else (
         pending.get("status") == "pending"
+        or review_resume
         or any(phrase in low for phrase in CONFIRM_PHRASES)
         or "go ahead" in low
         or "confirm" in low
