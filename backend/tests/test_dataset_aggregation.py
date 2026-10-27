@@ -160,7 +160,11 @@ def test_operation_classification_is_general():
     assert classify_file_operation(
         "calculate formula for workbook.xlsx Sheet1 cell D8"
     ) == "formula_reference"
-    assert is_aggregate_request("filter the rows where status is open") is True
+    # A plain row filter is a selection, not an aggregate; it carries no
+    # calculation and no quantity x price assumption.
+    assert is_aggregate_request("filter the rows where status is open") is False
+    assert classify_file_operation(
+        "filter the rows where status is open") == "table_select"
 
 
 @pytest.mark.asyncio
@@ -324,7 +328,7 @@ def test_operation_classifier_does_not_divert_lookups_or_refresh():
     assert classify_file_operation(
         "re-read the workbook and show totals by status") == "re-run"
     assert classify_file_operation(
-        "list the approved rows in the PO Register") == "aggregate"
+        "list the approved rows in the PO Register") == "table_select"
     assert classify_file_operation(
         "Calculate the approved totals for the workbook.") == "aggregate"
 

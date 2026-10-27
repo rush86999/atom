@@ -7575,6 +7575,100 @@ async def _datasets_named_file_block(
             }
         return _with_grounding(str(agg.get("block") or ""))
 
+    # TABLE SELECTION (2026-10-27 core-release repair): "list these columns
+    # for rows matching this condition" is a selection, not an item lookup.
+    # The operation is resolved before item extraction and rendered from the
+    # validated frame; no quantity/price/currency roles are required.
+    _selection_operation = _turn_operation == "table_select"
+    if not _selection_operation:
+        try:
+            from core.table_selection import (
+                is_table_selection_request as _is_table_selection,
+            )
+
+            _selection_operation = (
+                _is_table_selection(lookup_text)
+                # An assessment needs the deterministic subjects/facts
+                # before the model may supply decisions. The same selection
+                # boundary supplies them; narration never owns the table.
+                or _assessment_request(lookup_text)
+            )
+        except Exception:  # noqa: BLE001 — classifier is additive
+            _selection_operation = False
+    if _turn_operation != "compare" and _selection_operation:
+        from core.table_selection import select_named_dataset
+
+        try:
+            sel = await asyncio.to_thread(
+                select_named_dataset, file_entries, lookup_text,
+                file_name=names.get(key),
+            )
+        except Exception as _sel_err:  # noqa: BLE001 — named, never silent
+            logger.warning("named-file selection failed: %r", _sel_err)
+            sel = {
+                "status": "error",
+                "reason": "selection_failed",
+                "block": (
+                    "LIVE TOOL RESULTS (datasets.select — deterministic): "
+                    "the selection lane failed; no rows were selected."
+                ),
+            }
+        if plan is not None:
+            _sel_meta = getattr(plan, "_result_meta", None)
+            if not isinstance(_sel_meta, dict):
+                _sel_meta = {}
+                plan._result_meta = _sel_meta
+            _sel_source = sel.get("source") or {
+                "file_name": names.get(key),
+                "sheet": sel.get("sheet"),
+                "content_hash": e0.get("content_hash"),
+            }
+            _sel_record = {
+                "operation": "table_select",
+                "status": sel.get("status"),
+                "columns": sel.get("columns") or [],
+                "predicate": sel.get("predicate"),
+                "rows": sel.get("rows") or [],
+                "selected_count": sel.get("selected_count", 0),
+                "not_selected_count": sel.get("not_selected_count"),
+                "source": _sel_source,
+                "sql": sel.get("sql"),
+            }
+            _sel_complete = sel.get("status") == "complete"
+            _sel_meta["table_selection"] = _sel_record
+            _sel_meta["storage_read"] = {
+                "service": "datasets",
+                "file_id": key[1] or None,
+                "resource_id": key[1] or None,
+                "file_name": _sel_source.get("file_name") or names.get(key),
+                "source": _sel_source.get("source"),
+                "content_hash": _sel_source.get("content_hash"),
+                "content_hash_algorithm": "sha1",
+                "ingested_at": _sel_source.get("ingested_at"),
+                "source_modified_at": _sel_source.get("source_modified_at"),
+                "identity_verified": bool(
+                    _sel_source.get("file_name")
+                    and _sel_source.get("content_hash")),
+                "completed": bool(_sel_complete),
+                "coverage_complete": bool(_sel_complete),
+                "coverage_limits": {},
+                "rendered_answer": sel.get("answer") or "",
+                "table_selection": _sel_record,
+                "datasets_search": {
+                    "executed": sel.get("status") not in
+                    {"error", "clarification_required"},
+                    "match_count": sel.get("selected_count", 0),
+                    "coverage_complete": bool(_sel_complete),
+                    "selection": True,
+                },
+                "note": (
+                    "deterministic table selection"
+                    if _sel_complete
+                    else "selection did not complete"
+                ),
+            }
+        return _with_grounding(str(sel.get("block") or ""))
+
     sheet_names = sorted({
         str(entry.get("entity_name") or "").strip()
         for entry in file_entries

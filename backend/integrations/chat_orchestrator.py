@@ -11729,7 +11729,25 @@ class ChatOrchestrator:
                     except Exception as _nfr_err:  # noqa: BLE001
                         logger.debug(
                             "named-file routing skipped: %r", _nfr_err)
-                if _ask_mention and _FILE_READ_SHAPE_RE.search(message or ""):
+                _selection_shaped_turn = False
+                try:
+                    from core.table_selection import (
+                        is_table_selection_request as _is_sel_shape,
+                    )
+
+                    _selection_shaped_turn = _is_sel_shape(message or "")
+                    if not _selection_shaped_turn:
+                        from core.chat_tool_planner import (
+                            _assessment_request as _is_assess_shape,
+                        )
+
+                        _selection_shaped_turn = _is_assess_shape(
+                            message or "")
+                except Exception:  # noqa: BLE001 — shape gate only
+                    _selection_shaped_turn = False
+                if _ask_mention and (
+                        _selection_shaped_turn
+                        or _FILE_READ_SHAPE_RE.search(message or "")):
                     # A TEACHING DIRECTIVE IS NOT A READ (2026-10-01
                     # consistency-run T3: 'always include the tennsmith
                     # sheet for roper whitney searches' was hijacked by
@@ -11793,7 +11811,8 @@ class ChatOrchestrator:
                         )
 
                         if (is_aggregate_request(message)
-                                or is_formula_reference_request(message)):
+                                or is_formula_reference_request(message)
+                                or _selection_shaped_turn):
                             _ask_direct = True
             except Exception:  # noqa: BLE001 — shape gate only
                 _ask_direct = False
@@ -11804,7 +11823,8 @@ class ChatOrchestrator:
                 )
 
                 if (is_aggregate_request(message)
-                        or is_formula_reference_request(message)):
+                        or is_formula_reference_request(message)
+                        or locals().get("_selection_shaped_turn")):
                     _ask_direct = True
             # R4 EARLY RECOVERY CHECK (2026-10-16): one request-local
             # decision BEFORE any planner-independent retrieval. When the
@@ -12449,6 +12469,7 @@ class ChatOrchestrator:
                     _ask_action_summary = None
                     _ask_full_action = None
                     if (_ask_result.get("datasets_aggregate")
+                            or _ask_result.get("table_selection")
                             or _ask_result.get("formula_reference")):
                         _ask_content = str(
                             _ask_result.get("rendered_answer")
@@ -12700,6 +12721,7 @@ class ChatOrchestrator:
                             _ask_structured, dict) and not _ask_result.get(
                                 "named_document") and not _ask_result.get(
                                 "datasets_aggregate") and not _ask_result.get(
+                                "table_selection") and not _ask_result.get(
                                 "formula_reference"):
                         _ask_verdict = _ask_result.get("meta") or {}
                         _ask_note = str(
@@ -12733,6 +12755,7 @@ class ChatOrchestrator:
                     elif not _ask_items_used and not _ask_result.get(
                             "named_document") and not _ask_result.get(
                             "datasets_aggregate") and not _ask_result.get(
+                            "table_selection") and not _ask_result.get(
                             "formula_reference"):
                         _offer = ""
                         try:
@@ -13238,8 +13261,23 @@ class ChatOrchestrator:
                             "turn to narration with the evidence (the "
                             "escalation is trained knowledge)")
                     else:
+                        _selection_delivered_ok = True
+                        if _ask_result.get("table_selection"):
+                            try:
+                                from core.table_selection import (
+                                    selection_receipt as _sel_receipt,
+                                )
+
+                                _selection_delivered_ok = _sel_receipt(
+                                    _ask_result.get("selection_record") or {},
+                                    (_ask_result.get("selection_record")
+                                     or {}).get("source") or {},
+                                    delivered=True,
+                                )["ok"]
+                            except Exception:  # noqa: BLE001
+                                _selection_delivered_ok = False
                         _ask_response = {
-                        "success": True,
+                        "success": bool(_selection_delivered_ok),
                         "message": _ask_content,
                             "session_id": session_id,
                             "execution_id": _execution_id,
@@ -13254,6 +13292,10 @@ class ChatOrchestrator:
                                     if _ask_result.get(
                                         "named_document") else None),
                                 "deterministic_delivery": True,
+                                "table_selection": (
+                                    _ask_result.get("selection_record")
+                                    if _ask_result.get("table_selection")
+                                    else None),
                                 "file_identity": _ask_identity,
                                 "coverage_complete": _ask_complete,
                                 "calculation_complete": (
@@ -13276,8 +13318,63 @@ class ChatOrchestrator:
                             "requires_confirmation": False,
                             "next_steps": _tl_next_steps,
                             "suggested_actions": [],
+                            "outcome": (
+                                None if _selection_delivered_ok else "failed"),
+                            "error_code": (
+                                None if _selection_delivered_ok
+                                else "turn_objective_not_met"),
                         }
                         if _ask_review_ask:
+                            if _ask_result.get("table_selection"):
+                                # DETERMINISTIC EVIDENCE OWNS THE TABLE.
+                                # A review without a validated assessment
+                                # ships the selected rows and says plainly
+                                # that no decision was accepted; the model's
+                                # unvalidated table is not delivered.
+                                _review_blocked_message = (
+                                    _ask_content
+                                    + "\n\nAssessment not delivered: the "
+                                      "decision table was not validated "
+                                      "against these selected rows, so no "
+                                      "decision was accepted. The rows above "
+                                      "are the deterministic source evidence.")
+                                _review_blocked_response = dict(_ask_response)
+                                _review_blocked_response.update({
+                                    "success": False,
+                                    "message": _review_blocked_message,
+                                    "outcome": "failed",
+                                    "error_code": "turn_objective_not_met",
+                                    "data": {
+                                        "deterministic_delivery": True,
+                                        "table_selection": _ask_result.get(
+                                            "selection_record"),
+                                        "review_blocked": True,
+                                    },
+                                })
+                                self._update_session(
+                                    session, message,
+                                    _review_blocked_response,
+                                    {"primary_intent": "search",
+                                     "confidence": 0.9})
+                                await self._emit_agent_status(
+                                    session_id, _trace_agent_id,
+                                    _execution_id, "failed")
+                                self._finish_chat_execution(
+                                    _execution_id, "failed",
+                                    _review_blocked_message,
+                                    session=session,
+                                    message=message,
+                                    response=_review_blocked_response,
+                                    deadline=_deadline,
+                                    pending_task=session.get(
+                                        "_pending_file_task"),
+                                    authorized_actions=["read"],
+                                )
+                                logger.info(
+                                    "[file-ask] review ask — deterministic "
+                                    "rows delivered; unvalidated decision "
+                                    "table withheld")
+                                return _review_blocked_response
                             # A review ask is evidence, not the answer: keep
                             # the read for narration and retain the review
                             # contract instead of shipping the row block.
@@ -19824,6 +19921,27 @@ class ChatOrchestrator:
             "workbook_read": meta.get("workbook_read"),
             "execution_id": meta.get("execution_id"),
         }
+        _selection_record = meta.get("table_selection")
+        _selection_valid = False
+        if isinstance(_selection_record, dict):
+            try:
+                from core.table_selection import selection_receipt
+
+                # Structural validity for the READ; delivery is verified
+                # again on the response envelope before success is claimed.
+                _selection_valid = selection_receipt(
+                    _selection_record,
+                    _selection_record.get("source") or {},
+                    delivered=True,
+                )["ok"]
+            except Exception:  # noqa: BLE001 — receipt is the completion gate
+                _selection_valid = False
+        logger.info(
+            "[pending-file-task] direct read block=%s table_selection=%s "
+            "storage_completed=%s identity=%s reason=%r",
+            bool(block), bool(meta.get("table_selection")),
+            meta.get("completed"), meta.get("identity_verified"),
+            "" if block else "no block")
         result = {
             "ok": bool(block),
             "block": block or "",
@@ -19833,9 +19951,21 @@ class ChatOrchestrator:
             "coverage_complete": coverage_complete,
             "retrieval_complete": bool(
                 meta.get("completed") and identity_verified and coverage_complete
+                and (
+                    _selection_valid
+                    if isinstance(_selection_record, dict)
+                    else True
+                )
             ),
             "rendered_answer": meta.get("rendered_answer") or "",
             "structured_result": meta.get("structured_result"),
+            "table_selection": bool(
+                isinstance(_selection_record, dict)
+                and _selection_record.get("operation") == "table_select"),
+            "selection_record": (
+                _selection_record
+                if isinstance(_selection_record, dict) else None),
+            "selection_valid": _selection_valid,
             "datasets_aggregate": bool(meta.get("datasets_aggregate")),
             "aggregate_record": (
                 _aggregate_record
@@ -19846,6 +19976,19 @@ class ChatOrchestrator:
             "formula_reference": bool(meta.get("formula_reference")),
             "reason": "" if block else "file-scoped reader returned no result",
         }
+        _requested_operation = str(
+            (pending_task or {}).get("operation") or "")
+        _program_kind = str(
+            ((pending_task or {}).get("turn_program") or {}).get("kind")
+            or ((pending_task or {}).get("turn_program") or {}).get(
+                "operation") or "")
+        if (_requested_operation == "table_select"
+                or _program_kind == "table_select") and not _selection_valid:
+            # A lookup receipt cannot satisfy a selection contract: the
+            # bound source, columns, predicate and row references all have
+            # to be present.
+            result["ok"] = False
+            result["reason"] = "selection_contract_not_satisfied"
         if (pending_task or {}).get("operation") in ("refresh", "compare"):
             # REFRESH (2026-09-24 review round 3): a source-freshness
             # request must verify the UPSTREAM version and retrieve
@@ -19909,6 +20052,10 @@ class ChatOrchestrator:
         Every outcome — refreshed, upstream-newer-but-refresh-failed, or
         unverified — states exactly what happened; a stale copy is never
         presented as current."""
+        # Stage-attributed refresh outcome must exist before the nested
+        # _verdict closure can be called on an early (unverified) return.
+        _refresh_outcome: Dict[str, Any] = {
+            "attempted": False, "stage": "not_attempted", "detail": ""}
         identity = result.get("identity") or {}
         service = str(identity.get("service") or "")
         resource_id = (
@@ -19982,8 +20129,6 @@ class ChatOrchestrator:
         # download timeout, source refusal, or parse/identity — so the
         # report names the actual stage. Statuses only: no tokens, no
         # document contents in this record.
-        _refresh_outcome = {
-            "attempted": False, "stage": "not_attempted", "detail": ""}
         try:
             if deadline is not None:
                 fetch_timeout = min(

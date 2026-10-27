@@ -2332,6 +2332,37 @@ async def send_chat_message(
                 "error_code": "empty_reply",
             }
 
+        # TABLE-SELECTION COMPLETION CONTRACT (2026-10-27). A selection
+        # ask is satisfied only by a bound selection receipt with columns,
+        # predicate and row references. A model-written table, or an item
+        # lookup receipt, is not. Rejected content is not shown to the user.
+        try:
+            from core.table_selection import selection_response_ok
+
+            if not selection_response_ok(
+                    str(request.message or ""), response.get("data")):
+                logger.warning(
+                    "[table-select] selection contract not satisfied; "
+                    "withholding the drafted table (exec=%s)",
+                    response.get("execution_id"))
+                response = {
+                    **response,
+                    "success": False,
+                    "outcome": "failed",
+                    "error_code": "turn_objective_not_met",
+                    "message": (
+                        "No rows were selected for this table request. "
+                        "Nothing was read, and no table was accepted."),
+                    "confidence": 0.0,
+                }
+                _data = response.get("data")
+                if isinstance(_data, dict):
+                    _data.pop("table_selection", None)
+        except Exception as _sel_guard_err:  # noqa: BLE001
+            logger.warning(
+                "[table-select] completion guard skipped: %r",
+                _sel_guard_err)
+
         response = _finalize_chat_response(db, response)
         response = _persist_finalized_outcome(
             db,

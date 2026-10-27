@@ -108,21 +108,30 @@ ledger. Passing today:
   domain-independence tests;
 - `.eml` import and the PPTX parser pass unit tests.
 
-The production build of this successor passes (139/139 pages), and the
-trained-employee loop was attempted with the local Ollama model. It **failed
-at the sourced-result step**: after a grant-threshold lesson persisted across
-a restart, the unfamiliar-task reply labeled `grants_loop.csv` but listed
-rows from another workbook (`Roper-011`, `Tennsmith-001`). A second attempt
-after removing the implicit "price" field default still invented rows
-(`GL001`, `GL002`) instead of binding the four real grant rows. Both turns
-were correctly marked failed, but the user-visible tables were misleading.
-See `evidence/whole_app_20261027/core_loop_attempt1/` and CR-009/CR-012 in
-the core ledger. A plain lookup ("list Application Ref and Requested Amount
-for Submitted rows") also failed: the column names and the filter value were
-treated as lookup items, so the reply said the columns had no match. The next
-repair must classify list/select + named columns + a row condition as a table
-selection and bind the deterministic rows before any narration is delivered.
+The production build of this successor passes (139/139 pages).
 
-Not yet claimed: the full teach → unfamiliar task → correct → restart loop,
-format-by-format browser imports (PDF/DOCX/email/PPTX), and browser
-deliverable checks for email/presentation.
+The shared **table-selection operation** is now implemented and verified:
+
+- the ask is classified before item extraction; columns come from the bound
+  sheet's headers and the predicate from a header/value comparison or a
+  recorded cell value;
+- the exact grants ask returns three rows (`GR-2026-014/021/033`) with
+  `Application Ref` and `Requested Amount`, excludes the Withdrawn row, and
+  renders a deterministic table (`selection_api_verified.json`);
+- renamed-schema and helpdesk twins pass through the same code;
+- a model-written table never becomes the delivered facts; rejected content
+  is private diagnostics only;
+- a selection turn completes only with a bound source, resolved columns,
+  predicate and row references; an unknown file yields `success=false` with
+  no table (`selection_missing_file_guard.json`).
+
+The trained-employee loop still **fails at the assessment step**: the lesson
+persists across restart and the assessment now delivers only the deterministic
+source rows, but the model's decision table did not validate against those
+subjects, so no decision was accepted. That is recorded as CR-009 (failed) and
+CR-014 (partial), not rounded up. The earlier fabricated `Roper-011`,
+`Tennsmith-001`, `GL001` and `GL002` attempts remain preserved as history.
+
+Not yet claimed: a validated assessment decision table, the full teach →
+unfamiliar task → correct → restart loop, format-by-format browser imports
+(PDF/DOCX/email/PPTX), and browser deliverable checks for email/presentation.

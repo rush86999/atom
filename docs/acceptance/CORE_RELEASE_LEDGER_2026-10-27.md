@@ -2,7 +2,7 @@
 
 Candidate: `f5f3148d24351217b20e4994fe7602131f8ae220` (tree `d5804aed4be4a920a2c6067c253efc7f89cc539f`), branch `whole-app/successor-f5f`.
 
-Generated: 2026-10-27T21:04:42.330262+00:00
+Generated: 2026-10-27T22:21:59.194221+00:00
 
 Supersedes `WHOLE_APP_READINESS_LEDGER_2026-10-27` for launch scope. The whole-app ledger remains history. Product decision: `docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md`.
 
@@ -14,11 +14,11 @@ Machine-readable source: `docs/acceptance/CORE_RELEASE_LEDGER_2026-10-27.json`.
 |---|---|
 | deferred_scope | 47 |
 | environment_limited | 2 |
-| failed | 3 |
+| failed | 1 |
 | not_authorized | 1 |
-| partial | 11 |
+| partial | 12 |
 | unproven | 2 |
-| verified | 38 |
+| verified | 41 |
 
 **Core release ready: no.** The core surface is configured and browser-enforced, and the domain-independent calculation/decision contracts pass. The trained-employee loop, deliverable formats and the production build remain open; deferred surfaces are an explicit product decision, not failures.
 
@@ -125,9 +125,11 @@ Machine-readable source: `docs/acceptance/CORE_RELEASE_LEDGER_2026-10-27.json`.
 | CR-006 | trained-agent | Accept codes, references and human labels as review subjects; no fixed ID regex | **verified** | — | — |
 | CR-007 | data | Upload an .eml file and preserve participants, date, subject, body and attachment names | **partial** | The .eml upload has not been exercised through the browser and a durable document row on this successor. | Upload a representative .eml through Data, search its body, and reload. |
 | CR-008 | trained-agent | Teach through chat or the canvas Training tab; inspect, edit and delete teaching points; keep global/goal scope | **partial** | The click path through the Training tab was not exercised; the API teach path and restart persistence were. | Run the same teach/correct/delete actions through the rendered UI. |
-| CR-009 | trained-agent | Teach through the UI, run an unfamiliar task, inspect deliverable/sources, correct, run a different task, restart, verify scoped persistence | **failed** | Twice the unfamiliar-task answer claimed to read grants_loop.csv but named rows that do not exist in that file (Roper-011/Tennsmith-001, then GL001/GL002); the four real rows were never bound to the reply. | Make the deterministic result authoritative over model narration, then repeat teach -> unfamiliar task -> correct -> different task -> restart. |
-| CR-012 | calculation | When a deterministic file read computes rows, the delivered answer must cite those rows and not a model-written table that contradicts them | **failed** | The reply block preferred the model's narration table over the deterministic contributing rows. | Prefer the deterministic rendered answer (or validate the model table against it) before delivery; regression-test with a wrong-model table. |
-| CR-013 | calculation | List named columns for rows matching a condition in a named table (list Application Ref and Requested Amount for Submitted rows) | **failed** | The named-file lane extracted 'Application Ref', 'Requested Amount' and 'Submitted' as item targets instead of a column/filter selection. | Classify list/show + named columns + row condition as a table selection; run the deterministic selection and render the requested columns for the matched rows. |
+| CR-009 | trained-agent | Teach through the UI, run an unfamiliar task, inspect deliverable/sources, correct, run a different task, restart, verify scoped persistence | **failed** | The lesson persisted across restart, and the assessment now delivers only the deterministic source rows, but no validated decision table was produced; the turn is honestly failed rather than completed. | Bind the model's task-defined decisions to the deterministic subjects, validate them with build_review_result, render the final table from the validated components, then repeat teach -> unfamiliar task -> correct -> different task -> restart. |
+| CR-012 | calculation | When a deterministic file read computes rows, the delivered answer must cite those rows and not a model-written table that contradicts them | **verified** | — | — |
+| CR-013 | calculation | List named columns for rows matching a condition in a named table (list Application Ref and Requested Amount for Submitted rows) | **verified** | — | Promote after the browser UI check of the same ask. |
+| CR-014 | trained-agent | Use deterministic subjects/facts, accept only task-defined decisions from the model, validate subject/evidence/policy references and render the final table | **partial** | The model produced no review block that validated against the deterministic subjects; the decision table is not delivered. | Prompt/structured-output path that emits the review contract, validate it, then render the decision table from validated components. |
+| CR-015 | calculation | A selection turn completes only with a bound source, resolved columns, predicate, row references and delivery | **verified** | — | — |
 | CR-010 | workspace | Produce and reopen an email draft, document, calculated table and presentation in Workspace | **partial** | No browser deliverable check for email/presentation on this successor. | Create one of each in Workspace, reopen after reload and verify content survives. |
 | CR-011 | release | Build the shipping frontend and run the core browser breadth against that build | **verified** | — | — |
 

@@ -1,7 +1,7 @@
 {
   "schema_version": "core-release-1",
   "title": "Atom core-release readiness ledger \u2014 2026-10-27",
-  "generated_at": "2026-10-27T21:04:42.330262+00:00",
+  "generated_at": "2026-10-27T22:21:59.194221+00:00",
   "supersedes": "WHOLE_APP_READINESS_LEDGER_2026-10-27",
   "decision": "docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md",
   "candidate": {
@@ -35,22 +35,22 @@
     "deferred_scope": "Excluded from the core release by the 2026-10-27 product decision; code and data retained."
   },
   "summary": {
-    "total": 104,
+    "total": 106,
     "by_status": {
       "deferred_scope": 47,
       "environment_limited": 2,
-      "failed": 3,
+      "failed": 1,
       "not_authorized": 1,
-      "partial": 11,
+      "partial": 12,
       "unproven": 2,
-      "verified": 38
+      "verified": 41
     },
     "core_statuses": {
       "environment_limited": 2,
-      "failed": 3,
-      "partial": 11,
+      "failed": 1,
+      "partial": 12,
       "unproven": 2,
-      "verified": 38
+      "verified": 41
     },
     "deferred_items": 47,
     "core_release_ready": false,
@@ -2203,8 +2203,8 @@
           "detail": "the four grant rows the answer should have cited"
         }
       ],
-      "first_failed_transition": "Twice the unfamiliar-task answer claimed to read grants_loop.csv but named rows that do not exist in that file (Roper-011/Tennsmith-001, then GL001/GL002); the four real rows were never bound to the reply.",
-      "next_action": "Make the deterministic result authoritative over model narration, then repeat teach -> unfamiliar task -> correct -> different task -> restart.",
+      "first_failed_transition": "The lesson persisted across restart, and the assessment now delivers only the deterministic source rows, but no validated decision table was produced; the turn is honestly failed rather than completed.",
+      "next_action": "Bind the model's task-defined decisions to the deterministic subjects, validate them with build_review_result, render the final table from the validated components, then repeat teach -> unfamiliar task -> correct -> different task -> restart.",
       "blocking": true,
       "notes": "The turn was correctly marked failed, so the platform did not claim success; the user-visible table is still misleading. This is the core acceptance gate and it is NOT met."
     },
@@ -2215,18 +2215,23 @@
       "action": "When a deterministic file read computes rows, the delivered answer must cite those rows and not a model-written table that contradicts them",
       "candidate_bound": true,
       "config": "isolated world + local Ollama",
-      "status": "failed",
+      "status": "verified",
       "evidence": [
         {
+          "kind": "test",
+          "path": "backend/tests/test_table_selection.py",
+          "detail": "deliver_selection: fabricated Roper-011/Tennsmith-001/GL001/GL002 text never appears in the delivered message; kept in diagnostics"
+        },
+        {
           "kind": "api",
-          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/task2.json",
-          "detail": "source label grants_loop.csv; rows Roper-011/Tennsmith-001"
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assess_final.json",
+          "detail": "assessment ask delivered only the deterministic source rows and explicitly said no decision was accepted (success=false)"
         }
       ],
-      "first_failed_transition": "The reply block preferred the model's narration table over the deterministic contributing rows.",
-      "next_action": "Prefer the deterministic rendered answer (or validate the model table against it) before delivery; regression-test with a wrong-model table.",
-      "blocking": true,
-      "notes": "The outcome was failed, so this is dishonest content rather than a false success badge."
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "For a validated selection the model does not author the table. For an assessment the deterministic rows are delivered and an unvalidated decision table is withheld; decision delivery is CR-014."
     },
     {
       "id": "CR-013",
@@ -2234,19 +2239,79 @@
       "feature": "Tabular selection ask",
       "action": "List named columns for rows matching a condition in a named table (list Application Ref and Requested Amount for Submitted rows)",
       "candidate_bound": true,
+      "config": "isolated world; controlled production-path tests + API",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test",
+          "path": "backend/tests/test_table_selection.py",
+          "detail": "exact grants selection (3 rows, Withdrawn excluded), renamed schema, helpdesk twin, ambiguity, model-table rejection, completion contract"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/selection_api_verified.json",
+          "detail": "GET /api/chat/message returned the deterministic 3-row table with the correct filter; model=deterministic"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/selection_missing_file_guard.json",
+          "detail": "unknown file: no table delivered, success=false"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Promote after the browser UI check of the same ask.",
+      "blocking": false,
+      "notes": "The operation is selected before item extraction; columns and predicate come from the bound sheet's headers/values, not business nouns."
+    },
+    {
+      "id": "CR-014",
+      "area": "trained-agent",
+      "feature": "Assessment decision binding",
+      "action": "Use deterministic subjects/facts, accept only task-defined decisions from the model, validate subject/evidence/policy references and render the final table",
+      "candidate_bound": true,
       "config": "isolated world + local Ollama",
-      "status": "failed",
+      "status": "partial",
       "evidence": [
         {
           "kind": "api",
-          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/task3_lookup.json",
-          "detail": "columns and filter value were treated as lookup items; reply said the columns had no match and offered rows for the token 'Submitted'"
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assess_final.json",
+          "detail": "deterministic rows delivered; unvalidated decision table withheld; success=false"
+        },
+        {
+          "kind": "test",
+          "path": "backend/tests/test_core_domain_independence.py",
+          "detail": "task-defined decisions and subject/evidence/policy contracts pass for three domains"
         }
       ],
-      "first_failed_transition": "The named-file lane extracted 'Application Ref', 'Requested Amount' and 'Submitted' as item targets instead of a column/filter selection.",
-      "next_action": "Classify list/show + named columns + row condition as a table selection; run the deterministic selection and render the requested columns for the matched rows.",
+      "first_failed_transition": "The model produced no review block that validated against the deterministic subjects; the decision table is not delivered.",
+      "next_action": "Prompt/structured-output path that emits the review contract, validate it, then render the decision table from validated components.",
       "blocking": true,
-      "notes": "Same routing gap underlies the assessment failure: the agent never bound the four grant rows."
+      "notes": "This is the remaining step for the defining trained-employee loop."
+    },
+    {
+      "id": "CR-015",
+      "area": "calculation",
+      "feature": "Completion contract",
+      "action": "A selection turn completes only with a bound source, resolved columns, predicate, row references and delivery",
+      "candidate_bound": true,
+      "config": "isolated world",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test",
+          "path": "backend/tests/test_table_selection.py",
+          "detail": "lookup receipt rejected; valid receipt passes; missing-file ask redacted"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/selection_missing_file_guard.json",
+          "detail": "missing file produced success=false and no table"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "The guard runs at the public response boundary, so a route-level 2xx or an item-lookup receipt cannot satisfy a selection ask."
     },
     {
       "id": "CR-010",
