@@ -10881,6 +10881,7 @@ class ChatOrchestrator:
             # file-scoped price question is never left to free narration.
             _ask_mention = ""
             _ask_direct = False
+            _review_objective_hint = ""
             try:
                 from core.agent_file_context import (
                     detect_file_task_mentions,
@@ -10946,12 +10947,37 @@ class ChatOrchestrator:
                         # shape instead of paying 60s to rediscover facts
                         # the durable state already holds.
                         _det_continuation = None
+                        _pending_confirmation_fastpath = False
+                        _pending_fastpath_t0 = time.monotonic()
                         try:
                             _det_continuation = (
                                 deterministic_continuation_ready(
                                     message, session, _td))
                         except Exception:  # noqa: BLE001 — optional
                             _det_continuation = None
+                        if _det_continuation is None:
+                            # ACCEPTED-TASK CONFIRMATION FAST PATH: an exact
+                            # confirmation ("go ahead") carries no source or
+                            # field of its own; the stored objective and
+                            # resolved file are authoritative. Reuse them
+                            # before paying the general interpretation leg.
+                            try:
+                                from core.turn_decision import (
+                                    pending_task_continuation_ready,
+                                )
+
+                                _det_continuation = (
+                                    pending_task_continuation_ready(
+                                        message,
+                                        locals().get("_pending_file_task")))
+                                if _det_continuation is not None:
+                                    _pending_confirmation_fastpath = True
+                                    logger.info(
+                                        "[turn-interpretation] accepted "
+                                        "pending-task confirmation; "
+                                        "general interpretation skipped")
+                            except Exception:  # noqa: BLE001 — optional
+                                _det_continuation = None
                         # ONE STRUCTURED INTERPRETATION PER REQUEST
                         # (2026-10-08 Phase-2 slice): the async entry
                         # point proposes subjects/actions/scope-change
@@ -10966,8 +10992,11 @@ class ChatOrchestrator:
                             {"status": "skipped"}
                             if _det_continuation is not None else {})
                         try:
-                            _interp_wait = _interpretation_wait_seconds(
-                                _deadline.remaining())
+                            _interp_wait = (
+                                0.0
+                                if _pending_confirmation_fastpath
+                                else _interpretation_wait_seconds(
+                                    _deadline.remaining()))
                             _interp_request_id = str(
                                 (context or {}).get("request_id") or "")
                             if _det_continuation is not None:
@@ -10993,10 +11022,19 @@ class ChatOrchestrator:
                                             message, _interp_request_id, _td,
                                             _det_continuation.get(
                                                 "reference") or {}))
-                                    logger.warning(
-                                        "[turn-interpretation] skipped — "
-                                        "no budget for refinement; using "
-                                        "deterministic continuation")
+                                    if _pending_confirmation_fastpath:
+                                        logger.info(
+                                            "[stage-timing] accepted "
+                                            "pending-task confirmation "
+                                            "interpretation: %.3fs "
+                                            "(general model skipped)",
+                                            time.monotonic()
+                                            - _pending_fastpath_t0)
+                                    else:
+                                        logger.warning(
+                                            "[turn-interpretation] skipped — "
+                                            "no budget for refinement; using "
+                                            "deterministic continuation")
                                 else:
                                     from core.turn_decision import (
                                         interpretation_budget_unresolved,
@@ -12435,8 +12473,51 @@ class ChatOrchestrator:
                             pass
                     _ask_complete = bool(
                         _ask_result.get("retrieval_complete"))
+                    # DISTINGUISH THE THREE FACTS (2026-10-27 live
+                    # Adjustments failure): a source lookup can FINISH and
+                    # deliver a correct subtotal-with-gaps while the business
+                    # calculation remains incomplete. Coverage/completeness
+                    # must not decide whether the pending SOURCE LOOKUP is
+                    # still pending.
+                    # A READ RECEIPT matching the requested scope is proof the
+                    # source lookup executed; calculation completeness is a
+                    # separate fact. `retrieval_complete` additionally requires
+                    # complete coverage, so it cannot answer this question.
+                    _ask_read_receipt = bool(
+                        isinstance(_ask_structured, dict)
+                        or _ask_result.get("datasets_aggregate")
+                        or _ask_result.get("formula_reference")
+                        or _ask_result.get("named_document")
+                        or str(_ask_result.get("block") or "").strip())
+                    _ask_retrieval_finished = bool(
+                        _ask_result.get("ok")) and _ask_read_receipt
+                    _ask_aggregate = _ask_result.get("aggregate_record")
+                    _ask_open_requirements = []
+                    _ask_calculation_complete = _ask_complete
+                    if isinstance(_ask_aggregate, dict):
+                        _ask_calculation_complete = bool(
+                            _ask_aggregate.get("complete"))
+                        _ask_open_requirements = [
+                            dict(g) for g in (_ask_aggregate.get("gaps") or [])
+                            if isinstance(g, dict)
+                        ]
+                    _ask_miss_handoff_pending = (
+                        os.getenv("ATOM_MISS_HANDOFF_NARRATION", "0")
+                        .lower() in ("1", "true", "on")
+                        and any(
+                            ((t or {}).get("identity") or {}).get("status")
+                            == "none"
+                            for t in ((_ask_structured or {}).get("targets")
+                                      or []))
+                    )
+                    _ask_answer_delivered = bool(
+                        _ask_retrieval_finished
+                        and _ask_content.strip()
+                        and not _ask_miss_handoff_pending)
                     _ask_result_row = {
-                        "status": "retrieved" if _ask_complete else "incomplete",
+                        "status": (
+                            "retrieved" if _ask_retrieval_finished
+                            else "incomplete"),
                         "target_extraction_version":
                             _TARGET_EXTRACTION_VERSION_NOW,
                         "rendered": _ask_content[:24000],
@@ -12444,6 +12525,9 @@ class ChatOrchestrator:
                         "presentation_action": _ask_full_action,
                         "identity": _ask_identity,
                         "execution_id": _execution_id,
+                        "retrieval_finished": _ask_retrieval_finished,
+                        "calculation_complete": _ask_calculation_complete,
+                        "open_requirements": _ask_open_requirements,
                         "coverage_complete": _ask_complete,
                         "retrieved_at": time.time(),
                         "structured_result": _ask_structured
@@ -12624,9 +12708,8 @@ class ChatOrchestrator:
                     # so marking it delivered here is the whole change.
                     from core.pending_file_task import (
                         FILE_TASK_SESSION_KEY,
-                        mark_task_delivered,
-                        mark_task_retrieved,
                         merge_pending_task,
+                        settle_retrieval_task,
                     )
 
                     _ask_stored = merge_pending_task(
@@ -12643,13 +12726,35 @@ class ChatOrchestrator:
                         inherit=session.get(
                             "_superseded_file_task_context"),
                     )
-                    if _ask_complete:
-                        # Mirrors the resume lane: the read finished, then the
-                        # answer reached the user. The resolved resource is
-                        # retained so a later re-read executes against the
-                        # same file, not a fresh resolution.
-                        _ask_stored = mark_task_delivered(
-                            mark_task_retrieved(_ask_stored, _ask_identity))
+                    _ask_stored = settle_retrieval_task(
+                        _ask_stored,
+                        _ask_identity,
+                        retrieval_finished=_ask_retrieval_finished,
+                        answer_delivered=_ask_answer_delivered,
+                        calculation_complete=_ask_calculation_complete,
+                        open_requirements=_ask_open_requirements,
+                    )
+                    # SOURCE AUTHORITY BELONGS TO THE ACCEPTED TASK: persist
+                    # the requirement derived from THIS ask (and any explicit
+                    # own-lesson instruction) so later confirmation/recovery
+                    # turns inherit it instead of re-inferring from prose.
+                    try:
+                        from core.source_requirements import (
+                            attach_source_requirements,
+                        )
+
+                        _ask_source_diag = (
+                            self._source_requirement_diagnostic(
+                                agent_id=(context or {}).get("agent_id"),
+                                message=str(
+                                    _ask_stored.get("original_message")
+                                    or message),
+                                accepted_task=_ask_stored,
+                            ))
+                        _ask_stored = attach_source_requirements(
+                            _ask_stored, _ask_source_diag) or _ask_stored
+                    except Exception:  # noqa: BLE001 — additive bookkeeping
+                        pass
                     session[FILE_TASK_SESSION_KEY] = _ask_stored
                     # USER-ASSERTED ROW BINDINGS: AFTER the task is stored
                     # (an earlier placement let the assignment overwrite
@@ -12783,7 +12888,10 @@ class ChatOrchestrator:
                                 "deterministic_delivery": True,
                                 "file_identity": _ask_identity,
                                 "coverage_complete": _ask_complete,
-                                "resumable": not _ask_complete,
+                                "calculation_complete": (
+                                    _ask_calculation_complete),
+                                "open_requirements": _ask_open_requirements,
+                                "resumable": not _ask_retrieval_finished,
                                 "freshness": _ask_freshness.get("status") or None,
                                 "presentation_action": _ask_action_summary,
                                 "task_run_id": session.get("_task_run_id"),
@@ -12810,7 +12918,7 @@ class ChatOrchestrator:
                         _maybe_force_turn_failure(
                             session, _execution_id, _ask_content, message,
                             context)
-                        if _ask_complete:
+                        if _ask_answer_delivered:
                             _ask_result_row["status"] = "delivered"
                             _ask_result_row["delivered_at"] = time.time()
                         _ask_terminal_status = (
@@ -13376,9 +13484,10 @@ class ChatOrchestrator:
                             )
                 _direct_review_ask = False
                 try:
-                    from core.chat_tool_planner import _assessment_request
+                    from core.chat_tool_planner import review_requested
 
-                    _direct_review_ask = _assessment_request(
+                    _direct_review_ask = review_requested(
+                        _direct_task or pending_file_task,
                         str((_direct_task or {}).get("original_message")
                             or message or ""))
                 except Exception:  # noqa: BLE001 — flag is additive
@@ -13427,14 +13536,38 @@ class ChatOrchestrator:
 
                         _review_task = session.get(FILE_TASK_SESSION_KEY)
                         if isinstance(_review_task, dict):
-                            session[FILE_TASK_SESSION_KEY] = (
-                                mark_task_retrieved(
-                                    _review_task, _review_identity))
+                            _review_task = mark_task_retrieved(
+                                _review_task, _review_identity)
+                            try:
+                                from core.source_requirements import (
+                                    attach_source_requirements,
+                                )
+
+                                _review_source_diag = (
+                                    self._source_requirement_diagnostic(
+                                        agent_id=(context or {}).get(
+                                            "agent_id"),
+                                        message=str(
+                                            _review_task.get(
+                                                "original_message")
+                                            or message),
+                                        accepted_task=_review_task,
+                                    ))
+                                _review_task = attach_source_requirements(
+                                    _review_task, _review_source_diag
+                                ) or _review_task
+                            except Exception:  # noqa: BLE001 — additive
+                                pass
+                            session[FILE_TASK_SESSION_KEY] = _review_task
                     except Exception:  # noqa: BLE001 — task bookkeeping
                         pass
                     logger.info(
                         "[pending-file-task] review ask — read retrieved; "
                         "narration required")
+                    _review_objective_hint = str(
+                        (_direct_task or {}).get("original_message")
+                        or (_pending_file_task or {}).get("original_message")
+                        or message)
                 if _direct_result.get("ok") and not _direct_review_ask:
                     _direct_structured = _direct_result.get("structured_result")
                     _direct_full_action = None
@@ -13647,11 +13780,36 @@ class ChatOrchestrator:
                             pass
                     _direct_complete = bool(
                         _direct_result.get("retrieval_complete"))
+                    # Same three-fact split as the ask lane: a delivered
+                    # subtotal-with-gaps finished the SOURCE LOOKUP even while
+                    # the business calculation remains incomplete.
+                    _direct_read_receipt = bool(
+                        isinstance(_direct_structured, dict)
+                        or _direct_result.get("datasets_aggregate")
+                        or _direct_result.get("formula_reference")
+                        or _direct_result.get("named_document")
+                        or str(_direct_result.get("block") or "").strip())
+                    _direct_retrieval_finished = bool(
+                        _direct_result.get("ok")) and _direct_read_receipt
+                    _direct_aggregate = _direct_result.get("aggregate_record")
+                    _direct_calculation_complete = _direct_complete
+                    _direct_open_requirements = []
+                    if isinstance(_direct_aggregate, dict):
+                        _direct_calculation_complete = bool(
+                            _direct_aggregate.get("complete"))
+                        _direct_open_requirements = [
+                            dict(g) for g in (_direct_aggregate.get("gaps")
+                                              or [])
+                            if isinstance(g, dict)
+                        ]
+                    _direct_answer_delivered = bool(
+                        _direct_retrieval_finished
+                        and _direct_content.strip())
                     _direct_result_row = {
                         # "incomplete" must never masquerade as delivered —
                         # the durable record states what actually happened.
                         "status": (
-                            "retrieved" if _direct_complete
+                            "retrieved" if _direct_retrieval_finished
                             else "incomplete"),
                         "target_extraction_version":
                             _TARGET_EXTRACTION_VERSION_NOW,
@@ -13662,6 +13820,9 @@ class ChatOrchestrator:
                         "workbook_read": (
                             _direct_result.get("meta") or {}
                         ).get("workbook_read"),
+                        "retrieval_finished": _direct_retrieval_finished,
+                        "calculation_complete": _direct_calculation_complete,
+                        "open_requirements": _direct_open_requirements,
                         "coverage_complete": _direct_complete,
                         # A refresh operation's verdict rides the durable
                         # record: refreshed / refresh_failed / unverified.
@@ -13980,7 +14141,10 @@ class ChatOrchestrator:
                             "file_identity": _direct_identity,
                             "workbook_read": _direct_result_row["workbook_read"],
                             "coverage_complete": _direct_complete,
-                            "resumable": not _direct_complete,
+                            "calculation_complete": (
+                                _direct_calculation_complete),
+                            "open_requirements": _direct_open_requirements,
+                            "resumable": not _direct_retrieval_finished,
                             "freshness": _freshness.get("status") or None,
                             "presentation_action": _direct_action_summary,
                             "task_run_id": session.get("_task_run_id"),
@@ -14003,20 +14167,51 @@ class ChatOrchestrator:
                         _direct_response,
                         {"primary_intent": "search", "confidence": 0.9},
                     )
-                    if _direct_complete:
+                    if _direct_retrieval_finished:
                         try:
                             from core.pending_file_task import (
                                 FILE_TASK_SESSION_KEY,
-                                mark_task_delivered,
+                                settle_retrieval_task,
+                            )
+                            from core.source_requirements import (
+                                attach_source_requirements,
                             )
 
                             _task_row = session.get(FILE_TASK_SESSION_KEY)
                             if isinstance(_task_row, dict):
-                                session[FILE_TASK_SESSION_KEY] = mark_task_delivered(
-                                    _task_row
+                                _task_row = settle_retrieval_task(
+                                    _task_row,
+                                    _direct_identity,
+                                    retrieval_finished=(
+                                        _direct_retrieval_finished),
+                                    answer_delivered=(
+                                        _direct_answer_delivered),
+                                    calculation_complete=(
+                                        _direct_calculation_complete),
+                                    open_requirements=(
+                                        _direct_open_requirements),
                                 )
-                            _direct_result_row["status"] = "delivered"
-                            _direct_result_row["delivered_at"] = time.time()
+                                try:
+                                    _direct_source_diag = (
+                                        self._source_requirement_diagnostic(
+                                            agent_id=(context or {}).get(
+                                                "agent_id"),
+                                            message=str(
+                                                _task_row.get(
+                                                    "original_message")
+                                                or message),
+                                            accepted_task=_task_row,
+                                        ))
+                                    _task_row = attach_source_requirements(
+                                        _task_row, _direct_source_diag
+                                    ) or _task_row
+                                except Exception:  # noqa: BLE001 — additive
+                                    pass
+                                session[FILE_TASK_SESSION_KEY] = _task_row
+                            if _direct_answer_delivered:
+                                _direct_result_row["status"] = "delivered"
+                                _direct_result_row["delivered_at"] = (
+                                    time.time())
                         except Exception:
                             pass
                     _direct_terminal_status = (
@@ -14512,11 +14707,10 @@ class ChatOrchestrator:
                 if _recovery_decision == "deliver_stored_result" \
                         and _recovery_payload:
                     try:
-                        from core.chat_tool_planner import (
-                            _assessment_request,
-                        )
+                        from core.chat_tool_planner import review_requested
 
-                        _r4_review_ask = _assessment_request(
+                        _r4_review_ask = review_requested(
+                            pending_file_task,
                             str(_recovery_payload.get("original_request")
                                 or message or ""))
                     except Exception:  # noqa: BLE001 — flag is additive
@@ -14533,6 +14727,34 @@ class ChatOrchestrator:
                         _r4_stored["status"] = "retrieved"
                         _r4_stored["execution_id"] = _execution_id
                         session["_pending_file_result"] = _r4_stored
+                        _review_objective_hint = str(
+                            _recovery_payload.get("original_request")
+                            or (pending_file_task or {}).get(
+                                "original_message")
+                            or message)
+                        try:
+                            from core.pending_file_task import (
+                                FILE_TASK_SESSION_KEY as _R4_TASK_KEY,
+                            )
+                            from core.source_requirements import (
+                                attach_source_requirements,
+                            )
+
+                            _r4_task_row = session.get(_R4_TASK_KEY)
+                            if isinstance(_r4_task_row, dict):
+                                _r4_source_diag = (
+                                    self._source_requirement_diagnostic(
+                                        agent_id=(context or {}).get(
+                                            "agent_id"),
+                                        message=_review_objective_hint,
+                                        accepted_task=_r4_task_row,
+                                    ))
+                                session[_R4_TASK_KEY] = (
+                                    attach_source_requirements(
+                                        _r4_task_row, _r4_source_diag
+                                    ) or _r4_task_row)
+                        except Exception:  # noqa: BLE001 — additive
+                            pass
                         logger.info(
                             "[r4-recovery] review ask — stored read staged; "
                             "narration required")
@@ -16774,6 +16996,7 @@ class ChatOrchestrator:
                             mission_critical=bool((context or {}).get("mission_critical")),
                             canvas_provenance=(context or {}).get("canvas_provenance"),
                             images=images,
+                            review_objective=(_review_objective_hint or None),
                         )
                         return ai_response
                     if _reply_leg_budget is not None:
@@ -19886,6 +20109,7 @@ class ChatOrchestrator:
         miss_handoff: bool = False,
         miss_handoff_block: Optional[str] = None,
         shared_tool_state: Optional[Dict[str, Any]] = None,
+        review_objective: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -20510,9 +20734,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # disabled the deterministic-answer suppression on this path.
             _review_ask = False
             try:
-                from core.chat_tool_planner import _assessment_request
+                from core.chat_tool_planner import review_requested
 
-                _review_ask = _assessment_request(_gate_msg)
+                # A confirmation/recovery turn must retain the accepted
+                # review objective, not rediscover it from "go ahead".
+                _review_ask = review_requested(
+                    pending_file_task,
+                    review_objective or _gate_msg or message)
             except Exception:  # noqa: BLE001 — flag is additive
                 _review_ask = False
             _plan_mentions: List[str] = []
@@ -21869,7 +22097,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                         and "datasets" in (
                                             self._required_research_sources(
                                                 agent_id=agent_id,
-                                                message=message)
+                                                message=message,
+                                                accepted_task=(
+                                                    pending_file_task))
                                             or set())
                                         and not re.search(
                                             r"\.(?:xlsx|xls|xlsm|csv|tsv)"
@@ -23017,6 +23247,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # A resume turn must judge the restored original ask,
                     # not the bare approval that resumed it.
                     message=_gate_msg or message,
+                    accepted_task=pending_file_task,
                 ) if _research_turn else set())
             # A resumed file ask names its source directly. Taught lessons
             # may add other required sources, but an empty lesson set must not
@@ -23194,7 +23425,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             # against, 2026-10-08 owner correction 2).
                             _required_order = list(
                                 self._required_source_order(
-                                    agent_id, _gate_msg or message))
+                                    agent_id, _gate_msg or message,
+                                    accepted_task=pending_file_task))
                             # The direct file source is required by the
                             # restored ask even when no lesson names it.
                             for _svc in ("datasets", "documents"):
@@ -25379,7 +25611,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         )
 
                         _review_lessons = (
-                            self._agent_lessons(agent_id, _gate_msg) or [])
+                            self._agent_lessons(
+                                agent_id,
+                                review_objective or _gate_msg) or [])
                         _allowed = decision_options_from_lessons(
                             _review_lessons)
                         _review_pending = (
@@ -27815,7 +28049,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         )
 
                         _review_lessons = (
-                            self._agent_lessons(agent_id, _gate_msg) or [])
+                            self._agent_lessons(
+                                agent_id,
+                                review_objective or _gate_msg) or [])
                         _allowed = decision_options_from_lessons(
                             _review_lessons)
                         _review_pending = (
@@ -27926,6 +28162,29 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             except (NameError, UnboundLocalError):
                 # failure preceded the variable's initialization
                 _det_save = None
+            _review_required_now = bool(locals().get("_review_ask"))
+            try:
+                from core.review_result import (
+                    deterministic_read_fallback_allowed,
+                )
+
+                _det_save_allowed = deterministic_read_fallback_allowed(
+                    review_required=_review_required_now,
+                    deterministic_answer=_det_save,
+                )
+            except Exception:  # noqa: BLE001 — guard fails closed
+                _det_save_allowed = False
+            if not _det_save_allowed:
+                if _review_required_now:
+                    # A review ask must never be downgraded to a raw workbook
+                    # read just because narration failed. Leave the review
+                    # obligation unresolved; the caller records an incomplete
+                    # turn and the persisted read remains available for
+                    # recovery.
+                    logger.warning(
+                        "[review-result] narration unavailable — review "
+                        "remains incomplete; no deterministic read delivered")
+                return None
             if _det_save:
                 try:
                     _objective_save = _objective_comparison
@@ -32789,82 +33048,91 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
     _OUTCOME_SECTION_MAX_VALUES = 6
     _OUTCOME_SECTION_MAX_CHARS = 2400
 
+    def _source_requirement_diagnostic(
+        self,
+        *,
+        agent_id: Optional[str],
+        message: str,
+        accepted_task: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Derive required sources with attributable lesson identity/scope.
+
+        The accepted request/task owns the source contract. Own lessons may
+        add a source only with an explicit affirmative instruction; sibling
+        lessons and mere service mentions are not authority.
+        """
+        try:
+            from core.source_requirements import (
+                derive_required_research_sources,
+            )
+
+            lessons = self._agent_lessons(agent_id, message, limit=10)
+            diag = derive_required_research_sources(
+                message=message,
+                lessons=lessons,
+                accepted_task=accepted_task,
+            )
+            logger.info(
+                "[source-requirements] required=%s evidence=%s candidates=%s",
+                diag.get("sources"),
+                [
+                    {
+                        "kind": e.get("kind"),
+                        "source": e.get("source"),
+                        "lesson_id": e.get("lesson_id"),
+                        "scope": e.get("scope"),
+                        "topic": e.get("topic"),
+                    }
+                    for e in (diag.get("evidence") or [])
+                ],
+                [
+                    {
+                        "lesson_id": c.get("lesson_id"),
+                        "source": c.get("source"),
+                        "scope": c.get("scope"),
+                        "topic": c.get("topic"),
+                        "accepted": c.get("accepted"),
+                    }
+                    for c in (diag.get("lesson_candidates") or [])
+                ],
+            )
+            return diag
+        except Exception as exc:  # noqa: BLE001 — derivation is additive
+            logger.debug("[source-requirements] derivation skipped: %r", exc)
+            return {
+                "sources": [], "evidence": [], "message_sources": [],
+                "task_sources": [], "lesson_candidates": [],
+            }
+
     def _required_source_order(
         self,
         agent_id: Optional[str],
         message: str,
+        accepted_task: Optional[Dict[str, Any]] = None,
     ) -> List[str]:
-        """Required research sources in the order the teaching NAMES them.
-
-        The deterministic recovery lookup picks the first UNCONSULTED
-        required source (2026-10-08 owner correction: never alphabetical
-        first). Lesson text order is the only order the job actually
-        states: whichever store the teaching mentions first is consulted
-        first; sources the resolver also requires but the lessons order
-        later follow. Unknown orders fall back to the resolver's set
-        order-of-discovery, which is stable and not alphabetical.
-        """
-        ordered: List[str] = []
-        try:
-            lessons = self._agent_lessons(agent_id, message, limit=10)
-            text = " ".join(
-                str(l.get("lesson") or l.get("summary") or "")
-                for l in (lessons or [])).lower()
-            for word, svc in (
-                    ("workbook", "datasets"), ("price list", "datasets"),
-                    ("spreadsheet", "datasets"), ("xlsx", "datasets"),
-                    ("workdrive", "datasets"),
-                    ("email", "outlook"), ("correspondence", "outlook"),
-                    ("inbox", "outlook"), ("attachment", "outlook"),
-                    ("thread", "outlook")):
-                if word in text and svc not in ordered:
-                    ordered.append(svc)
-        except Exception:  # noqa: BLE001 — ordering is additive
-            ordered = []
-        for svc in self._required_research_sources(
-                agent_id=agent_id, message=message):
-            if svc not in ordered:
-                ordered.append(svc)
-        return ordered
+        """Required sources in deterministic buckets (datasets first)."""
+        diag = self._source_requirement_diagnostic(
+            agent_id=agent_id, message=message,
+            accepted_task=accepted_task)
+        return list(diag.get("sources") or [])
 
     def _required_research_sources(
         self,
         *,
         agent_id: Optional[str],
         message: str,
+        accepted_task: Optional[Dict[str, Any]] = None,
     ) -> set:
-        """The taught source set for a research turn, derived from the
-        OWNER'S LESSONS (2026-10-04 reviewer closeout #4) — never from
-        which search happened to run first. Correspondence words in the
-        lessons → the mail service; a designated workbook/file → the
-        datasets catalog. Order-independent chaining works for any
-        business whose teaching names any store: unknown stores are
-        matched to services by the catalog's own file/service index, and
-        unnameable requirements resolve to the two core research
-        services only when the lessons actually mention both
-        correspondence AND a designated file."""
-        required: set = set()
-        try:
-            lessons = self._agent_lessons(agent_id, message, limit=10)
-        except Exception:  # noqa: BLE001 — requirement derivation is additive
-            return required
-        text = " ".join(
-            str(l.get("lesson") or l.get("summary") or "")
-            for l in (lessons or [])).lower()
-        if not text:
-            return required
-        if re.search(
-            r"\b(?:e-?mail|attachment|correspondence|inbox|thread)s?\b",
-            text,
-        ):
-            required.add("outlook")
-        if re.search(
-            r"\b(?:workbook|price\s+lists?|spreadsheet|xlsx?)\b"
-            r"|\bworkdrive\b",
-            text,
-        ):
-            required.add("datasets")
-        return required
+        """Required source set owned by the accepted task/request.
+
+        This deliberately does NOT scan all retrieved lesson text: a service
+        mentioned in a sibling or unrelated lesson is not an obligation. See
+        ``core.source_requirements`` for the authority rules and diagnostics.
+        """
+        diag = self._source_requirement_diagnostic(
+            agent_id=agent_id, message=message,
+            accepted_task=accepted_task)
+        return set(diag.get("sources") or [])
 
     async def _lesson_designated_file(
         self,

@@ -7163,6 +7163,26 @@ def _assessment_request(text: str) -> bool:
     ))
 
 
+def review_requested(
+    pending_task: Optional[Dict[str, Any]],
+    message: str,
+) -> bool:
+    """Whether the accepted task retains a review obligation.
+
+    Confirmation/recovery text ("go ahead") is not the objective. The stored
+    original ask is authoritative; a review must not degrade to a workbook
+    display merely because the current turn is a confirmation.
+    """
+    texts = []
+    if isinstance(pending_task, dict):
+        texts.extend([
+            pending_task.get("review_original_message"),
+            pending_task.get("original_message"),
+        ])
+    texts.append(message)
+    return any(_assessment_request(str(text or "")) for text in texts if text)
+
+
 async def _datasets_named_file_block(
     user_id: Optional[str], query: str, context: Optional[Dict[str, Any]],
     plan: Any = None, llm_service: Any = None,

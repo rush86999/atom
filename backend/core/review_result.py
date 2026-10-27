@@ -491,6 +491,23 @@ def review_matches_delivered_text(
     return bool(summary) and summary in delivered
 
 
+def deterministic_read_fallback_allowed(
+    *,
+    review_required: bool,
+    deterministic_answer: Any,
+) -> bool:
+    """Whether narration failure may fall back to a raw structured read.
+
+    A lookup can degrade to the verified scan when the model is unavailable.
+    A REVIEW cannot: the read is only evidence, and serving it would claim a
+    judgment the platform never made. The review obligation stays unresolved
+    for recovery instead.
+    """
+    if review_required:
+        return False
+    return bool(deterministic_answer)
+
+
 def align_review_failure(
     response: Optional[Dict[str, Any]],
     task_outcome: Optional[Dict[str, Any]],

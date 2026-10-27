@@ -327,6 +327,29 @@ def ask(base: str, token: str, user_id: str, agent_id: str, message: str,
     }
 
 
+def _answer_is_delivered(answer: dict) -> bool:
+    """Whether the first turn already delivered a usable answer.
+
+    Stale session task state alone must not trigger another request after a
+    valid structured answer. A saved-lookup prompt, timeout, partial or
+    unconfirmed outcome is not a delivered answer.
+    """
+    if answer.get("http") != 200 or answer.get("success") is not True:
+        return False
+    message = str(answer.get("message") or "").strip()
+    if not message:
+        return False
+    if str(answer.get("outcome") or "").lower() in (
+            "partial", "failed", "unconfirmed"):
+        return False
+    low = message.lower()
+    if any(phrase in low for phrase in CONFIRM_PHRASES):
+        return False
+    if "hasn't run" in low or "has not run" in low:
+        return False
+    return True
+
+
 def ask_confirmed(db_path: str, base: str, token: str, user_id: str,
                   agent_id: str, message: str,
                   session_id: str | None = None) -> dict:
@@ -338,7 +361,8 @@ def ask_confirmed(db_path: str, base: str, token: str, user_id: str,
     record["first_session"] = first_session
     pending = first_session.get("_pending_file_task") or {}
     low = str(first.get("message") or "").lower()
-    wants_confirmation = (
+    delivered_answer = _answer_is_delivered(first)
+    wants_confirmation = False if delivered_answer else (
         pending.get("status") == "pending"
         or any(phrase in low for phrase in CONFIRM_PHRASES)
         or "go ahead" in low
@@ -599,6 +623,11 @@ def review_checks(db_path: str, record: dict, expected_decision: str,
         "task_delivered": task.get("status") == "delivered",
         "receipt_has_file_and_hash": bool(
             resolved.get("file_name") and resolved.get("content_hash")),
+        # The accepted workbook-only review must not inherit an Outlook
+        # obligation from unrelated/sibling lessons (attempt-three defect).
+        "source_requirements_workbook_only": (
+            [str(s) for s in (task.get("source_requirements") or [])]
+            == ["datasets"]),
         "structured_review_persisted": persisted,
         "history_persisted": any(
             message.get("role") == "assistant" for message in messages),
@@ -676,6 +705,11 @@ def spreadsheet_checks(db_path: str, record: dict, file_name: str,
         # it never reports a failed outcome; review turns carry the strict
         # outcome agreement checks.
         "outcome_not_failed": final.get("outcome") != "failed",
+        # A delivered first answer must not be confirmed again merely
+        # because a stale pending task survived (attempt-three defect).
+        "no_redundant_confirmation": not (
+            record.get("confirmation_sent")
+            and _answer_is_delivered(record.get("first") or {})),
         "completion_path": (
             "recovery_after_timeout" if record.get("budget_retry")
             else "confirmation" if record.get("confirmation_sent")
@@ -1010,6 +1044,7 @@ def run_pre(args: argparse.Namespace) -> int:
                 evidence["po_checks"]["http_200"],
                 evidence["po_checks"]["success_true"],
                 evidence["po_checks"]["outcome_not_failed"],
+                evidence["po_checks"]["no_redundant_confirmation"],
             )),
             "spreadsheet_adjustments": all((
                 evidence["adjustments_checks"]["fields_all_true"],
@@ -1017,6 +1052,7 @@ def run_pre(args: argparse.Namespace) -> int:
                 evidence["adjustments_checks"]["http_200"],
                 evidence["adjustments_checks"]["success_true"],
                 evidence["adjustments_checks"]["outcome_not_failed"],
+                evidence["adjustments_checks"]["no_redundant_confirmation"],
             )),
             "o1010_before_process": all(
                 value for key, value in evidence["o1010_before_checks"].items()

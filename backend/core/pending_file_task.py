@@ -465,6 +465,44 @@ def mark_task_delivered(task: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     return delivered
 
 
+def settle_retrieval_task(
+    task: Optional[Dict[str, Any]],
+    resolved_file: Optional[Dict[str, Any]],
+    *,
+    retrieval_finished: bool,
+    answer_delivered: bool,
+    calculation_complete: bool,
+    open_requirements: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """Separate retrieval completion, answer delivery and calculation completeness.
+
+    A successful lookup that returns a correct partial calculation (for
+    example, a subtotal with named required-input gaps) has finished its
+    source lookup. It must not stay pending and trigger another read merely
+    because the business calculation is incomplete. The gaps/open
+    requirements remain on the task and on the result; only the source-lookup
+    lifecycle becomes terminal.
+
+    An unfinished retrieval remains on the existing task unchanged. An
+    answer that has not reached the user remains ``retrieved``, so the next
+    delivery can render the persisted result without re-reading.
+    """
+    if not retrieval_finished:
+        return dict(task or build_pending_task("", ""))
+    settled = mark_task_retrieved(task, resolved_file)
+    settled["retrieval_finished"] = True
+    settled["calculation_complete"] = bool(calculation_complete)
+    settled["open_requirements"] = [
+        dict(item) for item in (open_requirements or []) if isinstance(item, dict)
+    ]
+    if answer_delivered:
+        settled = mark_task_delivered(settled)
+    else:
+        settled["answer_delivered"] = False
+    settled["updated_at"] = time.time()
+    return settled
+
+
 def mark_task_served(
     task: Optional[Dict[str, Any]],
     resolved_file: Optional[Dict[str, Any]],

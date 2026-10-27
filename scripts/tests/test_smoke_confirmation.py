@@ -90,7 +90,8 @@ def test_confirmation_and_retry_use_go_ahead_in_same_session(
     assert module.CONFIRM_PENDING_READ == "go ahead"
 
     recorder = AskRecorder([
-        {"session_id": "session-42"},
+        {"session_id": "session-42", "success": True, "outcome": "partial",
+         "message": "The workbook lookup hasn't run yet — confirm to proceed."},
         {"session_id": "session-42", "error_code": "turn_budget_exceeded"},
         {"session_id": "session-42"},
     ])
@@ -119,7 +120,8 @@ def test_confirmation_and_retry_use_go_ahead_in_same_session(
 def test_confirmation_without_retry_stays_in_session(smoke_path, monkeypatch):
     module = load_smoke(smoke_path)
     recorder = AskRecorder([
-        {"session_id": "session-7"},
+        {"session_id": "session-7", "success": True, "outcome": "partial",
+         "message": "The workbook lookup hasn't run yet — confirm to proceed."},
         {"session_id": "session-7"},
     ])
     monkeypatch.setattr(module, "ask", recorder)
@@ -157,6 +159,28 @@ def test_no_confirmation_branch_makes_one_request(smoke_path, monkeypatch):
     assert record["final"] is record["first"]
 
 
+@pytest.mark.parametrize("smoke_path", (DEV_SMOKE, PACKAGED_SMOKE),
+                         ids=("development", "packaged"))
+def test_stale_pending_after_valid_answer_does_not_confirm(
+        smoke_path, monkeypatch):
+    module = load_smoke(smoke_path)
+    recorder = AskRecorder([
+        {"session_id": "session-valid", "success": True, "outcome": None,
+         "message": "Workbook: `sheet.xlsx`; known subtotal -700.00 CAD; "
+                    "gap 0055 at C5; grand total withheld."},
+    ])
+    monkeypatch.setattr(module, "ask", recorder)
+    monkeypatch.setattr(module, "session_meta", pending_session)
+
+    record = module.ask_confirmed(
+        "/tmp/does-not-matter.db", "http://candidate", "token", "user",
+        "agent", "original ask")
+
+    assert [call["message"] for call in recorder.calls] == ["original ask"]
+    assert record["confirmation_sent"] is False
+    assert record["final"] is record["first"]
+
+
 def _candidate_classifier(message: str) -> bool:
     if not CANDIDATE_BACKEND.is_dir():
         pytest.fail(f"candidate backend not present: {CANDIDATE_BACKEND}")
@@ -182,7 +206,8 @@ def test_captured_confirmations_match_candidate_classifier(
         smoke_path, monkeypatch):
     module = load_smoke(smoke_path)
     recorder = AskRecorder([
-        {"session_id": "session-99"},
+        {"session_id": "session-99", "success": True, "outcome": "partial",
+         "message": "The workbook lookup hasn't run yet — confirm to proceed."},
         {"session_id": "session-99", "error_code": "turn_budget_exceeded"},
         {"session_id": "session-99"},
     ])
