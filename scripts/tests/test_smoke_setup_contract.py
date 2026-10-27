@@ -202,6 +202,26 @@ def test_upload_workbook_contract(smoke_path, monkeypatch, tmp_path):
 
 
 @pytest.mark.parametrize("smoke_path", SMOKE_PATHS, ids=SMOKE_IDS)
+def test_upload_workbook_accepts_unchanged_dedup(smoke_path, monkeypatch,
+                                                 tmp_path):
+    module = load_smoke(smoke_path)
+    workbook = tmp_path / "orders.xlsx"
+    workbook.write_bytes(b"xlsx")
+    install_http(monkeypatch, [
+        (200, {
+            "success": True,
+            "canvas_id": "canvas-1",
+            "agent_id": "agent-1",
+            "file_name": "orders.xlsx",
+            "ingestion": {"status": "skipped", "reason": "unchanged"},
+        }),
+    ])
+    result = module.upload_workbook(
+        "http://candidate", "token", "canvas-1", workbook)
+    assert result["body"]["ingestion"]["status"] == "skipped"
+
+
+@pytest.mark.parametrize("smoke_path", SMOKE_PATHS, ids=SMOKE_IDS)
 def test_upload_workbook_rejects_non_ingested(smoke_path, monkeypatch,
                                               tmp_path):
     module = load_smoke(smoke_path)

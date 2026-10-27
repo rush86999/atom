@@ -523,8 +523,16 @@ def upload_workbook(base: str, token: str, canvas_id: str,
         raise RuntimeError("workbook upload returned no valid agent id")
     if body.get("file_name") != path.name:
         raise RuntimeError("workbook upload returned a different file name")
-    if not isinstance(ingestion, dict) or ingestion.get("status") != "ingested":
+    if not isinstance(ingestion, dict) or ingestion.get("status") not in (
+            "ingested", "skipped"):
         raise RuntimeError("workbook upload did not ingest the file")
+    if (
+        ingestion.get("status") == "skipped"
+        and str(ingestion.get("reason") or "").lower() not in (
+            "unchanged", "duplicate")
+    ):
+        raise RuntimeError(
+            "workbook upload was skipped for a non-dedup reason")
     return {"http": response.status_code, "body": body}
 
 
