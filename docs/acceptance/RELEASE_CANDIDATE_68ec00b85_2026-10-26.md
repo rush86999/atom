@@ -1,8 +1,8 @@
-# Release candidate `1f5eed12a` — launch-blocker repair and freeze
+# Release candidate `68ec00b85` — launch-blocker repair and freeze
 
 **Prepared:** 2026-10-26
 **Predecessor:** `ae0c2fda3` (third attempt failed product smoke; rolled back)
-**Commit:** `1f5eed12a1be254c251e70d814fb76e5ab13a77c`
+**Commit:** `68ec00b851be254c251e70d814fb76e5ab13a77c`
 **Status:** code frozen; packaged smoke and isolated rehearsal pending.
 
 ## Launch promise (frozen for this release)
@@ -153,3 +153,10 @@ delivered and the smoke gap field mismatch. The freeze now:
   reads without Process/Escalate options settle as ordinary sourced reads.
 - Review delivery requires the review contract to have actually been appended
   (`review_required`), so failed/unvalidated reviews stay retrieved.
+
+### Final review remediation
+
+A review narration exception returned before the `review_required` marker. The
+delivered gate now also checks the request-local review-path flags, requires a
+validated `review_result`, and keeps the task/PFR non-delivered on narration
+failure. A regression asserts this exact path.
