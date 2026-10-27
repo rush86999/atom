@@ -1,8 +1,8 @@
-# Release candidate `68ec00b85` — launch-blocker repair and freeze
+# Release candidate `905a78eed` — launch-blocker repair and freeze
 
 **Prepared:** 2026-10-26
 **Predecessor:** `ae0c2fda3` (third attempt failed product smoke; rolled back)
-**Commit:** `68ec00b851be254c251e70d814fb76e5ab13a77c`
+**Commit:** `905a78eed1be254c251e70d814fb76e5ab13a77c`
 **Status:** code frozen; packaged smoke and isolated rehearsal pending.
 
 ## Launch promise (frozen for this release)
@@ -160,3 +160,9 @@ A review narration exception returned before the `review_required` marker. The
 delivered gate now also checks the request-local review-path flags, requires a
 validated `review_result`, and keeps the task/PFR non-delivered on narration
 failure. A regression asserts this exact path.
+
+### Decision-schema gate
+
+Direct, recovery and stored-read delivery now require a real taught decision
+schema before withholding a read as a review. A review-worded read on an agent
+without Process/Escalate options settles as an ordinary sourced answer.
