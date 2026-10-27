@@ -1,8 +1,8 @@
-# Release candidate `5d2508a7a` — launch-blocker repair and freeze
+# Release candidate `1f5eed12a` — launch-blocker repair and freeze
 
 **Prepared:** 2026-10-26
 **Predecessor:** `ae0c2fda3` (third attempt failed product smoke; rolled back)
-**Commit:** `5d2508a7a1be254c251e70d814fb76e5ab13a77c`
+**Commit:** `1f5eed12a1be254c251e70d814fb76e5ab13a77c`
 **Status:** code frozen; packaged smoke and isolated rehearsal pending.
 
 ## Launch promise (frozen for this release)
@@ -140,3 +140,16 @@ delivered and the smoke gap field mismatch. The freeze now:
 - stages reply-leg partial calculations as retrieved with gaps instead of
   leaving them pending;
 - accepts the product's gap `identity` field (0055) in the smoke check.
+
+### Third review remediation (before rehearsal)
+
+- Repeated identical review asks now reuse the stored read (no new read or
+  task operation) because the ask lane respects the stored-review gate.
+- Durable-only recovery synthesizes structured subjects/evidence from its
+  findings and carries a content hash, so a recovered review can be validated.
+- Reply-leg partial aggregates settle the task with gaps and
+  calculation_complete, not just the persisted result.
+- Ask-lane review withholding requires a real decision schema; review-worded
+  reads without Process/Escalate options settle as ordinary sourced reads.
+- Review delivery requires the review contract to have actually been appended
+  (`review_required`), so failed/unvalidated reviews stay retrieved.
