@@ -89,6 +89,32 @@ def _presentation_record_from_meta(
 
 logger = logging.getLogger(__name__)
 
+
+def _capture_review_payload(kind: str, execution_id: str, payload: Any) -> None:
+    """Private, env-gated capture of review generation input/output.
+
+    Content-bearing (business rows/lessons) and therefore written only to
+    the local logs directory, never to committed evidence. Enabled with
+    ATOM_REVIEW_CAPTURE=1 for diagnosis; disabled by default.
+    """
+    try:
+        if os.getenv("ATOM_REVIEW_CAPTURE", "").lower() not in (
+                "1", "true", "on", "yes"):
+            return
+        import json as _json
+        import os as _os
+        base = _os.getenv("ATOM_REVIEW_CAPTURE_DIR") or _os.path.join(
+            _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+            "logs", "review_diagnosis")
+        _os.makedirs(base, exist_ok=True)
+        safe_exec = str(execution_id or "unknown").replace("/", "_")[:80]
+        path = _os.path.join(base, f"{kind}_{safe_exec}.json")
+        with open(path, "w") as fh:
+            _json.dump(payload, fh, indent=2, default=str)
+    except Exception:  # noqa: BLE001 — diagnostics never break a turn
+        pass
+
+
 from core.request_scope import current_request_scope
 
 # Control A fallback bound (owner diagnostic bounds, 2026-10-12): when
@@ -1339,6 +1365,11 @@ def _remaining_budget(turn_t0: float, budget: Optional[float] = None) -> float:
     if budget <= 0:
         return float("inf")
     return max(0.0, budget - (time.monotonic() - turn_t0))
+
+
+# The one contract-only review-block retry fires only while this much turn
+# budget remains — the review still has to be finalized inside the turn.
+_REVIEW_BLOCK_RECOVERY_RESERVE_S = 25.0
 
 
 async def _cancel_and_confirm(
@@ -7978,6 +8009,57 @@ def _capture_resolved_row_bindings(
     except Exception as exc:  # noqa: BLE001 — capture never blocks a turn
         logger.debug("resolved-binding capture skipped: %r", exc)
 
+
+
+
+def _settle_review_read_obligations(session: Any, subjects: List[str],
+                                    workspace_id: Any = None) -> int:
+    """Reconcile READ obligations a validated review just satisfied.
+
+    Freshness obligations ("re-verify against the live source") are genuine
+    and stay open. Only open "read <file> for <subject>" questions for the
+    reviewed subjects are settled, through the existing task-lifecycle
+    resolution path. History is not deleted.
+    """
+    try:
+        if not isinstance(session, dict):
+            return 0
+        run_id = str(session.get("_task_run_id") or "")
+        if not run_id or not subjects:
+            return 0
+        lifecycle = _task_lifecycle_for(None, workspace_id)
+        if lifecycle is None:
+            return 0
+        from core.task_lifecycle import (
+            open_unresolved_questions,
+            resolve_unresolved_questions,
+        )
+
+        record = lifecycle.get_task(run_id)
+        if not record:
+            return 0
+        subject_set = {str(s) for s in subjects}
+        read_ids = []
+        for question in open_unresolved_questions(record):
+            item = str(question.get("item") or "")
+            action = str(question.get("next_action") or "")
+            if item in subject_set and action.lower().startswith("read "):
+                read_ids.append(str(question.get("question_id")))
+        if not read_ids:
+            return 0
+        settled = resolve_unresolved_questions(
+            lifecycle, run_id, question_ids=read_ids,
+            resolution=(
+                "validated selection/review delivered the source rows for "
+                "these subjects"))
+        logger.info(
+            "[review-result] settled %d read obligation(s) after validated "
+            "review (run=%s)", len(settled), run_id[:8])
+        return len(settled)
+    except Exception as exc:  # noqa: BLE001 — bookkeeping only
+        logger.warning(
+            "[review-result] read-obligation settlement skipped: %r", exc)
+        return 0
 
 def _task_lifecycle_for(tenant_id: Any,
                         workspace_id: Any) -> Optional[Any]:
@@ -27259,6 +27341,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # feedback training captures WHAT the model was thinking.
                     _reasoning_parts: List[str] = []
                     _reasoning_sink: Dict[str, Any] = {"deltas": _reasoning_parts}
+                    _capture_review_payload(
+                        "input", str(execution_id or "unknown"), {
+                            "execution_id": execution_id,
+                            "review_contract": bool(_review_contract_active),
+                            "subjects": locals().get("_subjects"),
+                            "evidence_index": locals().get("_evidence_index"),
+                            "policy_index": locals().get("_policy_index"),
+                            "allowed_decisions": locals().get("_allowed"),
+                            "messages": messages,
+                        })
                     _stream_agen = self.llm_service.stream_completion(
     **_llm_scope,
                         messages=messages,
@@ -27420,6 +27512,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         if _stream_residue_detected:
                             break
                     _full = "".join(_buf).strip()
+                    if _review_contract_active:
+                        _capture_review_payload(
+                            "output", str(execution_id or "unknown"),
+                            {"content": _full, "review_contract": True})
                     if _full:
                         from core.chat_tool_planner import (
                             _explicit_web_research_requested,
@@ -28010,6 +28106,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "non-streaming fallback pinned to next-ranked "
                                 f"model {_ns_model} after a "
                                 "zero-visible stream")
+                        _capture_review_payload(
+                            "input_nonstream",
+                            str(execution_id or "unknown"), {
+                                "execution_id": execution_id,
+                                "review_contract": bool(
+                                    _review_contract_active),
+                                "subjects": locals().get("_subjects"),
+                                "evidence_index": locals().get(
+                                    "_evidence_index"),
+                                "policy_index": locals().get(
+                                    "_policy_index"),
+                                "allowed_decisions": locals().get("_allowed"),
+                                "messages": messages,
+                            })
                         response_data = await asyncio.wait_for(
                             self.llm_service.generate_completion(
                                 messages=messages,
@@ -28019,6 +28129,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             ),
                             timeout=_ns_left,
                         )
+                        if _review_contract_active:
+                            _capture_review_payload(
+                                "output_nonstream",
+                                str(execution_id or "unknown"),
+                                {"content": str(
+                                    (response_data or {}).get("content")
+                                    or ""), "review_contract": True})
                     except asyncio.TimeoutError:
                         logger.warning(
                             f"chat reply generation timed out on the turn budget "
@@ -29414,6 +29531,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             build_policy_index,
                             build_review_result,
                             decision_options_from_lessons,
+                            missing_block_only,
                             render_review_result,
                             strip_review_block,
                         )
@@ -29617,6 +29735,54 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 policy_index=_policy_index,
                                 accepted_contract=_review_accepted,
                             )
+                            if (not _review.get("ok")
+                                    and _review_contract_active
+                                    and missing_block_only(
+                                        _review.get("errors") or [])
+                                    and _evidence_index and _policy_index
+                                    and (deadline is None or not
+                                         deadline.expired(
+                                             reserve=(
+                                                 _REVIEW_BLOCK_RECOVERY_RESERVE_S)))):
+                                # The reply leg lost the fenced block (format
+                                # collapse), not a rejected judgment: one
+                                # contract-only retry with the SAME evidence
+                                # and policy IDs, validated by the SAME gate.
+                                # A refused block never gets re-rolled —
+                                # missing_block_only already excluded it.
+                                _recovered_answer = await (
+                                    self._retry_review_block(
+                                        objective_text=(
+                                            _review_objective_text),
+                                        rendered_rows=(
+                                            (_review_pending or {}).get(
+                                                "rendered") or "")
+                                        if isinstance(
+                                            _review_pending, dict) else "",
+                                        subjects=_subjects,
+                                        allowed_decisions=_allowed,
+                                        evidence_index=_evidence_index,
+                                        policy_index=_policy_index,
+                                        model=forced_model,
+                                        llm_scope=_llm_scope,
+                                        extra_kwargs=extra_kwargs,
+                                    ))
+                                if _recovered_answer:
+                                    _review = build_review_result(
+                                        execution_id=execution_id,
+                                        expected_execution_id=execution_id,
+                                        requested_records=_subjects,
+                                        answer=_recovered_answer,
+                                        allowed_decisions=_allowed,
+                                        evidence_index=_evidence_index,
+                                        policy_index=_policy_index,
+                                        accepted_contract=_review_accepted,
+                                    )
+                                    if _review.get("ok"):
+                                        _claimed_content = _recovered_answer
+                                        logger.info(
+                                            "[review-result] block recovered "
+                                            "via one contract-only retry")
                             if deadline is not None:
                                 _review.setdefault(
                                     "reviewed_at_elapsed_s",
@@ -29688,6 +29854,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     f"\n\n{_review_block}")
                                 response_data["review_summary"] = (
                                     _review_block)
+                                _settle_review_read_obligations(
+                                    session, list(_subjects),
+                                    (context or {}).get("workspace_id"))
                                 response_data["structured_result"] = (
                                     _review_struct if isinstance(
                                         _review_struct, dict) else None)
@@ -31236,6 +31405,84 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         except Exception as e:
             logger.debug(f"agent lessons lookup skipped: {e}")
             return []
+
+    async def _retry_review_block(
+        self,
+        *,
+        objective_text: str,
+        rendered_rows: str,
+        subjects: List[str],
+        allowed_decisions: List[Any],
+        evidence_index: List[Dict[str, Any]],
+        policy_index: List[Dict[str, Any]],
+        model: Any = "auto",
+        llm_scope: Optional[Dict[str, Any]] = None,
+        extra_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Optional[str]:
+        """ONE contract-only retry when the reply leg lost the review block.
+
+        The streaming fallback can ship a reply with no fenced block at all
+        (live 2026-10-27: 'structured:chat' produced no tokens in 10s, the
+        grounded regeneration shipped a 54-char reply) while the contract
+        itself was sound. This retries ONCE with a minimal prompt: the same
+        review_output_instruction, the same evidence/policy IDs, the
+        deterministic rows. Validation is NOT relaxed — the recovered block
+        must pass the same build_review_result gate. A block that was
+        produced and REFUSED is never re-rolled; the caller checks
+        missing_block_only first.
+        """
+        try:
+            from core.review_result import review_output_instruction
+        except Exception:  # noqa: BLE001 — contract module unavailable
+            return None
+        instruction = review_output_instruction(
+            {
+                "subjects": list(subjects),
+                "allowed_decisions": list(allowed_decisions),
+                "required_actions": [],
+            },
+            evidence_index,
+            policy_index,
+        )
+        task = (
+            f"Task: {str(objective_text or '').strip()}\n\n"
+            f"Validated source rows:\n"
+            f"{str(rendered_rows or '').strip()[:6000]}\n\n"
+            "Produce the required review_result block now."
+        )
+        messages = [
+            {"role": "system", "content": instruction},
+            {"role": "user", "content": task},
+        ]
+        logger.info(
+            "[review-diag] block_recovery generation_started subjects=%d "
+            "evidence_ids=%s policy_ids=%s",
+            len(subjects),
+            [entry.get("evidence_id") for entry in evidence_index],
+            [entry.get("policy_id") for entry in policy_index])
+        try:
+            kwargs = dict(llm_scope or {})
+            kwargs.update(extra_kwargs or {})
+            result = await self.llm_service.generate_completion(
+                messages=messages, model=model, **kwargs)
+        except Exception as exc:  # noqa: BLE001 — provider failure is a skip
+            logger.warning(
+                "[review-diag] block_recovery generation_failed: %r", exc)
+            return None
+        content = str((result or {}).get("content") or "")
+        logger.info(
+            "[review-diag] block_recovery generation_completed "
+            "content_len=%d", len(content))
+        if _is_llm_error_text(content):
+            # The handler surfaced a provider/router failure as content.
+            # Feeding it to the validator would read as "no block" and
+            # pollute the rejection codes; a provider failure is a skip,
+            # not a judgment (same lesson as _guarded_regen, 2026-09-21).
+            logger.info(
+                "[review-diag] block_recovery provider_error_content — "
+                "treating as failed generation")
+            return None
+        return content or None
 
     async def _cross_canvas_learnings(
         self,

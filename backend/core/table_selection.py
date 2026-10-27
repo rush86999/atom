@@ -171,8 +171,11 @@ def _comparison_predicate(
                 text, re.IGNORECASE,
             )
             if m:
-                return {"column": column, "operator": op,
-                        "value": _coerce_value(m.group(2))}
+                value = _coerce_value(m.group(2))
+                if op in {">", ">=", "<", "<="} and not isinstance(
+                        value, (int, float)):
+                    continue
+                return {"column": column, "operator": op, "value": value}
         for word_re, op in _COMPARISON_WORDS:
             m = re.search(
                 rf"(?<![A-Za-z0-9]){quoted}\s+(?:{word_re})\s+"
@@ -180,8 +183,14 @@ def _comparison_predicate(
                 text, re.IGNORECASE,
             )
             if m:
-                return {"column": column, "operator": op,
-                        "value": _coerce_value(m.group(2))}
+                value = _coerce_value(m.group(2))
+                # Ordering words ("under the rule", "above the fold") are
+                # prose, not a numeric comparison. Only equality may bind a
+                # non-numeric literal.
+                if op in {">", ">=", "<", "<="} and not isinstance(
+                        value, (int, float)):
+                    continue
+                return {"column": column, "operator": op, "value": value}
     return None
 
 

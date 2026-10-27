@@ -129,6 +129,16 @@ The shared **table-selection operation** is now implemented and verified:
   predicate and row references; an unknown file yields `success=false` with
   no table (`selection_missing_file_guard.json`).
 
+The policy prompt is now self-contained: every selectable policy ID carries
+its applicable lesson text, and the same policy index feeds generation and
+validation. Native prompt capture proved the prior failure had only policy
+IDs/topics (the below-5,000 rule was absent). Two green assessments followed:
+grants (3200 DECLINE, 5000 HOLD, 10000 HOLD, 12000 HOLD) and a renamed
+schema/labels twin (3200 REJECT, 5000 REVIEW, 10000 REVIEW), both with
+source/policy attribution and completed outcomes. A post-restart repeat of the
+renamed assessment produced no valid block and was safely failed, so restart
+reliability remains open (CR-019).
+
 The assessment pipeline is now wired through the existing review machinery:
 validated selection rows are adapted into a structured review artifact
 (subjects, row references, source identity/version, evidence index), one
@@ -144,7 +154,9 @@ newest taught correction says below 5000 = DECLINE; a later generation emitted
 no valid block and was safely rejected. That is recorded as CR-009 (failed)
 and CR-014 (partial), not rounded up. The structural pipeline is CR-016
 (verified); judgment that reliably follows the current correction remains the
-next repair. The earlier fabricated `Roper-011`,
+next repair. Read obligations satisfied by a validated review are settled
+through the task lifecycle; genuine freshness obligations remain open, and an
+incomplete review leaves its reads open (CR-018). The earlier fabricated `Roper-011`,
 `Tennsmith-001`, `GL001` and `GL002` attempts remain preserved as history.
 
 Not yet claimed: a validated assessment decision table, the full teach →

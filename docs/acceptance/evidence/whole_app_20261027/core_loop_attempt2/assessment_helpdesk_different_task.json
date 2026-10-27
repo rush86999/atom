@@ -1,0 +1,152 @@
+{
+  "success": false,
+  "message": "Selection: `helpdesk_loop` in `helpdesk_loop.csv`\nRows: 2 selected; 1 outside the filter\n\n| Ticket | Hours |\n| --- | ---: |\n| HD-88 | 1.5 |\n| HD-91 | 2.25 |\n\nFilter: State = Open\n\nAssessment not delivered: the proposed decision table was not validated against the selected subjects and evidence, so no decision was accepted.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+  "session_id": "c2c1062d-9b63-4383-b91e-5f8b7ec1fe85",
+  "intent": "agent_request",
+  "confidence": 0.5,
+  "suggested_actions": [],
+  "requires_confirmation": false,
+  "next_steps": [
+    "re-verify HD-88 against the live source when access is available",
+    "re-verify HD-91 against the live source when access is available",
+    "read helpdesk_loop.csv for HD-88"
+  ],
+  "timestamp": "2026-10-27T19:42:18.322397",
+  "metadata": {
+    "review_result": {
+      "schema_version": "review-result-2",
+      "execution_id": "25a79689-b1fa-4a24-9dba-03978b113990",
+      "requested_subjects": [
+        "HD-88",
+        "HD-91"
+      ],
+      "allowed_decisions": [
+        "ESCALATE",
+        "STANDARD"
+      ],
+      "source_execution_ids": [],
+      "assessments": [],
+      "candidate_assessments": [],
+      "errors": [
+        {
+          "code": "missing_structured_review"
+        },
+        {
+          "code": "missing_decision",
+          "subject_id": "HD-88"
+        },
+        {
+          "code": "missing_decision",
+          "subject_id": "HD-91"
+        }
+      ],
+      "ok": false,
+      "required_actions": [],
+      "action_receipts": [],
+      "completion": "incomplete",
+      "reviewed_at_elapsed_s": 13.19
+    },
+    "review_contract": {
+      "subjects": [
+        "HD-88",
+        "HD-91"
+      ],
+      "accepted_inputs": {
+        "subjects": [
+          "HD-88",
+          "HD-91"
+        ],
+        "requested_fields": [],
+        "source_version": "",
+        "teaching_revision": "a68be6d177ce2d709d75cad0",
+        "decision_schema": [
+          "ESCALATE",
+          "STANDARD"
+        ],
+        "required_actions": []
+      },
+      "required_evidence": [
+        {
+          "file_name": "helpdesk_loop.csv",
+          "resource_id": "cf416d132c2899ff4be2a23e48cc3a077bc2f0c6",
+          "content_hash": "cf416d132c2899ff4be2a23e48cc3a077bc2f0c6"
+        },
+        {
+          "file_name": "helpdesk_loop.csv",
+          "resource_id": "cf416d132c2899ff4be2a23e48cc3a077bc2f0c6",
+          "content_hash": "cf416d132c2899ff4be2a23e48cc3a077bc2f0c6"
+        }
+      ],
+      "allowed_decisions": [
+        "ESCALATE",
+        "STANDARD"
+      ],
+      "evidence_ids": [
+        "ev:HD-88:helpdesk_loop!R2",
+        "ev:HD-91:helpdesk_loop!R3"
+      ],
+      "policy_ids": [
+        "23aee4794e9e4ae7b6dae9b3175d8158"
+      ]
+    },
+    "open_work": {
+      "actions": [
+        {
+          "question_id": "77c223c2-2ab4-44c2-9f3d-5e42b2e8a27d",
+          "item": "HD-88",
+          "question": "HD-88: saved-copy value read; freshness against the live source unverified",
+          "kind": "verification",
+          "next_action": "re-verify HD-88 against the live source when access is available",
+          "decision_owner": null,
+          "inputs": null,
+          "attempts": 0
+        },
+        {
+          "question_id": "d5b15927-fde4-4bb6-a88d-4e0daac63289",
+          "item": "HD-91",
+          "question": "HD-91: saved-copy value read; freshness against the live source unverified",
+          "kind": "verification",
+          "next_action": "re-verify HD-91 against the live source when access is available",
+          "decision_owner": null,
+          "inputs": null,
+          "attempts": 0
+        },
+        {
+          "question_id": "2871c577-c2f5-4a1e-a26e-0730109ce7e3",
+          "item": "HD-88",
+          "question": "HD-88 is carried by helpdesk_loop.csv \u2014 the cell/figure is not yet read",
+          "kind": "verification",
+          "next_action": "read helpdesk_loop.csv for HD-88",
+          "decision_owner": null,
+          "inputs": {
+            "item": "HD-88",
+            "file": "helpdesk_loop.csv",
+            "service": "datasets",
+            "intent": "find_all"
+          },
+          "attempts": 0
+        }
+      ],
+      "owner_decisions": [],
+      "exhausted": []
+    },
+    "task_run_id": "02160cbd-77f3-493e-930c-b6d0e3732499",
+    "delivery": {
+      "status": "recorded",
+      "delivery_id": "e8be3df8-41a0-4172-bedc-731588bb8883",
+      "message_id": "8a7c80f9-e87f-4770-9529-b3ea784a1f99"
+    },
+    "persistence": {
+      "status": "persisted"
+    }
+  },
+  "memory_context": null,
+  "model": "auto",
+  "provider": "openai",
+  "reasoning": null,
+  "execution_id": "25a79689-b1fa-4a24-9dba-03978b113990",
+  "error_code": "turn_objective_not_met",
+  "failure_reason": null,
+  "recovery_url": null,
+  "outcome": "failed"
+}

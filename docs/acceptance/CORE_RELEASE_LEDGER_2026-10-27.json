@@ -1,7 +1,7 @@
 {
   "schema_version": "core-release-1",
   "title": "Atom core-release readiness ledger \u2014 2026-10-27",
-  "generated_at": "2026-10-27T23:01:58.475676+00:00",
+  "generated_at": "2026-10-27T23:44:07.356485+00:00",
   "supersedes": "WHOLE_APP_READINESS_LEDGER_2026-10-27",
   "decision": "docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md",
   "candidate": {
@@ -35,22 +35,22 @@
     "deferred_scope": "Excluded from the core release by the 2026-10-27 product decision; code and data retained."
   },
   "summary": {
-    "total": 107,
+    "total": 110,
     "by_status": {
       "deferred_scope": 47,
       "environment_limited": 2,
-      "failed": 1,
+      "failed": 2,
       "not_authorized": 1,
       "partial": 12,
       "unproven": 2,
-      "verified": 42
+      "verified": 44
     },
     "core_statuses": {
       "environment_limited": 2,
-      "failed": 1,
+      "failed": 2,
       "partial": 12,
       "unproven": 2,
-      "verified": 42
+      "verified": 44
     },
     "deferred_items": 47,
     "core_release_ready": false,
@@ -2203,7 +2203,7 @@
           "detail": "the four grant rows the answer should have cited"
         }
       ],
-      "first_failed_transition": "A validated three-row decision table was produced once (assessment_structurally_valid_wrong_judgment.json), but GR-2026-033 (4800) was labeled FUND while the newest correction says DECLINE; a later run produced no valid block. Teaching is stored and reaches generation, but the judgment does not reliably follow the correction.",
+      "first_failed_transition": "Two green assessments produced correct boundary decisions (grants 3200/5000/10000/12000; renamed cases 3200/5000/10000) with source/policy attribution, but the post-restart repeat produced no valid block. Reliability across restart is not green.",
       "next_action": "Bind the model's task-defined decisions to the deterministic subjects, validate them with build_review_result, render the final table from the validated components, then repeat teach -> unfamiliar task -> correct -> different task -> restart.",
       "blocking": true,
       "notes": "The turn was correctly marked failed, so the platform did not claim success; the user-visible table is still misleading. This is the core acceptance gate and it is NOT met."
@@ -2294,6 +2294,21 @@
         },
         {
           "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_boundaries_green.json",
+          "detail": "corrected rule: 3200 DECLINE, 5000 HOLD, 10000 HOLD, 12000 HOLD; source/policy basis; success/completed"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_renamed_schema_green.json",
+          "detail": "renamed schema/labels: 3200 REJECT, 5000 REVIEW, 10000 REVIEW; success/completed"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_after_restart_failed.json",
+          "detail": "same renamed assessment after restart: no valid block, deterministic rows only, success=false"
+        },
+        {
+          "kind": "api",
           "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_history_after_restart.json",
           "detail": "green run persisted with the table and outcome=completed after restart"
         },
@@ -2303,7 +2318,7 @@
           "detail": "artifact mapping, ambiguous subject clarification, valid/invalid review variants, table join, teaching revision"
         }
       ],
-      "first_failed_transition": "Judgment quality: GR-2026-033 (4800) was labeled FUND, contradicting the newest taught correction (below 5000 = DECLINE). A later generation emitted no valid block.",
+      "first_failed_transition": "Post-restart generation was not reliable: the same renamed assessment that passed before restart produced no valid block. Judgment on the green runs was correct (all boundary cases).",
       "next_action": "Make the newest policy authoritative in generation (e.g. a single current policy) and rerun; the structural pipeline is green.",
       "blocking": true,
       "notes": "The table is evidence-bound and validated; the judgment is not yet reliably applying the correction."
@@ -2357,6 +2372,76 @@
       "next_action": "",
       "blocking": false,
       "notes": "The guard runs at the public response boundary, so a route-level 2xx or an item-lookup receipt cannot satisfy a selection ask."
+    },
+    {
+      "id": "CR-017",
+      "area": "trained-agent",
+      "feature": "Self-contained review policy",
+      "action": "Give every selectable policy ID its applicable instruction text in the review prompt; same policy index for generation and validation",
+      "candidate_bound": true,
+      "config": "local prompt capture + unit tests",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "private-capture",
+          "path": "backend/logs/review_diagnosis/review_prompt_4800_capture.json",
+          "detail": "pre-fix prompt had policy IDs/topics only; below-5000 text absent"
+        },
+        {
+          "kind": "test",
+          "path": "backend/tests/test_review_result.py",
+          "detail": "policy text, row-values basis, newest-first precedence, allowed labels, evidence IDs present"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "No grant thresholds, labels or business nouns were added to platform code; the text comes from the lesson record."
+    },
+    {
+      "id": "CR-018",
+      "area": "background",
+      "feature": "Review read-obligation reconciliation",
+      "action": "After a validated review, settle only the read obligations it satisfied; keep genuine freshness obligations; leave an incomplete review's work open",
+      "candidate_bound": true,
+      "config": "isolated world task lifecycle",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "state",
+          "path": "task run d56267c8",
+          "detail": "completed assessment: 3 read obligations settled; 3 genuine freshness obligations remain open"
+        },
+        {
+          "kind": "state",
+          "path": "task run 558425c5",
+          "detail": "incomplete assessment: 3 read + 3 freshness obligations remain open"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "A stale 'Still needed' history row created before settlement remains as history; new continuations must reflect the settled state.",
+      "blocking": false,
+      "notes": "History is not deleted; only the task-state obligation is reconciled through resolve_unresolved_questions."
+    },
+    {
+      "id": "CR-019",
+      "area": "trained-agent",
+      "feature": "Post-restart assessment reliability",
+      "action": "Repeat a previously green assessment after a real restart and require a validated decision table",
+      "candidate_bound": true,
+      "config": "isolated world + local Ollama",
+      "status": "failed",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_after_restart_failed.json",
+          "detail": "no valid block; deterministic rows delivered, success=false"
+        }
+      ],
+      "first_failed_transition": "The model did not emit a valid review block after restart; no decisions were certified.",
+      "next_action": "Measure the post-restart generation failure (provider/context/format) before changing the loop; do not keep repeating unchanged requests.",
+      "blocking": true,
+      "notes": "Pre-restart green runs prove the pipeline and judgment on those inputs; this is a reliability gap, not a structural one."
     },
     {
       "id": "CR-010",

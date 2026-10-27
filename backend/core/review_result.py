@@ -38,7 +38,7 @@ from typing import Any, Dict, List, Optional, Sequence
 _IDENTITY_KEYS = ("file_name", "resource_id", "content_hash")
 REVIEW_BLOCK_LANGUAGE = "review_result"
 _REVIEW_BLOCK_RE = re.compile(
-    r"```(?:review_result|review-result|json:review_result)\s*"
+    r"```(?:review_result|review-result|json:review_result|json)\s*"
     r"(\{.*\})\s*```",
     re.DOTALL | re.IGNORECASE,
 )
@@ -426,10 +426,13 @@ def review_output_instruction(
         f"| row={entry.get('row_ref') or 'no-row'}"
         for entry in evidence_index or []
     ]
-    policy_lines = [
-        f"- {entry.get('policy_id')} | {entry.get('topic') or 'policy'}"
-        for entry in policy_index or []
-    ]
+    policy_lines = []
+    for entry in policy_index or []:
+        policy_id = _clean(entry.get("policy_id"))
+        topic = _clean(entry.get("topic") or "policy")
+        lesson = _clean(entry.get("lesson"))
+        policy_lines.append(
+            f"- {policy_id} | {topic}" + (f"\n  {lesson}" if lesson else ""))
     required_actions = _as_text_list(contract.get("required_actions"))
     return (
         "REVIEW OUTPUT CONTRACT. Return ONLY one fenced block with valid "
@@ -442,11 +445,14 @@ def review_output_instruction(
         '"unresolved_requirements":[]}]}\n'
         "```\n"
         "Only the structured block is certified; the prose is explanatory. "
-        "Use one assessment for every requested subject, use only the IDs "
-        "listed here, and do not add subjects. Every assessment MUST set "
+        "Use exactly one assessment object for every requested subject and "
+        "no other object; every object MUST include subject_id. Use only the "
+        "IDs listed here, and do not add subjects. Every assessment MUST set "
         "`decision` to exactly one allowed label below — not null, not an "
         "empty string, and not a request to confirm; produce the final "
         "decisions now.\n"
+        "`decision` must be the label ONLY (for example HOLD), with no "
+        "amount, parentheses or explanation; put the reasoning in `basis`. "
         "`basis` is WHY you made the decision: the policy, a business "
         "restriction, a negative finding, or an action required of another "
         "person. `unresolved_requirements` is ONLY accepted review work "
@@ -464,21 +470,63 @@ def review_output_instruction(
             + ", ".join(required_actions) + "\n"
             if required_actions else ""
         )
+        + "Policy entries are NEWEST FIRST. If two entries conflict, the "
+          "first is the current teaching and later entries are superseded. "
+          "Use the applicable instruction text below, not just its topic. "
+          "For every assessment, `basis` must explain the decision using "
+          "the cited row values and the applicable policy text.\n"
         + "Evidence IDs:\n" + ("\n".join(evidence_lines) or "- none") + "\n"
         "Policy IDs:\n" + ("\n".join(policy_lines) or "- none")
     )
 
 
 def parse_review_payload(answer: str) -> Optional[Dict[str, Any]]:
-    """Parse the ONE structured review block; prose is never consulted."""
-    matches = list(_REVIEW_BLOCK_RE.finditer(str(answer or "")))
-    if len(matches) != 1:
-        return None
-    try:
-        payload = json.loads(matches[0].group(1))
-    except Exception:
-        return None
-    return payload if isinstance(payload, dict) else None
+    """Parse the ONE structured review block; prose is never consulted.
+
+    A `json` fence is accepted when its object carries the review schema
+    (`assessments`); unrelated JSON blocks are ignored. Content validation
+    stays in build_review_result.
+    """
+    candidates: List[Dict[str, Any]] = []
+    for match in _REVIEW_BLOCK_RE.finditer(str(answer or "")):
+        try:
+            payload = json.loads(match.group(1))
+        except Exception:
+            continue
+        if isinstance(payload, dict) and isinstance(
+                payload.get("assessments"), list):
+            candidates.append(payload)
+    return candidates[0] if len(candidates) == 1 else None
+
+
+# Errors produced when the reply carried NO parseable review block at all.
+# A reply WITH a block that fails subject/evidence/policy validation emits
+# different codes — that is a judgment/validation failure and is never retried.
+_MISSING_BLOCK_CODES = frozenset({
+    "missing_structured_review", "missing_decision"})
+
+
+def missing_block_only(errors: Sequence[Any]) -> bool:
+    """True when validation failed ONLY because no block was parseable.
+
+    A streaming fallback can ship a reply that lost the fenced block while
+    still carrying the contract. That is a FORMAT collapse, not a rejected
+    judgment: one contract-only retry with the same evidence/policy IDs is
+    legitimate. Any other rejection code (wrong subject, swapped evidence,
+    unknown policy, bad decision label, execution mismatch) means a block
+    was produced and refused — retrying it would shop for acceptance, so
+    this returns False and the evidence-only failure stands.
+    """
+    if not errors:
+        return False
+    codes = {
+        str(error.get("code") or "")
+        for error in errors
+        if isinstance(error, dict)
+    }
+    if not codes or not codes.issubset(_MISSING_BLOCK_CODES):
+        return False
+    return "missing_structured_review" in codes
 
 
 def strip_review_block(answer: str) -> str:
