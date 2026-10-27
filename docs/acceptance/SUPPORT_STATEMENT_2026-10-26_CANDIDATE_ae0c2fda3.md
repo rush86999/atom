@@ -1,11 +1,11 @@
 # Support statement — release candidate `ae0c2fda3`
 
-**Status:** candidate-bound support statement; **not deployed**. One
-authorized attempt was executed and failed before product smoke; the pilot was
-manually restored.
+**Status:** candidate-bound support statement; **not deployed**. Three
+authorized attempts were executed. The third reached the product smoke and
+failed functional checks; automatic code rollback restored the pilot.
 **Candidate source:** `ae0c2fda3` (includes spreadsheet `e14d3efdd` and
 trained-review fixes through `ae0c2fda3`).
-**Pilot:** `c912375de`, PID `5322`, healthy after manual recovery.
+**Pilot:** `c912375de`, PID `19046`, healthy after automatic rollback.
 **Served acceptance base:** `c0c0d2e87` for the four review checks; combined
 served smoke on the candidate source `ae0c2fda3`.
 
@@ -59,17 +59,27 @@ For the tested candidate/configuration, the candidate supports:
   local controls, not by a served failure smoke.
 - **Scratch evidence.** The existing product smoke is scratch-world evidence,
   not a pilot/deployment soak.
-- **Live gate failed; second attempt not run.** The one authorized attempt
-  stopped the pilot and started the candidate, then failed at smoke admin login
-  (HTTP 401) before creating smoke data. Automatic rollback hit an
-  `lsof`/`pipefail` defect; the pilot was manually restored. The password
-  precheck and rollback guard are fixed, but no second live attempt has run.
+- **Live gate failed on the third attempt after product turns.** Setup passed
+  and PO totals passed; Adjustments content passed but its confirmed turn was
+  `outcome_unconfirmed`; O-1010/O-1001 review turns returned
+  `turn_budget_exceeded` or `turn_failed_no_result` with no structured review;
+  the repeated O-1001 returned a deterministic read without a structured
+  review. Automatic code rollback was healthy. This is candidate-bound live
+  smoke evidence; no broad product claim is made. No fourth attempt has run.
 - **Smoke data persists.** The live gate creates a named agent/canvas and
   uniquely named workbook uploads; rollback preserves them rather than erasing
   post-cutover work.
 - **No automatic DB restore.** Code rollback keeps the database. Restore is
   manual only for demonstrated corruption, after preserving the post-cutover
   DB/WAL/SHM.
+- **Exit guard added after failure.** Unexpected exits after pilot shutdown now
+  invoke rollback; pre-shutdown failures do not restart the pilot; committed
+  attempts do not roll back. Fake-release guard tests pass; no second live
+  attempt has run.
+- **Confirmation helper parity.** Both confirmation paths now send exactly
+  `go ahead` in the original session; the branch test passes against the
+  development and packaged helpers and the frozen candidate classifier. This
+  is a harness correction, not a product change.
 - **Candidate not deployed.** Pilot remains `c912375de`.
 
 ## Explicit non-claims

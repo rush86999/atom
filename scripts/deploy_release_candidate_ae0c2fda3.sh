@@ -57,9 +57,35 @@ ATTEMPT_DIR=""
 SMOKE_DIR=""
 CANDIDATE_STATE=""
 RESTARTED_PID=""
+PILOT_STOPPED=0
+CANDIDATE_PID=""
+CANDIDATE_LOG=""
+ATTEMPT_COMMITTED=0
+ROLLBACK_ACTIVE=0
+EXIT_GUARD_DONE=0
 
 fail() { printf 'FAILED: %s\n' "$*" >&2; exit 1; }
 say() { printf '==> %s\n' "$*"; }
+
+install_cutover_guard() {
+  trap 'cutover_exit_guard $?' EXIT
+}
+
+cutover_exit_guard() {
+  local status="$1"
+  [ "$EXIT_GUARD_DONE" = 1 ] && return 0
+  EXIT_GUARD_DONE=1
+  if [ "$PILOT_STOPPED" != 1 ] || [ "$ATTEMPT_COMMITTED" = 1 ] \
+      || [ "$ROLLBACK_ACTIVE" = 1 ]; then
+    return 0
+  fi
+  [ "$status" -eq 0 ] && status=1
+  ROLLBACK_ACTIVE=1
+  say "unexpected exit after pilot shutdown (status $status); invoking rollback"
+  rollback_only "unexpected exit after pilot shutdown" \
+    "$CANDIDATE_PID" "$CANDIDATE_LOG" || true
+  exit "$status"
+}
 
 need_file() { [ -f "$1" ] || fail "missing file: $1"; }
 need_dir() { [ -d "$1" ] || fail "missing directory: $1"; }
@@ -472,8 +498,11 @@ stop_scoped_pid() {
       "$PORT" "$label" "$port_pids" >&2
     return 1
   }
-  python3 - "$ATTEMPT_DIR/stop-$label.json" "$pid" "$label" "$PORT" \
-    "$RUN_TS" <<'PY'
+  if [ "$label" = "pilot" ]; then
+    PILOT_STOPPED=1
+  fi
+  if ! python3 - "$ATTEMPT_DIR/stop-$label.json" "$pid" "$label" "$PORT" \
+      "$RUN_TS" <<'PY'
 import json
 import sys
 
@@ -484,6 +513,10 @@ json.dump({
     "at": sys.argv[5],
 }, open(sys.argv[1], "w"), indent=2)
 PY
+  then
+    printf 'FAILED: could not write %s stop evidence\n' "$label" >&2
+    return 1
+  fi
   say "$label stopped; port $PORT free"
 }
 
@@ -565,6 +598,8 @@ restart_candidate() {
     return 1
   fi
   [ -n "$new_pid" ] || return 1
+  CANDIDATE_PID="$new_pid"
+  CANDIDATE_LOG="$new_log"
   if ! wait_health "$CANDIDATE_DIR/backend" \
       "$CANDIDATE_DIR/backend/data/atom.db" "$new_pid" "$new_log"; then
     kill -TERM "$new_pid" 2>/dev/null || true
@@ -639,18 +674,30 @@ payload = {
     "database_restored": False,
     "published_at": run_ts,
 }
-for path in (attempt_file, served_file):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as handle:
-        json.dump(payload, handle, indent=2)
-        handle.write("\n")
+errors = []
+for path in (served_file, attempt_file):
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as handle:
+            json.dump(payload, handle, indent=2)
+            handle.write("\n")
+    except Exception as exc:  # noqa: BLE001 — publish both, report failures
+        errors.append(f"{path}: {type(exc).__name__}: {exc}")
+if not os.path.exists(served_file):
+    for error in errors:
+        print(error, file=sys.stderr)
+    sys.exit(1)
+if errors:
+    for error in errors:
+        print(f"WARNING: {error}", file=sys.stderr)
 PY
 }
 
-rollback_after_failure() {
+rollback_only() {
   local reason="$1" failed_pid="$2" failed_log="$3"
   local rb_log rb_pid health i port_pids
 
+  ROLLBACK_ACTIVE=1
   say "candidate attempt failed: $reason"
   say "rolling code back to $ROLLBACK_DIR"
   if [ -n "$failed_pid" ] && kill -0 "$failed_pid" 2>/dev/null; then
@@ -664,20 +711,24 @@ rollback_after_failure() {
     [ -z "$port_pids" ] && break
     sleep 1
   done
-  [ -z "$port_pids" ] \
-    || fail "port $PORT still has a listener after failed-candidate cleanup: $port_pids"
+  if [ -n "$port_pids" ]; then
+    say "port $PORT still has a listener after failed-candidate cleanup: $port_pids"
+    write_failed_evidence "$reason" "" "" "rollback_failed" || true
+    publish_served_identity "unknown" "" "" "" "rollback_failed" "$reason" || true
+    return 1
+  fi
   [ -f "$failed_log" ] && cp "$failed_log" "$ATTEMPT_DIR/candidate-failed.log" || true
 
   rb_log="$SMOKE_DIR/logs/uvicorn_8001_rollback.log"
   if ! rb_pid="$(start_release "$ROLLBACK_DIR" "$ROLLBACK_DIR/config" "$rb_log")"; then
     write_failed_evidence "$reason" "" "" "rollback_failed" || true
     publish_served_identity "unknown" "" "" "" "rollback_failed" "$reason" || true
-    fail "ROLLBACK FAILED TO START — manual recovery required"
+    return 1
   fi
   [ -n "$rb_pid" ] || {
     write_failed_evidence "$reason" "" "" "rollback_failed" || true
     publish_served_identity "unknown" "" "" "" "rollback_failed" "$reason" || true
-    fail "ROLLBACK FAILED TO START — manual recovery required"
+    return 1
   }
   if wait_health "$ROLLBACK_DIR/backend" \
       "$ROLLBACK_DIR/backend/data/atom.db" "$rb_pid" "$rb_log"; then
@@ -686,10 +737,20 @@ rollback_after_failure() {
     publish_served_identity "atom-c912375de" "$ROLLBACK_COMMIT" "$rb_pid" \
       "$health" "rolled_back" "$reason" || \
       say "WARNING: could not publish served identity after rollback"
-    fail "$reason; code rollback is healthy (pid $rb_pid), database preserved"
+    say "rollback healthy: pid $rb_pid; database preserved"
+    return 0
   fi
   write_failed_evidence "$reason" "$rb_pid" "" "rollback_failed" || true
   publish_served_identity "unknown" "" "" "" "rollback_failed" "$reason" || true
+  return 1
+}
+
+rollback_after_failure() {
+  local reason="$1"
+  ROLLBACK_ACTIVE=1
+  if rollback_only "$@"; then
+    fail "$reason; code rollback is healthy, database preserved"
+  fi
   fail "ROLLBACK ALSO FAILED — manual recovery required"
 }
 
@@ -698,6 +759,7 @@ apply_cutover() {
 
   [ "${ATOM_DEPLOY_APPROVED:-}" = "$APPROVAL_TOKEN" ] \
     || fail "explicit approval missing: set ATOM_DEPLOY_APPROVED=$APPROVAL_TOKEN"
+  install_cutover_guard
   RUN_TS="$(date -u +%Y%m%dT%H%M%SZ)"
   ATTEMPT_DIR="$CUTOVER_DIR/attempt-$RUN_TS"
   SMOKE_DIR="$ATTEMPT_DIR/smoke"
@@ -715,6 +777,8 @@ apply_cutover() {
   fi
   [ -n "$new_pid" ] \
     || rollback_after_failure "candidate returned no pid" "" "$new_log"
+  CANDIDATE_PID="$new_pid"
+  CANDIDATE_LOG="$new_log"
   if ! wait_health "$CANDIDATE_DIR/backend" \
       "$CANDIDATE_DIR/backend/data/atom.db" "$new_pid" "$new_log"; then
     rollback_after_failure "candidate health check failed" "$new_pid" "$new_log"
@@ -776,6 +840,7 @@ PY
   publish_served_identity "atom-ae0c2fda3" "$CANDIDATE_COMMIT" "$new_pid" \
     "$health" "deployed" "" || \
     say "WARNING: could not publish served identity"
+  ATTEMPT_COMMITTED=1
   say "candidate passed immediate live smoke: pid $new_pid"
   say "final served identity: $SERVED_IDENTITY_FILE"
   say "attempt evidence preserved: $ATTEMPT_DIR"

@@ -565,6 +565,382 @@ async def test_retrieved_result_retry_renders_without_rereading():
 
 
 @pytest.mark.asyncio
+async def test_repeated_review_reuses_validated_assessment_when_inputs_unchanged():
+    from core.review_contract import build_accepted_contract
+
+    orch = _orch()
+    review_ask = (
+        "Using the uploaded orders.xlsx, review order O-1001 against the "
+        "order processing policy. Cite Order ID, Status, Qty, Unit Price, "
+        "Currency, Approval 1, Approval 2, Manager Exception, and Notes "
+        "from the row. State process or escalate."
+    )
+    lessons = [{
+        "id": "policy-1",
+        "topic": "Order processing policy",
+        "scope": "global",
+        "lesson": "Recommend process; escalate exceptions.",
+        "decision_options": ["Process", "Escalate"],
+    }]
+    contract = build_accepted_contract(
+        review_ask,
+        catalogued_names=["orders.xlsx"],
+        source_version="hash-1",
+        lessons=lessons,
+    )
+    validated = {
+        "ok": True,
+        "schema_version": "review-result-2",
+        "requested_subjects": ["O-1001"],
+        "allowed_decisions": ["Process", "Escalate"],
+        "assessments": [{
+            "subject_id": "O-1001",
+            "decision": "Process",
+            "unresolved_requirements": [],
+            "evidence_refs": [{
+                "evidence_id": "ev:O-1001:Orders!R2",
+                "subject_id": "O-1001",
+                "row_ref": "Orders!R2",
+                "source_identity": {
+                    "file_name": "orders.xlsx",
+                    "content_hash": "hash-1",
+                },
+                "retrieval_operation": "attempt-1",
+                "retrieval_execution_id": "exec-1",
+                "values": [{"col": "A2", "display": "O-1001"}],
+            }],
+        }],
+    }
+    session = {
+        "id": "s-review-reuse",
+        "history": [],
+        FILE_TASK_SESSION_KEY: {
+            "task_id": "task-review-reuse",
+            "mention": "orders.xlsx",
+            "original_message": review_ask,
+            "status": "retrieved",
+            "resolved_file": {
+                "file_name": "orders.xlsx",
+                "content_hash": "hash-1",
+            },
+        },
+        "_pending_file_result": {
+            "status": "retrieved",
+            "target_extraction_version": 3,
+            "rendered": "Workbook read: orders.xlsx | O-1001 Process |",
+            "identity": {
+                "file_id": "r1",
+                "file_name": "orders.xlsx",
+                "content_hash": "hash-1",
+            },
+            "structured_result": {
+                "requested_items": ["O-1001"],
+                "targets": [],
+            },
+            "accepted_contract": contract,
+            "validated_contract": contract,
+            "review_contract": {"accepted_inputs": contract,
+                                 "subjects": ["O-1001"]},
+            "validated_review": validated,
+        },
+    }
+    narration = AsyncMock(side_effect=AssertionError("must not narrate"))
+    direct = AsyncMock(side_effect=AssertionError("must not re-read"))
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_load_pending_file_result", return_value=None),
+        patch.object(orch, "_agent_lessons", return_value=lessons),
+        patch.object(orch, "_get_qwen_response", new=narration),
+        patch.object(orch, "_direct_confirmed_file_read", new=direct),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("must not plan"))),
+    ):
+        response = await orch.process_chat_message(
+            "u1", review_ask, session_id="s-review-reuse", context={}
+        )
+
+    direct.assert_not_awaited()
+    narration.assert_not_awaited()
+    assert response["success"] is True
+    assert response["model"] == "deterministic"
+    assert response["data"]["reused_validated_review"] is True
+    assert "VALIDATED REVIEW" in response["message"]
+    assert response["outcome"] == "completed"
+    assert response["review_result"]["completion"] == "completed"
+    assert response["review_result"]["assessments"][0][
+        "subject_id"] == "O-1001"
+    assert response["review_result"]["execution_id"] == response["execution_id"]
+
+
+@pytest.mark.asyncio
+async def test_review_narration_failure_never_marks_task_delivered():
+    orch = _orch()
+    review_ask = (
+        "Using the uploaded orders.xlsx, review order O-1001 against the "
+        "order processing policy. State process or escalate."
+    )
+    session = {
+        "id": "s-review-narration-fail",
+        "history": [],
+        FILE_TASK_SESSION_KEY: {
+            "task_id": "task-review-fail",
+            "mention": "orders.xlsx",
+            "original_message": review_ask,
+            "status": "retrieved",
+            "attempts": 1,
+            "resolved_file": {
+                "file_name": "orders.xlsx",
+                "content_hash": "hash-1",
+            },
+        },
+        "_pending_file_result": {
+            "status": "retrieved",
+            "target_extraction_version": 3,
+            "rendered": "Workbook read: orders.xlsx | O-1001 On Hold |",
+            "identity": {
+                "file_id": "r1",
+                "file_name": "orders.xlsx",
+                "content_hash": "hash-1",
+            },
+            "structured_result": {
+                "requested_items": ["O-1001"],
+                "targets": [],
+            },
+        },
+    }
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_load_pending_file_result", return_value=None),
+        patch.object(orch, "_agent_lessons", return_value=[{
+            "lesson": "Recommend process; escalate exceptions.",
+            "decision_options": ["Process", "Escalate"],
+        }]),
+        patch.object(orch, "_get_qwen_response", new=AsyncMock(
+            return_value=None)),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            side_effect=AssertionError("must not re-read"))),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            return_value=planner.ToolPlan(
+                use_tool=False, service="", intent="search", query="",
+                reason="review narration failure"))),
+    ):
+        await orch.process_chat_message(
+            "u1", "go ahead", session_id="s-review-narration-fail",
+            context={},
+        )
+
+    assert session[FILE_TASK_SESSION_KEY]["status"] != "delivered"
+    assert session["_pending_file_result"]["status"] != "delivered"
+
+
+@pytest.mark.asyncio
+async def test_repeated_identical_review_reuses_stored_read_without_reread():
+    orch = _orch()
+    review_ask = (
+        "Using the uploaded orders.xlsx, review order O-1001 against the "
+        "order processing policy. Cite the row and state process or escalate."
+    )
+    session = {
+        "id": "s-repeat-review",
+        "history": [],
+        "_pending_file_result": {
+            "status": "delivered",
+            "target_extraction_version": 3,
+            "rendered": (
+                "Workbook read: orders.xlsx\n"
+                "| O-1001 | FOUND | Orders!R10 [Status=On Hold] |"),
+            "identity": {
+                "file_id": "r1",
+                "file_name": "orders.xlsx",
+                "content_hash": "hash-1",
+            },
+            "structured_result": {
+                "requested_items": ["O-1001"],
+                "targets": [],
+            },
+        },
+    }
+    narration = AsyncMock(return_value={
+        "content": "I couldn't complete the requested review.",
+        "review_result": {"ok": False, "errors": [{"code": "no_result"}]},
+    })
+    direct = AsyncMock(side_effect=AssertionError("must not re-read"))
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_load_pending_file_result", return_value=None),
+        patch.object(orch, "_agent_lessons", return_value=[{
+            "lesson": "Recommend process; escalate exceptions.",
+            "decision_options": ["Process", "Escalate"],
+        }]),
+        patch.object(orch, "_get_qwen_response", new=narration),
+        patch.object(orch, "_direct_confirmed_file_read", new=direct),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            return_value=planner.ToolPlan(
+                use_tool=False, service="", intent="search", query="",
+                reason="review reuse"))),
+    ):
+        await orch.process_chat_message(
+            "u1", review_ask, session_id="s-repeat-review", context={}
+        )
+
+    direct.assert_not_awaited()
+    assert narration.await_count >= 1
+    _args, _kwargs = narration.await_args
+    assert _kwargs.get("review_objective") == review_ask
+    assert _kwargs.get("prefetched_tool_block")
+
+
+@pytest.mark.asyncio
+async def test_first_review_ask_goes_to_narration_not_deterministic_read():
+    """A first workbook review ask must not settle as a raw row read."""
+    orch = _orch()
+    review_ask = (
+        "Using the uploaded orders.xlsx, review order O-1001 against the "
+        "order processing policy. Cite Order ID, Status, Qty, Unit Price, "
+        "Currency, Approval 1, Approval 2, Manager Exception, and Notes "
+        "from the row. State process or escalate and explain the policy "
+        "basis. Do not send, approve, or modify anything."
+    )
+    session = {"id": "s-first-review", "history": []}
+    direct = {
+        "ok": True,
+        "block": (
+            "Workbook read: orders.xlsx\n"
+            "| O-1001 | FOUND | Orders!R10 [Status=On Hold] |"),
+        "rendered_answer": (
+            "Workbook read: orders.xlsx\n"
+            "| O-1001 | FOUND | Orders!R10 [Status=On Hold] |"),
+        "identity": {
+            "file_id": "r1",
+            "file_name": "orders.xlsx",
+            "content_hash": "hash-1",
+            "identity_verified": True,
+            "coverage_complete": True,
+        },
+        "structured_result": {
+            "requested_items": ["O-1001"],
+            "targets": [{
+                "item": "O-1001",
+                "identity": {"status": "found"},
+                "values": [{"cell": "C10", "value": "On Hold"}],
+            }],
+        },
+        "meta": {"workbook_read": {"coverage": {"complete": True}}},
+        "retrieval_complete": True,
+        "read_executed": True,
+    }
+    narration = AsyncMock(return_value={
+        "content": "I couldn't complete the requested review.",
+        "review_result": {"ok": False, "errors": [{"code": "no_result"}]},
+    })
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_agent_lessons", return_value=[{
+            "lesson": "Recommend process; escalate exceptions.",
+            "decision_options": ["Process", "Escalate"],
+        }]),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            return_value=direct)),
+        patch.object(orch, "_get_qwen_response", new=narration),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            return_value=planner.ToolPlan(
+                use_tool=False, service="", intent="search", query="",
+                reason="review narration-only"))),
+    ):
+        response = await orch.process_chat_message(
+            "u1", review_ask, session_id="s-first-review", context={}
+        )
+
+    assert narration.await_count >= 1
+    assert response.get("model") != "deterministic"
+    _args, _kwargs = narration.await_args
+    assert _kwargs.get("review_objective") == review_ask
+
+
+@pytest.mark.asyncio
+async def test_stored_read_is_never_served_deterministically_for_review():
+    """A review confirmation must go to narration, never the raw read lane."""
+    orch = _orch()
+    review_ask = (
+        "Using the uploaded orders.xlsx, review order O-1001 against the "
+        "order processing policy. Cite the row and state process or escalate."
+    )
+    session = {
+        "id": "s-review-retry",
+        "history": [],
+        FILE_TASK_SESSION_KEY: {
+            "task_id": "task-review",
+            "mention": "orders.xlsx",
+            "original_message": review_ask,
+            "status": "retrieved",
+            "attempts": 1,
+        },
+        "_pending_file_result": {
+            "status": "retrieved",
+            "target_extraction_version": 3,
+            "rendered": (
+                "Workbook read: orders.xlsx\n"
+                "| O-1001 | FOUND | Orders!R10 [Status=On Hold] |"
+            ),
+            "identity": {
+                "file_id": "r1",
+                "file_name": "orders.xlsx",
+                "content_hash": "hash-1",
+            },
+            "structured_result": {
+                "requested_items": ["O-1001"],
+                "targets": [],
+            },
+        },
+    }
+    narration = AsyncMock(return_value={
+        "content": "I couldn't complete the requested review.",
+        "review_result": {"ok": False, "errors": [{"code": "no_result"}]},
+    })
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_load_pending_file_result", return_value=None),
+        patch.object(orch, "_agent_lessons", return_value=[{
+            "lesson": "Recommend process; escalate exceptions.",
+            "decision_options": ["Process", "Escalate"],
+        }]),
+        patch.object(orch, "_get_qwen_response", new=narration),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            side_effect=AssertionError("must not re-read"))),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            return_value=planner.ToolPlan(
+                use_tool=False, service="", intent="search", query="",
+                reason="review narration-only"))),
+    ):
+        response = await orch.process_chat_message(
+            "u1", "go ahead", session_id="s-review-retry", context={}
+        )
+
+    assert narration.await_count >= 1
+    assert response.get("model") != "deterministic"
+    _args, _kwargs = narration.await_args
+    assert _kwargs.get("review_objective") == review_ask
+    assert _kwargs.get("prefetched_tool_block")
+    assert "O-1001" in _kwargs["prefetched_tool_block"]
+    assert session[FILE_TASK_SESSION_KEY]["status"] == "retrieved"
+
+
+@pytest.mark.asyncio
 async def test_delivered_result_retry_is_idempotent_without_rereading():
     orch = _orch()
     session = {

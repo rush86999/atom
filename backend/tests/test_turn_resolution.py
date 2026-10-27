@@ -1,0 +1,154 @@
+"""Final turn-envelope resolution — controlled clock regressions."""
+
+from core.turn_resolution import resolve_review_envelope
+
+
+def _review(ok=True, gaps=None):
+    return {
+        "ok": ok,
+        "assessments": [{
+            "subject_id": "O-1001",
+            "decision": "Process",
+            "unresolved_requirements": list(gaps or []),
+        }],
+    }
+
+
+def test_valid_review_before_deadline_completes_the_turn():
+    success, outcome, error = resolve_review_envelope(
+        review_required=True,
+        review_result=_review(),
+        reviewed_at_elapsed_s=80.0,
+        deadline_total_s=95.0,
+        cancelled=False,
+        current_success=False,
+        current_outcome="unconfirmed",
+        current_error_code="outcome_unconfirmed",
+    )
+    assert success is True
+    assert outcome == "completed"
+    assert error is None
+
+
+def test_valid_review_with_gaps_is_partial_not_completed():
+    success, outcome, error = resolve_review_envelope(
+        review_required=True,
+        review_result=_review(gaps=["currency missing"]),
+        reviewed_at_elapsed_s=80.0,
+        deadline_total_s=95.0,
+        cancelled=False,
+        current_success=False,
+        current_outcome="unconfirmed",
+        current_error_code="outcome_unconfirmed",
+    )
+    assert success is True
+    assert outcome == "partial"
+    assert error is None
+
+
+def test_review_after_cancellation_never_mutates_the_expired_turn():
+    success, outcome, error = resolve_review_envelope(
+        review_required=True,
+        review_result=_review(),
+        reviewed_at_elapsed_s=96.0,
+        deadline_total_s=95.0,
+        cancelled=True,
+        current_success=False,
+        current_outcome="failed",
+        current_error_code="turn_budget_exceeded",
+    )
+    assert success is False
+    assert outcome == "failed"
+    assert error == "turn_budget_exceeded"
+
+
+def test_review_arriving_after_deadline_is_not_certified():
+    success, outcome, error = resolve_review_envelope(
+        review_required=True,
+        review_result=_review(),
+        reviewed_at_elapsed_s=95.2,
+        deadline_total_s=95.0,
+        cancelled=False,
+        current_success=False,
+        current_outcome="unconfirmed",
+        current_error_code="outcome_unconfirmed",
+    )
+    assert success is False
+    assert outcome == "failed"
+
+
+def test_unvalidated_review_fails_the_turn():
+    success, outcome, error = resolve_review_envelope(
+        review_required=True,
+        review_result=_review(ok=False),
+        reviewed_at_elapsed_s=40.0,
+        deadline_total_s=95.0,
+        cancelled=False,
+        current_success=True,
+        current_outcome="completed",
+        current_error_code=None,
+    )
+    assert success is False
+    assert outcome == "failed"
+    assert error == "turn_objective_not_met"
+
+
+def test_review_without_a_clock_reading_cannot_claim_completion():
+    success, outcome, error = resolve_review_envelope(
+        review_required=True,
+        review_result=_review(),
+        reviewed_at_elapsed_s=None,
+        deadline_total_s=95.0,
+        cancelled=False,
+        current_success=False,
+        current_outcome="unconfirmed",
+        current_error_code="outcome_unconfirmed",
+    )
+    assert success is False
+    assert outcome == "failed"
+
+
+def test_pre_deadline_review_survives_late_finalization():
+    success, outcome, error = resolve_review_envelope(
+        review_required=True,
+        review_result=_review(),
+        reviewed_at_elapsed_s=94.5,
+        deadline_total_s=95.0,
+        cancelled=False,
+        current_success=False,
+        current_outcome="unconfirmed",
+        current_error_code="outcome_unconfirmed",
+    )
+    assert success is True
+    assert outcome == "completed"
+
+
+def test_recorded_outcome_consumes_the_resolved_state():
+    from core.finalization import apply_recorded_outcome
+
+    payload = {"success": True, "outcome": "completed", "data": {}}
+    resolved = apply_recorded_outcome(payload, {
+        "state": "completed",
+        "work_turn": True,
+        "noop": False,
+        "declined": False,
+        "delivered": True,
+    })
+    assert resolved["outcome"] == "completed"
+    assert resolved["success"] is True
+
+
+def test_non_review_turn_keeps_its_provisional_envelope():
+    success, outcome, error = resolve_review_envelope(
+        review_required=False,
+        review_result=None,
+        reviewed_at_elapsed_s=None,
+        deadline_total_s=95.0,
+        cancelled=False,
+        current_success=True,
+        current_outcome=None,
+        current_error_code=None,
+    )
+    assert success is True
+    assert outcome is None
+    assert error is None

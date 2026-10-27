@@ -1,10 +1,10 @@
 # Release candidate — `ae0c2fda3` (deployment approval package)
 
 **Prepared:** 2026-10-26
-**Status:** one authorized attempt executed; **failed before product smoke**.
-Automatic rollback hit a tooling defect and the pilot was manually restored.
-Candidate is **not deployed**. A second attempt requires new authorization.
-**Deployed pilot:** `c912375de`, PID `5322`, healthy on `:8001`.
+**Status:** three authorized attempts executed. The third reached the product
+smoke and failed functional checks; automatic code rollback is healthy.
+Candidate is **not deployed**. A fourth attempt requires new authorization.
+**Deployed pilot:** `c912375de`, PID `19046`, healthy on `:8001`.
 
 ## Candidate identity
 
@@ -20,8 +20,11 @@ Candidate is **not deployed**. A second attempt requires new authorization.
 | Preserved failing predecessor | `d4d0576d1` |
 | Package docs | support statement, independent-review record, cutover runbook (this directory) |
 | Includes spreadsheet fix | `e14d3efdd` |
-| Pilot restored | `c912375de`, PID `5322` |
-| One-attempt result | failed at smoke login 401; manual recovery; not deployed |
+| Pilot restored | `c912375de`, PID `19046` |
+| First attempt | failed at smoke login 401; manual recovery |
+| Second attempt | failed at guided-agent HTTP 201; automatic code rollback healthy |
+| Third attempt | product smoke ran; functional checks failed; automatic code rollback healthy |
+| Smoke-created records | second-attempt agent + third-attempt agent/canvas/uploads/chats/executions, preserved |
 
 The candidate directory contains source, scripts, docs, and evidence. After
 the failed attempt it is **prepared** with candidate-local data/env/venv links
@@ -167,14 +170,67 @@ The stale-password and rollback defects are fixed:
 - smoke default is the live acceptance-admin password file, and
   `--check-only` verifies it against the admin bcrypt hash;
 - all port probes treat “no listener” as valid;
-- pilot PID is read from `evidence/cutover/pilot_pid.txt` (currently `5322`).
+- pilot PID is read from `evidence/cutover/pilot_pid.txt` (currently `19046`).
 
-A second attempt has not run. `c912375de` remains the served pilot.
+### Second attempt (2026-10-26T22:53:46Z)
 
-## Checks after the failed attempt
+The second authorized attempt ran after the confirmation parity and exit-guard
+fixes. Preflight, snapshot, candidate start, and health passed. The pre-restart
+smoke then failed at guided-agent creation because the endpoint returned
+**HTTP 201 Created** while the smoke accepted only HTTP 200. The agent was
+created; no canvas, upload, chat session, execution, task or canvas-audit record
+was created.
+
+Automatic code rollback succeeded: `c912375de` is serving as PID `13038`,
+healthy on `:8001`, with `database_restored=false`. No repair or retry was
+performed. Evidence:
+`evidence/cutover/attempt-20261026T225346Z/`; smoke-created agent
+`886b86b4-6917-4fec-831a-1f5a9ee22f4f` is preserved and recorded in
+`smoke-created-records.json`.
+
+The guided-agent contract was then corrected in the smoke: accept only HTTP
+201 with `success=true`, a `data` object and a non-empty string `agent_id`;
+reject 202 pending approval, 200, malformed/failure payloads and missing ids.
+Canvas create/attach, upload and teaching now validate bodies and identifiers.
+A 51-test no-network setup battery passes against both helper copies and the
+actual candidate guided route with the generation factory mocked. No
+application code changed.
+
+### Third attempt (2026-10-26T23:41:57Z)
+
+Setup passed end to end: login/auth, guided-agent 201, canvas create/attach,
+both uploads, and teaching. The product smoke then ran and failed:
+
+- PO Register approved rows passed: CAD **8050.00**, USD **3999.96**.
+- Adjustments content was correct (**−700.00 CAD**, gap **0055/C5**, total
+  withheld), but its confirmed `go ahead` turn returned
+  `success=false`, `outcome=unconfirmed`, `error_code=outcome_unconfirmed`.
+- O-1010 before correction: first partial saved-lookup response, then two
+  `turn_budget_exceeded` results; no structured review.
+- O-1010 after correction: `turn_budget_exceeded`, then
+  `turn_failed_no_result` (“no usable results”); no row citation or review.
+- O-1001 sourced answer: `turn_budget_exceeded` on every attempt; no structured
+  review.
+- Repeated O-1001: first `turn_budget_exceeded`; second returned a deterministic
+  workbook read with `success=true/completed` but no structured
+  `review_result`, so the identical-no-op check failed.
+
+History persisted, teaching policy/correction stored, workbook hashes unchanged,
+`task_operation_records=0`, `tasks=0`, canvas actions setup-only, and health
+identity passed.
+
+Automatic code rollback succeeded: `c912375de` PID `19046`, healthy on `:8001`,
+`database_restored=false`. No repair or retry was performed. Evidence:
+`evidence/cutover/attempt-20261026T234157Z/`; all smoke-created records are
+preserved in `smoke-created-records.json` (agent, canvas, 3 dataset entries,
+5 sessions, 32 messages, 13 executions, 4 canvas-audit actions).
+
+No fourth attempt has been executed or authorized.
+
+## Checks after the failed attempts
 
 - `bash -n` passes.
-- `--preflight` on the prepared candidate passes with pilot PID `5322`,
+- `--preflight` on the prepared candidate passes with pilot PID `19046`,
   live-link/database match, DB `quick_check ok`, and live-smoke precheck `OK`.
 - `smoke...py --check-only` passes with the live acceptance-admin password,
   including `admin_password_matches=true`; the stale bootstrap file fails
@@ -186,8 +242,18 @@ A second attempt has not run. `c912375de` remains the served pilot.
 - The fake-release `rollback_after_failure` regression starts and
   health-checks the rollback release, writes failed/served identity, and exits
   nonzero as intended.
-- A second live attempt has **not** been executed; new authorization is
-  outstanding.
+- Fake-release exit-guard tests pass: unexpected exit after shutdown preserves
+  status and rolls back; stop-evidence write failure after shutdown rolls back
+  and publishes failure identity; pre-shutdown failure does not restart the
+  pilot; committed success does not roll back.
+- Confirmation parity passes: ordinary confirmation and authorized retry both
+  send exactly `go ahead` with the original session/agent/token; the
+  no-network branch test passes against the development helper, the packaged
+  helper, and the frozen candidate classifier (9 passed). Old verbose
+  confirmations are rejected by the candidate.
+- The third live attempt reached the product smoke, failed functional checks,
+  and rolled back automatically. No fourth attempt has been executed or
+  authorized.
 
 ## Limitations / backlog (visible)
 
@@ -196,8 +262,11 @@ A second attempt has not run. `c912375de` remains the served pilot.
 - Unknown-header confirmation UX and required-input filters remain the
   disclosed spreadsheet limitation.
 - General policy transfer beyond tested order/vendor controls is not claimed.
-- The existing product smoke evidence is scratch-world; the new live smoke
-  gate has not yet run because approval is outstanding.
+- The existing product smoke evidence is scratch-world. The live gate now
+  completed some product turns: PO totals passed, Adjustments content passed but
+  its confirmed turn was `outcome_unconfirmed`, and review turns returned
+  `turn_budget_exceeded`/`turn_failed_no_result` without structured reviews.
+  These are candidate-bound live smoke results; no broad product claim is made.
 - The live smoke covers successful reviews; failure-path envelope and
   post-generation invalidation remain covered by focused local controls, not a
   served failure smoke.
@@ -208,10 +277,11 @@ A second attempt has not run. `c912375de` remains the served pilot.
 - Database restore is manual and only for demonstrated corruption, after
   preserving the post-cutover database.
 
-## Approval requested
+## Decision state
 
-Approve **one reversible attempt** for `ae0c2fda3`: backup, scoped cutover,
-immediate live smoke, scoped restart/post-restart smoke, automatic code
-rollback to `c912375de` on any failure, preserved post-cutover data, and final
-served-identity publication. Database restore is not part of normal rollback;
-it requires demonstrated corruption and a separate manual decision.
+Three authorizations are consumed. No fourth attempt is authorized. The third
+attempt reached the product smoke and failed functional checks; the candidate
+is not deployed and `c912375de` is serving after automatic code rollback. The
+smoke setup contract/battery remains frozen; application code is unchanged.
+Database restore is not part of normal rollback; it requires demonstrated
+corruption and a separate manual decision.

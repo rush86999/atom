@@ -53,6 +53,10 @@ CONFIRM_PHRASES = (
     "will run automatically", "next message", "could you confirm",
     "confirm to proceed", 'say "go ahead"', "just say",
 )
+# The frozen ae0c2fda3 classifier accepts a bare "go ahead" and rejects
+# verbose confirmation prose. Use this exact value for both the ordinary
+# confirmation and the authorized timeout retry.
+CONFIRM_PENDING_READ = "go ahead"
 REQUIRED_TABLES = {
     "users": {"id", "email", "status"},
     "agent_registry": {"id", "configuration"},
@@ -98,6 +102,16 @@ def loads(value: Any) -> dict:
 def write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, default=str) + "\n")
+
+
+def response_json(response, label: str) -> dict:
+    try:
+        body = response.json()
+    except Exception as exc:  # noqa: BLE001 — contract boundary
+        raise RuntimeError(f"{label} returned malformed JSON") from exc
+    if not isinstance(body, dict):
+        raise RuntimeError(f"{label} returned a non-object JSON payload")
+    return body
 
 
 def read_db(db_path: str, sql: str, params: tuple = ()) -> list[dict]:
@@ -239,10 +253,10 @@ def login(base: str, email: str, password: str) -> tuple[str, dict]:
     )
     if response.status_code != 200:
         raise RuntimeError(f"login failed: {response.status_code}")
-    body = response.json()
+    body = response_json(response, "login")
     token = body.get("access_token")
-    if not token:
-        raise RuntimeError("login returned no access_token")
+    if not isinstance(token, str) or not token.strip():
+        raise RuntimeError("login returned no valid access_token")
     me_response = httpx.get(
         f"{base}/api/auth/me",
         headers={"Authorization": f"Bearer {token}"},
@@ -251,11 +265,11 @@ def login(base: str, email: str, password: str) -> tuple[str, dict]:
     )
     if me_response.status_code != 200:
         raise RuntimeError(f"auth/me failed: {me_response.status_code}")
-    me = me_response.json()
+    me = response_json(me_response, "auth/me")
     user = me.get("data") if isinstance(me.get("data"), dict) else me
     user_id = user.get("id") or me.get("id")
-    if not user_id:
-        raise RuntimeError("auth/me returned no user id")
+    if not isinstance(user_id, str) or not user_id.strip():
+        raise RuntimeError("auth/me returned no valid user id")
     return token, user
 
 
@@ -309,8 +323,35 @@ def ask(base: str, token: str, user_id: str, agent_id: str, message: str,
         "message": body.get("message") or body.get("response") or "",
         "error_code": body.get("error_code"),
         "outcome": body.get("outcome"),
+        "review_required": (
+            body.get("review_required")
+            or data.get("review_required")
+            or metadata.get("review_required")),
         "raw": body if not body.get("message") else None,
     }
+
+
+def _answer_is_delivered(answer: dict) -> bool:
+    """Whether the first turn already delivered a usable answer.
+
+    Stale session task state alone must not trigger another request after a
+    valid structured answer. A saved-lookup prompt, timeout, partial or
+    unconfirmed outcome is not a delivered answer.
+    """
+    if answer.get("http") != 200 or answer.get("success") is not True:
+        return False
+    message = str(answer.get("message") or "").strip()
+    if not message:
+        return False
+    if str(answer.get("outcome") or "").lower() in (
+            "partial", "failed", "unconfirmed"):
+        return False
+    low = message.lower()
+    if any(phrase in low for phrase in CONFIRM_PHRASES):
+        return False
+    if "hasn't run" in low or "has not run" in low:
+        return False
+    return True
 
 
 def ask_confirmed(db_path: str, base: str, token: str, user_id: str,
@@ -324,8 +365,32 @@ def ask_confirmed(db_path: str, base: str, token: str, user_id: str,
     record["first_session"] = first_session
     pending = first_session.get("_pending_file_task") or {}
     low = str(first.get("message") or "").lower()
-    wants_confirmation = (
+    delivered_answer = _answer_is_delivered(first)
+    review_result = first.get("review_result") or {}
+    review_required = bool(first.get("review_required"))
+    if not review_required:
+        try:
+            from core.chat_tool_planner import review_requested
+
+            review_required = bool(review_requested(
+                pending, str(pending.get("original_message") or message)))
+        except Exception:  # noqa: BLE001 — harness-only classification
+            review_required = False
+    # A completed read awaiting assessment is resumable even though it is no
+    # longer `pending`. Require the STRUCTURED review obligation and an
+    # uncertified review, so a delivered-with-gaps non-review result
+    # (Adjustments) is not confirmed again.
+    review_resume = bool(
+        not delivered_answer
+        and review_required
+        and review_result.get("ok") is not True
+        and pending.get("status") in ("pending", "retrieved")
+        and pending.get("retrieval_finished") is not False
+        and pending.get("answer_delivered") is False
+    )
+    wants_confirmation = False if delivered_answer else (
         pending.get("status") == "pending"
+        or review_resume
         or any(phrase in low for phrase in CONFIRM_PHRASES)
         or "go ahead" in low
         or "confirm" in low
@@ -334,8 +399,7 @@ def ask_confirmed(db_path: str, base: str, token: str, user_id: str,
         record["confirmation_sent"] = True
         second = ask(
             base, token, user_id, agent_id,
-            "Yes, go ahead. This is the confirmation — run the saved workbook "
-            "lookup now and return the requested result with the source rows.",
+            CONFIRM_PENDING_READ,
             session_id=session_id,
         )
         record["second"] = second
@@ -343,8 +407,7 @@ def ask_confirmed(db_path: str, base: str, token: str, user_id: str,
         if second.get("error_code") == "turn_budget_exceeded":
             third = ask(
                 base, token, user_id, agent_id,
-                "Yes, go ahead. This is the confirmation — run the saved "
-                "workbook lookup now.",
+                CONFIRM_PENDING_READ,
                 session_id=session_id,
             )
             record["budget_retry"] = third
@@ -368,10 +431,15 @@ def teach(base: str, token: str, agent_id: str, lesson: str, topic: str) -> dict
         timeout=180,
         trust_env=False,
     )
-    try:
-        body = response.json()
-    except Exception:
-        body = {"_raw": response.text[:1500]}
+    if response.status_code != 200:
+        raise RuntimeError(f"teaching failed: {response.status_code}")
+    body = response_json(response, "teaching")
+    data = body.get("data")
+    if body.get("success") is not True or not isinstance(data, dict):
+        raise RuntimeError("teaching returned invalid payload")
+    if data.get("status") != "ok":
+        raise RuntimeError(
+            f"teaching did not land: {data.get('status') or 'missing status'}")
     return {"http": response.status_code, "body": body}
 
 
@@ -396,13 +464,21 @@ def create_agent(base: str, token: str, smoke_id: str) -> str:
         timeout=180,
         trust_env=False,
     )
-    if response.status_code != 200:
-        raise RuntimeError(f"guided agent creation failed: {response.status_code}")
-    body = response.json()
-    agent_id = (body.get("data") or {}).get("agent_id") or body.get("agent_id")
-    if not agent_id:
-        raise RuntimeError("guided agent creation returned no agent id")
-    return str(agent_id)
+    if response.status_code == 202:
+        raise RuntimeError(
+            "guided agent creation pending approval (HTTP 202); "
+            "no agent created")
+    if response.status_code != 201:
+        raise RuntimeError(
+            f"guided agent creation failed: {response.status_code}")
+    body = response_json(response, "guided agent creation")
+    data = body.get("data")
+    if body.get("success") is not True or not isinstance(data, dict):
+        raise RuntimeError("guided agent creation returned invalid payload")
+    agent_id = data.get("agent_id")
+    if not isinstance(agent_id, str) or not agent_id.strip():
+        raise RuntimeError("guided agent creation returned no valid agent id")
+    return agent_id
 
 
 def create_canvas(base: str, token: str, smoke_id: str, agent_id: str) -> str:
@@ -417,10 +493,12 @@ def create_canvas(base: str, token: str, smoke_id: str, agent_id: str) -> str:
     )
     if response.status_code != 200:
         raise RuntimeError(f"canvas create failed: {response.status_code}")
-    body = response.json()
-    canvas_id = body.get("canvas_id") or (body.get("data") or {}).get("id")
-    if not canvas_id:
-        raise RuntimeError("canvas create returned no id")
+    body = response_json(response, "canvas create")
+    if body.get("success") is not True:
+        raise RuntimeError("canvas create returned invalid payload")
+    canvas_id = body.get("canvas_id")
+    if not isinstance(canvas_id, str) or not canvas_id.strip():
+        raise RuntimeError("canvas create returned no valid canvas id")
     attach = httpx.post(
         f"{base}/api/canvas/{canvas_id}/agents",
         headers={"Authorization": f"Bearer {token}"},
@@ -430,7 +508,14 @@ def create_canvas(base: str, token: str, smoke_id: str, agent_id: str) -> str:
     )
     if attach.status_code != 200:
         raise RuntimeError(f"canvas agent attach failed: {attach.status_code}")
-    return str(canvas_id)
+    attach_body = response_json(attach, "canvas agent attach")
+    if attach_body.get("success") is not True:
+        raise RuntimeError("canvas agent attach returned invalid payload")
+    if attach_body.get("canvas_id") != canvas_id:
+        raise RuntimeError("canvas agent attach returned a different canvas id")
+    if attach_body.get("agent_id") != agent_id:
+        raise RuntimeError("canvas agent attach returned a different agent id")
+    return canvas_id
 
 
 def upload_workbook(base: str, token: str, canvas_id: str,
@@ -452,11 +537,56 @@ def upload_workbook(base: str, token: str, canvas_id: str,
             timeout=300,
             trust_env=False,
         )
-    try:
-        body = response.json()
-    except Exception:
-        body = {"_raw": response.text[:1500]}
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"workbook upload failed: {response.status_code}")
+    body = response_json(response, "workbook upload")
+    ingestion = body.get("ingestion")
+    if body.get("success") is not True:
+        raise RuntimeError("workbook upload returned invalid payload")
+    if body.get("canvas_id") != canvas_id:
+        raise RuntimeError("workbook upload returned a different canvas id")
+    if not isinstance(body.get("agent_id"), str) or not body["agent_id"].strip():
+        raise RuntimeError("workbook upload returned no valid agent id")
+    if body.get("file_name") != path.name:
+        raise RuntimeError("workbook upload returned a different file name")
+    if not isinstance(ingestion, dict) or ingestion.get("status") not in (
+            "ingested", "skipped"):
+        raise RuntimeError("workbook upload did not ingest the file")
+    if (
+        ingestion.get("status") == "skipped"
+        and str(ingestion.get("reason") or "").lower() not in (
+            "unchanged", "duplicate")
+    ):
+        raise RuntimeError(
+            "workbook upload was skipped for a non-dedup reason")
     return {"http": response.status_code, "body": body}
+
+
+def resolve_existing_materialized_name(db_path: str, path: Path) -> str:
+    """Catalog name for this exact content when an upload deduped as unchanged.
+
+    A repeat cutover starts from a world that already holds identical fixture
+    content. The upload correctly reports ``skipped/unchanged``; the catalog
+    entry keeps its original name. The smoke reuses that name so it still
+    exercises the reader against the same bytes without creating a duplicate.
+    """
+    try:
+        digest = hashlib.sha1(path.read_bytes()).hexdigest()
+    except Exception:
+        return ""
+    rows = read_db(
+        db_path,
+        "select file_name from dataset_entries "
+        "where content_hash=? and status='active' "
+        "order by ingested_at desc limit 8",
+        (digest,),
+    )
+    for row in rows:
+        name = str(row.get("file_name") or "")
+        if name:
+            return name
+    return ""
 
 
 def wait_materialized(db_path: str, file_names: list[str],
@@ -485,7 +615,8 @@ def review_evidence_refs(review: dict) -> list[dict]:
 
 
 def review_checks(db_path: str, record: dict, expected_decision: str,
-                  expected_file: str, correction_tokens: bool = False) -> dict:
+                  expected_file: str, correction_tokens: bool = False,
+                  expected_subject: str = "") -> dict:
     final = record.get("final") or {}
     session_id = final.get("session_id") or (record.get("first") or {}).get(
         "session_id")
@@ -511,6 +642,21 @@ def review_checks(db_path: str, record: dict, expected_decision: str,
         "outcome_completed": final.get("outcome") == "completed",
         "structured_review_ok": review.get("ok") is True,
         "schema_review_result_2": review.get("schema_version") == "review-result-2",
+        # review_result.ok is necessary but not sufficient: the contract must
+        # name exactly the accepted subject, and every assessment must assess
+        # that same subject.
+        "accepted_subject_exact": (
+            not expected_subject
+            or list(review.get("requested_subjects") or [])
+            == [expected_subject]),
+        "assessed_subject_exact": (
+            not expected_subject
+            or (
+                bool(assessments)
+                and all(
+                    str(item.get("subject_id") or "") == expected_subject
+                    for item in assessments
+                    if isinstance(item, dict)))),
         "structured_decision_expected": (
             decision.casefold() == expected_decision.casefold()),
         "structured_decision": decision,
@@ -539,8 +685,10 @@ def review_checks(db_path: str, record: dict, expected_decision: str,
     messages = message_meta(db_path, session_id)
     executions = execution_meta(db_path, session_id)
     persisted = any(
-        (((execution.get("task_outcome") or {}).get("delivery") or {})
-         .get("review_result") or {}).get("ok") is True
+        str(execution.get("execution_id") or "") == str(
+            final.get("execution_id") or "")
+        and (((execution.get("task_outcome") or {}).get("delivery") or {})
+             .get("review_result") or {}).get("ok") is True
         for execution in executions
     )
     metadata_match = any(
@@ -554,6 +702,11 @@ def review_checks(db_path: str, record: dict, expected_decision: str,
         "task_delivered": task.get("status") == "delivered",
         "receipt_has_file_and_hash": bool(
             resolved.get("file_name") and resolved.get("content_hash")),
+        # The accepted workbook-only review must not inherit an Outlook
+        # obligation from unrelated/sibling lessons (attempt-three defect).
+        "source_requirements_workbook_only": (
+            [str(s) for s in (task.get("source_requirements") or [])]
+            == ["datasets"]),
         "structured_review_persisted": persisted,
         "history_persisted": any(
             message.get("role") == "assistant" for message in messages),
@@ -631,6 +784,11 @@ def spreadsheet_checks(db_path: str, record: dict, file_name: str,
         # it never reports a failed outcome; review turns carry the strict
         # outcome agreement checks.
         "outcome_not_failed": final.get("outcome") != "failed",
+        # A delivered first answer must not be confirmed again merely
+        # because a stale pending task survived (attempt-three defect).
+        "no_redundant_confirmation": not (
+            record.get("confirmation_sent")
+            and _answer_is_delivered(record.get("first") or {})),
         "completion_path": (
             "recovery_after_timeout" if record.get("budget_retry")
             else "confirmation" if record.get("confirmation_sent")
@@ -639,7 +797,17 @@ def spreadsheet_checks(db_path: str, record: dict, file_name: str,
         "fields_all_true": all(fields.values()),
     }
     persistence = turn_persistence_checks(
-        db_path, record, require_task_receipt=False)
+        db_path, record, require_task_receipt=True)
+    if kind == "adjustments":
+        session_id = final.get("session_id") or (
+            record.get("first") or {}).get("session_id")
+        session = session_meta(db_path, session_id) if session_id else {}
+        task = session.get("_pending_file_task") or {}
+        requirements = task.get("open_requirements") or []
+        persistence["gap_retained"] = any(
+            str(gap.get("item") or gap.get("identity") or "") == "0055"
+            and str(gap.get("cell") or "").upper() == "C5"
+            for gap in requirements if isinstance(gap, dict))
     checks.update(persistence)
     checks["persistence_all_true"] = all(persistence.values())
     return checks
@@ -648,7 +816,8 @@ def spreadsheet_checks(db_path: str, record: dict, file_name: str,
 def identical_noop_checks(db_path: str, first: dict, second: dict,
                           counts_before: dict, counts_after: dict,
                           actions_before: list[str],
-                          actions_after: list[str]) -> dict:
+                          actions_after: list[str],
+                          expected_subject: str = "") -> dict:
     first_final = first.get("final") or {}
     second_final = second.get("final") or {}
     first_review = first_final.get("review_result") or {}
@@ -690,6 +859,13 @@ def identical_noop_checks(db_path: str, first: dict, second: dict,
             counts_after.get("tasks") == counts_before.get("tasks")),
         "canvas_actions_unchanged": actions_after == actions_before,
         "second_review_ok": second_review.get("ok") is True,
+        "accepted_subject_exact": (
+            not expected_subject
+            or (
+                list(first_review.get("requested_subjects") or [])
+                == [expected_subject]
+                and list(second_review.get("requested_subjects") or [])
+                == [expected_subject])),
     }
     checks["checks_all_true"] = all(checks.values())
     return checks
@@ -821,11 +997,31 @@ def run_pre(args: argparse.Namespace) -> int:
                 raise RuntimeError(f"workbook upload failed: {upload.get('http')}")
             if (upload.get("body") or {}).get("success") is False:
                 raise RuntimeError("workbook upload reported success=false")
+        _requested_spreadsheet = evidence["inputs"]["spreadsheet_name"]
+        _requested_orders = evidence["inputs"]["orders_name"]
         evidence["materialized"] = wait_materialized(
-            args.db_path,
-            [evidence["inputs"]["spreadsheet_name"],
-             evidence["inputs"]["orders_name"]],
-        )
+            args.db_path, [_requested_spreadsheet, _requested_orders])
+        if not evidence["materialized"]:
+            _alias_spreadsheet = resolve_existing_materialized_name(
+                args.db_path, Path(evidence["inputs"]["spreadsheet_path"]))
+            _alias_orders = resolve_existing_materialized_name(
+                args.db_path, Path(evidence["inputs"]["orders_path"]))
+            if _alias_spreadsheet and _alias_orders:
+                evidence["materialized_alias"] = {
+                    "requested": {
+                        "spreadsheet": _requested_spreadsheet,
+                        "orders": _requested_orders,
+                    },
+                    "catalogued": {
+                        "spreadsheet": _alias_spreadsheet,
+                        "orders": _alias_orders,
+                    },
+                    "reason": "upload deduped as unchanged content",
+                }
+                evidence["inputs"]["spreadsheet_name"] = _alias_spreadsheet
+                evidence["inputs"]["orders_name"] = _alias_orders
+                evidence["materialized"] = wait_materialized(
+                    args.db_path, [_alias_spreadsheet, _alias_orders])
         if not evidence["materialized"]:
             raise RuntimeError("uploaded workbooks did not materialize")
 
@@ -873,7 +1069,8 @@ def run_pre(args: argparse.Namespace) -> int:
             order_prompt.format(order="O-1010"))
         evidence["o1010_before"] = o1010_before
         evidence["o1010_before_checks"] = review_checks(
-            args.db_path, o1010_before, "Process", orders_name)
+            args.db_path, o1010_before, "Process", orders_name,
+            expected_subject="O-1010")
         evidence["teach_correction"] = teach(
             args.base_url, token, agent_id, CORRECTION,
             "Order policy correction — O-1010 credit hold")
@@ -885,13 +1082,14 @@ def run_pre(args: argparse.Namespace) -> int:
         evidence["o1010_after_correction"] = o1010_after
         evidence["o1010_after_checks"] = review_checks(
             args.db_path, o1010_after, "Escalate", orders_name,
-            correction_tokens=True)
+            correction_tokens=True, expected_subject="O-1010")
         o1001 = ask_confirmed(
             args.db_path, args.base_url, token, user_id, agent_id,
             order_prompt.format(order="O-1001"))
         evidence["o1001_sourced"] = o1001
         evidence["o1001_checks"] = review_checks(
-            args.db_path, o1001, "Process", orders_name)
+            args.db_path, o1001, "Process", orders_name,
+            expected_subject="O-1001")
 
         o1001_session = (o1001.get("final") or {}).get("session_id")
         counts_before_noop = db_counts(args.db_path)
@@ -903,11 +1101,13 @@ def run_pre(args: argparse.Namespace) -> int:
         counts_after_noop = db_counts(args.db_path)
         actions_after_noop = canvas_actions(args.db_path, canvas_id)
         evidence["o1001_repeat_checks"] = review_checks(
-            args.db_path, o1001_repeat, "Process", orders_name)
+            args.db_path, o1001_repeat, "Process", orders_name,
+            expected_subject="O-1001")
         evidence["identical_noop_checks"] = identical_noop_checks(
             args.db_path, o1001, o1001_repeat,
             counts_before_noop, counts_after_noop,
-            actions_before_noop, actions_after_noop)
+            actions_before_noop, actions_after_noop,
+            expected_subject="O-1001")
 
         evidence["inputs"]["spreadsheet_sha256_after"] = sha256(
             Path(evidence["inputs"]["spreadsheet_path"]))
@@ -965,6 +1165,7 @@ def run_pre(args: argparse.Namespace) -> int:
                 evidence["po_checks"]["http_200"],
                 evidence["po_checks"]["success_true"],
                 evidence["po_checks"]["outcome_not_failed"],
+                evidence["po_checks"]["no_redundant_confirmation"],
             )),
             "spreadsheet_adjustments": all((
                 evidence["adjustments_checks"]["fields_all_true"],
@@ -972,6 +1173,7 @@ def run_pre(args: argparse.Namespace) -> int:
                 evidence["adjustments_checks"]["http_200"],
                 evidence["adjustments_checks"]["success_true"],
                 evidence["adjustments_checks"]["outcome_not_failed"],
+                evidence["adjustments_checks"]["no_redundant_confirmation"],
             )),
             "o1010_before_process": all(
                 value for key, value in evidence["o1010_before_checks"].items()
@@ -1106,7 +1308,7 @@ def run_post(args: argparse.Namespace) -> int:
         evidence["o1010_post_restart"] = o1010_post
         evidence["o1010_post_checks"] = review_checks(
             args.db_path, o1010_post, "Escalate", orders_name,
-            correction_tokens=True)
+            correction_tokens=True, expected_subject="O-1010")
 
         session_id = state["sessions"]["o1010"]
         pre_history = state["history"]["o1010_outcomes"]

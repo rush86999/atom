@@ -2096,6 +2096,67 @@ def interpretation_deterministic_continuation(
     }
 
 
+def pending_task_continuation_ready(
+    message: str,
+    pending_task: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """A bounded confirmation continuation of an accepted pending task.
+
+    An exact confirmation (for example ``go ahead``) names no source or field
+    of its own; the accepted task's stored objective and resolved file are the
+    authoritative facts. Reuse them instead of paying the general
+    interpretation leg to rediscover them. A non-confirmation, a task without a
+    resolved file, or an ambiguous task stays on the normal path.
+    """
+    if not isinstance(pending_task, dict):
+        return None
+    try:
+        from core.pending_file_task import is_filename_confirmation
+
+        if not is_filename_confirmation(message):
+            return None
+    except Exception:  # noqa: BLE001 — fast path is optional
+        return None
+    resolved = pending_task.get("resolved_file")
+    resolved = resolved if isinstance(resolved, dict) else {}
+    file_name = str(
+        resolved.get("file_name")
+        or pending_task.get("confirmed_mention")
+        or pending_task.get("mention")
+        or "").strip()
+    if not file_name:
+        return None
+    # The accepted objective owns the requested subjects. An exact
+    # confirmation carries none of its own, so derive them from the original
+    # ask before the file reader runs; otherwise the direct lane receives an
+    # empty target set and reports "no items resolved".
+    targets: List[str] = []
+    try:
+        from core.target_set_resolution import extract_items_from_text
+
+        targets = [
+            item for item in extract_items_from_text(
+                str(pending_task.get("original_message") or ""))
+            if item
+        ]
+    except Exception:  # noqa: BLE001 — fast path is optional
+        targets = []
+    if targets:
+        pending_task["requested_targets"] = list(targets)
+    kinds = ["spreadsheet"]
+    return {
+        "reference": {
+            "state": "resolved",
+            "resolved_file": file_name,
+            "resolved_kinds": kinds,
+            "phrases": [],
+        },
+        "fields": [],
+        "targets": targets,
+        "reason": "accepted pending task exact confirmation",
+    }
+
+
 def interpretation_budget_unresolved(
     message: str,
     request_id: str = "",

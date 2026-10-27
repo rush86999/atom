@@ -1,9 +1,9 @@
 # Cutover runbook — `ae0c2fda3` over pilot `c912375de`
 
-**Status:** one authorized attempt executed; **failed before product smoke**.
-Automatic rollback hit an `lsof`/`pipefail` defect; `c912375de` was manually
-restored as PID `5322`. The candidate is not deployed. A second attempt
-requires new authorization.
+**Status:** three authorized attempts executed. The third reached the product
+smoke and failed functional checks; automatic code rollback succeeded.
+`c912375de` is serving as PID `19046`. Candidate is not deployed. A fourth
+attempt remains separately unauthorized.
 **Approval token:** `ATOM_DEPLOY_APPROVED=ae0c2fda3`
 **Script:** `scripts/deploy_release_candidate_ae0c2fda3.sh`
 
@@ -47,8 +47,76 @@ Fixes prepared for a second attempt:
 - `--check-only` now verifies the password against the admin bcrypt hash, so a
   stale file fails **preflight** instead of stopping the pilot;
 - every `lsof` port probe treats “no listener” as a valid state;
+- both smoke confirmation paths send exactly `go ahead` (no verbose prose), and
+  a no-network parity test runs against the development and packaged helpers
+  and the frozen candidate classifier;
 - the recorded pilot PID is read from `evidence/cutover/pilot_pid.txt`
-  (currently `5322`) and still checked against command/cwd/port.
+  (currently `19046`) and still checked against command/cwd/port.
+
+## Second attempt outcome (2026-10-26T22:53:46Z)
+
+- Preflight, snapshot, candidate startup and health passed.
+- Smoke authenticated and entered setup.
+- Guided-agent creation returned **HTTP 201 Created**; the smoke accepted only
+  HTTP 200 and aborted before any canvas, upload, chat turn or review.
+- The agent was created and is preserved:
+  `886b86b4-6917-4fec-831a-1f5a9ee22f4f` (`Order Review Ops Specialist`).
+- Automatic code rollback succeeded: `c912375de` PID `13038`, healthy on
+  `:8001`, `database_restored=false`.
+- No repair, retry or product-code change was performed at the time. The
+  HTTP-201 acceptance mismatch was then corrected in the smoke harness, not in
+  application code.
+- Attempt evidence:
+  `evidence/cutover/attempt-20261026T225346Z/`, including
+  `failure-detail.json` and `smoke-created-records.json`.
+
+## Setup-contract correction
+
+The smoke now accepts guided-agent creation only as **HTTP 201** and requires
+`success is True`, a `data` object, and a non-empty string `agent_id`. It
+explicitly rejects HTTP 202 pending approval, HTTP 200, missing/non-string/blank
+ids, failure payloads and malformed JSON. It does not treat arbitrary 2xx
+responses as success.
+
+The rest of setup validates response bodies and identifiers:
+
+- login requires a non-empty token and authenticated user id;
+- canvas create requires `success=True` and a valid `canvas_id`;
+- attachment requires matching `canvas_id` and `agent_id`;
+- upload requires success, matching canvas/file names, a valid agent id and
+  `ingestion.status=ingested`;
+- teaching requires `success=True` and `data.status=ok` (rejects skipped/failed).
+
+The no-network setup battery runs the actual helpers against both development
+and packaged copies, exercises the full setup sequence, and includes an actual
+candidate guided-route integration check with the generation factory mocked.
+It also retains the exact-`go ahead` confirmation controls. **51 tests pass**
+in `evidence/cutover/setup-contract-20261026.txt`.
+
+## Third attempt outcome (2026-10-26T23:41:57Z)
+
+Setup passed end to end, including guided-agent 201, canvas/upload, and
+teaching. The product smoke then ran and failed:
+
+- PO Register approved rows passed: CAD **8050.00**, USD **3999.96**.
+- Adjustments content passed (**−700.00 CAD**, gap **0055/C5**, total
+  withheld), but the confirmed `go ahead` turn returned
+  `success=false/outcome=unconfirmed/outcome_unconfirmed`.
+- O-1010 before correction: partial saved-lookup, then two
+  `turn_budget_exceeded`; no structured review.
+- O-1010 after correction: `turn_budget_exceeded`, then
+  `turn_failed_no_result`; no row citation or review.
+- O-1001 sourced: `turn_budget_exceeded` throughout; no structured review.
+- Repeated O-1001: one `turn_budget_exceeded`, then a deterministic workbook
+  read with no structured `review_result`; no identical no-op.
+- History persisted, teaching stored, workbook hashes unchanged, no task
+  operations/tasks, canvas actions setup-only, health identity passed.
+
+Automatic code rollback succeeded: `c912375de` PID `19046`, healthy,
+`database_restored=false`. No repair or retry was performed. Evidence:
+`evidence/cutover/attempt-20261026T234157Z/`; smoke-created records preserved
+(agent, canvas, 3 dataset entries, 5 sessions, 32 messages, 13 executions, 4
+canvas-audit actions). No fourth attempt has run or been authorized.
 
 ## Fixed identities
 
@@ -60,7 +128,7 @@ Fixes prepared for a second attempt:
 | Archive SHA-256 | `33a317c2b981f5947f854056aad8b11ffce4ac8c0a6b908e96f998d5dca4f526` |
 | Rollback release | `/Users/rushiparikh/projects/atom-releases/c912375de` |
 | Rollback commit | `c912375de81b55465e61fe468bf0bc2b405fd206` |
-| Pilot PID / port | `5322` / `8001` (recorded in `evidence/cutover/pilot_pid.txt`) |
+| Pilot PID / port | `19046` / `8001` (recorded in `evidence/cutover/pilot_pid.txt`) |
 | Smoke admin credential | `/Users/rushiparikh/projects/atom/backend/logs/acceptance_admin_password.txt` |
 | Live data | `/Users/rushiparikh/projects/atom/backend/data` |
 | Live env | `/Users/rushiparikh/projects/atom/backend/.env` |
@@ -83,7 +151,7 @@ Recorded result on 2026-10-26:
 ```
 ==> preflight candidate ae0c2fda340e9a85e840e310d84d4d0da4fedab8
 ==> candidate state: prepared
-==> pilot pid=5322 port=8001
+==> pilot pid=19046 port=8001
 ==> live smoke precheck (read-only)
 ==> live smoke precheck OK
 ==> preflight OK; no changes made
@@ -98,7 +166,7 @@ Preflight fails closed if any of these is false:
 
 - candidate/rollback identity commits and the canonical archive checksum;
 - candidate source tree matches the archive (source-only state);
-- recorded pilot PID (currently `5322`, from
+- recorded pilot PID (currently `19046`, from
   `evidence/cutover/pilot_pid.txt`) is alive, owns `--port 8001`, and its cwd
   is `c912375de/backend`;
 - `/api/health` reports healthy, that PID, cwd, and
@@ -214,6 +282,39 @@ If rollback itself fails, publish `status=rollback_failed` and require manual
 recovery. The candidate and rollback releases remain separate; `c912375de` is
 never overwritten.
 
+### General exit guard
+
+Automatic rollback is not limited to the explicitly handled failure sites. The
+script arms an `EXIT` handler before preflight and tracks:
+
+- `PILOT_STOPPED` — set only after the pilot process is gone and port `8001`
+  is free;
+- `CANDIDATE_PID` / `CANDIDATE_LOG` — set as soon as a candidate process is
+  started, including the restart;
+- `ATTEMPT_COMMITTED` — set only after smoke, restart, DB check, and success
+  identity publication;
+- `ROLLBACK_ACTIVE` — set before any rollback so the guard cannot recurse.
+
+If the script exits unexpectedly after the pilot has stopped and before the
+attempt is committed, the guard invokes the same rollback path, then exits
+with the **original** failure status. If preflight/snapshot/preparation fails
+before the pilot stops, the guard does nothing and the running pilot is not
+restarted or disturbed. If the attempt is committed, a normal exit is not
+treated as a failure.
+
+The stop-evidence write is checked explicitly; a write failure after the pilot
+is gone returns nonzero and therefore reaches the guard.
+
+Guard tests use only fake releases on spare ports and no model calls:
+
+1. unexpected `exit 7` immediately after pilot shutdown → rollback starts,
+   health passes, failure identity published, exit status remains `7`;
+2. stop-evidence write failure after shutdown → rollback starts, health passes,
+   failure identity published, exits nonzero;
+3. preflight/backup failure before shutdown (`PILOT_STOPPED=0`) → no rollback,
+   exit status preserved;
+4. committed attempt (`PILOT_STOPPED=1`, `ATTEMPT_COMMITTED=1`) → no rollback.
+
 ## Database restore rule
 
 The snapshot is for disaster recovery, not normal rollback. The script never
@@ -224,7 +325,7 @@ evidence path. Normal code rollback keeps the post-cutover data.
 ## Checks after the failed attempt
 
 - `bash -n`: pass.
-- `--preflight` on the prepared candidate: pass with pilot PID `5322`, live
+- `--preflight` on the prepared candidate: pass with pilot PID `19046`, live
   smoke precheck OK, and zero live-DB writes.
 - `smoke...py --check-only` with the live acceptance-admin password: pass,
   including `admin_password_matches=true`.
@@ -235,6 +336,19 @@ evidence path. Normal code rollback keeps the post-cutover data.
   the no-listener `lsof` case that broke the first rollback.
 - Isolated fake-release `rollback_after_failure`: pass (starts rollback,
   health-checks it, writes failed/served identity).
+- Fake-release exit-guard tests: unexpected exit after shutdown (status
+  preserved), stop-evidence write failure after shutdown (rollback + failure
+  identity), pre-shutdown failure (no rollback), committed success (no
+  rollback): all pass.
+- Confirmation parity: both the ordinary confirmation and the authorized
+  timeout retry send exactly `go ahead` with the original session, agent and
+  token. The no-network branch test passes against the development helper, the
+  packaged helper, and the frozen candidate's `is_filename_confirmation`
+  classifier (9 passed). The old verbose confirmations are explicitly rejected.
+- Full setup battery: login, guided-agent 201 + payload/id, 202/missing/malformed
+  rejection, canvas create/attach, upload, teaching and full sequence pass
+  against both helper copies; the actual candidate guided route is exercised
+  with the generation factory mocked. 51 tests pass.
 - Wrong approval token: exit `1`, no snapshot/link/stop/start.
-- Pilot is `c912375de` PID `5322`, healthy on `:8001`; candidate is prepared,
+- Pilot is `c912375de` PID `19046`, healthy on `:8001`; candidate is prepared,
   not running, and not deployed.
