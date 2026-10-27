@@ -118,7 +118,11 @@ The shared **table-selection operation** is now implemented and verified:
 - the exact grants ask returns three rows (`GR-2026-014/021/033`) with
   `Application Ref` and `Requested Amount`, excludes the Withdrawn row, and
   renders a deterministic table (`selection_api_verified.json`);
-- renamed-schema and helpdesk twins pass through the same code;
+- renamed-schema and helpdesk twins pass through the same code; the live
+  helpdesk ask returns `Ticket`/`Hours` for Open rows and excludes Closed
+  (`selection_helpdesk_api.json`);
+- the grants selection is unchanged after a real backend restart
+  (`selection_after_restart.json`);
 - a model-written table never becomes the delivered facts; rejected content
   is private diagnostics only;
 - a selection turn completes only with a bound source, resolved columns,
@@ -126,10 +130,11 @@ The shared **table-selection operation** is now implemented and verified:
   no table (`selection_missing_file_guard.json`).
 
 The trained-employee loop still **fails at the assessment step**: the lesson
-persists across restart and the assessment now delivers only the deterministic
-source rows, but the model's decision table did not validate against those
-subjects, so no decision was accepted. That is recorded as CR-009 (failed) and
-CR-014 (partial), not rounded up. The earlier fabricated `Roper-011`,
+persists across restart, a correction was taught and listed alongside it, and
+the assessment now delivers only the deterministic source rows. But the
+model's decision table did not validate against those subjects, so no decision
+was accepted. That is recorded as CR-009 (failed) and CR-014 (partial), not
+rounded up. The earlier fabricated `Roper-011`,
 `Tennsmith-001`, `GL001` and `GL002` attempts remain preserved as history.
 
 Not yet claimed: a validated assessment decision table, the full teach →

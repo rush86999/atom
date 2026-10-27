@@ -1,7 +1,7 @@
 {
   "schema_version": "core-release-1",
   "title": "Atom core-release readiness ledger \u2014 2026-10-27",
-  "generated_at": "2026-10-27T22:21:59.194221+00:00",
+  "generated_at": "2026-10-27T22:23:52.617382+00:00",
   "supersedes": "WHOLE_APP_READINESS_LEDGER_2026-10-27",
   "decision": "docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md",
   "candidate": {
@@ -2256,6 +2256,16 @@
           "kind": "api",
           "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/selection_missing_file_guard.json",
           "detail": "unknown file: no table delivered, success=false"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/selection_helpdesk_api.json",
+          "detail": "different domain: Ticket/Hours for Open rows, 2 rows, Closed excluded"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/selection_after_restart.json",
+          "detail": "same grants selection after a real backend restart"
         }
       ],
       "first_failed_transition": null,

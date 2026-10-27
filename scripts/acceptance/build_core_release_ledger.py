@@ -249,6 +249,8 @@ def main() -> None:
                 {"kind": "test", "path": "backend/tests/test_table_selection.py", "detail": "exact grants selection (3 rows, Withdrawn excluded), renamed schema, helpdesk twin, ambiguity, model-table rejection, completion contract"},
                 {"kind": "api", "path": f"{EVIDENCE}/core_loop_attempt1/selection_api_verified.json", "detail": "GET /api/chat/message returned the deterministic 3-row table with the correct filter; model=deterministic"},
                 {"kind": "api", "path": f"{EVIDENCE}/core_loop_attempt1/selection_missing_file_guard.json", "detail": "unknown file: no table delivered, success=false"},
+                {"kind": "api", "path": f"{EVIDENCE}/core_loop_attempt1/selection_helpdesk_api.json", "detail": "different domain: Ticket/Hours for Open rows, 2 rows, Closed excluded"},
+                {"kind": "api", "path": f"{EVIDENCE}/core_loop_attempt1/selection_after_restart.json", "detail": "same grants selection after a real backend restart"},
             ],
             "first_failed_transition": None,
             "next_action": "Promote after the browser UI check of the same ask.",
