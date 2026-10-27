@@ -1,7 +1,7 @@
 {
   "schema_version": "core-release-1",
   "title": "Atom core-release readiness ledger \u2014 2026-10-27",
-  "generated_at": "2026-10-27T23:47:06.971077+00:00",
+  "generated_at": "2026-10-27T23:50:44.149807+00:00",
   "supersedes": "WHOLE_APP_READINESS_LEDGER_2026-10-27",
   "decision": "docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md",
   "candidate": {
@@ -41,16 +41,16 @@
       "environment_limited": 2,
       "failed": 2,
       "not_authorized": 1,
-      "partial": 12,
+      "partial": 11,
       "unproven": 2,
-      "verified": 44
+      "verified": 45
     },
     "core_statuses": {
       "environment_limited": 2,
       "failed": 2,
-      "partial": 12,
+      "partial": 11,
       "unproven": 2,
-      "verified": 44
+      "verified": 45
     },
     "deferred_items": 47,
     "core_release_ready": false,
@@ -2201,12 +2201,22 @@
           "kind": "fixture",
           "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/grants_loop.csv",
           "detail": "the four grant rows the answer should have cited"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_grants_loop.json",
+          "detail": "unfamiliar-task judgment now follows the newest taught correction: GR-2026-033 (4800) DECLINE (was wrongly FUND); one generation, validated, outcome completed"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_helpdesk_different_task.json",
+          "detail": "different-task leg: the helpdesk block omitted evidence_ids and mislabeled a 2.25h ticket ESCALATE; refused with recorded codes, deterministic rows delivered, turn failed"
         }
       ],
-      "first_failed_transition": "Two green assessments produced correct boundary decisions (grants 3200/5000/10000/12000; renamed cases 3200/5000/10000) with source/policy attribution, but the post-restart repeat produced no valid block. Reliability across restart is not green.",
-      "next_action": "Bind the model's task-defined decisions to the deterministic subjects, validate them with build_review_result, render the final table from the validated components, then repeat teach -> unfamiliar task -> correct -> different task -> restart.",
+      "first_failed_transition": "Teach, unfamiliar task and correction legs now hold: the unfamiliar-task assessment follows the newest correction (4800 -> DECLINE, attempt2 grants) and restart persistence holds (fresh history after restart). The loop still fails at the different-task leg: on helpdesk_loop.csv the model produced a defective block (no evidence IDs, 2.25h labeled ESCALATE) which the platform correctly refused \u2014 judgment quality on the local 8b model is not reliable across domains.",
+      "next_action": "Make cross-domain judgment reliable on the configured local model (or qualify the model requirement), then repeat teach -> unfamiliar task -> correct -> different task -> restart end to end.",
       "blocking": true,
-      "notes": "The turn was correctly marked failed, so the platform did not claim success; the user-visible table is still misleading. This is the core acceptance gate and it is NOT met."
+      "notes": "The failing different-task turn was correctly marked failed; no unvalidated decision reached the user. This is the core acceptance gate and it is NOT met."
     },
     {
       "id": "CR-012",
@@ -2280,7 +2290,7 @@
       "action": "Use deterministic subjects/facts, accept only task-defined decisions from the model, validate subject/evidence/policy references and render the final table",
       "candidate_bound": true,
       "config": "isolated world + local Ollama",
-      "status": "partial",
+      "status": "verified",
       "evidence": [
         {
           "kind": "api",
@@ -2305,7 +2315,7 @@
         {
           "kind": "api",
           "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_after_restart_failed.json",
-          "detail": "renamed assessment after restart: no valid block, deterministic rows only, success=false"
+          "detail": "renamed assessment after restart: no valid block, deterministic rows only, success=false (reliability tracked as CR-019)"
         },
         {
           "kind": "api",
@@ -2318,15 +2328,30 @@
           "detail": "green run persisted with the table and outcome=completed after restart"
         },
         {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_grants_loop.json",
+          "detail": "the previously-failing case fixed: GR-2026-033 (4800) DECLINE under the newest taught correction; one generation (952 chars), 3 subjects, evidence ev:...R2/R3/R4, policy = the corrected rule; response success=true outcome=completed"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_history_after_restart.json",
+          "detail": "fresh history after a backend restart agrees: success=true, outcome=completed, decision table and VALIDATED REVIEW present"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_helpdesk_different_task.json",
+          "detail": "a block missing evidence_ids (and one wrong label) was REFUSED with recorded codes missing_evidence_ids; deterministic rows delivered, no certified decisions \u2014 acceptance-only validation holds"
+        },
+        {
           "kind": "test",
           "path": "backend/tests/test_table_selection.py",
           "detail": "artifact mapping, ambiguous subject clarification, valid/invalid review variants, table join, teaching revision"
         }
       ],
-      "first_failed_transition": "Post-restart generation was not reliable: the same renamed assessment that passed before restart produced no valid block. Judgment on the green runs was correct (all boundary cases).",
-      "next_action": "Make the newest policy authoritative in generation (e.g. a single current policy) and rerun; the structural pipeline is green.",
-      "blocking": true,
-      "notes": "The table is evidence-bound and validated; the judgment is not yet reliably applying the correction."
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Binding is verified: decisions are task-defined, subject/evidence/policy-bound, and a defective block is refused with recorded codes while the deterministic rows remain. Judgment CORRECTNESS on green runs followed the newest teaching every time (4800 DECLINE; boundary 3200 DECLINE; renamed 3200 REJECT). Generation reliability across restarts is tracked separately as CR-019; cross-domain judgment variance is CR-009."
     },
     {
       "id": "CR-016",
@@ -2346,6 +2371,16 @@
           "kind": "api",
           "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_history_after_restart.json",
           "detail": "response, persisted row and fresh history agree (success=true, outcome=completed, table present)"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_grants_loop.json",
+          "detail": "attempt2: artifact built (subjects=3, evidence=3), generation completed once (952 chars, block_recovery not needed), validation ok in 198ms"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_helpdesk_different_task.json",
+          "detail": "when the reply leg lost the block, the one contract-only retry fired with the SAME evidence/policy IDs and the result was re-validated by the unchanged gate; provider-failure text is treated as a failed generation, never as model content"
         }
       ],
       "first_failed_transition": null,

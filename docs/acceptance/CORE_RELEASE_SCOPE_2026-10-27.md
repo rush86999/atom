@@ -149,19 +149,37 @@ rows. Response, persisted row and fresh history agree on one run, and a
 malformed model block delivers the deterministic rows with no accepted
 decision.
 
-The trained-employee loop still **fails at judgment quality**: in the one
-structurally valid run, GR-2026-033 (4800) was labeled FUND although the
-newest taught correction says below 5000 = DECLINE; a later generation emitted
-no valid block and was safely rejected. That is recorded as CR-009 (failed)
-and CR-014 (partial), not rounded up. The structural pipeline is CR-016
-(verified); judgment that reliably follows the current correction remains the
-next repair. Read obligations satisfied by a validated review are settled
-through the task lifecycle; genuine freshness obligations remain open, and an
-incomplete review leaves its reads open (CR-018). A stale "Still needed" row
-created before the assessment remains as history; no new contradictory
-continuation is emitted after settlement. The earlier fabricated `Roper-011`,
-`Tennsmith-001`, `GL001` and `GL002` attempts remain preserved as history.
+Decision binding is now **verified** (CR-014). The originally-recorded
+failure case is fixed: GR-2026-033 (4800) is assessed DECLINE under the
+newest taught correction — the same row that was wrongly FUNDed — with one
+generation, evidence/policy-bound validation, and response, persistence and
+fresh history agreeing after a real backend restart
+(`core_loop_attempt2/assessment_grants_loop.json`,
+`assessment_history_after_restart.json`). A block that omits its evidence
+references is refused with recorded rejection codes while the deterministic
+rows remain (`assessment_helpdesk_different_task.json`). When a reply leg
+loses the fenced block entirely, ONE contract-only retry with the same
+evidence/policy IDs runs through the unchanged validator; provider failure
+text is never accepted as model content.
 
-Not yet claimed: a validated assessment decision table, the full teach →
-unfamiliar task → correct → restart loop, format-by-format browser imports
-(PDF/DOCX/email/PPTX), and browser deliverable checks for email/presentation.
+The trained-employee loop still **fails at the different-task leg** (CR-009,
+failed): on helpdesk_loop.csv the local 8b model produced a defective block
+(no evidence IDs, a 2.25h ticket labeled ESCALATE) which the platform
+correctly refused — cross-domain judgment quality is not yet reliable. The
+structural pipeline is CR-016 (verified); generation reliability across
+restarts is mixed (CR-019). Read obligations satisfied by a validated review
+are settled through the task lifecycle; genuine freshness obligations remain
+open, and an incomplete review leaves its reads open (CR-018). A stale "Still
+needed" row created before the assessment remains as history; no new
+contradictory continuation is emitted after settlement. The earlier
+fabricated `Roper-011`, `Tennsmith-001`, `GL001` and `GL002` attempts remain
+preserved as history.
+
+Claimed: a validated, evidence-bound assessment decision table delivered at
+the public boundary with response, persistence and fresh history agreeing
+(CR-014/CR-016). Not yet claimed: the full teach → unfamiliar task → correct
+→ different task → restart loop with reliable judgment on every leg (CR-009:
+the different-task leg mislabels on the local 8b model, safely refused),
+reliable generation across restarts on every fixture (CR-019),
+format-by-format browser imports (PDF/DOCX/email/PPTX), and browser
+deliverable checks for email/presentation.
