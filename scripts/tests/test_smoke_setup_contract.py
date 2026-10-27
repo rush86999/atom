@@ -17,12 +17,12 @@ import pytest
 DEV_SMOKE = Path(__file__).resolve().parents[1] / "smoke_release_candidate_ae0c2fda3.py"
 PACKAGED_SMOKE = Path(os.environ.get(
     "ATOM_RELEASE_SMOKE_PATH",
-    "/Users/rushiparikh/projects/atom-releases/256444d47/scripts/"
+    "/Users/rushiparikh/projects/atom-releases/5d2508a7a/scripts/"
     "smoke_release_candidate_ae0c2fda3.py",
 ))
 CANDIDATE_BACKEND = Path(os.environ.get(
     "ATOM_CANDIDATE_BACKEND",
-    "/Users/rushiparikh/projects/atom-releases/256444d47/backend",
+    "/Users/rushiparikh/projects/atom-releases/5d2508a7a/backend",
 ))
 SMOKE_PATHS = (DEV_SMOKE, PACKAGED_SMOKE)
 SMOKE_IDS = ("development", "packaged")

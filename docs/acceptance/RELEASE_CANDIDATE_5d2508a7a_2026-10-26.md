@@ -1,8 +1,8 @@
-# Release candidate `256444d47` — launch-blocker repair and freeze
+# Release candidate `5d2508a7a` — launch-blocker repair and freeze
 
 **Prepared:** 2026-10-26
 **Predecessor:** `ae0c2fda3` (third attempt failed product smoke; rolled back)
-**Commit:** `256444d471be254c251e70d814fb76e5ab13a77c`
+**Commit:** `5d2508a7a1be254c251e70d814fb76e5ab13a77c`
 **Status:** code frozen; packaged smoke and isolated rehearsal pending.
 
 ## Launch promise (frozen for this release)
@@ -90,7 +90,7 @@ and provider choices are unchanged.
 - Real captured lessons control: `required=['datasets']`; 13 sibling email
   lessons recorded as rejected candidates.
 
-## Independent review remediation
+## Second independent review remediation
 
 The first independent pass (before rehearsal) found five blocker paths and two
 weak smoke assertions. They were repaired before this freeze:
@@ -118,3 +118,25 @@ Attempt-three evidence is preserved unchanged at
 `/Users/rushiparikh/projects/atom-releases/ae0c2fda3/evidence/cutover/attempt-20261026T234157Z/`.
 The raw candidate server log contains credential-bearing integration URLs and
 remains private until scrubbed.
+
+### Second review remediation (before rehearsal)
+
+The second pass found the review blocker still reachable through the
+stored-read delivery-retry lane, format requests, a pending review task
+re-read, and the first review ask. It also found failed reviews marked
+delivered and the smoke gap field mismatch. The freeze now:
+
+- keeps the review objective/evidence hints alive into narration instead of
+  resetting them;
+- gates both the delivery-retry and format-request branches on an outstanding
+  review;
+- skips the direct re-read lane when the stored read is evidence for a review;
+- sets prefetched review evidence in the ask, direct and recovery lanes;
+- runs the review output contract even when no generic tool block exists;
+- marks a review delivered only when `review_result.ok` is true; a failed or
+  unvalidated review stays retrieved;
+- passes the agent id to the task-outcome builder so the durable outcome keeps
+  the review contract;
+- stages reply-leg partial calculations as retrieved with gaps instead of
+  leaving them pending;
+- accepts the product's gap `identity` field (0055) in the smoke check.
