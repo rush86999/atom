@@ -638,6 +638,7 @@ async def test_repeated_review_reuses_validated_assessment_when_inputs_unchanged
                 "targets": [],
             },
             "accepted_contract": contract,
+            "validated_contract": contract,
             "review_contract": {"accepted_inputs": contract,
                                  "subjects": ["O-1001"]},
             "validated_review": validated,
@@ -669,6 +670,7 @@ async def test_repeated_review_reuses_validated_assessment_when_inputs_unchanged
     assert "VALIDATED REVIEW" in response["message"]
     assert response["review_result"]["assessments"][0][
         "subject_id"] == "O-1001"
+    assert response["review_result"]["execution_id"] == response["execution_id"]
 
 
 @pytest.mark.asyncio

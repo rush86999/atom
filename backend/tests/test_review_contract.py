@@ -152,3 +152,11 @@ def test_initial_confirmation_recovery_and_repeat_preserve_same_subjects():
         for item in paths
     ]
     assert subjects == [["O-1001"]] * len(paths)
+
+
+def test_a_new_subject_does_not_match_the_stored_contract():
+    stored = build_accepted_contract(
+        ORDER_PROMPT.format(order="O-1010"), catalogued_names=CATALOGUED)
+    current = build_accepted_contract(
+        ORDER_PROMPT.format(order="O-1001"), catalogued_names=CATALOGUED)
+    assert same_contract_inputs(stored, current) is False

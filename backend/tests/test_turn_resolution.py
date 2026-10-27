@@ -106,3 +106,33 @@ def test_review_without_a_clock_reading_cannot_claim_completion():
     )
     assert success is False
     assert outcome == "unconfirmed"
+
+
+def test_pre_deadline_review_survives_late_finalization():
+    success, outcome, error = resolve_review_envelope(
+        review_required=True,
+        review_result=_review(),
+        reviewed_at_elapsed_s=94.5,
+        deadline_total_s=95.0,
+        cancelled=False,
+        current_success=False,
+        current_outcome="unconfirmed",
+        current_error_code="outcome_unconfirmed",
+    )
+    assert success is True
+    assert outcome == "completed"
+
+
+def test_recorded_outcome_consumes_the_resolved_state():
+    from core.finalization import apply_recorded_outcome
+
+    payload = {"success": True, "outcome": "completed", "data": {}}
+    resolved = apply_recorded_outcome(payload, {
+        "state": "completed",
+        "work_turn": True,
+        "noop": False,
+        "declined": False,
+        "delivered": True,
+    })
+    assert resolved["outcome"] == "completed"
+    assert resolved["success"] is True

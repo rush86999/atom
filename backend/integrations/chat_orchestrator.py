@@ -8574,7 +8574,8 @@ class ChatOrchestrator:
                     )
 
                     _review_lessons = (
-                        self._agent_lessons(agent_id, objective) or [])
+                        self._agent_lessons(
+                            agent_id, objective, limit=10) or [])
                     _review_allowed_decisions = (
                         decision_options_from_lessons(_review_lessons))
                 except Exception:  # noqa: BLE001 — teaching is additive
@@ -9381,10 +9382,6 @@ class ChatOrchestrator:
                     _review_delivered = bool(
                         _review_result.get("ok")
                         and _review_precomputed_accepted)
-                    if isinstance(_review_result, dict) and deadline is not None:
-                        _review_result.setdefault(
-                            "reviewed_at_elapsed_s",
-                            round(deadline.elapsed(), 2))
                     _review_data = response.setdefault("data", {})
                     if isinstance(_review_data, dict):
                         _review_data["review_contract"] = _review_contract
@@ -10610,13 +10607,39 @@ class ChatOrchestrator:
                                         "source_version") or ""),
                                 lessons=_reuse_lessons,
                             )
-                            _stored_review = (
-                                _pfr.get("validated_review")
-                                or _pfr.get("review_result"))
-                            _stored_inputs = (
-                                _pfr.get("accepted_contract")
-                                or ((_pfr.get("review_contract") or {})
-                                    .get("accepted_inputs")))
+                            # The CURRENT message must not be silently
+                            # replaced by the stored objective. A new subject
+                            # or field request falls through to reassessment.
+                            _message_contract = build_accepted_contract(
+                                message,
+                                catalogued_names=[
+                                    str((_pfr.get("identity") or {}).get(
+                                        "file_name") or ""),
+                                    str((_reuse_task.get(
+                                        "resolved_file") or {}).get(
+                                            "file_name") or ""),
+                                ],
+                                source_version=str(
+                                    (_pfr.get("identity") or {}).get(
+                                        "content_hash") or ""),
+                                lessons=_reuse_lessons,
+                            )
+                            _message_subjects = list(
+                                _message_contract.get("subjects") or [])
+                            _message_fields = list(
+                                _message_contract.get(
+                                    "requested_fields") or [])
+                            _current_matches_stored = bool(
+                                (not _message_subjects
+                                 or _message_subjects
+                                 == list(_reuse_accepted.get(
+                                     "subjects") or []))
+                                and (not _message_fields
+                                     or _message_fields
+                                     == list(_reuse_accepted.get(
+                                         "requested_fields") or [])))
+                            _stored_review = _pfr.get("validated_review")
+                            _stored_inputs = _pfr.get("validated_contract")
                             _stored_review_ok = bool(
                                 isinstance(_stored_review, dict)
                                 and _stored_review.get("ok") is True
@@ -10626,11 +10649,20 @@ class ChatOrchestrator:
                                        or []))
                             if (
                                 _stored_review_ok
+                                and _current_matches_stored
                                 and same_contract_inputs(
                                     _stored_inputs, _reuse_accepted)
                             ):
+                                _delivered_review = dict(_stored_review)
+                                _delivered_review["execution_id"] = (
+                                    _execution_id)
+                                _delivered_review[
+                                    "reused_from_execution_id"] = (
+                                        _stored_review.get("execution_id"))
+                                _delivered_review[
+                                    "reviewed_at_elapsed_s"] = 0.0
                                 _reuse_block = render_review_result(
-                                    _stored_review)
+                                    _delivered_review)
                                 _reuse_message = str(
                                     _pfr.get("rendered") or "").rstrip()
                                 if _reuse_block:
@@ -10642,7 +10674,7 @@ class ChatOrchestrator:
                                     (assessment.get(
                                         "unresolved_requirements") or [])
                                     for assessment in (
-                                        _stored_review.get(
+                                        _delivered_review.get(
                                             "assessments") or [])
                                     if isinstance(assessment, dict))
                                 _reuse_response = {
@@ -10655,12 +10687,12 @@ class ChatOrchestrator:
                                     "outcome": (
                                         "partial" if _reuse_gaps
                                         else "completed"),
-                                    "review_result": _stored_review,
+                                    "review_result": _delivered_review,
                                     "review_contract": _pfr.get(
                                         "review_contract"),
                                     "data": {
                                         "deterministic_delivery": True,
-                                        "review_result": _stored_review,
+                                        "review_result": _delivered_review,
                                         "review_contract": _pfr.get(
                                             "review_contract"),
                                         "file_identity": _pfr.get(
@@ -10672,6 +10704,15 @@ class ChatOrchestrator:
                                     "requires_confirmation": False,
                                     "next_steps": [],
                                     "suggested_actions": [],
+                                    "_recorded_outcome": {
+                                        "state": (
+                                            "partial" if _reuse_gaps
+                                            else "completed"),
+                                        "work_turn": True,
+                                        "noop": False,
+                                        "declined": False,
+                                        "delivered": True,
+                                    },
                                 }
                                 _pfr["status"] = "delivered"
                                 _pfr["delivered_at"] = time.time()
@@ -10684,10 +10725,6 @@ class ChatOrchestrator:
 
                                     session[FILE_TASK_SESSION_KEY] = (
                                         mark_task_delivered(_reuse_task_row))
-                                self._update_session(
-                                    session, message, _reuse_response,
-                                    {"primary_intent": "search",
-                                     "confidence": 0.9})
                                 await self._emit_agent_status(
                                     session_id, _trace_agent_id,
                                     _execution_id, "success")
@@ -10705,6 +10742,10 @@ class ChatOrchestrator:
                                     authorized_actions=[],
                                     allow_persisted_evidence=True,
                                 )
+                                self._update_session(
+                                    session, message, _reuse_response,
+                                    {"primary_intent": "search",
+                                     "confidence": 0.9})
                                 logger.info(
                                     "[pending-file-task] repeated review — "
                                     "reused validated assessment (zero read, "
@@ -18560,11 +18601,7 @@ class ChatOrchestrator:
                         _review_result_now.get("reviewed_at_elapsed_s"))
                 except (TypeError, ValueError):
                     _review_elapsed = None
-            _turn_cancelled = bool(
-                response.get("cancelled")
-                or response.get("error_code") in (
-                    "turn_budget_exceeded", "budget_exceeded")
-                or (_deadline is not None and _deadline.expired()))
+            _turn_cancelled = bool(response.get("cancelled"))
             try:
                 from core.turn_resolution import resolve_review_envelope
 
@@ -18593,6 +18630,22 @@ class ChatOrchestrator:
                 else:
                     response["error_code"] = _resolved_error
                     response["outcome"] = "failed"
+                # ONE RECORDED OUTCOME: the route finalizer must consume the
+                # same resolution, not the pre-review fallback.
+                _recorded_resolved = (
+                    dict(response.get("_recorded_outcome"))
+                    if isinstance(response.get("_recorded_outcome"), dict)
+                    else {})
+                _recorded_resolved.update({
+                    "state": response.get("outcome") or "failed",
+                    "work_turn": True,
+                    "noop": False,
+                    "declined": False,
+                    "delivered": bool(response.get("success")),
+                })
+                response["_recorded_outcome"] = _recorded_resolved
+                if isinstance(session, dict):
+                    session["_recorded_outcome"] = _recorded_resolved
             except Exception as _resolve_err:  # noqa: BLE001 — fail closed
                 logger.warning(
                     "[turn-resolution] final resolution failed closed: %r",
@@ -26135,7 +26188,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         review_objective or _gate_msg or message or "")
                     _review_lessons = (
                         self._agent_lessons(
-                            agent_id, _review_objective_text) or [])
+                            agent_id, _review_objective_text,
+                            limit=10) or [])
                     _allowed = decision_options_from_lessons(
                         _review_lessons)
                     _review_pending = (
@@ -28598,7 +28652,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             review_objective or _gate_msg or message or "")
                         _review_lessons = (
                             self._agent_lessons(
-                                agent_id, _review_objective_text) or [])
+                                agent_id, _review_objective_text,
+                                limit=10) or [])
                         _allowed = decision_options_from_lessons(
                             _review_lessons)
                         _review_pending = (
@@ -28699,6 +28754,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 if _review.get("ok"):
                                     _review_pending["validated_review"] = (
                                         _review)
+                                    _review_pending["validated_contract"] = (
+                                        _review_accepted)
+                                else:
+                                    # A failed revalidation invalidates the
+                                    # previous assessment for this contract.
+                                    _review_pending.pop(
+                                        "validated_review", None)
+                                    _review_pending.pop(
+                                        "validated_contract", None)
                             # The fenced machine block is NEVER delivered,
                             # certified or not. On failure the prose remains
                             # explanatory; no raw block leaks (F6).
