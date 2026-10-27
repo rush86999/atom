@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-10-27T18:30:31Z",
+  "world": "whole-app-world-20261027",
+  "route": "/approvals",
+  "endpoint": "POST /api/agents/approvals/{id}",
+  "decision": "rejected",
+  "before_reject_buttons": 56,
+  "after_reject_buttons": 55,
+  "after_reload_buttons": 55,
+  "ui_notice": "Action rejected.",
+  "response_status": 200,
+  "response_excerpt": "{\"success\":true,\"data\":{\"decision\":\"rejected\",\"action_id\":\"d8190e15-...\",\"resume\":{\"handled\":true,\"kind\":\"decision\",\"resumed\":false,\"reason\":\"no pending decision\"}}}",
+  "note": "Values transcribed from the browser run output; the raw stdout was not retained. The stale no-pending-decision row was already resumed by an earlier direct run, which is why resume=false here."
+}

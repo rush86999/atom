@@ -155,7 +155,7 @@ function ApprovalsPendingBadge({ active, collapsed }: { active: boolean; collaps
 const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     const router = useRouter();
     const { data: session } = useSession();
-    const { level: roleLevel } = useUserRole();
+    const { level: roleLevel, loading: roleLoading } = useUserRole();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     // Real identity fallback: the API-first login (persistBackendToken) stores
@@ -327,15 +327,20 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             {/* Navigation Categories */}
             <nav aria-label="Main Navigation" className="flex-1 overflow-y-auto py-6 space-y-6 px-3 scrollbar-hide">
                 {categories.map((category) => {
-                    // Role-aware filtering: while the role is unknown
-                    // (level 0 — loading or fetch failed) everything stays
-                    // visible; the backend enforces the real gates.
+                    // Role-aware filtering. While the role is still loading,
+                    // hide elevated items (a member must not see the admin
+                    // band for the first seconds after login). If the fetch
+                    // FAILS, fail open — a real admin must not be stranded by
+                    // a transient /api/auth/me error; the backend enforces
+                    // every gate.
                     const visibleItems =
                         roleLevel > 0
                             ? category.items.filter(
                                   (item) => !item.minLevel || roleLevel >= item.minLevel
                               )
-                            : category.items;
+                            : roleLoading
+                              ? category.items.filter((item) => !item.minLevel)
+                              : category.items;
                     if (visibleItems.length === 0) return null;
                     return (
                     <div key={category.name} className="space-y-1">

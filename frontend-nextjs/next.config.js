@@ -395,10 +395,24 @@ const nextConfig = {
       }
       */
     ];
-    return rawRewrites.map(rewrite => ({
+    const mapped = rawRewrites.map(rewrite => ({
       ...rewrite,
       destination: rewrite.destination.replace("http://127.0.0.1:8000", backendUrl)
     }));
+    // Unknown Python API paths (calendar events, document-ingestion
+    // settings, satellite key, risk/forensics, status probes …) must reach
+    // the backend too. This is a FALLBACK rewrite: filesystem handlers —
+    // including NextAuth's /api/auth/session and /api/auth/_log — resolve
+    // first, so the catch-all can never shadow them.
+    return {
+      afterFiles: mapped,
+      fallback: [
+        {
+          source: "/api/:path*",
+          destination: `${backendUrl}/api/:path*`,
+        },
+      ],
+    };
   },
 };
 

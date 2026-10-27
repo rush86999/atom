@@ -1,0 +1,6 @@
+create 200 {"success": true, "task": {"id": "5df12fde-5c93-4ee4-9c67-338a292cad07", "title": "Whole-app task probe", "description": "create/update/delete", "dueDate": "2026-11-01T00:00:00", "priority": "high", "status": "todo", "project": null, "tags": ["whole-app"], "estimatedHours": 2.0, "actualHours": 0, "color": "#3182CE", "metadata": {}, "createdAt": "2026-10-27T18:06:31", "updatedAt": "2026-10-27T18:06
+list 200 ['Whole-app task probe']
+update 200 completed low
+delete 200 {'success': True, 'deleted': '5df12fde-5c93-4ee4-9c67-338a292cad07'}
+after 200 {'tasks': []}
+TASK_ID 5df12fde-5c93-4ee4-9c67-338a292cad07

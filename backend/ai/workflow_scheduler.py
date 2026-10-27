@@ -277,12 +277,25 @@ class WorkflowScheduler:
             logger.error(f"Error removing job {job_id}: {e}")
 
     def list_jobs(self) -> List[Dict[str, Any]]:
-        """List all scheduled jobs"""
+        """List all scheduled jobs.
+
+        ``next_run_time`` exists on an APScheduler Job only after the
+        scheduler has started; a job added while the scheduler is stopped
+        (ENABLE_SCHEDULER=false, or during startup) has no such attribute.
+        The old direct access raised AttributeError and turned the whole
+        "My scheduled workflows" panel into a 500.
+        """
         jobs = []
         for job in self.scheduler.get_jobs():
+            next_run = getattr(job, "next_run_time", None)
+            workflow_id = None
+            args = list(getattr(job, "args", None) or [])
+            if args and isinstance(args[0], str):
+                workflow_id = args[0]
             jobs.append({
                 "id": job.id,
-                "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
+                "workflow_id": workflow_id,
+                "next_run_time": next_run.isoformat() if next_run else None,
                 "trigger": str(job.trigger)
             })
         return jobs

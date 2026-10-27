@@ -1,0 +1,8 @@
+== formats accepted and searchable (uploaded during this run) ==
+probe.pptx: --- Slide 1 ---
+probe.docx: Whole app DOCX probe: the green widget costs 57 dollars.
+probe.txt: Whole app text probe: the blue widget costs 42 dollars.
+
+== legacy .doc without docling ==
+HTTP 415
+{"success":false,"error":{"code":"UNSUPPORTED_FILE_TYPE","message":"File type 'doc' requires the optional docling parser, which is not installed. Convert it to docx or install docling.","timestamp":"2026-10-27T19:43:44.706668+00:00"}}

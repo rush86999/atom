@@ -1,0 +1,42 @@
+[
+  {
+    "route": "/analytics",
+    "bad": [],
+    "soft": true,
+    "sample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar Health Voice GOVERNANCE Self-Healing Harness PLATFORM Integrations Settings wholeapp.member wholeapp.member@example.com No unread notifications Failed to load analytics data Retry"
+  },
+  {
+    "route": "/workflows/builder",
+    "bad": [],
+    "soft": false,
+    "sample": "sing Pipeline System Health Monitoring API Integration Workflow Auto-Archive & Task Linker Burnout & Overload Protection Deadline Risk Mitigation AI Email Follow-up Automation Goal-Driven Automation Sales Prospecting Pipeline Cost Optimization Workflow Budget Check & Approval Invoice Reconciliation Pipeline Periodic Portal Check Available Agents Competitive Intel Monitor competitor pricing Payroll Guardian Reconcile payroll data Inventory Check Shopify vs WMS comparison Start Save Run React Flow"
+  },
+  {
+    "route": "/scheduling",
+    "bad": [],
+    "soft": false,
+    "sample": "leapp.member wholeapp.member@example.com No unread notifications Calendar New Event TodayBackNext October 2026 MonthWeekDayAgenda Sun Mon Tue Wed Thu Fri Sat 27 28 29 30 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 Workflow: 25dac4f8-2089-4f08-9f01-12bee0daf1ce +4 more Welcome to Atom Your AI-powered automation workspace 1 Welcome 2 Profile 3 Connect 4 Ready Hello, Whole! Atom is here to help you automate your work with the power of AI Agents. Next"
+  },
+  {
+    "route": "/approvals",
+    "bad": [
+      {
+        "status": 403,
+        "url": "http://127.0.0.1:8105/api/agents/approvals/pending",
+        "body": "{\"detail\":\"Operation requires permission: agent:manage\"}"
+      },
+      {
+        "status": 403,
+        "url": "http://127.0.0.1:8105/api/agents/approvals/pending",
+        "body": "{\"detail\":\"Operation requires permission: agent:manage\"}"
+      },
+      {
+        "status": 403,
+        "url": "http://127.0.0.1:8105/api/agents/approvals/pending",
+        "body": "{\"detail\":\"Operation requires permission: agent:manage\"}"
+      }
+    ],
+    "soft": true,
+    "sample": " Automated triggers — e.g. an ingested email classified for a domain — that an INTERN agent was not mature enough to run on its own. Approving executes the action now (the agent processes it and you can coach it afterwards); rejecting closes it and teaches the agent the correction. No agent action proposals waiting. Welcome to Atom Your AI-powered automation workspace 1 Welcome 2 Profile 3 Connect 4 Ready Hello, Whole! Atom is here to help you automate your work with the power of AI Agents. Next"
+  }
+]

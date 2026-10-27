@@ -42,6 +42,10 @@ def _sanitize_filename(filename: Optional[str]) -> str:
 
 logger = logging.getLogger(__name__)
 
+# 2026-10-27 whole-app pass: these are workspace-scoped governance
+# surfaces. The sidebar exposes them at workspace_admin+ and a
+# workspace_admin is the admin a workspace actually has; gate at
+# WORKSPACE_ADMIN, not the platform ADMIN tier.
 router = BaseAPIRouter(prefix="/api/admin/governance/facts", tags=["Business Facts"])
 
 
@@ -86,7 +90,7 @@ async def list_facts(
     domain: Optional[str] = None,
     limit: int = 100,
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN)),
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN)),
 ):
     """
     List all business facts with optional filters.
@@ -116,7 +120,7 @@ async def list_facts(
 async def get_fact(
     fact_id: str,
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN)),
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN)),
 ):
     """
     Get a specific fact by ID.
@@ -143,7 +147,7 @@ async def get_fact(
 async def create_fact(
     request: FactCreateRequest,
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Manually create a new business fact.
@@ -183,7 +187,7 @@ async def update_fact(
     fact_id: str,
     request: FactUpdateRequest,
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Update an existing fact.
@@ -230,7 +234,7 @@ async def update_fact(
 async def delete_fact(
     fact_id: str,
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Soft delete a fact.
@@ -250,7 +254,7 @@ async def upload_and_extract(
     file: UploadFile = File(...),
     domain: str = Form(default="general"),
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Upload a policy document to R2 and extract business facts.
@@ -374,7 +378,7 @@ async def upload_and_extract(
 async def verify_citation(
     fact_id: str,
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Re-verify that a fact's citation sources still exist in R2/S3.

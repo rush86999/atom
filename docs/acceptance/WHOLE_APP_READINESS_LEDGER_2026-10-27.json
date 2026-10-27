@@ -1,0 +1,1951 @@
+{
+  "schema_version": 1,
+  "title": "Atom whole-app readiness ledger",
+  "generated_at": "2026-10-27T20:13:42Z",
+  "assignment": "docs/acceptance/WHOLE_APP_COMPLETION_2026-10-27.md",
+  "candidate": {
+    "commit": "f5f3148d24351217b20e4994fe7602131f8ae220",
+    "tree": "d5804aed4be4a920a2c6067c253efc7f89cc539f",
+    "branch": "whole-app/successor-f5f",
+    "preserved_package": "/Users/rushiparikh/projects/atom-releases/f5f3148d2",
+    "preserved_evidence": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence"
+  },
+  "environment": {
+    "id": "whole-app-world-20261027",
+    "frontend": "http://127.0.0.1:3001 (next dev --webpack, f5f3148d2 source)",
+    "backend": "http://127.0.0.1:8105 (uvicorn, f5f3148d2 source)",
+    "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/whole-app-world/data/atom.db",
+    "database_source": "c912375de backup atom-pre-ae0c2fda3-20261026T234157Z.db.gz",
+    "external_traffic": "disabled: live credentials stripped from the worktree .env, ENABLE_SCHEDULER=false, ENABLE_INGESTION_SYNC=false, no Telegram/Graph pollers",
+    "roles": {
+      "ordinary": "wholeapp.member@example.com (member, created in-world)",
+      "admin": "admin@example.com (workspace_admin)"
+    },
+    "not_live": true
+  },
+  "concurrent_uncommitted_work": {
+    "detected": true,
+    "in_f5f": false,
+    "location": "shared dirty worktree /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app (not this branch)",
+    "paths": [
+      "backend/core/product_profile.py",
+      "backend/api/product_profile_routes.py",
+      "frontend-nextjs/lib/product-profile.tsx",
+      "frontend-nextjs/components/ProductSurface/NotInRelease.tsx",
+      "frontend-nextjs/pages/_app.tsx"
+    ],
+    "effect": "A core profile that defers search, tasks, boards, automations, marketplace, command centers, business dashboards, productivity, governance, connectors and team chat.",
+    "disposition": "Excluded from this evidence branch and this commit. The assignment requires an explicit product decision before any launch-scope reduction; this gate has none. It also was not present in f5f3148d2. Paths may exist in f5f; the listed paths are the dirty-worktree additions/diffs, not a claim that this branch contains the gate."
+  },
+  "status_legend": {
+    "verified": "Executed end-to-end on the named candidate/config; the stated user-visible action succeeded.",
+    "failed": "Reproduced failure at the boundary the user touches.",
+    "partial": "An early transition passed; the named later transition did not.",
+    "unproven": "Rendered or existed, but the action was not executed; no candidate-bound pass.",
+    "environment_limited": "Cannot execute without credentials or a scheduler this isolated world intentionally disables. Not a pass.",
+    "blocked_external": "Needs a real external account or communication; outside this run's constraints.",
+    "not_authorized": "Would deploy, spend, or contact outside the sandbox; no authorization."
+  },
+  "summary": {
+    "total": 90,
+    "by_status": {
+      "verified": 60,
+      "partial": 12,
+      "not_authorized": 1,
+      "environment_limited": 4,
+      "unproven": 11,
+      "blocked_external": 1,
+      "failed": 1
+    },
+    "verified": 60,
+    "failed": 1,
+    "partial": 12,
+    "unproven": 11,
+    "environment_limited": 4,
+    "blocked_external": 1,
+    "not_authorized": 1,
+    "whole_app_ready": false,
+    "reason": "Task/board CRUD, comments/decompose, workflow create/execute/schedule, approval resume/reject, background durability, document formats, auth/proxy, role visibility and several mounted-router repairs pass. Remaining: settings/sessions, PDF/MD, network-failure UX, clean install, workflow governance pause and scheduled firing. An uncommitted core-profile scope gate found in the dirty worktree is not in f5f and was excluded; if merged it would defer 11 capabilities without the required product decision. The 56-route admin breadth and targeted re-checks were captured with the surfaces exposed, before that gate was introduced."
+  },
+  "items": [
+    {
+      "id": "WA-001",
+      "area": "candidate",
+      "feature": "Preserved f5f3148d2 package",
+      "action": "Verify the frozen candidate identity and package manifest still match",
+      "candidate_bound": false,
+      "config": "preserved-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "manifest",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/PACKAGE.json",
+          "detail": "commit f5f3148d2 / tree d5804aed; package and evidence directories untouched this run"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "The task instruction says the six artifact/evidence hashes were independently checked on 2026-10-27; this run did not re-run the packaged rehearsal."
+    },
+    {
+      "id": "WA-002",
+      "area": "candidate",
+      "feature": "Pre-restart packaged rehearsal",
+      "action": "Run the packaged pre-restart acceptance checks",
+      "candidate_bound": false,
+      "config": "preserved-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "evidence",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/PACKAGE.json",
+          "detail": "pre: 15/15"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-003",
+      "area": "candidate",
+      "feature": "Post-restart packaged verification",
+      "action": "Restart the packaged candidate and run the post-restart checks",
+      "candidate_bound": false,
+      "config": "preserved-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "evidence",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/PACKAGE.json",
+          "detail": "post: 7/7"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-004",
+      "area": "candidate",
+      "feature": "Resume probe",
+      "action": "Resume the interrupted partial probe",
+      "candidate_bound": false,
+      "config": "preserved-f5f3148d2",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "evidence",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/PACKAGE.json",
+          "detail": "resume probe preserved as partial; not rescored"
+        }
+      ],
+      "first_failed_transition": "The preserved probe did not complete its resume transition.",
+      "next_action": "Keep as partial; do not count it toward whole-app acceptance.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-005",
+      "area": "deployment",
+      "feature": "Guarded launcher preflight",
+      "action": "Run the f5f3148d2 launcher read-only preflight",
+      "candidate_bound": false,
+      "config": "launcher-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/cutover/preflight-final-20261027.txt",
+          "detail": "candidate source matches archive; pilot 19046; live smoke precheck OK"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Preflight is read-only; no cutover performed."
+    },
+    {
+      "id": "WA-006",
+      "area": "deployment",
+      "feature": "Stale identity rejection",
+      "action": "Try to pass an ae0c2fda3 package through the f5f launcher",
+      "candidate_bound": false,
+      "config": "launcher-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/cutover/stale-identity-check.txt",
+          "detail": "candidate identity commit mismatch"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-007",
+      "area": "deployment",
+      "feature": "Wrong token rejection",
+      "action": "Try to apply with the old approval token",
+      "candidate_bound": false,
+      "config": "launcher-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/cutover/wrong-token-check.txt",
+          "detail": "explicit approval missing"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-008",
+      "area": "deployment",
+      "feature": "Fake-release rollback",
+      "action": "Exercise scoped stop and automatic code rollback on a fake release",
+      "candidate_bound": false,
+      "config": "launcher-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/cutover/selftest-f5f3148d2-20261027.txt",
+          "detail": "stop_scoped_pid=ok; fake_rollback=ok; selftest=passed"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-009",
+      "area": "deployment",
+      "feature": "Cutover",
+      "action": "Cut over the live pilot to f5f3148d2",
+      "candidate_bound": false,
+      "config": "launcher-f5f3148d2",
+      "status": "not_authorized",
+      "evidence": [
+        {
+          "kind": "document",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/CUTOVER_AUTHORIZATION_f5f3148d2.md",
+          "detail": "awaiting explicit token f5f3148d2"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Obtain explicit authorization; previous ae0c2fda3 authorization does not transfer.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-010",
+      "area": "auth",
+      "feature": "API-first login",
+      "action": "Sign in with email/password and land on the dashboard",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "login -> /dashboard; token persisted"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "POST /api/auth/login 200; GET /api/auth/me 200"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Login form uses /api/auth/login directly; NextAuth session is not the identity source."
+    },
+    {
+      "id": "WA-011",
+      "area": "auth",
+      "feature": "Session reload",
+      "action": "Reload a deep page and keep the authenticated session",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "reload phase on dashboard/tasks/boards/approvals/goal-runs"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-012",
+      "area": "auth",
+      "feature": "Ordinary role navigation",
+      "action": "Verify a member does not see Approvals or the admin band after role resolution",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/role-visibility.json",
+          "detail": "member nav excludes /approvals, /admin/*, /audit-trail, /dev-studio after role fetch"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-013",
+      "area": "auth",
+      "feature": "Ordinary role direct-URL authorization",
+      "action": "Navigate a member directly to an admin URL",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-member.json",
+          "detail": "page shell renders; backend returns 403 on admin APIs"
+        }
+      ],
+      "first_failed_transition": "The page renders an admin shell for a member instead of a clean denied state; backend correctly denies the data.",
+      "next_action": "Add a page-level 403 state (or redirect) so direct links do not render an empty admin surface.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-014",
+      "area": "auth",
+      "feature": "Workspace-admin governance access",
+      "action": "Open JIT Verification and Business Facts as workspace_admin",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "jit: no bad responses; facts: no bad responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": true,
+      "notes": "Backend gates aligned to WORKSPACE_ADMIN for the two workspace-scoped governance routers; the sidebar already exposed them at that level."
+    },
+    {
+      "id": "WA-015",
+      "area": "tasks",
+      "feature": "Task CRUD",
+      "action": "Create, list, update, and delete a task through /api/v1/tasks",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "POST/GET/PUT/DELETE 200; title/status round-trip"
+        },
+        {
+          "kind": "test",
+          "path": "backend/tests/test_nav_stub_task_crud.py",
+          "detail": "3 tests"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "The GET-only nav stub was replaced with durable UserTask CRUD (tenant-scoped, owner-scoped)."
+    },
+    {
+      "id": "WA-016",
+      "area": "tasks",
+      "feature": "Task persistence",
+      "action": "Reload and restart the backend, then list the task",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "'Restart survival task' still listed after process restart"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-017",
+      "area": "tasks",
+      "feature": "Task create failure honesty",
+      "action": "Create a task while the create endpoint is unavailable",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test",
+          "path": "backend/tests/test_nav_stub_task_crud.py",
+          "detail": "create requires a title; durable row"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Before the fix the UI optimistically showed 'Task created' while POST 405'd; the endpoint now exists, and the wrapper still surfaces a failure toast on non-2xx."
+    },
+    {
+      "id": "WA-018",
+      "area": "boards",
+      "feature": "Board create/open",
+      "action": "Create a board and open its detail page",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/board-priority.json",
+          "detail": "board created and opened; URL /boards/<id>"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "GET /api/boards/<id> 200 with columns"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-019",
+      "area": "boards",
+      "feature": "Board task create/persist",
+      "action": "Add a task to a board column and reload",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "task and decompose child returned after restart"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/board-priority.json",
+          "detail": "task visible after create"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": true,
+      "notes": "The earlier reload flake was Next dev compiling the dynamic route on first hard navigation; the durable row was present and the API returned it after restart."
+    },
+    {
+      "id": "WA-020",
+      "area": "boards",
+      "feature": "Task comments",
+      "action": "Post a comment on a board task and reload it",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "POST comment 201; GET comments 200 after backend restart"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "api/board_comment_routes.py was not mounted; it is now included at /api."
+    },
+    {
+      "id": "WA-021",
+      "area": "boards",
+      "feature": "Task decomposition",
+      "action": "Commit a decomposition proposal into child tasks",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "POST .../decompose/commit 201; child appears with parent_task_id"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-022",
+      "area": "boards",
+      "feature": "LLM decomposition proposal",
+      "action": "Generate subtask proposals from a task",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "environment_limited",
+      "evidence": [
+        {
+          "kind": "code",
+          "path": "backend/api/board_decompose_routes.py",
+          "detail": "proposal path needs LLM/BYOK; commit path tested separately"
+        }
+      ],
+      "first_failed_transition": "No LLM credentials are present in the isolated world by constraint.",
+      "next_action": "Run the proposal step in the preserved candidate environment with a configured provider, or with a local model.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-023",
+      "area": "workflows",
+      "feature": "Workflow create/save",
+      "action": "Create a visual workflow and confirm it is listed after reload",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/workflow-priority.json",
+          "detail": "Create Workflow -> AI node -> Save; API list contains 'Visual Workflow ...'"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "POST /api/v1/workflows/workflows 200; GET list 200"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-024",
+      "area": "workflows",
+      "feature": "Workflow failure execution",
+      "action": "Execute a deterministic failing workflow",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "status failed; errors ['Unknown service: ...']"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-025",
+      "area": "workflows",
+      "feature": "Failure persistence",
+      "action": "Restart the backend and re-read the failed execution",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "execution still 'failed' with the same error after restart"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-026",
+      "area": "workflows",
+      "feature": "Workflow execute success",
+      "action": "Execute a normal workflow end-to-end",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/workflow-success.txt",
+          "detail": "database.query step -> status completed, errors []"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "A local database step exercises the real engine without external credentials."
+    },
+    {
+      "id": "WA-027",
+      "area": "workflows",
+      "feature": "Workflow schedule create/list/delete",
+      "action": "Schedule a workflow, list jobs, remove the job",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "POST schedule 200; GET scheduler/jobs 200 with workflow_id; DELETE 200"
+        },
+        {
+          "kind": "test",
+          "path": "backend/ai/workflow_scheduler.py",
+          "detail": "list_jobs tolerates a not-yet-started scheduler"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "The page called /scheduler/jobs and /workflows/... without /api/v1/workflows; the URL base and list shape were fixed."
+    },
+    {
+      "id": "WA-028",
+      "area": "workflows",
+      "feature": "Scheduled firing",
+      "action": "Wait for a scheduled workflow to fire and record an execution",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "environment_limited",
+      "evidence": [
+        {
+          "kind": "config",
+          "path": "docs/acceptance/evidence/whole_app_20261027/environment.json",
+          "detail": "ENABLE_SCHEDULER=false in the isolated world"
+        }
+      ],
+      "first_failed_transition": "The scheduler is intentionally stopped to prevent external pollers; jobs created while stopped are tentative.",
+      "next_action": "Start a scheduler-enabled isolated backend (credentials stripped, integrations tokenless) and wait for one interval.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-029",
+      "area": "workflows",
+      "feature": "Workflow governance pause",
+      "action": "Pause a workflow on a governance denial and resume it after approval",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [
+        {
+          "kind": "code",
+          "path": "backend/core/workflow_engine.py",
+          "detail": "pause path creates HITLAction with execution_id/workflow_id; resume bridge implemented in core/hitl_resume.py"
+        }
+      ],
+      "first_failed_transition": "No governance-denied workflow execution was created in this world (needs a registry agent below the action's maturity tier).",
+      "next_action": "Create a workflow bound to a low-maturity agent and a critical step; approve through /api/agents/approvals and assert the execution moves out of PAUSED.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-030",
+      "area": "approvals",
+      "feature": "Pending queue",
+      "action": "List pending HITL actions as the admin",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "Approvals page rendered 51 pending review badge and decision buttons after load"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "GET /api/agents/approvals/pending 200"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-031",
+      "area": "approvals",
+      "feature": "Approve resumes goal run",
+      "action": "Approve a held goal-run decision through the generic Approvals page/API",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "before paused_hitl with pending_decision; after status=active, pending_decision=None, resumes handled=true"
+        },
+        {
+          "kind": "test",
+          "path": "backend/tests/test_hitl_resume.py",
+          "detail": "5 tests"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Before the fix the endpoint returned 200 'approved' and the run stayed paused forever."
+    },
+    {
+      "id": "WA-032",
+      "area": "approvals",
+      "feature": "Reject records correction",
+      "action": "Reject a held goal-run decision with guidance",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "status active; decision_log override with guidance 'change the approach'"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/approval-reject.json",
+          "detail": "Reject -> 56 to 55 buttons; 'Action rejected.'; reload keeps 55"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-033",
+      "area": "approvals",
+      "feature": "Stale pending rows",
+      "action": "Resume a run through its own endpoint and re-check the generic queue",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/post-restart-checks.txt",
+          "detail": "hitl_before=1, hitl_after=0, run_status=active"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-034",
+      "area": "background",
+      "feature": "Goal-run create/list/detail",
+      "action": "Create a supervisor goal run and read it back",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "POST /api/goal-runs 200; GET detail 200; paused_hitl on the held decision"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-035",
+      "area": "background",
+      "feature": "Goal-run checkpoint",
+      "action": "Reach a human_checkpoint step and resolve it",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "environment_limited",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "the router held on ASK_HUMAN before the plan's checkpoint because no LLM was configured"
+        }
+      ],
+      "first_failed_transition": "Without an LLM the router returns an unusable decision, so execution never reaches the checkpoint step.",
+      "next_action": "Run the checkpoint transition with a configured model or a scripted router stub.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-036",
+      "area": "background",
+      "feature": "Decision durability across restart",
+      "action": "Restart the backend after a held decision and read the run",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "run/decision rows persisted; approval after restart resumed the run"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-037",
+      "area": "background",
+      "feature": "Chat continuation",
+      "action": "Resume an interrupted chat turn after restart",
+      "candidate_bound": false,
+      "config": "preserved-f5f3148d2",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "evidence",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/PACKAGE.json",
+          "detail": "preserved resume probe is partial"
+        }
+      ],
+      "first_failed_transition": "The preserved probe did not complete its resume transition.",
+      "next_action": "Do not rescore; keep the partial probe visible.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-038",
+      "area": "documents",
+      "feature": "TXT upload/search",
+      "action": "Upload a text file and find its content by search",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "200; search 'blue widget' returned probe.txt"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-039",
+      "area": "documents",
+      "feature": "DOCX upload/search",
+      "action": "Upload a Word document and find its content by search",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "200; search 'green widget' returned probe.docx with extracted text"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-040",
+      "area": "documents",
+      "feature": "PPTX upload/search",
+      "action": "Upload a PowerPoint deck and find its slide text by search",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "200; search 'red widget' returned probe.pptx with '--- Slide 1 ---' text"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "python-pptx fallback added; previously this stored an empty placeholder without docling."
+    },
+    {
+      "id": "WA-041",
+      "area": "documents",
+      "feature": "Legacy/unsupported formats",
+      "action": "Upload .doc, .ppt, .rtf, or .odt without docling",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": ".doc -> 415 with a clear docling message instead of a silent empty success"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "The feature remains unavailable without docling, but the product no longer claims success. Installing docling is a separate decision."
+    },
+    {
+      "id": "WA-042",
+      "area": "documents",
+      "feature": "PDF/Markdown",
+      "action": "Upload PDF and Markdown files",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "txt/docx/pptx executed; PDF/MD rely on existing packaged evidence and were not re-uploaded"
+        }
+      ],
+      "first_failed_transition": "Not executed in this world.",
+      "next_action": "Upload one PDF and one MD and assert extracted text and search hits.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-043",
+      "area": "documents",
+      "feature": "Document list reload",
+      "action": "Reload the Documents page and list the uploaded files",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/documents renders after reload; list API returns the uploads"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-044",
+      "area": "chat",
+      "feature": "Chat text turn",
+      "action": "Send a text turn and reload history",
+      "candidate_bound": false,
+      "config": "preserved-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "evidence",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/PACKAGE.json",
+          "detail": "pre 15/15 includes the chat journey"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Not re-run in the isolated world because no LLM credentials/spend are authorized."
+    },
+    {
+      "id": "WA-045",
+      "area": "canvas",
+      "feature": "Canvas create/edit/reload",
+      "action": "Create a canvas artifact, edit it, reload",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/canvas renders; no artifact transition executed"
+        }
+      ],
+      "first_failed_transition": "Render only.",
+      "next_action": "Run the existing canvas journey against this world or reuse the packaged J5 evidence.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-046",
+      "area": "search",
+      "feature": "Search query",
+      "action": "Search memory/documents and inspect results",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "document search returned the uploaded txt/docx/pptx"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/search renders"
+        }
+      ],
+      "first_failed_transition": "The unified Search page's own query was not executed.",
+      "next_action": "Run one unified search query with a known document hit.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-047",
+      "area": "agents",
+      "feature": "Agents list/maturity",
+      "action": "Open the Agents page and read the maturity ladder",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/agents renders; training/promotion actions not executed"
+        }
+      ],
+      "first_failed_transition": "No agent run/training transition executed (LLM).",
+      "next_action": "Use the existing trained-review evidence for the AI slice; add one non-LLM agent-list assertion.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-048",
+      "area": "automations",
+      "feature": "Automations list/create/schedule",
+      "action": "Use the Automations tabs and workflow surface",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/workflow-priority.json",
+          "detail": "builder save and workflow list"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "templates/tables/versions tabs render"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "The 401 on the workflow GETs was the missing Bearer bridge; it is now injected from the auth cookie."
+    },
+    {
+      "id": "WA-049",
+      "area": "marketplace",
+      "feature": "Marketplace",
+      "action": "Browse the marketplace catalog",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/marketplace renders"
+        }
+      ],
+      "first_failed_transition": "Render only.",
+      "next_action": "Install/preview one marketplace item in the isolated world.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-050",
+      "area": "command-centers",
+      "feature": "Projects dashboard",
+      "action": "Open Projects and read its data",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: 0 bad API responses (was 401)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-051",
+      "area": "command-centers",
+      "feature": "Sales & CRM dashboard",
+      "action": "Open Sales & CRM and read its data",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: 0 bad API responses (was 401)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-052",
+      "area": "command-centers",
+      "feature": "Support dashboard",
+      "action": "Open Support and read its data",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "0 bad API responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-053",
+      "area": "command-centers",
+      "feature": "Knowledge dashboard",
+      "action": "Open Knowledge and read its data",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "0 bad API responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-054",
+      "area": "command-centers",
+      "feature": "Communication center",
+      "action": "Open Communication and read its data",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: 0 bad API responses (was 401)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-055",
+      "area": "business",
+      "feature": "Sales",
+      "action": "Open the Sales page and read leads",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: leads request authorized via cookie bridge"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-056",
+      "area": "business",
+      "feature": "Marketing",
+      "action": "Open Marketing and load the summary",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "marketing: no bad responses"
+        },
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/post-restart-checks.txt",
+          "detail": "marketing summary 200"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-057",
+      "area": "business",
+      "feature": "Finance",
+      "action": "Open Finance and read its data",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/finance renders"
+        }
+      ],
+      "first_failed_transition": "Render only; no financial action executed.",
+      "next_action": "Read one finance summary endpoint and assert non-error.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-058",
+      "area": "business",
+      "feature": "Analytics",
+      "action": "Open Analytics and read KPI cards",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: 0 bad API responses (was 401)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-059",
+      "area": "productivity",
+      "feature": "Calendar",
+      "action": "Open Calendar and read events",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: /api/dashboard/events 200 (was 404)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-060",
+      "area": "productivity",
+      "feature": "Health",
+      "action": "Open Health and read business-health/risk cards",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "risk 404 fixed; business-health now authorized; intervention-generate remains 403"
+        }
+      ],
+      "first_failed_transition": "GET /api/business-health/interventions/generate is 403 for workspace_admin.",
+      "next_action": "Decide the role gate for intervention generation; keep it read-only or grant it to workspace_admin.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-061",
+      "area": "productivity",
+      "feature": "Voice",
+      "action": "Open Voice and check readiness",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/voice renders"
+        }
+      ],
+      "first_failed_transition": "No microphone/voice turn executed.",
+      "next_action": "Run a voice readiness check in a real browser with microphone permission.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-062",
+      "area": "governance",
+      "feature": "JIT Verification",
+      "action": "Read JIT cache/worker metrics as workspace_admin",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "jit: no bad responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-063",
+      "area": "governance",
+      "feature": "BPE Workspace",
+      "action": "Open BPE Workspace",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/admin/bpe renders"
+        }
+      ],
+      "first_failed_transition": "Render only.",
+      "next_action": "Execute one BPE workspace read/update.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-064",
+      "area": "governance",
+      "feature": "Learning & Verification",
+      "action": "Open Learning & Verification",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/admin/learning-verification renders"
+        }
+      ],
+      "first_failed_transition": "Render only.",
+      "next_action": "Execute one verification action.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-065",
+      "area": "governance",
+      "feature": "Business Facts",
+      "action": "List business facts as workspace_admin",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "business-facts: no bad responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-066",
+      "area": "governance",
+      "feature": "User Management",
+      "action": "List users as workspace_admin",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/admin/users renders; list API authorized"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Creating an admin user still requires super_admin; that is a separate elevated action."
+    },
+    {
+      "id": "WA-067",
+      "area": "governance",
+      "feature": "Admin Settings",
+      "action": "Open runtime settings",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "renders"
+        }
+      ],
+      "first_failed_transition": "No setting was changed.",
+      "next_action": "Change and restore one harmless setting.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-068",
+      "area": "governance",
+      "feature": "Audit Trail",
+      "action": "Open the audit trail and read a decision",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-member.json",
+          "detail": "member page shows soft-error text; admin page renders"
+        }
+      ],
+      "first_failed_transition": "The member direct page shows an error state rather than a clean 'supervisor required' state.",
+      "next_action": "Gate the page at the route level and show a clear denied state.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-069",
+      "area": "governance",
+      "feature": "Skill Builder",
+      "action": "Open the skill editor",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/admin/skills/new renders"
+        }
+      ],
+      "first_failed_transition": "No skill created.",
+      "next_action": "Create and delete a no-op skill.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-070",
+      "area": "governance",
+      "feature": "Owner Cockpit",
+      "action": "Open the owner cockpit and read priorities",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: business-health priorities authorized; no 'Failed to load dashboard data'"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-071",
+      "area": "governance",
+      "feature": "Forensics",
+      "action": "Open Forensics and read vendor/pricing/waste panels",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: /api/forensics/* 200 (was 404)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-072",
+      "area": "governance",
+      "feature": "Dev Studio",
+      "action": "Open Dev Studio",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "render OK; WhatsApp health 503 because WhatsApp is not configured"
+        }
+      ],
+      "first_failed_transition": "A panel assumes WhatsApp health; unconfigured is reported as 503.",
+      "next_action": "Treat unconfigured optional integrations as 'not connected', not an error.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-073",
+      "area": "platform",
+      "feature": "Integrations catalog",
+      "action": "Browse the integration catalog",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/integrations renders; no bad API responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-074",
+      "area": "platform",
+      "feature": "Integration data ingestion settings",
+      "action": "Open Integration Data and list integrations",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: /api/document-ingestion/integrations 200 (was 404)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-075",
+      "area": "platform",
+      "feature": "Settings",
+      "action": "Open Account/AI/Sessions/Routing/Local Models settings",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "tabs render; /api/satellite/key 404 fixed by proxy"
+        }
+      ],
+      "first_failed_transition": "No setting was saved and reloaded.",
+      "next_action": "Save and restore one preference per tab.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-076",
+      "area": "platform",
+      "feature": "System Status",
+      "action": "Open System Status and read the aggregate",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "system-status: no hard error, no bad API responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-077",
+      "area": "platform",
+      "feature": "Scheduling page",
+      "action": "Open Scheduling and list events",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: /api/dashboard/events 200 (was 404)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-078",
+      "area": "platform",
+      "feature": "Team chat",
+      "action": "Open Team Chat",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "renders"
+        }
+      ],
+      "first_failed_transition": "No message sent.",
+      "next_action": "Send one message between two isolated users.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-079",
+      "area": "platform",
+      "feature": "Network failure UX",
+      "action": "Block an API route and inspect the page's error state",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [],
+      "first_failed_transition": "Not executed.",
+      "next_action": "Abort /api/v1/tasks and /api/boards and assert a durable error/retry state, not a blank page.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-080",
+      "area": "platform",
+      "feature": "Installation",
+      "action": "Run a clean-machine install from the documented quickstart",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "environment_limited",
+      "evidence": [
+        {
+          "kind": "document",
+          "path": "docs/getting_started/quick-start.md",
+          "detail": "Python 3.11-3.13 required; host default is 3.14; venv314 is prebuilt"
+        }
+      ],
+      "first_failed_transition": "A clean install on this host would need python3.11; installing dependencies was not run (no spending/network install authorized).",
+      "next_action": "Run scripts/quickstart.sh in a disposable clone with python3.11 and assert health + login.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-081",
+      "area": "platform",
+      "feature": "Restart/backup/rollback operations",
+      "action": "Restart the isolated backend and verify data survival",
+      "candidate_bound": false,
+      "config": "launcher-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.txt",
+          "detail": "task, board comment, failed execution and goal-run decisions survived restart"
+        },
+        {
+          "kind": "log",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/cutover/selftest-f5f3148d2-20261027.txt",
+          "detail": "fake-release automatic code rollback passed"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-082",
+      "area": "platform",
+      "feature": "External integrations",
+      "action": "Connect and sync a real external account",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "blocked_external",
+      "evidence": [
+        {
+          "kind": "config",
+          "path": "docs/acceptance/evidence/whole_app_20261027/environment.json",
+          "detail": "credentials stripped; no outbound traffic"
+        }
+      ],
+      "first_failed_transition": "Requires real credentials and external communication.",
+      "next_action": "Covered by the preserved candidate smoke only where it used scratch credentials; do not initiate live external traffic without authorization.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-083",
+      "area": "auth",
+      "feature": "API cookie-to-Bearer bridge",
+      "action": "Call same-origin API paths that rely on the auth cookie",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/post-restart-checks.txt",
+          "detail": "workflows, dashboard events, sales, communication, notifications and 2FA all 200 with the cookie alone"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix admin breadth: /automations, /communication, /sales, /tasks have no 401s"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "middleware forwards auth_token as Bearer for API requests, including public auth paths; NextAuth local handlers still take precedence."
+    },
+    {
+      "id": "WA-084",
+      "area": "platform",
+      "feature": "API fallback proxy",
+      "action": "Call API paths that had no explicit Next rewrite",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/post-restart-checks.txt",
+          "detail": "/api/dashboard/events, /api/document-ingestion/integrations, /api/satellite/key, /api/forensics/*, /api/risk/* all 200"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "fallback rewrites (not afterFiles) keep /api/auth/session and /api/auth/_log on NextAuth."
+    },
+    {
+      "id": "WA-085",
+      "area": "boards",
+      "feature": "Board realtime channel",
+      "action": "Open the Kanban board WebSocket with a valid token",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/board-realtime.txt",
+          "detail": "WebSocket /ws/boards/<id> accepted; client result 'open'"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "The repo-root websocket_routes.py was not mounted; only /ws from api.websocket_routes existed."
+    },
+    {
+      "id": "WA-086",
+      "area": "platform",
+      "feature": "Marketing schema repair",
+      "action": "Read the marketing dashboard after startup schema repair",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/post-restart-checks.txt",
+          "detail": "marketing summary 200; repair added workspace_id to marketing_channels/ad_spend/attribution_events"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-087",
+      "area": "platform",
+      "feature": "System status aggregate",
+      "action": "Read /api/status and /api/services/registry from the System Status page",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "system-status: matches expected, no hard error, no bad API responses"
+        },
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/post-restart-checks.txt",
+          "detail": "/api/status 200 with services"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-088",
+      "area": "platform",
+      "feature": "Settings sessions",
+      "action": "List and revoke sessions from Settings > Sessions",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "failed",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "GET/POST/DELETE /api/auth/sessions 401/404"
+        }
+      ],
+      "first_failed_transition": "The page calls /api/auth/sessions, which NextAuth's catch-all answers 401; the real backend surface is /api/users/sessions with a different body/path contract.",
+      "next_action": "Add a pages/api/auth/sessions.ts adapter (or repoint and adapt the page) and test list/revoke/revoke-all.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-089",
+      "area": "breadth",
+      "feature": "Admin sidebar breadth",
+      "action": "Visit every sidebar route plus key orphan routes as workspace_admin",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "56 routes + 6 reloads captured on the core profile"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "JIT, facts, marketing, system status, analytics re-verified after restart"
+        }
+      ],
+      "first_failed_transition": "First pass found 8 route-level API issues (401/404/500/403). Shared-cause repairs and targeted re-checks removed the tested ones; the concurrent uncommitted profile gate later made some shared-worktree routes show NotInRelease, but it is excluded from this branch.",
+      "next_action": "Repeat the 56-route breadth on this clean branch without the concurrent gate or backend restarts, and add the 3 remaining direct-admin/member checks.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-090",
+      "area": "breadth",
+      "feature": "Ordinary sidebar breadth",
+      "action": "Visit every sidebar route plus key orphan routes as a member",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-member.json",
+          "detail": "34 routes + 6 reloads on the core profile"
+        },
+        {
+          "kind": "json",
+          "path": "docs/acceptance/evidence/whole_app_20261027/role-visibility.json",
+          "detail": "member nav hides Approvals/admin at 500ms, 1.5s and 4s after login"
+        }
+      ],
+      "first_failed_transition": "The member run overlapped backend restarts (transient 500s) and the earlier sidebar failed open during role loading; the sidebar now hides elevated items while the role loads and role visibility passes at 500ms/1.5s/4s.",
+      "next_action": "Repeat the member breadth on this clean branch without restart overlap; direct admin links still need a page-level denied state in the full surface.",
+      "blocking": false,
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "generated_at": "2026-10-27T18:40:00Z",
+  "base": "http://127.0.0.1:8105",
+  "checks": [
+    {
+      "id": "login",
+      "status": 200,
+      "pass": true
+    },
+    {
+      "id": "auth-me",
+      "status": 200,
+      "role": "workspace_admin",
+      "pass": true
+    },
+    {
+      "id": "system-status",
+      "status": 200,
+      "overall": "unknown",
+      "has_services": true,
+      "pass": true
+    },
+    {
+      "id": "marketing-summary",
+      "status": 200,
+      "body": "{'narrative_report': 'Marketing is performing well. Google and Facebook are both bringing in new leads.', 'performance_metrics': {'no_data': {'leads': 0, 'cost': 0, 'conversions': 0}}, 'high_intent_le",
+      "pass": true
+    },
+    {
+      "id": "jit-health",
+      "status": 200,
+      "body": "{'status': 'degraded', 'issues': ['Worker not running', 'Low cache hit rate: 0.0%'], 'cache': {'l1_enabled': True, 'l2_enabled': False, 'verification_hit_rate': '0.0%', 'query_hit_rate': '0.0%', 'tota",
+      "pass": true
+    },
+    {
+      "id": "business-facts",
+      "status": 200,
+      "body": "[]",
+      "pass": true
+    },
+    {
+      "id": "task-validation",
+      "status": 422,
+      "pass": true
+    },
+    {
+      "id": "scheduler-jobs",
+      "status": 200,
+      "pass": true
+    },
+    {
+      "id": "proxy:/api/v1/workflows/workflows",
+      "status": 200,
+      "pass": true
+    },
+    {
+      "id": "proxy:/api/dashboard/events",
+      "status": 200,
+      "pass": true
+    },
+    {
+      "id": "proxy:/api/document-ingestion/integrations",
+      "status": 200,
+      "pass": true
+    },
+    {
+      "id": "proxy:/api/satellite/key",
+      "status": 200,
+      "pass": true
+    },
+    {
+      "id": "proxy:/api/forensics/vendor-drift",
+      "status": 200,
+      "pass": true
+    },
+    {
+      "id": "proxy:/api/risk/early-warning",
+      "status": 200,
+      "pass": true
+    },
+    {
+      "id": "proxy:/api/v1/tasks",
+      "status": 200,
+      "pass": true
+    },
+    {
+      "id": "direct-resume-closes-hitl",
+      "run_id": "b3900fd8-e2a2-49f5-9d9a-afa0d4f51568",
+      "hitl_before": 1,
+      "resume_status": true,
+      "hitl_after": 0,
+      "run_status": "active",
+      "pending_decision": null,
+      "pass": true
+    }
+  ],
+  "all_pass": true
+}

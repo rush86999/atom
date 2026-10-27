@@ -1,0 +1,19 @@
+login: 200
+task.create: 200 id=7114fb5e-032e-4de6-9ee6-34e33bfe2ba2
+task.list: 200 titles=['Whole-app evidence task', 'Restart survival task']
+task.update: 200 status=completed
+task.delete: 200
+goalruns.list: 200 keys=['runs']
+approvals.pending: 200 count=44
+workflow.create: 200 id=a8701989-1330-4321-b547-80b06e426282
+workflow.execute: 200 execution=6f392c0b-b427-4498-93d7-8d7f44309f6e
+workflow.result: 200 status=completed errors=[]
+schedule.create: 200 job=job_a8701989-1330-4321-b547-80b06e426282_1793130198.155714
+schedule.list: 200 jobs=[{'id': 'job_a8701989-1330-4321-b547-80b06e426282_1793130198.155714', 'workflow_id': 'a8701989-1330-4321-b547-80b06e426282', 'next_run_time': None, 'trigger': 'interval[0:30:00]'}]
+schedule.delete: 200
+documents.list: 200 titles=['probe.pptx', 'probe.docx', 'probe.txt']
+documents.search[red widget]: 200 titles=['probe.pptx', 'probe.txt', 'probe.docx']
+documents.search[green widget]: 200 titles=['probe.docx', 'probe.txt', 'probe.pptx']
+documents.search[blue widget]: 200 titles=['probe.txt', 'probe.docx', 'probe.pptx']
+board.tasks: 200 titles=['Whole app board task', 'Whole app subtask']
+board.comments: 200 contents=['Whole app comment probe']

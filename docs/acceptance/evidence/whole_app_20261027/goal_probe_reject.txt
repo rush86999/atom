@@ -1,0 +1,4 @@
+before paused_hitl c1c64e55-8a76-452c-8632-57802a9cbf03
+reject 200 {"handled": true, "kind": "decision", "resumed": true, "approved": false, "run": {"id": "e5ad6155-54d9-4e6e-a70b-ba0237e5a812", "tenant_id": "default", "workspace_id": "default", "goal_id": "45d51780-12e3-4dac-99da-81cad25b633e", "agent_id": null, "role": "sales", "status": "active", "supervision_mo
+after {'status': 'active', 'pending_decision': None, 'waiting_on': None} decisions 3
+last_decision {"ts": "2026-10-27T18:06:46.270089+00:00", "kind": "override", "decision": "ASK_HUMAN", "rationale": "change the approach", "reviewer": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3"}

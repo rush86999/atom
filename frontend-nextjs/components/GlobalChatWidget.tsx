@@ -18,6 +18,7 @@ import { chatTurnTouchedCanvas, syncCanvasFromStore } from "@/lib/canvasSync";
 import { authHeaders } from "@/lib/auth-headers";
 import { fetchWithRetry } from "@/lib/retry";
 import { useActionProposals } from "@/hooks/useActionProposals";
+import { useUserRole } from "@/lib/user-role";
 
 interface GlobalChatWidgetProps {
     userId?: string;
@@ -62,6 +63,10 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     useEffect(() => { messagesRef.current = messages; }, [messages]);
     const { toast } = useToast();
     const router = useRouter();
+    // The pending-approvals queue is TEAM_LEAD+ on the backend. Members were
+    // polling it on every page and collecting a 403 (console noise, and the
+    // widget treated "unknown" as an error). Only supervisors fetch it.
+    const { isSupervisor, loading: roleLoading } = useUserRole();
     const actionProposalsQuery = useActionProposals({
         statusFilter: "pending_approval",
         limit: 10,
@@ -107,6 +112,11 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     useEffect(() => {
         const controller = new AbortController();
 
+        if (roleLoading || !isSupervisor) {
+            setPendingApproval(null);
+            return () => controller.abort();
+        }
+
         const fetchPendingApprovals = async () => {
             try {
                 const res = await authFetch("/api/agents/approvals/pending", {
@@ -147,7 +157,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         };
         fetchPendingApprovals();
         return () => controller.abort();
-    }, [isOpen]);
+    }, [isOpen, isSupervisor, roleLoading]);
 
     useEffect(() => {
         if (isOpen) {

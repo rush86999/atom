@@ -349,14 +349,15 @@ async def list_supported_file_types():
         data=[
             {"ext": "pdf", "name": "PDF Documents", "parser": base_parser, "ocr_available": docling_available},
             {"ext": "docx", "name": "Word Documents", "parser": "docling" if docling_available else "python-docx"},
-            {"ext": "doc", "name": "Legacy Word Documents", "parser": "python-docx"},
-            {"ext": "pptx", "name": "PowerPoint", "parser": "docling" if docling_available else "not supported", "requires_docling": True},
+            {"ext": "doc", "name": "Legacy Word Documents", "parser": "docling" if docling_available else "not supported", "requires_docling": True},
+            {"ext": "pptx", "name": "PowerPoint", "parser": "docling" if docling_available else "python-pptx"},
             {"ext": "xlsx", "name": "Excel Spreadsheets", "parser": "docling" if docling_available else "pandas/openpyxl"},
             {"ext": "xls", "name": "Legacy Excel", "parser": "pandas"},
             {"ext": "html", "name": "HTML Documents", "parser": "docling" if docling_available else "beautifulsoup"},
             {"ext": "csv", "name": "CSV Files", "parser": "csv"},
             {"ext": "txt", "name": "Text Files", "parser": "native"},
             {"ext": "md", "name": "Markdown Files", "parser": "native"},
+            {"ext": "eml", "name": "Email Files (RFC 822)", "parser": "native"},
             {"ext": "json", "name": "JSON Files", "parser": "json"},
             {"ext": "png", "name": "Images (OCR)", "parser": "docling" if docling_available else "not supported", "requires_docling": True},
             {"ext": "jpg", "name": "Images (OCR)", "parser": "docling" if docling_available else "not supported", "requires_docling": True},
@@ -527,7 +528,7 @@ async def upload_document(
 
         ALLOWED_EXTENSIONS = {
             "txt", "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt",
-            "csv", "json", "md", "html", "htm", "rtf", "odt", "png", "jpg",
+            "eml", "csv", "json", "md", "html", "htm", "rtf", "odt", "png", "jpg",
             "jpeg", "gif", "bmp", "tiff", "mp3", "wav", "mp4", "avi", "mov",
         }
         if file_ext not in ALLOWED_EXTENSIONS:

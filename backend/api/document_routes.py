@@ -227,7 +227,7 @@ async def upload_document(
         MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
         ALLOWED_EXTENSIONS = {
             "txt", "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt",
-            "csv", "json", "md", "html", "htm", "rtf", "odt", "png", "jpg",
+            "eml", "csv", "json", "md", "html", "htm", "rtf", "odt", "png", "jpg",
             "jpeg", "gif", "bmp", "tiff", "mp3", "wav", "mp4", "avi", "mov",
         }
         # Check declared size first (SpooledTemporaryFile reports it).
@@ -243,6 +243,28 @@ async def upload_document(
                 message=f"File type '{file_ext}' is not supported",
                 status_code=415,
             )
+
+        # These formats need docling (OLE2 .doc/.ppt, RTF/ODT parsers). With
+        # docling absent the old path accepted them and stored an empty
+        # placeholder as if ingestion succeeded. Refuse instead, and name the
+        # reason. `.pptx` is NOT here — python-pptx handles it natively.
+        if file_ext in {"doc", "ppt", "rtf", "odt"}:
+            try:
+                from core.docling_processor import is_docling_available
+                docling_ok = is_docling_available()
+            except Exception:
+                docling_ok = False
+            if not docling_ok:
+                raise router.error_response(
+                    error_code="UNSUPPORTED_FILE_TYPE",
+                    message=(
+                        f"File type '{file_ext}' requires the optional docling "
+                        "parser, which is not installed. Convert it to "
+                        f"{'docx' if file_ext == 'doc' else 'pptx' if file_ext == 'ppt' else 'txt' if file_ext == 'rtf' else 'docx'} "
+                        "or install docling."
+                    ),
+                    status_code=415,
+                )
 
         content_bytes = await file.read()
         if len(content_bytes) > MAX_UPLOAD_SIZE:

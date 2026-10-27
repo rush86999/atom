@@ -1,0 +1,1318 @@
+{
+  "role": "admin",
+  "tokenOk": true,
+  "navLabels": [
+    "Dashboard",
+    "Chat",
+    "Canvases",
+    "Search",
+    "Documents",
+    "Tasks",
+    "Kanban",
+    "Automations",
+    "Agents",
+    "Approvals",
+    "Goal Runs",
+    "Marketplace",
+    "Projects",
+    "Sales & CRM",
+    "Support",
+    "Knowledge",
+    "Communication",
+    "Sales",
+    "Marketing",
+    "Finance",
+    "Analytics",
+    "Calendar",
+    "Health",
+    "Voice",
+    "JIT Verification",
+    "BPE Workspace",
+    "Learning & Verification",
+    "Self-Healing Harness",
+    "Business Facts",
+    "User Management",
+    "Admin Settings",
+    "Audit Trail",
+    "Skill Builder",
+    "Owner Cockpit",
+    "Forensics",
+    "Integrations",
+    "Dev Studio",
+    "Settings"
+  ],
+  "navLinks": [
+    {
+      "href": "/",
+      "text": "Dashboard"
+    },
+    {
+      "href": "/chat",
+      "text": "Chat"
+    },
+    {
+      "href": "/canvas",
+      "text": "Canvases"
+    },
+    {
+      "href": "/search",
+      "text": "Search"
+    },
+    {
+      "href": "/documents",
+      "text": "Documents"
+    },
+    {
+      "href": "/tasks",
+      "text": "Tasks"
+    },
+    {
+      "href": "/boards",
+      "text": "Kanban"
+    },
+    {
+      "href": "/automations",
+      "text": "Automations"
+    },
+    {
+      "href": "/agents",
+      "text": "Agents"
+    },
+    {
+      "href": "/approvals",
+      "text": "Approvals"
+    },
+    {
+      "href": "/goal-runs",
+      "text": "Goal Runs"
+    },
+    {
+      "href": "/marketplace",
+      "text": "Marketplace"
+    },
+    {
+      "href": "/dashboards/projects",
+      "text": "Projects"
+    },
+    {
+      "href": "/dashboards/sales",
+      "text": "Sales & CRM"
+    },
+    {
+      "href": "/dashboards/support",
+      "text": "Support"
+    },
+    {
+      "href": "/dashboards/knowledge",
+      "text": "Knowledge"
+    },
+    {
+      "href": "/communication",
+      "text": "Communication"
+    },
+    {
+      "href": "/sales",
+      "text": "Sales"
+    },
+    {
+      "href": "/marketing",
+      "text": "Marketing"
+    },
+    {
+      "href": "/finance",
+      "text": "Finance"
+    },
+    {
+      "href": "/analytics",
+      "text": "Analytics"
+    },
+    {
+      "href": "/calendar",
+      "text": "Calendar"
+    },
+    {
+      "href": "/health",
+      "text": "Health"
+    },
+    {
+      "href": "/voice",
+      "text": "Voice"
+    },
+    {
+      "href": "/admin/jit-verification",
+      "text": "JIT Verification"
+    },
+    {
+      "href": "/admin/bpe",
+      "text": "BPE Workspace"
+    },
+    {
+      "href": "/admin/learning-verification",
+      "text": "Learning & Verification"
+    },
+    {
+      "href": "/settings/harness-evolution",
+      "text": "Self-Healing Harness"
+    },
+    {
+      "href": "/admin/business-facts",
+      "text": "Business Facts"
+    },
+    {
+      "href": "/admin/users",
+      "text": "User Management"
+    },
+    {
+      "href": "/admin/settings",
+      "text": "Admin Settings"
+    },
+    {
+      "href": "/audit-trail",
+      "text": "Audit Trail"
+    },
+    {
+      "href": "/admin/skills/new",
+      "text": "Skill Builder"
+    },
+    {
+      "href": "/dashboard/owner",
+      "text": "Owner Cockpit"
+    },
+    {
+      "href": "/dashboard/forensics",
+      "text": "Forensics"
+    },
+    {
+      "href": "/integrations",
+      "text": "Integrations"
+    },
+    {
+      "href": "/dev-studio",
+      "text": "Dev Studio"
+    },
+    {
+      "href": "/settings",
+      "text": "Settings"
+    }
+  ],
+  "generatedAt": "2026-10-27T18:42:43.542Z",
+  "results": [
+    {
+      "label": "Dashboard",
+      "route": "/",
+      "finalUrl": "/dashboard",
+      "docStatus": 200,
+      "ms": 18335,
+      "bodyChars": 1320,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Chat",
+      "route": "/chat",
+      "finalUrl": "/chat",
+      "docStatus": 200,
+      "ms": 20849,
+      "bodyChars": 2111,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Canvases",
+      "route": "/canvas",
+      "finalUrl": "/canvas",
+      "docStatus": 200,
+      "ms": 11362,
+      "bodyChars": 4000,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Search",
+      "route": "/search",
+      "finalUrl": "/search",
+      "docStatus": 200,
+      "ms": 6799,
+      "bodyChars": 787,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Documents",
+      "route": "/documents",
+      "finalUrl": "/documents",
+      "docStatus": 200,
+      "ms": 5366,
+      "bodyChars": 1302,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Tasks",
+      "route": "/tasks",
+      "finalUrl": "/tasks",
+      "docStatus": 200,
+      "ms": 6607,
+      "bodyChars": 557,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Kanban",
+      "route": "/boards",
+      "finalUrl": "/boards",
+      "docStatus": 200,
+      "ms": 12047,
+      "bodyChars": 634,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Automations",
+      "route": "/automations",
+      "finalUrl": "/automations",
+      "docStatus": 200,
+      "ms": 13825,
+      "bodyChars": 694,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Agents",
+      "route": "/agents",
+      "finalUrl": "/agents",
+      "docStatus": 200,
+      "ms": 29509,
+      "bodyChars": 3193,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Approvals",
+      "route": "/approvals",
+      "finalUrl": "/approvals",
+      "docStatus": 200,
+      "ms": 12593,
+      "bodyChars": 3207,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Goal Runs",
+      "route": "/goal-runs",
+      "finalUrl": "/goal-runs",
+      "docStatus": 200,
+      "ms": 8850,
+      "bodyChars": 585,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Marketplace",
+      "route": "/marketplace",
+      "finalUrl": "/marketplace",
+      "docStatus": 200,
+      "ms": 9088,
+      "bodyChars": 4000,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance"
+    },
+    {
+      "label": "Projects",
+      "route": "/dashboards/projects",
+      "finalUrl": "/dashboards/projects",
+      "docStatus": 200,
+      "ms": 11624,
+      "bodyChars": 793,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Sales & CRM",
+      "route": "/dashboards/sales",
+      "finalUrl": "/dashboards/sales",
+      "docStatus": 200,
+      "ms": 7983,
+      "bodyChars": 806,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Support",
+      "route": "/dashboards/support",
+      "finalUrl": "/dashboards/support",
+      "docStatus": 200,
+      "ms": 6786,
+      "bodyChars": 1065,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Knowledge",
+      "route": "/dashboards/knowledge",
+      "finalUrl": "/dashboards/knowledge",
+      "docStatus": 200,
+      "ms": 12898,
+      "bodyChars": 1008,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Communication",
+      "route": "/communication",
+      "finalUrl": "/communication",
+      "docStatus": 200,
+      "ms": 8971,
+      "bodyChars": 890,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Sales",
+      "route": "/sales",
+      "finalUrl": "/sales",
+      "docStatus": 200,
+      "ms": 12854,
+      "bodyChars": 907,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Marketing",
+      "route": "/marketing",
+      "finalUrl": "/marketing",
+      "docStatus": 200,
+      "ms": 8294,
+      "bodyChars": 1030,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "failed": [],
+      "badResponses": [
+        {
+          "url": "/api/marketing/dashboard/summary",
+          "status": 500
+        },
+        {
+          "url": "/api/marketing/dashboard/summary",
+          "status": 500
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Finance",
+      "route": "/finance",
+      "finalUrl": "/finance",
+      "docStatus": 200,
+      "ms": 8513,
+      "bodyChars": 734,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Analytics",
+      "route": "/analytics",
+      "finalUrl": "/analytics",
+      "docStatus": 200,
+      "ms": 7175,
+      "bodyChars": 907,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "failed": [],
+      "badResponses": [
+        {
+          "url": "http://127.0.0.1:8105/api/analytics/dashboard/kpis",
+          "status": 401,
+          "body": "{\"detail\":\"Could not validate credentials\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/analytics/dashboard/kpis",
+          "status": 401,
+          "body": "{\"detail\":\"Could not validate credentials\"}"
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance"
+    },
+    {
+      "label": "Calendar",
+      "route": "/calendar",
+      "finalUrl": "/calendar",
+      "docStatus": 200,
+      "ms": 7386,
+      "bodyChars": 894,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance"
+    },
+    {
+      "label": "Health",
+      "route": "/health",
+      "finalUrl": "/health",
+      "docStatus": 200,
+      "ms": 6763,
+      "bodyChars": 1413,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Voice",
+      "route": "/voice",
+      "finalUrl": "/voice",
+      "docStatus": 200,
+      "ms": 7472,
+      "bodyChars": 760,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance"
+    },
+    {
+      "label": "JIT Verification",
+      "route": "/admin/jit-verification",
+      "finalUrl": "/admin/jit-verification",
+      "docStatus": 200,
+      "ms": 8970,
+      "bodyChars": 1439,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/worker/metrics}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/cache/stats}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/health}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/worker/metrics}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/cache/stats}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/health}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/worker/metrics}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/health}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/cache/stats}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/worker/metrics}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/health}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/cache/stats}"
+      ],
+      "failed": [],
+      "badResponses": [
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/worker/metrics",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/cache/stats",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/health",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/worker/metrics",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/cache/stats",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/health",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/worker/metrics",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/health",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/cache/stats",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/worker/metrics",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/health",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/cache/stats",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance"
+    },
+    {
+      "label": "BPE Workspace",
+      "route": "/admin/bpe",
+      "finalUrl": "/admin/bpe",
+      "docStatus": 200,
+      "ms": 17580,
+      "bodyChars": 4000,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance"
+    },
+    {
+      "label": "Learning & Verification",
+      "route": "/admin/learning-verification",
+      "finalUrl": "/admin/learning-verification",
+      "docStatus": 200,
+      "ms": 9257,
+      "bodyChars": 3405,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Self-Healing Harness",
+      "route": "/settings/harness-evolution",
+      "finalUrl": "/settings/harness-evolution",
+      "docStatus": 200,
+      "ms": 7823,
+      "bodyChars": 1320,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Business Facts",
+      "route": "/admin/business-facts",
+      "finalUrl": "/admin/business-facts",
+      "docStatus": 200,
+      "ms": 19079,
+      "bodyChars": 783,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/facts?limit=100}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/facts?limit=100}"
+      ],
+      "failed": [],
+      "badResponses": [
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/facts",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/facts",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: admin\"}"
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "User Management",
+      "route": "/admin/users",
+      "finalUrl": "/admin/users",
+      "docStatus": 200,
+      "ms": 8605,
+      "bodyChars": 4000,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance"
+    },
+    {
+      "label": "Admin Settings",
+      "route": "/admin/settings",
+      "finalUrl": "/admin/settings",
+      "docStatus": 200,
+      "ms": 7141,
+      "bodyChars": 1779,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Audit Trail",
+      "route": "/audit-trail",
+      "finalUrl": "/audit-trail",
+      "docStatus": 200,
+      "ms": 6554,
+      "bodyChars": 708,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Skill Builder",
+      "route": "/admin/skills/new",
+      "finalUrl": "/admin/skills/new",
+      "docStatus": 200,
+      "ms": 7581,
+      "bodyChars": 945,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Owner Cockpit",
+      "route": "/dashboard/owner",
+      "finalUrl": "/dashboard/owner",
+      "docStatus": 200,
+      "ms": 6889,
+      "bodyChars": 616,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Forensics",
+      "route": "/dashboard/forensics",
+      "finalUrl": "/dashboard/forensics",
+      "docStatus": 200,
+      "ms": 6329,
+      "bodyChars": 842,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Integrations",
+      "route": "/integrations",
+      "finalUrl": "/integrations",
+      "docStatus": 200,
+      "ms": 6800,
+      "bodyChars": 1071,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Dev Studio",
+      "route": "/dev-studio",
+      "finalUrl": "/dev-studio",
+      "docStatus": 200,
+      "ms": 8620,
+      "bodyChars": 974,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+      ],
+      "failed": [],
+      "badResponses": [
+        {
+          "url": "/api/whatsapp/health",
+          "status": 503
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Settings",
+      "route": "/settings",
+      "finalUrl": "/settings",
+      "docStatus": 200,
+      "ms": 6333,
+      "bodyChars": 778,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Workflow Builder",
+      "route": "/workflows/builder",
+      "finalUrl": "/workflows/builder",
+      "docStatus": 200,
+      "ms": 16797,
+      "bodyChars": 765,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Workflow Schedule",
+      "route": "/workflows/schedule",
+      "finalUrl": "/workflows/schedule",
+      "docStatus": 200,
+      "ms": 11769,
+      "bodyChars": 878,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Scheduling",
+      "route": "/scheduling",
+      "finalUrl": "/scheduling",
+      "docStatus": 200,
+      "ms": 8532,
+      "bodyChars": 539,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Team Chat",
+      "route": "/team-chat",
+      "finalUrl": "/team-chat",
+      "docStatus": 200,
+      "ms": 11995,
+      "bodyChars": 621,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance"
+    },
+    {
+      "label": "Automation Templates",
+      "route": "/automations/templates",
+      "finalUrl": "/automations/templates",
+      "docStatus": 200,
+      "ms": 15419,
+      "bodyChars": 3329,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Automation Tables",
+      "route": "/automations/tables",
+      "finalUrl": "/automations/tables",
+      "docStatus": 200,
+      "ms": 14493,
+      "bodyChars": 660,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Automation Versions",
+      "route": "/automations/versions",
+      "finalUrl": "/automations/versions",
+      "docStatus": 200,
+      "ms": 10533,
+      "bodyChars": 1278,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Execution History",
+      "route": "/execution-history",
+      "finalUrl": "/execution-history",
+      "docStatus": 200,
+      "ms": 8942,
+      "bodyChars": 576,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Memory Intelligence",
+      "route": "/intelligence/memory",
+      "finalUrl": "/intelligence/memory",
+      "docStatus": 200,
+      "ms": 8278,
+      "bodyChars": 1188,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "System Status",
+      "route": "/system-status",
+      "finalUrl": "/system-status",
+      "docStatus": 200,
+      "ms": 12164,
+      "bodyChars": 1073,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Error fetching system data: AxiosError: Request failed with status code 404\n    at settle (webpack-internal:///(pages-dir-browser)/../../../../../../../../../Users/rushiparikh/projects/atom/frontend-nextjs/node_modules/axios/lib/core/settle.js:25:7)\n    at XMLHttpRequest.onloadend (webpack-internal:///(pages-dir-browser)/../../../../../../../../../Users/rushiparikh/projects/atom/frontend-nextjs/node_modules/axios/lib/adapters/xhr.js:76:68)\n    at Axios.request (webpack-internal:///(pages-dir-bro",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Error fetching system data: AxiosError: Request failed with status code 404\n    at settle (webpack-internal:///(pages-dir-browser)/../../../../../../../../../Users/rushiparikh/projects/atom/frontend-nextjs/node_modules/axios/lib/core/settle.js:25:7)\n    at XMLHttpRequest.onloadend (webpack-internal:///(pages-dir-browser)/../../../../../../../../../Users/rushiparikh/projects/atom/frontend-nextjs/node_modules/axios/lib/adapters/xhr.js:76:68)\n    at Axios.request (webpack-internal:///(pages-dir-bro"
+      ],
+      "failed": [],
+      "badResponses": [
+        {
+          "url": "http://127.0.0.1:8105/api/status",
+          "status": 404,
+          "body": "{\"detail\":\"Not Found\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/status",
+          "status": 404,
+          "body": "{\"detail\":\"Not Found\"}"
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Dashboard Risk",
+      "route": "/dashboard/risk",
+      "finalUrl": "/dashboard/risk",
+      "docStatus": 200,
+      "ms": 8924,
+      "bodyChars": 939,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Settings Account",
+      "route": "/settings/account",
+      "finalUrl": "/settings/account",
+      "docStatus": 200,
+      "ms": 10026,
+      "bodyChars": 539,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Settings AI",
+      "route": "/settings/ai",
+      "finalUrl": "/settings/ai",
+      "docStatus": 200,
+      "ms": 8700,
+      "bodyChars": 720,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "failed": [],
+      "badResponses": [
+        {
+          "url": "/api/auth/2fa/status",
+          "status": 401
+        },
+        {
+          "url": "/api/auth/2fa/status",
+          "status": 401
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Settings Sessions",
+      "route": "/settings/sessions",
+      "finalUrl": "/settings/sessions",
+      "docStatus": 200,
+      "ms": 8899,
+      "bodyChars": 733,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "failed": [],
+      "badResponses": [
+        {
+          "url": "/api/auth/sessions",
+          "status": 401
+        },
+        {
+          "url": "/api/auth/sessions",
+          "status": 401
+        },
+        {
+          "url": "/api/auth/sessions",
+          "status": 401
+        },
+        {
+          "url": "/api/auth/sessions",
+          "status": 401
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Settings Routing",
+      "route": "/settings/routing",
+      "finalUrl": "/settings/routing",
+      "docStatus": 200,
+      "ms": 8308,
+      "bodyChars": 1266,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Settings Local Models",
+      "route": "/settings/local-models",
+      "finalUrl": "/settings/local-models",
+      "docStatus": 200,
+      "ms": 21456,
+      "bodyChars": 774,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Integrations Health",
+      "route": "/integrations/health",
+      "finalUrl": "/integrations/health",
+      "docStatus": 200,
+      "ms": 7762,
+      "bodyChars": 1353,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "Integrations Data",
+      "route": "/integrations/data",
+      "finalUrl": "/integrations/data",
+      "docStatus": 200,
+      "ms": 8041,
+      "bodyChars": 761,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    }
+  ],
+  "reloads": [
+    {
+      "label": "reload",
+      "route": "/dashboard",
+      "finalUrl": "/dashboard",
+      "docStatus": 200,
+      "ms": 6120,
+      "bodyChars": 1320,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "reload",
+      "route": "/tasks",
+      "finalUrl": "/tasks",
+      "docStatus": 200,
+      "ms": 8718,
+      "bodyChars": 737,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance"
+    },
+    {
+      "label": "reload",
+      "route": "/boards",
+      "finalUrl": "/boards",
+      "docStatus": 200,
+      "ms": 7374,
+      "bodyChars": 674,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "reload",
+      "route": "/workflows/builder",
+      "finalUrl": "/workflows/builder",
+      "docStatus": 200,
+      "ms": 10664,
+      "bodyChars": 765,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    },
+    {
+      "label": "reload",
+      "route": "/approvals",
+      "finalUrl": "/approvals",
+      "docStatus": 200,
+      "ms": 9718,
+      "bodyChars": 4000,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance"
+    },
+    {
+      "label": "reload",
+      "route": "/goal-runs",
+      "finalUrl": "/goal-runs",
+      "docStatus": 200,
+      "ms": 6064,
+      "bodyChars": 589,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVIT"
+    }
+  ]
+}

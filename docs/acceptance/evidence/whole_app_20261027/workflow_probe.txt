@@ -1,0 +1,14 @@
+create 200 {"id": "25dac4f8-2089-4f08-9f01-12bee0daf1ce", "name": "Whole-app failure probe", "description": "deterministic failing step", "version": "1.0", "nodes": [{"id": "n1", "type": "action", "title": "Fail deterministically", "description": "unknown service", "position": {"x": 0.0, "y": 0.0}, "config": {"service": "whole_app_missing_service", "action": "whole_app_missing_action"}, "connections": []}], 
+execute 200 {"execution_id": "92ca609c-0c93-4170-a9aa-a6a5a6467522", "workflow_id": "25dac4f8-2089-4f08-9f01-12bee0daf1ce", "status": "running", "started_at": "2026-10-27T14:07:25.963476", "completed_at": null, "results": [], "errors": []}
+poll 0 200 running None
+poll 1 200 running None
+poll 2 200 running None
+poll 3 200 failed None
+poll 4 200 failed None
+poll 5 200 failed None
+poll 6 200 failed None
+poll 7 200 failed None
+poll 8 200 failed None
+poll 9 200 failed None
+executions 200 [{"execution_id": "92ca609c-0c93-4170-a9aa-a6a5a6467522", "workflow_id": "25dac4f8-2089-4f08-9f01-12bee0daf1ce", "trigger_data": {}, "start_time": "2026-10-27T18:07:25.963492", "end_time": null, "status": "failed", "actions_executed": [], "errors": ["Unknown service: whole_app_missing_service (and generic execution failed: Service 'whole_app_missing_service' not found in Integration Catalog)"], "results": {}, "duration_ms": 0.0}]
+WORKFLOW_ID 25dac4f8-2089-4f08-9f01-12bee0daf1ce EXEC_ID 92ca609c-0c93-4170-a9aa-a6a5a6467522

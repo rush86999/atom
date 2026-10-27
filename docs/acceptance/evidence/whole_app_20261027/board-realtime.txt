@@ -1,0 +1,2 @@
+WebSocket /ws/boards/adbba242-5aca-4a33-8735-b942849a41f8?token=<redacted> [accepted]
+client result: {"result":"open"}

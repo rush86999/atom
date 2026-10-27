@@ -1,0 +1,5 @@
+create 200 74ec69b7-350a-48c1-a4f8-6f52b464b9ae paused_hitl True
+pending 1 13d8213e-ccd2-4c58-be88-71d95d67e4dc
+approve 200 {"handled": true, "kind": "decision", "resumed": true, "approved": true, "advanced": true, "decision": "ASK_HUMAN", "result": null, "run": {"id": "74ec69b7-350a-48c1-a4f8-6f52b464b9ae", "tenant_id": "default", "workspace_id": "default", "goal_id": "45d51780-12e3-4dac-99da-81cad25b633e", "agent_id": null, "role": "sales", "status": "active", "supervision_mode": "shadow", "plan": [{"id": "cp1", "kind": "human_checkpoint", "title": "Whole-app approval resume probe", "note": "isolated"}], "cursor": 
+after 200 {'status': 'active', 'pending_decision': None, 'waiting_on': None} decisions 3
+RUN_ID 74ec69b7-350a-48c1-a4f8-6f52b464b9ae HITL 13d8213e-ccd2-4c58-be88-71d95d67e4dc

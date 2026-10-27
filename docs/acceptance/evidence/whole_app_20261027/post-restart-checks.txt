@@ -1,0 +1,17 @@
+PASS login 200 
+PASS auth-me 200 
+PASS system-status 200 
+PASS marketing-summary 200 {'narrative_report': 'Marketing is performing well. Google and Facebook are both bringing in new leads.', 'performance_metrics': {'no_data': {'leads': 0, 'cost': 0, 'conversions': 0}}, 'high_intent_le
+PASS jit-health 200 {'status': 'degraded', 'issues': ['Worker not running', 'Low cache hit rate: 0.0%'], 'cache': {'l1_enabled': True, 'l2_enabled': False, 'verification_hit_rate': '0.0%', 'query_hit_rate': '0.0%', 'tota
+PASS business-facts 200 []
+PASS task-validation 422 
+PASS scheduler-jobs 200 
+PASS proxy:/api/v1/workflows/workflows 200 
+PASS proxy:/api/dashboard/events 200 
+PASS proxy:/api/document-ingestion/integrations 200 
+PASS proxy:/api/satellite/key 200 
+PASS proxy:/api/forensics/vendor-drift 200 
+PASS proxy:/api/risk/early-warning 200 
+PASS proxy:/api/v1/tasks 200 
+PASS direct-resume-closes-hitl None 
+ALL_PASS True
