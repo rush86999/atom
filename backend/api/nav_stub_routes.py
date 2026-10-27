@@ -15,14 +15,16 @@ Response shapes match what the consuming frontend components parse:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, Query
+from fastapi import Body, Depends, Query
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.personal_scope import resolve_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +34,56 @@ router = BaseAPIRouter(tags=["Nav Stubs"])
 # ============================================================================
 # Tasks — /api/v1/tasks (Tasks sidebar nav)
 # ============================================================================
+
+def _iso(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    try:
+        return value.isoformat()
+    except AttributeError:
+        return str(value)
+
+
+def _parse_due(value: Any) -> Optional[datetime]:
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _task_payload(task: Any) -> Dict[str, Any]:
+    """The camelCase shape components/shared/TaskManagement.tsx consumes."""
+    return {
+        "id": str(task.id),
+        "title": task.title,
+        "description": task.description,
+        "dueDate": _iso(task.due_date),
+        "priority": task.priority,
+        "status": task.status,
+        "project": task.project_id,
+        "tags": task.tags or [],
+        "estimatedHours": task.estimated_hours or 0,
+        "actualHours": task.actual_hours or 0,
+        "color": task.color or "#3182CE",
+        "metadata": task.metadata_json or {},
+        "createdAt": _iso(task.created_at),
+        "updatedAt": _iso(task.updated_at),
+    }
+
+
+def _owned_task(db: Session, task_id: str, user_id: str):
+    from core.models import UserTask
+
+    return (
+        db.query(UserTask)
+        .filter(UserTask.id == task_id, UserTask.user_id == user_id)
+        .first()
+    )
+
 
 @router.get("/api/v1/tasks")
 async def list_tasks(
@@ -51,25 +103,108 @@ async def list_tasks(
             .limit(limit)
             .all()
         )
-        return {
-            "tasks": [
-                {
-                    "id": str(t.id),
-                    "title": t.title if hasattr(t, "title") else str(getattr(t, "description", "")),
-                    "description": getattr(t, "description", ""),
-                    "status": getattr(t, "status", "pending"),
-                    "priority": getattr(t, "priority", "medium"),
-                    "dueDate": getattr(t, "due_date", None),
-                    "createdAt": t.created_at.isoformat() if hasattr(t, "created_at") and t.created_at else None,
-                    "updatedAt": getattr(t, "updated_at", None),
-                    "projectId": getattr(t, "project_id", None),
-                }
-                for t in tasks
-            ]
-        }
+        return {"tasks": [_task_payload(t) for t in tasks]}
     except Exception as e:
         logger.warning(f"Task list query failed, returning empty: {e}")
         return {"tasks": []}
+
+
+@router.post("/api/v1/tasks")
+async def create_task(
+    payload: Dict[str, Any] = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Create a durable task.
+
+    The Tasks page used to POST here against a GET-only stub, so every create
+    returned 405 while the UI optimistically showed "Task created" and the
+    row vanished on reload. Persist to `tasks` (UserTask) so reload and a
+    backend restart both keep it.
+    """
+    from core.models import UserTask
+
+    title = str(payload.get("title") or "").strip()
+    if not title:
+        raise router.error_response(
+            error_code="VALIDATION_ERROR",
+            message="title is required",
+            status_code=422,
+        )
+    task = UserTask(
+        tenant_id=resolve_tenant_id(current_user),
+        user_id=str(current_user.id),
+        project_id=payload.get("project") or payload.get("projectId"),
+        title=title,
+        description=payload.get("description"),
+        status=str(payload.get("status") or "todo"),
+        priority=str(payload.get("priority") or "medium"),
+        due_date=_parse_due(payload.get("dueDate") or payload.get("due_date")),
+        tags=payload.get("tags") or [],
+        estimated_hours=float(payload.get("estimatedHours") or 0),
+        actual_hours=float(payload.get("actualHours") or 0),
+        color=str(payload.get("color") or "#3182CE"),
+        metadata_json=payload.get("metadata") or {},
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return {"success": True, "task": _task_payload(task)}
+
+
+@router.put("/api/v1/tasks/{task_id}")
+async def update_task(
+    task_id: str,
+    payload: Dict[str, Any] = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    task = _owned_task(db, task_id, str(current_user.id))
+    if task is None:
+        raise router.not_found_error("Task", task_id)
+
+    for incoming, attr in (
+        ("title", "title"),
+        ("description", "description"),
+        ("status", "status"),
+        ("priority", "priority"),
+        ("project", "project_id"),
+        ("projectId", "project_id"),
+        ("tags", "tags"),
+        ("color", "color"),
+        ("metadata", "metadata_json"),
+    ):
+        if incoming in payload:
+            value = payload[incoming]
+            if attr == "title":
+                value = str(value or "").strip()
+                if not value:
+                    continue
+            setattr(task, attr, value)
+    if "dueDate" in payload or "due_date" in payload:
+        task.due_date = _parse_due(payload.get("dueDate") or payload.get("due_date"))
+    if "estimatedHours" in payload:
+        task.estimated_hours = float(payload.get("estimatedHours") or 0)
+    if "actualHours" in payload:
+        task.actual_hours = float(payload.get("actualHours") or 0)
+
+    db.commit()
+    db.refresh(task)
+    return {"success": True, "task": _task_payload(task)}
+
+
+@router.delete("/api/v1/tasks/{task_id}")
+async def delete_task(
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    task = _owned_task(db, task_id, str(current_user.id))
+    if task is None:
+        raise router.not_found_error("Task", task_id)
+    db.delete(task)
+    db.commit()
+    return {"success": True, "deleted": task_id}
 
 
 @router.get("/api/v1/projects")

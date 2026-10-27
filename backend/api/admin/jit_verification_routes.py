@@ -26,6 +26,10 @@ from core.jit_verification_worker import (
 
 logger = logging.getLogger(__name__)
 
+# 2026-10-27 whole-app pass: these are workspace-scoped governance
+# surfaces. The sidebar exposes them at workspace_admin+ and a
+# workspace_admin is the admin a workspace actually has; gate at
+# WORKSPACE_ADMIN, not the platform ADMIN tier.
 router = BaseAPIRouter(prefix="/api/admin/governance/jit", tags=["JIT Verification"])
 
 
@@ -75,7 +79,7 @@ class VerificationResponse(BaseModel):
 @router.get("/cache/stats", response_model=CacheStatsResponse)
 async def get_cache_stats(
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Get JIT verification cache statistics.
@@ -91,7 +95,7 @@ async def get_cache_stats(
 @router.post("/cache/clear")
 async def clear_cache(
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Clear all JIT verification caches (L1 and L2).
@@ -114,7 +118,7 @@ async def clear_cache(
 async def verify_citations(
     request: VerificationRequest,
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Verify one or more citations (with cache check).
@@ -155,7 +159,7 @@ async def verify_citations(
 @router.get("/worker/metrics", response_model=WorkerMetricsResponse)
 async def get_worker_metrics(
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Get JIT verification worker metrics.
@@ -175,7 +179,7 @@ async def get_worker_metrics(
 @router.post("/worker/start")
 async def start_worker(
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Start the JIT verification background worker.
@@ -198,7 +202,7 @@ async def start_worker(
 @router.post("/worker/stop")
 async def stop_worker(
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Stop the JIT verification background worker.
@@ -218,7 +222,7 @@ async def stop_worker(
 async def verify_fact_citations(
     fact_id: str,
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Verify all citations for a specific fact.
@@ -240,7 +244,7 @@ async def verify_fact_citations(
 async def get_top_citations(
     limit: int = Query(20, ge=1, le=100, description="Number of top citations to return"),
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Get most frequently accessed citations.
@@ -263,7 +267,7 @@ async def get_top_citations(
 @router.get("/health")
 async def get_jit_health(
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Get overall health status of JIT verification system.
@@ -323,7 +327,7 @@ async def get_jit_health(
 async def warm_cache(
     limit: int = Query(100, ge=1, le=1000, description="Number of facts to warm cache with"),
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Warm the JIT verification cache by pre-verifying citations.
@@ -371,7 +375,7 @@ async def warm_cache(
 @router.get("/config")
 async def get_jit_config(
     current_user = Depends(get_current_user),
-    _ = Depends(require_role(UserRole.ADMIN))
+    _ = Depends(require_role(UserRole.WORKSPACE_ADMIN))
 ):
     """
     Get current JIT verification configuration.

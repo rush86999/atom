@@ -30,6 +30,12 @@ import {
 } from "@/components/ui/select";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+// core/workflow_endpoints.py is mounted at /api/v1/workflows; the schedule
+// endpoints live under that prefix (`/api/v1/workflows/scheduler/jobs`,
+// `/api/v1/workflows/workflows/{id}/schedule`). Calling `${API_BASE}/scheduler/jobs`
+// skipped both prefixes and 404'd, so the page always showed an empty queue
+// and every "Schedule" submission failed.
+const WORKFLOW_API = `${API_BASE}/api/v1/workflows`;
 
 type TriggerType = "interval" | "cron";
 
@@ -60,7 +66,7 @@ const SchedulePage: React.FC = () => {
 
   const loadJobs = async () => {
     try {
-      const res = await fetch(`${API_BASE}/scheduler/jobs`, { headers: authHeaders });
+      const res = await fetch(`${WORKFLOW_API}/scheduler/jobs`, { headers: authHeaders });
       if (!res.ok) return;
       const data = await res.json();
       // Endpoint returns a list or {jobs: [...]}; handle both.
@@ -92,7 +98,7 @@ const SchedulePage: React.FC = () => {
     setSubmitting(true);
     try {
       const res = await fetch(
-        `${API_BASE}/workflows/${encodeURIComponent(workflowId)}/schedule`,
+        `${WORKFLOW_API}/workflows/${encodeURIComponent(workflowId)}/schedule`,
         {
           method: "POST",
           headers: authHeaders,
@@ -131,7 +137,7 @@ const SchedulePage: React.FC = () => {
     }
     try {
       const res = await fetch(
-        `${API_BASE}/workflows/${encodeURIComponent(wfid)}/schedule/${encodeURIComponent(jobId)}`,
+        `${WORKFLOW_API}/workflows/${encodeURIComponent(wfid)}/schedule/${encodeURIComponent(jobId)}`,
         { method: "DELETE", headers: authHeaders }
       );
       if (!res.ok) {

@@ -71,17 +71,28 @@ const BusinessHealthDashboard: React.FC = () => {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
+            // Every operational endpoint requires the signed-in bearer token;
+            // the page used to fetch without one and rendered a 401 as an
+            // empty dashboard. Use one helper so the whole page agrees.
+            const token =
+                typeof window !== "undefined"
+                    ? localStorage.getItem("auth_token") || localStorage.getItem("token")
+                    : null;
+            const auth = token ? { Authorization: `Bearer ${token}` } : {};
+            const get = (url: string, init?: RequestInit) =>
+                fetch(url, { ...init, headers: { ...auth, ...(init?.headers || {}) } });
             // Use Promise.allSettled so one failed endpoint doesn't blank the
             // entire dashboard — each result is checked independently (BUG-063).
+            // Workspace is derived server-side from the authenticated user.
             const results = await Promise.allSettled([
-                fetch("/api/business-health/priorities"),
-                fetch("/api/business-health/forensics/price-drift"),
-                fetch("/api/business-health/forensics/pricing-advisor"),
-                fetch("/api/business-health/forensics/waste"),
-                fetch("/api/risk/customer-protection?workspace_id=default"),
-                fetch("/api/risk/early-warning?workspace_id=default"),
-                fetch("/api/risk/fraud?workspace_id=default"),
-                fetch("/api/business-health/interventions/generate?workspace_id=default", { method: "POST" })
+                get("/api/business-health/priorities"),
+                get("/api/business-health/forensics/price-drift"),
+                get("/api/business-health/forensics/pricing-advisor"),
+                get("/api/business-health/forensics/waste"),
+                get("/api/risk/customer-protection"),
+                get("/api/risk/early-warning"),
+                get("/api/risk/fraud"),
+                get("/api/business-health/interventions/generate", { method: "POST" })
             ]);
 
             const settled = (r: PromiseSettledResult<Response>) =>
@@ -142,9 +153,13 @@ const BusinessHealthDashboard: React.FC = () => {
     const runSimulation = async () => {
         try {
             setSimulating(true);
+            const token = typeof window !== "undefined" ? (localStorage.getItem("auth_token") || localStorage.getItem("token")) : null;
             const res = await fetch("/api/business-health/simulate", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                     decision_type: simType,
                     data: { context: simInput }
@@ -152,6 +167,8 @@ const BusinessHealthDashboard: React.FC = () => {
             });
             if (res.ok) {
                 setSimResult(await res.json());
+            } else {
+                toast({ title: "Simulation failed", description: `Simulation returned ${res.status}.`, variant: "error" });
             }
         } catch (error) {
             toast({
@@ -167,9 +184,13 @@ const BusinessHealthDashboard: React.FC = () => {
     const executeIntervention = async (id: string, action: string, payload: any) => {
         try {
             setExecuting(id);
+            const token = typeof window !== "undefined" ? (localStorage.getItem("auth_token") || localStorage.getItem("token")) : null;
             const res = await fetch(`/api/business-health/interventions/${id}/execute`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({ action, payload })
             });
 

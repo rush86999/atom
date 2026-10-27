@@ -15,6 +15,16 @@ import { WakeWordProvider } from "../contexts/WakeWordContext";
 import { useCliHandler } from "../hooks/useCliHandler";
 import { getCurrentUserId } from "@/lib/identity";
 import { checkApiVersion } from "@/lib/apiVersion";
+import {
+  FALLBACK_PROFILE,
+  ProductProfileProvider,
+  isRouteEnabled,
+  routeCapability,
+  useProductProfile,
+} from "@/lib/product-profile";
+import { NotInRelease } from "@/components/ProductSurface/NotInRelease";
+import { RoleRequired } from "@/components/ProductSurface/RoleRequired";
+import { useUserRole } from "@/lib/user-role";
 
 const subscribeToNothing = () => () => {};
 const getClientMounted = () => true;
@@ -92,6 +102,68 @@ const TauriHooks: React.FC = () => {
   return null;
 };
 
+function AppSurface({ Component, pageProps, isStandalonePage }: {
+  Component: AppProps["Component"];
+  pageProps: Record<string, unknown>;
+  isStandalonePage: boolean;
+}) {
+  const router = useRouter();
+  const { loading, isRouteAllowed, profile } = useProductProfile();
+  const { level: roleLevel, loading: roleLoading } = useUserRole();
+
+  if (typeof window !== "undefined") {
+    (window as any).__atomSurface = {
+      pathname: router.pathname,
+      asPath: router.asPath,
+      loading,
+      allowed: isRouteAllowed(router.pathname),
+      profile: profile.profile,
+      capability: profile.routes[router.pathname],
+      enabled: profile.capabilities[profile.routes[router.pathname]]?.enabled,
+    };
+  }
+
+  // Deferred direct links get an explicit scope page instead of a rendered
+  // shell. While the profile is loading we only withhold pages that the
+  // safe (core) fallback does not know about — core pages render normally,
+  // and a deferred page never flashes its working surface first.
+  const deferredInFallback = !isRouteEnabled(router.pathname, FALLBACK_PROFILE);
+  if (!isStandalonePage && loading && deferredInFallback) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center text-sm text-muted-foreground">
+        Checking this surface against the release scope…
+      </div>
+    );
+  }
+  if (!isStandalonePage && !loading && !isRouteAllowed(router.pathname)) {
+    return <NotInRelease pathname={router.asPath || router.pathname} />;
+  }
+
+  // Role-gated core surfaces (Approvals today) render a clean denied state
+  // for an authenticated role that cannot use them — never an empty queue.
+  const capabilityId = routeCapability(router.pathname, profile.routes);
+  const minimumRole = profile.capabilities[capabilityId]?.min_role;
+  const roleLevels: Record<string, number> = {
+    member: 3, team_lead: 4, workspace_admin: 5, admin: 6, owner: 7,
+  };
+  if (
+    !isStandalonePage &&
+    !roleLoading &&
+    minimumRole &&
+    roleLevel > 0 &&
+    roleLevel < (roleLevels[minimumRole] || 0)
+  ) {
+    return (
+      <RoleRequired
+        capabilityLabel={profile.capabilities[capabilityId]?.label || "This page"}
+        minimum={minimumRole}
+      />
+    );
+  }
+
+  return <Component {...pageProps} />;
+}
+
 function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   const router = useRouter();
   const mounted = useSyncExternalStore(
@@ -163,27 +235,33 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   return (
     <SessionProvider session={session} refetchInterval={0} refetchOnWindowFocus={false}>
       <SessionSync />
-      <QueryClientProvider client={queryClient}>
-        <TauriHooks />
-        <ChakraProvider value={defaultSystem}>
-          <ToastProvider>
-            <WakeWordProvider>
-              {/* Sonner toasts (ProjectCommandCenter, PipelineSettingsPanel, ...)
-                  call the `toast` helper from "sonner" — without a mounted
-                  <Toaster /> every one of those calls silently no-ops. */}
-              <Toaster richColors position="top-right" />
-              {isStandalonePage ? (
-                <Component {...pageProps} />
-              ) : (
-                <Layout>
+      <ProductProfileProvider>
+        <QueryClientProvider client={queryClient}>
+          <TauriHooks />
+          <ChakraProvider value={defaultSystem}>
+            <ToastProvider>
+              <WakeWordProvider>
+                {/* Sonner toasts (ProjectCommandCenter, PipelineSettingsPanel, ...)
+                    call the `toast` helper from "sonner" — without a mounted
+                    <Toaster /> every one of those calls silently no-ops. */}
+                <Toaster richColors position="top-right" />
+                {isStandalonePage ? (
                   <Component {...pageProps} />
-                </Layout>
-              )}
-              {mounted && !isStandalonePage && <GlobalChatWidget />}
-            </WakeWordProvider>
-          </ToastProvider>
-        </ChakraProvider>
-      </QueryClientProvider>
+                ) : (
+                  <Layout>
+                    <AppSurface
+                      Component={Component}
+                      pageProps={pageProps}
+                      isStandalonePage={isStandalonePage}
+                    />
+                  </Layout>
+                )}
+                {mounted && !isStandalonePage && <GlobalChatWidget />}
+              </WakeWordProvider>
+            </ToastProvider>
+          </ChakraProvider>
+        </QueryClientProvider>
+      </ProductProfileProvider>
     </SessionProvider>
   );
 }

@@ -61,6 +61,15 @@ interface DashboardData {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
+/** Bearer header for the analytics API (page fetches were unauthenticated). */
+function authHeaders(): Record<string, string> {
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("auth_token") || localStorage.getItem("token")
+      : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -69,7 +78,7 @@ export default function AnalyticsPage() {
   const fetchData = async () => {
     try {
       setRefreshing(true)
-      const response = await fetch(`${API_BASE}/api/analytics/dashboard/kpis`)
+      const response = await fetch(`${API_BASE}/api/analytics/dashboard/kpis`, { headers: authHeaders() })
       const result = await response.json()
       setData(result)
     } catch (error) {
@@ -86,7 +95,7 @@ export default function AnalyticsPage() {
 
   const exportCSV = async (type: 'workflow' | 'integration') => {
     try {
-      const response = await fetch(`${API_BASE}/api/analytics/export/csv?metric_type=${type}`)
+      const response = await fetch(`${API_BASE}/api/analytics/export/csv?metric_type=${type}`, { headers: authHeaders() })
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')

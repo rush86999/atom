@@ -299,6 +299,14 @@ _RERUN_RE = re.compile(
 #: not an aggregation; it needs a row-selection/grouping qualifier.
 _AGGREGATE_STRONG_RE = re.compile(
     r"\bgroup\s+by\s+[A-Za-z_]\w*"
+    # "total the requested amount", "sum hours", "add up the costs" — a
+    # calculation verb plus a named measure. Measure vocabulary is
+    # operation-shaped, not a business domain: the same grammar totals
+    # grants, ticket hours or part quantities.
+    r"|\bhow\s+many\b"
+    r"|\b(?:totals?|subtotals?|sums?|add\s+up|calculate)\b"
+    r"[^\n]{0,40}?\b(?:amount|value|cost|total|hours?|minutes?|"
+    r"units?|quantity|qty|count|balance|score|weight)s?\b"
     r"|\b(?:totals?|subtotals?|sums?|aggregates?)\b[^\n]{0,80}"
     r"\bby\s+[A-Za-z_]\w*"
     r"|\b(?:select|list|show|filter)\s+(?:only\s+)?(?:the\s+)?"

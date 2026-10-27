@@ -325,7 +325,224 @@ def _clarification_block(
     }
 
 
+
+def _aggregate_generic(
+    records: List[Dict[str, Any]],
+    columns: List[str],
+    roles: Dict[str, str],
+    *,
+    sheet: str,
+    file_name: str,
+    version: str,
+    source_row_count: Optional[int],
+    coverage: Optional[Dict[str, Any]],
+    source_status_counts: Optional[Dict[str, int]],
+    operation: str,
+    value_column: str,
+    sheet_rows: List[int],
+) -> Dict[str, Any]:
+    """Sum/count over selected rows with the same honesty guarantees.
+
+    Only the explicitly named measure is read. If the accepted task does not
+    name a measure (or names an empty/non-numeric one), the result is an
+    error/clarification instead of a guessed column.
+    """
+    status_column = roles.get("status_column") or ""
+    currency_column = roles.get("currency_column") or ""
+    identity_column = roles.get("identity_column") or ""
+    selected_status_counts: Dict[str, int] = {}
+    subtotals: Dict[str, Dict[str, Any]] = {}
+    rows: List[Dict[str, Any]] = []
+    gaps: List[Dict[str, Any]] = []
+
+    if operation == "sum" and not value_column:
+        return _clarification_block(
+            "value_column",
+            [col for col in columns if col != SHEET_ROW_COL],
+            ambiguous=False,
+        )
+    if operation == "sum" and value_column not in columns:
+        return _error_block(
+            "COLUMN NOT FOUND",
+            f"The accepted calculation names measure '{value_column}', which "
+            "is not a column of the materialized sheet. No similar column was "
+            "substituted.",
+        )
+
+    for idx, rec in enumerate(records):
+        sheet_row = sheet_rows[idx]
+        if status_column:
+            status_value = rec.get(status_column)
+            status_key = ("(blank)" if _blank(status_value)
+                          else str(status_value).strip())
+            selected_status_counts[status_key] = (
+                selected_status_counts.get(status_key, 0) + 1)
+        identity = rec.get(identity_column) if identity_column else None
+        if not _blank(identity):
+            identity = str(identity).strip()
+            identity_source = "identity_column"
+        else:
+            identity = f"row {sheet_row}"
+            identity_source = "sheet_row"
+        currency = rec.get(currency_column) if currency_column else ""
+        currency = str(currency).strip().upper() if not _blank(currency) else ""
+        bucket_key = currency or "(unstated)"
+        if operation == "count":
+            bucket = subtotals.setdefault(
+                bucket_key, {"rows": 0, "value": Decimal(0)})
+            bucket["rows"] += 1
+            bucket["value"] += Decimal(1)
+            rows.append({
+                "identity": identity,
+                "identity_source": identity_source,
+                "row": sheet_row,
+                "value": "1",
+                "currency": currency,
+                "value_cell": "",
+            })
+            continue
+
+        raw = rec.get(value_column)
+        value = _dec(raw)
+        if value is None:
+            gaps.append({
+                "identity": identity,
+                "row": sheet_row,
+                "missing": f"value ({value_column})",
+                "cell": _cell_for(columns, value_column, sheet_row),
+            })
+            continue
+        bucket = subtotals.setdefault(
+            bucket_key, {"rows": 0, "value": Decimal(0)})
+        bucket["rows"] += 1
+        bucket["value"] += value
+        rows.append({
+            "identity": identity,
+            "identity_source": identity_source,
+            "row": sheet_row,
+            "value": str(value.quantize(Decimal("0.01"))),
+            "currency": currency,
+            "value_cell": _cell_for(columns, value_column, sheet_row),
+        })
+
+    rendered_subtotals = {
+        key: {
+            "rows": v["rows"],
+            "value": str(v["value"].quantize(Decimal("0.01"))),
+        }
+        for key, v in subtotals.items()
+    }
+    complete = not gaps
+    result = {
+        "status": "complete" if complete else "partial",
+        "complete": complete,
+        "operation": operation,
+        "measure": value_column or "row count",
+        "file_name": file_name,
+        "sheet": sheet,
+        "version": version,
+        "source_row_count": source_row_count,
+        "selected_count": len(records),
+        "not_selected_count": (
+            max(int(source_row_count) - len(records), 0)
+            if source_row_count is not None else None),
+        "source_status_counts": source_status_counts or {},
+        "selected_status_counts": selected_status_counts,
+        "known_count": len(rows),
+        "gaps": gaps,
+        "subtotals": rendered_subtotals,
+        "rows": rows,
+        "coverage": coverage or {},
+    }
+    result["block"] = _render(result)
+    result["answer"] = result["block"].split("\n", 1)[1]
+    return result
+
+
+def _render_generic(result: Dict[str, Any]) -> str:
+    file_name = result.get("file_name") or ""
+    sheet = result.get("sheet") or ""
+    operation = result.get("operation") or "sum"
+    measure = result.get("measure") or ""
+    lines = [
+        "LIVE TOOL RESULTS (datasets.aggregate — deterministic; the model did not compute this):",
+        f"Workbook: `{file_name}`; Sheet: `{sheet}`; Version: `{str(result.get('version') or '')[:12]}`",
+        f"Operation: {operation}; measure: {measure}",
+        f"Selected rows: {result.get('selected_count', 0)}; "
+        f"computable: {result.get('known_count', 0)}; "
+        f"gaps: {len(result.get('gaps') or [])}",
+    ]
+    source_count = result.get("source_row_count")
+    if source_count is not None:
+        lines.append(
+            f"Sheet rows: {source_count}; selected by the predicate: "
+            f"{result.get('selected_count', 0)}; not selected: "
+            f"{result.get('not_selected_count', 0)}")
+    selected_statuses = result.get("selected_status_counts") or {}
+    if selected_statuses:
+        lines.append(
+            "Selected status counts: " + ", ".join(
+                f"{k}={v}" for k, v in sorted(selected_statuses.items())))
+    coverage = result.get("coverage") or {}
+    if coverage.get("truncated"):
+        lines.append(
+            "Coverage: MATERIALIZED SHEET IS TRUNCATED at "
+            f"{coverage.get('materialized_row_count')} of "
+            f"{coverage.get('source_row_count')} rows — no complete total "
+            "can be certified from this copy.")
+    subtotals = result.get("subtotals") or {}
+    if subtotals:
+        lines.append("| Currency | Rows | Value |")
+        lines.append("|---|---:|---:|")
+        for currency in sorted(subtotals):
+            row = subtotals[currency]
+            lines.append(
+                f"| {currency} | {row['rows']} | {row['value']} |")
+    gaps = result.get("gaps") or []
+    if gaps:
+        lines.append("Gaps:")
+        for gap in gaps:
+            lines.append(
+                f"- {sheet} row {gap.get('row')} ({gap.get('identity')}): "
+                f"missing {gap.get('missing')}"
+                + (f" at {gap.get('cell')}" if gap.get("cell") else ""))
+    if result.get("complete"):
+        lines.append("Completeness: complete. All selected rows had required inputs.")
+    else:
+        if subtotals:
+            lines.append(
+                "Known subtotal (complete rows only): "
+                + "; ".join(
+                    f"{v['value']} {cur}" for cur, v in sorted(subtotals.items())
+                )
+            )
+        lines.append(
+            "Completeness: INCOMPLETE. Complete/grand total withheld: "
+            + (f"{len(gaps)} required-input gap(s)." if gaps
+               else "the selected scope is empty or truncated."))
+    if result.get("rows"):
+        shown = result["rows"][:_MAX_DISPLAY_ROWS]
+        lines.append("Contributing rows:")
+        for row in shown:
+            if operation == "count":
+                lines.append(
+                    f"- row {row['row']} ({row['identity']}): counted")
+            else:
+                lines.append(
+                    f"- row {row['row']} ({row['identity']}): "
+                    f"{row['value']} {row['currency']}"
+                    + (f" [{row.get('value_cell')}]" if row.get("value_cell") else ""))
+        remaining = len(result["rows"]) - len(shown)
+        if remaining > 0:
+            lines.append(
+                f"- … {remaining} more contributing row(s) not displayed; "
+                "the totals above include the full selected scope.")
+    return "\n".join(lines)
+
+
 def _render(result: Dict[str, Any]) -> str:
+    if result.get("operation") in {"sum", "count"}:
+        return _render_generic(result)
     file_name = result.get("file_name") or ""
     sheet = result.get("sheet") or ""
     lines = [
@@ -424,12 +641,20 @@ def aggregate_selected_rows(
     source_row_count: Optional[int] = None,
     coverage: Optional[Dict[str, Any]] = None,
     source_status_counts: Optional[Dict[str, int]] = None,
+    operation: str = "line_total",
+    value_column: str = "",
 ) -> Dict[str, Any]:
-    """Deterministic aggregation over already-selected detail rows.
+    """Deterministic calculation over already-selected detail rows.
 
-    This is the local arithmetic control: callers can feed a validated
-    SELECT's rows directly, with no model involved, then the same function
-    serves the natural-language path.
+    ``operation`` names the accepted calculation, not a business domain:
+
+    * ``line_total`` — quantity x unit price per row, subtotalled by
+      currency (the original workbook operation);
+    * ``sum`` — sum one explicitly named numeric measure column;
+    * ``count`` — count the selected rows.
+
+    Every branch keeps the same provenance, gap-naming and completeness
+    discipline. A missing required input is a named gap, never a zero.
 
     Provenance is REQUIRED: every row must carry its original sheet row
     (``__sheet_row``). A positional fallback (``idx + 2``) is forbidden —
@@ -463,6 +688,16 @@ def aggregate_selected_rows(
             "The selection returned the same sheet row more than once "
             f"({', '.join(str(r) for r in duplicates[:8])}); a total over "
             "duplicated rows is wrong, so none was computed.",
+        )
+
+    if operation in {"sum", "count"}:
+        return _aggregate_generic(
+            records, columns, roles, sheet=sheet, file_name=file_name,
+            version=version, source_row_count=source_row_count,
+            coverage=coverage,
+            source_status_counts=source_status_counts,
+            operation=operation, value_column=value_column,
+            sheet_rows=sheet_rows,
         )
 
     subtotals: Dict[str, Dict[str, Any]] = {}
@@ -891,8 +1126,11 @@ _ROLE_HINTS: Dict[str, Tuple[str, ...]] = {
         "qty", "quantity", "units", "unit quantity",
     ),
     "price_column": (
-        "unit price", "price", "unit cost", "amount", "total", "value",
-        "cost",
+        "unit price", "price", "unit cost",
+    ),
+    "value_column": (
+        "amount", "total", "value", "cost", "revenue", "score", "hours",
+        "minutes", "count", "quantity", "qty", "units", "balance", "rate",
     ),
     "currency_column": (
         "currency", "ccy", "curr",
@@ -946,6 +1184,7 @@ def _resolve_roles(
     roles: Dict[str, str],
     columns: List[str],
     confirmed_roles: Optional[Dict[str, str]] = None,
+    operation: str = "line_total",
 ) -> Tuple[
     Dict[str, str], Dict[str, List[str]], Dict[str, List[str]]
 ]:
@@ -956,7 +1195,9 @@ def _resolve_roles(
     """
     ambiguous: Dict[str, List[str]] = {}
     unresolved: Dict[str, List[str]] = {}
-    for role in ("quantity_column", "price_column", "currency_column"):
+    for role in (("value_column",) if operation == "sum" else
+                 () if operation == "count" else
+                 ("quantity_column", "price_column", "currency_column")):
         hints = _ROLE_HINTS.get(role, ())
         matches = [
             col for col in columns if _role_hint_matches(col, hints)
@@ -1112,6 +1353,15 @@ async def _execute_selection_plan(
             f"{coverage.get('source_row_count')} source rows. A total over "
             "a truncated copy would be wrong; no total was computed.",
         )
+    operation = str(getattr(plan, "operation", "") or "line_total").strip()
+    if operation not in {"line_total", "sum", "count"}:
+        return _error_block(
+            "UNSUPPORTED CALCULATION",
+            f"The accepted calculation '{operation}' is not one of the "
+            "supported operations (line_total, sum, count); no total was "
+            "computed.",
+        )
+    value_column = str(getattr(plan, "value_column", "") or "")
     roles = {
         "identity_column": str(getattr(plan, "identity_column", "") or ""),
         "quantity_column": str(getattr(plan, "quantity_column", "") or ""),
@@ -1139,7 +1389,7 @@ async def _execute_selection_plan(
     # that omits quantity_column must not thereby disable the guard.
     roles = _infer_roles(roles, columns)
     roles, _ambiguous_roles, _unresolved_roles = _resolve_roles(
-        roles, columns, confirmed_roles)
+        roles, columns, confirmed_roles, operation=operation)
     if _ambiguous_roles:
         _role = sorted(_ambiguous_roles)[0]
         return _clarification_block(
@@ -1175,9 +1425,13 @@ async def _execute_selection_plan(
     for column in columns:
         _normalized_frame.setdefault(_norm_role_name(column), []).append(
             column)
-    for role in ("identity_column", "quantity_column", "price_column",
-                 "currency_column", "status_column"):
-        column = roles[role]
+    _active_roles = ["identity_column", "status_column"]
+    if operation == "line_total":
+        _active_roles += ["quantity_column", "price_column", "currency_column"]
+    elif operation == "sum":
+        _active_roles += ["value_column"]
+    for role in _active_roles:
+        column = roles.get(role) or ""
         if not column:
             continue
         norm = _norm_role_name(column)
@@ -1197,9 +1451,10 @@ async def _execute_selection_plan(
         _seen_roles[norm] = role
         own_hints = _ROLE_HINTS.get(role, ())
         own_match = _role_hint_matches(column, own_hints)
-        for other_role, hints in _ROLE_HINTS.items():
+        for other_role in _active_roles:
             if other_role == role:
                 continue
+            hints = _ROLE_HINTS.get(other_role, ())
             other_match = _role_hint_matches(column, hints)
             if other_match and not own_match:
                 return _error_block(
@@ -1215,14 +1470,20 @@ async def _execute_selection_plan(
                 f"The planner named {role}='{col}', which is not a column "
                 "of the materialized sheet. No similar column was substituted.",
             )
-    for required in ("identity_column", "quantity_column",
-                     "price_column", "currency_column"):
-        if not roles[required]:
+    required_roles = ["identity_column"]
+    if operation == "line_total":
+        required_roles += ["quantity_column", "price_column", "currency_column"]
+    elif operation == "sum" and not value_column:
+        required_roles.append("value_column")
+    for required in required_roles:
+        if not roles.get(required):
             return _error_block(
                 "REQUIRED COLUMN NOT IDENTIFIED",
                 f"The planner did not identify the {required.replace('_column', '')} "
                 "column; a complete total was withheld.",
             )
+    if operation == "sum" and not value_column:
+        value_column = roles.get("value_column") or ""
     predicate_paths = _ast_predicate_paths(ast_node)
     _from_table = ast_node.get("from_table") or {}
     relation_names = {
@@ -1255,7 +1516,9 @@ async def _execute_selection_plan(
             + "); predicates must name physical columns directly.",
         )
     required_like_columns = set()
-    for required in ("quantity_column", "price_column", "currency_column"):
+    _required_inputs = (("quantity_column", "price_column", "currency_column")
+                        if operation == "line_total" else ())
+    for required in _required_inputs:
         column = roles[required]
         if column:
             required_like_columns.add(column.lower())
@@ -1264,7 +1527,7 @@ async def _execute_selection_plan(
             col.lower() for col in columns
             if _role_hint_matches(col, hints)
         )
-    for required in ("quantity_column", "price_column", "currency_column"):
+    for required in _required_inputs:
         column = roles[required]
         if column and column.lower() in predicate_columns:
             return _error_block(
@@ -1449,6 +1712,8 @@ async def _execute_selection_plan(
         ),
         coverage=coverage,
         source_status_counts=source_status_counts,
+        operation=operation,
+        value_column=value_column,
     )
 
 
@@ -1554,9 +1819,11 @@ async def aggregate_named_dataset(
     class _SheetSelectionPlan(BaseModel):
         dataset_name: str
         sql: str
+        operation: str = "line_total"
         identity_column: str = ""
         quantity_column: str = ""
         price_column: str = ""
+        value_column: str = ""
         currency_column: str = ""
         status_column: str = ""
         note: str = ""
@@ -1597,8 +1864,14 @@ async def aggregate_named_dataset(
         "sheet has no business identifier and for any other role the sheet "
         "does not have.\n"
         "- If no dataset plausibly matches, set dataset_name and sql to empty.\n\n"
-        "Return JSON: dataset_name, sql, identity_column, quantity_column, "
-        "price_column, currency_column, status_column, note"
+        "- Choose operation from the QUESTION, never from the sheet name: "
+        "`line_total` only when the ask is quantity x unit price; `sum` when "
+        "the ask is the total of one named numeric measure; `count` when it "
+        "asks how many rows. Name that measure in value_column for `sum` and "
+        "leave quantity/price empty.\n"
+        "Return JSON: dataset_name, sql, operation, identity_column, "
+        "quantity_column, price_column, value_column, currency_column, "
+        "status_column, note"
     )
     try:
         from core.llm.pinned_planning import (

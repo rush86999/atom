@@ -100,6 +100,22 @@ async def decide_approval(
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("message", "Decision failed"))
 
+    # The status write alone leaves paused goal runs/workflows stuck; resume
+    # the durable work the human just unblocked (shared with the legacy
+    # /api/agents handler in api.agent_routes).
+    try:
+        from core.hitl_resume import resume_after_hitl_decision
+
+        resume = await resume_after_hitl_decision(
+            approval_id,
+            approved=decision == "approved",
+            reviewer_id=str(user.id),
+            guidance=body.reason,
+        )
+    except Exception as resume_err:  # noqa: BLE001 — decision already committed
+        logger.exception("HITL %s decided but resume failed: %s", approval_id, resume_err)
+        resume = {"handled": True, "resumed": False, "error": str(resume_err)}
+
     return {
         # `success` is the GlobalChatWidget's confirmation contract.
         "success": True,
@@ -107,4 +123,5 @@ async def decide_approval(
         "status": decision,
         "decided_by": user.id,
         "message": result.get("message"),
+        "resume": resume,
     }

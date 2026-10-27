@@ -43,6 +43,7 @@ import {
     ADMIN_MIN_LEVEL,
     SUPERVISOR_MIN_LEVEL,
 } from "../../lib/user-role";
+import { useProductProfile } from "../../lib/product-profile";
 
 interface SidebarProps {
     className?: string;
@@ -52,6 +53,10 @@ interface SidebarItem {
     label: string;
     icon: React.ComponentType<{ className?: string }>;
     path: string;
+    /** capability required by the active product profile. Deferred surfaces
+     * stay in this file (code and data are kept) but are not rendered in the
+     * core release; direct links get the explicit NotInRelease page. */
+    capability?: string;
     /** minimum role level; items are hidden once the viewer's role is known
      * to be below it (backend still enforces every gate — this only stops
      * roles from clicking into guaranteed 403s). */
@@ -155,7 +160,8 @@ function ApprovalsPendingBadge({ active, collapsed }: { active: boolean; collaps
 const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     const router = useRouter();
     const { data: session } = useSession();
-    const { level: roleLevel } = useUserRole();
+    const { level: roleLevel, loading: roleLoading } = useUserRole();
+    const { isCapabilityEnabled } = useProductProfile();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     // Real identity fallback: the API-first login (persistBackendToken) stores
@@ -213,85 +219,79 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         {
             name: "CORE",
             items: [
-                { label: "Dashboard", icon: Home, path: "/" },
-                { label: "Chat", icon: MessageSquare, path: "/chat" },
-                { label: "Canvases", icon: Layout, path: "/canvas" },
-                { label: "Search", icon: Search, path: "/search" },
-                { label: "Documents", icon: FileText, path: "/documents" },
-                { label: "Tasks", icon: CheckSquare, path: "/tasks" },
-                { label: "Kanban", icon: KanbanSquare, path: "/boards" },
-                { label: "Automations", icon: Play, path: "/automations" },
-                { label: "Agents", icon: Bot, path: "/agents" },
+                { label: "Dashboard", icon: Home, path: "/", capability: "chat" },
+                { label: "Chat", icon: MessageSquare, path: "/chat", capability: "chat" },
+                { label: "Workspace", icon: Layout, path: "/canvas", capability: "canvas" },
+                // Deferred in the core release (documents search stays inside
+                // the Documents page). Kept in code for the full profile.
+                { label: "Search", icon: Search, path: "/search", capability: "search" },
+                { label: "Data", icon: FileText, path: "/documents", capability: "documents" },
+                { label: "Tasks", icon: CheckSquare, path: "/tasks", capability: "tasks" },
+                { label: "Kanban", icon: KanbanSquare, path: "/boards", capability: "boards" },
+                { label: "Automations", icon: Play, path: "/automations", capability: "automations" },
+                { label: "Agents", icon: Bot, path: "/agents", capability: "agents" },
                 // Approvals = the HITL/supervision queue: decisions need
-                // team_lead+ on the backend.
-                { label: "Approvals", icon: CheckSquare, path: "/approvals", minLevel: SUPERVISOR_MIN_LEVEL },
-                // Goal Runs: role-agent run timelines. Reads are any-signed-in
-                // (mirrors playbook_routes on the backend); the coaching
-                // actions inside are team_lead+ and gate themselves on the
-                // detail page. Previously this page was orphaned — reachable
-                // only via canvas badges and the notification bell.
-                { label: "Goal Runs", icon: Rocket, path: "/goal-runs" },
-                { label: "Marketplace", icon: Store, path: "/marketplace" },
+                // team_lead+ on the backend. Kept as a safeguard in the core
+                // release, but it is not an ordinary work surface.
+                { label: "Approvals", icon: CheckSquare, path: "/approvals", capability: "approvals", minLevel: SUPERVISOR_MIN_LEVEL },
+                // Activity: results, failures and unfinished work. Goal Runs
+                // is the durable run surface; execution history is linked
+                // from it.
+                { label: "Activity", icon: Rocket, path: "/goal-runs", capability: "activity" },
+                { label: "Marketplace", icon: Store, path: "/marketplace", capability: "marketplace" },
             ]
         },
         {
             name: "COMMAND CENTERS",
             items: [
-                { label: "Projects", icon: Target, path: "/dashboards/projects" },
-                { label: "Sales & CRM", icon: Zap, path: "/dashboards/sales" },
-                { label: "Support", icon: Heart, path: "/dashboards/support" },
-                { label: "Knowledge", icon: Layout, path: "/dashboards/knowledge" },
-                { label: "Communication", icon: MessageSquare, path: "/communication" },
+                { label: "Projects", icon: Target, path: "/dashboards/projects", capability: "command_centers" },
+                { label: "Sales & CRM", icon: Zap, path: "/dashboards/sales", capability: "command_centers" },
+                { label: "Support", icon: Heart, path: "/dashboards/support", capability: "command_centers" },
+                { label: "Knowledge", icon: Layout, path: "/dashboards/knowledge", capability: "command_centers" },
+                { label: "Communication", icon: MessageSquare, path: "/communication", capability: "command_centers" },
             ]
         },
         {
             name: "BUSINESS",
             items: [
-                { label: "Sales", icon: Target, path: "/sales" },
-                { label: "Marketing", icon: Zap, path: "/marketing" },
-                { label: "Finance", icon: CreditCard, path: "/finance" },
-                { label: "Analytics", icon: BarChart3, path: "/analytics" },
+                { label: "Sales", icon: Target, path: "/sales", capability: "business_dashboards" },
+                { label: "Marketing", icon: Zap, path: "/marketing", capability: "business_dashboards" },
+                { label: "Finance", icon: CreditCard, path: "/finance", capability: "business_dashboards" },
+                { label: "Analytics", icon: BarChart3, path: "/analytics", capability: "business_dashboards" },
             ]
         },
         {
             name: "PRODUCTIVITY",
             items: [
-                { label: "Calendar", icon: Calendar, path: "/calendar" },
-                { label: "Health", icon: Heart, path: "/health" },
-                { label: "Voice", icon: Mic, path: "/voice" },
+                { label: "Calendar", icon: Calendar, path: "/calendar", capability: "productivity" },
+                { label: "Health", icon: Heart, path: "/health", capability: "productivity" },
+                { label: "Voice", icon: Mic, path: "/voice", capability: "productivity" },
             ]
         },
         {
             name: "GOVERNANCE",
             items: [
-                // Admin band (workspace_admin+): these pages call admin-gated
-                // APIs — previously they rendered for every role and 403'd.
-                { label: "JIT Verification", icon: Shield, path: "/admin/jit-verification", minLevel: ADMIN_MIN_LEVEL },
-                { label: "BPE Workspace", icon: Brain, path: "/admin/bpe", minLevel: ADMIN_MIN_LEVEL },
-                { label: "Learning & Verification", icon: GraduationCap, path: "/admin/learning-verification", minLevel: ADMIN_MIN_LEVEL },
-                { label: "Self-Healing Harness", icon: Wrench, path: "/settings/harness-evolution" },
-                { label: "Business Facts", icon: CheckCircle, path: "/admin/business-facts", minLevel: ADMIN_MIN_LEVEL },
-                { label: "User Management", icon: Shield, path: "/admin/users", minLevel: ADMIN_MIN_LEVEL },
-                // Was unreachable: the Runtime Settings page existed but no
-                // nav link pointed at it.
-                { label: "Admin Settings", icon: Settings, path: "/admin/settings", minLevel: ADMIN_MIN_LEVEL },
-                // 2026-09-08b: orphaned pages wired into the nav. Audit Trail
-                // reads are team_lead+ (/api/audit/*); the rest are the
-                // workspace_admin+ operator band. (/dashboard/risk stays
-                // unlinked: its backend router was deliberately left
-                // unmounted in round 80f.)
-                { label: "Audit Trail", icon: FileText, path: "/audit-trail", minLevel: SUPERVISOR_MIN_LEVEL },
-                { label: "Skill Builder", icon: Wrench, path: "/admin/skills/new", minLevel: ADMIN_MIN_LEVEL },
-                { label: "Owner Cockpit", icon: BarChart3, path: "/dashboard/owner", minLevel: ADMIN_MIN_LEVEL },
-                { label: "Forensics", icon: Search, path: "/dashboard/forensics", minLevel: ADMIN_MIN_LEVEL },
+                // Admin band (workspace_admin+). Deferred in the core release;
+                // retained for the full profile.
+                { label: "JIT Verification", icon: Shield, path: "/admin/jit-verification", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
+                { label: "BPE Workspace", icon: Brain, path: "/admin/bpe", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
+                { label: "Learning & Verification", icon: GraduationCap, path: "/admin/learning-verification", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
+                { label: "Self-Healing Harness", icon: Wrench, path: "/settings/harness-evolution", capability: "governance" },
+                { label: "Business Facts", icon: CheckCircle, path: "/admin/business-facts", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
+                { label: "User Management", icon: Shield, path: "/admin/users", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
+                { label: "Admin Settings", icon: Settings, path: "/admin/settings", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
+                { label: "Audit Trail", icon: FileText, path: "/audit-trail", capability: "governance", minLevel: SUPERVISOR_MIN_LEVEL },
+                { label: "Skill Builder", icon: Wrench, path: "/admin/skills/new", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
+                { label: "Owner Cockpit", icon: BarChart3, path: "/dashboard/owner", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
+                { label: "Forensics", icon: Search, path: "/dashboard/forensics", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
             ]
         },
         {
             name: "PLATFORM",
             items: [
-                { label: "Integrations", icon: Layers, path: "/integrations" },
-                { label: "Dev Studio", icon: Terminal, path: "/dev-studio", minLevel: ADMIN_MIN_LEVEL },
-                { label: "Settings", icon: Settings, path: "/settings" },
+                { label: "Integrations", icon: Layers, path: "/integrations", capability: "connectors" },
+                { label: "Dev Studio", icon: Terminal, path: "/dev-studio", capability: "governance", minLevel: ADMIN_MIN_LEVEL },
+                { label: "Settings", icon: Settings, path: "/settings", capability: "settings" },
             ]
         }
     ];
@@ -327,15 +327,23 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             {/* Navigation Categories */}
             <nav aria-label="Main Navigation" className="flex-1 overflow-y-auto py-6 space-y-6 px-3 scrollbar-hide">
                 {categories.map((category) => {
-                    // Role-aware filtering: while the role is unknown
-                    // (level 0 — loading or fetch failed) everything stays
-                    // visible; the backend enforces the real gates.
-                    const visibleItems =
-                        roleLevel > 0
-                            ? category.items.filter(
-                                  (item) => !item.minLevel || roleLevel >= item.minLevel
-                              )
-                            : category.items;
+                    // Role-aware filtering. While the role is still loading,
+                    // hide elevated items (a member must not see the admin
+                    // band for the first seconds after login). If the fetch
+                    // FAILS, fail open — a real admin must not be stranded by
+                    // a transient /api/auth/me error; the backend enforces
+                    // every gate.
+                    // One capability configuration decides what this release
+                    // exposes; role gating is applied on top of it.
+                    const visibleItems = category.items.filter((item) => {
+                        if (item.capability && !isCapabilityEnabled(item.capability)) {
+                            return false;
+                        }
+                        if (roleLevel > 0) {
+                            return !item.minLevel || roleLevel >= item.minLevel;
+                        }
+                        return roleLoading ? !item.minLevel : true;
+                    });
                     if (visibleItems.length === 0) return null;
                     return (
                     <div key={category.name} className="space-y-1">

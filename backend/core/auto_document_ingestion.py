@@ -405,8 +405,25 @@ class DocumentParser:
             elif file_type == "pdf":
                 return await DocumentParser._parse_pdf(file_content, max_chars=max_chars)
 
-            elif file_type in ["doc", "docx"]:
+            elif file_type == "docx":
                 return await DocumentParser._parse_docx(file_content, max_chars=max_chars)
+
+            elif file_type == "pptx":
+                return await DocumentParser._parse_pptx(file_content, max_chars=max_chars)
+
+            elif file_type == "eml":
+                return await DocumentParser._parse_eml(file_content, max_chars=max_chars)
+
+            elif file_type in ["doc", "ppt", "rtf", "odt"]:
+                # Legacy .doc / .ppt are OLE2 binaries, not the zipped OOXML
+                # python-docx/python-pptx read; RTF/ODT need their own
+                # parsers. Without docling there is no extractor, so return
+                # empty and let the upload guard reject the type up front
+                # instead of storing "[Empty or unparseable file]".
+                logger.warning(
+                    "No local parser for %s (docling unavailable); upload "
+                    "should be rejected", file_type)
+                return ""
 
             elif file_type in ["xlsx", "xls"]:
                 return await DocumentParser._parse_excel(file_content, max_chars=max_chars)
@@ -532,6 +549,106 @@ class DocumentParser:
             logger.error(f"DOCX parse error: {e}")
             return ""
     
+    @staticmethod
+    async def _parse_eml(content: bytes, max_chars: Optional[int] = None) -> str:
+        """Parse an imported email file (RFC 822 `.eml`).
+
+        Preserves participants, date, subject, thread headers and the plain
+        body (quoted replies stay in place — they are context, not noise).
+        Attachment BYTES are not extracted here; their names are listed so a
+        reader knows the message carried more material than this text.
+        """
+        try:
+            from email import policy
+            from email.parser import BytesParser
+
+            message = BytesParser(policy=policy.default).parsebytes(content)
+            budget = _ExtractionBudget(limit=max_chars)
+            header_fields = [
+                ("From", message.get("From")),
+                ("To", message.get("To")),
+                ("Cc", message.get("Cc")),
+                ("Date", message.get("Date")),
+                ("Subject", message.get("Subject")),
+                ("In-Reply-To", message.get("In-Reply-To")),
+                ("References", message.get("References")),
+            ]
+            for label, value in header_fields:
+                if value:
+                    budget.add(f"{label}: {value}")
+            attachments = []
+            body_parts = 0
+            for part in message.walk():
+                if part.is_multipart():
+                    continue
+                filename = part.get_filename()
+                if filename:
+                    attachments.append(filename)
+                    continue
+                if part.get_content_type() == "text/plain":
+                    try:
+                        text = part.get_content()
+                    except Exception:
+                        payload = part.get_payload(decode=True) or b""
+                        text = payload.decode("utf-8", errors="ignore")
+                    if text and text.strip():
+                        budget.add("")
+                        budget.add(text.strip())
+                        body_parts += 1
+            if attachments:
+                budget.add("")
+                budget.add("Attachments (names only): " + ", ".join(attachments))
+            note = budget.truncation_note(1 + body_parts, 1 + body_parts)
+            return budget.join() + ("\n" + note if note else "")
+        except Exception as e:
+            logger.error(f"EML parse error: {e}")
+            return ""
+
+    @staticmethod
+    async def _parse_pptx(content: bytes, max_chars: Optional[int] = None) -> str:
+        """Parse PPTX slides (text frames, tables, speaker notes).
+
+        python-pptx was already a dependency but nothing used it, so `.pptx`
+        was advertised by the ingestion API and then silently stored as
+        "[Empty or unparseable file]" unless the optional docling install was
+        present.
+        """
+        try:
+            from pptx import Presentation
+
+            prs = Presentation(io.BytesIO(content))
+            budget = _ExtractionBudget(limit=max_chars)
+            total_units = len(prs.slides)
+            consumed = 0
+
+            for index, slide in enumerate(prs.slides, start=1):
+                if budget.exhausted:
+                    break
+                budget.add(f"--- Slide {index} ---")
+                for shape in slide.shapes:
+                    if budget.exhausted:
+                        break
+                    if getattr(shape, "has_text_frame", False) and shape.has_text_frame:
+                        text = "\n".join(p.text for p in shape.text_frame.paragraphs if p.text)
+                        budget.add(text)
+                    if getattr(shape, "has_table", False) and shape.has_table:
+                        for row in shape.table.rows:
+                            budget.add(" | ".join(cell.text for cell in row.cells))
+                if getattr(slide, "has_notes_slide", False):
+                    notes = slide.notes_slide.notes_text_frame.text
+                    if notes:
+                        budget.add(f"[notes] {notes}")
+                consumed += 1
+
+            note = budget.truncation_note(total_units, consumed)
+            return budget.join() + ("\n" + note if note else "")
+        except ImportError:
+            logger.warning("python-pptx not available")
+            return ""
+        except Exception as e:
+            logger.error(f"PPTX parse error: {e}")
+            return ""
+
     @staticmethod
     async def _parse_excel(content: bytes, file_path: str = None, workspace_id: str = "default", max_chars: Optional[int] = None) -> str:
         """Parse Excel to text - compatible with DocumentLifecycleLearner.

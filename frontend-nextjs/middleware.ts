@@ -13,7 +13,6 @@ const publicRoutes = [
   '/auth/signin',
   '/auth/signup',
   '/auth/error',
-  '/api/auth',
 ];
 
 // Define API routes that don't require authentication
@@ -48,14 +47,30 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
 
-  // Allow public routes and API routes to proceed without authentication
-  if (isPublicRoute || isPublicApiRoute) {
+  // Forward the auth cookie as a Bearer header for API requests. Pages use
+  // plain same-origin `fetch("/api/...")`; the Python backend authenticates
+  // with a Bearer header only. This runs for public API paths too (2FA
+  // status, sessions, notifications): they do not REQUIRE a token, but when
+  // one is present the backend needs it. NextAuth's own /api/auth/* handlers
+  // still take precedence over the rewrite.
+  const withAuthHeader = () => {
+    const authToken = request.cookies.get('auth_token')?.value;
+    if (authToken && !request.headers.get('authorization')) {
+      const headers = new Headers(request.headers);
+      headers.set('authorization', `Bearer ${authToken}`);
+      return NextResponse.next({ request: { headers } });
+    }
+    return NextResponse.next();
+  };
+
+  // Allow public page routes without authentication.
+  if (isPublicRoute) {
     return NextResponse.next();
   }
 
-  // Check if pathname is an API route - API routes should NEVER redirect to /login HTML page
-  if (pathname.startsWith('/api/')) {
-    return NextResponse.next();
+  // API routes never redirect to the /login HTML page.
+  if (isPublicApiRoute || pathname.startsWith('/api/')) {
+    return withAuthHeader();
   }
 
   // Client-side route protection: check for the auth_token cookie (set on

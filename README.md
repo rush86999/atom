@@ -21,6 +21,16 @@
 
 ---
 
+## Current release: the core workspace
+
+This build ships the **company-data + trained-agent workspace**:
+Chat, Data, Workspace, Agents, Activity and Settings. Bring records, teach an
+agent how they should be read, ask for a result, review or correct it, and
+reuse the work. Specialized dashboards, workflow automation, marketplace and
+admin tooling remain in the codebase but are deferred from this release; see
+[`docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md`](docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md).
+`ATOM_PRODUCT_PROFILE=full` restores the wider surface.
+
 ## What is Atom?
 
 Atom is an open-source, self-hosted **AI agent workforce** — a team of specialty agents (sales, support, finance, engineering) that your people delegate to in plain language. Where other platforms sell agent *capability*, Atom sells agent *accountability*: autonomy that is earned through verified outcomes, executed inside a deterministic safety net, on your hardware.

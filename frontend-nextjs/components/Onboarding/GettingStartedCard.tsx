@@ -113,7 +113,7 @@ export function GettingStartedCard() {
             icon: Bot,
             title: 'Set up your first agent',
             done: progress?.has_agent,
-            description: 'Browse ready-made agent templates in the marketplace, or describe a workflow in plain language.',
+            description: 'Create an agent and teach it how your records should be read.',
             cta: 'Browse agents',
             href: '/agents',
         },

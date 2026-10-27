@@ -45,9 +45,22 @@ def _ai_surface():
 
 
 class TestGenerateNarrativeReport:
-    def test_no_ai_service_returns_static_report(self):
-        result = _run(PlainEnglishReporter().generate_narrative_report({"leads": 5}))
-        assert "Google and Facebook" in result
+    def test_no_ai_service_reports_no_data_instead_of_inventing(self):
+        """Truthfulness regression: an empty workspace must not be described
+        as 'performing well' just because the model is unavailable."""
+        result = _run(PlainEnglishReporter().generate_narrative_report({"no_data": {"leads": 0, "cost": 0, "conversions": 0}}))
+        assert "No marketing channel data" in result
+        assert "performing well" not in result
+        assert "Google and Facebook" not in result
+
+    def test_no_ai_service_summarizes_recorded_channels(self):
+        result = _run(PlainEnglishReporter().generate_narrative_report({
+            "google_ads": {"leads": 12, "cost": 120, "conversions": 2},
+            "facebook": {"leads": 3, "cost": 30, "conversions": 0},
+        }))
+        assert "15" in result          # total leads
+        assert "google ads" in result  # top channel
+        assert "performing well" not in result
 
     def test_ai_service_without_module_falls_back(self):
         """BUG 87-4 regression: injected AI service + absent optional module
@@ -58,7 +71,7 @@ class TestGenerateNarrativeReport:
             result = _run(
                 PlainEnglishReporter(ai_service=ai).generate_narrative_report({})
             )
-        assert "Google and Facebook" in result
+        assert "No marketing channel data" in result
         ai.process_ai_request.assert_not_called()
 
     def test_ai_dict_output_with_content(self):
@@ -98,9 +111,10 @@ class TestGenerateNarrativeReport:
 
 
 class TestGetBudgetAdvice:
-    def test_no_ai_service_returns_static_advice(self):
+    def test_no_ai_service_without_data_does_not_recommend_spend(self):
         result = _run(PlainEnglishReporter().get_budget_advice({"google": {}}))
-        assert "Google Search" in result
+        assert "No channel performance data" in result
+        assert "Google Search" not in result
 
     def test_ai_service_without_module_falls_back(self):
         ai = MagicMock()
@@ -109,7 +123,7 @@ class TestGetBudgetAdvice:
             result = _run(
                 PlainEnglishReporter(ai_service=ai).get_budget_advice({})
             )
-        assert "Google Search" in result
+        assert "No channel performance data" in result
         ai.process_ai_request.assert_not_called()
 
     def test_ai_dict_output_with_content(self):
