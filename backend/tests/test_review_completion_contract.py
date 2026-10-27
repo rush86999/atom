@@ -126,6 +126,13 @@ def _resolve(review):
     )
 
 
+def test_prohibited_action_is_not_a_required_action():
+    contract = _contract(
+        ORDER_PROMPT.format(order="O-1010")
+        + " Do not update anything.")
+    assert contract["required_actions"] == []
+
+
 def test_changed_action_requirement_invalidates_repeat_reuse():
     base = _contract()
     action = _contract(

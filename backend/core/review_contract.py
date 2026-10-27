@@ -93,10 +93,22 @@ def required_actions(objective: str) -> List[str]:
         obligations = extract_request_assignments(str(objective or ""))
     except Exception:  # noqa: BLE001 — contract remains usable
         return []
+    text = str(objective or "")
+
+    def _prohibited(action_text: str) -> bool:
+        # The assignment table is shape-based; an explicit prohibition
+        # ("do not update anything") is not an action assigned to Atom.
+        return bool(re.search(
+            r"\b(?:do\s+not|don't|must\s+not|should\s+not|never|without)\b"
+            r"[^.\n]{0,80}" + re.escape(action_text),
+            text, re.IGNORECASE))
+
     return _unique([
         str(action.get("text") or "").strip()
         for action in (obligations.get("additional_actions") or [])
-        if isinstance(action, dict) and str(action.get("text") or "").strip()
+        if isinstance(action, dict)
+        and str(action.get("text") or "").strip()
+        and not _prohibited(str(action.get("text") or "").strip())
     ])[:8]
 
 
