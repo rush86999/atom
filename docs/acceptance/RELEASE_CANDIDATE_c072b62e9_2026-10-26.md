@@ -1,0 +1,97 @@
+# Release candidate `c072b62e9` — launch-blocker repair and freeze
+
+**Prepared:** 2026-10-26
+**Predecessor:** `ae0c2fda3` (third attempt failed product smoke; rolled back)
+**Commit:** `c072b62e91be254c251e70d814fb76e5ab13a77c`
+**Status:** code frozen; packaged smoke and isolated rehearsal pending.
+
+## Launch promise (frozen for this release)
+
+> Upload documents or supported spreadsheets, obtain sourced answers and
+> calculations, and receive taught, evidence-bound recommendations — with
+> honest gaps, saved history and restart persistence.
+
+Explicitly outside this release: mixed-source reconciliation, five-order
+reviews, general policy transfer, unknown-header mapping UX, and additional
+integrations. They are not advertised as complete.
+
+## Repairs from the third-attempt failures
+
+### 1. Delivered partial vs complete calculation
+
+`settle_retrieval_task` separates three facts:
+
+```text
+retrieval_finished   = a read receipt matching the requested scope exists
+answer_delivered     = the response carrying that answer reached the user
+calculation_complete = no required-input gaps remain
+```
+
+A delivered subtotal-with-gaps is terminal as a SOURCE LOOKUP
+(`status=delivered`), keeps `calculation_complete=false`, and retains
+`open_requirements` with the named gap. The confirmed-read lane and the
+new-ask lane both use this settlement. The smoke helper no longer sends a
+confirmation after a valid delivered answer, independently of stale session
+state.
+
+Captured control: Adjustments −700.00 CAD, gap 0055/C5, grand total withheld →
+delivered, gap retained, no second request.
+
+### 2. Source authority
+
+`core/source_requirements.py` derives required sources from:
+
+1. the accepted task/request itself;
+2. an explicit affirmative instruction in the operating agent's OWN
+   applicable lesson.
+
+Sibling lessons are knowledge, not authority. A service merely mentioned in a
+retrieved lesson is not an obligation. Every considered lesson is recorded with
+its id, topic, scope, goal id and source-agent id; rejected candidates carry a
+reason.
+
+The smoke agent's own two lessons name no correspondence. Thirteen sibling
+email/attachment lessons (Sales Agent, Chat Assistant, atom_main) previously
+forced `required=['datasets','outlook']`; they are now recorded as rejected
+candidates and the captured review request resolves to `['datasets']`.
+
+### 3. Review recovery
+
+The accepted original objective owns the review contract. `review_requested`
+reads it across confirmation and recovery text, so “go ahead” cannot downgrade
+“assess this record” into “show this workbook”. Recovery stages a stored read
+as evidence for narration rather than serving it as the answer. If narration is
+unavailable, a review turn returns no deterministic raw read and remains
+incomplete for recovery.
+
+Captured control: review requested → read persisted → narration interrupted →
+structured review still required; narration success → validated review
+completes without a re-read.
+
+### 4. Confirmation latency
+
+For an accepted pending task plus an exact confirmation, the stored objective
+and resolved file are reused before general interpretation. The general model
+call is skipped and the interpretation stage is logged in seconds. Deadlines
+and provider choices are unchanged.
+
+## Verification at freeze
+
+- Captured launch journey: 1 test covering ordinary completion, missing data,
+  source authority, confirmation and review recovery.
+- Blocker regressions: 18 tests across partial delivery, source requirements,
+  review obligation and pending-task fast path.
+- Focused backend suite: **618 passed, 2 xfailed**. The **14 failures** also
+  fail unchanged on baseline `0271a10df` (refresh verdicts, two contrast
+  fixtures, two NLU/designation fixtures) and are not introduced here.
+- Smoke helper unit suites: 52 passed; the packaged copy still carries the
+  predecessor helper until the successor package is recopied.
+- Real captured lessons control: `required=['datasets']`; 13 sibling email
+  lessons recorded as rejected candidates.
+
+## Evidence handling
+
+Attempt-three evidence is preserved unchanged at
+`/Users/rushiparikh/projects/atom-releases/ae0c2fda3/evidence/cutover/attempt-20261026T234157Z/`.
+The raw candidate server log contains credential-bearing integration URLs and
+remains private until scrubbed.
