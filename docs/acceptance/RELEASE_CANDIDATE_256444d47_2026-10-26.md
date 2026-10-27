@@ -1,8 +1,8 @@
-# Release candidate `c072b62e9` — launch-blocker repair and freeze
+# Release candidate `256444d47` — launch-blocker repair and freeze
 
 **Prepared:** 2026-10-26
 **Predecessor:** `ae0c2fda3` (third attempt failed product smoke; rolled back)
-**Commit:** `c072b62e91be254c251e70d814fb76e5ab13a77c`
+**Commit:** `256444d471be254c251e70d814fb76e5ab13a77c`
 **Status:** code frozen; packaged smoke and isolated rehearsal pending.
 
 ## Launch promise (frozen for this release)
@@ -79,15 +79,38 @@ and provider choices are unchanged.
 
 - Captured launch journey: 1 test covering ordinary completion, missing data,
   source authority, confirmation and review recovery.
-- Blocker regressions: 18 tests across partial delivery, source requirements,
-  review obligation and pending-task fast path.
-- Focused backend suite: **618 passed, 2 xfailed**. The **14 failures** also
-  fail unchanged on baseline `0271a10df` (refresh verdicts, two contrast
-  fixtures, two NLU/designation fixtures) and are not introduced here.
-- Smoke helper unit suites: 52 passed; the packaged copy still carries the
-  predecessor helper until the successor package is recopied.
+- Blocker regressions: 21 tests across partial delivery, source requirements,
+  review obligation, aggregate gap facts, review delivery-retry and pending-task
+  fast path.
+- Focused backend suite: **624 passed, 2 xfailed, 171 targeted tests pass**.
+  The **14 failures** also fail unchanged on baseline `0271a10df` (refresh
+  verdicts, two contrast fixtures, two NLU/designation fixtures) and are not
+  introduced here.
+- Smoke helper unit suites: **53 passed** against the packaged successor copy.
 - Real captured lessons control: `required=['datasets']`; 13 sibling email
   lessons recorded as rejected candidates.
+
+## Independent review remediation
+
+The first independent pass (before rehearsal) found five blocker paths and two
+weak smoke assertions. They were repaired before this freeze:
+
+- The stored-read delivery-retry lane now detects an outstanding review and
+  routes to narration with the read as evidence; it never serves the raw block
+  as a completed assessment.
+- Recovered review payloads merge the matching durable structured result so the
+  review contract receives subjects/evidence.
+- Review delivery is marked before the durable session write; restart no longer
+  resurrects a pending task after a delivered partial or review.
+- `aggregate_calculation_facts` reads gaps from the actual aggregate record, not
+  the boolean `storage_read` marker. A failed aggregation is not settled as
+  delivered.
+- Reply-leg tasks persist source requirements; explicit source exclusion is
+  honored; document sources are derived; an empty derivation cannot erase an
+  accepted obligation.
+- Smoke now requires a delivered task receipt and the 0055/C5 gap for
+  Adjustments, and binds persisted review evidence to this turn's execution.
+
 
 ## Evidence handling
 
