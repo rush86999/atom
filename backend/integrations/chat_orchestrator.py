@@ -19367,6 +19367,28 @@ class ChatOrchestrator:
 
         if not mention or not original:
             return {"ok": False, "block": "", "reason": "pending task has no file identity"}
+        # REVIEW READ AUTHORITY: the accepted objective's record identifiers
+        # scope the read. File names and requested field labels mined from the
+        # prose are not targets.
+        try:
+            from core.chat_tool_planner import _assessment_request
+            from core.review_contract import accepted_subjects
+
+            if (_assessment_request(original)
+                    and not (pending_task or {}).get("requested_targets")):
+                _accepted_targets = accepted_subjects(
+                    original,
+                    catalogued_names=[
+                        mention,
+                        str(((pending_task or {}).get(
+                            "resolved_file") or {}).get("file_name") or ""),
+                    ],
+                )
+                if _accepted_targets:
+                    pending_task["requested_targets"] = list(
+                        _accepted_targets)
+        except Exception:  # noqa: BLE001 — additive
+            pass
         # FORMULA-REFERENCE OPERATION (2026-10-25 work order): use the
         # existing workbook evaluator, not the item/derivation lane. The
         # accepted operation is carried by the turn program; the grammar

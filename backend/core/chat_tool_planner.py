@@ -7642,6 +7642,29 @@ async def _datasets_named_file_block(
     )
 
     item_tokens = _resolve_active_items(query, context, candidate_probe_tokens)
+    # REVIEW SUBJECT AUTHORITY: the accepted objective names the records; the
+    # filename and field labels are not read targets. Apply the same accepted
+    # contract to the READ, not only to the review validator.
+    try:
+        if _assessment_request(lookup_text):
+            from core.review_contract import build_accepted_contract
+
+            _accepted_read_contract = build_accepted_contract(
+                lookup_text,
+                catalogued_names=[str(names.get(key) or "")],
+                source_version=str(prov.get("content_hash") or ""),
+            )
+            _accepted_read_subjects = list(
+                _accepted_read_contract.get("subjects") or [])
+            if _accepted_read_subjects:
+                item_tokens = _accepted_read_subjects
+                logger.info(
+                    "[review-read] accepted subjects replace mined targets: "
+                    "%r", item_tokens)
+    except Exception as _review_read_err:  # noqa: BLE001 — additive
+        logger.debug("review-read subject filter skipped: %r",
+                     _review_read_err)
+
     # IDENTITY-SHAPE FILTER ON THE ITEM SET (2026-10-01 live finding, T2
     # of the consistency run): an assertion like 'no. 381 is on Tennsmith
     # sheet under row 338' mined THREE items — 381 (real,
