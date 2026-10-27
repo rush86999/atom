@@ -27,7 +27,10 @@ import integrations.chat_orchestrator as chat
 from core.answer_presentation import build_structured_record, build_targets_from_scan
 from core.pending_file_task import FILE_TASK_SESSION_KEY
 from core.review_contract import build_accepted_contract
-from core.review_handoff import validate_read_receipt
+from core.review_handoff import (
+    reject_conflicting_identity_fields,
+    validate_read_receipt,
+)
 
 REVIEW_ASK = (
     "Using the uploaded orders.xlsx, review order O-1010 against the "
@@ -77,6 +80,7 @@ def _record(
     *,
     subject: str = "O-1010",
     file_name: str = "orders.xlsx",
+    resource_id: str = "r1",
     content_hash: str = "hash-1",
     targets=None,
     attempt_id: str = "attempt-replan",
@@ -86,7 +90,7 @@ def _record(
         source_identity={
             "file_name": file_name,
             "service": "datasets",
-            "resource_id": "r1",
+            "resource_id": resource_id,
             "content_hash": content_hash,
         },
         evidence_revision=evidence_revision,
@@ -99,13 +103,14 @@ def _record(
     )
 
 
-def _receipt(record, *, file_name=None, content_hash=None,
+def _receipt(record, *, file_name=None, resource_id=None,
+             content_hash=None,
              rendered="Workbook read: orders.xlsx | O-1010 | Orders!R2"):
     source = record.get("source_identity") or {}
     return {
         "service": "datasets",
-        "file_id": source.get("resource_id") or "r1",
-        "resource_id": source.get("resource_id") or "r1",
+        "file_id": resource_id or source.get("resource_id") or "r1",
+        "resource_id": resource_id or source.get("resource_id") or "r1",
         "file_name": file_name or source.get("file_name") or "orders.xlsx",
         "content_hash": content_hash or source.get("content_hash") or "hash-1",
         "identity_verified": True,
@@ -320,6 +325,17 @@ async def test_confirmation_adopts_one_subject_bound_read_and_delivers_review():
     assert pfr["structured_result"]["requested_items"] == ["O-1010"]
     assert pfr["evidence_index"][0]["retrieval_execution_id"] == (
         response["execution_id"])
+    canonical = {
+        "file_name": "orders.xlsx",
+        "resource_id": "r1",
+        "content_hash": "hash-1",
+    }
+    for identity in (
+            pfr["identity"],
+            pfr["structured_result"]["source_identity"],
+            pfr["evidence_index"][0]["source_identity"]):
+        for key, value in canonical.items():
+            assert identity[key] == value
     assert session[FILE_TASK_SESSION_KEY]["status"] == "delivered"
 
     # The delivered response and the persisted history are the same answer.
@@ -374,6 +390,99 @@ async def test_valid_replan_replaces_stale_empty_carrier_atomically():
     assert "O-1010" in carrier["rendered"]
     assert "no items were named" not in carrier["rendered"].lower()
     assert session[FILE_TASK_SESSION_KEY]["status"] == "delivered"
+
+
+def test_reject_conflicting_identity_fields_raises():
+    with pytest.raises(ValueError, match="conflicting read identity"):
+        reject_conflicting_identity_fields(
+            {"file_name": "orders.xlsx", "content_hash": "hash-1"},
+            {"file_name": "other.xlsx", "content_hash": "hash-2"},
+        )
+
+
+@pytest.mark.parametrize("field,value,revision", [
+    ("file_name", "other.xlsx", "hash-1:2026-10-27"),
+    ("resource_id", "r2", "hash-1:2026-10-27"),
+    ("content_hash", "hash-2", "hash-2:2026-10-27"),
+])
+def test_nested_identity_contradicting_correct_outer_receipt_is_rejected(
+        field, value, revision):
+    record = _record(evidence_revision=revision, **{field: value})
+    plan = planner.ToolPlan(
+        use_tool=True, service="datasets", intent="search", query="O-1010")
+    plan._result_meta = {"storage_read": _receipt(
+        record,
+        file_name="orders.xlsx",
+        resource_id="r1",
+        content_hash="hash-1",
+    )}
+
+    selected = validate_read_receipt(
+        plan,
+        _valid_contract(),
+        {"file_name": "orders.xlsx", "resource_id": "r1",
+         "content_hash": "hash-1"},
+        execution_id="exec-review",
+    )
+
+    assert selected["ok"] is False
+    assert "conflicting read identity" in selected["reason"]
+    assert selected["evidence_index"] == []
+
+
+@pytest.mark.parametrize("field,value", [
+    ("file_name", "other.xlsx"),
+    ("resource_id", "r2"),
+    ("content_hash", "hash-2"),
+])
+def test_outer_receipt_contradicting_correct_nested_record_is_rejected(
+        field, value):
+    record = _record()
+    plan = planner.ToolPlan(
+        use_tool=True, service="datasets", intent="search", query="O-1010")
+    plan._result_meta = {"storage_read": _receipt(
+        record, **{field: value})}
+
+    selected = validate_read_receipt(
+        plan,
+        _valid_contract(),
+        {"file_name": "orders.xlsx", "resource_id": "r1",
+         "content_hash": "hash-1"},
+        execution_id="exec-review",
+    )
+
+    assert selected["ok"] is False
+    assert "conflicting read identity" in selected["reason"]
+    assert selected["evidence_index"] == []
+
+
+def test_consistent_outer_and_nested_identity_is_accepted_canonical():
+    record = _record()
+    plan = planner.ToolPlan(
+        use_tool=True, service="datasets", intent="search", query="O-1010")
+    plan._result_meta = {"storage_read": _receipt(record)}
+
+    selected = validate_read_receipt(
+        plan,
+        _valid_contract(),
+        {"file_name": "orders.xlsx", "resource_id": "r1",
+         "content_hash": "hash-1"},
+        execution_id="exec-review",
+    )
+
+    assert selected["ok"] is True
+    assert selected["identity"]["file_name"] == "orders.xlsx"
+    assert selected["identity"]["resource_id"] == "r1"
+    assert selected["identity"]["content_hash"] == "hash-1"
+    structured_identity = selected["structured_result"]["source_identity"]
+    assert structured_identity["file_name"] == "orders.xlsx"
+    assert structured_identity["resource_id"] == "r1"
+    assert structured_identity["content_hash"] == "hash-1"
+    evidence_identity = selected["evidence_index"][0]["source_identity"]
+    assert evidence_identity["file_name"] == "orders.xlsx"
+    assert evidence_identity["resource_id"] == "r1"
+    assert evidence_identity["content_hash"] == "hash-1"
+    assert "orders.xlsx" in selected["presentation"]
 
 
 def test_datasets_search_metadata_alone_is_not_evidence():
@@ -497,6 +606,10 @@ async def test_narration_failure_keeps_evidence_and_retry_reuses_it():
     assert pfr["status"] == "retrieved"
     assert pfr["structured_result"]["requested_items"] == ["O-1010"]
     assert pfr["evidence_index"][0]["evidence_id"] == "ev:O-1010:Orders!R2"
+    retrieval_execution_id = pfr["source_execution_id"]
+    assert retrieval_execution_id == first["execution_id"]
+    assert pfr["evidence_index"][0][
+        "retrieval_execution_id"] == retrieval_execution_id
     assert session[FILE_TASK_SESSION_KEY]["status"] == "retrieved"
     assert "VALIDATED REVIEW" not in (first.get("message") or "")
 
@@ -527,4 +640,10 @@ async def test_narration_failure_keeps_evidence_and_retry_reuses_it():
     assert second["success"] is True
     assert "VALIDATED REVIEW" in second["message"]
     assert session[FILE_TASK_SESSION_KEY]["status"] == "delivered"
-    assert session["_pending_file_result"]["status"] == "delivered"
+    retried = session["_pending_file_result"]
+    assert retried["status"] == "delivered"
+    assert retried["source_execution_id"] == retrieval_execution_id
+    assert retried["evidence_index"][0][
+        "retrieval_execution_id"] == retrieval_execution_id
+    assert retrieval_execution_id in second["data"]["review_result"][
+        "source_execution_ids"]

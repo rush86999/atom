@@ -139,6 +139,52 @@ def same_contract_inputs(
 # for "what this review accepted" and "which read may supply it").  The
 # implementation lives in core.review_handoff to keep receipt extraction and
 # carrier adoption out of the pure contract helpers above.
+def extract_receipt_identity(receipt: Any) -> Dict[str, Any]:
+    from core.review_handoff import extract_receipt_identity as _extract
+
+    return _extract(receipt)
+
+
+def extract_record_identity(record: Any) -> Dict[str, Any]:
+    from core.review_handoff import extract_record_identity as _extract
+
+    return _extract(record)
+
+
+def identity_conflicts(
+    receipt_identity: Optional[Dict[str, Any]],
+    record_identity: Optional[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    from core.review_handoff import identity_conflicts as _conflicts
+
+    return _conflicts(receipt_identity, record_identity)
+
+
+def reject_conflicting_identity_fields(
+    receipt_identity: Optional[Dict[str, Any]],
+    record_identity: Optional[Dict[str, Any]],
+) -> None:
+    from core.review_handoff import (
+        reject_conflicting_identity_fields as _reject,
+    )
+
+    return _reject(receipt_identity, record_identity)
+
+
+def validate_against_bound_source(
+    receipt_identity: Optional[Dict[str, Any]],
+    record_identity: Optional[Dict[str, Any]],
+    bound_source: Optional[Dict[str, Any]],
+    **kwargs: Any,
+) -> str:
+    from core.review_handoff import (
+        validate_against_bound_source as _validate,
+    )
+
+    return _validate(
+        receipt_identity, record_identity, bound_source, **kwargs)
+
+
 def validate_read_receipt(
     planner_result: Any,
     accepted_contract: Optional[Dict[str, Any]],

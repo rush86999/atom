@@ -33,6 +33,7 @@ _IDENTITY_KEYS = (
     "source_version",
     "version",
 )
+_VERSION_KEYS = ("content_hash", "source_version", "version")
 _RECEIPT_KEYS = ("storage_read", "structured_result", "file_read", "datasets_search")
 
 
@@ -132,23 +133,153 @@ def _is_structured_record(record: Any) -> bool:
     )
 
 
-def _record_identity(
-    record: Dict[str, Any],
-    receipt: Dict[str, Any],
-) -> Dict[str, Any]:
+def _identity_from_source(source: Any) -> Dict[str, Any]:
     identity: Dict[str, Any] = {}
-    for source in (receipt, record.get("source_identity")):
-        if not isinstance(source, dict):
-            continue
-        nested = source.get("identity")
-        if isinstance(nested, dict):
-            for key in _IDENTITY_KEYS:
-                if nested.get(key) and not identity.get(key):
-                    identity[key] = nested.get(key)
+    if not isinstance(source, dict):
+        return identity
+    nested = source.get("identity")
+    if isinstance(nested, dict):
         for key in _IDENTITY_KEYS:
-            if source.get(key) and not identity.get(key):
-                identity[key] = source.get(key)
+            if nested.get(key):
+                identity[key] = nested.get(key)
+    for key in _IDENTITY_KEYS:
+        if source.get(key) and not identity.get(key):
+            identity[key] = source.get(key)
     return identity
+
+
+def extract_receipt_identity(receipt: Any) -> Dict[str, Any]:
+    """The identity the OUTER receipt asserts, without the nested record."""
+    return _identity_from_source(receipt)
+
+
+def extract_record_identity(record: Any) -> Dict[str, Any]:
+    """The identity the nested STRUCTURED RECORD asserts."""
+    if not isinstance(record, dict):
+        return {}
+    return _identity_from_source(record.get("source_identity"))
+
+
+def _identity_equal(field: str, left: Any, right: Any) -> bool:
+    if field == "file_name":
+        return _key(_basename(left)) == _key(_basename(right))
+    return _clean(left).casefold() == _clean(right).casefold()
+
+
+def identity_conflicts(
+    receipt_identity: Optional[Dict[str, Any]],
+    record_identity: Optional[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Every field both identities state with DIFFERENT values.
+
+    Both sides are evidence.  A matching outer receipt cannot launder a
+    contradictory nested record (or vice versa), so callers must reject the
+    selection rather than picking the convenient side.
+    """
+    receipt = _as_dict(receipt_identity)
+    record = _as_dict(record_identity)
+    conflicts: List[Dict[str, Any]] = []
+    for key in _IDENTITY_KEYS:
+        left = receipt.get(key)
+        right = record.get(key)
+        if left and right and not _identity_equal(key, left, right):
+            conflicts.append({
+                "field": key,
+                "receipt": left,
+                "record": right,
+            })
+
+    # A hash may ride under content_hash on one side and source_version /
+    # version on the other.  Same key names are checked above; this closes
+    # the cross-key version contradiction.
+    receipt_versions = {
+        _clean(receipt.get(key)).casefold()
+        for key in _VERSION_KEYS if receipt.get(key)
+    }
+    record_versions = {
+        _clean(record.get(key)).casefold()
+        for key in _VERSION_KEYS if record.get(key)
+    }
+    if receipt_versions and record_versions and (
+            receipt_versions != record_versions):
+        conflicts.append({
+            "field": "version",
+            "receipt": sorted(receipt_versions),
+            "record": sorted(record_versions),
+        })
+    return conflicts
+
+
+def reject_conflicting_identity_fields(
+    receipt_identity: Optional[Dict[str, Any]],
+    record_identity: Optional[Dict[str, Any]],
+) -> None:
+    """Raise when the two identity statements disagree."""
+    conflicts = identity_conflicts(receipt_identity, record_identity)
+    if conflicts:
+        detail = "; ".join(
+            f"{item['field']}: receipt={item['receipt']!r} "
+            f"record={item['record']!r}"
+            for item in conflicts
+        )
+        raise ValueError(f"conflicting read identity — {detail}")
+
+
+def canonical_identity(
+    receipt_identity: Optional[Dict[str, Any]],
+    record_identity: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """One identity for every downstream consumer, after conflict checks."""
+    receipt = _as_dict(receipt_identity)
+    record = _as_dict(record_identity)
+    canonical: Dict[str, Any] = {}
+    for key in _IDENTITY_KEYS:
+        if receipt.get(key):
+            canonical[key] = receipt[key]
+        elif record.get(key):
+            canonical[key] = record[key]
+    return canonical
+
+
+def with_canonical_identity(
+    record: Dict[str, Any],
+    canonical: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Return a record whose source identity is the canonical one.
+
+    This is called ONLY after conflicting fields have been rejected; it may
+    fill a missing identity field, never overwrite a contradictory one.
+    """
+    normalized = dict(record)
+    source = dict(record.get("source_identity") or {})
+    for key in _IDENTITY_KEYS:
+        if canonical.get(key):
+            source[key] = canonical[key]
+    normalized["source_identity"] = source
+    return normalized
+
+
+def validate_against_bound_source(
+    receipt_identity: Optional[Dict[str, Any]],
+    record_identity: Optional[Dict[str, Any]],
+    bound_source: Optional[Dict[str, Any]],
+    *,
+    record: Optional[Dict[str, Any]] = None,
+    accepted_contract: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Why the canonical identity is not the bound source, or ``""``."""
+    canonical = canonical_identity(receipt_identity, record_identity)
+    binding = _as_dict(bound_source)
+    contract_version = _clean(
+        (accepted_contract or {}).get("source_version")
+        if isinstance(accepted_contract, dict) else "")
+    if contract_version and not _version_of(binding):
+        binding["source_version"] = contract_version
+    return _bound_source_mismatch(
+        binding or {"content_hash": contract_version},
+        canonical,
+        record or {},
+    )
 
 
 def _version_of(identity: Dict[str, Any]) -> str:
@@ -336,23 +467,33 @@ def validate_structured_read(
         failure["reason"] = "receipt has no structured read record"
         return failure
 
-    merged_identity = _record_identity(
-        record, {"identity": _as_dict(identity)})
-    binding = _as_dict(bound_source)
-    if contract.get("source_version") and not _version_of(binding):
-        binding["source_version"] = _clean(contract.get("source_version"))
-    if not binding and contract.get("source_version"):
-        binding["source_version"] = _clean(contract.get("source_version"))
-    mismatch = _bound_source_mismatch(
-        binding or {
-            "content_hash": contract.get("source_version") or "",
-        },
-        merged_identity,
-        record,
+    receipt_identity = extract_receipt_identity(identity)
+    record_identity = extract_record_identity(record)
+    conflicts = identity_conflicts(receipt_identity, record_identity)
+    if conflicts:
+        failure["reason"] = "conflicting read identity — " + "; ".join(
+            f"{item['field']}: receipt={item['receipt']!r} "
+            f"record={item['record']!r}"
+            for item in conflicts
+        )
+        failure["identity"] = canonical_identity(
+            receipt_identity, record_identity)
+        failure["identity_conflicts"] = conflicts
+        return failure
+
+    canonical = canonical_identity(receipt_identity, record_identity)
+    record = with_canonical_identity(record, canonical)
+    failure["structured_result"] = record
+    mismatch = validate_against_bound_source(
+        receipt_identity,
+        record_identity,
+        bound_source,
+        record=record,
+        accepted_contract=contract,
     )
     if mismatch:
         failure["reason"] = mismatch
-        failure["identity"] = merged_identity
+        failure["identity"] = canonical
         return failure
 
     rows, missing = _subject_rows(record, subjects)
@@ -361,14 +502,14 @@ def validate_structured_read(
             "receipt has no matching row for accepted subject(s): "
             + ", ".join(missing)
         )
-        failure["identity"] = merged_identity
+        failure["identity"] = canonical
         failure["subjects_found"] = sorted(rows)
         return failure
 
     evidence_index = build_evidence_index(record, subjects=subjects)
     if not evidence_index:
         failure["reason"] = "receipt produced no subject-bound evidence"
-        failure["identity"] = merged_identity
+        failure["identity"] = canonical
         failure["subjects_found"] = sorted(rows)
         return failure
 
@@ -379,7 +520,7 @@ def validate_structured_read(
     )
     if not operation:
         failure["reason"] = "receipt has no retrieval operation identity"
-        failure["identity"] = merged_identity
+        failure["identity"] = canonical
         failure["subjects_found"] = sorted(rows)
         return failure
 
@@ -397,7 +538,7 @@ def validate_structured_read(
         "presentation": _presentation_for(record, subjects, rendered),
         "rendered": _text(rendered),
         "evidence_index": evidence_index,
-        "identity": merged_identity,
+        "identity": canonical,
         "workbook_read": workbook_read,
         "source_execution_id": execution,
         "subjects": subjects,
@@ -425,12 +566,11 @@ def validate_read_receipt(
     for label, record, receipt in _iter_receipt_records(meta):
         if not _is_structured_record(record):
             continue
-        identity = _record_identity(record, receipt)
         selected = validate_structured_read(
             record,
             accepted_contract,
             bound_source,
-            identity=identity,
+            identity=extract_receipt_identity(receipt),
             rendered=_text(
                 receipt.get("rendered_answer")
                 or receipt.get("rendered")
