@@ -74,7 +74,7 @@ def test_review_arriving_after_deadline_is_not_certified():
         current_error_code="outcome_unconfirmed",
     )
     assert success is False
-    assert outcome == "unconfirmed"
+    assert outcome == "failed"
 
 
 def test_unvalidated_review_fails_the_turn():
@@ -105,7 +105,7 @@ def test_review_without_a_clock_reading_cannot_claim_completion():
         current_error_code="outcome_unconfirmed",
     )
     assert success is False
-    assert outcome == "unconfirmed"
+    assert outcome == "failed"
 
 
 def test_pre_deadline_review_survives_late_finalization():
@@ -136,3 +136,19 @@ def test_recorded_outcome_consumes_the_resolved_state():
     })
     assert resolved["outcome"] == "completed"
     assert resolved["success"] is True
+
+
+def test_non_review_turn_keeps_its_provisional_envelope():
+    success, outcome, error = resolve_review_envelope(
+        review_required=False,
+        review_result=None,
+        reviewed_at_elapsed_s=None,
+        deadline_total_s=95.0,
+        cancelled=False,
+        current_success=True,
+        current_outcome=None,
+        current_error_code=None,
+    )
+    assert success is True
+    assert outcome is None
+    assert error is None

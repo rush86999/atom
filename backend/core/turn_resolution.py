@@ -56,5 +56,7 @@ def resolve_review_envelope(
                 for assessment in (review_result.get("assessments") or [])
                 if isinstance(assessment, dict))
             return True, ("partial" if gaps else "completed"), None
-        return current_success, current_outcome, current_error_code
+        # A required review outside its clock is not success, even when the
+        # provisional same-turn envelope already looked successful.
+        return False, "failed", "turn_objective_not_met"
     return False, "failed", "turn_objective_not_met"

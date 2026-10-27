@@ -10472,6 +10472,10 @@ class ChatOrchestrator:
                         tenant_id=_turn_scope.get("tenant_id"))
                 except Exception:  # noqa: BLE001 — best-effort
                     _pfr = None
+            if isinstance(_pfr, dict):
+                # Restart/worker switch: narration and the task outcome must
+                # read the SAME adopted result, not an empty session carrier.
+                session["_pending_file_result"] = _pfr
             # NOTE: the reply leg's evidence-bound narration guard reads the
             # record THIS turn produced, not this persisted copy — see
             # `_turn_structured_record` in `_get_qwen_response`, which is bound
@@ -10659,8 +10663,6 @@ class ChatOrchestrator:
                                 _delivered_review[
                                     "reused_from_execution_id"] = (
                                         _stored_review.get("execution_id"))
-                                _delivered_review[
-                                    "reviewed_at_elapsed_s"] = 0.0
                                 _reuse_block = render_review_result(
                                     _delivered_review)
                                 _reuse_message = str(
@@ -10751,6 +10753,17 @@ class ChatOrchestrator:
                                     "reused validated assessment (zero read, "
                                     "new delivery)")
                                 return _reuse_response
+                            # The current turn names different subjects or
+                            # fields: it is a NEW review request. Do not let
+                            # the stored O-1010 objective own an O-1001 turn.
+                            if not _current_matches_stored:
+                                _delivery_review = False
+                                _review_objective_hint = ""
+                                _prefetched_review_block = ""
+                                logger.info(
+                                    "[pending-file-task] stored review does "
+                                    "not match this request — normal review "
+                                    "lane owns the turn")
                         except Exception as _reuse_err:  # noqa: BLE001
                             logger.debug(
                                 "review reuse skipped: %r", _reuse_err)
@@ -18630,22 +18643,24 @@ class ChatOrchestrator:
                 else:
                     response["error_code"] = _resolved_error
                     response["outcome"] = "failed"
-                # ONE RECORDED OUTCOME: the route finalizer must consume the
-                # same resolution, not the pre-review fallback.
-                _recorded_resolved = (
-                    dict(response.get("_recorded_outcome"))
-                    if isinstance(response.get("_recorded_outcome"), dict)
-                    else {})
-                _recorded_resolved.update({
-                    "state": response.get("outcome") or "failed",
-                    "work_turn": True,
-                    "noop": False,
-                    "declined": False,
-                    "delivered": bool(response.get("success")),
-                })
-                response["_recorded_outcome"] = _recorded_resolved
-                if isinstance(session, dict):
-                    session["_recorded_outcome"] = _recorded_resolved
+                # ONE RECORDED OUTCOME: only a review turn rewrites the
+                # recorded state. Non-review turns keep their existing
+                # noop/declined/outcome semantics untouched.
+                if _review_required_state:
+                    _recorded_resolved = (
+                        dict(response.get("_recorded_outcome"))
+                        if isinstance(response.get("_recorded_outcome"), dict)
+                        else {})
+                    _recorded_resolved.update({
+                        "state": response.get("outcome") or "failed",
+                        "work_turn": True,
+                        "delivered": bool(response.get("success")),
+                    })
+                    _recorded_resolved.setdefault("noop", False)
+                    _recorded_resolved.setdefault("declined", False)
+                    response["_recorded_outcome"] = _recorded_resolved
+                    if isinstance(session, dict):
+                        session["_recorded_outcome"] = _recorded_resolved
             except Exception as _resolve_err:  # noqa: BLE001 — fail closed
                 logger.warning(
                     "[turn-resolution] final resolution failed closed: %r",
@@ -18703,13 +18718,9 @@ class ChatOrchestrator:
             except Exception:  # noqa: BLE001 — bookkeeping only
                 pass
 
-            # Update session with new context
-            self._update_session(session, message, response, intent_analysis)
-
-            await self._emit_agent_status(
-                session_id, _trace_agent_id, _execution_id,
-                "success" if response.get("success", True) else "failed",
-            )
+            # FINALIZE BEFORE PERSISTENCE: the task-outcome alignment is the
+            # last writer of success/outcome. Status, history and the returned
+            # envelope must consume that same resolution.
             _bound_pfr = session.get("_pending_file_result")
             self._finish_chat_execution(
                 _execution_id,
@@ -18731,6 +18742,22 @@ class ChatOrchestrator:
                     isinstance(_bound_pfr, dict)
                     and _bound_pfr.get("status") in ("retrieved", "delivered")),
             )
+            if _review_required_state and isinstance(
+                    response.get("_recorded_outcome"), dict):
+                _final_recorded = dict(response["_recorded_outcome"])
+                _final_recorded["state"] = (
+                    response.get("outcome") or "failed")
+                _final_recorded["delivered"] = bool(
+                    response.get("success"))
+                response["_recorded_outcome"] = _final_recorded
+                if isinstance(session, dict):
+                    session["_recorded_outcome"] = _final_recorded
+            await self._emit_agent_status(
+                session_id, _trace_agent_id, _execution_id,
+                "success" if response.get("success", True) else "failed",
+            )
+            # Update session with the FINAL response.
+            self._update_session(session, message, response, intent_analysis)
             return response
 
         except Exception as e:
