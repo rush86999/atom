@@ -18,12 +18,12 @@ import pytest
 DEV_SMOKE = Path(__file__).resolve().parents[1] / "smoke_release_candidate_ae0c2fda3.py"
 PACKAGED_SMOKE = Path(os.environ.get(
     "ATOM_RELEASE_SMOKE_PATH",
-    "/Users/rushiparikh/projects/atom-releases/40a55b283/scripts/"
+    "/Users/rushiparikh/projects/atom-releases/a1d357410/scripts/"
     "smoke_release_candidate_ae0c2fda3.py",
 ))
 CANDIDATE_BACKEND = Path(os.environ.get(
     "ATOM_CANDIDATE_BACKEND",
-    "/Users/rushiparikh/projects/atom-releases/40a55b283/backend",
+    "/Users/rushiparikh/projects/atom-releases/a1d357410/backend",
 ))
 VERBOSE_CONFIRMATIONS = (
     "Yes, go ahead. This is the confirmation — run the saved workbook lookup "

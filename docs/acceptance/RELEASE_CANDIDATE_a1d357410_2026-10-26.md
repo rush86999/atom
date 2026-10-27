@@ -1,8 +1,8 @@
-# Release candidate `40a55b283` — launch-blocker repair and freeze
+# Release candidate `a1d357410` — launch-blocker repair and freeze
 
 **Prepared:** 2026-10-26
 **Predecessor:** `ae0c2fda3` (third attempt failed product smoke; rolled back)
-**Commit:** `40a55b2831be254c251e70d814fb76e5ab13a77c`
+**Commit:** `a1d3574101be254c251e70d814fb76e5ab13a77c`
 **Status:** code frozen; packaged smoke and isolated rehearsal pending.
 
 ## Launch promise (frozen for this release)
@@ -188,3 +188,15 @@ without Process/Escalate options settles as an ordinary sourced answer.
   read execution remains in source evidence.
 - Repeat reuse requires the current message's subjects/fields to match and
   uses `validated_contract`; a failed revalidation clears the prior review.
+
+### Final focused delta
+
+- The resolved `_recorded_outcome` write is review-only; non-review turns
+  keep their existing success/outcome semantics (Adjustments remains
+  delivered-with-gaps).
+- A new-subject message clears the stored-review hints so the current request
+  owns the turn.
+- Post-deadline/clockless reviews demote provisional success to failed;
+  reused assessments keep their original review clock.
+- Finish/alignment runs before session persistence; the recorded outcome is
+  re-bound to the final envelope.
