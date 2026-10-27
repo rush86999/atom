@@ -1,11 +1,9 @@
 # Cutover runbook — `ae0c2fda3` over pilot `c912375de`
 
-**Status:** two authorized attempts executed; **both failed before product
-smoke**. The second attempt failed at guided-agent creation (HTTP 201) and
-automatic code rollback succeeded. `c912375de` is serving as PID `13038`.
-The guided-agent contract and the full setup battery are now corrected and
-frozen; candidate is not deployed. A third attempt remains separately
-unauthorized.
+**Status:** three authorized attempts executed. The third reached the product
+smoke and failed functional checks; automatic code rollback succeeded.
+`c912375de` is serving as PID `19046`. Candidate is not deployed. A fourth
+attempt remains separately unauthorized.
 **Approval token:** `ATOM_DEPLOY_APPROVED=ae0c2fda3`
 **Script:** `scripts/deploy_release_candidate_ae0c2fda3.sh`
 
@@ -53,7 +51,7 @@ Fixes prepared for a second attempt:
   a no-network parity test runs against the development and packaged helpers
   and the frozen candidate classifier;
 - the recorded pilot PID is read from `evidence/cutover/pilot_pid.txt`
-  (currently `13038`) and still checked against command/cwd/port.
+  (currently `19046`) and still checked against command/cwd/port.
 
 ## Second attempt outcome (2026-10-26T22:53:46Z)
 
@@ -95,6 +93,31 @@ candidate guided-route integration check with the generation factory mocked.
 It also retains the exact-`go ahead` confirmation controls. **51 tests pass**
 in `evidence/cutover/setup-contract-20261026.txt`.
 
+## Third attempt outcome (2026-10-26T23:41:57Z)
+
+Setup passed end to end, including guided-agent 201, canvas/upload, and
+teaching. The product smoke then ran and failed:
+
+- PO Register approved rows passed: CAD **8050.00**, USD **3999.96**.
+- Adjustments content passed (**−700.00 CAD**, gap **0055/C5**, total
+  withheld), but the confirmed `go ahead` turn returned
+  `success=false/outcome=unconfirmed/outcome_unconfirmed`.
+- O-1010 before correction: partial saved-lookup, then two
+  `turn_budget_exceeded`; no structured review.
+- O-1010 after correction: `turn_budget_exceeded`, then
+  `turn_failed_no_result`; no row citation or review.
+- O-1001 sourced: `turn_budget_exceeded` throughout; no structured review.
+- Repeated O-1001: one `turn_budget_exceeded`, then a deterministic workbook
+  read with no structured `review_result`; no identical no-op.
+- History persisted, teaching stored, workbook hashes unchanged, no task
+  operations/tasks, canvas actions setup-only, health identity passed.
+
+Automatic code rollback succeeded: `c912375de` PID `19046`, healthy,
+`database_restored=false`. No repair or retry was performed. Evidence:
+`evidence/cutover/attempt-20261026T234157Z/`; smoke-created records preserved
+(agent, canvas, 3 dataset entries, 5 sessions, 32 messages, 13 executions, 4
+canvas-audit actions). No fourth attempt has run or been authorized.
+
 ## Fixed identities
 
 | Item | Value |
@@ -105,7 +128,7 @@ in `evidence/cutover/setup-contract-20261026.txt`.
 | Archive SHA-256 | `33a317c2b981f5947f854056aad8b11ffce4ac8c0a6b908e96f998d5dca4f526` |
 | Rollback release | `/Users/rushiparikh/projects/atom-releases/c912375de` |
 | Rollback commit | `c912375de81b55465e61fe468bf0bc2b405fd206` |
-| Pilot PID / port | `13038` / `8001` (recorded in `evidence/cutover/pilot_pid.txt`) |
+| Pilot PID / port | `19046` / `8001` (recorded in `evidence/cutover/pilot_pid.txt`) |
 | Smoke admin credential | `/Users/rushiparikh/projects/atom/backend/logs/acceptance_admin_password.txt` |
 | Live data | `/Users/rushiparikh/projects/atom/backend/data` |
 | Live env | `/Users/rushiparikh/projects/atom/backend/.env` |
@@ -128,7 +151,7 @@ Recorded result on 2026-10-26:
 ```
 ==> preflight candidate ae0c2fda340e9a85e840e310d84d4d0da4fedab8
 ==> candidate state: prepared
-==> pilot pid=13038 port=8001
+==> pilot pid=19046 port=8001
 ==> live smoke precheck (read-only)
 ==> live smoke precheck OK
 ==> preflight OK; no changes made
@@ -143,7 +166,7 @@ Preflight fails closed if any of these is false:
 
 - candidate/rollback identity commits and the canonical archive checksum;
 - candidate source tree matches the archive (source-only state);
-- recorded pilot PID (currently `13038`, from
+- recorded pilot PID (currently `19046`, from
   `evidence/cutover/pilot_pid.txt`) is alive, owns `--port 8001`, and its cwd
   is `c912375de/backend`;
 - `/api/health` reports healthy, that PID, cwd, and
@@ -302,7 +325,7 @@ evidence path. Normal code rollback keeps the post-cutover data.
 ## Checks after the failed attempt
 
 - `bash -n`: pass.
-- `--preflight` on the prepared candidate: pass with pilot PID `13038`, live
+- `--preflight` on the prepared candidate: pass with pilot PID `19046`, live
   smoke precheck OK, and zero live-DB writes.
 - `smoke...py --check-only` with the live acceptance-admin password: pass,
   including `admin_password_matches=true`.
@@ -327,5 +350,5 @@ evidence path. Normal code rollback keeps the post-cutover data.
   against both helper copies; the actual candidate guided route is exercised
   with the generation factory mocked. 51 tests pass.
 - Wrong approval token: exit `1`, no snapshot/link/stop/start.
-- Pilot is `c912375de` PID `13038`, healthy on `:8001`; candidate is prepared,
+- Pilot is `c912375de` PID `19046`, healthy on `:8001`; candidate is prepared,
   not running, and not deployed.

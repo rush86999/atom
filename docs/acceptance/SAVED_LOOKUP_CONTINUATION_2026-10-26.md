@@ -296,18 +296,17 @@ Package/docs:
 `docs/acceptance/CUTOVER_RUNBOOK_ae0c2fda3_2026-10-26.md`.
 The cutover now requires immediate live smoke, a scoped restart, post-restart
 agreement, and automatic code rollback to `c912375de` on any failure. Database
-restore is not part of normal rollback. Two authorized attempts were executed
-before any product turn. The first failed at smoke admin login (HTTP 401) and
-was manually recovered; the second passed preflight, backup and candidate
-startup, created one smoke agent, then failed at guided-agent HTTP 201 and
-automatically rolled code back to `c912375de` (PID `13038`, healthy). No
-database restore occurred. The confirmation helper now uses exactly `go ahead`
-and passes parity tests against the packaged helper and frozen classifier. The
-guided-agent contract now accepts only HTTP 201 with a valid payload/id,
-rejects 202 pending approval and malformed/failure payloads, and the rest of
-setup validates bodies/identifiers; 51 no-network setup tests pass against both
-helper copies and the actual guided route with the generation seam mocked. No
-third attempt has run.
+restore is not part of normal rollback. Three authorized attempts were
+executed. The first failed at smoke login (HTTP 401) and was manually recovered;
+the second failed at guided-agent HTTP 201 and auto-rolled back. The third
+passed setup and ran the product smoke: PO totals passed, Adjustments content
+passed but its confirmed turn was `outcome_unconfirmed`, and review turns
+returned `turn_budget_exceeded`/`turn_failed_no_result` without structured
+reviews; the repeated O-1001 returned a deterministic read without a structured
+review. Automatic code rollback restored `c912375de` (PID `19046`, healthy) with
+no database restore. Confirmation parity uses exactly `go ahead`; the guided
+agent 201 contract and 51-test setup battery are frozen. No fourth attempt has
+run or been authorized.
 
 ## Tests
 

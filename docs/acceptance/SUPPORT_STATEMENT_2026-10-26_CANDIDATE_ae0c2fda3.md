@@ -1,11 +1,11 @@
 # Support statement — release candidate `ae0c2fda3`
 
-**Status:** candidate-bound support statement; **not deployed**. Two
-authorized attempts were executed and failed before product smoke; the second
-attempt created one smoke agent and then rolled back automatically.
+**Status:** candidate-bound support statement; **not deployed**. Three
+authorized attempts were executed. The third reached the product smoke and
+failed functional checks; automatic code rollback restored the pilot.
 **Candidate source:** `ae0c2fda3` (includes spreadsheet `e14d3efdd` and
 trained-review fixes through `ae0c2fda3`).
-**Pilot:** `c912375de`, PID `13038`, healthy after automatic rollback.
+**Pilot:** `c912375de`, PID `19046`, healthy after automatic rollback.
 **Served acceptance base:** `c0c0d2e87` for the four review checks; combined
 served smoke on the candidate source `ae0c2fda3`.
 
@@ -59,14 +59,13 @@ For the tested candidate/configuration, the candidate supports:
   local controls, not by a served failure smoke.
 - **Scratch evidence.** The existing product smoke is scratch-world evidence,
   not a pilot/deployment soak.
-- **Live gate failed twice before a product turn.** Attempt one failed at admin
-  login (HTTP 401) and manual recovery; attempt two failed at guided-agent
-  creation (HTTP 201) after creating one smoke agent. Automatic code rollback
-  was healthy. The smoke contract now accepts only 201 with a valid payload/id,
-  rejects 202 pending approval and malformed/failure payloads, and validates the
-  rest of setup; 51 no-network setup tests pass against both helper copies and
-  the actual guided route with the generation seam mocked. No third attempt has
-  run.
+- **Live gate failed on the third attempt after product turns.** Setup passed
+  and PO totals passed; Adjustments content passed but its confirmed turn was
+  `outcome_unconfirmed`; O-1010/O-1001 review turns returned
+  `turn_budget_exceeded` or `turn_failed_no_result` with no structured review;
+  the repeated O-1001 returned a deterministic read without a structured
+  review. Automatic code rollback was healthy. This is candidate-bound live
+  smoke evidence; no broad product claim is made. No fourth attempt has run.
 - **Smoke data persists.** The live gate creates a named agent/canvas and
   uniquely named workbook uploads; rollback preserves them rather than erasing
   post-cutover work.
