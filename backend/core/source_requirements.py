@@ -19,15 +19,26 @@ _OUTLOOK_WORD = re.compile(
     r"\b(?:e-?mails?|outlook|inbox|attachments?|threads?|correspondence)\b",
     re.IGNORECASE,
 )
+_DOCUMENT_WORD = re.compile(
+    r"\b(?:documents?|docs?|pdfs?|docx?|word\s+files?)\b",
+    re.IGNORECASE,
+)
 _AFFIRMATIVE_VERB = re.compile(
     r"\b(?:check|search|read|review|verify|consult|include|use|rely\s+on|"
-    r"look\s+(?:at|through)|scan|pull|fetch|compare|cross[- ]?check|"
-    r"reconcile|match)\b",
+    r"look\s+(?:at|through|for)|scan|pull|fetch|compare|cross[- ]?check|"
+    r"find|locate|gather|reconcile|match)\b",
     re.IGNORECASE,
 )
 _NEGATED_OR_OUTBOUND = re.compile(
     r"\b(?:do\s+not|don't|never|without|avoid|no|send|draft|reply|forward)\b"
     r"[^.!?;\n]{0,60}$",
+    re.IGNORECASE,
+)
+# Explicit exclusion of a source ("check the email; do not use the workbook").
+_SOURCE_EXCLUDED = re.compile(
+    r"\b(?:do\s+not|don't|never|without|avoid|no|not)\s+"
+    r"(?:use|check|read|include|consult|look\s+at|rely\s+on)\b"
+    r"[^.!?;\n]{0,50}$",
     re.IGNORECASE,
 )
 _SOURCE_NAMES = {
@@ -64,6 +75,15 @@ def _explicit_mention(text: str, pattern: re.Pattern) -> bool:
         if _NEGATED_OR_OUTBOUND.search(prefix):
             continue
         if _AFFIRMATIVE_VERB.search(prefix):
+            return True
+    return False
+
+
+def _excluded_mention(text: str, pattern: re.Pattern) -> bool:
+    """Whether the source word is explicitly excluded by the request."""
+    for match in pattern.finditer(text or ""):
+        prefix = (text or "")[max(0, match.start() - 100):match.start()]
+        if _SOURCE_EXCLUDED.search(prefix):
             return True
     return False
 
@@ -107,6 +127,10 @@ def attach_source_requirements(
         str(service) for service in ((diagnostic or {}).get("sources") or [])
         if str(service).strip()
     ]
+    # A transient derivation failure must not erase an obligation the accepted
+    # task already owns. Only a successful derivation may replace the set.
+    if not sources and task.get("source_requirements"):
+        return task
     task["source_requirements"] = sources
     task["source_requirement_evidence"] = [
         {
@@ -140,13 +164,27 @@ def derive_required_research_sources(
     evidence: List[Dict[str, Any]] = []
     message_sources: List[str] = []
 
-    if _DATASET_WORD.search(message or ""):
+    if (
+        _DATASET_WORD.search(message or "")
+        and not _excluded_mention(message or "", _DATASET_WORD)
+    ):
         required.add("datasets")
         message_sources.append("datasets")
         evidence.append({
             "kind": "message",
             "source": "datasets",
             "reason": "request names a workbook/spreadsheet source",
+        })
+    if (
+        _DOCUMENT_WORD.search(message or "")
+        and not _excluded_mention(message or "", _DOCUMENT_WORD)
+    ):
+        required.add("documents")
+        message_sources.append("documents")
+        evidence.append({
+            "kind": "message",
+            "source": "documents",
+            "reason": "request names a document source",
         })
     if _explicit_mention(message or "", _OUTLOOK_WORD):
         required.add("outlook")
@@ -190,6 +228,7 @@ def derive_required_research_sources(
         sibling = bool(lesson.get("_source_agent_id"))
         for service, pattern in (
             ("datasets", _DATASET_WORD),
+            ("documents", _DOCUMENT_WORD),
             ("outlook", _OUTLOOK_WORD),
         ):
             if not pattern.search(text):

@@ -10514,6 +10514,37 @@ class ChatOrchestrator:
                     # overrides both delivery entrances.
                     _work_instruction = bool(
                         _WORK_INSTRUCTION_RE.search(message or ""))
+                    # A REVIEW IS NEVER A STORED-READ DELIVERY. If the
+                    # accepted task asks for an assessment, a bare "go ahead"
+                    # means "finish the review", not "show me the read again".
+                    # Keep the read as evidence and let narration produce the
+                    # validated review contract; the raw block must not settle
+                    # the review obligation.
+                    _delivery_review = False
+                    try:
+                        from core.chat_tool_planner import review_requested
+
+                        _stored_review_task = session.get(
+                            FILE_TASK_SESSION_KEY) or {}
+                        _stored_review_text = str(
+                            _stored_review_task.get("original_message")
+                            or _pfr.get("original_request")
+                            or "")
+                        _delivery_review = review_requested(
+                            _stored_review_task
+                            if isinstance(_stored_review_task, dict) else None,
+                            _stored_review_text or message)
+                        if _delivery_review:
+                            _review_objective_hint = (
+                                _stored_review_text or message)
+                            _prefetched_review_block = str(
+                                _pfr.get("rendered") or "")
+                            logger.info(
+                                "[pending-file-task] stored read is evidence "
+                                "for an outstanding review; narration required "
+                                "(zero re-read)")
+                    except Exception:  # noqa: BLE001 — flag is additive
+                        _delivery_review = False
                     _format_request = (
                         _continuation is not None
                         and _continuation.get("retrieval") == "none"
@@ -10586,6 +10617,7 @@ class ChatOrchestrator:
                         and not _outcome_seek_elsewhere
                         and not _result_reference_ask
                         and not _work_instruction
+                        and not _delivery_review
                     )
                 except Exception:  # noqa: BLE001 — shape checks only
                     _delivery_retry = False
@@ -10882,6 +10914,7 @@ class ChatOrchestrator:
             _ask_mention = ""
             _ask_direct = False
             _review_objective_hint = ""
+            _prefetched_review_block = ""
             try:
                 from core.agent_file_context import (
                     detect_file_task_mentions,
@@ -12490,17 +12523,18 @@ class ChatOrchestrator:
                         or _ask_result.get("named_document")
                         or str(_ask_result.get("block") or "").strip())
                     _ask_retrieval_finished = bool(
-                        _ask_result.get("ok")) and _ask_read_receipt
+                        _ask_result.get("ok")) and _ask_read_receipt and (
+                        _ask_result.get("read_executed") is not False)
                     _ask_aggregate = _ask_result.get("aggregate_record")
-                    _ask_open_requirements = []
-                    _ask_calculation_complete = _ask_complete
-                    if isinstance(_ask_aggregate, dict):
-                        _ask_calculation_complete = bool(
-                            _ask_aggregate.get("complete"))
-                        _ask_open_requirements = [
-                            dict(g) for g in (_ask_aggregate.get("gaps") or [])
-                            if isinstance(g, dict)
-                        ]
+                    from core.pending_file_task import (
+                        aggregate_calculation_facts,
+                    )
+
+                    (
+                        _ask_calculation_complete,
+                        _ask_open_requirements,
+                    ) = aggregate_calculation_facts(
+                        _ask_aggregate, _ask_complete)
                     _ask_miss_handoff_pending = (
                         os.getenv("ATOM_MISS_HANDOFF_NARRATION", "0")
                         .lower() in ("1", "true", "on")
@@ -13790,18 +13824,19 @@ class ChatOrchestrator:
                         or _direct_result.get("named_document")
                         or str(_direct_result.get("block") or "").strip())
                     _direct_retrieval_finished = bool(
-                        _direct_result.get("ok")) and _direct_read_receipt
-                    _direct_aggregate = _direct_result.get("aggregate_record")
-                    _direct_calculation_complete = _direct_complete
-                    _direct_open_requirements = []
-                    if isinstance(_direct_aggregate, dict):
-                        _direct_calculation_complete = bool(
-                            _direct_aggregate.get("complete"))
-                        _direct_open_requirements = [
-                            dict(g) for g in (_direct_aggregate.get("gaps")
-                                              or [])
-                            if isinstance(g, dict)
-                        ]
+                        _direct_result.get("ok")) and _direct_read_receipt and (
+                        _direct_result.get("read_executed") is not False)
+                    _direct_aggregate = _direct_result.get(
+                        "aggregate_record")
+                    from core.pending_file_task import (
+                        aggregate_calculation_facts as _agg_facts,
+                    )
+
+                    (
+                        _direct_calculation_complete,
+                        _direct_open_requirements,
+                    ) = _agg_facts(
+                        _direct_aggregate, _direct_complete)
                     _direct_answer_delivered = bool(
                         _direct_retrieval_finished
                         and _direct_content.strip())
@@ -14161,12 +14196,6 @@ class ChatOrchestrator:
                         "next_steps": _tl_next_steps,
                         "suggested_actions": [],
                     }
-                    self._update_session(
-                        session,
-                        message,
-                        _direct_response,
-                        {"primary_intent": "search", "confidence": 0.9},
-                    )
                     if _direct_retrieval_finished:
                         try:
                             from core.pending_file_task import (
@@ -14214,6 +14243,12 @@ class ChatOrchestrator:
                                     time.time())
                         except Exception:
                             pass
+                    self._update_session(
+                        session,
+                        message,
+                        _direct_response,
+                        {"primary_intent": "search", "confidence": 0.9},
+                    )
                     _direct_terminal_status = (
                         "success" if _direct_complete else "partial"
                     )
@@ -14719,6 +14754,31 @@ class ChatOrchestrator:
                         # A recovered read is still only the evidence for a
                         # review. Stage it for narration instead of serving
                         # the stored block as a completed answer.
+                        _r4_live_pfr = session.get("_pending_file_result")
+                        if not isinstance(_r4_live_pfr, dict):
+                            _r4_live_pfr = _pfr if isinstance(_pfr, dict) else {}
+                        _r4_payload_file = str(
+                            ((_recovery_payload.get("identity") or {})
+                             .get("file_name")) or "")
+                        _r4_live_file = str(
+                            ((_r4_live_pfr.get("identity") or {})
+                             .get("file_name")) or "")
+                        if (
+                            isinstance(_r4_live_pfr, dict)
+                            and _r4_live_pfr.get("structured_result")
+                            and (
+                                not _r4_payload_file
+                                or not _r4_live_file
+                                or _r4_payload_file == _r4_live_file)
+                        ):
+                            _recovery_payload = {
+                                **_recovery_payload,
+                                **_r4_live_pfr,
+                                "original_request": (
+                                    _recovery_payload.get(
+                                        "original_request")
+                                    or _r4_live_pfr.get("original_request")),
+                            }
                         _r4_stored = dict(_recovery_payload)
                         _r4_stored.setdefault(
                             "source_execution_id",
@@ -16934,6 +16994,7 @@ class ChatOrchestrator:
                 # them from the nested body silently disabled the lane.
                 _hoisted_prefetched_block = (
                     _shared_tool.get("block")
+                    or (locals().get("_prefetched_review_block") or "")
                     or (locals().get("_ask_handoff_block")
                         if locals().get("_ask_miss_handoff") else None))
                 _hoisted_miss_handoff = bool(
@@ -18232,6 +18293,43 @@ class ChatOrchestrator:
                     message, main_message, session_id, user_id
                 )
 
+            # DELIVERED marking (retrieval != delivery, 2026-09-24): the
+            # response is about to reach the user — a RETRIEVED result
+            # becomes DELIVERED only now; a failed turn leaves it
+            # RETRIEVED so the next turn re-renders without re-reading.
+            try:
+                from core.pending_file_task import (
+                    FILE_TASK_SESSION_KEY,
+                    mark_task_delivered,
+                )
+
+                _pfr_cur = session.get("_pending_file_result")
+                _review_ok_now = bool(
+                    (((locals().get("ai_response") or {}).get(
+                        "review_result") or {}).get("ok") is True)
+                    or ((((response.get("data") or {}).get(
+                        "review_result") or {}).get("ok")) is True))
+                _pfr_read_this_turn = bool(
+                    isinstance(_pfr_cur, dict)
+                    and str(_pfr_cur.get("execution_id") or "")
+                    == str(_execution_id or ""))
+                if (
+                    isinstance(_pfr_cur, dict)
+                    and _pfr_cur.get("status") == "retrieved"
+                    and response.get("success")
+                    and (response.get("deterministic_delivery")
+                         or _review_ok_now
+                         or _pfr_read_this_turn)
+                ):
+                    _pfr_cur["status"] = "delivered"
+                    _pfr_cur["delivered_at"] = time.time()
+                    _task_row = session.get(FILE_TASK_SESSION_KEY)
+                    if isinstance(_task_row, dict):
+                        session[FILE_TASK_SESSION_KEY] = mark_task_delivered(
+                            _task_row)
+            except Exception:  # noqa: BLE001 — bookkeeping only
+                pass
+
             # Update session with new context
             self._update_session(session, message, response, intent_analysis)
 
@@ -18257,31 +18355,6 @@ class ChatOrchestrator:
                     isinstance(_bound_pfr, dict)
                     and _bound_pfr.get("status") in ("retrieved", "delivered")),
             )
-            # DELIVERED marking (retrieval != delivery, 2026-09-24): the
-            # response is about to reach the user — a RETRIEVED result
-            # becomes DELIVERED only now; a failed turn leaves it
-            # RETRIEVED so the next turn re-renders without re-reading.
-            try:
-                from core.pending_file_task import (
-                    FILE_TASK_SESSION_KEY,
-                    mark_task_delivered,
-                )
-
-                _pfr_cur = session.get("_pending_file_result")
-                if (
-                    isinstance(_pfr_cur, dict)
-                    and _pfr_cur.get("status") == "retrieved"
-                    and response.get("success")
-                    and response.get("deterministic_delivery")
-                ):
-                    _pfr_cur["status"] = "delivered"
-                    _pfr_cur["delivered_at"] = time.time()
-                    _task_row = session.get(FILE_TASK_SESSION_KEY)
-                    if isinstance(_task_row, dict):
-                        session[FILE_TASK_SESSION_KEY] = mark_task_delivered(
-                            _task_row)
-            except Exception:  # noqa: BLE001 — bookkeeping only
-                pass
             return response
 
         except Exception as e:
@@ -19149,10 +19222,21 @@ class ChatOrchestrator:
                 "[pending-file-task] direct confirmed read failed: %r", exc
             )
             return {"ok": False, "block": "", "reason": str(exc)[:300]}
-        meta = (
-            (getattr(direct_plan, "_result_meta", None) or {})
-            .get("storage_read")
-            or {}
+        _plan_meta = getattr(direct_plan, "_result_meta", None) or {}
+        meta = _plan_meta.get("storage_read") or {}
+        _aggregate_record = _plan_meta.get("datasets_aggregate")
+        _aggregate_failed = (
+            isinstance(_aggregate_record, dict)
+            and str(_aggregate_record.get("status") or "") == "error")
+        _datasets_search = meta.get("datasets_search") or {}
+        _read_executed = bool(
+            (not _aggregate_failed)
+            and (
+                bool(block)
+                or isinstance(_aggregate_record, dict)
+                or bool(meta.get("structured_result"))
+            )
+            and (_datasets_search.get("executed") is not False)
         )
         identity_verified = bool(meta.get("identity_verified"))
         coverage_complete = bool(meta.get("coverage_complete"))
@@ -19186,7 +19270,12 @@ class ChatOrchestrator:
             "rendered_answer": meta.get("rendered_answer") or "",
             "structured_result": meta.get("structured_result"),
             "datasets_aggregate": bool(meta.get("datasets_aggregate")),
-            "aggregate_record": meta.get("datasets_aggregate"),
+            "aggregate_record": (
+                _aggregate_record
+                if isinstance(_aggregate_record, dict)
+                else meta.get("datasets_aggregate")
+                if isinstance(meta.get("datasets_aggregate"), dict) else None),
+            "read_executed": _read_executed,
             "formula_reference": bool(meta.get("formula_reference")),
             "reason": "" if block else "file-scoped reader returned no result",
         }
@@ -25186,6 +25275,29 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         }
                         session[FILE_TASK_SESSION_KEY] = mark_task_retrieved(
                             session.get(FILE_TASK_SESSION_KEY), _identity)
+                        try:
+                            from core.source_requirements import (
+                                attach_source_requirements,
+                            )
+
+                            _reply_task_row = session.get(
+                                FILE_TASK_SESSION_KEY)
+                            if isinstance(_reply_task_row, dict):
+                                _reply_source_diag = (
+                                    self._source_requirement_diagnostic(
+                                        agent_id=agent_id,
+                                        message=str(
+                                            _reply_task_row.get(
+                                                "original_message")
+                                            or message),
+                                        accepted_task=_reply_task_row,
+                                    ))
+                                session[FILE_TASK_SESSION_KEY] = (
+                                    attach_source_requirements(
+                                        _reply_task_row, _reply_source_diag
+                                    ) or _reply_task_row)
+                        except Exception:  # noqa: BLE001 — additive
+                            pass
                         logger.info(
                             "[pending-file-task] retrieval complete — "
                             "result persisted, delivery pending "
@@ -25197,6 +25309,29 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             session.get(FILE_TASK_SESSION_KEY), message,
                             _plan_mentions[0],
                             disambiguation)
+                        try:
+                            from core.source_requirements import (
+                                attach_source_requirements,
+                            )
+
+                            _reply_task_row = session.get(
+                                FILE_TASK_SESSION_KEY)
+                            if isinstance(_reply_task_row, dict):
+                                _reply_source_diag = (
+                                    self._source_requirement_diagnostic(
+                                        agent_id=agent_id,
+                                        message=str(
+                                            _reply_task_row.get(
+                                                "original_message")
+                                            or message),
+                                        accepted_task=_reply_task_row,
+                                    ))
+                                session[FILE_TASK_SESSION_KEY] = (
+                                    attach_source_requirements(
+                                        _reply_task_row, _reply_source_diag
+                                    ) or _reply_task_row)
+                        except Exception:  # noqa: BLE001 — additive
+                            pass
                         if _tool_block:
                             if _file_lookup_attempted:
                                 _note = (

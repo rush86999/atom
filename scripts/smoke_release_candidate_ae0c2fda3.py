@@ -608,8 +608,10 @@ def review_checks(db_path: str, record: dict, expected_decision: str,
     messages = message_meta(db_path, session_id)
     executions = execution_meta(db_path, session_id)
     persisted = any(
-        (((execution.get("task_outcome") or {}).get("delivery") or {})
-         .get("review_result") or {}).get("ok") is True
+        str(execution.get("execution_id") or "") == str(
+            final.get("execution_id") or "")
+        and (((execution.get("task_outcome") or {}).get("delivery") or {})
+             .get("review_result") or {}).get("ok") is True
         for execution in executions
     )
     metadata_match = any(
@@ -718,7 +720,17 @@ def spreadsheet_checks(db_path: str, record: dict, file_name: str,
         "fields_all_true": all(fields.values()),
     }
     persistence = turn_persistence_checks(
-        db_path, record, require_task_receipt=False)
+        db_path, record, require_task_receipt=True)
+    if kind == "adjustments":
+        session_id = final.get("session_id") or (
+            record.get("first") or {}).get("session_id")
+        session = session_meta(db_path, session_id) if session_id else {}
+        task = session.get("_pending_file_task") or {}
+        requirements = task.get("open_requirements") or []
+        persistence["gap_retained"] = any(
+            str(gap.get("item") or "") == "0055"
+            and str(gap.get("cell") or "").upper() == "C5"
+            for gap in requirements if isinstance(gap, dict))
     checks.update(persistence)
     checks["persistence_all_true"] = all(persistence.values())
     return checks

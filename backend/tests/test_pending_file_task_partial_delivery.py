@@ -63,3 +63,24 @@ def test_retrieved_but_undelivered_answer_stays_retrieved():
     assert settled["status"] == "retrieved"
     assert settled["answer_delivered"] is False
     assert settled["calculation_complete"] is True
+
+
+def test_boolean_aggregate_marker_never_supplies_gaps():
+    from core.pending_file_task import aggregate_calculation_facts
+
+    complete, gaps = aggregate_calculation_facts(True, fallback_complete=False)
+    assert complete is False
+    assert gaps == []
+
+
+def test_actual_aggregate_record_supplies_gaps_and_partial_status():
+    from core.pending_file_task import aggregate_calculation_facts
+
+    record = {
+        "complete": False,
+        "gaps": [{"item": "0055", "cell": "C5", "field": "Qty"}],
+    }
+    complete, gaps = aggregate_calculation_facts(
+        record, fallback_complete=True)
+    assert complete is False
+    assert gaps == [{"item": "0055", "cell": "C5", "field": "Qty"}]

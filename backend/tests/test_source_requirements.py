@@ -139,3 +139,34 @@ def test_accepted_task_records_source_authority_with_lesson_identity():
         ("lesson-cross-source", "goal",
          "applicable own lesson explicitly requires the source"),
     }
+
+
+def test_explicitly_excluded_workbook_does_not_add_datasets():
+    diag = derive_required_research_sources(
+        message=(
+            "Check the email thread for the approval; do not use the "
+            "workbook for this decision."),
+        lessons=[],
+    )
+
+    assert diag["sources"] == ["outlook"]
+
+
+def test_named_document_source_is_derived_from_the_request():
+    diag = derive_required_research_sources(
+        message="Read the attached policy PDF and summarize it.",
+        lessons=[],
+    )
+
+    assert diag["sources"] == ["documents"]
+
+
+def test_attach_preserves_existing_requirements_on_empty_derivation():
+    task = {
+        "task_id": "task-keep",
+        "source_requirements": ["datasets", "outlook"],
+    }
+
+    attached = attach_source_requirements(task, {"sources": []})
+
+    assert attached["source_requirements"] == ["datasets", "outlook"]

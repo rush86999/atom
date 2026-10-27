@@ -465,6 +465,27 @@ def mark_task_delivered(task: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     return delivered
 
 
+def aggregate_calculation_facts(
+    aggregate_record: Any,
+    fallback_complete: bool,
+) -> "tuple[bool, List[Dict[str, Any]]]":
+    """Read calculation completeness/gaps from the ACTUAL aggregate record.
+
+    ``storage_read.datasets_aggregate`` is a boolean marker; the record itself
+    lives beside it. Treating the marker as the record silently drops every
+    named gap, so only a dict may supply completeness and open requirements.
+    """
+    if isinstance(aggregate_record, dict):
+        return (
+            bool(aggregate_record.get("complete")),
+            [
+                dict(gap) for gap in (aggregate_record.get("gaps") or [])
+                if isinstance(gap, dict)
+            ],
+        )
+    return bool(fallback_complete), []
+
+
 def settle_retrieval_task(
     task: Optional[Dict[str, Any]],
     resolved_file: Optional[Dict[str, Any]],
