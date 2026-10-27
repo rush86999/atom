@@ -80,6 +80,26 @@ def requested_fields(objective: str) -> List[str]:
     return _unique(extract_field_requests([str(objective or "")]))[:20]
 
 
+def required_actions(objective: str) -> List[str]:
+    """Actions the accepted objective asks Atom itself to perform.
+
+    A review recommendation is not an action. This uses the request's own
+    assignment/obligation table; an action that cannot be grounded there is
+    not manufactured here.
+    """
+    try:
+        from core.turn_decision import extract_request_assignments
+
+        obligations = extract_request_assignments(str(objective or ""))
+    except Exception:  # noqa: BLE001 — contract remains usable
+        return []
+    return _unique([
+        str(action.get("text") or "").strip()
+        for action in (obligations.get("additional_actions") or [])
+        if isinstance(action, dict) and str(action.get("text") or "").strip()
+    ])[:8]
+
+
 def teaching_fingerprint(lessons: Optional[Sequence[Dict[str, Any]]]) -> str:
     """A stable revision for the applicable teaching/decision schema."""
     payload = []
@@ -113,6 +133,7 @@ def build_accepted_contract(
         "source_version": str(source_version or ""),
         "teaching_revision": teaching_fingerprint(lessons),
         "decision_schema": list(decision_options_from_lessons(lessons or [])),
+        "required_actions": required_actions(objective),
     }
 
 
@@ -129,6 +150,7 @@ def same_contract_inputs(
         "source_version",
         "teaching_revision",
         "decision_schema",
+        "required_actions",
     ):
         if list(stored.get(key) or []) != list(current.get(key) or []):
             return False

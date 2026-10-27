@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, Tuple
 
+from core.review_result import review_completion
+
 
 def resolve_review_envelope(
     *,
@@ -51,11 +53,10 @@ def resolve_review_envelope(
                 or float(deadline_total_s or 0) <= 0
                 or float(reviewed_at_elapsed_s) <= float(deadline_total_s))
         if within:
-            gaps = any(
-                (assessment.get("unresolved_requirements") or [])
-                for assessment in (review_result.get("assessments") or [])
-                if isinstance(assessment, dict))
-            return True, ("partial" if gaps else "completed"), None
+            completion = review_completion(review_result)
+            if completion == "incomplete":
+                return False, "failed", "turn_objective_not_met"
+            return True, completion, None
         # A required review outside its clock is not success, even when the
         # provisional same-turn envelope already looked successful.
         return False, "failed", "turn_objective_not_met"

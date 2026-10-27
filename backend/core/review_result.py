@@ -15,8 +15,13 @@ subject-bound evidence IDs and the retrieval identity. The platform validates:
   accepted retrieval operation;
 * policy IDs that resolve to teaching entries carrying the task's decision
   schema;
-* unresolved requirements (a missing input can justify an Escalate / Ask /
-  Request-More-Info decision without making the review incomplete).
+* decision basis (why the decision was made) separated from unresolved
+  accepted review work;
+* completion classification shared by first delivery and repeat reuse. A
+  business restriction or required action by another person is basis, not an
+  unfinished review; only accepted task work (or genuinely unclassified
+  uncertainty) makes the review partial, and an unperformed action the user
+  assigned to Atom makes it incomplete.
 
 ``execution_id`` identifies the DECISION/DELIVERY turn. The read's own
 provenance rides each assessment as ``source_execution_ids`` and
@@ -61,6 +66,194 @@ def _unique(values: Sequence[Any]) -> List[str]:
         seen.add(_record_key(text))
         out.append(text)
     return out
+
+
+_WORK_STOPWORDS = frozenset({
+    "the", "and", "or", "for", "from", "with", "that", "this", "those",
+    "these", "into", "onto", "per", "via", "was", "were", "are", "is",
+    "has", "have", "had", "not", "but", "its", "their", "your", "our",
+    "a", "an", "of", "to", "in", "on", "at", "by", "as", "be", "been",
+    "required", "requirement", "requirements", "missing", "needed",
+    "review", "reviewed", "task", "work", "still", "open", "unfinished",
+    "complete", "completed", "status", "value", "values", "field",
+})
+
+
+def _as_text_list(value: Any) -> List[str]:
+    if isinstance(value, str):
+        return _unique([value])
+    if isinstance(value, (list, tuple, set)):
+        return _unique([str(item) for item in value if str(item or "").strip()])
+    return []
+
+
+def _meaning_tokens(value: Any) -> set:
+    return {
+        token for token in re.findall(
+            r"[a-z0-9][a-z0-9_\-]+", _clean(value).casefold())
+        if len(token) >= 3
+        and token not in _WORK_STOPWORDS
+        and not token.isdigit()
+    }
+
+
+def _mentions_requirement(
+    text: Any,
+    requirements: Sequence[Any],
+) -> bool:
+    item_tokens = _meaning_tokens(text)
+    if not item_tokens:
+        return False
+    for requirement in requirements or []:
+        if item_tokens & _meaning_tokens(requirement):
+            return True
+    return False
+
+
+def accepted_requirement_texts(
+    contract: Optional[Dict[str, Any]],
+) -> List[str]:
+    """The accepted task's own subjects/fields/actions — not model prose."""
+    if not isinstance(contract, dict):
+        return []
+    out: List[str] = []
+    out.extend(_as_text_list(contract.get("subjects")))
+    out.extend(_as_text_list(contract.get("requested_fields")))
+    for action in contract.get("required_actions") or []:
+        if isinstance(action, dict):
+            text = action.get("text") or action.get("label") or action.get("kind")
+        else:
+            text = action
+        out.extend(_as_text_list(text))
+    return _unique(out)[:40]
+
+
+def required_action_texts(
+    contract: Optional[Dict[str, Any]],
+) -> List[str]:
+    if not isinstance(contract, dict):
+        return []
+    out: List[str] = []
+    for action in contract.get("required_actions") or []:
+        if isinstance(action, dict):
+            text = action.get("text") or action.get("label") or action.get("kind")
+        else:
+            text = action
+        out.extend(_as_text_list(text))
+    return _unique(out)[:12]
+
+
+def classify_assessment_work(
+    assessment: Dict[str, Any],
+    accepted_contract: Optional[Dict[str, Any]] = None,
+) -> Dict[str, List[str]]:
+    """Divide reported unresolved text into task work vs decision basis.
+
+    Precedence matters: a requested field/subject/action wins over a policy
+    phrase, so a genuinely missing requested value stays a gap. Unmatched
+    free text is preserved as uncertainty; it is never silently promoted to
+    a platform obligation or silently dropped.
+    """
+    basis = _as_text_list(assessment.get("basis"))
+    unresolved = _as_text_list(assessment.get("unresolved_requirements"))
+    requirements = accepted_requirement_texts(accepted_contract)
+    basis_sources: List[str] = list(basis)
+    for ref in assessment.get("policy_refs") or []:
+        if not isinstance(ref, dict):
+            continue
+        basis_sources.extend(_as_text_list(ref.get("topic")))
+        basis_sources.extend(_as_text_list(ref.get("lesson")))
+    accepted: List[str] = []
+    supported: List[str] = []
+    uncertain: List[str] = []
+    for item in unresolved:
+        if _mentions_requirement(item, requirements):
+            accepted.append(item)
+        elif _mentions_requirement(item, basis_sources):
+            supported.append(item)
+        else:
+            uncertain.append(item)
+    return {
+        "accepted": accepted,
+        "supported": supported,
+        "uncertain": uncertain,
+    }
+
+
+def _assessment_work(
+    assessment: Dict[str, Any],
+    accepted_contract: Optional[Dict[str, Any]] = None,
+) -> Dict[str, List[str]]:
+    if not isinstance(assessment, dict):
+        return {"accepted": [], "supported": [], "uncertain": []}
+    if (
+        "accepted_unresolved_requirements" in assessment
+        or "unclassified_requirements" in assessment
+        or "basis_supported_requirements" in assessment
+    ):
+        return {
+            "accepted": _as_text_list(assessment.get(
+                "accepted_unresolved_requirements")),
+            "supported": _as_text_list(assessment.get(
+                "basis_supported_requirements")),
+            "uncertain": _as_text_list(assessment.get(
+                "unclassified_requirements")),
+        }
+    return classify_assessment_work(assessment, accepted_contract)
+
+
+def _action_receipt_texts(receipts: Sequence[Any]) -> List[str]:
+    out: List[str] = []
+    for receipt in receipts or []:
+        if isinstance(receipt, dict):
+            status = _clean(
+                receipt.get("status") or receipt.get("outcome") or "")
+            if status.casefold() in ("failed", "error", "rejected", "blocked"):
+                continue
+            out.extend(_as_text_list(
+                receipt.get("text") or receipt.get("action")
+                or receipt.get("kind") or receipt.get("label")))
+        else:
+            out.extend(_as_text_list(receipt))
+    return _unique(out)
+
+
+def review_completion(
+    review_result: Optional[Dict[str, Any]],
+    accepted_contract: Optional[Dict[str, Any]] = None,
+) -> str:
+    """One shared completion classification for delivery and repeat reuse.
+
+    ``completed`` = the accepted review was delivered and no accepted task
+    work remains. ``partial`` = a validated review was delivered but accepted
+    work/uncertainty remains. ``incomplete`` = no certified review.
+    """
+    if not isinstance(review_result, dict) or review_result.get("ok") is not True:
+        return "incomplete"
+    contract = (
+        accepted_contract if isinstance(accepted_contract, dict)
+        else review_result.get("accepted_contract")
+        if isinstance(review_result.get("accepted_contract"), dict)
+        else None)
+    assessments = [
+        item for item in (review_result.get("assessments") or [])
+        if isinstance(item, dict)
+    ]
+    if not assessments:
+        return "incomplete"
+    for assessment in assessments:
+        work = _assessment_work(assessment, contract)
+        if work.get("accepted") or work.get("uncertain"):
+            return "partial"
+    required_actions = required_action_texts(contract)
+    if not required_actions:
+        required_actions = _as_text_list(review_result.get("required_actions"))
+    receipts = _action_receipt_texts(
+        review_result.get("action_receipts") or [])
+    for action in required_actions:
+        if not _mentions_requirement(action, receipts):
+            return "incomplete"
+    return "completed"
 
 
 def decision_options_from_lessons(lessons: Sequence[Any]) -> List[str]:
@@ -234,20 +427,37 @@ def review_output_instruction(
         f"- {entry.get('policy_id')} | {entry.get('topic') or 'policy'}"
         for entry in policy_index or []
     ]
+    required_actions = _as_text_list(contract.get("required_actions"))
     return (
         "REVIEW OUTPUT CONTRACT. After your normal explanation, include "
         "exactly one fenced block:\n"
         "```review_result\n"
         '{"assessments":[{"subject_id":"<subject>","decision":"<allowed '
-        'decision>","evidence_ids":["<evidence id>"],"policy_ids":["<policy '
-        'id>"],"unresolved_requirements":[]}]}\n'
+        'decision>","basis":["<why this decision was made>"],'
+        '"evidence_ids":["<evidence id>"],"policy_ids":["<policy id>"],'
+        '"unresolved_requirements":[]}]}\n'
         "```\n"
         "Only the structured block is certified; the prose is explanatory. "
         "Use one assessment for every requested subject, use only the IDs "
         "listed here, and do not add subjects.\n"
+        "`basis` is WHY you made the decision: the policy, a business "
+        "restriction, a negative finding, or an action required of another "
+        "person. `unresolved_requirements` is ONLY accepted review work "
+        "still unfinished (requested subjects/fields not assessed, or an "
+        "action/send the user asked Atom to perform that was not performed). "
+        "A negative recommendation, escalation recommendation, business "
+        "restriction or required action by another person is not "
+        "automatically an unfinished review. Report what remains necessary "
+        "to fulfil the user's assigned task separately from the reasons "
+        "supporting your decision.\n"
         f"Allowed decisions: {', '.join(decisions)}\n"
         f"Subjects: {', '.join(subjects)}\n"
-        "Evidence IDs:\n" + ("\n".join(evidence_lines) or "- none") + "\n"
+        + (
+            "Required actions assigned to Atom: "
+            + ", ".join(required_actions) + "\n"
+            if required_actions else ""
+        )
+        + "Evidence IDs:\n" + ("\n".join(evidence_lines) or "- none") + "\n"
         "Policy IDs:\n" + ("\n".join(policy_lines) or "- none")
     )
 
@@ -278,6 +488,8 @@ def build_review_result(
     evidence_index: Sequence[Dict[str, Any]],
     policy_index: Sequence[Dict[str, Any]],
     expected_execution_id: Optional[str] = None,
+    accepted_contract: Optional[Dict[str, Any]] = None,
+    action_receipts: Optional[Sequence[Any]] = None,
 ) -> Dict[str, Any]:
     """Validate the structured assessments against the accepted contract."""
     requested = _unique(requested_records)
@@ -448,13 +660,28 @@ def build_review_result(
             for ref in resolved_evidence
             if ref.get("retrieval_execution_id")
         })
+        raw_basis = _as_text_list(
+            raw.get("basis") or raw.get("decision_basis"))
+        raw_unresolved = _as_text_list(
+            raw.get("unresolved_requirements"))
+        work = classify_assessment_work(
+            {
+                "basis": raw_basis,
+                "unresolved_requirements": raw_unresolved,
+                "policy_refs": resolved_policy,
+            },
+            accepted_contract,
+        )
         assessments.append({
             "subject_id": subject,
             "decision": decision,
+            "basis": _unique(raw_basis + work["supported"]),
             "evidence_refs": resolved_evidence,
             "policy_refs": resolved_policy,
-            "unresolved_requirements": _unique(
-                raw.get("unresolved_requirements") or []),
+            "unresolved_requirements": raw_unresolved,
+            "accepted_unresolved_requirements": work["accepted"],
+            "basis_supported_requirements": work["supported"],
+            "unclassified_requirements": work["uncertain"],
             "source_execution_ids": _source_execs,
             "resumed_read": any(
                 source_execution_id != _clean(execution_id)
@@ -469,7 +696,7 @@ def build_review_result(
     if len(assessments) != len(requested) and not missing:
         errors.append({"code": "incomplete_subject_coverage"})
     _ok = not errors and len(assessments) == len(requested)
-    return {
+    result = {
         "schema_version": "review-result-2",
         "execution_id": _clean(execution_id) or None,
         "requested_subjects": requested,
@@ -486,7 +713,14 @@ def build_review_result(
         "candidate_assessments": [] if _ok else assessments,
         "errors": errors,
         "ok": _ok,
+        "required_actions": required_action_texts(accepted_contract),
+        "action_receipts": [
+            dict(item) if isinstance(item, dict) else str(item)
+            for item in (action_receipts or [])
+        ],
     }
+    result["completion"] = review_completion(result, accepted_contract)
+    return result
 
 
 def review_matches_delivered_text(
@@ -579,7 +813,21 @@ def render_review_result(review: Dict[str, Any]) -> str:
             ]
             if topics:
                 lines.append("  Policy: " + "; ".join(topics))
-        gaps = assessment.get("unresolved_requirements") or []
+        basis = _as_text_list(assessment.get("basis"))
+        if basis:
+            lines.append("  Basis: " + "; ".join(basis[:4]))
+        if (
+            "accepted_unresolved_requirements" in assessment
+            or "unclassified_requirements" in assessment
+        ):
+            gaps = _unique(
+                _as_text_list(assessment.get(
+                    "accepted_unresolved_requirements"))
+                + _as_text_list(assessment.get(
+                    "unclassified_requirements")))
+        else:
+            gaps = _as_text_list(
+                assessment.get("unresolved_requirements"))
         if gaps:
-            lines.append("  Open requirements: " + "; ".join(gaps))
+            lines.append("  Open requirements: " + "; ".join(gaps[:6]))
     return "\n".join(lines)

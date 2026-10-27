@@ -9411,6 +9411,7 @@ class ChatOrchestrator:
                             allowed_decisions=_review_allowed_decisions,
                             evidence_index=_review_evidence_index,
                             policy_index=_review_policy_index,
+                            accepted_contract=_review_accepted_contract,
                         )
                     _review_delivered = bool(
                         _review_result.get("ok")
@@ -10612,6 +10613,7 @@ class ChatOrchestrator:
                             from core.review_result import (
                                 decision_options_from_lessons,
                                 render_review_result,
+                                review_completion,
                             )
 
                             _reuse_task = session.get(
@@ -10705,23 +10707,26 @@ class ChatOrchestrator:
                                         (_reuse_message + "\n\n")
                                         if _reuse_message else "") + (
                                             _reuse_block)
-                                _reuse_gaps = any(
-                                    (assessment.get(
-                                        "unresolved_requirements") or [])
-                                    for assessment in (
-                                        _delivered_review.get(
-                                            "assessments") or [])
-                                    if isinstance(assessment, dict))
+                                _reuse_completion = review_completion(
+                                    _delivered_review, _reuse_accepted)
+                                _delivered_review["completion"] = (
+                                    _reuse_completion)
+                                _reuse_incomplete = (
+                                    _reuse_completion == "incomplete")
+                                _reuse_outcome = (
+                                    "failed" if _reuse_incomplete
+                                    else _reuse_completion)
                                 _reuse_response = {
-                                    "success": True,
+                                    "success": not _reuse_incomplete,
                                     "message": _reuse_message,
                                     "session_id": session_id,
                                     "execution_id": _execution_id,
                                     "intent": "search",
                                     "confidence": 0.9,
-                                    "outcome": (
-                                        "partial" if _reuse_gaps
-                                        else "completed"),
+                                    "outcome": _reuse_outcome,
+                                    "error_code": (
+                                        "turn_objective_not_met"
+                                        if _reuse_incomplete else None),
                                     "review_result": _delivered_review,
                                     "review_contract": _pfr.get(
                                         "review_contract"),
@@ -10740,13 +10745,11 @@ class ChatOrchestrator:
                                     "next_steps": [],
                                     "suggested_actions": [],
                                     "_recorded_outcome": {
-                                        "state": (
-                                            "partial" if _reuse_gaps
-                                            else "completed"),
+                                        "state": _reuse_outcome,
                                         "work_turn": True,
                                         "noop": False,
                                         "declined": False,
-                                        "delivered": True,
+                                        "delivered": not _reuse_incomplete,
                                     },
                                 }
                                 _pfr["status"] = "delivered"
@@ -10760,11 +10763,14 @@ class ChatOrchestrator:
 
                                     session[FILE_TASK_SESSION_KEY] = (
                                         mark_task_delivered(_reuse_task_row))
+                                _reuse_status = (
+                                    "failed" if _reuse_incomplete
+                                    else "success")
                                 await self._emit_agent_status(
                                     session_id, _trace_agent_id,
-                                    _execution_id, "success")
+                                    _execution_id, _reuse_status)
                                 self._finish_chat_execution(
-                                    _execution_id, "success",
+                                    _execution_id, _reuse_status,
                                     _reuse_message,
                                     session=session, message=message,
                                     response=_reuse_response,
@@ -26562,6 +26568,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 {
                                     "subjects": _subjects,
                                     "allowed_decisions": _allowed,
+                                    "required_actions": list(
+                                        _review_accepted.get(
+                                            "required_actions") or []),
                                 },
                                 _evidence_index,
                                 _policy_index,
@@ -29104,6 +29113,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 allowed_decisions=_allowed,
                                 evidence_index=_evidence_index,
                                 policy_index=_policy_index,
+                                accepted_contract=_review_accepted,
                             )
                             if deadline is not None:
                                 _review.setdefault(

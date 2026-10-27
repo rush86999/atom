@@ -668,6 +668,8 @@ async def test_repeated_review_reuses_validated_assessment_when_inputs_unchanged
     assert response["model"] == "deterministic"
     assert response["data"]["reused_validated_review"] is True
     assert "VALIDATED REVIEW" in response["message"]
+    assert response["outcome"] == "completed"
+    assert response["review_result"]["completion"] == "completed"
     assert response["review_result"]["assessments"][0][
         "subject_id"] == "O-1001"
     assert response["review_result"]["execution_id"] == response["execution_id"]
