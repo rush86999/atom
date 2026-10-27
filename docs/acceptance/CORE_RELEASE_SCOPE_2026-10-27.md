@@ -108,6 +108,15 @@ ledger. Passing today:
   domain-independence tests;
 - `.eml` import and the PPTX parser pass unit tests.
 
-Not yet claimed: the full teach → unfamiliar task → correct → restart loop
-with a real model, format-by-format browser imports (PDF/DOCX/email/PPTX),
-and the production build of this successor.
+The production build of this successor passes (139/139 pages), and the
+trained-employee loop was attempted with the local Ollama model. It **failed
+at the sourced-result step**: after a grant-threshold lesson persisted across
+a restart, the unfamiliar-task reply labeled `grants_loop.csv` but listed
+rows from another workbook (`Roper-011`, `Tennsmith-001`). The turn was
+correctly marked failed, but the user-visible table was misleading. See
+`evidence/whole_app_20261027/core_loop_attempt1/` and CR-009/CR-012 in the
+core ledger.
+
+Not yet claimed: the full teach → unfamiliar task → correct → restart loop,
+format-by-format browser imports (PDF/DOCX/email/PPTX), and browser
+deliverable checks for email/presentation.

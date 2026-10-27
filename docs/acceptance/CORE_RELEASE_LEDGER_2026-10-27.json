@@ -1,7 +1,7 @@
 {
   "schema_version": "core-release-1",
   "title": "Atom core-release readiness ledger \u2014 2026-10-27",
-  "generated_at": "2026-10-27T20:49:42.287851+00:00",
+  "generated_at": "2026-10-27T21:01:44.897548+00:00",
   "supersedes": "WHOLE_APP_READINESS_LEDGER_2026-10-27",
   "decision": "docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md",
   "candidate": {
@@ -35,19 +35,21 @@
     "deferred_scope": "Excluded from the core release by the 2026-10-27 product decision; code and data retained."
   },
   "summary": {
-    "total": 102,
+    "total": 103,
     "by_status": {
       "deferred_scope": 47,
       "environment_limited": 2,
+      "failed": 2,
       "not_authorized": 1,
       "partial": 11,
-      "unproven": 3,
+      "unproven": 2,
       "verified": 38
     },
     "core_statuses": {
       "environment_limited": 2,
+      "failed": 2,
       "partial": 11,
-      "unproven": 3,
+      "unproven": 2,
       "verified": 38
     },
     "deferred_items": 47,
@@ -2161,8 +2163,8 @@
           "detail": "component tests"
         }
       ],
-      "first_failed_transition": "No teach -> unfamiliar task -> correct -> restart loop was executed on this successor with a configured model.",
-      "next_action": "Run the trained-employee acceptance loop with an authorized model configuration.",
+      "first_failed_transition": "The click path through the Training tab was not exercised; the API teach path and restart persistence were.",
+      "next_action": "Run the same teach/correct/delete actions through the rendered UI.",
       "blocking": true,
       "notes": "Storage/injection is not the gate; measurable improvement on later work is."
     },
@@ -2171,14 +2173,55 @@
       "area": "trained-agent",
       "feature": "Trained-employee loop",
       "action": "Teach through the UI, run an unfamiliar task, inspect deliverable/sources, correct, run a different task, restart, verify scoped persistence",
-      "candidate_bound": false,
-      "config": "requires a configured provider",
-      "status": "unproven",
-      "evidence": [],
-      "first_failed_transition": "Not executed on this successor.",
-      "next_action": "Run the loop with an authorized provider; record per-stage evidence and a restart.",
+      "candidate_bound": true,
+      "config": "isolated world + local Ollama llama3.1:8b (no external spend)",
+      "status": "failed",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/agent.json",
+          "detail": "Record Auditor created as STUDENT"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/lessons_after_restart.json",
+          "detail": "grant-threshold lesson persisted across a backend restart"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/task2.json",
+          "detail": "sourced assessment turn labeled grants_loop.csv but listed Roper-011/Tennsmith-001 rows from another workbook; outcome failed"
+        },
+        {
+          "kind": "fixture",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/grants_loop.csv",
+          "detail": "the four grant rows the answer should have cited"
+        }
+      ],
+      "first_failed_transition": "The unfamiliar-task answer claimed to read grants_loop.csv but named rows that do not exist in that file (Roper-011, Tennsmith-001); the deterministic block and the model narration disagree.",
+      "next_action": "Make the deterministic result authoritative over model narration, then repeat teach -> unfamiliar task -> correct -> different task -> restart.",
       "blocking": true,
-      "notes": "This is the core acceptance gate. Prior order-review evidence is one building block, not this claim."
+      "notes": "The turn was correctly marked failed, so the platform did not claim success; the user-visible table is still misleading. This is the core acceptance gate and it is NOT met."
+    },
+    {
+      "id": "CR-012",
+      "area": "calculation",
+      "feature": "Deterministic result authority",
+      "action": "When a deterministic file read computes rows, the delivered answer must cite those rows and not a model-written table that contradicts them",
+      "candidate_bound": true,
+      "config": "isolated world + local Ollama",
+      "status": "failed",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/task2.json",
+          "detail": "source label grants_loop.csv; rows Roper-011/Tennsmith-001"
+        }
+      ],
+      "first_failed_transition": "The reply block preferred the model's narration table over the deterministic contributing rows.",
+      "next_action": "Prefer the deterministic rendered answer (or validate the model table against it) before delivery; regression-test with a wrong-model table.",
+      "blocking": true,
+      "notes": "The outcome was failed, so this is dishonest content rather than a false success badge."
     },
     {
       "id": "CR-010",
