@@ -728,7 +728,7 @@ def spreadsheet_checks(db_path: str, record: dict, file_name: str,
         task = session.get("_pending_file_task") or {}
         requirements = task.get("open_requirements") or []
         persistence["gap_retained"] = any(
-            str(gap.get("item") or "") == "0055"
+            str(gap.get("item") or gap.get("identity") or "") == "0055"
             and str(gap.get("cell") or "").upper() == "C5"
             for gap in requirements if isinstance(gap, dict))
     checks.update(persistence)

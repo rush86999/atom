@@ -565,6 +565,72 @@ async def test_retrieved_result_retry_renders_without_rereading():
 
 
 @pytest.mark.asyncio
+async def test_first_review_ask_goes_to_narration_not_deterministic_read():
+    """A first workbook review ask must not settle as a raw row read."""
+    orch = _orch()
+    review_ask = (
+        "Using the uploaded orders.xlsx, review order O-1001 against the "
+        "order processing policy. Cite Order ID, Status, Qty, Unit Price, "
+        "Currency, Approval 1, Approval 2, Manager Exception, and Notes "
+        "from the row. State process or escalate and explain the policy "
+        "basis. Do not send, approve, or modify anything."
+    )
+    session = {"id": "s-first-review", "history": []}
+    direct = {
+        "ok": True,
+        "block": (
+            "Workbook read: orders.xlsx\n"
+            "| O-1001 | FOUND | Orders!R10 [Status=On Hold] |"),
+        "rendered_answer": (
+            "Workbook read: orders.xlsx\n"
+            "| O-1001 | FOUND | Orders!R10 [Status=On Hold] |"),
+        "identity": {
+            "file_id": "r1",
+            "file_name": "orders.xlsx",
+            "content_hash": "hash-1",
+            "identity_verified": True,
+            "coverage_complete": True,
+        },
+        "structured_result": {
+            "requested_items": ["O-1001"],
+            "targets": [{
+                "item": "O-1001",
+                "identity": {"status": "found"},
+                "values": [{"cell": "C10", "value": "On Hold"}],
+            }],
+        },
+        "meta": {"workbook_read": {"coverage": {"complete": True}}},
+        "retrieval_complete": True,
+        "read_executed": True,
+    }
+    narration = AsyncMock(return_value={
+        "content": "I couldn't complete the requested review.",
+        "review_result": {"ok": False, "errors": [{"code": "no_result"}]},
+    })
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            return_value=direct)),
+        patch.object(orch, "_get_qwen_response", new=narration),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            return_value=planner.ToolPlan(
+                use_tool=False, service="", intent="search", query="",
+                reason="review narration-only"))),
+    ):
+        response = await orch.process_chat_message(
+            "u1", review_ask, session_id="s-first-review", context={}
+        )
+
+    assert narration.await_count >= 1
+    assert response.get("model") != "deterministic"
+    _args, _kwargs = narration.await_args
+    assert _kwargs.get("review_objective") == review_ask
+
+
+@pytest.mark.asyncio
 async def test_stored_read_is_never_served_deterministically_for_review():
     """A review confirmation must go to narration, never the raw read lane."""
     orch = _orch()
@@ -624,6 +690,11 @@ async def test_stored_read_is_never_served_deterministically_for_review():
 
     assert narration.await_count >= 1
     assert response.get("model") != "deterministic"
+    _args, _kwargs = narration.await_args
+    assert _kwargs.get("review_objective") == review_ask
+    assert _kwargs.get("prefetched_tool_block")
+    assert "O-1001" in _kwargs["prefetched_tool_block"]
+    assert session[FILE_TASK_SESSION_KEY]["status"] == "retrieved"
 
 
 @pytest.mark.asyncio

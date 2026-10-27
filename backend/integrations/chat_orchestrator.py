@@ -10445,7 +10445,17 @@ class ChatOrchestrator:
             # GATE: a persisted result built by an OLDER target extractor
             # is re-derived, not replayed (contaminated target lists must
             # not survive the fix that diagnoses them).
+            _review_objective_hint = ""
+            _prefetched_review_block = ""
+            try:
+                from core.chat_tool_planner import review_requested
+
+                if review_requested(None, message):
+                    _review_objective_hint = message
+            except Exception:  # noqa: BLE001 — flag is additive
+                pass
             _pfr = session.get("_pending_file_result")
+            _delivery_review = False
             if not isinstance(_pfr, dict) or not _pfr.get("rendered"):
                 try:
                     _pfr = self._load_pending_file_result(
@@ -10551,6 +10561,7 @@ class ChatOrchestrator:
                         and not _refresh_request
                         and not _result_reference_ask
                         and not _work_instruction
+                        and not _delivery_review
                         and not _canvas_edit_shaped(message, context)
                         and not _CANVAS_ACTION_SHAPE_RE.search(message or "")
                         and not _OBJECTIVE_SYNTHESIS_RE.search(message or "")
@@ -10913,8 +10924,6 @@ class ChatOrchestrator:
             # file-scoped price question is never left to free narration.
             _ask_mention = ""
             _ask_direct = False
-            _review_objective_hint = ""
-            _prefetched_review_block = ""
             try:
                 from core.agent_file_context import (
                     detect_file_task_mentions,
@@ -12535,6 +12544,16 @@ class ChatOrchestrator:
                         _ask_open_requirements,
                     ) = aggregate_calculation_facts(
                         _ask_aggregate, _ask_complete)
+                    _ask_review_ask = False
+                    try:
+                        from core.chat_tool_planner import review_requested
+
+                        _ask_review_ask = review_requested(
+                            _ask_task,
+                            str(_ask_task.get("original_message")
+                                or message))
+                    except Exception:  # noqa: BLE001 — additive
+                        _ask_review_ask = False
                     _ask_miss_handoff_pending = (
                         os.getenv("ATOM_MISS_HANDOFF_NARRATION", "0")
                         .lower() in ("1", "true", "on")
@@ -12547,6 +12566,7 @@ class ChatOrchestrator:
                     _ask_answer_delivered = bool(
                         _ask_retrieval_finished
                         and _ask_content.strip()
+                        and not _ask_review_ask
                         and not _ask_miss_handoff_pending)
                     _ask_result_row = {
                         "status": (
@@ -12943,44 +12963,55 @@ class ChatOrchestrator:
                             "next_steps": _tl_next_steps,
                             "suggested_actions": [],
                         }
-                        self._update_session(
-                            session, message, _ask_response,
-                            {"primary_intent": "search", "confidence": 0.9})
-                        # Isolated fault injection (env + marker gated): fail
-                        # AFTER the provisional delivery persists, so the
-                        # failure path is provable against captured pre/post.
-                        _maybe_force_turn_failure(
-                            session, _execution_id, _ask_content, message,
-                            context)
-                        if _ask_answer_delivered:
-                            _ask_result_row["status"] = "delivered"
-                            _ask_result_row["delivered_at"] = time.time()
-                        _ask_terminal_status = (
-                            "success" if _ask_complete else "partial"
-                        )
-                        await self._emit_agent_status(
-                            session_id, _trace_agent_id, _execution_id,
-                            _ask_terminal_status)
-                        self._finish_chat_execution(
-                            _execution_id,
-                            _ask_terminal_status,
-                            _ask_content,
-                            session=session,
-                            message=message,
-                            response=_ask_response,
-                            deadline=_deadline,
-                            pending_task=session.get("_pending_file_task"),
-                            authorized_actions=["read"],
-                        )
-                        logger.info(
-                            "[file-ask] %s ask answered directly by the "
-                            "file-scoped reader (no narration path)",
-                            "document" if _ask_result.get(
-                                "named_document") else "spreadsheet")
-                        return _ask_response
+                        if _ask_review_ask:
+                            # A review ask is evidence, not the answer: keep
+                            # the read for narration and retain the review
+                            # contract instead of shipping the row block.
+                            _review_objective_hint = str(
+                                _ask_task.get("original_message") or message)
+                            _prefetched_review_block = _ask_content
+                            logger.info(
+                                "[file-ask] review ask — read staged for "
+                                "narration; deterministic read withheld")
+                        else:
+                            self._update_session(
+                                session, message, _ask_response,
+                                {"primary_intent": "search", "confidence": 0.9})
+                            # Isolated fault injection (env + marker gated): fail
+                            # AFTER the provisional delivery persists, so the
+                            # failure path is provable against captured pre/post.
+                            _maybe_force_turn_failure(
+                                session, _execution_id, _ask_content, message,
+                                context)
+                            if _ask_answer_delivered:
+                                _ask_result_row["status"] = "delivered"
+                                _ask_result_row["delivered_at"] = time.time()
+                            _ask_terminal_status = (
+                                "success" if _ask_complete else "partial"
+                            )
+                            await self._emit_agent_status(
+                                session_id, _trace_agent_id, _execution_id,
+                                _ask_terminal_status)
+                            self._finish_chat_execution(
+                                _execution_id,
+                                _ask_terminal_status,
+                                _ask_content,
+                                session=session,
+                                message=message,
+                                response=_ask_response,
+                                deadline=_deadline,
+                                pending_task=session.get("_pending_file_task"),
+                                authorized_actions=["read"],
+                            )
+                            logger.info(
+                                "[file-ask] %s ask answered directly by the "
+                                "file-scoped reader (no narration path)",
+                                "document" if _ask_result.get(
+                                    "named_document") else "spreadsheet")
+                            return _ask_response
                 # Read did not complete: fall through to the normal flow,
                 # which stores the pending task and tells the user plainly.
-            if _pending_file_task:
+            if _pending_file_task and not _delivery_review:
                 # TEACHING DIRECTIVES SKIP THE RESUME LANE TOO (2026-10-01
                 # consistency-run T3, stored-task sessions): 'always
                 # include the tennsmith sheet…' was claimed here by the
@@ -13570,6 +13601,13 @@ class ChatOrchestrator:
 
                         _review_task = session.get(FILE_TASK_SESSION_KEY)
                         if isinstance(_review_task, dict):
+                            _review_task = dict(_review_task)
+                            if (
+                                not _review_task.get("resolved_file")
+                                and isinstance(_review_identity, dict)
+                            ):
+                                _review_task["resolved_file"] = dict(
+                                    _review_identity)
                             _review_task = mark_task_retrieved(
                                 _review_task, _review_identity)
                             try:
@@ -13602,6 +13640,9 @@ class ChatOrchestrator:
                         (_direct_task or {}).get("original_message")
                         or (_pending_file_task or {}).get("original_message")
                         or message)
+                    _prefetched_review_block = str(
+                        _direct_result.get("rendered_answer")
+                        or _direct_result.get("block") or "")
                 if _direct_result.get("ok") and not _direct_review_ask:
                     _direct_structured = _direct_result.get("structured_result")
                     _direct_full_action = None
@@ -14792,6 +14833,8 @@ class ChatOrchestrator:
                             or (pending_file_task or {}).get(
                                 "original_message")
                             or message)
+                        _prefetched_review_block = str(
+                            _r4_stored.get("rendered") or "")
                         try:
                             from core.pending_file_task import (
                                 FILE_TASK_SESSION_KEY as _R4_TASK_KEY,
@@ -14802,6 +14845,14 @@ class ChatOrchestrator:
 
                             _r4_task_row = session.get(_R4_TASK_KEY)
                             if isinstance(_r4_task_row, dict):
+                                _r4_task_row = dict(_r4_task_row)
+                                if (
+                                    not _r4_task_row.get("resolved_file")
+                                    and isinstance(
+                                        _r4_stored.get("identity"), dict)
+                                ):
+                                    _r4_task_row["resolved_file"] = dict(
+                                        _r4_stored["identity"])
                                 _r4_source_diag = (
                                     self._source_requirement_diagnostic(
                                         agent_id=(context or {}).get(
@@ -18313,13 +18364,19 @@ class ChatOrchestrator:
                     isinstance(_pfr_cur, dict)
                     and str(_pfr_cur.get("execution_id") or "")
                     == str(_execution_id or ""))
+                _review_required_state = bool(
+                    locals().get("_delivery_review")
+                    or locals().get("_review_objective_hint"))
+                _delivery_ok_now = (
+                    _review_ok_now
+                    if _review_required_state
+                    else (response.get("deterministic_delivery")
+                          or _pfr_read_this_turn))
                 if (
                     isinstance(_pfr_cur, dict)
                     and _pfr_cur.get("status") == "retrieved"
                     and response.get("success")
-                    and (response.get("deterministic_delivery")
-                         or _review_ok_now
-                         or _pfr_read_this_turn)
+                    and _delivery_ok_now
                 ):
                     _pfr_cur["status"] = "delivered"
                     _pfr_cur["delivered_at"] = time.time()
@@ -18348,6 +18405,9 @@ class ChatOrchestrator:
                 ai_response=ai_response,
                 deadline=_deadline,
                 pending_task=_pending_file_task,
+                agent_id=(context or {}).get("agent_id"),
+                user_id=user_id,
+                workspace_id=(context or {}).get("workspace_id"),
                 # A verified resumed read is THIS execution's evidence: let
                 # the existing task-outcome builder derive settlement from it
                 # instead of rebuilding an evidence-less turn.
@@ -25223,7 +25283,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         }
                         session["_resolved_file_identity"] = (
                             _resolved_file_identity)
-                    if _live_file_lookup_ran:
+                    _reply_storage_meta = (
+                        locals().get("_storage_read_meta") or {})
+                    _reply_aggregate_record = (
+                        _reply_storage_meta.get("aggregate_record")
+                        if isinstance(_reply_storage_meta, dict) else None)
+                    _reply_partial_lookup = bool(
+                        isinstance(_reply_aggregate_record, dict)
+                        and str(_reply_aggregate_record.get("status") or "")
+                        != "error"
+                        and not _reply_aggregate_record.get("complete")
+                        and _tool_block)
+                    if _live_file_lookup_ran or _reply_partial_lookup:
                         # RETRIEVAL COMPLETE, delivery pending (2026-09-24
                         # review: completion != delivery). The structured
                         # result is PERSISTED on the session (and the
@@ -25247,6 +25318,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "workbook_read"
                             ) if isinstance(_resolved_file_identity, dict) else None,
                             "objective_evidence": _objective_comparison,
+                            "aggregate_record": _reply_aggregate_record,
+                            "open_requirements": (
+                                _reply_aggregate_record.get("gaps") or []
+                                if isinstance(_reply_aggregate_record, dict)
+                                else []),
+                            "calculation_complete": bool(
+                                _live_file_lookup_ran
+                                or (_reply_aggregate_record or {}).get(
+                                    "complete")),
                             "execution_id": execution_id,
                             "source_execution_id": execution_id,
                             "retrieved_at": time.time(),
@@ -25735,59 +25815,6 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 _evidence_msg = {"role": "system",
                                  "content": _evidence_instruction}
                 messages.append(_evidence_msg)
-                if _review_ask:
-                    try:
-                        from core.review_result import (
-                            build_evidence_index,
-                            build_policy_index,
-                            decision_options_from_lessons,
-                            requested_subjects,
-                            review_output_instruction,
-                        )
-
-                        _review_lessons = (
-                            self._agent_lessons(
-                                agent_id,
-                                review_objective or _gate_msg) or [])
-                        _allowed = decision_options_from_lessons(
-                            _review_lessons)
-                        _review_pending = (
-                            (session.get("_pending_file_result") or {})
-                            if isinstance(session, dict) else {})
-                        _review_struct = (
-                            _review_pending.get("structured_result")
-                            if isinstance(
-                                _review_pending.get("structured_result"),
-                                dict) else None
-                        ) or _turn_structured_record or {}
-                        _review_struct = dict(_review_struct)
-                        if not _review_struct.get("source_execution_id"):
-                            _review_struct["source_execution_id"] = str(
-                                _review_pending.get("source_execution_id")
-                                or _review_pending.get("execution_id")
-                                or "")
-                        _subjects = requested_subjects(_review_struct)
-                        _evidence_index = build_evidence_index(
-                            _review_struct)
-                        _policy_index = build_policy_index(
-                            _review_lessons, _allowed)
-                        if (_allowed and _subjects
-                                and _evidence_index and _policy_index):
-                            messages.append({
-                                "role": "system",
-                                "content": review_output_instruction(
-                                    {
-                                        "subjects": _subjects,
-                                        "allowed_decisions": _allowed,
-                                    },
-                                    _evidence_index,
-                                    _policy_index,
-                                ),
-                            })
-                    except Exception as _review_prompt_err:  # noqa: BLE001
-                        logger.debug(
-                            "[review-result] output contract skipped: %r",
-                            _review_prompt_err)
             else:
                 # TRUTHFULNESS ENVELOPE (pristine-J2 false-search finding,
                 # 2026-10-12): zero executed tool work must never become a
@@ -25815,6 +25842,59 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "read. If the request needs live data, say "
                         "plainly that nothing was searched this turn and "
                         "what would be needed to search it.")})
+            if _review_ask:
+                try:
+                    from core.review_result import (
+                        build_evidence_index,
+                        build_policy_index,
+                        decision_options_from_lessons,
+                        requested_subjects,
+                        review_output_instruction,
+                    )
+
+                    _review_lessons = (
+                        self._agent_lessons(
+                            agent_id,
+                            review_objective or _gate_msg) or [])
+                    _allowed = decision_options_from_lessons(
+                        _review_lessons)
+                    _review_pending = (
+                        (session.get("_pending_file_result") or {})
+                        if isinstance(session, dict) else {})
+                    _review_struct = (
+                        _review_pending.get("structured_result")
+                        if isinstance(
+                            _review_pending.get("structured_result"),
+                            dict) else None
+                    ) or _turn_structured_record or {}
+                    _review_struct = dict(_review_struct)
+                    if not _review_struct.get("source_execution_id"):
+                        _review_struct["source_execution_id"] = str(
+                            _review_pending.get("source_execution_id")
+                            or _review_pending.get("execution_id")
+                            or "")
+                    _subjects = requested_subjects(_review_struct)
+                    _evidence_index = build_evidence_index(
+                        _review_struct)
+                    _policy_index = build_policy_index(
+                        _review_lessons, _allowed)
+                    if (_allowed and _subjects
+                            and _evidence_index and _policy_index):
+                        messages.append({
+                            "role": "system",
+                            "content": review_output_instruction(
+                                {
+                                    "subjects": _subjects,
+                                    "allowed_decisions": _allowed,
+                                },
+                                _evidence_index,
+                                _policy_index,
+                            ),
+                        })
+                except Exception as _review_prompt_err:  # noqa: BLE001
+                    logger.debug(
+                        "[review-result] output contract skipped: %r",
+                        _review_prompt_err)
             # PUBLISH the turn's tool block to the shared state (the same
             # dict process_chat_message holds): the delivery gate reads
             # whether ANY tool work executed this turn.

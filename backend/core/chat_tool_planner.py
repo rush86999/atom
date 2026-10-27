@@ -7558,6 +7558,10 @@ async def _datasets_named_file_block(
                 "gaps": agg.get("gaps") or [],
                 "subtotals": agg.get("subtotals") or {},
                 "datasets_aggregate": True,
+                # The ACTUAL record, not just the marker: task settlement
+                # needs the named gaps/completeness outside the ask/direct
+                # lanes too.
+                "aggregate_record": _agg_meta["datasets_aggregate"],
             }
             _agg_meta["datasets_search"] = {
                 "executed": agg.get("status") != "error",
