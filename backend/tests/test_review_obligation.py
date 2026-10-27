@@ -74,3 +74,25 @@ def test_pending_task_fast_path_rejects_non_confirmation_or_missing_file():
     assert pending_task_continuation_ready("review the workbook", task) is None
     assert pending_task_continuation_ready(
         "go ahead", {"status": "pending"}) is None
+
+
+def test_review_contract_requires_a_real_decision_schema(monkeypatch):
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    orch = ChatOrchestrator.__new__(ChatOrchestrator)
+    monkeypatch.setattr(
+        orch, "_agent_lessons",
+        lambda agent_id, text, limit=10: [{
+            "lesson": "Review the workbook and report the lowest price.",
+        }])
+    assert orch._review_contract_available(
+        "agent", "Review the prices in orders.xlsx") is False
+
+    monkeypatch.setattr(
+        orch, "_agent_lessons",
+        lambda agent_id, text, limit=10: [{
+            "lesson": "Recommend routine orders; escalate exceptions.",
+            "decision_options": ["Process", "Escalate"],
+        }])
+    assert orch._review_contract_available(
+        "agent", "Review O-1001 against policy") is True

@@ -606,6 +606,10 @@ async def test_review_narration_failure_never_marks_task_delivered():
         patch.object(orch, "_emit_agent_status", new=AsyncMock()),
         patch.object(orch, "_finish_chat_execution"),
         patch.object(orch, "_load_pending_file_result", return_value=None),
+        patch.object(orch, "_agent_lessons", return_value=[{
+            "lesson": "Recommend process; escalate exceptions.",
+            "decision_options": ["Process", "Escalate"],
+        }]),
         patch.object(orch, "_get_qwen_response", new=AsyncMock(
             return_value=None)),
         patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
@@ -662,6 +666,10 @@ async def test_repeated_identical_review_reuses_stored_read_without_reread():
         patch.object(orch, "_emit_agent_status", new=AsyncMock()),
         patch.object(orch, "_finish_chat_execution"),
         patch.object(orch, "_load_pending_file_result", return_value=None),
+        patch.object(orch, "_agent_lessons", return_value=[{
+            "lesson": "Recommend process; escalate exceptions.",
+            "decision_options": ["Process", "Escalate"],
+        }]),
         patch.object(orch, "_get_qwen_response", new=narration),
         patch.object(orch, "_direct_confirmed_file_read", new=direct),
         patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
@@ -728,6 +736,10 @@ async def test_first_review_ask_goes_to_narration_not_deterministic_read():
         patch.object(orch, "_update_session"),
         patch.object(orch, "_emit_agent_status", new=AsyncMock()),
         patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_agent_lessons", return_value=[{
+            "lesson": "Recommend process; escalate exceptions.",
+            "decision_options": ["Process", "Escalate"],
+        }]),
         patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
             return_value=direct)),
         patch.object(orch, "_get_qwen_response", new=narration),
@@ -792,6 +804,10 @@ async def test_stored_read_is_never_served_deterministically_for_review():
         patch.object(orch, "_emit_agent_status", new=AsyncMock()),
         patch.object(orch, "_finish_chat_execution"),
         patch.object(orch, "_load_pending_file_result", return_value=None),
+        patch.object(orch, "_agent_lessons", return_value=[{
+            "lesson": "Recommend process; escalate exceptions.",
+            "decision_options": ["Process", "Escalate"],
+        }]),
         patch.object(orch, "_get_qwen_response", new=narration),
         patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
             side_effect=AssertionError("must not re-read"))),

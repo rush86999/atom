@@ -10448,9 +10448,8 @@ class ChatOrchestrator:
             _review_objective_hint = ""
             _prefetched_review_block = ""
             try:
-                from core.chat_tool_planner import review_requested
-
-                if review_requested(None, message):
+                if self._review_contract_available(
+                        (context or {}).get("agent_id"), message):
                     _review_objective_hint = message
             except Exception:  # noqa: BLE001 — flag is additive
                 pass
@@ -10532,18 +10531,16 @@ class ChatOrchestrator:
                     # the review obligation.
                     _delivery_review = False
                     try:
-                        from core.chat_tool_planner import review_requested
-
                         _stored_review_task = session.get(
                             FILE_TASK_SESSION_KEY) or {}
                         _stored_review_text = str(
                             _stored_review_task.get("original_message")
                             or _pfr.get("original_request")
                             or "")
-                        _delivery_review = review_requested(
-                            _stored_review_task
-                            if isinstance(_stored_review_task, dict) else None,
-                            _stored_review_text or message)
+                        _delivery_review = (
+                            self._review_contract_available(
+                                (context or {}).get("agent_id"),
+                                _stored_review_text or message))
                         if _delivery_review:
                             _review_objective_hint = (
                                 _stored_review_text or message)
@@ -13558,12 +13555,13 @@ class ChatOrchestrator:
                             )
                 _direct_review_ask = False
                 try:
-                    from core.chat_tool_planner import review_requested
-
-                    _direct_review_ask = review_requested(
-                        _direct_task or pending_file_task,
-                        str((_direct_task or {}).get("original_message")
-                            or message or ""))
+                    _direct_review_text = str(
+                        (_direct_task or {}).get("original_message")
+                        or message or "")
+                    _direct_review_ask = (
+                        self._review_contract_available(
+                            (context or {}).get("agent_id"),
+                            _direct_review_text))
                 except Exception:  # noqa: BLE001 — flag is additive
                     _direct_review_ask = False
                 if _direct_result.get("ok") and _direct_review_ask:
@@ -14792,12 +14790,12 @@ class ChatOrchestrator:
                 if _recovery_decision == "deliver_stored_result" \
                         and _recovery_payload:
                     try:
-                        from core.chat_tool_planner import review_requested
-
-                        _r4_review_ask = review_requested(
-                            pending_file_task,
-                            str(_recovery_payload.get("original_request")
-                                or message or ""))
+                        _r4_review_ask = (
+                            self._review_contract_available(
+                                (context or {}).get("agent_id"),
+                                str(_recovery_payload.get(
+                                    "original_request")
+                                    or message or "")))
                     except Exception:  # noqa: BLE001 — flag is additive
                         _r4_review_ask = False
                     if _r4_review_ask:
@@ -29811,6 +29809,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _log = ((_cfg or {}).get("learning") or {}).get("log") or []
             return bool(_log)
         except Exception:  # noqa: BLE001 — fallback probe is best-effort
+            return False
+
+    def _review_contract_available(
+        self,
+        agent_id: Optional[str],
+        text: str,
+    ) -> bool:
+        """Whether this agent's taught policy supplies a review schema.
+
+        A review word alone is not a contract. Without decision options the
+        read must settle as an ordinary sourced answer instead of being
+        withheld forever waiting for a review that cannot be validated.
+        """
+        try:
+            from core.chat_tool_planner import review_requested
+            from core.review_result import decision_options_from_lessons
+
+            if not review_requested(None, text):
+                return False
+            lessons = self._agent_lessons(agent_id, text, limit=10)
+            return bool(decision_options_from_lessons(lessons))
+        except Exception:  # noqa: BLE001 — additive
             return False
 
     def _agent_lessons(self, agent_id: Optional[str], query: str, limit: int = 5) -> List[Dict[str, Any]]:
