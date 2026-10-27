@@ -117,8 +117,11 @@ after removing the implicit "price" field default still invented rows
 (`GL001`, `GL002`) instead of binding the four real grant rows. Both turns
 were correctly marked failed, but the user-visible tables were misleading.
 See `evidence/whole_app_20261027/core_loop_attempt1/` and CR-009/CR-012 in
-the core ledger. The next repair must bind the named-file assessment to the
-deterministic workbook rows before any narration is delivered.
+the core ledger. A plain lookup ("list Application Ref and Requested Amount
+for Submitted rows") also failed: the column names and the filter value were
+treated as lookup items, so the reply said the columns had no match. The next
+repair must classify list/select + named columns + a row condition as a table
+selection and bind the deterministic rows before any narration is delivered.
 
 Not yet claimed: the full teach → unfamiliar task → correct → restart loop,
 format-by-format browser imports (PDF/DOCX/email/PPTX), and browser
