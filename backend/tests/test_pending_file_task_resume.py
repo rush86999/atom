@@ -565,6 +565,66 @@ async def test_retrieved_result_retry_renders_without_rereading():
 
 
 @pytest.mark.asyncio
+async def test_review_narration_failure_never_marks_task_delivered():
+    orch = _orch()
+    review_ask = (
+        "Using the uploaded orders.xlsx, review order O-1001 against the "
+        "order processing policy. State process or escalate."
+    )
+    session = {
+        "id": "s-review-narration-fail",
+        "history": [],
+        FILE_TASK_SESSION_KEY: {
+            "task_id": "task-review-fail",
+            "mention": "orders.xlsx",
+            "original_message": review_ask,
+            "status": "retrieved",
+            "attempts": 1,
+            "resolved_file": {
+                "file_name": "orders.xlsx",
+                "content_hash": "hash-1",
+            },
+        },
+        "_pending_file_result": {
+            "status": "retrieved",
+            "target_extraction_version": 3,
+            "rendered": "Workbook read: orders.xlsx | O-1001 On Hold |",
+            "identity": {
+                "file_id": "r1",
+                "file_name": "orders.xlsx",
+                "content_hash": "hash-1",
+            },
+            "structured_result": {
+                "requested_items": ["O-1001"],
+                "targets": [],
+            },
+        },
+    }
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_load_pending_file_result", return_value=None),
+        patch.object(orch, "_get_qwen_response", new=AsyncMock(
+            return_value=None)),
+        patch.object(orch, "_direct_confirmed_file_read", new=AsyncMock(
+            side_effect=AssertionError("must not re-read"))),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            return_value=planner.ToolPlan(
+                use_tool=False, service="", intent="search", query="",
+                reason="review narration failure"))),
+    ):
+        await orch.process_chat_message(
+            "u1", "go ahead", session_id="s-review-narration-fail",
+            context={},
+        )
+
+    assert session[FILE_TASK_SESSION_KEY]["status"] != "delivered"
+    assert session["_pending_file_result"]["status"] != "delivered"
+
+
+@pytest.mark.asyncio
 async def test_repeated_identical_review_reuses_stored_read_without_reread():
     orch = _orch()
     review_ask = (

@@ -18377,7 +18377,11 @@ class ChatOrchestrator:
                     (locals().get("ai_response") or {}).get(
                         "review_required")
                     or response.get("review_required")
-                    or (response.get("data") or {}).get("review_required"))
+                    or (response.get("data") or {}).get("review_required")
+                    or locals().get("_ask_review_ask")
+                    or locals().get("_direct_review_ask")
+                    or locals().get("_r4_review_ask")
+                    or locals().get("_delivery_review"))
                 _delivery_ok_now = (
                     _review_ok_now
                     if _review_required_state
