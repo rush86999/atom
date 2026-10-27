@@ -672,13 +672,24 @@ def build_review_result(
             },
             accepted_contract,
         )
+        # With an accepted contract, `unresolved_requirements` means
+        # ACCEPTED review work (plus explicit uncertainty). A model-reported
+        # restriction that the contract did not assign to Atom moves to
+        # `basis` and/or `reported_unresolved_requirements`; it is preserved,
+        # never silently dropped, and never promoted to an obligation.
+        if accepted_contract is None:
+            visible_unresolved = raw_unresolved
+        else:
+            visible_unresolved = _unique(
+                work["accepted"] + work["uncertain"])
         assessments.append({
             "subject_id": subject,
             "decision": decision,
             "basis": _unique(raw_basis + work["supported"]),
             "evidence_refs": resolved_evidence,
             "policy_refs": resolved_policy,
-            "unresolved_requirements": raw_unresolved,
+            "unresolved_requirements": visible_unresolved,
+            "reported_unresolved_requirements": raw_unresolved,
             "accepted_unresolved_requirements": work["accepted"],
             "basis_supported_requirements": work["supported"],
             "unclassified_requirements": work["uncertain"],

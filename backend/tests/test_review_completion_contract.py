@@ -184,9 +184,12 @@ def test_legacy_business_condition_in_unresolved_is_not_an_obligation():
     )
     assessment = review["assessments"][0]
     assert review["completion"] == "completed"
+    assert assessment["unresolved_requirements"] == []
     assert assessment["accepted_unresolved_requirements"] == []
     assert assessment["unclassified_requirements"] == []
     assert assessment["basis_supported_requirements"]
+    assert assessment["reported_unresolved_requirements"] == [
+        "Credit hold — escalation required per M. Chen, 2026-10-25"]
     assert "Credit hold" in " ".join(assessment["basis"])
     assert "Open requirements" not in render_review_result(review)
 
