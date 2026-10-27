@@ -135,9 +135,10 @@ validation. Native prompt capture proved the prior failure had only policy
 IDs/topics (the below-5,000 rule was absent). Two green assessments followed:
 grants (3200 DECLINE, 5000 HOLD, 10000 HOLD, 12000 HOLD) and a renamed
 schema/labels twin (3200 REJECT, 5000 REVIEW, 10000 REVIEW), both with
-source/policy attribution and completed outcomes. A post-restart repeat of the
-renamed assessment produced no valid block and was safely failed, so restart
-reliability remains open (CR-019).
+source/policy attribution and completed outcomes. After a real restart, the grants boundary assessment
+passed again with the same correct decisions, while the renamed-schema repeat
+produced no valid block and was safely failed; restart reliability is mixed
+(CR-019).
 
 The assessment pipeline is now wired through the existing review machinery:
 validated selection rows are adapted into a structured review artifact
@@ -156,7 +157,9 @@ and CR-014 (partial), not rounded up. The structural pipeline is CR-016
 (verified); judgment that reliably follows the current correction remains the
 next repair. Read obligations satisfied by a validated review are settled
 through the task lifecycle; genuine freshness obligations remain open, and an
-incomplete review leaves its reads open (CR-018). The earlier fabricated `Roper-011`,
+incomplete review leaves its reads open (CR-018). A stale "Still needed" row
+created before the assessment remains as history; no new contradictory
+continuation is emitted after settlement. The earlier fabricated `Roper-011`,
 `Tennsmith-001`, `GL001` and `GL002` attempts remain preserved as history.
 
 Not yet claimed: a validated assessment decision table, the full teach →

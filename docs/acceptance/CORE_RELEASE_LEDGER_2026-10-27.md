@@ -2,7 +2,7 @@
 
 Candidate: `f5f3148d24351217b20e4994fe7602131f8ae220` (tree `d5804aed4be4a920a2c6067c253efc7f89cc539f`), branch `whole-app/successor-f5f`.
 
-Generated: 2026-10-27T23:44:07.356485+00:00
+Generated: 2026-10-27T23:47:06.971077+00:00
 
 Supersedes `WHOLE_APP_READINESS_LEDGER_2026-10-27` for launch scope. The whole-app ledger remains history. Product decision: `docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md`.
 
@@ -133,7 +133,7 @@ Machine-readable source: `docs/acceptance/CORE_RELEASE_LEDGER_2026-10-27.json`.
 | CR-015 | calculation | A selection turn completes only with a bound source, resolved columns, predicate, row references and delivery | **verified** | — | — |
 | CR-017 | trained-agent | Give every selectable policy ID its applicable instruction text in the review prompt; same policy index for generation and validation | **verified** | — | — |
 | CR-018 | background | After a validated review, settle only the read obligations it satisfied; keep genuine freshness obligations; leave an incomplete review's work open | **verified** | — | A stale 'Still needed' history row created before settlement remains as history; new continuations must reflect the settled state. |
-| CR-019 | trained-agent | Repeat a previously green assessment after a real restart and require a validated decision table | **failed** | The model did not emit a valid review block after restart; no decisions were certified. | Measure the post-restart generation failure (provider/context/format) before changing the loop; do not keep repeating unchanged requests. |
+| CR-019 | trained-agent | Repeat a previously green assessment after a real restart and require a validated decision table | **failed** | The renamed-schema assessment did not emit a valid block after restart; a separate grants boundary assessment after the same restart did pass (assessment_boundaries_after_restart_green.json), so restart reliability is mixed, not uniformly broken. | Measure the post-restart generation failure (provider/context/format) before changing the loop; do not keep repeating unchanged requests. |
 | CR-010 | workspace | Produce and reopen an email draft, document, calculated table and presentation in Workspace | **partial** | No browser deliverable check for email/presentation on this successor. | Create one of each in Workspace, reopen after reload and verify content survives. |
 | CR-011 | release | Build the shipping frontend and run the core browser breadth against that build | **verified** | — | — |
 

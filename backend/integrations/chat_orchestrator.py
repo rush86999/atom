@@ -8025,10 +8025,26 @@ def _settle_review_read_obligations(session: Any, subjects: List[str],
         if not isinstance(session, dict):
             return 0
         run_id = str(session.get("_task_run_id") or "")
-        if not run_id or not subjects:
+        if not subjects:
             return 0
         lifecycle = _task_lifecycle_for(None, workspace_id)
         if lifecycle is None:
+            return 0
+        if not run_id:
+            # The session's private key may have been projected away; find
+            # the run by this conversation through the same lifecycle store.
+            _conv = str(session.get("id") or session.get("session_id") or "")
+            try:
+                for _run in lifecycle.runs.list_runs(
+                        include_terminal=True, limit=100):
+                    _rid = str(_run.get("id") or _run.get("run_id") or "")
+                    _rec = lifecycle.get_task(_rid) if _rid else None
+                    if _rec and str(_rec.get("conversation_id") or "") == _conv:
+                        run_id = _rid
+                        break
+            except Exception:
+                run_id = ""
+        if not run_id:
             return 0
         from core.task_lifecycle import (
             open_unresolved_questions,

@@ -1,7 +1,7 @@
 {
   "schema_version": "core-release-1",
   "title": "Atom core-release readiness ledger \u2014 2026-10-27",
-  "generated_at": "2026-10-27T23:44:07.356485+00:00",
+  "generated_at": "2026-10-27T23:47:06.971077+00:00",
   "supersedes": "WHOLE_APP_READINESS_LEDGER_2026-10-27",
   "decision": "docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md",
   "candidate": {
@@ -2305,7 +2305,12 @@
         {
           "kind": "api",
           "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_after_restart_failed.json",
-          "detail": "same renamed assessment after restart: no valid block, deterministic rows only, success=false"
+          "detail": "renamed assessment after restart: no valid block, deterministic rows only, success=false"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_boundaries_after_restart_green.json",
+          "detail": "grants boundary assessment after restart: 3200 DECLINE, 5000 HOLD, 10000 HOLD, 12000 HOLD; success/completed"
         },
         {
           "kind": "api",
@@ -2414,6 +2419,11 @@
         },
         {
           "kind": "state",
+          "path": "task run 66ebd241",
+          "detail": "post-restart green assessment: 4 read obligations settled; 4 freshness obligations remain open"
+        },
+        {
+          "kind": "state",
           "path": "task run 558425c5",
           "detail": "incomplete assessment: 3 read + 3 freshness obligations remain open"
         }
@@ -2438,7 +2448,7 @@
           "detail": "no valid block; deterministic rows delivered, success=false"
         }
       ],
-      "first_failed_transition": "The model did not emit a valid review block after restart; no decisions were certified.",
+      "first_failed_transition": "The renamed-schema assessment did not emit a valid block after restart; a separate grants boundary assessment after the same restart did pass (assessment_boundaries_after_restart_green.json), so restart reliability is mixed, not uniformly broken.",
       "next_action": "Measure the post-restart generation failure (provider/context/format) before changing the loop; do not keep repeating unchanged requests.",
       "blocking": true,
       "notes": "Pre-restart green runs prove the pipeline and judgment on those inputs; this is a reliability gap, not a structural one."
