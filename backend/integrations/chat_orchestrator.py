@@ -8592,37 +8592,29 @@ class ChatOrchestrator:
             ):
                 result = {}
             if _review_assessment and _review_allowed_decisions:
-                _review_structured = (
-                    result.get("structured_result")
-                    if isinstance(result.get("structured_result"), dict)
-                    else {})
-                _review_records = list(
-                    _review_structured.get("requested_items") or [])
-                if not _review_records:
-                    _review_records = [
-                        str(target.get("item") or "")
-                        for target in (_review_structured.get("targets") or [])
-                        if isinstance(target, dict) and target.get("item")
-                    ]
-                if not _review_records:
-                    _review_records = [
+                from core.review_contract import (
+                    accepted_subjects as _accepted_subjects,
+                )
+
+                _review_catalogued = [
+                    str((result.get("identity") or {}).get("file_name") or ""),
+                    str((task.get("resolved_file") or {}).get("file_name")
+                        or ""),
+                    str(task.get("confirmed_mention") or ""),
+                ]
+                _review_requested_records = _accepted_subjects(
+                    objective, catalogued_names=_review_catalogued)
+                if not _review_requested_records:
+                    # The accepted task may already carry the subjects chosen
+                    # by the confirmation fast path. Never rebuild them from
+                    # the retrieved block.
+                    _review_requested_records = [
                         str(item) for item in (
                             task.get("requested_targets") or [])
                         if str(item or "").strip()
                     ]
-                if not _review_records:
-                    try:
-                        from core.workbook_read_artifact import (
-                            extract_targets,
-                        )
-
-                        _review_records = extract_targets(
-                            objective, [objective],
-                            task.get("requested_targets") or [])
-                    except Exception:  # noqa: BLE001 — subjects additive
-                        _review_records = []
                 _review_requested_records = list(dict.fromkeys(
-                    str(record).strip() for record in _review_records
+                    str(record).strip() for record in _review_requested_records
                     if str(record or "").strip()))[:12]
                 _review_required = bool(
                     _review_requested_records and result)
@@ -9275,11 +9267,25 @@ class ChatOrchestrator:
             # certify the review.
             if _review_required:
                 try:
+                    from core.review_contract import (
+                        build_accepted_contract,
+                    )
                     from core.review_result import (
                         build_evidence_index,
                         build_policy_index,
                         build_review_result,
                         render_review_result,
+                    )
+
+                    _review_accepted_contract = build_accepted_contract(
+                        objective,
+                        catalogued_names=_review_catalogued,
+                        source_version=str(
+                            (result.get("identity") or {}).get(
+                                "content_hash")
+                            or (result.get("identity") or {}).get(
+                                "source_version") or ""),
+                        lessons=_review_lessons,
                     )
 
                     # CONSUME THE VALIDATED DELIVERY RESULT (2026-10-26):
@@ -9340,11 +9346,13 @@ class ChatOrchestrator:
                                 or result.get("execution_id")
                                 or "")
                         _review_evidence_index = build_evidence_index(
-                            _review_struct)
+                            _review_struct,
+                            subjects=_review_requested_records)
                         _review_policy_index = build_policy_index(
                             _review_lessons, _review_allowed_decisions)
                         _review_contract = {
                             "subjects": list(_review_requested_records),
+                            "accepted_inputs": _review_accepted_contract,
                             "required_evidence": [
                                 dict(entry.get("source_identity") or {})
                                 for entry in _review_evidence_index
@@ -9373,6 +9381,10 @@ class ChatOrchestrator:
                     _review_delivered = bool(
                         _review_result.get("ok")
                         and _review_precomputed_accepted)
+                    if isinstance(_review_result, dict) and deadline is not None:
+                        _review_result.setdefault(
+                            "reviewed_at_elapsed_s",
+                            round(deadline.elapsed(), 2))
                     _review_data = response.setdefault("data", {})
                     if isinstance(_review_data, dict):
                         _review_data["review_contract"] = _review_contract
@@ -10552,6 +10564,155 @@ class ChatOrchestrator:
                                 "(zero re-read)")
                     except Exception:  # noqa: BLE001 — flag is additive
                         _delivery_review = False
+                    # REPEAT REUSE: a repeated review whose accepted subjects,
+                    # source version, teaching revision and decision schema are
+                    # unchanged reuses the validated assessment with a NEW
+                    # delivery record. No read, no model, no new task
+                    # operation. Any changed input falls through to reassess.
+                    if _delivery_review:
+                        try:
+                            from core.review_contract import (
+                                build_accepted_contract,
+                                same_contract_inputs,
+                            )
+                            from core.review_result import (
+                                decision_options_from_lessons,
+                                render_review_result,
+                            )
+
+                            _reuse_task = session.get(
+                                FILE_TASK_SESSION_KEY) or {}
+                            _reuse_objective = str(
+                                _reuse_task.get("original_message")
+                                or _pfr.get("original_request")
+                                or message)
+                            _reuse_lessons = self._agent_lessons(
+                                (context or {}).get("agent_id"),
+                                _reuse_objective, limit=10)
+                            _reuse_allowed = (
+                                decision_options_from_lessons(
+                                    _reuse_lessons))
+                            _reuse_accepted = build_accepted_contract(
+                                _reuse_objective,
+                                catalogued_names=[
+                                    str((_pfr.get("identity") or {}).get(
+                                        "file_name") or ""),
+                                    str((_reuse_task.get(
+                                        "resolved_file") or {}).get(
+                                            "file_name") or ""),
+                                    str(_reuse_task.get(
+                                        "confirmed_mention") or ""),
+                                ],
+                                source_version=str(
+                                    (_pfr.get("identity") or {}).get(
+                                        "content_hash")
+                                    or (_pfr.get("identity") or {}).get(
+                                        "source_version") or ""),
+                                lessons=_reuse_lessons,
+                            )
+                            _stored_review = (
+                                _pfr.get("validated_review")
+                                or _pfr.get("review_result"))
+                            _stored_inputs = (
+                                _pfr.get("accepted_contract")
+                                or ((_pfr.get("review_contract") or {})
+                                    .get("accepted_inputs")))
+                            _stored_review_ok = bool(
+                                isinstance(_stored_review, dict)
+                                and _stored_review.get("ok") is True
+                                and list(_stored_review.get(
+                                    "requested_subjects") or [])
+                                == list(_reuse_accepted.get("subjects")
+                                       or []))
+                            if (
+                                _stored_review_ok
+                                and same_contract_inputs(
+                                    _stored_inputs, _reuse_accepted)
+                            ):
+                                _reuse_block = render_review_result(
+                                    _stored_review)
+                                _reuse_message = str(
+                                    _pfr.get("rendered") or "").rstrip()
+                                if _reuse_block:
+                                    _reuse_message = (
+                                        (_reuse_message + "\n\n")
+                                        if _reuse_message else "") + (
+                                            _reuse_block)
+                                _reuse_gaps = any(
+                                    (assessment.get(
+                                        "unresolved_requirements") or [])
+                                    for assessment in (
+                                        _stored_review.get(
+                                            "assessments") or [])
+                                    if isinstance(assessment, dict))
+                                _reuse_response = {
+                                    "success": True,
+                                    "message": _reuse_message,
+                                    "session_id": session_id,
+                                    "execution_id": _execution_id,
+                                    "intent": "search",
+                                    "confidence": 0.9,
+                                    "outcome": (
+                                        "partial" if _reuse_gaps
+                                        else "completed"),
+                                    "review_result": _stored_review,
+                                    "review_contract": _pfr.get(
+                                        "review_contract"),
+                                    "data": {
+                                        "deterministic_delivery": True,
+                                        "review_result": _stored_review,
+                                        "review_contract": _pfr.get(
+                                            "review_contract"),
+                                        "file_identity": _pfr.get(
+                                            "identity"),
+                                        "reused_validated_review": True,
+                                    },
+                                    "model": "deterministic",
+                                    "provider": "structured",
+                                    "requires_confirmation": False,
+                                    "next_steps": [],
+                                    "suggested_actions": [],
+                                }
+                                _pfr["status"] = "delivered"
+                                _pfr["delivered_at"] = time.time()
+                                _reuse_task_row = session.get(
+                                    FILE_TASK_SESSION_KEY)
+                                if isinstance(_reuse_task_row, dict):
+                                    from core.pending_file_task import (
+                                        mark_task_delivered,
+                                    )
+
+                                    session[FILE_TASK_SESSION_KEY] = (
+                                        mark_task_delivered(_reuse_task_row))
+                                self._update_session(
+                                    session, message, _reuse_response,
+                                    {"primary_intent": "search",
+                                     "confidence": 0.9})
+                                await self._emit_agent_status(
+                                    session_id, _trace_agent_id,
+                                    _execution_id, "success")
+                                self._finish_chat_execution(
+                                    _execution_id, "success",
+                                    _reuse_message,
+                                    session=session, message=message,
+                                    response=_reuse_response,
+                                    deadline=_deadline,
+                                    pending_task=_reuse_task_row,
+                                    agent_id=(context or {}).get("agent_id"),
+                                    user_id=user_id,
+                                    workspace_id=(context or {}).get(
+                                        "workspace_id"),
+                                    authorized_actions=[],
+                                    allow_persisted_evidence=True,
+                                )
+                                logger.info(
+                                    "[pending-file-task] repeated review — "
+                                    "reused validated assessment (zero read, "
+                                    "new delivery)")
+                                return _reuse_response
+                        except Exception as _reuse_err:  # noqa: BLE001
+                            logger.debug(
+                                "review reuse skipped: %r", _reuse_err)
                     _format_request = (
                         _continuation is not None
                         and _continuation.get("retrieval") == "none"
@@ -10560,6 +10721,7 @@ class ChatOrchestrator:
                         and not _work_instruction
                         and not _delivery_review
                         and not _canvas_edit_shaped(message, context)
+
                         and not _CANVAS_ACTION_SHAPE_RE.search(message or "")
                         and not _OBJECTIVE_SYNTHESIS_RE.search(message or "")
                     )
@@ -18369,6 +18531,90 @@ class ChatOrchestrator:
                     message, main_message, session_id, user_id
                 )
 
+            # ONE FINAL RESOLUTION before persistence: a validated review
+            # that was committed before the deadline outranks a provisional
+            # fallback envelope. A review that arrives after cancellation
+            # never turns the expired request into success.
+            _review_result_now = (
+                (locals().get("ai_response") or {}).get("review_result")
+                if isinstance(
+                    (locals().get("ai_response") or {}).get(
+                        "review_result"), dict)
+                else ((response.get("data") or {}).get("review_result")
+                      if isinstance(response.get("data"), dict) else None))
+            _review_ok_now = bool(
+                isinstance(_review_result_now, dict)
+                and _review_result_now.get("ok") is True)
+            _review_required_state = bool(
+                (locals().get("ai_response") or {}).get("review_required")
+                or response.get("review_required")
+                or (response.get("data") or {}).get("review_required")
+                or locals().get("_ask_review_ask")
+                or locals().get("_direct_review_ask")
+                or locals().get("_r4_review_ask")
+                or locals().get("_delivery_review"))
+            _review_elapsed = None
+            if isinstance(_review_result_now, dict):
+                try:
+                    _review_elapsed = float(
+                        _review_result_now.get("reviewed_at_elapsed_s"))
+                except (TypeError, ValueError):
+                    _review_elapsed = None
+            _turn_cancelled = bool(
+                response.get("cancelled")
+                or response.get("error_code") in (
+                    "turn_budget_exceeded", "budget_exceeded")
+                or (_deadline is not None and _deadline.expired()))
+            try:
+                from core.turn_resolution import resolve_review_envelope
+
+                (
+                    _resolved_success,
+                    _resolved_outcome,
+                    _resolved_error,
+                ) = resolve_review_envelope(
+                    review_required=_review_required_state,
+                    review_result=_review_result_now,
+                    reviewed_at_elapsed_s=_review_elapsed,
+                    deadline_total_s=(
+                        float(getattr(_deadline, "total_seconds", 0) or 0)
+                        if _deadline is not None else None),
+                    cancelled=_turn_cancelled,
+                    current_success=bool(response.get("success")),
+                    current_outcome=response.get("outcome"),
+                    current_error_code=response.get("error_code"),
+                )
+                response["success"] = _resolved_success
+                if _resolved_outcome is not None:
+                    response["outcome"] = _resolved_outcome
+                if _resolved_error is None:
+                    response.pop("error_code", None)
+                    response.pop("failure_reason", None)
+                else:
+                    response["error_code"] = _resolved_error
+                    response["outcome"] = "failed"
+            except Exception as _resolve_err:  # noqa: BLE001 — fail closed
+                logger.warning(
+                    "[turn-resolution] final resolution failed closed: %r",
+                    _resolve_err)
+                if _review_required_state and not _review_ok_now:
+                    response["success"] = False
+                    response["outcome"] = "failed"
+                    response["error_code"] = (
+                        response.get("error_code")
+                        or "turn_objective_not_met")
+            try:
+                logger.info(
+                    "[stage-timing] turn finalization: elapsed_s=%.1f "
+                    "review_at_s=%s success=%s outcome=%s review_required=%s",
+                    (_deadline.elapsed() if _deadline else -1.0),
+                    _review_elapsed,
+                    response.get("success"),
+                    response.get("outcome"),
+                    _review_required_state)
+            except Exception:  # noqa: BLE001 — measurement only
+                pass
+
             # DELIVERED marking (retrieval != delivery, 2026-09-24): the
             # response is about to reach the user — a RETRIEVED result
             # becomes DELIVERED only now; a failed turn leaves it
@@ -18380,24 +18626,10 @@ class ChatOrchestrator:
                 )
 
                 _pfr_cur = session.get("_pending_file_result")
-                _review_ok_now = bool(
-                    (((locals().get("ai_response") or {}).get(
-                        "review_result") or {}).get("ok") is True)
-                    or ((((response.get("data") or {}).get(
-                        "review_result") or {}).get("ok")) is True))
                 _pfr_read_this_turn = bool(
                     isinstance(_pfr_cur, dict)
                     and str(_pfr_cur.get("execution_id") or "")
                     == str(_execution_id or ""))
-                _review_required_state = bool(
-                    (locals().get("ai_response") or {}).get(
-                        "review_required")
-                    or response.get("review_required")
-                    or (response.get("data") or {}).get("review_required")
-                    or locals().get("_ask_review_ask")
-                    or locals().get("_direct_review_ask")
-                    or locals().get("_r4_review_ask")
-                    or locals().get("_delivery_review"))
                 _delivery_ok_now = (
                     _review_ok_now
                     if _review_required_state
@@ -25887,19 +26119,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "plainly that nothing was searched this turn and "
                         "what would be needed to search it.")})
             if _review_ask:
+                _review_prompt_t0 = time.monotonic()
                 try:
+                    from core.review_contract import (
+                        build_accepted_contract,
+                    )
                     from core.review_result import (
                         build_evidence_index,
                         build_policy_index,
                         decision_options_from_lessons,
-                        requested_subjects,
                         review_output_instruction,
                     )
 
+                    _review_objective_text = str(
+                        review_objective or _gate_msg or message or "")
                     _review_lessons = (
                         self._agent_lessons(
-                            agent_id,
-                            review_objective or _gate_msg) or [])
+                            agent_id, _review_objective_text) or [])
                     _allowed = decision_options_from_lessons(
                         _review_lessons)
                     _review_pending = (
@@ -25917,9 +26153,50 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _review_pending.get("source_execution_id")
                             or _review_pending.get("execution_id")
                             or "")
-                    _subjects = requested_subjects(_review_struct)
+                    _review_catalogued = [
+                        str((_review_pending.get("identity") or {}).get(
+                            "file_name") or ""),
+                        str(((session or {}).get(
+                            "_resolved_file_identity") or {}).get(
+                                "file_name") or ""),
+                        str(((session or {}).get(
+                            "_pending_file_task") or {}).get(
+                                "confirmed_mention") or ""),
+                    ]
+                    _review_accepted = build_accepted_contract(
+                        _review_objective_text,
+                        catalogued_names=_review_catalogued,
+                        source_version=str(
+                            (_review_pending.get("identity") or {}).get(
+                                "content_hash")
+                            or (_review_pending.get("identity") or {}).get(
+                                "source_version") or ""),
+                        lessons=_review_lessons,
+                    )
+                    _subjects = list(
+                        _review_accepted.get("subjects") or [])
+                    if not _subjects:
+                        _subjects = [
+                            str(item) for item in (
+                                ((session or {}).get(
+                                    "_pending_file_task") or {}).get(
+                                        "requested_targets") or [])
+                            if str(item or "").strip()
+                        ]
+                    if _subjects:
+                        _review_struct["requested_items"] = list(_subjects)
+                    _review_struct["subjects_found"] = [
+                        str(target.get("item") or "")
+                        for target in (_review_struct.get("targets") or [])
+                        if isinstance(target, dict) and target.get("item")
+                    ]
+                    if isinstance(_review_pending, dict):
+                        _review_pending["accepted_contract"] = (
+                            _review_accepted)
+                        _review_pending["subjects_found"] = list(
+                            _review_struct["subjects_found"])
                     _evidence_index = build_evidence_index(
-                        _review_struct)
+                        _review_struct, subjects=_subjects)
                     _policy_index = build_policy_index(
                         _review_lessons, _allowed)
                     if (_allowed and _subjects
@@ -25940,6 +26217,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     logger.debug(
                         "[review-result] output contract skipped: %r",
                         _review_prompt_err)
+                logger.info(
+                    "[review-timing] contract_prompt_ms=%d elapsed_s=%.1f "
+                    "contract=%s",
+                    int((time.monotonic() - _review_prompt_t0) * 1000),
+                    (deadline.elapsed() if deadline else -1.0),
+                    _review_contract_active)
             # PUBLISH the turn's tool block to the shared state (the same
             # dict process_chat_message holds): the delivery gate reads
             # whether ANY tool work executed this turn.
@@ -28297,21 +28580,25 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     execution_id=execution_id,
                 )
                 if _review_ask:
+                    _review_validate_t0 = time.monotonic()
                     try:
+                        from core.review_contract import (
+                            build_accepted_contract,
+                        )
                         from core.review_result import (
                             build_evidence_index,
                             build_policy_index,
                             build_review_result,
                             decision_options_from_lessons,
                             render_review_result,
-                            requested_subjects,
                             strip_review_block,
                         )
 
+                        _review_objective_text = str(
+                            review_objective or _gate_msg or message or "")
                         _review_lessons = (
                             self._agent_lessons(
-                                agent_id,
-                                review_objective or _gate_msg) or [])
+                                agent_id, _review_objective_text) or [])
                         _allowed = decision_options_from_lessons(
                             _review_lessons)
                         _review_pending = (
@@ -28329,9 +28616,37 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _review_pending.get("source_execution_id")
                                 or _review_pending.get("execution_id")
                                 or "")
-                        _subjects = requested_subjects(_review_struct)
+                        _review_accepted = build_accepted_contract(
+                            _review_objective_text,
+                            catalogued_names=[
+                                str((_review_pending.get("identity") or {})
+                                    .get("file_name") or ""),
+                                str(((session or {}).get(
+                                    "_resolved_file_identity") or {}).get(
+                                        "file_name") or ""),
+                                str(((session or {}).get(
+                                    "_pending_file_task") or {}).get(
+                                        "confirmed_mention") or ""),
+                            ],
+                            source_version=str(
+                                (_review_pending.get("identity") or {}).get(
+                                    "content_hash")
+                                or (_review_pending.get("identity") or {}).get(
+                                    "source_version") or ""),
+                            lessons=_review_lessons,
+                        )
+                        _subjects = list(
+                            _review_accepted.get("subjects") or [])
+                        if not _subjects:
+                            _subjects = [
+                                str(item) for item in (
+                                    ((session or {}).get(
+                                        "_pending_file_task") or {}).get(
+                                            "requested_targets") or [])
+                                if str(item or "").strip()
+                            ]
                         _evidence_index = build_evidence_index(
-                            _review_struct)
+                            _review_struct, subjects=_subjects)
                         _policy_index = build_policy_index(
                             _review_lessons, _allowed)
                         if _allowed and _subjects:
@@ -28344,10 +28659,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 evidence_index=_evidence_index,
                                 policy_index=_policy_index,
                             )
+                            if deadline is not None:
+                                _review.setdefault(
+                                    "reviewed_at_elapsed_s",
+                                    round(deadline.elapsed(), 2))
+                            logger.info(
+                                "[review-timing] validation_ms=%d "
+                                "reviewed_at_s=%.1f ok=%s subjects=%s",
+                                int((time.monotonic()
+                                     - _review_validate_t0) * 1000),
+                                (deadline.elapsed() if deadline else -1.0),
+                                _review.get("ok"),
+                                _review.get("requested_subjects"))
                             response_data = dict(response_data or {})
                             response_data["review_result"] = _review
                             response_data["review_contract"] = {
                                 "subjects": list(_subjects),
+                                "accepted_inputs": _review_accepted,
                                 "required_evidence": [
                                     dict(entry.get("source_identity") or {})
                                     for entry in _evidence_index
@@ -28363,6 +28691,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     for entry in _policy_index
                                 ],
                             }
+                            if isinstance(_review_pending, dict):
+                                _review_pending["accepted_contract"] = (
+                                    _review_accepted)
+                                _review_pending["review_contract"] = (
+                                    response_data["review_contract"])
+                                if _review.get("ok"):
+                                    _review_pending["validated_review"] = (
+                                        _review)
                             # The fenced machine block is NEVER delivered,
                             # certified or not. On failure the prose remains
                             # explanatory; no raw block leaks (F6).

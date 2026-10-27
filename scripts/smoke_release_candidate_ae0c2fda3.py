@@ -588,7 +588,8 @@ def review_evidence_refs(review: dict) -> list[dict]:
 
 
 def review_checks(db_path: str, record: dict, expected_decision: str,
-                  expected_file: str, correction_tokens: bool = False) -> dict:
+                  expected_file: str, correction_tokens: bool = False,
+                  expected_subject: str = "") -> dict:
     final = record.get("final") or {}
     session_id = final.get("session_id") or (record.get("first") or {}).get(
         "session_id")
@@ -614,6 +615,21 @@ def review_checks(db_path: str, record: dict, expected_decision: str,
         "outcome_completed": final.get("outcome") == "completed",
         "structured_review_ok": review.get("ok") is True,
         "schema_review_result_2": review.get("schema_version") == "review-result-2",
+        # review_result.ok is necessary but not sufficient: the contract must
+        # name exactly the accepted subject, and every assessment must assess
+        # that same subject.
+        "accepted_subject_exact": (
+            not expected_subject
+            or list(review.get("requested_subjects") or [])
+            == [expected_subject]),
+        "assessed_subject_exact": (
+            not expected_subject
+            or (
+                bool(assessments)
+                and all(
+                    str(item.get("subject_id") or "") == expected_subject
+                    for item in assessments
+                    if isinstance(item, dict)))),
         "structured_decision_expected": (
             decision.casefold() == expected_decision.casefold()),
         "structured_decision": decision,
@@ -773,7 +789,8 @@ def spreadsheet_checks(db_path: str, record: dict, file_name: str,
 def identical_noop_checks(db_path: str, first: dict, second: dict,
                           counts_before: dict, counts_after: dict,
                           actions_before: list[str],
-                          actions_after: list[str]) -> dict:
+                          actions_after: list[str],
+                          expected_subject: str = "") -> dict:
     first_final = first.get("final") or {}
     second_final = second.get("final") or {}
     first_review = first_final.get("review_result") or {}
@@ -815,6 +832,13 @@ def identical_noop_checks(db_path: str, first: dict, second: dict,
             counts_after.get("tasks") == counts_before.get("tasks")),
         "canvas_actions_unchanged": actions_after == actions_before,
         "second_review_ok": second_review.get("ok") is True,
+        "accepted_subject_exact": (
+            not expected_subject
+            or (
+                list(first_review.get("requested_subjects") or [])
+                == [expected_subject]
+                and list(second_review.get("requested_subjects") or [])
+                == [expected_subject])),
     }
     checks["checks_all_true"] = all(checks.values())
     return checks
@@ -1018,7 +1042,8 @@ def run_pre(args: argparse.Namespace) -> int:
             order_prompt.format(order="O-1010"))
         evidence["o1010_before"] = o1010_before
         evidence["o1010_before_checks"] = review_checks(
-            args.db_path, o1010_before, "Process", orders_name)
+            args.db_path, o1010_before, "Process", orders_name,
+            expected_subject="O-1010")
         evidence["teach_correction"] = teach(
             args.base_url, token, agent_id, CORRECTION,
             "Order policy correction — O-1010 credit hold")
@@ -1030,13 +1055,14 @@ def run_pre(args: argparse.Namespace) -> int:
         evidence["o1010_after_correction"] = o1010_after
         evidence["o1010_after_checks"] = review_checks(
             args.db_path, o1010_after, "Escalate", orders_name,
-            correction_tokens=True)
+            correction_tokens=True, expected_subject="O-1010")
         o1001 = ask_confirmed(
             args.db_path, args.base_url, token, user_id, agent_id,
             order_prompt.format(order="O-1001"))
         evidence["o1001_sourced"] = o1001
         evidence["o1001_checks"] = review_checks(
-            args.db_path, o1001, "Process", orders_name)
+            args.db_path, o1001, "Process", orders_name,
+            expected_subject="O-1001")
 
         o1001_session = (o1001.get("final") or {}).get("session_id")
         counts_before_noop = db_counts(args.db_path)
@@ -1048,11 +1074,13 @@ def run_pre(args: argparse.Namespace) -> int:
         counts_after_noop = db_counts(args.db_path)
         actions_after_noop = canvas_actions(args.db_path, canvas_id)
         evidence["o1001_repeat_checks"] = review_checks(
-            args.db_path, o1001_repeat, "Process", orders_name)
+            args.db_path, o1001_repeat, "Process", orders_name,
+            expected_subject="O-1001")
         evidence["identical_noop_checks"] = identical_noop_checks(
             args.db_path, o1001, o1001_repeat,
             counts_before_noop, counts_after_noop,
-            actions_before_noop, actions_after_noop)
+            actions_before_noop, actions_after_noop,
+            expected_subject="O-1001")
 
         evidence["inputs"]["spreadsheet_sha256_after"] = sha256(
             Path(evidence["inputs"]["spreadsheet_path"]))
@@ -1253,7 +1281,7 @@ def run_post(args: argparse.Namespace) -> int:
         evidence["o1010_post_restart"] = o1010_post
         evidence["o1010_post_checks"] = review_checks(
             args.db_path, o1010_post, "Escalate", orders_name,
-            correction_tokens=True)
+            correction_tokens=True, expected_subject="O-1010")
 
         session_id = state["sessions"]["o1010"]
         pre_history = state["history"]["o1010_outcomes"]

@@ -108,12 +108,16 @@ def _retrieval_operation(structured: Dict[str, Any]) -> str:
     return ""
 
 
-def build_evidence_index(structured: Dict[str, Any]) -> List[Dict[str, Any]]:
+def build_evidence_index(
+    structured: Dict[str, Any],
+    subjects: Optional[Sequence[Any]] = None,
+) -> List[Dict[str, Any]]:
     """Subject-bound evidence entries from the accepted workbook read.
 
     A file/hash proves the workbook identity. The row reference here proves
     which subject that row belongs to; a file-level reference alone is not a
-    record-level assessment.
+    record-level assessment. When ``subjects`` is supplied it is the ACCEPTED
+    contract and the read block cannot add or replace subjects.
     """
     if not isinstance(structured, dict):
         return []
@@ -123,7 +127,10 @@ def build_evidence_index(structured: Dict[str, Any]) -> List[Dict[str, Any]]:
         structured.get("source_execution_id")
         or structured.get("retrieval_execution_id")
         or structured.get("execution_id"))
-    subjects = requested_subjects(structured)
+    subjects = (
+        _unique([str(value) for value in subjects or []])
+        if subjects is not None else requested_subjects(structured)
+    )
     targets = [
         target for target in (structured.get("targets") or [])
         if isinstance(target, dict)

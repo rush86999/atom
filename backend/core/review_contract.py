@@ -1,0 +1,135 @@
+"""Accepted review contract — one subject authority for a review turn.
+
+The user's accepted objective names the review subjects. The read reports what
+it found. The review reports what was assessed. These are three different
+facts and must never be reconstructed from each other:
+
+    accepted_contract.subjects   -> from the accepted objective
+    read_result.subjects_found   -> from the structured read
+    review_result.assessments    -> from the certified output
+
+Catalogued filenames and requested field labels are not subjects. Filenames are
+stripped by their exact catalogued identity (full name, stem, extensionless
+stem), and requested fields are kept in their own field list.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from typing import Any, Dict, Iterable, List, Optional, Sequence
+
+from core.review_result import decision_options_from_lessons
+from core.target_set_resolution import extract_items_from_text
+from core.workbook_read_artifact import extract_field_requests
+
+
+def _unique(values: Iterable[Any]) -> List[str]:
+    out: List[str] = []
+    seen = set()
+    for value in values or []:
+        text = str(value or "").strip()
+        key = text.casefold()
+        if not text or key in seen:
+            continue
+        seen.add(key)
+        out.append(text)
+    return out
+
+
+def strip_catalogued_names(
+    text: str,
+    catalogued_names: Optional[Sequence[str]] = None,
+) -> str:
+    """Remove complete catalogued file identities before subject extraction.
+
+    This is identity-based, not a filename regex: every supplied catalogued
+    name, its path-stem, and its extensionless stem are removed verbatim.
+    """
+    cleaned = str(text or "")
+    variants: List[str] = []
+    for raw in catalogued_names or []:
+        name = str(raw or "").strip()
+        if not name:
+            continue
+        base = name.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+        variants.extend([name, base])
+        stem = base.rsplit(".", 1)[0] if "." in base else base
+        variants.extend([stem, stem.replace("_", " "), stem.replace("-", " ")])
+    for variant in sorted(set(variants), key=len, reverse=True):
+        if len(variant) < 3:
+            continue
+        cleaned = re.sub(
+            re.escape(variant), " ", cleaned, flags=re.IGNORECASE)
+    return " ".join(cleaned.split())
+
+
+def accepted_subjects(
+    objective: str,
+    *,
+    catalogued_names: Optional[Sequence[str]] = None,
+) -> List[str]:
+    """The identifiers the accepted objective actually names."""
+    cleaned = strip_catalogued_names(objective, catalogued_names)
+    return _unique(extract_items_from_text(cleaned))[:12]
+
+
+def requested_fields(objective: str) -> List[str]:
+    """Field names the objective asks for; never review subjects."""
+    return _unique(extract_field_requests([str(objective or "")]))[:20]
+
+
+def teaching_fingerprint(lessons: Optional[Sequence[Dict[str, Any]]]) -> str:
+    """A stable revision for the applicable teaching/decision schema."""
+    payload = []
+    for lesson in lessons or []:
+        if not isinstance(lesson, dict):
+            continue
+        payload.append({
+            "id": lesson.get("id"),
+            "topic": lesson.get("topic"),
+            "scope": lesson.get("scope"),
+            "lesson": lesson.get("lesson") or lesson.get("summary"),
+            "decision_options": list(lesson.get("decision_options") or []),
+        })
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()[:24]
+
+
+def build_accepted_contract(
+    objective: str,
+    *,
+    catalogued_names: Optional[Sequence[str]] = None,
+    source_version: Optional[str] = None,
+    lessons: Optional[Sequence[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """The accepted review inputs, preserved independently of the read."""
+    return {
+        "subjects": accepted_subjects(
+            objective, catalogued_names=catalogued_names),
+        "requested_fields": requested_fields(objective),
+        "source_version": str(source_version or ""),
+        "teaching_revision": teaching_fingerprint(lessons),
+        "decision_schema": list(decision_options_from_lessons(lessons or [])),
+    }
+
+
+def same_contract_inputs(
+    stored: Optional[Dict[str, Any]],
+    current: Optional[Dict[str, Any]],
+) -> bool:
+    """Whether a repeat can reuse a validated assessment."""
+    if not isinstance(stored, dict) or not isinstance(current, dict):
+        return False
+    for key in (
+        "subjects",
+        "requested_fields",
+        "source_version",
+        "teaching_revision",
+        "decision_schema",
+    ):
+        if list(stored.get(key) or []) != list(current.get(key) or []):
+            return False
+    return True

@@ -565,6 +565,113 @@ async def test_retrieved_result_retry_renders_without_rereading():
 
 
 @pytest.mark.asyncio
+async def test_repeated_review_reuses_validated_assessment_when_inputs_unchanged():
+    from core.review_contract import build_accepted_contract
+
+    orch = _orch()
+    review_ask = (
+        "Using the uploaded orders.xlsx, review order O-1001 against the "
+        "order processing policy. Cite Order ID, Status, Qty, Unit Price, "
+        "Currency, Approval 1, Approval 2, Manager Exception, and Notes "
+        "from the row. State process or escalate."
+    )
+    lessons = [{
+        "id": "policy-1",
+        "topic": "Order processing policy",
+        "scope": "global",
+        "lesson": "Recommend process; escalate exceptions.",
+        "decision_options": ["Process", "Escalate"],
+    }]
+    contract = build_accepted_contract(
+        review_ask,
+        catalogued_names=["orders.xlsx"],
+        source_version="hash-1",
+        lessons=lessons,
+    )
+    validated = {
+        "ok": True,
+        "schema_version": "review-result-2",
+        "requested_subjects": ["O-1001"],
+        "allowed_decisions": ["Process", "Escalate"],
+        "assessments": [{
+            "subject_id": "O-1001",
+            "decision": "Process",
+            "unresolved_requirements": [],
+            "evidence_refs": [{
+                "evidence_id": "ev:O-1001:Orders!R2",
+                "subject_id": "O-1001",
+                "row_ref": "Orders!R2",
+                "source_identity": {
+                    "file_name": "orders.xlsx",
+                    "content_hash": "hash-1",
+                },
+                "retrieval_operation": "attempt-1",
+                "retrieval_execution_id": "exec-1",
+                "values": [{"col": "A2", "display": "O-1001"}],
+            }],
+        }],
+    }
+    session = {
+        "id": "s-review-reuse",
+        "history": [],
+        FILE_TASK_SESSION_KEY: {
+            "task_id": "task-review-reuse",
+            "mention": "orders.xlsx",
+            "original_message": review_ask,
+            "status": "retrieved",
+            "resolved_file": {
+                "file_name": "orders.xlsx",
+                "content_hash": "hash-1",
+            },
+        },
+        "_pending_file_result": {
+            "status": "retrieved",
+            "target_extraction_version": 3,
+            "rendered": "Workbook read: orders.xlsx | O-1001 Process |",
+            "identity": {
+                "file_id": "r1",
+                "file_name": "orders.xlsx",
+                "content_hash": "hash-1",
+            },
+            "structured_result": {
+                "requested_items": ["O-1001"],
+                "targets": [],
+            },
+            "accepted_contract": contract,
+            "review_contract": {"accepted_inputs": contract,
+                                 "subjects": ["O-1001"]},
+            "validated_review": validated,
+        },
+    }
+    narration = AsyncMock(side_effect=AssertionError("must not narrate"))
+    direct = AsyncMock(side_effect=AssertionError("must not re-read"))
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_load_pending_file_result", return_value=None),
+        patch.object(orch, "_agent_lessons", return_value=lessons),
+        patch.object(orch, "_get_qwen_response", new=narration),
+        patch.object(orch, "_direct_confirmed_file_read", new=direct),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            side_effect=AssertionError("must not plan"))),
+    ):
+        response = await orch.process_chat_message(
+            "u1", review_ask, session_id="s-review-reuse", context={}
+        )
+
+    direct.assert_not_awaited()
+    narration.assert_not_awaited()
+    assert response["success"] is True
+    assert response["model"] == "deterministic"
+    assert response["data"]["reused_validated_review"] is True
+    assert "VALIDATED REVIEW" in response["message"]
+    assert response["review_result"]["assessments"][0][
+        "subject_id"] == "O-1001"
+
+
+@pytest.mark.asyncio
 async def test_review_narration_failure_never_marks_task_delivered():
     orch = _orch()
     review_ask = (
