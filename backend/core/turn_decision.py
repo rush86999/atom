@@ -2126,6 +2126,23 @@ def pending_task_continuation_ready(
         or "").strip()
     if not file_name:
         return None
+    # The accepted objective owns the requested subjects. An exact
+    # confirmation carries none of its own, so derive them from the original
+    # ask before the file reader runs; otherwise the direct lane receives an
+    # empty target set and reports "no items resolved".
+    targets: List[str] = []
+    try:
+        from core.target_set_resolution import extract_items_from_text
+
+        targets = [
+            item for item in extract_items_from_text(
+                str(pending_task.get("original_message") or ""))
+            if item
+        ]
+    except Exception:  # noqa: BLE001 — fast path is optional
+        targets = []
+    if targets:
+        pending_task["requested_targets"] = list(targets)
     kinds = ["spreadsheet"]
     return {
         "reference": {
@@ -2135,6 +2152,7 @@ def pending_task_continuation_ready(
             "phrases": [],
         },
         "fields": [],
+        "targets": targets,
         "reason": "accepted pending task exact confirmation",
     }
 

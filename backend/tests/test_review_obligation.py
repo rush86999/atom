@@ -67,6 +67,8 @@ def test_pending_task_confirmation_fast_path_reuses_resolved_file():
     assert ready["reference"]["resolved_file"] == "orders.xlsx"
     assert ready["reference"]["state"] == "resolved"
     assert ready["fields"] == []
+    assert ready["targets"] == ["O-1001"]
+    assert task["requested_targets"] == ["O-1001"]
 
 
 def test_pending_task_fast_path_rejects_non_confirmation_or_missing_file():

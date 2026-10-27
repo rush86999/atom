@@ -11011,6 +11011,24 @@ class ChatOrchestrator:
                                         locals().get("_pending_file_task")))
                                 if _det_continuation is not None:
                                     _pending_confirmation_fastpath = True
+                                    _fast_targets = list(
+                                        _det_continuation.get("targets")
+                                        or [])
+                                    if (
+                                        _fast_targets
+                                        and isinstance(
+                                            locals().get(
+                                                "_pending_file_task"), dict)
+                                    ):
+                                        _pending_file_task[
+                                            "requested_targets"] = (
+                                                _fast_targets)
+                                        _task_carrier = session.get(
+                                            "_pending_file_task")
+                                        if isinstance(_task_carrier, dict):
+                                            _task_carrier[
+                                                "requested_targets"] = (
+                                                    list(_fast_targets))
                                     logger.info(
                                         "[turn-interpretation] accepted "
                                         "pending-task confirmation; "

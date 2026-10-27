@@ -536,6 +536,32 @@ def upload_workbook(base: str, token: str, canvas_id: str,
     return {"http": response.status_code, "body": body}
 
 
+def resolve_existing_materialized_name(db_path: str, path: Path) -> str:
+    """Catalog name for this exact content when an upload deduped as unchanged.
+
+    A repeat cutover starts from a world that already holds identical fixture
+    content. The upload correctly reports ``skipped/unchanged``; the catalog
+    entry keeps its original name. The smoke reuses that name so it still
+    exercises the reader against the same bytes without creating a duplicate.
+    """
+    try:
+        digest = hashlib.sha1(path.read_bytes()).hexdigest()
+    except Exception:
+        return ""
+    rows = read_db(
+        db_path,
+        "select file_name from dataset_entries "
+        "where content_hash=? and status='active' "
+        "order by ingested_at desc limit 8",
+        (digest,),
+    )
+    for row in rows:
+        name = str(row.get("file_name") or "")
+        if name:
+            return name
+    return ""
+
+
 def wait_materialized(db_path: str, file_names: list[str],
                       timeout_s: int = 180) -> bool:
     deadline = time.time() + timeout_s
@@ -920,11 +946,31 @@ def run_pre(args: argparse.Namespace) -> int:
                 raise RuntimeError(f"workbook upload failed: {upload.get('http')}")
             if (upload.get("body") or {}).get("success") is False:
                 raise RuntimeError("workbook upload reported success=false")
+        _requested_spreadsheet = evidence["inputs"]["spreadsheet_name"]
+        _requested_orders = evidence["inputs"]["orders_name"]
         evidence["materialized"] = wait_materialized(
-            args.db_path,
-            [evidence["inputs"]["spreadsheet_name"],
-             evidence["inputs"]["orders_name"]],
-        )
+            args.db_path, [_requested_spreadsheet, _requested_orders])
+        if not evidence["materialized"]:
+            _alias_spreadsheet = resolve_existing_materialized_name(
+                args.db_path, Path(evidence["inputs"]["spreadsheet_path"]))
+            _alias_orders = resolve_existing_materialized_name(
+                args.db_path, Path(evidence["inputs"]["orders_path"]))
+            if _alias_spreadsheet and _alias_orders:
+                evidence["materialized_alias"] = {
+                    "requested": {
+                        "spreadsheet": _requested_spreadsheet,
+                        "orders": _requested_orders,
+                    },
+                    "catalogued": {
+                        "spreadsheet": _alias_spreadsheet,
+                        "orders": _alias_orders,
+                    },
+                    "reason": "upload deduped as unchanged content",
+                }
+                evidence["inputs"]["spreadsheet_name"] = _alias_spreadsheet
+                evidence["inputs"]["orders_name"] = _alias_orders
+                evidence["materialized"] = wait_materialized(
+                    args.db_path, [_alias_spreadsheet, _alias_orders])
         if not evidence["materialized"]:
             raise RuntimeError("uploaded workbooks did not materialize")
 
