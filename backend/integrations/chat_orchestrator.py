@@ -11555,6 +11555,7 @@ class ChatOrchestrator:
             if (
                 _ask_direct
                 and not _pending_file_task
+                and not _delivery_review
                 and not _OBJECTIVE_SYNTHESIS_RE.search(message or "")
                 and not _CANVAS_ACTION_SHAPE_RE.search(message or "")
                 and not _canvas_edit_shaped(message, context)
@@ -12547,11 +12548,19 @@ class ChatOrchestrator:
                     _ask_review_ask = False
                     try:
                         from core.chat_tool_planner import review_requested
+                        from core.review_result import (
+                            decision_options_from_lessons,
+                        )
 
-                        _ask_review_ask = review_requested(
-                            _ask_task,
-                            str(_ask_task.get("original_message")
-                                or message))
+                        _ask_review_text = str(
+                            _ask_task.get("original_message") or message)
+                        if review_requested(_ask_task, _ask_review_text):
+                            _ask_review_lessons = self._agent_lessons(
+                                (context or {}).get("agent_id"),
+                                _ask_review_text, limit=10)
+                            _ask_review_ask = bool(
+                                decision_options_from_lessons(
+                                    _ask_review_lessons))
                     except Exception:  # noqa: BLE001 — additive
                         _ask_review_ask = False
                     _ask_miss_handoff_pending = (
@@ -18365,8 +18374,10 @@ class ChatOrchestrator:
                     and str(_pfr_cur.get("execution_id") or "")
                     == str(_execution_id or ""))
                 _review_required_state = bool(
-                    locals().get("_delivery_review")
-                    or locals().get("_review_objective_hint"))
+                    (locals().get("ai_response") or {}).get(
+                        "review_required")
+                    or response.get("review_required")
+                    or (response.get("data") or {}).get("review_required"))
                 _delivery_ok_now = (
                     _review_ok_now
                     if _review_required_state
@@ -20882,6 +20893,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # assignment; the broad except then silently set False and
             # disabled the deterministic-answer suppression on this path.
             _review_ask = False
+            _review_contract_active = False
             try:
                 from core.chat_tool_planner import review_requested
 
@@ -25267,7 +25279,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 try:
                     from core.pending_file_task import (
                         FILE_TASK_SESSION_KEY,
-                        mark_task_retrieved,
+                        aggregate_calculation_facts,
+                        settle_retrieval_task,
                         merge_pending_task,
                     )
 
@@ -25353,8 +25366,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             if isinstance(_storage_read_meta, dict)
                             else None,
                         }
-                        session[FILE_TASK_SESSION_KEY] = mark_task_retrieved(
-                            session.get(FILE_TASK_SESSION_KEY), _identity)
+                        _reply_calc_complete, _reply_gaps = (
+                            aggregate_calculation_facts(
+                                _reply_aggregate_record,
+                                _live_file_lookup_ran))
+                        session[FILE_TASK_SESSION_KEY] = (
+                            settle_retrieval_task(
+                                session.get(FILE_TASK_SESSION_KEY),
+                                _identity,
+                                retrieval_finished=True,
+                                answer_delivered=False,
+                                calculation_complete=_reply_calc_complete,
+                                open_requirements=_reply_gaps,
+                            ))
                         try:
                             from core.source_requirements import (
                                 attach_source_requirements,
@@ -25891,6 +25915,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 _policy_index,
                             ),
                         })
+                        _review_contract_active = True
                 except Exception as _review_prompt_err:  # noqa: BLE001
                     logger.debug(
                         "[review-result] output contract skipped: %r",
@@ -28364,6 +28389,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "review_contract": (
                         response_data.get("review_contract")
                         if isinstance(response_data, dict) else None),
+                    "review_required": bool(_review_contract_active),
                 }
 
             return None
@@ -34175,12 +34201,66 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             from core.workbook_read_artifact import (
                 TARGET_EXTRACTION_VERSION as _tev,
             )
+            _recovered_targets = []
+            for _f in findings:
+                _item = str(_f.get("item") or "").strip()
+                if not _item:
+                    continue
+                _raw = _f.get("raw")
+                if _raw is None:
+                    _raw = _f.get("value")
+                _parsed = _f.get("parsed") if isinstance(
+                    _f.get("parsed"), dict) else {}
+                _ref = str(
+                    _f.get("source") or _f.get("row_ref")
+                    or _f.get("cell") or _item)
+                _field = str(
+                    _parsed.get("basis") or _f.get("basis") or "value")
+                _candidates = []
+                if _raw not in (None, ""):
+                    _candidates.append({
+                        "ref": _ref,
+                        "values": [{
+                            "cell": _ref,
+                            "value": str(_raw),
+                            "field": _field,
+                        }],
+                    })
+                _recovered_targets.append({
+                    "item": _item,
+                    "status": (
+                        "found" if _raw not in (None, "") else "none"),
+                    "identity": {
+                        "status": (
+                            "found" if _raw not in (None, "")
+                            else "none"),
+                        "candidates": _candidates,
+                    },
+                })
+            _recovered_structured = {
+                "source_identity": {
+                    "file_name": file_name,
+                    "content_hash": chosen.get("source_version"),
+                },
+                "retrieval_operation": str(
+                    chosen.get("operation_id") or ""),
+                "source_execution_id": str(
+                    chosen.get("execution_id") or ""),
+                "requested_items": [
+                    str(f.get("item") or "").strip()
+                    for f in findings
+                    if str(f.get("item") or "").strip()
+                ],
+                "targets": _recovered_targets,
+            }
             return {
                 "status": "retrieved",
                 "rendered": rendered_body,
+                "structured_result": _recovered_structured,
                 "identity": {
                     "file_name": file_name,
                     "source_version": chosen["source_version"],
+                    "content_hash": chosen.get("source_version"),
                     "workspace_id": str(workspace_id or ""),
                     "conversation_id": str(session_id),
                 },

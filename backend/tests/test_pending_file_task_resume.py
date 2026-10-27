@@ -565,6 +565,62 @@ async def test_retrieved_result_retry_renders_without_rereading():
 
 
 @pytest.mark.asyncio
+async def test_repeated_identical_review_reuses_stored_read_without_reread():
+    orch = _orch()
+    review_ask = (
+        "Using the uploaded orders.xlsx, review order O-1001 against the "
+        "order processing policy. Cite the row and state process or escalate."
+    )
+    session = {
+        "id": "s-repeat-review",
+        "history": [],
+        "_pending_file_result": {
+            "status": "delivered",
+            "target_extraction_version": 3,
+            "rendered": (
+                "Workbook read: orders.xlsx\n"
+                "| O-1001 | FOUND | Orders!R10 [Status=On Hold] |"),
+            "identity": {
+                "file_id": "r1",
+                "file_name": "orders.xlsx",
+                "content_hash": "hash-1",
+            },
+            "structured_result": {
+                "requested_items": ["O-1001"],
+                "targets": [],
+            },
+        },
+    }
+    narration = AsyncMock(return_value={
+        "content": "I couldn't complete the requested review.",
+        "review_result": {"ok": False, "errors": [{"code": "no_result"}]},
+    })
+    direct = AsyncMock(side_effect=AssertionError("must not re-read"))
+    with (
+        patch.object(orch, "_get_or_create_session", return_value=session),
+        patch.object(orch, "_update_session"),
+        patch.object(orch, "_emit_agent_status", new=AsyncMock()),
+        patch.object(orch, "_finish_chat_execution"),
+        patch.object(orch, "_load_pending_file_result", return_value=None),
+        patch.object(orch, "_get_qwen_response", new=narration),
+        patch.object(orch, "_direct_confirmed_file_read", new=direct),
+        patch("core.chat_tool_planner.plan_tool_use", new=AsyncMock(
+            return_value=planner.ToolPlan(
+                use_tool=False, service="", intent="search", query="",
+                reason="review reuse"))),
+    ):
+        await orch.process_chat_message(
+            "u1", review_ask, session_id="s-repeat-review", context={}
+        )
+
+    direct.assert_not_awaited()
+    assert narration.await_count >= 1
+    _args, _kwargs = narration.await_args
+    assert _kwargs.get("review_objective") == review_ask
+    assert _kwargs.get("prefetched_tool_block")
+
+
+@pytest.mark.asyncio
 async def test_first_review_ask_goes_to_narration_not_deterministic_read():
     """A first workbook review ask must not settle as a raw row read."""
     orch = _orch()
