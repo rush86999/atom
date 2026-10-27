@@ -54,6 +54,39 @@ def _reply_claims_executed_search(reply: str) -> bool:
     return bool(_UNEXECUTED_SEARCH_CLAIM_RE.search(reply))
 
 
+def _presentation_record_from_meta(
+        meta: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """The record narration may be validated or re-rendered against.
+
+    A storage-read meta carries TWO different records:
+
+    * ``structured_result`` — the versioned PRESENTATION record
+      (``requested_items`` / ``targets`` / ``source_identity``) consumed by
+      ``answer_presentation.present_from_record`` and by the citation
+      validator;
+    * ``workbook_read`` — the read ARTIFACT (sheets, headers, coverage). It
+      has no targets, so a correct ``Orders!R11`` citation validates against
+      nothing and a fallback render says "No items were resolved".
+
+    Observed failure (rehearsal a1d357410, 2026-10-27): the confirmation
+    turn's read persisted the correct structured result, but the narrator
+    was judged against the artifact — its correct row citation was rejected
+    and the deterministic fallback delivered the empty-item text. Select the
+    presentation record; accept a legacy ``workbook_read`` only when it
+    actually carries presentation keys.
+    """
+    if not isinstance(meta, dict):
+        return None
+    record = meta.get("structured_result")
+    if isinstance(record, dict) and record:
+        return record
+    legacy = meta.get("workbook_read")
+    if isinstance(legacy, dict) and (
+            legacy.get("targets") or legacy.get("requested_items")):
+        return legacy
+    return None
+
+
 logger = logging.getLogger(__name__)
 
 from core.request_scope import current_request_scope
@@ -18599,6 +18632,9 @@ class ChatOrchestrator:
             _review_ok_now = bool(
                 isinstance(_review_result_now, dict)
                 and _review_result_now.get("ok") is True)
+            _review_obligation_now = (
+                session.get("_review_obligation")
+                if isinstance(session, dict) else None)
             _review_required_state = bool(
                 (locals().get("ai_response") or {}).get("review_required")
                 or response.get("review_required")
@@ -18606,7 +18642,14 @@ class ChatOrchestrator:
                 or locals().get("_ask_review_ask")
                 or locals().get("_direct_review_ask")
                 or locals().get("_r4_review_ask")
-                or locals().get("_delivery_review"))
+                or locals().get("_delivery_review")
+                or (
+                    isinstance(_review_obligation_now, dict)
+                    and str(_review_obligation_now.get("execution_id")
+                            or "") == str(_execution_id or "")
+                    and _review_obligation_now.get(
+                        "review_required") is True
+                ))
             _review_elapsed = None
             if isinstance(_review_result_now, dict):
                 try:
@@ -21248,6 +21291,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # disabled the deterministic-answer suppression on this path.
             _review_ask = False
             _review_contract_active = False
+            # A CURRENT-turn receipt that fails subject/source validation.
+            # The review prompt must never substitute an older carrier for
+            # it (the newer-receipt/older-empty-item coexistence).
+            _review_read_rejected = False
+            _review_obligation = None
             try:
                 from core.chat_tool_planner import review_requested
 
@@ -21258,6 +21306,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     review_objective or _gate_msg or message)
             except Exception:  # noqa: BLE001 — flag is additive
                 _review_ask = False
+            if _review_ask:
+                # THE OUTSTANDING REVIEW OBLIGATION BELONGS TO THIS
+                # EXECUTION UNTIL A VALIDATED ASSESSMENT IS DELIVERED.
+                # The reply leg may return None on narration failure and
+                # the outer turn must still know not to mark the read
+                # delivered or the task complete.
+                _review_obligation = {
+                    "execution_id": execution_id,
+                    "review_required": True,
+                    "objective": str(
+                        review_objective or _gate_msg or message or ""),
+                }
+                if isinstance(session, dict):
+                    session["_review_obligation"] = dict(
+                        _review_obligation)
             _plan_mentions: List[str] = []
             try:
                 from core.agent_file_context import (
@@ -21721,9 +21784,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _deterministic_answer = _prefetch_meta.get(
                                 "rendered_answer"
                             ) or None
-                            _turn_structured_record = _prefetch_meta.get(
-                                "workbook_read"
-                            ) or None
+                            _turn_structured_record = (
+                                _presentation_record_from_meta(
+                                    _prefetch_meta))
                             _file_lookup_attempted = True
                             _resolved_file_identity = {
                                 "service": _prefetch_meta.get("service"),
@@ -22813,9 +22876,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _deterministic_answer = _storage_read_meta.get(
                                 "rendered_answer"
                             ) or None
-                            _turn_structured_record = _storage_read_meta.get(
-                                "workbook_read"
-                            ) or None
+                            _turn_structured_record = (
+                                _presentation_record_from_meta(
+                                    _storage_read_meta))
                         # TURN EXECUTION RECEIPTS (pristine-J2 finding):
                         # the planner lane's executed tools stamp the
                         # session under THIS execution's id so the final
@@ -23619,8 +23682,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     _sr_direct.get("rendered_answer")
                                     or None)
                                 _turn_structured_record = (
-                                    _sr_direct.get("workbook_read")
-                                    or None)
+                                    _presentation_record_from_meta(
+                                        _sr_direct))
                             logger.info(
                                 "[pending-file-task] planner unavailable — "
                                 "confirmed read executed directly by the "
@@ -24104,32 +24167,140 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                                             "confirmed_mention")
                                                         or _task_row.get(
                                                             "mention"))}
-                                            _retrieved = mark_task_retrieved(
-                                                _task_row, _identity)
-                                            session[FILE_TASK_SESSION_KEY] = (
-                                                mark_task_delivered(
-                                                    _retrieved))
-                                            session["_pending_file_result"] = {
-                                                "status": "delivered",
-                                                "target_extraction_version": 3,
-                                                "rendered": _tool_block[:24000],
-                                                "identity": _identity,
-                                                "execution_id": execution_id,
-                                                "source_execution_id": execution_id,
-                                                "retrieved_at": time.time(),
-                                                "delivered_at": time.time(),
-                                                "structured_result": (
-                                                    _rc_payload.get(
-                                                        "structured_result")
-                                                    if isinstance(
-                                                        _rc_payload, dict)
-                                                    else None),
-                                            }
-                                            logger.info(
-                                                "[pending-file-task] replan "
-                                                "receipt bound: task "
-                                                "delivered (file=%r)",
-                                                _identity.get("file_name"))
+                                            if _review_ask:
+                                                # A REVIEW read is evidence,
+                                                # not the completed answer.
+                                                # Adopt ONE validated receipt
+                                                # into every carrier together
+                                                # and leave the task at
+                                                # `retrieved`: the review is
+                                                # delivered only after its
+                                                # structured assessment
+                                                # certifies.
+                                                from core.review_contract import (
+                                                    build_accepted_contract,
+                                                )
+                                                from core.review_handoff import (
+                                                    adopt_read_result,
+                                                    validate_read_receipt,
+                                                )
+
+                                                _bound_source = (
+                                                    _task_row.get(
+                                                        "resolved_file")
+                                                    or session.get(
+                                                        "_resolved_file_identity")
+                                                    or _resolved_file_identity
+                                                    or _identity
+                                                    or {})
+                                                _accepted_text = str(
+                                                    review_objective
+                                                    or _gate_msg
+                                                    or message
+                                                    or "")
+                                                _catalogued_names = [
+                                                    str(_bound_source.get(
+                                                        "file_name") or ""),
+                                                    str(_task_row.get(
+                                                        "confirmed_mention")
+                                                        or _task_row.get(
+                                                            "mention") or ""),
+                                                    *[str(m) for m in
+                                                      (_plan_mentions or [])],
+                                                ]
+                                                _accepted_read_contract = (
+                                                    build_accepted_contract(
+                                                        _accepted_text,
+                                                        catalogued_names=(
+                                                            _catalogued_names),
+                                                        source_version=str(
+                                                            _bound_source.get(
+                                                                "content_hash")
+                                                            or _bound_source.get(
+                                                                "source_version")
+                                                            or ""),
+                                                    ))
+                                                _selected_read = (
+                                                    validate_read_receipt(
+                                                        _replan,
+                                                        _accepted_read_contract,
+                                                        _bound_source,
+                                                        execution_id=(
+                                                            execution_id),
+                                                    ))
+                                                if _selected_read.get("ok"):
+                                                    _turn_read = (
+                                                        adopt_read_result(
+                                                            _selected_read,
+                                                            execution_id=(
+                                                                execution_id),
+                                                        ))
+                                                    _turn_structured_record = (
+                                                        _turn_read[
+                                                            "structured_result"])
+                                                    _deterministic_answer = (
+                                                        _turn_read[
+                                                            "presentation"])
+                                                    _resolved_file_identity = (
+                                                        _turn_read["identity"])
+                                                    _adopt_pending_file_result(
+                                                        session,
+                                                        _turn_read["carrier"],
+                                                        source="replan_read",
+                                                    )
+                                                    session[
+                                                        FILE_TASK_SESSION_KEY
+                                                    ] = mark_task_retrieved(
+                                                        dict(_task_row),
+                                                        _turn_read["identity"],
+                                                    )
+                                                    logger.info(
+                                                        "[pending-file-task] "
+                                                        "replan read adopted: "
+                                                        "retrieved, review "
+                                                        "pending (subjects=%s "
+                                                        "file=%r)",
+                                                        _turn_read[
+                                                            "subjects_found"],
+                                                        _turn_read[
+                                                            "identity"].get(
+                                                                "file_name"))
+                                                else:
+                                                    _review_read_rejected = True
+                                                    logger.warning(
+                                                        "[pending-file-task] "
+                                                        "replan read NOT "
+                                                        "adopted for review: "
+                                                        "%s",
+                                                        _selected_read.get(
+                                                            "reason"))
+                                            else:
+                                                _retrieved = mark_task_retrieved(
+                                                    _task_row, _identity)
+                                                session[FILE_TASK_SESSION_KEY] = (
+                                                    mark_task_delivered(
+                                                        _retrieved))
+                                                session["_pending_file_result"] = {
+                                                    "status": "delivered",
+                                                    "target_extraction_version": 3,
+                                                    "rendered": _tool_block[:24000],
+                                                    "identity": _identity,
+                                                    "execution_id": execution_id,
+                                                    "source_execution_id": execution_id,
+                                                    "retrieved_at": time.time(),
+                                                    "delivered_at": time.time(),
+                                                    "structured_result": (
+                                                        _rc_payload.get(
+                                                            "structured_result")
+                                                        if isinstance(
+                                                            _rc_payload, dict)
+                                                        else None),
+                                                }
+                                                logger.info(
+                                                    "[pending-file-task] replan "
+                                                    "receipt bound: task "
+                                                    "delivered (file=%r)",
+                                                    _identity.get("file_name"))
                                     except Exception as _bind_err:
                                         logger.warning(
                                             "[pending-file-task] replan "
@@ -26244,35 +26415,32 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _review_pending = (
                         (session.get("_pending_file_result") or {})
                         if isinstance(session, dict) else {})
-                    _review_struct = (
-                        _review_pending.get("structured_result")
-                        if isinstance(
-                            _review_pending.get("structured_result"),
-                            dict) else None
-                    ) or _turn_structured_record or {}
-                    _review_struct = dict(_review_struct)
-                    if not _review_struct.get("source_execution_id"):
-                        _review_struct["source_execution_id"] = str(
-                            _review_pending.get("source_execution_id")
-                            or _review_pending.get("execution_id")
-                            or "")
+                    _review_task_row = (
+                        ((session or {}).get("_pending_file_task") or {})
+                        if isinstance(session, dict) else {})
+                    _review_bound_source = (
+                        (_review_pending.get("identity")
+                         if isinstance(_review_pending, dict) else None)
+                        or ((session or {}).get("_resolved_file_identity"))
+                        or (_review_task_row.get("resolved_file")
+                            if isinstance(_review_task_row, dict) else None)
+                        or {})
                     _review_catalogued = [
-                        str((_review_pending.get("identity") or {}).get(
+                        str((_review_bound_source or {}).get(
                             "file_name") or ""),
                         str(((session or {}).get(
                             "_resolved_file_identity") or {}).get(
                                 "file_name") or ""),
-                        str(((session or {}).get(
-                            "_pending_file_task") or {}).get(
-                                "confirmed_mention") or ""),
+                        str((_review_task_row or {}).get(
+                            "confirmed_mention") or ""),
                     ]
                     _review_accepted = build_accepted_contract(
                         _review_objective_text,
                         catalogued_names=_review_catalogued,
                         source_version=str(
-                            (_review_pending.get("identity") or {}).get(
+                            (_review_bound_source or {}).get(
                                 "content_hash")
-                            or (_review_pending.get("identity") or {}).get(
+                            or (_review_bound_source or {}).get(
                                 "source_version") or ""),
                         lessons=_review_lessons,
                     )
@@ -26281,25 +26449,109 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     if not _subjects:
                         _subjects = [
                             str(item) for item in (
-                                ((session or {}).get(
-                                    "_pending_file_task") or {}).get(
-                                        "requested_targets") or [])
+                                (_review_task_row or {}).get(
+                                    "requested_targets") or [])
                             if str(item or "").strip()
                         ]
-                    if _subjects:
-                        _review_struct["requested_items"] = list(_subjects)
-                    _review_struct["subjects_found"] = [
-                        str(target.get("item") or "")
-                        for target in (_review_struct.get("targets") or [])
-                        if isinstance(target, dict) and target.get("item")
-                    ]
-                    if isinstance(_review_pending, dict):
-                        _review_pending["accepted_contract"] = (
-                            _review_accepted)
-                        _review_pending["subjects_found"] = list(
-                            _review_struct["subjects_found"])
-                    _evidence_index = build_evidence_index(
-                        _review_struct, subjects=_subjects)
+                    # ONE validated read supplies the prompt. Candidate
+                    # order is NOT "whichever block is nonempty": each
+                    # record must contain the accepted subject's rows
+                    # from the bound workbook/version.
+                    from core.review_handoff import (
+                        adopt_read_result as _adopt_review_read,
+                        build_review_input as _build_review_input,
+                        select_review_read as _select_review_read,
+                    )
+
+                    _pending_struct = (
+                        _review_pending.get("structured_result")
+                        if isinstance(_review_pending, dict) else None)
+                    _review_selected = None
+                    if isinstance(_turn_structured_record, dict):
+                        # THIS turn's read is the only record allowed to
+                        # replace the carrier. It must contain the accepted
+                        # subject's rows from the bound workbook/version.
+                        _review_selected = _select_review_read(
+                            [_turn_structured_record],
+                            _review_accepted,
+                            _review_bound_source,
+                            execution_id=execution_id,
+                        )
+                        if not _review_selected.get("ok"):
+                            _review_read_rejected = True
+                    if _review_selected is not None and (
+                            _review_selected.get("ok")):
+                        _review_turn_read = _adopt_review_read(
+                            _review_selected)
+                        _review_input = _build_review_input(
+                            _review_accepted, _review_turn_read)
+                        _review_struct = _review_input["structured_result"]
+                        _subjects = list(_review_input["subjects"])
+                        _evidence_index = list(
+                            _review_input["evidence_index"])
+                        if isinstance(_review_pending, dict):
+                            for _rk in (
+                                    "structured_result", "evidence_index",
+                                    "attempt_id", "evidence_revision",
+                                    "evidence_action", "subjects_found"):
+                                if _review_turn_read.get(_rk) is not None:
+                                    _review_pending[_rk] = (
+                                        _review_turn_read.get(_rk))
+                            if _review_turn_read.get("identity"):
+                                _review_pending["identity"] = dict(
+                                    _review_turn_read["identity"])
+                            if _review_turn_read.get("presentation"):
+                                _review_pending["rendered"] = (
+                                    _review_turn_read["presentation"][:24000])
+                                _review_pending["rendered_core"] = (
+                                    _review_turn_read["presentation"][:24000])
+                            if (_review_pending.get("status") == "delivered"
+                                    and not _review_pending.get(
+                                        "validated_review")):
+                                _review_pending["status"] = "retrieved"
+                            _review_pending["accepted_contract"] = (
+                                _review_accepted)
+                    elif _review_read_rejected:
+                        # A current receipt failed validation. Never fall
+                        # back to an older/empty carrier as if the new read
+                        # had supplied it.
+                        _review_struct = {}
+                        _evidence_index = []
+                        logger.info(
+                            "[review-result] current read rejected; no "
+                            "stored evidence may stand in for it")
+                    elif isinstance(_pending_struct, dict):
+                        # Legacy/stored read (no current-turn adoption):
+                        # preserve the existing carrier behavior, but use
+                        # the carrier's own evidence index when a previous
+                        # adoption wrote one, so record and evidence stay
+                        # paired.
+                        _review_struct = dict(_pending_struct)
+                        if not _review_struct.get("source_execution_id"):
+                            _review_struct["source_execution_id"] = str(
+                                (_review_pending.get("source_execution_id")
+                                 or _review_pending.get("execution_id")
+                                 or execution_id or ""))
+                        _legacy_evidence = (
+                            _review_pending.get("evidence_index")
+                            if isinstance(_review_pending, dict) else None)
+                        if isinstance(_legacy_evidence, list) and (
+                                _legacy_evidence):
+                            _evidence_index = [
+                                dict(entry) for entry in _legacy_evidence
+                                if isinstance(entry, dict)]
+                        else:
+                            _evidence_index = build_evidence_index(
+                                _review_struct, subjects=_subjects)
+                        if isinstance(_review_pending, dict):
+                            _review_pending["accepted_contract"] = (
+                                _review_accepted)
+                    else:
+                        _review_struct = {}
+                        _evidence_index = []
+                        logger.info(
+                            "[review-result] no read evidence supplied for "
+                            "the review prompt")
                     _policy_index = build_policy_index(
                         _review_lessons, _allowed)
                     if (_allowed and _subjects
@@ -28708,34 +28960,33 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _review_pending = (
                             (session.get("_pending_file_result") or {})
                             if isinstance(session, dict) else {})
-                        _review_struct = (
-                            _review_pending.get("structured_result")
-                            if isinstance(
-                                _review_pending.get("structured_result"),
-                                dict) else None
-                        ) or _turn_structured_record or {}
-                        _review_struct = dict(_review_struct)
-                        if not _review_struct.get("source_execution_id"):
-                            _review_struct["source_execution_id"] = str(
-                                _review_pending.get("source_execution_id")
-                                or _review_pending.get("execution_id")
-                                or "")
+                        _review_task_row = (
+                            ((session or {}).get("_pending_file_task") or {})
+                            if isinstance(session, dict) else {})
+                        _review_bound_source = (
+                            (_review_pending.get("identity")
+                             if isinstance(_review_pending, dict) else None)
+                            or ((session or {}).get(
+                                "_resolved_file_identity"))
+                            or (_review_task_row.get("resolved_file")
+                                if isinstance(
+                                    _review_task_row, dict) else None)
+                            or {})
                         _review_accepted = build_accepted_contract(
                             _review_objective_text,
                             catalogued_names=[
-                                str((_review_pending.get("identity") or {})
-                                    .get("file_name") or ""),
+                                str((_review_bound_source or {}).get(
+                                    "file_name") or ""),
                                 str(((session or {}).get(
                                     "_resolved_file_identity") or {}).get(
                                         "file_name") or ""),
-                                str(((session or {}).get(
-                                    "_pending_file_task") or {}).get(
-                                        "confirmed_mention") or ""),
+                                str((_review_task_row or {}).get(
+                                    "confirmed_mention") or ""),
                             ],
                             source_version=str(
-                                (_review_pending.get("identity") or {}).get(
+                                (_review_bound_source or {}).get(
                                     "content_hash")
-                                or (_review_pending.get("identity") or {}).get(
+                                or (_review_bound_source or {}).get(
                                     "source_version") or ""),
                             lessons=_review_lessons,
                         )
@@ -28744,13 +28995,104 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         if not _subjects:
                             _subjects = [
                                 str(item) for item in (
-                                    ((session or {}).get(
-                                        "_pending_file_task") or {}).get(
-                                            "requested_targets") or [])
+                                    (_review_task_row or {}).get(
+                                        "requested_targets") or [])
                                 if str(item or "").strip()
                             ]
-                        _evidence_index = build_evidence_index(
-                            _review_struct, subjects=_subjects)
+                        from core.review_handoff import (
+                            adopt_read_result as _adopt_review_read,
+                            build_review_input as _build_review_input,
+                            select_review_read as _select_review_read,
+                        )
+
+                        _pending_struct = (
+                            _review_pending.get("structured_result")
+                            if isinstance(
+                                _review_pending, dict) else None)
+                        _review_selected = None
+                        if isinstance(_turn_structured_record, dict):
+                            _review_selected = _select_review_read(
+                                [_turn_structured_record],
+                                _review_accepted,
+                                _review_bound_source,
+                                execution_id=execution_id,
+                            )
+                            if not _review_selected.get("ok"):
+                                _review_read_rejected = True
+                        if _review_selected is not None and (
+                                _review_selected.get("ok")):
+                            _review_turn_read = _adopt_review_read(
+                                _review_selected)
+                            _review_input = _build_review_input(
+                                _review_accepted, _review_turn_read)
+                            _review_struct = _review_input[
+                                "structured_result"]
+                            _subjects = list(_review_input["subjects"])
+                            _evidence_index = list(
+                                _review_input["evidence_index"])
+                            if isinstance(_review_pending, dict):
+                                for _rk in (
+                                        "structured_result",
+                                        "evidence_index", "attempt_id",
+                                        "evidence_revision",
+                                        "evidence_action",
+                                        "subjects_found"):
+                                    if _review_turn_read.get(
+                                            _rk) is not None:
+                                        _review_pending[_rk] = (
+                                            _review_turn_read.get(_rk))
+                                if _review_turn_read.get("identity"):
+                                    _review_pending["identity"] = dict(
+                                        _review_turn_read["identity"])
+                                if _review_turn_read.get("presentation"):
+                                    _review_pending["rendered"] = (
+                                        _review_turn_read[
+                                            "presentation"][:24000])
+                                    _review_pending["rendered_core"] = (
+                                        _review_turn_read[
+                                            "presentation"][:24000])
+                                if (_review_pending.get("status")
+                                        == "delivered"
+                                        and not _review_pending.get(
+                                            "validated_review")):
+                                    _review_pending["status"] = "retrieved"
+                                _review_pending["accepted_contract"] = (
+                                    _review_accepted)
+                        elif _review_read_rejected:
+                            _review_struct = {}
+                            _evidence_index = []
+                            logger.warning(
+                                "[review-result] current read rejected; no "
+                                "stored evidence may stand in for it")
+                        elif isinstance(_pending_struct, dict):
+                            _review_struct = dict(_pending_struct)
+                            if not _review_struct.get(
+                                    "source_execution_id"):
+                                _review_struct["source_execution_id"] = str(
+                                    (_review_pending.get(
+                                        "source_execution_id")
+                                     or _review_pending.get("execution_id")
+                                     or execution_id or ""))
+                            _legacy_evidence = (
+                                _review_pending.get("evidence_index")
+                                if isinstance(_review_pending, dict) else None)
+                            if isinstance(_legacy_evidence, list) and (
+                                    _legacy_evidence):
+                                _evidence_index = [
+                                    dict(entry) for entry in _legacy_evidence
+                                    if isinstance(entry, dict)]
+                            else:
+                                _evidence_index = build_evidence_index(
+                                    _review_struct, subjects=_subjects)
+                            if isinstance(_review_pending, dict):
+                                _review_pending["accepted_contract"] = (
+                                    _review_accepted)
+                        else:
+                            _review_struct = {}
+                            _evidence_index = []
+                            logger.warning(
+                                "[review-result] no read evidence supplied "
+                                "for the assessment")
                         _policy_index = build_policy_index(
                             _review_lessons, _allowed)
                         if _allowed and _subjects:

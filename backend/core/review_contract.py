@@ -133,3 +133,60 @@ def same_contract_inputs(
         if list(stored.get(key) or []) != list(current.get(key) or []):
             return False
     return True
+
+
+# READ-RECEIPT HANDOFF (kept beside the contract so callers have one import
+# for "what this review accepted" and "which read may supply it").  The
+# implementation lives in core.review_handoff to keep receipt extraction and
+# carrier adoption out of the pure contract helpers above.
+def validate_read_receipt(
+    planner_result: Any,
+    accepted_contract: Optional[Dict[str, Any]],
+    bound_source: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    from core.review_handoff import validate_read_receipt as _validate
+
+    return _validate(
+        planner_result, accepted_contract, bound_source, **kwargs)
+
+
+def validate_structured_read(
+    structured: Any,
+    accepted_contract: Optional[Dict[str, Any]],
+    bound_source: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    from core.review_handoff import validate_structured_read as _validate
+
+    return _validate(
+        structured, accepted_contract, bound_source, **kwargs)
+
+
+def select_review_read(
+    candidates: Sequence[Any],
+    accepted_contract: Optional[Dict[str, Any]],
+    bound_source: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    from core.review_handoff import select_review_read as _select
+
+    return _select(candidates, accepted_contract, bound_source, **kwargs)
+
+
+def adopt_read_result(
+    selected_read: Dict[str, Any],
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    from core.review_handoff import adopt_read_result as _adopt
+
+    return _adopt(selected_read, **kwargs)
+
+
+def build_review_input(
+    accepted_contract: Optional[Dict[str, Any]],
+    turn_read: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    from core.review_handoff import build_review_input as _build
+
+    return _build(accepted_contract, turn_read)
