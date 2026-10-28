@@ -1,0 +1,23 @@
+{
+ "schema": "deepseek-judgment-comparison-source-manifest-1",
+ "status": "prepared_not_authorized",
+ "base_commit": "37baa6c78",
+ "files": {
+  "backend/scripts/orchestration_acceptance/compare_deepseek_judgment.py": "fc63900d98f5177908e76780f7d1f9b808cf710c9497a4aaa3b9a2c24e137b50",
+  "backend/scripts/orchestration_acceptance/diagnose_minimal_judgment.py": "6ff3cca4f98a667ce9e6ac174af3bf6204f18042bd95699f3d71c2f5ec7be108",
+  "backend/scripts/orchestration_acceptance/analyze_minimal_judgment.py": "47dd3a4b816de1676d454b96edd1c8180044b83098c8e87983feddca6936dce9",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_judgment_comparison_20261028/SPEC.json": "3ea4229841f52cfc25f08a9aebe6372fc2783ee05d7d3ca5166e7a31345491c5",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_judgment_comparison_20261028/README.md": "3418503a0e98e3fedf498e63889824966cf08f6f477760fd174744f237f21fc0",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_judgment_comparison_20261028/PREPARED_REQUESTS.json": "9878df5dbb2cc329c92a8d037fdf6504d2bc5f54b81eac63cb0eb688bfd739f7",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_judgment_comparison_20261028/PREPARED_RUN.txt": "a0852be590e8e18fea3b15b067d9ab9a49fa1fd4d633f800967ffd8824f905dd",
+  "docs/acceptance/evidence/whole_app_20261028/minimal_judgment_20261028/preserved_full_request.json": "f86dbbc660efa9576baadfc90b9bdb8b69d561347cf054056155234ca5670402"
+ },
+ "credential": {
+  "source": "existing encrypted BYOK store, read-only",
+  "key_id": "tenant_default_deepseek_default_production",
+  "key_hash": "cc1d28eb8b34001a845fbf176096e4124985bca4763ce44953fbe712727f32ee",
+  "key_value_recorded": false,
+  "decrypted_during_preparation": false
+ },
+ "external_calls_made": 0
+}
