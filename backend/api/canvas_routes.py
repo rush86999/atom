@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 
 from core.database import get_db
 from core.auth import get_current_user
+from core.deployment_audience import require_pilot_user
 from core.models import User
 from core.base_routes import BaseAPIRouter
 from core.service_factory import ServiceFactory
