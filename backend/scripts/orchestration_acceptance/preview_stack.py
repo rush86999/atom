@@ -327,6 +327,7 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
                  "OLLAMA_MODEL", "OLLAMA_QUALITY_SCORE",
                  "ATOM_REVIEW_STRUCTURED", "ATOM_REVIEW_CAPTURE",
                  "ATOM_CHAT_TURN_BUDGET_SECONDS",
+                 "ATOM_CHAT_REQUEST_DEADLINE_SECONDS",
                  "ATOM_TURN_INTERPRET_TIMEOUT_S",
                  # DECLARED PRODUCT-ROUTE CONFIGURATION (2026-10-28): an
                  # isolated world may select its provider/model explicitly.
@@ -374,6 +375,8 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
         "ATOM_LOCAL_ONLY": env.get("ATOM_LOCAL_ONLY", "false"),
         "ATOM_CHAT_TURN_BUDGET_SECONDS": env.get(
             "ATOM_CHAT_TURN_BUDGET_SECONDS", "95"),
+        "ATOM_CHAT_REQUEST_DEADLINE_SECONDS": env.get(
+            "ATOM_CHAT_REQUEST_DEADLINE_SECONDS", "95"),
         "ATOM_TURN_INTERPRET_TIMEOUT_S": env.get(
             "ATOM_TURN_INTERPRET_TIMEOUT_S", "65"),
         "ATOM_LLM_PROVIDER_POLICY": env.get(

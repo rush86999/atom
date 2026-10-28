@@ -41,7 +41,8 @@
   "ATOM_CHAT_TURN_BUDGET_SECONDS": "180",
   "ATOM_TURN_INTERPRET_TIMEOUT_S": "20",
   "OLLAMA_MODEL": "llama3.1:8b",
-  "ATOM_REVIEW_MODEL": "deepseek-v4-pro"
+  "ATOM_REVIEW_MODEL": "deepseek-v4-pro",
+  "ATOM_CHAT_REQUEST_DEADLINE_SECONDS": "180"
  },
  "client": {
   "timeout_ms": 300000,
