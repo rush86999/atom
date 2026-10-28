@@ -1,0 +1,38 @@
+PASS admin login API 200
+PASS agent created through product API 201
+PASS workbook uploaded through UI data-loading surface {"status":200,"canvas":"sheets"}
+PASS workbook canvas opened as real XLSX "sheets"
+PASS headers and text identifiers preserved {"a1":"Order ID","a2":"ORD-1001"}
+PASS blank cell preserved as blank ""
+PASS numeric cell preserved as a number "12.5"
+PASS formula cell displays computed value "50"
+PASS select/filter rows through the canvas UI "3 of 6 rows shown"
+PASS authorized cell edit propagated dependent formula "62.5"
+PASS dependent grand total recalculated "135"
+PASS formula source preserved separately from computed value "=SUM(E2:E5)"
+PASS unrelated sheet preserved "Unrelated sheet must survive"
+PASS XLSX download produced a file 5660
+PASS EML uploaded and bound as email canvas {"status":200,"canvas":"2b5e99e9-8ee5-4039-834a-4910506e1965"}
+PASS sender/recipients/thread visible at UI boundary "Imported message from maya.chen@example.com to pilot@atom.test, cc ops@example.com — thread reference preserved. This is an editable reply draft; nothing is sent without the Send action."
+PASS editable reply draft prefilled with reply recipient "maya.chen@example.com"
+PASS reply subject preserved "Re: Approve ORD-1001 and send summary"
+PASS attachment association preserved in composer "ATTACHMENTS\norder-detail.csv\n33 B\nMAIL\nAttach"
+PASS reply draft persists across reload "Reply draft: ORD-1001 is approved for 4 widgets. Source: order-detail.csv."
+PASS imported envelope preserved in durable canvas state {"from":"maya.chen@example.com","to":["pilot@atom.test"],"cc":["ops@example.com"]}
+PASS no send occurred during import/draft ["update","data_loaded","import_eml","agent_attached","create"]
+PASS DOCX table read at UI boundary "TABLES (READ-ONLY)\nOrder\tQty\nORD-1001\t4\nORD-1002\t2"
+PASS DOCX corrected artifact downloaded 36864
+PASS DOCX generated through product boundary 200
+PASS generated DOCX has requested headings and real table {"table":"TABLES (READ-ONLY)\nOrder\tQty\tLine total\nORD-1001\t4\t50.00\nORD-1002\t2\t60.00"}
+PASS generated DOCX downloadable 36977
+PASS PPTX slide order/title read {"s1":"Order briefing","s2":"Risk"}
+PASS PPTX table read at UI boundary "Order\tQty\nORD-1001\t4"
+PASS PPTX speaker notes read at UI boundary "SPEAKER NOTESSource: orders.xlsx Orders rows 2-3."
+PASS PPTX corrected artifact downloaded 34113
+PASS PPTX generated through product boundary 200
+PASS generated PPTX has correct slide order {"s1":"Order summary","s2":"Recommendation"}
+PASS generated PPTX contains a real table "Order\tQty\tLine total\nORD-1001\t4\t50.00\nORD-1002\t2\t60.00"
+PASS generated PPTX carries source notes "SPEAKER NOTESSource orders.xlsx Orders rows 2-3 and order-detail.csv."
+PASS generated PPTX downloadable 34318
+PASS no browser page errors []
+STATUS PASS 37/37

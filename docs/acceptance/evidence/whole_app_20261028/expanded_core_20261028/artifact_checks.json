@@ -1,0 +1,133 @@
+{
+ "status": "passed",
+ "checks": [
+  {
+   "name": "downloaded XLSX keeps edited value",
+   "ok": true,
+   "detail": {
+    "C2": 5,
+    "E2": 62.5
+   }
+  },
+  {
+   "name": "downloaded XLSX keeps computed dependents",
+   "ok": true,
+   "detail": {
+    "E6": 135.0
+   }
+  },
+  {
+   "name": "downloaded XLSX keeps formula source",
+   "ok": true,
+   "detail": "=SUM(E2:E5)"
+  },
+  {
+   "name": "downloaded XLSX keeps unrelated sheet",
+   "ok": true,
+   "detail": "Unrelated sheet must survive"
+  },
+  {
+   "name": "corrected DOCX keeps real table",
+   "ok": true,
+   "detail": [
+    [
+     "Order",
+     "Qty"
+    ],
+    [
+     "ORD-1001",
+     "4"
+    ],
+    [
+     "ORD-1002",
+     "2"
+    ]
+   ]
+  },
+  {
+   "name": "corrected DOCX keeps correction",
+   "ok": true,
+   "detail": "er brief\nORD-1001 was requested by the customer.\nSource: orders.xlsx Orders rows 2-3.\nCorrection: approved for dispatch."
+  },
+  {
+   "name": "generated DOCX has heading",
+   "ok": true,
+   "detail": "Order decision memo\nORD-1001 is approved for 4 widgets at 12.50 each; line total"
+  },
+  {
+   "name": "generated DOCX has real table",
+   "ok": true,
+   "detail": [
+    [
+     "Order",
+     "Qty",
+     "Line total"
+    ],
+    [
+     "ORD-1001",
+     "4",
+     "50.00"
+    ],
+    [
+     "ORD-1002",
+     "2",
+     "60.00"
+    ]
+   ]
+  },
+  {
+   "name": "generated DOCX carries source reference",
+   "ok": true,
+   "detail": " for 4 widgets at 12.50 each; line total 50.00.\nSources\norders.xlsx Orders rows 2-3\norder-detail.csv"
+  },
+  {
+   "name": "corrected PPTX keeps slide order",
+   "ok": true,
+   "detail": [
+    "Order briefing",
+    "Risk"
+   ]
+  },
+  {
+   "name": "corrected PPTX keeps table",
+   "ok": true,
+   "detail": null
+  },
+  {
+   "name": "corrected PPTX keeps notes",
+   "ok": true,
+   "detail": "Source: orders.xlsx Orders rows 2-3."
+  },
+  {
+   "name": "corrected PPTX keeps correction",
+   "ok": true,
+   "detail": [
+    "Risk",
+    "Confirm stock before dispatch. Correction: confirm stock before dispatch."
+   ]
+  },
+  {
+   "name": "generated PPTX slide order",
+   "ok": true,
+   "detail": [
+    "Order summary",
+    "Recommendation"
+   ]
+  },
+  {
+   "name": "generated PPTX real table",
+   "ok": true,
+   "detail": null
+  },
+  {
+   "name": "generated PPTX source notes",
+   "ok": true,
+   "detail": "Source orders.xlsx Orders rows 2-3 and order-detail.csv."
+  },
+  {
+   "name": "generated PPTX no empty slides",
+   "ok": true,
+   "detail": null
+  }
+ ]
+}

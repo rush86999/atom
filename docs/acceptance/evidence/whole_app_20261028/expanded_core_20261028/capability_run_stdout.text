@@ -1,0 +1,34 @@
+PASS admin login API 200
+PASS employee created through product API 201
+PASS first user-created canvas created through UI "http://127.0.0.1:3120/canvas/c28858f7-41e3-468d-b330-c2e100169fc3"
+PASS manifest installed and effective operations rendered "effective: assess, bind, calculate, edit, export, read, select"
+PASS dataset bound through UI {"status":200,"rows":4}
+PASS result rendered for select "operation: select\nstatus: complete\nsource: 96a4f412b09efdd1\nmanifest: 934b8934539c6961\nRow\tRef\n2\tA-101\n3\tA-102\n5\tA-104"
+PASS selection receipt carries source identity {"selected":3,"source":"96a4f412b09efdd1"}
+PASS result rendered for calculate "operation: sum\nstatus: complete\nmeasure: Amount\nsource: 96a4f412b09efdd1\nmanifest: 934b8934539c6961\ntotal: 290.00"
+PASS deterministic calculation over full dataset {"total":{"(unstated)":"290.00"},"selected":3}
+PASS result rendered for assess "operation: assess\nstatus: completed\nsource: 96a4f412b09efdd1\nmanifest: 934b8934539c6961\npolicy: 5e4229d01f237ea7\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\t\nA-102\tREVIEW\t\nA-104\tREVIEW\t"
+PASS assessment certified with task-defined decisions {"A-101":"APPROVE","A-102":"REVIEW","A-104":"REVIEW"}
+PASS assessment served DeepSeek Flash {"model":"deepseek-flash","provider":"deepseek"}
+PASS authorized edit applied with authoritative readback [{"row":3,"column":"Amount","before":"75","after":"110","changed":true,"already_satisfied":false,"readback":"110","readback_matches":true}]
+PASS result rendered for calculate "operation: sum\nstatus: complete\nmeasure: Amount\nsource: f85a7f9ee09db46c\nmanifest: 934b8934539c6961\ntotal: 325.00"
+PASS edit changed the deterministic total {"(unstated)":"325.00"}
+PASS result rendered for assess "operation: assess\nstatus: completed\nsource: f85a7f9ee09db46c\nmanifest: 934b8934539c6961\npolicy: 5e4229d01f237ea7\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\t\nA-102\tAPPROVE\t\nA-104\tREVIEW\t"
+PASS re-assessment uses the corrected state {"A-101":"APPROVE","A-102":"APPROVE","A-104":"REVIEW"}
+PASS export produced a real downloadable XLSX 5670
+PASS manifest, binding and revision persist across reload "revision 2 · 4 rows"
+PASS second user-created canvas created through UI "http://127.0.0.1:3120/canvas/f3af2287-a7c1-44ca-901c-4e27cdc9471c"
+PASS second manifest uses different vocabulary "effective: assess, bind, calculate, edit, export, read, select"
+PASS second differently-shaped dataset bound {"status":200,"rows":4}
+PASS result rendered for calculate "operation: sum\nstatus: complete\nmeasure: Hours\nsource: 6995813f016ca749\nmanifest: 70b0115891a43e50\ntotal: 12.50"
+PASS second calculation uses its own measure {"(unstated)":"12.50"}
+PASS result rendered for assess "operation: assess\nstatus: completed\nsource: 6995813f016ca749\nmanifest: 70b0115891a43e50\npolicy: ca1f37f55c3f149e\nSubject\tDecision\tEvidence\nT-900\tACCEPT\t\nT-901\tREVIEW\t\nT-903\tREVIEW\t"
+PASS second assessment uses different decision labels {"T-900":"ACCEPT","T-901":"REVIEW","T-903":"REVIEW"}
+PASS second assessment served DeepSeek Flash {"model":"deepseek-flash"}
+PASS second edit read back from store [{"row":3,"column":"Hours","before":"6","after":"8","changed":true,"already_satisfied":false,"readback":"8","readback_matches":true}]
+PASS result rendered for assess "operation: assess\nstatus: completed\nsource: 6a6227a55157162c\nmanifest: 70b0115891a43e50\npolicy: ca1f37f55c3f149e\nSubject\tDecision\tEvidence\nT-900\tACCEPT\t\nT-901\tESCALATE\t\nT-903\tREVIEW\t"
+PASS corrected second canvas escalates the edited row {"T-900":"ACCEPT","T-901":"ESCALATE","T-903":"REVIEW"}
+PASS second export produced a real XLSX 5668
+PASS second canvas state persists across reload "revision 2 · 4 rows"
+PASS no browser page errors []
+STATUS PASSED 33/33

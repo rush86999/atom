@@ -1,5 +1,12 @@
 # Atom core pilot package — 2026-10-28
 
+> **Support status: CSV-only package.**
+> This package certifies only the demonstrated CSV assessment/calculation/
+> correction/restart loop. The expanded core (email, documents, PowerPoint,
+> Excel-like canvas and one cross-material employee job) is verified in the
+> successor package tagged `expanded-core-2026-10-28`; this CSV package remains
+> unchanged and is not relabeled.
+
 Recommended configuration: DeepSeek direct `deepseek-flash`, deepseek-only
 provider policy, structured review on, streaming off, 180 s turn/request
 deadlines, 300,000 ms client timeout.

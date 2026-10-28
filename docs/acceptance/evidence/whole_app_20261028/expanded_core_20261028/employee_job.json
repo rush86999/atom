@@ -1,0 +1,157 @@
+{
+ "status": "pre_restart_passed",
+ "checks": [
+  {
+   "name": "admin login API",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "employee attached to job canvas",
+   "ok": true,
+   "detail": "7fe2908c-a409-4849-afe7-1f48064b4018"
+  },
+  {
+   "name": "task policy taught through training UI",
+   "ok": true,
+   "detail": {
+    "count": 2,
+    "topic": "pipeline approval policy"
+   }
+  },
+  {
+   "name": "workbook evidence visible before job edit",
+   "ok": true,
+   "detail": {
+    "c2": "4",
+    "e6": "122.5"
+   }
+  },
+  {
+   "name": "employee calculation updated the workbook total",
+   "ok": true,
+   "detail": {
+    "e2": "75",
+    "e6": "147.5"
+   }
+  },
+  {
+   "name": "employee assessment before correction",
+   "ok": true,
+   "detail": {
+    "A-101": "APPROVE",
+    "A-102": "APPROVE",
+    "A-104": "APPROVE"
+   }
+  },
+  {
+   "name": "baseline assessment before correction",
+   "ok": true,
+   "detail": {
+    "A-101": "APPROVE",
+    "A-102": "APPROVE",
+    "A-104": "REVIEW"
+   }
+  },
+  {
+   "name": "authorized correction read back from authoritative store",
+   "ok": true,
+   "detail": [
+    {
+     "row": 5,
+     "column": "Amount",
+     "before": "95",
+     "after": "120",
+     "changed": true,
+     "already_satisfied": false,
+     "readback": "120",
+     "readback_matches": true
+    }
+   ]
+  },
+  {
+   "name": "correction changed the affected assessment",
+   "ok": true,
+   "detail": {
+    "A-101": "APPROVE",
+    "A-102": "APPROVE",
+    "A-104": "APPROVE"
+   }
+  },
+  {
+   "name": "unfamiliar variation assessed with different vocabulary",
+   "ok": true,
+   "detail": {
+    "T-900": "ACCEPT",
+    "T-901": "ESCALATE",
+    "T-903": "REVIEW"
+   }
+  },
+  {
+   "name": "reply draft produced and persisted with grounded facts",
+   "ok": true,
+   "detail": "Hi Maya, ORD-1001 is approved for 6 widgets. The recalculated order total is 147.50. Pipeline review: A-101 APPROVE, A-102 APPROVE, A-104 APPROVE. Source: orders.xlsx Orders rows 2-5; order-detail.csv; pipeline_a.csv. Nothing has been sent; this is the reply d"
+  },
+  {
+   "name": "employee produced a real DOCX through product boundary",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "generated DOCX carries grounded facts and table",
+   "ok": true,
+   "detail": {
+    "table": "TABLES (READ-ONLY)\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\tpipeline_a.csv row 2\nA-102\tAPPROVE\tpipeline_a.csv row 3\nA-104\tAPPROVE\tpipeline_a.csv row 5"
+   }
+  },
+  {
+   "name": "employee produced a real PPTX through product boundary",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "generated PPTX has grounded slides, table and sources",
+   "ok": true,
+   "detail": {
+    "deckTitle1": "Order decision",
+    "deckTitle2": "Recommendation",
+    "deckTable": "Subject\tDecision\nA-101\tAPPROVE\nA-102\tAPPROVE\nA-104\tAPPROVE",
+    "deckNotes": "SPEAKER NOTESSources orders.xlsx, order-detail.csv, pipeline_a.csv."
+   }
+  },
+  {
+   "name": "job receipts carry source and artifact identity",
+   "ok": true,
+   "detail": {
+    "workbook": "36820e32ced940885a91f9a0bf8bd8aa21b1611336370649df9b110e69c4337e",
+    "email": "247306d3621d4960fab8476e6861b36410ffe3852c3063a6a0a0ccfed5fb8c62"
+   }
+  }
+ ],
+ "ids": {
+  "agent_id": "7fe2908c-a409-4849-afe7-1f48064b4018",
+  "workbook_canvas_id": "3173bf99-b944-473f-9414-1a51bb2bd066",
+  "email_canvas_id": "2b5e99e9-8ee5-4039-834a-4910506e1965",
+  "doc_canvas_id": "1e7a1ca6-8185-4e7b-8f63-31797f2ef14d",
+  "pptx_canvas_id": "270cc22b-ac03-4465-9b66-136393d2bc9b",
+  "capability_a_canvas_id": "c28858f7-41e3-468d-b330-c2e100169fc3",
+  "capability_b_canvas_id": "f3af2287-a7c1-44ca-901c-4e27cdc9471c",
+  "generated_doc_canvas_id": "2cd34f09-418b-4d45-8c73-c6e7e39c48c4",
+  "generated_pptx_canvas_id": "4149f475-b975-4d03-bf41-759cb4bf1183"
+ },
+ "expected": {
+  "workbook_c2": "6",
+  "workbook_e6": "147.5",
+  "email_contains": "147.50",
+  "cap_a_decision_a104": "APPROVE",
+  "cap_b_decision_t901": "ESCALATE",
+  "teaching_contains": "pipeline approval policy",
+  "doc_correction": "final approval confirmed"
+ },
+ "downloads": [
+  "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/downloads/employee-job-workbook.xlsx",
+  "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/downloads/employee-job-memo-corrected.docx",
+  "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/downloads/employee-job-deck.pptx"
+ ],
+ "page_errors": []
+}

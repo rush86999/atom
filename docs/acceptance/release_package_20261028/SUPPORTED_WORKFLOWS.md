@@ -1,5 +1,10 @@
 # Supported workflows — demonstrated core CSV loop
 
+> **Support status: CSV-only package.**
+> This package does not certify the expanded core. See the successor package
+> tagged `expanded-core-2026-10-28` for email, documents, PowerPoint, the
+> Excel-like canvas and the cross-material employee job.
+
 Verified on DeepSeek `deepseek-flash` with the packaged configuration:
 
 1. Upload a representative CSV/workbook through the product UI.

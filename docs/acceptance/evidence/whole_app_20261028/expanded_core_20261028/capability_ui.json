@@ -1,0 +1,260 @@
+{
+ "status": "passed",
+ "checks": [
+  {
+   "name": "admin login API",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "employee created through product API",
+   "ok": true,
+   "detail": 201
+  },
+  {
+   "name": "first user-created canvas created through UI",
+   "ok": true,
+   "detail": "http://127.0.0.1:3120/canvas/c28858f7-41e3-468d-b330-c2e100169fc3"
+  },
+  {
+   "name": "manifest installed and effective operations rendered",
+   "ok": true,
+   "detail": "effective: assess, bind, calculate, edit, export, read, select"
+  },
+  {
+   "name": "dataset bound through UI",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "rows": 4
+   }
+  },
+  {
+   "name": "result rendered for select",
+   "ok": true,
+   "detail": "operation: select\nstatus: complete\nsource: 96a4f412b09efdd1\nmanifest: 934b8934539c6961\nRow\tRef\n2\tA-101\n3\tA-102\n5\tA-104"
+  },
+  {
+   "name": "selection receipt carries source identity",
+   "ok": true,
+   "detail": {
+    "selected": 3,
+    "source": "96a4f412b09efdd1"
+   }
+  },
+  {
+   "name": "result rendered for calculate",
+   "ok": true,
+   "detail": "operation: sum\nstatus: complete\nmeasure: Amount\nsource: 96a4f412b09efdd1\nmanifest: 934b8934539c6961\ntotal: 290.00"
+  },
+  {
+   "name": "deterministic calculation over full dataset",
+   "ok": true,
+   "detail": {
+    "total": {
+     "(unstated)": "290.00"
+    },
+    "selected": 3
+   }
+  },
+  {
+   "name": "result rendered for assess",
+   "ok": true,
+   "detail": "operation: assess\nstatus: completed\nsource: 96a4f412b09efdd1\nmanifest: 934b8934539c6961\npolicy: 5e4229d01f237ea7\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\t\nA-102\tREVIEW\t\nA-104\tREVIEW\t"
+  },
+  {
+   "name": "assessment certified with task-defined decisions",
+   "ok": true,
+   "detail": {
+    "A-101": "APPROVE",
+    "A-102": "REVIEW",
+    "A-104": "REVIEW"
+   }
+  },
+  {
+   "name": "assessment served DeepSeek Flash",
+   "ok": true,
+   "detail": {
+    "model": "deepseek-flash",
+    "provider": "deepseek"
+   }
+  },
+  {
+   "name": "authorized edit applied with authoritative readback",
+   "ok": true,
+   "detail": [
+    {
+     "row": 3,
+     "column": "Amount",
+     "before": "75",
+     "after": "110",
+     "changed": true,
+     "already_satisfied": false,
+     "readback": "110",
+     "readback_matches": true
+    }
+   ]
+  },
+  {
+   "name": "result rendered for calculate",
+   "ok": true,
+   "detail": "operation: sum\nstatus: complete\nmeasure: Amount\nsource: f85a7f9ee09db46c\nmanifest: 934b8934539c6961\ntotal: 325.00"
+  },
+  {
+   "name": "edit changed the deterministic total",
+   "ok": true,
+   "detail": {
+    "(unstated)": "325.00"
+   }
+  },
+  {
+   "name": "result rendered for assess",
+   "ok": true,
+   "detail": "operation: assess\nstatus: completed\nsource: f85a7f9ee09db46c\nmanifest: 934b8934539c6961\npolicy: 5e4229d01f237ea7\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\t\nA-102\tAPPROVE\t\nA-104\tREVIEW\t"
+  },
+  {
+   "name": "re-assessment uses the corrected state",
+   "ok": true,
+   "detail": {
+    "A-101": "APPROVE",
+    "A-102": "APPROVE",
+    "A-104": "REVIEW"
+   }
+  },
+  {
+   "name": "export produced a real downloadable XLSX",
+   "ok": true,
+   "detail": 5670
+  },
+  {
+   "name": "manifest, binding and revision persist across reload",
+   "ok": true,
+   "detail": "revision 2 · 4 rows"
+  },
+  {
+   "name": "second user-created canvas created through UI",
+   "ok": true,
+   "detail": "http://127.0.0.1:3120/canvas/f3af2287-a7c1-44ca-901c-4e27cdc9471c"
+  },
+  {
+   "name": "second manifest uses different vocabulary",
+   "ok": true,
+   "detail": "effective: assess, bind, calculate, edit, export, read, select"
+  },
+  {
+   "name": "second differently-shaped dataset bound",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "rows": 4
+   }
+  },
+  {
+   "name": "result rendered for calculate",
+   "ok": true,
+   "detail": "operation: sum\nstatus: complete\nmeasure: Hours\nsource: 6995813f016ca749\nmanifest: 70b0115891a43e50\ntotal: 12.50"
+  },
+  {
+   "name": "second calculation uses its own measure",
+   "ok": true,
+   "detail": {
+    "(unstated)": "12.50"
+   }
+  },
+  {
+   "name": "result rendered for assess",
+   "ok": true,
+   "detail": "operation: assess\nstatus: completed\nsource: 6995813f016ca749\nmanifest: 70b0115891a43e50\npolicy: ca1f37f55c3f149e\nSubject\tDecision\tEvidence\nT-900\tACCEPT\t\nT-901\tREVIEW\t\nT-903\tREVIEW\t"
+  },
+  {
+   "name": "second assessment uses different decision labels",
+   "ok": true,
+   "detail": {
+    "T-900": "ACCEPT",
+    "T-901": "REVIEW",
+    "T-903": "REVIEW"
+   }
+  },
+  {
+   "name": "second assessment served DeepSeek Flash",
+   "ok": true,
+   "detail": {
+    "model": "deepseek-flash"
+   }
+  },
+  {
+   "name": "second edit read back from store",
+   "ok": true,
+   "detail": [
+    {
+     "row": 3,
+     "column": "Hours",
+     "before": "6",
+     "after": "8",
+     "changed": true,
+     "already_satisfied": false,
+     "readback": "8",
+     "readback_matches": true
+    }
+   ]
+  },
+  {
+   "name": "result rendered for assess",
+   "ok": true,
+   "detail": "operation: assess\nstatus: completed\nsource: 6a6227a55157162c\nmanifest: 70b0115891a43e50\npolicy: ca1f37f55c3f149e\nSubject\tDecision\tEvidence\nT-900\tACCEPT\t\nT-901\tESCALATE\t\nT-903\tREVIEW\t"
+  },
+  {
+   "name": "corrected second canvas escalates the edited row",
+   "ok": true,
+   "detail": {
+    "T-900": "ACCEPT",
+    "T-901": "ESCALATE",
+    "T-903": "REVIEW"
+   }
+  },
+  {
+   "name": "second export produced a real XLSX",
+   "ok": true,
+   "detail": 5668
+  },
+  {
+   "name": "second canvas state persists across reload",
+   "ok": true,
+   "detail": "revision 2 · 4 rows"
+  },
+  {
+   "name": "no browser page errors",
+   "ok": true,
+   "detail": []
+  }
+ ],
+ "canvas_a": {
+  "url": "http://127.0.0.1:3120/canvas/c28858f7-41e3-468d-b330-c2e100169fc3",
+  "decisions_initial": {
+   "A-101": "APPROVE",
+   "A-102": "REVIEW",
+   "A-104": "REVIEW"
+  },
+  "decisions_after_edit": {
+   "A-101": "APPROVE",
+   "A-102": "APPROVE",
+   "A-104": "REVIEW"
+  },
+  "export": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/downloads/capability-a-export.xlsx"
+ },
+ "canvas_b": {
+  "url": "http://127.0.0.1:3120/canvas/f3af2287-a7c1-44ca-901c-4e27cdc9471c",
+  "decisions_initial": {
+   "T-900": "ACCEPT",
+   "T-901": "REVIEW",
+   "T-903": "REVIEW"
+  },
+  "decisions_after_edit": {
+   "T-900": "ACCEPT",
+   "T-901": "ESCALATE",
+   "T-903": "REVIEW"
+  },
+  "export": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/downloads/capability-b-export.xlsx"
+ },
+ "page_errors": []
+}

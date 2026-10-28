@@ -1,0 +1,40 @@
+From: Maya Chen <maya.chen@example.com>
+To: pilot@atom.test
+Cc: ops@example.com
+Subject: Approve ORD-1001 and send summary
+Message-ID: <ord-1001@example.com>
+In-Reply-To: <thread-9@example.com>
+References: <thread-9@example.com> <ord-1001@example.com>
+Date: Tue, 27 Oct 2026 09:15:00 -0400
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============3436033799996398462=="
+
+--===============3436033799996398462==
+Content-Type: multipart/alternative;
+ boundary="===============4762393170784382515=="
+
+--===============4762393170784382515==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Please approve ORD-1001 for 4 widgets and prepare the customer summary.
+
+--===============4762393170784382515==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<p>Please approve <strong>ORD-1001</strong> for 4 widgets and prepare the cus=
+tomer summary.</p>
+
+--===============4762393170784382515==--
+
+--===============3436033799996398462==
+Content-Type: text/csv
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="order-detail.csv"
+MIME-Version: 1.0
+
+T3JkZXIgSUQsQXBwcm92ZWQgUXR5Ck9SRC0xMDAxLDQK
+
+--===============3436033799996398462==--

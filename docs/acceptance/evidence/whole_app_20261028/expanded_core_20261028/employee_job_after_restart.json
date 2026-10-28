@@ -1,0 +1,146 @@
+{
+ "status": "passed",
+ "checks": [
+  {
+   "name": "admin login after restart",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "teaching survives restart",
+   "ok": true,
+   "detail": {
+    "topic": "pipeline approval policy",
+    "id": "93c9cfe974344b10a559c96f0b4f146e"
+   }
+  },
+  {
+   "name": "workbook values survive restart",
+   "ok": true,
+   "detail": {
+    "c2": "6",
+    "e6": "147.5"
+   }
+  },
+  {
+   "name": "workbook formulas survive restart",
+   "ok": true,
+   "detail": "=SUM(E2:E5)"
+  },
+  {
+   "name": "unrelated workbook sheet survives restart",
+   "ok": true,
+   "detail": "Unrelated sheet must survive"
+  },
+  {
+   "name": "reply draft survives restart",
+   "ok": true,
+   "detail": "Hi Maya, ORD-1001 is approved for 6 widgets. The recalculated order total is 147.50. Pipeline review: A-101 APPROVE, A-102 APPROVE, A-104 APPROVE. Source: orders.xlsx Orders rows 2-5; order-detail.csv; pipeline_a.csv. No"
+  },
+  {
+   "name": "email source references survive restart",
+   "ok": true,
+   "detail": {
+    "banner": "Imported message from maya.chen@example.com to pilot@atom.test, cc ops@example.com — thread reference preserved. This is an editable reply d",
+    "attachment": "ATTACHMENTS\norder-detail.csv\n33 B\nMAIL\nAttach"
+   }
+  },
+  {
+   "name": "drafting after restart did not send",
+   "ok": true,
+   "detail": [
+    "update",
+    "update",
+    "update",
+    "update",
+    "data_loaded",
+    "import_eml",
+    "agent_attached",
+    "create"
+   ]
+  },
+  {
+   "name": "first capability manifest survives restart",
+   "ok": true,
+   "detail": {
+    "revision": 6,
+    "policy": "5e4229d01f237ea7"
+   }
+  },
+  {
+   "name": "second capability manifest survives restart",
+   "ok": true,
+   "detail": {
+    "revision": 2,
+    "decisions": [
+     "ACCEPT",
+     "ESCALATE",
+     "REJECT",
+     "REVIEW"
+    ]
+   }
+  },
+  {
+   "name": "corrected calculation survives restart",
+   "ok": true,
+   "detail": {
+    "(unstated)": "350.00"
+   }
+  },
+  {
+   "name": "assessment still certifies after restart",
+   "ok": true,
+   "detail": {
+    "A-101": "APPROVE",
+    "A-102": "APPROVE",
+    "A-104": "APPROVE"
+   }
+  },
+  {
+   "name": "post-restart assessment used DeepSeek Flash",
+   "ok": true,
+   "detail": {
+    "model": "deepseek-flash",
+    "provider": "deepseek"
+   }
+  },
+  {
+   "name": "unfamiliar variation still certifies after restart",
+   "ok": true,
+   "detail": {
+    "T-900": "ACCEPT",
+    "T-901": "ESCALATE",
+    "T-903": "REVIEW"
+   }
+  },
+  {
+   "name": "generated document survives restart",
+   "ok": true,
+   "detail": {
+    "correction": true,
+    "table": "TABLES (READ-ONLY)\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\tpipeline_a.csv row 2\nA-102\tAPPROVE\tpipeline_a.csv row 3\nA-104\tAPPROVE\tpipeline_a."
+   }
+  },
+  {
+   "name": "generated presentation survives restart",
+   "ok": true,
+   "detail": {
+    "deckTitle1": "Order decision",
+    "deckTitle2": "Recommendation",
+    "table": "Subject\tDecision\nA-101\tAPPROVE\nA-102\tAPPROVE\nA-104\tAPPROVE"
+   }
+  },
+  {
+   "name": "no browser page errors after restart",
+   "ok": true,
+   "detail": []
+  }
+ ],
+ "downloads": [
+  "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/downloads/employee-job-workbook-after-restart.xlsx",
+  "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/downloads/employee-job-memo-after-restart.docx",
+  "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/downloads/employee-job-deck-after-restart.pptx"
+ ],
+ "teaching_point_id": "93c9cfe974344b10a559c96f0b4f146e",
+ "page_errors": []
+}

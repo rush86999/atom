@@ -1,0 +1,18 @@
+PASS admin login after restart 200
+PASS teaching survives restart {"topic":"pipeline approval policy","id":"93c9cfe974344b10a559c96f0b4f146e"}
+PASS workbook values survive restart {"c2":"6","e6":"147.5"}
+PASS workbook formulas survive restart "=SUM(E2:E5)"
+PASS unrelated workbook sheet survives restart "Unrelated sheet must survive"
+PASS reply draft survives restart "Hi Maya, ORD-1001 is approved for 6 widgets. The recalculated order total is 147.50. Pipeline review: A-101 APPROVE, A-102 APPROVE, A-104 APPROVE. Source: orders.xlsx Orders rows 2-5; order-detail.csv; pipeline_a.csv. No"
+PASS email source references survive restart {"banner":"Imported message from maya.chen@example.com to pilot@atom.test, cc ops@example.com — thread reference preserved. This is an editable reply d","attachment":"ATTACHMENTS\norder-detail.csv\n33 B\nMAIL\nAttach"}
+PASS drafting after restart did not send ["update","update","update","update","data_loaded","import_eml","agent_attached","create"]
+PASS first capability manifest survives restart {"revision":6,"policy":"5e4229d01f237ea7"}
+PASS second capability manifest survives restart {"revision":2,"decisions":["ACCEPT","ESCALATE","REJECT","REVIEW"]}
+PASS corrected calculation survives restart {"(unstated)":"350.00"}
+PASS assessment still certifies after restart {"A-101":"APPROVE","A-102":"APPROVE","A-104":"APPROVE"}
+PASS post-restart assessment used DeepSeek Flash {"model":"deepseek-flash","provider":"deepseek"}
+PASS unfamiliar variation still certifies after restart {"T-900":"ACCEPT","T-901":"ESCALATE","T-903":"REVIEW"}
+PASS generated document survives restart {"correction":true,"table":"TABLES (READ-ONLY)\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\tpipeline_a.csv row 2\nA-102\tAPPROVE\tpipeline_a.csv row 3\nA-104\tAPPROVE\tpipeline_a."}
+PASS generated presentation survives restart {"deckTitle1":"Order decision","deckTitle2":"Recommendation","table":"Subject\tDecision\nA-101\tAPPROVE\nA-102\tAPPROVE\nA-104\tAPPROVE"}
+PASS no browser page errors after restart []
+STATUS PASSED 17/17
