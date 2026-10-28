@@ -341,3 +341,25 @@ def test_present_reuse_never_adopts_another_users_canvas(office_root):
         None, str(path), "user-b", title="shared.xlsx")
     assert bound["id"] != "c-foreign"
     assert bound["created"] is True
+
+
+def test_single_user_audience_allows_only_declared_pilot(monkeypatch):
+    from types import SimpleNamespace
+    from fastapi import HTTPException
+    from core.deployment_audience import require_pilot_user, validate_audience_config
+
+    monkeypatch.setenv("ATOM_DEPLOYMENT_AUDIENCE", "single_user")
+    monkeypatch.setenv("ATOM_PILOT_USER_EMAIL", "pilot@example.com")
+    validate_audience_config()
+    require_pilot_user(SimpleNamespace(email="pilot@example.com"))
+    with pytest.raises(HTTPException) as exc:
+        require_pilot_user(SimpleNamespace(email="other@example.com"))
+    assert exc.value.status_code == 403
+
+
+def test_multi_user_audience_fails_closed(monkeypatch):
+    from core.deployment_audience import validate_audience_config
+
+    monkeypatch.setenv("ATOM_DEPLOYMENT_AUDIENCE", "multi_user")
+    with pytest.raises(RuntimeError):
+        validate_audience_config()

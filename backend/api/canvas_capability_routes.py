@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.auth import User, get_current_user
+from core.deployment_audience import require_pilot_user
 from core.base_routes import BaseAPIRouter
 from core.canvas_capability_service import (
     CapabilityError,
@@ -37,7 +38,7 @@ from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter(prefix="/api/canvas", tags=["canvas_capabilities"])
+router = BaseAPIRouter(prefix="/api/canvas", tags=["canvas_capabilities"], dependencies=[Depends(require_pilot_user)])
 
 
 class ManifestRequest(BaseModel):

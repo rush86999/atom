@@ -7,13 +7,14 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user, User
+from core.deployment_audience import require_pilot_user
 from core.base_routes import BaseAPIRouter
 from core.canvas_email_service import EmailCanvasService
 from core.database import get_db
 from core.personal_scope import resolve_tenant_id
 
 logger = logging.getLogger(__name__)
-router = BaseAPIRouter(prefix="/api/canvas/email", tags=["canvas_email"])
+router = BaseAPIRouter(prefix="/api/canvas/email", tags=["canvas_email"], dependencies=[Depends(require_pilot_user)])
 
 
 def _get_owned_email_canvas_or_error(db, canvas_id: str, current_user) -> None:

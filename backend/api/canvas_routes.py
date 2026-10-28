@@ -21,7 +21,7 @@ from core.agent_governance_service import AgentGovernanceService
 logger = logging.getLogger(__name__)
 
 # Note: Using BaseAPIRouter for consistency with atom-upstream's enhanced JSON responses
-router = BaseAPIRouter(prefix="/api/canvas", tags=["Canvas"])
+router = BaseAPIRouter(prefix="/api/canvas", tags=["Canvas"], dependencies=[Depends(require_pilot_user)])
 
 
 # ============================================================================
