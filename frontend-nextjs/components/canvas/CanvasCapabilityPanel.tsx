@@ -77,6 +77,7 @@ export function CanvasCapabilityPanel({
     const call = useCallback(async (path: string, body?: any, method: "get" | "post" | "put" = "post") => {
         setBusy(path);
         setError(null);
+        setResult(null);
         try {
             const res = method === "get"
                 ? await apiClient.get(path)
@@ -84,6 +85,7 @@ export function CanvasCapabilityPanel({
                     ? await apiClient.put(path, body)
                     : await apiClient.post(path, body);
             if (res.data?.success === false) {
+                setResult(res.data);
                 throw new Error(res.data?.error?.message || "Operation refused");
             }
             setResult(res.data);
@@ -155,7 +157,7 @@ export function CanvasCapabilityPanel({
         if (!data?.artifact?.file_path) return;
         try {
             const res = await apiClient.get("/api/v1/office/download", {
-                params: { file_path: data.artifact.file_path },
+                params: { file_path: data.artifact.file_path, canvas_id: canvasId },
                 responseType: "blob",
             });
             const url = URL.createObjectURL(res.data as Blob);
@@ -322,7 +324,7 @@ export function CanvasCapabilityPanel({
                                             <tr key={i}>
                                                 <td className="border px-2 py-0.5">{a.subject_id}</td>
                                                 <td className="border px-2 py-0.5">{a.decision}</td>
-                                                <td className="border px-2 py-0.5">{(a.evidence_ids || []).join(", ")}</td>
+                                                <td className="border px-2 py-0.5">{(a.evidence_refs || []).map((e: any) => e.evidence_id).join(", ")}</td>
                                             </tr>
                                         ))}
                                     </tbody>

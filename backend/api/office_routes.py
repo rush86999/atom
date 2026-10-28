@@ -132,6 +132,23 @@ def _check_file_access(
     # Until then, team is the only resolution — no denial is reachable.
     return
 
+def _require_canvas_owner(db: Session, canvas_id: str, user: User) -> None:
+    """A caller may only bind/mutate a canvas they own or authored."""
+    from core.models import Canvas
+    from tools.canvas_crud_tool import _verify_canvas_owner
+
+    if not canvas_id:
+        raise HTTPException(status_code=400, detail="canvas_id is required")
+    if not _verify_canvas_owner(db, str(canvas_id), str(user.id)):
+        raise HTTPException(status_code=404, detail="Canvas not found")
+    row = db.query(Canvas).filter(Canvas.id == str(canvas_id)).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Canvas not found")
+    user_ws = str(getattr(user, "workspace_id", "") or "")
+    if row.workspace_id and user_ws and str(row.workspace_id) != user_ws and row.created_by != str(user.id):
+        raise HTTPException(status_code=403, detail="Canvas belongs to another workspace")
+
+
 # Every office endpoint reads/writes user-supplied file paths and document
 # content — they MUST be authenticated. Previously NONE of the 14 endpoints had
 # a get_current_user dependency, allowing unauthenticated arbitrary file
@@ -239,6 +256,7 @@ async def upload_office_file(
         "sha256": hashlib.sha256(content).hexdigest(),
     }
     if canvas_id:
+        _require_canvas_owner(db, canvas_id, current_user)
         from core.office_sync_service import OfficeSyncService
         sync = OfficeSyncService(db)
         bound = sync.ensure_canvas_for_file(
@@ -272,9 +290,24 @@ async def upload_office_file(
 @router.get("/download")
 def download_office_file(
     file_path: str = Query(..., description="Path to an office file"),
+    canvas_id: str = Query(..., description="Owning canvas"),
+    db: Session = Depends(get_db_session_dep),
+    current_user: User = Depends(get_current_user),
 ):
-    """Download the authoritative office artifact (XLSX/DOCX/PPTX)."""
+    """Download an office artifact the caller's canvas actually owns."""
     contained = _require_office_path(file_path)
+    _require_canvas_owner(db, canvas_id, current_user)
+    from core.models import Canvas
+
+    row = db.query(Canvas).filter(Canvas.id == str(canvas_id)).first()
+    content = dict(row.content or {}) if row is not None else {}
+    exports = content.get("capability_exports") or []
+    bound = {
+        str(content.get("office_file") or ""),
+        str(content.get("file_path") or ""),
+    }
+    if contained not in bound and contained not in {str(p) for p in exports}:
+        raise HTTPException(status_code=403, detail="File is not bound to this canvas")
     path = Path(contained)
     if not path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
@@ -437,6 +470,8 @@ async def present_coedit(
 ):
     """Present document co-editing canvas panel via WebSocket & CanvasAudit record."""
     file_path = _require_office_path(req.file_path)
+    if req.canvas_id:
+        _require_canvas_owner(db, req.canvas_id, current_user)
     sync_service = OfficeSyncService(db)
 
     # Persist (or reuse) the Canvas row bound to this file so the co-edit
@@ -484,6 +519,7 @@ async def sync_update(
     current_user: User = Depends(get_current_user),
 ):
     """Synchronize canvas co-editing operations back to the local filesystem file."""
+    _require_canvas_owner(db, req.canvas_id, current_user)
     sync_service = OfficeSyncService(db)
     res = sync_service.sync_canvas_to_file(
         canvas_id=req.canvas_id,

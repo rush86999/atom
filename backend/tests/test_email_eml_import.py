@@ -126,3 +126,42 @@ def test_imported_attachment_is_not_sendable_by_default(
     with pytest.raises(ValueError):
         asyncio.run(service._resolve_send_attachments(
             metadata, canvas.id, "user-1", [record["attachment_id"]]))
+
+
+def test_other_user_cannot_mutate_imported_email_canvas(db, canvas, tmp_path, monkeypatch):
+    monkeypatch.setenv("ATOM_EMAIL_ATTACHMENT_DIR", str(tmp_path / "attachments"))
+    service = EmailCanvasService(db)
+    assert service.import_eml(
+        canvas_id=canvas.id, user_id="user-1", content=_eml(),
+        filename="q3-invoice.eml",
+    )["success"] is True
+
+    assert service.add_message_to_thread(
+        canvas_id=canvas.id, user_id="user-2",
+        from_email="attacker@example.com", to_emails=["victim@example.com"],
+        subject="takeover", body="should not land",
+    )["success"] is False
+    assert service.save_draft(
+        canvas_id=canvas.id, user_id="user-2",
+        to_emails=["attacker@example.com"], subject="takeover", body="nope",
+    )["success"] is False
+    fresh = db.query(Canvas).filter(Canvas.id == canvas.id).first()
+    assert fresh.content["subject"].startswith("Re: Q3 invoice request")
+
+
+def test_save_draft_updates_public_canvas_content(db, canvas, tmp_path, monkeypatch):
+    monkeypatch.setenv("ATOM_EMAIL_ATTACHMENT_DIR", str(tmp_path / "attachments"))
+    service = EmailCanvasService(db)
+    service.import_eml(
+        canvas_id=canvas.id, user_id="user-1", content=_eml(),
+        filename="q3-invoice.eml",
+    )
+    result = service.save_draft(
+        canvas_id=canvas.id, user_id="user-1",
+        to_emails=["dana@example.com"], cc_emails=[],
+        subject="Re: Q3 invoice request", body="Draft body persisted.",
+    )
+    assert result["success"] is True
+    fresh = db.query(Canvas).filter(Canvas.id == canvas.id).first()
+    assert fresh.content["body"] == "Draft body persisted."
+    assert fresh.content["source_message_id"] == "<q3-invoice@example.com>"

@@ -255,6 +255,24 @@ async def read_canvas(
             except Exception:  # noqa: BLE001 — read normalization only
                 pass
 
+            # Office snapshot refresh: a pre-upgrade workbook snapshot can
+            # carry a truncated sheet array with no dimensions. The file is
+            # authoritative — re-read it once and return the complete used
+            # range instead of trusting the stale display window forever.
+            try:
+                if (isinstance(content, dict)
+                        and content.get("office_file")
+                        and str(content.get("format") or "").lower() in ("xlsx", "xlsm")
+                        and not content.get("sheets_complete")):
+                    from core.office_sync_service import OfficeSyncService
+
+                    fresh = OfficeSyncService._read_structured_content(
+                        str(content["office_file"]))
+                    if fresh:
+                        content = {**content, **fresh}
+            except Exception as office_err:  # noqa: BLE001 — read fallback only
+                logger.debug(f"office snapshot refresh skipped: {office_err}")
+
             # Email-draft normalization: canvases created before the
             # classifier existed (and EmailCanvasService's draft-details
             # shape) render on /canvas/{id} as documents/raw JSON with no

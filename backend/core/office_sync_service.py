@@ -155,12 +155,16 @@ class OfficeSyncService:
                     "sheets": sheets,
                     "formulas": formulas,
                     "formula_gaps": formula_gaps,
+                    "sheets_complete": True,
                     "source_identity": _file_identity(file_path),
                 }
 
             if ext == ".docx":
                 d = docx.Document(file_path)
-                all_lines = [p.text for p in d.paragraphs]
+                # Soft line breaks inside one paragraph must not look like a
+                # new paragraph: the textarea is line↔paragraph mapped. Use a
+                # line-separator sentinel that the save path converts back.
+                all_lines = [p.text.replace("\n", "\u2028") for p in d.paragraphs]
                 paragraphs = [
                     {"index": i, "text": p.text, "style": getattr(p.style, "name", "Normal")}
                     for i, p in enumerate(d.paragraphs)
@@ -281,7 +285,7 @@ class OfficeSyncService:
             # bytes written by tooling). There is no structure to preserve —
             # fall back to a fresh document carrying the new lines.
             d = docx.Document()
-        lines = content.split("\n")
+        lines = [line.replace("\u2028", "\n") for line in content.split("\n")]
         paras = list(d.paragraphs)
 
         for i, p in enumerate(paras):
@@ -371,8 +375,32 @@ class OfficeSyncService:
             else:
                 return {"success": False, "error": f"Unsupported sync edit type: {edit_type} for extension {ext}"}
 
-            # Snapshot AFTER the write so callers/UI get fresh content.
+            # Snapshot AFTER the write so callers/UI get fresh content. Carry
+            # the write's recalc verdict forward: a failed/unavailable engine
+            # must not look like a successful recalculation just because old
+            # cached values are still present in the file.
             content_snapshot = self._read_structured_content(file_path)
+            if isinstance(res, dict) and res.get("formula_gaps"):
+                existing = {
+                    (gap.get("sheet"), gap.get("cell"))
+                    for gap in content_snapshot.get("formula_gaps") or []
+                    if isinstance(gap, dict)
+                }
+                for gap in res.get("formula_gaps") or []:
+                    if isinstance(gap, str) and "!" in gap and gap != "<recalc_failed>":
+                        sheet, cell = gap.split("!", 1)
+                        if (sheet, cell) not in existing:
+                            content_snapshot.setdefault("formula_gaps", []).append({
+                                "sheet": sheet, "cell": cell,
+                                "reason": res.get("recalc_status") or "recalc_failed",
+                            })
+                    elif gap == "<recalc_failed>":
+                        content_snapshot.setdefault("formula_gaps", []).append({
+                            "sheet": "", "cell": "", "reason": "recalc_failed",
+                        })
+            if isinstance(res, dict):
+                content_snapshot["recalc_status"] = res.get("recalc_status")
+                content_snapshot["recalculated"] = res.get("recalculated")
             component, canvas_type = OFFICE_COMPONENT_MAP.get(ext, ("office_word", "docs"))
 
             # Keep any persisted Canvas row's content fresh so reloading

@@ -196,7 +196,7 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
                     to: emailMetadata.to,
                     cc: emailMetadata.cc,
                     subject: emailMetadata.subject,
-                    body: localContentRef.current || existing.body || "",
+                    body: localContentRef.current,
                 },
                 echo: localContentRef.current || "",
             };

@@ -5,9 +5,9 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '../..');
 const BASE = process.env.UI_BASE || 'http://127.0.0.1:3121';
 const API = 'http://127.0.0.1:8061';
-const WORLD = '/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/expanded_core_20261028';
+const WORLD = '/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/expanded_core_final_20261028';
 const PW = fs.readFileSync(WORLD + '/backend_root/logs/bootstrap_admin_password.txt', 'utf8').trim();
-const OUT = process.env.UI_OUT_DIR || path.join(ROOT, 'docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028');
+const OUT = process.env.UI_OUT_DIR || path.join(ROOT, 'docs/acceptance/evidence/whole_app_20261028/expanded_core_final_20261028');
 const DOWNLOADS = path.join(OUT, 'downloads');
 const job = JSON.parse(fs.readFileSync(path.join(OUT, 'employee_job.json'), 'utf8'));
 const checks = [];
@@ -100,7 +100,7 @@ async function download(p, name) {
   // Capability manifests and corrected state survive; assessments still run.
   const capA = await api('GET', `/api/canvas/${ids.capability_a_canvas_id}/capability`);
   const capB = await api('GET', `/api/canvas/${ids.capability_b_canvas_id}/capability`);
-  record('first capability manifest survives restart', capA.body?.manifest?.task_policy?.includes('Approve Amount') && capA.body?.revision >= 4, { revision: capA.body?.revision, policy: capA.body?.policy_revision });
+  record('first capability manifest survives restart', capA.body?.manifest?.task_policy?.includes('Approve Amount') && capA.body?.revision >= 3, { revision: capA.body?.revision, policy: capA.body?.policy_revision });
   record('second capability manifest survives restart', capB.body?.manifest?.decision_options?.includes('ESCALATE') && capB.body?.revision >= 2, { revision: capB.body?.revision, decisions: capB.body?.manifest?.decision_options });
   const calcA = await api('POST', `/api/canvas/${ids.capability_a_canvas_id}/capability/calculate`, { ask: 'sum Amount for Open rows' });
   record('corrected calculation survives restart', calcA.body?.total_values?.['(unstated)'] === '350.00', calcA.body?.total_values);

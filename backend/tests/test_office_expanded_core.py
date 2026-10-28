@@ -173,3 +173,73 @@ def test_pptx_generation_refuses_outline_less_content(office_root):
     res = OfficeService().pptx.create_from_markdown(str(path), "Just prose, no slides.")
     assert res["success"] is False
     assert not path.exists()
+
+
+def test_docx_soft_line_break_does_not_overwrite_next_paragraph(office_root):
+    path = office_root / "softbreak.docx"
+    document = docx.Document()
+    first = document.add_paragraph()
+    first.add_run("Line1")
+    first.add_run().add_break()
+    first.add_run("Line2")
+    document.add_paragraph("Second paragraph.")
+    document.save(path)
+
+    snap = OfficeSyncService._read_structured_content(str(path))
+    assert "\u2028" in snap["text"]
+    corrected = snap["text"].replace("Second paragraph.", "Second corrected.")
+    OfficeSyncService(None)._sync_docx_in_place(str(path), corrected)
+    reopened = docx.Document(str(path))
+    assert reopened.paragraphs[0].text == "Line1\nLine2"
+    assert reopened.paragraphs[1].text == "Second corrected."
+
+
+def test_pptx_title_only_edit_preserves_body(office_root):
+    path = office_root / "title-edit.pptx"
+    prs = pptx.Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[5])
+    slide.shapes.title.text = "Original title"
+    slide.shapes.add_textbox(0, 0, 1000000, 1000000).text_frame.text = "Body stays"
+    prs.save(path)
+
+    res = OfficeService().pptx.modify_slides(
+        str(path), "update_slide",
+        {"slide_number": 1, "title": "New title"},
+    )
+    assert res["success"] is True
+    reopened = pptx.Presentation(str(path))
+    assert reopened.slides[0].shapes.title.text == "New title"
+    body = [sh.text_frame.text for sh in reopened.slides[0].shapes
+            if sh.has_text_frame and not (getattr(sh, "is_placeholder", False)
+                                          and sh.placeholder_format.idx == 0)]
+    assert body == ["Body stays"]
+
+
+def test_office_canvas_owner_gate_rejects_foreign_canvas(office_root):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    from fastapi import HTTPException
+    from types import SimpleNamespace
+    from core.database import Base
+    from core.models import Canvas
+    from api.office_routes import _require_canvas_owner
+
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+    db.add(Canvas(
+        id="c-owned", tenant_id="default", workspace_id="ws-a",
+        created_by="user-a", name="A", canvas_type="sheets", content={},
+        status="active",
+    ))
+    db.commit()
+    owner = SimpleNamespace(id="user-a", workspace_id="ws-a")
+    stranger = SimpleNamespace(id="user-b", workspace_id="ws-b")
+    _require_canvas_owner(db, "c-owned", owner)
+    with pytest.raises(HTTPException) as exc:
+        _require_canvas_owner(db, "c-owned", stranger)
+    assert exc.value.status_code == 404

@@ -61,11 +61,20 @@ class EditRequest(BaseModel):
 
 
 def _canvas(db: Session, canvas_id: str, user: User):
-    from core.models import Canvas
+    from sqlalchemy import desc
+    from core.models import Canvas, CanvasAudit
 
     canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
     if canvas is None:
         raise CapabilityError("not_found", "Canvas not found.", 404)
+    latest = (
+        db.query(CanvasAudit)
+        .filter(CanvasAudit.canvas_id == canvas_id)
+        .order_by(desc(CanvasAudit.created_at), desc(CanvasAudit.id))
+        .first()
+    )
+    if latest is not None and latest.action_type == "delete":
+        raise CapabilityError("not_found", "Canvas is deleted.", 404)
     authorize_canvas(db, canvas, user)
     return canvas
 
@@ -147,7 +156,7 @@ async def bind_capability_file(
             db, canvas, current_user, columns, rows,
             source={
                 "file_name": file.filename or "dataset",
-                "sha256": __import__("hashlib").sha256(content).hexdigest(),
+                "file_sha256": __import__("hashlib").sha256(content).hexdigest(),
             },
             title=title or file.filename,
         )

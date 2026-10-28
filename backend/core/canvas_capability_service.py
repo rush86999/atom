@@ -141,6 +141,7 @@ def validate_manifest(manifest: Any) -> Dict[str, Any]:
     if not isinstance(required, list):
         raise CapabilityError("invalid_manifest", "required_approvals must be a list.")
     clean = dict(manifest)
+    clean.pop("manifest_revision", None)
     clean["base_component"] = base
     clean["operations"] = list(dict.fromkeys(operations))
     clean["data_binding"] = dict(binding)
@@ -169,6 +170,14 @@ def sanitize_capability_copy(content: Any, new_canvas_id: str) -> Any:
     manifest["task_policy"] = ""
     manifest["decision_options"] = []
     manifest["required_approvals"] = []
+    manifest["data_binding"] = {
+        "subject_field": (manifest.get("data_binding") or {}).get("subject_field", ""),
+        "measure_field": (manifest.get("data_binding") or {}).get("measure_field", ""),
+        "status_field": (manifest.get("data_binding") or {}).get("status_field", ""),
+        "resource_id": f"canvas:{new_canvas_id}",
+        "source_version": "",
+    }
+    manifest.pop("manifest_revision", None)
     manifest["manifest_revision"] = manifest_revision(manifest)
     copied["capability_manifest"] = manifest
     dataset = copied.get("dataset")
@@ -237,14 +246,21 @@ def effective_operations(canvas: Canvas, manifest: Optional[Dict[str, Any]] = No
     declared = set(manifest.get("operations") or [])
     adapter = set(TABLE_OPERATIONS) if manifest.get("base_component") == "table" else set()
     dataset = get_dataset(canvas)
+    columns = [str(c) for c in (dataset.get("columns") or [])]
     resource = {"read", "bind"}
-    if dataset.get("columns") and dataset.get("rows") is not None:
-        resource |= {"select", "calculate", "edit", "export"}
+    if columns and dataset.get("rows") is not None:
+        resource |= {"select", "calculate"}
+        editable = [c for c in (manifest.get("editable_fields") or []) if c in columns]
+        if editable:
+            resource.add("edit")
+        if "xlsx" in (manifest.get("outputs") or []):
+            resource.add("export")
+    subject_field = str((manifest.get("data_binding") or {}).get("subject_field") or "")
     if (
-        dataset.get("columns")
+        columns
+        and subject_field in columns
         and manifest.get("decision_options")
         and str(manifest.get("task_policy") or "").strip()
-        and str((manifest.get("data_binding") or {}).get("subject_field") or "").strip()
     ):
         resource.add("assess")
     effective = declared & adapter & resource
@@ -255,6 +271,18 @@ def effective_operations(canvas: Canvas, manifest: Optional[Dict[str, Any]] = No
         "effective": sorted(effective),
         "manifest_revision": manifest.get("manifest_revision") or manifest_revision(manifest or {}),
     }
+
+
+def _require_approval(canvas: Canvas, manifest: Dict[str, Any], operation: str, user: Any) -> None:
+    required = {str(item) for item in (manifest.get("required_approvals") or [])}
+    if operation in required:
+        role = str(getattr(user, "role", "") or "").lower()
+        if role not in {"workspace_admin", "admin", "owner"}:
+            raise CapabilityError(
+                "approval_required",
+                f"Operation '{operation}' requires an approved supervisor.",
+                403,
+            )
 
 
 def _require_effective(canvas: Canvas, operation: str) -> Dict[str, Any]:
@@ -318,6 +346,11 @@ def _audit(
     db, canvas: Canvas, user: Any, action: str, details: Dict[str, Any],
     agent_id: Optional[str] = None,
 ) -> None:
+    payload = dict(details or {})
+    # The audit trail is the canvas read source. Capability manifests/bindings
+    # must ride the audit row or /api/canvas/{id} keeps serving the blank
+    # creation snapshot from an older row.
+    payload.setdefault("content", dict(canvas.content or {}))
     db.add(CanvasAudit(
         id=str(uuid.uuid4()),
         created_at=_now(),
@@ -327,7 +360,7 @@ def _audit(
         canvas_id=canvas.id,
         action_type=action,
         canvas_type=canvas.canvas_type,
-        details_json=details,
+        details_json=payload,
     ))
 
 
@@ -383,16 +416,16 @@ def bind_dataset(
     if not clean_rows:
         raise CapabilityError("invalid_dataset", "Dataset has no data rows.")
     source = dict(source or {})
-    source.setdefault("resource_id", f"canvas:{canvas.id}")
+    # Resource identity is the canvas, never a client-supplied id.
+    source["resource_id"] = f"canvas:{canvas.id}"
     source.setdefault("file_name", title or "canvas dataset")
-    source.setdefault(
-        "source_version",
-        hashlib.sha256(
-            json.dumps([clean_columns, clean_rows], default=str).encode()
-        ).hexdigest()[:16],
-    )
-    if not source.get("sha256"):
-        source["sha256"] = source["source_version"]
+    dataset_hash = hashlib.sha256(
+        json.dumps([clean_columns, clean_rows], default=str).encode()
+    ).hexdigest()
+    source["source_version"] = dataset_hash[:16]
+    # A client-supplied sha is not authority. Preserve a verified file hash
+    # only when the file-upload path supplied one explicitly.
+    source["sha256"] = str(source.get("file_sha256") or dataset_hash)
     content = _canvas_content(canvas)
     manifest = get_manifest(canvas) or default_manifest()
     content["dataset"] = {
@@ -448,7 +481,10 @@ def parse_tabular_upload(filename: str, content: bytes) -> Tuple[List[str], List
         wb.close()
     else:
         raise CapabilityError("unsupported_dataset_type", "Bind a CSV or XLSX dataset.")
-    parsed = [row for row in parsed if any(cell not in (None, "") for cell in row)]
+    # Preserve interior blank rows: they are real source rows and their
+    # positions are part of edit/evidence identity. Only trim trailing blanks.
+    while parsed and not any(cell not in (None, "") for cell in parsed[-1]):
+        parsed.pop()
     if len(parsed) < 2:
         raise CapabilityError("invalid_dataset", "Dataset needs a header and at least one row.")
     header = [str(cell).strip() if cell is not None else "" for cell in parsed[0]]
@@ -627,9 +663,17 @@ def _evidence_index(
 ) -> Tuple[List[Dict[str, Any]], List[str]]:
     entries: List[Dict[str, Any]] = []
     subjects: List[str] = []
+    seen_subjects = set()
     for row in rows:
         cells = row.get("cells") or {}
         subject = _subject_values(columns, cells, subject_field)
+        if subject in seen_subjects:
+            raise CapabilityError(
+                "duplicate_subject_mapping",
+                f"Subject '{subject}' appears on more than one selected row; "
+                "bind a unique subject field before assessing.",
+            )
+        seen_subjects.add(subject)
         subjects.append(subject)
         row_ref = row.get("row")
         entries.append({
@@ -665,6 +709,7 @@ async def assess_operation(
     )
 
     manifest = _require_effective(canvas, "assess")
+    _require_approval(canvas, manifest, "assess", user)
     columns = list(get_dataset(canvas).get("columns") or [])
     subject_field = str((manifest.get("data_binding") or {}).get("subject_field") or "")
     if subject_field not in columns:
@@ -722,6 +767,12 @@ async def assess_operation(
         {"role": "system", "content": system},
         {"role": "user", "content": str(ask or "Assess every selected row.")},
     ]
+    review_model = str(os.getenv("ATOM_REVIEW_MODEL", "") or "").strip()
+    if not review_model:
+        raise CapabilityError(
+            "review_model_unconfigured",
+            "ATOM_REVIEW_MODEL is not configured; refusing an unpinned review dispatch.",
+        )
     if llm_service is None:
         from core.llm_service import get_llm_service
 
@@ -732,7 +783,7 @@ async def assess_operation(
     answer = await generate_structured_review(
         llm_service,
         messages=messages,
-        model=os.getenv("ATOM_REVIEW_MODEL", "auto"),
+        model=review_model,
         llm_scope={
             "workspace_id": canvas.workspace_id,
             "tenant_id": canvas.tenant_id,
@@ -792,6 +843,7 @@ def edit_operation(
     expected_revision: Optional[int] = None,
 ) -> Dict[str, Any]:
     manifest = _require_effective(canvas, "edit")
+    _require_approval(canvas, manifest, "edit", user)
     content = _canvas_content(canvas)
     dataset = get_dataset(canvas)
     columns = list(dataset.get("columns") or [])
@@ -802,7 +854,12 @@ def edit_operation(
             "edit_not_allowed",
             "No editable fields are declared; this canvas is read-only.",
         )
-    if expected_revision is not None and int(expected_revision) != current_revision(canvas):
+    if expected_revision is None:
+        raise CapabilityError(
+            "revision_required",
+            "expected_revision is required for an edit; refusing an unchecked write.",
+        )
+    if int(expected_revision) != current_revision(canvas):
         raise CapabilityError(
             "stale_revision",
             f"Expected revision {expected_revision} but canvas is at "
@@ -887,6 +944,7 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
     from core.office_service import _validate_office_path
 
     manifest = _require_effective(canvas, "export")
+    _require_approval(canvas, manifest, "export", user)
     outputs = manifest.get("outputs") or ["xlsx"]
     if "xlsx" not in outputs:
         raise CapabilityError("unsupported_output", "Only xlsx export is declared.")
@@ -902,8 +960,26 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
     ws = wb.active
     ws.title = "Data"
     ws.append(columns)
+    measure_field = str((manifest.get("data_binding") or {}).get("measure_field") or "")
+    numeric_fields = {measure_field} if measure_field else set()
+    import re as _re
     for row in rows:
         ws.append(list(row))
+        excel_row = ws.max_row
+        for idx, column in enumerate(columns, start=1):
+            cell = ws.cell(row=excel_row, column=idx)
+            value = cell.value
+            if isinstance(value, str) and value.startswith("="):
+                # Data is data: never let a bound cell become a live formula.
+                cell.value = value
+                cell.data_type = "s"
+                continue
+            if column in numeric_fields and isinstance(value, str):
+                text = value.strip().replace(",", "")
+                if _re.fullmatch(r"-?\d+", text):
+                    cell.value = int(text)
+                elif _re.fullmatch(r"-?\d*\.\d+", text):
+                    cell.value = float(text)
     meta = wb.create_sheet("Provenance")
     meta.append(["canvas_id", canvas.id])
     meta.append(["source_resource_id", source.get("resource_id")])
@@ -913,6 +989,12 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
     meta.append(["policy_revision", policy_revision(manifest)])
     meta.append(["exported_at", _now().isoformat()])
     wb.save(target)
+    content = _canvas_content(canvas)
+    exports = [str(p) for p in (content.get("capability_exports") or [])]
+    if str(target) not in exports:
+        exports.append(str(target))
+    content["capability_exports"] = exports[-10:]
+    canvas.content = content
     _audit(db, canvas, user, "capability_export", {
         "artifact": target,
         "source_version": source.get("source_version"),

@@ -166,6 +166,8 @@ async def send_email_canvas(
     stamped into CanvasAudit (action_type="email_send") and broadcast as a
     canvas:update so agents/users co-editing see it live.
     """
+    if request.canvas_id:
+        _get_owned_email_canvas_or_error(db, request.canvas_id, current_user)
     service = EmailCanvasService(db)
     result = await service.send_email(
         canvas_id=request.canvas_id,
@@ -249,6 +251,7 @@ async def import_eml_canvas(
 @router.post("/{canvas_id}/message")
 async def add_message(canvas_id: str, request: AddMessageRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Add a message to an email thread."""
+    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
     service = EmailCanvasService(db)
     result = service.add_message_to_thread(
         canvas_id=canvas_id,
@@ -271,6 +274,7 @@ async def add_message(canvas_id: str, request: AddMessageRequest, current_user: 
 @router.post("/{canvas_id}/draft")
 async def save_draft(canvas_id: str, request: SaveDraftRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Save an email draft."""
+    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
     service = EmailCanvasService(db)
     result = service.save_draft(
         canvas_id=canvas_id,
@@ -292,6 +296,7 @@ async def save_draft(canvas_id: str, request: SaveDraftRequest, current_user: Us
 @router.post("/{canvas_id}/categorize")
 async def categorize_email(canvas_id: str, request: CategorizeRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Categorize an email."""
+    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
     service = EmailCanvasService(db)
     result = service.categorize_email(
         canvas_id=canvas_id,

@@ -480,6 +480,9 @@ class EmailCanvasService:
             Dict with message details
         """
         try:
+            if self._canvas_owner_id(canvas_id) != str(user_id):
+                return {"success": False, "error": "Not the canvas owner"}
+
             audit = self.db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
                 CanvasAudit.canvas_type == "email"
@@ -562,6 +565,9 @@ class EmailCanvasService:
             Dict with draft details
         """
         try:
+            if self._canvas_owner_id(canvas_id) != str(user_id):
+                return {"success": False, "error": "Not the canvas owner"}
+
             audit = self.db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
                 CanvasAudit.canvas_type == "email"
@@ -584,6 +590,22 @@ class EmailCanvasService:
             metadata["draft"] = self._draft_to_dict(draft)
             metadata["last_saved"] = datetime.now().isoformat()
 
+            # The Canvas row is the public read surface. A save_draft that
+            # only appends an audit row returned success while GET /api/canvas
+            # kept serving the pre-edit body.
+            canvas_row = self.db.query(Canvas).filter(Canvas.id == canvas_id).first()
+            if canvas_row is not None:
+                content = dict(canvas_row.content or {}) if isinstance(canvas_row.content, dict) else {}
+                content.update({
+                    "to": ", ".join(to_emails or []),
+                    "cc": ", ".join(cc_emails or []),
+                    "subject": subject,
+                    "body": body,
+                })
+                canvas_row.content = content
+                canvas_row.last_edited_by = str(user_id)
+                canvas_row.last_edited_at = datetime.now(timezone.utc)
+
             # Create draft audit entry
             draft_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
@@ -597,6 +619,7 @@ class EmailCanvasService:
                     "canvas_type": "email",
                     "component_type": "compose_form",
                     **metadata,
+                    "content": dict(canvas_row.content or {}) if canvas_row is not None else {},
                 }
             )
 
@@ -623,6 +646,8 @@ class EmailCanvasService:
         category: str,
         color: Optional[str] = None
     ) -> Dict[str, Any]:
+        if self._canvas_owner_id(canvas_id) != str(user_id):
+            return {"success": False, "error": "Not the canvas owner"}
         """
         Categorize an email into a bucket.
 
@@ -1091,6 +1116,9 @@ class EmailCanvasService:
     ) -> Dict[str, Any]:
         """Send the composed email through the deterministic email policy.
 
+        if canvas_id and self._canvas_owner_id(canvas_id) != str(user_id):
+            return {"success": False, "error": "Not the canvas owner"}
+
         With ``thread_id`` (an Outlook conversationId) the send becomes a
         REPLY inside that thread — Graph derives In-Reply-To/References and
         the Re: subject; the composer's To/Cc/Subject ride the reply's
@@ -1108,6 +1136,8 @@ class EmailCanvasService:
         ``email_send_attempt`` — and broadcast as a ``canvas:update`` so
         agents/users co-editing the canvas see it live.
         """
+        if canvas_id and self._canvas_owner_id(canvas_id) != str(user_id):
+            return {"success": False, "error": "Not the canvas owner"}
         from core.email_policy import evaluate_email_action
 
         # Grounded send gate (Installation Adaptation Plan Phase 4): the
@@ -2028,6 +2058,7 @@ class EmailCanvasService:
                 status="active",
             ))
 
+        previous = self._latest_email_metadata(canvas_id) or {}
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
             created_at=_audit_now(),
@@ -2046,6 +2077,12 @@ class EmailCanvasService:
                 "reason": decision.get("reason"),
                 "payload": payload,
                 "sent_at": datetime.now().isoformat(),
+                # Send rows are events, not a new empty canvas. Carry the
+                # draft/attachment state so /attachments does not go blank
+                # after a blocked/failed/successful send attempt.
+                "draft": previous.get("draft"),
+                "attachments": previous.get("attachments") or [],
+                "messages": previous.get("messages") or [],
             },
         )
         self.db.add(audit)

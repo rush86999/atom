@@ -231,6 +231,7 @@ def test_manifest_and_binding_survive_new_session(db, canvas, user):
 
 def test_assessment_is_certified_from_authoritative_rows(db, canvas, user, monkeypatch):
     from core import review_result
+    monkeypatch.setenv("ATOM_REVIEW_MODEL", "deepseek-flash")
     from core.canvas_capability_service import assess_operation, policy_revision
 
     _bind(db, canvas, user)
@@ -291,6 +292,42 @@ def test_export_is_a_real_xlsx_with_readback(db, canvas, user, office_root):
     wb = openpyxl.load_workbook(result["artifact"]["file_path"])
     assert wb["Data"].max_row == 5
     assert wb["Provenance"]["A1"].value == "canvas_id"
+
+
+def test_edit_requires_an_explicit_revision(db, canvas, user):
+    from core.canvas_capability_service import CapabilityError, edit_operation
+
+    _bind(db, canvas, user)
+    with pytest.raises(CapabilityError) as exc:
+        edit_operation(db, canvas, user, [{"row": 2, "column": "Amount", "value": 130}])
+    assert exc.value.code == "revision_required"
+
+
+def test_manifest_revision_is_stable_across_resave(db, canvas, user):
+    from core.canvas_capability_service import set_manifest
+
+    first = set_manifest(db, canvas, user, _manifest())["manifest"]["manifest_revision"]
+    second = set_manifest(db, canvas, user, _manifest())["manifest"]["manifest_revision"]
+    assert first == second
+
+
+def test_export_numeric_measure_is_numeric_and_formula_text_is_not_live(db, canvas, user, office_root):
+    from core.canvas_capability_service import bind_dataset, export_operation, set_manifest
+    import openpyxl
+
+    manifest = _manifest()
+    manifest["editable_fields"] = ["Amount", "Status", "Note"]
+    set_manifest(db, canvas, user, manifest)
+    bind_dataset(
+        db, canvas, user, ["Ref", "Amount", "Status", "Note"],
+        [["R-1", "120", "Open", "=HYPERLINK(\"https://example.invalid\")"]],
+        source={"file_name": "typed.csv"},
+    )
+    result = export_operation(db, canvas, user)
+    ws = openpyxl.load_workbook(result["artifact"]["file_path"], data_only=True)["Data"]
+    assert ws["B2"].value == 120 and ws["B2"].data_type == "n"
+    assert ws["D2"].value.startswith("=HYPERLINK")
+    assert ws["D2"].data_type == "s"
 
 
 def test_fork_copy_drops_private_teaching_and_source_binding(db, canvas, user):

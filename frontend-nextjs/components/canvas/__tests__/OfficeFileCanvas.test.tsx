@@ -335,8 +335,8 @@ describe("OfficeFileCanvas", () => {
       expect(lastBody().data).toMatchObject({
         slide_number: 1,
         title: "Agenda",
-        content: "Body text",
       });
+      expect(lastBody().data).not.toHaveProperty("content");
     });
 
     it("adds a slide via the Add Slide button", async () => {

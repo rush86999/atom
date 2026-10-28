@@ -43,6 +43,7 @@ export interface OfficeFileContent {
     sheets?: OfficeSheet[];
     formulas?: Record<string, Record<string, string>>;
     formula_gaps?: { sheet: string; cell: string; formula: string; reason?: string }[];
+    recalc_status?: "complete" | "partial" | "failed" | "unavailable" | "not_applicable";
     source_identity?: { file_name?: string; sha256?: string; size?: number };
     // docx
     text?: string;
@@ -346,6 +347,9 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
                         className="text-[10px] text-amber-600 dark:text-amber-400"
                         title={content.formula_gaps.map((g) => `${g.sheet}!${g.cell} ${g.formula || ""}`).join("\n")}
                     >
+                        {content.recalc_status && content.recalc_status !== "complete" && content.recalc_status !== "not_applicable"
+                            ? `recalculation ${content.recalc_status}: `
+                            : ""}
                         {content.formula_gaps.length} formula(s) without a computed value
                     </span>
                 )}
@@ -356,7 +360,7 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
                         onClick={async () => {
                             try {
                                 const res = await apiClient.get("/api/v1/office/download", {
-                                    params: { file_path: filePath },
+                                    params: { file_path: filePath, canvas_id: canvasId },
                                     responseType: "blob",
                                 });
                                 const url = URL.createObjectURL(res.data as Blob);
@@ -380,6 +384,7 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
             <div className="flex-1 overflow-auto custom-scrollbar">
                 {format === "xlsx" && (
                     <ExcelEditor
+                        canvasId={canvasId}
                         content={content}
                         activeSheet={activeSheet}
                         setActiveSheet={setActiveSheet}
@@ -427,6 +432,7 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
 // ────────────────────────────────────────────────────────────────────────
 
 function ExcelEditor({
+    canvasId,
     content,
     activeSheet,
     setActiveSheet,
@@ -436,6 +442,7 @@ function ExcelEditor({
     onFocusKey,
     onBlur,
 }: {
+    canvasId?: string;
     content: OfficeFileContent;
     activeSheet: string;
     setActiveSheet: (s: string) => void;
@@ -505,7 +512,7 @@ function ExcelEditor({
             );
             // insert-rows doesn't return a snapshot — re-present the file so a
             // fresh structured snapshot is broadcast back to this canvas.
-            await apiClient.post("/api/v1/office/present", { file_path: filePath, user_id: "canvas_user" });
+            await apiClient.post("/api/v1/office/present", { file_path: filePath, canvas_id: canvasId, user_id: "canvas_user" });
         } catch {
             // Error surfaces via the next commit; keep the UI responsive.
         }
@@ -742,11 +749,12 @@ function PptxEditor({
 }) {
     const commitSlide = (slide: OfficeSlide, field: "title" | "content", raw: string) => {
         if (raw === (slide[field] || "")) return;
-        commitEdit(`slide:${slide.slide_number}`, "slide", {
-            slide_number: slide.slide_number,
-            title: field === "title" ? raw : slide.title,
-            content: field === "content" ? raw : slide.content,
-        });
+        // Send ONLY the changed field. Sending the unchanged title alongside
+        // a body edit (or vice versa) let the backend rewrite flattened body
+        // shapes or revert a concurrent title edit.
+        commitEdit(`slide:${slide.slide_number}`, "slide", field === "title"
+            ? { slide_number: slide.slide_number, title: raw }
+            : { slide_number: slide.slide_number, content: raw });
     };
 
     return (

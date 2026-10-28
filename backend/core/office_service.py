@@ -396,39 +396,44 @@ class ExcelManager:
             computed_value = value
             recalculated = False
             recalc_engine = "none"
+            recalc_status = "not_applicable"
             formula_gaps: List[str] = []
+            formula_cells: List[tuple] = []
             try:
                 from core.workbook_runtime import get_workbook_runtime
                 runtime = get_workbook_runtime()
                 recalc_engine = runtime.engine
                 raw_wb = openpyxl.load_workbook(file_path, data_only=False)
-                has_formulas = any(
-                    isinstance(c.value, str) and c.value.startswith('=')
-                    for ws_any in raw_wb.worksheets
-                    for row_any in ws_any.iter_rows()
-                    for c in row_any
-                )
-                if runtime.can_evaluate and has_formulas:
-                    _run_async_sync(runtime.recalculate(file_path))
-                    recalculated = True
-                    # Read the now-computed value AND report formula cells the
-                    # engine could not evaluate, rather than showing blank.
-                    wb2 = openpyxl.load_workbook(file_path, data_only=True)
-                    ws2 = wb2[sheet_name] if sheet_name in wb2.sheetnames else wb2.active
-                    computed_value = ws2[coordinate].value
-                    for ws_name in raw_wb.sheetnames:
-                        raw_ws = raw_wb[ws_name]
-                        calc_ws = wb2[ws_name] if ws_name in wb2.sheetnames else None
-                        for row_any in raw_ws.iter_rows():
-                            for c in row_any:
-                                if (isinstance(c.value, str)
-                                        and c.value.startswith('=')
-                                        and calc_ws is not None
-                                        and calc_ws[c.coordinate].value is None):
-                                    formula_gaps.append(f"{ws_name}!{c.coordinate}")
+                for ws_any in raw_wb.worksheets:
+                    for row_any in ws_any.iter_rows():
+                        for c in row_any:
+                            if isinstance(c.value, str) and c.value.startswith('='):
+                                formula_cells.append((ws_any.title, c.coordinate))
+                if formula_cells:
+                    if not runtime.can_evaluate:
+                        recalc_status = "unavailable"
+                        formula_gaps = [f"{sheet}!{cell}" for sheet, cell in formula_cells]
+                    else:
+                        _run_async_sync(runtime.recalculate(file_path))
+                        wb2 = openpyxl.load_workbook(file_path, data_only=True)
+                        ws2 = wb2[sheet_name] if sheet_name in wb2.sheetnames else wb2.active
+                        computed_value = ws2[coordinate].value
+                        evaluated = 0
+                        for ws_name, cell_ref in formula_cells:
+                            calc_ws = wb2[ws_name] if ws_name in wb2.sheetnames else None
+                            value_now = calc_ws[cell_ref].value if calc_ws is not None else None
+                            if value_now is None:
+                                formula_gaps.append(f"{ws_name}!{cell_ref}")
+                            else:
+                                evaluated += 1
+                        recalculated = evaluated == len(formula_cells)
+                        recalc_status = "complete" if not formula_gaps else "partial"
+                else:
+                    recalc_status = "not_applicable"
             except Exception as recalc_err:
                 logger.warning(f"Recalc after write failed (non-fatal): {recalc_err}")
-                formula_gaps = ["<recalc_failed>"]
+                recalc_status = "failed"
+                formula_gaps = [f"{sheet}!{cell}" for sheet, cell in formula_cells] or ["<recalc_failed>"]
 
             return {
                 "success": True,
@@ -437,6 +442,7 @@ class ExcelManager:
                 "value": computed_value,
                 "formula": value if is_formula else None,
                 "recalculated": recalculated,
+                "recalc_status": recalc_status,
                 "recalc_engine": recalc_engine,
                 "formula_gaps": formula_gaps,
                 "message": f"Updated {sheet_name}!{coordinate} successfully"
