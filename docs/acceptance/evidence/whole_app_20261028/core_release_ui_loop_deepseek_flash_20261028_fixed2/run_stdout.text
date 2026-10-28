@@ -1,0 +1,29 @@
+PASS admin login API 200
+PASS agent created through product API 201
+PASS grants material uploaded through UI 200
+PASS vendor material uploaded through UI 200
+PASS first canvas created and agent attached via UI 
+PASS policy taught through UI 
+PASS first assessment validated []
+PASS first assessment follows original policy {"GR-2026-014":"FUND","GR-2026-021":"HOLD","GR-2026-033":"DECLINE"}
+PASS first assessment used declared DeepSeek route {"model":"deepseek-flash","provider":"deepseek"}
+PASS in-place correction saved 200
+PASS correction kept one teaching point 
+PASS second canvas created and agent attached via UI 
+PASS different unfamiliar assessment validated []
+PASS different assessment follows correction {"IN-7301":"DECLINE","IN-7302":"HOLD","IN-7303":"HOLD"}
+PASS different assessment excludes Closed row 
+PASS different assessment delivered a table 
+PASS different assessment used declared DeepSeek route {"model":"deepseek-flash","provider":"deepseek"}
+PASS calculation delivers exact total "Workbook: `vendor_loop.csv`; Sheet: `vendor_loop`; Version: `0a84a5f50661`\nOperation: sum; measure: Invoice Amount\nSelected rows: 3; computable: 3; gaps: 0\nSheet rows: 4; selected by the predicate: 3; not selected: 1\nSelected status counts: Open=3\n| Currency |"
+PASS calculation cites selected rows 
+PASS calculation binds source version 
+PASS backend restart healthy 67048
+PASS corrected policy persists after restart 
+PASS pre-restart assessment history persists 
+PASS pre-restart calculation history persists 
+PASS fresh post-restart assessment validated []
+PASS fresh post-restart assessment follows correction {"IN-7301":"DECLINE","IN-7302":"HOLD","IN-7303":"HOLD"}
+PASS fresh post-restart assessment used declared DeepSeek route {"model":"deepseek-flash","provider":"deepseek"}
+PASS zero unauthorized writes {"tasks":0,"board_tasks":0,"boards":0,"scheduled_messages":0,"unified_messages":0,"message_delivery_reports":0,"ses_email_events":0,"agent_proactive_messages":0,"service_tasks":0,"swarm_tasks":0,"distributed_tasks":0,"sales_follow_up_tasks":0}
+STATUS passed

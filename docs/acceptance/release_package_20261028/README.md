@@ -6,7 +6,7 @@ deadlines, 300,000 ms client timeout.
 
 Release identity: tag `core-release-2026-10-28`, targeting the single release
 commit that contains the tested application and launch repairs. Tested app
-code: `ec5ca78b8`.
+code: `35860a7f0`.
 
 Contents:
 

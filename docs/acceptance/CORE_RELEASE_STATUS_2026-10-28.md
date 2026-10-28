@@ -2,9 +2,12 @@
 
 ## Recommended launch configuration
 
-DeepSeek direct **`deepseek-flash`**, provider policy selected to `deepseek`
-only, no Pro or local fallback, structured review on, streaming off, 180 s
-turn and request deadlines, 300,000 ms client timeout.
+DeepSeek direct **`deepseek-flash`** for the assessment/review payload,
+provider policy selected to `deepseek` only, structured review on, streaming
+off, 180 s turn and request deadlines, 300,000 ms client timeout. Auxiliary
+planning/verification calls remain on the same DeepSeek provider and may use
+another served model; the certified review payload is Flash and a review
+fallback to Pro/local/another provider is refused.
 
 `deepseek-v4-pro` remains a verified alternative from the earlier core loop.
 
@@ -19,7 +22,7 @@ turn and request deadlines, 300,000 ms client timeout.
 ## Evidence
 
 - Flash screening: `docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/` — 7/7 substantive and certified, avg 2.3 s, est. $0.0057.
-- Flash core loop: `docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_flash_20261028/` — 28/28 checks, calculation 22200.00, correction, fresh post-restart judgment, zero unauthorized writes.
+- Flash core loop (fixed transport, app code `35860a7f0`): `docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_flash_20261028_fixed2/` — 28/28 checks, calculation 22200.00, correction, fresh post-restart judgment, zero unauthorized writes.
 - Pro core loop (verified alternative): `docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/`.
 - All earlier failed attempts remain preserved.
 

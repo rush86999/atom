@@ -1,10 +1,10 @@
 {
  "schema_version": "core-release-ledger-2",
  "title": "Atom demonstrated core-release ledger \u2014 2026-10-28",
- "generated_at": "2026-10-28T12:10:00Z",
+ "generated_at": "2026-10-28T17:30:00Z",
  "candidate": {
   "branch": "whole-app/successor-f5f",
-  "app_code_commit": "ec5ca78b8",
+  "app_code_commit": "35860a7f0",
   "transport_repair_commits": [
    "f547a0dd1",
    "f028ab2ab",
@@ -78,14 +78,14 @@
  },
  "core_ui_loop": {
   "status": "pass",
-  "attempt": "core_release_ui_loop_deepseek_flash_20261028",
+  "attempt": "core_release_ui_loop_deepseek_flash_20261028_fixed2",
   "checks_passed": 28,
   "checks_failed": 0,
   "model": "deepseek-flash",
   "calculation_total": "22200.00",
   "fresh_post_restart_assessment": "pass",
   "zero_unauthorized_writes": true,
-  "evidence": "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_flash_20261028/"
+  "evidence": "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_flash_20261028_fixed2/"
  },
  "supported_workflows": [
   "CSV/workbook import through the product UI",
@@ -116,6 +116,7 @@
   "identity": "tag core-release-2026-10-28 (single release commit)",
   "path": "docs/acceptance/release_package_20261028/",
   "checksums": "docs/acceptance/release_package_20261028/CHECKSUMS.sha256",
-  "deployed": false
+  "deployed": false,
+  "source_archive_scrubbed": true
  }
 }
