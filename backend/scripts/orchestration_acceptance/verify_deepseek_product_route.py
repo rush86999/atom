@@ -170,7 +170,7 @@ def main() -> int:
     uploaded = client.post(
         base + "/api/documents/upload",
         headers=headers,
-        files={"file": ("vendor_loop.csv", csv_bytes, "text/csv")},
+        files={"file": (args.file_name, csv_bytes, "text/csv")},
     )
     upload_body = _json(uploaded)
     step("source uploaded through product API", uploaded.status_code == 200,

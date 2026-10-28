@@ -27457,7 +27457,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # did not stream).
             _chain_retry_done = False
             if (
-                os.getenv("ATOM_CHAT_STREAMING", "true").lower() == "true"
+                # A structured review answer is already the final reply.
+                # Running the streaming leg here used to regenerate and
+                # overwrite the validated structured payload, leaving the
+                # turn with an uncertified prose reply (2026-10-28).
+                _streamed is None
+                and os.getenv("ATOM_CHAT_STREAMING", "true").lower() == "true"
                 and user_id and session_id
                 # routing_overrides is None on the common path — must not crash
                 and not (routing_overrides or {}).get("model")
