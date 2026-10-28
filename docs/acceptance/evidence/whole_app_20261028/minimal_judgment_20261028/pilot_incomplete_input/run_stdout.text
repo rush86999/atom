@@ -1,0 +1,8 @@
+{
+ "full_context_matches": false,
+ "full_context_certified": false,
+ "minimal_matches": 3,
+ "minimal_total": 6,
+ "minimal_certified": 6,
+ "all_minimal_match": false
+}

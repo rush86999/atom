@@ -1,0 +1,22 @@
+{
+ "id": "chatcmpl-186",
+ "object": "chat.completion",
+ "created": 1793189780,
+ "model": "llama3.1:8b",
+ "system_fingerprint": "fp_ollama",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```\n{\"assessments\":[{\"subject_id\":\"IN-7301\",\"decision\":\"DECLINE\",\"basis\":[\"Below 5000 is DECLINE.\"],\"evidence_ids\":[\"ev:IN-7301:vendor_loop!R2 | subject=IN-7301 | row=vendor_loop!R2\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}\n\n```"
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 817,
+  "completion_tokens": 96,
+  "total_tokens": 913
+ }
+}

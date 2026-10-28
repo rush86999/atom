@@ -1,0 +1,70 @@
+{
+ "schema_version": "review-result-2",
+ "execution_id": "minimal-boundary_10000",
+ "requested_subjects": [
+  "IN-8805"
+ ],
+ "allowed_decisions": [
+  "FUND",
+  "HOLD",
+  "DECLINE"
+ ],
+ "source_execution_ids": [
+  "eval-boundary_10000"
+ ],
+ "assessments": [
+  {
+   "subject_id": "IN-8805",
+   "decision": "HOLD",
+   "basis": [
+    "Requested amount is 7000, which falls within the range of 5000 to 9999 as specified in policy grant threshold rule"
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:IN-8805:minimal_judgment!R6",
+     "subject_id": "IN-8805",
+     "row_ref": "minimal_judgment!R6",
+     "source_identity": {
+      "file_name": "minimal_judgment_eval.csv",
+      "resource_id": "eval:minimal_judgment",
+      "content_hash": "eval:minimal_judgment"
+     },
+     "retrieval_operation": "eval:boundary_10000",
+     "retrieval_execution_id": "eval-boundary_10000",
+     "values": [
+      {
+       "field": "Invoice Amount",
+       "value": 10000.0
+      },
+      {
+       "field": "State",
+       "value": "Open"
+      }
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "044d2b537b4d4a2593dbaca52c64b8da",
+     "topic": "grant threshold rule",
+     "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "eval-boundary_10000"
+   ],
+   "resumed_read": true
+  }
+ ],
+ "candidate_assessments": [],
+ "errors": [],
+ "ok": true,
+ "required_actions": [],
+ "action_receipts": [],
+ "completion": "completed"
+}

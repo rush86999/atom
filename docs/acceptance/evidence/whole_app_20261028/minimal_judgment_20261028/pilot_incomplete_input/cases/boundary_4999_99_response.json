@@ -1,0 +1,22 @@
+{
+ "id": "chatcmpl-230",
+ "object": "chat.completion",
+ "created": 1793189702,
+ "model": "llama3.1:8b",
+ "system_fingerprint": "fp_ollama",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```json\n{\"assessments\":[{\"subject_id\":\"IN-8802\",\"decision\":\"HOLD\",\"basis\":[\"The requested amount of 5000 is below the threshold of 10000, so we must review this further.\"],\"evidence_ids\":[\"ev:IN-8802:minimal_judgment!R3\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}\n```"
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 734,
+  "completion_tokens": 99,
+  "total_tokens": 833
+ }
+}

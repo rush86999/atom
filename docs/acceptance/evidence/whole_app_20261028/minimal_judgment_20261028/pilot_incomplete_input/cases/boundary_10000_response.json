@@ -1,0 +1,22 @@
+{
+ "id": "chatcmpl-692",
+ "object": "chat.completion",
+ "created": 1793189713,
+ "model": "llama3.1:8b",
+ "system_fingerprint": "fp_ollama",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```json\n{\"assessments\":[{\"subject_id\":\"IN-8805\",\"decision\":\"HOLD\",\"basis\":[\"Requested amount is 7000, which falls within the range of 5000 to 9999 as specified in policy grant threshold rule\"],\"evidence_ids\":[\"ev:IN-8805:minimal_judgment!R6\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}\n```"
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 734,
+  "completion_tokens": 103,
+  "total_tokens": 837
+ }
+}

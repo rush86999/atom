@@ -1,0 +1,22 @@
+{
+ "id": "chatcmpl-612",
+ "object": "chat.completion",
+ "created": 1793189706,
+ "model": "llama3.1:8b",
+ "system_fingerprint": "fp_ollama",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```json\n{\"assessments\":[{\"subject_id\":\"IN-8803\",\"decision\":\"HOLD\",\"basis\":[\"The requested amount of 10000 is at or above the threshold of 5000, according to the policy: \\\"Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review.\\\"\"],\"evidence_ids\":[\"ev:IN-8803:minimal_judgment!R4\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}\n```"
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 734,
+  "completion_tokens": 128,
+  "total_tokens": 862
+ }
+}

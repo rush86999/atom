@@ -288,22 +288,26 @@ def _clarification_block(
     candidates: List[str],
     *,
     ambiguous: bool,
+    title: Optional[str] = None,
+    detail: Optional[str] = None,
 ) -> Dict[str, Any]:
     role_label = role.replace("_column", "")
-    title = "AMBIGUOUS ROLE COLUMN" if ambiguous else "ROLE MAPPING REQUIRED"
-    if ambiguous:
-        detail = (
-            f"More than one column could represent {role_label}: "
-            + ", ".join(candidates[:12])
-            + ". No mapping was chosen by name or planner order."
-        )
-    else:
-        detail = (
-            f"No supported header identifies {role_label}. Which column "
-            "represents it? Candidates: "
-            + (", ".join(candidates[:12]) or "none")
-            + "."
-        )
+    title = title or (
+        "AMBIGUOUS ROLE COLUMN" if ambiguous else "ROLE MAPPING REQUIRED")
+    if detail is None:
+        if ambiguous:
+            detail = (
+                f"More than one column could represent {role_label}: "
+                + ", ".join(candidates[:12])
+                + ". No mapping was chosen by name or planner order."
+            )
+        else:
+            detail = (
+                f"No supported header identifies {role_label}. Which column "
+                "represents it? Candidates: "
+                + (", ".join(candidates[:12]) or "none")
+                + "."
+            )
     block = (
         "LIVE TOOL RESULTS (datasets.aggregate — deterministic; the "
         "model did not compute this):\n"
@@ -1119,7 +1123,7 @@ def _ast_identity_violation(
 _ROLE_HINTS: Dict[str, Tuple[str, ...]] = {
     "identity_column": (
         "po id", "po number", "order id", "order number", "item id",
-        "item number", "reference", "ref", "sku", "code", "id",
+        "item number", "reference", "ref", "sku", "code", "id", "key",
         "line no", "line number", "row no", "row number",
     ),
     "quantity_column": (
@@ -1312,6 +1316,291 @@ def _selection_sql_violation(sql: str) -> Optional[str]:
     return None
 
 
+_EXPLICIT_SUM_RE = re.compile(
+    r"\b(?:sum|sums|summed|summing|add\s+up)\b", re.IGNORECASE)
+_EXPLICIT_COUNT_RE = re.compile(
+    r"\b(?:count|counts|counted|counting|how\s+many)\b", re.IGNORECASE)
+
+
+def _explicit_aggregate_operation(query: str) -> Optional[str]:
+    """The operation the ask EXPLICITLY names, or None.
+
+    Only an explicit sum/count word enables the deterministic lane. A bare
+    "total" can mean a taught line total (quantity x price), so it stays on
+    the existing planner path rather than silently choosing an operation.
+    """
+    text = " ".join(str(query or "").split())
+    if not text:
+        return None
+    if _EXPLICIT_COUNT_RE.search(text):
+        return "count"
+    if _EXPLICIT_SUM_RE.search(text):
+        return "sum"
+    return None
+
+
+def _numeric_measure_candidates(df: Any, columns: List[str]) -> List[str]:
+    """Frame columns that actually carry numeric values.
+
+    Header vocabulary is not used here: the bound frame decides. A measure
+    is a column whose non-blank values all parse as finite decimals; a
+    numeric dtype is accepted directly. Identifiers like ``IN-7301`` do not
+    parse and never become a measure by position or by being first.
+    """
+    from pandas.api.types import is_numeric_dtype
+
+    candidates: List[str] = []
+    for column in columns:
+        if column == SHEET_ROW_COL or column not in df.columns:
+            continue
+        series = df[column]
+        if is_numeric_dtype(series):
+            candidates.append(column)
+            continue
+        values = [value for value in series.tolist() if not _blank(value)]
+        if values and all(_dec(value) is not None for value in values):
+            candidates.append(column)
+    return candidates
+
+
+def _selection_plan_sql(predicate: Optional[Dict[str, Any]]) -> str:
+    """A detail-row identity projection; all inputs come from the frame."""
+    from core.table_selection import _quote_ident, _sql_literal
+
+    sql = f'SELECT {_quote_ident(SHEET_ROW_COL)} FROM df'
+    if predicate:
+        sql += (
+            f' WHERE {_quote_ident(predicate["column"])} '
+            f'{predicate["operator"]} {_sql_literal(predicate["value"])}'
+        )
+    return sql
+
+
+def _bound_entries_for_query(
+    entries: List[Dict[str, Any]], query: str,
+) -> Tuple[Optional[List[Dict[str, Any]]], Optional[Dict[str, Any]]]:
+    """Bind one sheet/version before reading a frame.
+
+    This is the same binding the executor uses. It returns either the bound
+    entries or a clarification/error result; it never guesses a sheet or a
+    version.
+    """
+    sheet_name, sheet_err = _bind_sheet(entries, query)
+    if sheet_err:
+        # Several catalog rows can be versions of the SAME sheet. That is a
+        # version choice, not a sheet choice; only distinct sheet names are
+        # an ambiguous sheet scope.
+        unique_sheets = {
+            _norm_sheet(entry.get("entity_name")) for entry in entries
+            if _norm_sheet(entry.get("entity_name"))
+        }
+        if len(unique_sheets) == 1:
+            sheet_name = next(iter(unique_sheets))
+            sheet_err = None
+        else:
+            return None, _clarification_block(
+                "sheet", sorted(unique_sheets), ambiguous=True,
+                title="SHEET AMBIGUOUS", detail=sheet_err)
+    if sheet_name is not None:
+        bound = [
+            entry for entry in entries
+            if _norm_sheet(entry.get("entity_name")) == sheet_name
+        ]
+        if not bound:
+            return None, _error_block(
+                "SHEET NOT FOUND",
+                f"Explicit sheet '{sheet_name}' is not cataloged for this "
+                "workbook. No fallback to another sheet was attempted.",
+            )
+        entries = bound
+    hashes = {
+        str(entry.get("content_hash") or "") for entry in entries
+        if str(entry.get("content_hash") or "")
+    }
+    if len(hashes) > 1:
+        return None, _clarification_block(
+            "version", sorted(hashes), ambiguous=True,
+            title="WORKBOOK VERSION AMBIGUOUS",
+            detail=(
+                "Several active versions of the workbook/sheet are cataloged. "
+                "No version was chosen by name or query order."
+            ),
+        )
+    if len(entries) > 1:
+        names = {
+            str(entry.get("dataset_name") or "") for entry in entries
+        }
+        if len(names) > 1:
+            return None, _clarification_block(
+                "sheet", sorted(
+                    str(entry.get("entity_name") or "") for entry in entries),
+                ambiguous=True,
+                title="SHEET BINDING AMBIGUOUS",
+                detail=(
+                    "Several catalog entries match the bound sheet. Name the "
+                    "sheet explicitly; no entry was chosen by order."
+                ),
+            )
+    return entries, None
+
+
+def _resolve_frame_roles(columns: List[str]) -> Dict[str, str]:
+    """Resolve non-calculation roles from the frame without guessing.
+
+    ``_infer_roles`` only fills exact normalized header matches; a header
+    such as "Vendor Ref" is a token match for identity. This helper accepts
+    a role only when exactly one frame column matches its generic hint.
+    """
+    roles = _infer_roles({}, columns)
+    for role in ("identity_column", "status_column", "currency_column"):
+        if roles.get(role):
+            continue
+        matches = [
+            column for column in columns
+            if column != SHEET_ROW_COL
+            and _role_hint_matches(column, _ROLE_HINTS.get(role, ()))
+        ]
+        if len(matches) == 1:
+            roles[role] = matches[0]
+    return roles
+
+
+async def _try_deterministic_aggregate(
+    entries: List[Dict[str, Any]],
+    query: str,
+    *,
+    file_name: Optional[str] = None,
+    max_rows: int = _MAX_AGGREGATE_ROWS,
+) -> Optional[Dict[str, Any]]:
+    """Build and execute a narrow sum/count plan BEFORE any model call.
+
+    The named measure and predicate come from the bound frame's own headers
+    and values through ``table_selection.resolve_selection``. The plan then
+    goes through the existing validated executor (SQL checks, authoritative
+    row binding, Decimal arithmetic, gap naming and provenance).
+
+    Returns ``None`` only when the ask does not explicitly request sum/count;
+    those calculations retain the existing planner path.
+    """
+    operation = _explicit_aggregate_operation(query)
+    if operation is None:
+        return None
+    bound, binding_result = _bound_entries_for_query(entries, query)
+    if binding_result is not None:
+        return binding_result
+    assert bound is not None
+
+    entry = bound[0]
+    parquet_path = str(entry.get("parquet_path") or "")
+    if not parquet_path:
+        return _error_block(
+            "SHEET NOT MATERIALIZED",
+            "The bound sheet has no materialized rows; no total was computed.",
+        )
+    try:
+        import pandas as pd
+
+        df = pd.read_parquet(parquet_path)
+    except Exception as exc:  # noqa: BLE001
+        return _error_block(
+            "AGGREGATION EXECUTION FAILED",
+            f"The materialized sheet could not be read "
+            f"({type(exc).__name__}); no total was computed.",
+        )
+    columns = [str(column) for column in df.columns]
+
+    from core.table_selection import resolve_selection
+
+    resolved = resolve_selection(columns, query, df=df)
+    if not resolved.get("ok"):
+        candidates = resolved.get("candidates") or []
+        rendered = [
+            f"{candidate.get('column')}: {candidate.get('value')}"
+            for candidate in candidates
+            if isinstance(candidate, dict)
+        ]
+        reason = str(resolved.get("reason") or "predicate")
+        return _clarification_block(
+            "predicate", rendered, ambiguous=True,
+            title="PREDICATE NEEDS A CLARIFICATION",
+            detail=(
+                f"The request's row condition is {reason.replace('_', ' ')}: "
+                + (", ".join(rendered[:12]) or "no candidate values")
+                + ". No row scope was chosen by name or order."
+            ),
+        )
+
+    predicate = resolved.get("predicate")
+    selected_columns = [
+        column for column in (resolved.get("columns") or [])
+        if column != SHEET_ROW_COL
+    ]
+    numeric_columns = _numeric_measure_candidates(df, columns)
+    measure_candidates = [
+        column for column in selected_columns
+        if column in numeric_columns
+    ]
+
+    value_column = ""
+    if operation == "sum":
+        if len(measure_candidates) > 1:
+            return _clarification_block(
+                "value_column", measure_candidates, ambiguous=True,
+                title="AMBIGUOUS MEASURE",
+                detail=(
+                    "The request names more than one numeric measure: "
+                    + ", ".join(measure_candidates[:12])
+                    + ". Which one should the sum use? No measure was chosen "
+                    "by position or by the first numeric column."
+                ),
+            )
+        if not measure_candidates:
+            # An explicitly named but non-numeric header is not a measure;
+            # show the frame's numeric columns so the user can choose.
+            return _clarification_block(
+                "value_column", numeric_columns, ambiguous=False,
+                title="MEASURE REQUIRED",
+                detail=(
+                    "The request asks for a sum but does not name one numeric "
+                    "measure from this sheet. Which numeric column should be "
+                    "summed? Candidates: "
+                    + (", ".join(numeric_columns[:12]) or "none")
+                    + ". No measure was guessed."
+                ),
+            )
+        value_column = measure_candidates[0]
+
+    roles = _resolve_frame_roles(columns)
+    # The frame-resolved measure is authoritative; generic header hints may
+    # not replace it (the executor honours this flag below).
+    roles["value_column"] = value_column
+    if operation == "count":
+        roles["value_column"] = ""
+    identity_column = str(roles.get("identity_column") or "")
+    status_column = str(roles.get("status_column") or "")
+    currency_column = str(roles.get("currency_column") or "")
+    plan = {
+        "dataset_name": str(entry.get("dataset_name") or ""),
+        "sql": _selection_plan_sql(predicate),
+        "operation": operation,
+        "identity_column": identity_column,
+        "quantity_column": "",
+        "price_column": "",
+        "value_column": value_column,
+        "currency_column": currency_column,
+        "status_column": status_column,
+        "note": "deterministic sum/count from the bound frame",
+        "deterministic": True,
+    }
+    return await execute_validated_aggregate_plan(
+        entries,
+        plan,
+        query,
+        file_name=file_name,
+        max_rows=max_rows,
+    )
+
+
 async def _execute_selection_plan(
     entries: List[Dict[str, Any]],
     plan: Any,
@@ -1374,6 +1663,7 @@ async def _execute_selection_plan(
             "supported operations (line_total, sum, count); no total was "
             "computed.",
         )
+    deterministic = bool(getattr(plan, "deterministic", False))
     value_column = str(getattr(plan, "value_column", "") or "")
     roles = {
         "identity_column": str(getattr(plan, "identity_column", "") or ""),
@@ -1403,6 +1693,13 @@ async def _execute_selection_plan(
     roles = _infer_roles(roles, columns)
     roles, _ambiguous_roles, _unresolved_roles = _resolve_roles(
         roles, columns, confirmed_roles, operation=operation)
+    if deterministic and operation == "sum" and value_column:
+        # A frame-resolved measure wins over generic header hints: a sheet
+        # may contain several "Amount"/"Total" columns without making the
+        # explicitly named one ambiguous.
+        roles["value_column"] = value_column
+        _ambiguous_roles.pop("value_column", None)
+        _unresolved_roles.pop("value_column", None)
     if _ambiguous_roles:
         _role = sorted(_ambiguous_roles)[0]
         return _clarification_block(
@@ -1483,7 +1780,10 @@ async def _execute_selection_plan(
                 f"The planner named {role}='{col}', which is not a column "
                 "of the materialized sheet. No similar column was substituted.",
             )
-    required_roles = ["identity_column"]
+    # A deterministic plan may cite rows without a business identifier;
+    # aggregate_selected_rows then cites the authoritative sheet row. The
+    # identity requirement still applies to planner-shaped plans.
+    required_roles = [] if deterministic else ["identity_column"]
     if operation == "line_total":
         required_roles += ["quantity_column", "price_column", "currency_column"]
     elif operation == "sum" and not value_column:
@@ -1798,6 +2098,14 @@ async def aggregate_named_dataset(
     """
     if not entries:
         return _error_block("WORKBOOK NOT FOUND", "No dataset entries were supplied.")
+    # DETERMINISTIC SUM/COUNT FIRST (2026-10-28): an explicitly named sum or
+    # count can be resolved from the bound frame before any model call. This
+    # is the same executor/arithmetic/provenance path; the planner remains
+    # the fallback only for calculations that are not explicit sum/count.
+    deterministic = await _try_deterministic_aggregate(
+        entries, query, file_name=file_name, max_rows=max_rows)
+    if deterministic is not None:
+        return deterministic
     if llm_service is None:
         return _error_block(
             "AGGREGATION PLANNER UNAVAILABLE",

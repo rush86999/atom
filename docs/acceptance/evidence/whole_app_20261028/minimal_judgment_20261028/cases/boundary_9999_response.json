@@ -1,0 +1,22 @@
+{
+ "id": "chatcmpl-700",
+ "object": "chat.completion",
+ "created": 1793189794,
+ "model": "llama3.1:8b",
+ "system_fingerprint": "fp_ollama",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "{\"assessments\":[{\"subject_id\":\"IN-8804\",\"decision\":\"HOLD\",\"basis\":[\"Requested amount of 9999 is above the grant threshold, which requires CFO review.\"],\"evidence_ids\":[\"ev:IN-8804:minimal_judgment!R5\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}"
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 809,
+  "completion_tokens": 89,
+  "total_tokens": 898
+ }
+}

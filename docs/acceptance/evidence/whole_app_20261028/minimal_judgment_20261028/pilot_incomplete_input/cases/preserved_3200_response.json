@@ -1,0 +1,22 @@
+{
+ "id": "chatcmpl-42",
+ "object": "chat.completion",
+ "created": 1793189695,
+ "model": "llama3.1:8b",
+ "system_fingerprint": "fp_ollama",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "{\"assessments\":[{\"subject_id\":\"IN-7301\",\"decision\":\"HOLD\",\"basis\":[\"Requested amount at or above 10000 is HOLD for CFO review.\"],\"evidence_ids\":[\"ev:IN-7301:vendor_loop!R2\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}"
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 730,
+  "completion_tokens": 83,
+  "total_tokens": 813
+ }
+}

@@ -1,0 +1,22 @@
+{
+ "id": "chatcmpl-959",
+ "object": "chat.completion",
+ "created": 1793189797,
+ "model": "llama3.1:8b",
+ "system_fingerprint": "fp_ollama",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "{\"assessments\":[{\"subject_id\":\"IN-8805\",\"decision\":\"HOLD\",\"basis\":[\"The request amount of 10000 is above the threshold of 5000 and below the threshold for CFO review\"],\"evidence_ids\":[\"ev:IN-8805:minimal_judgment!R6\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"], \"unresolved_requirements\":[]}]}"
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 809,
+  "completion_tokens": 94,
+  "total_tokens": 903
+ }
+}
