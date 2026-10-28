@@ -1,0 +1,32 @@
+{
+ "id": "ca8539fa-641b-45fe-84a1-a6435c18c07e",
+ "object": "chat.completion",
+ "created": 1793192018,
+ "model": "deepseek-v4-pro",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```json\n{\n  \"assessments\": [\n    {\n      \"subject_id\": \"IN-8802\",\n      \"decision\": \"DECLINE\",\n      \"basis\": [\n        \"The invoice amount is 4999.99, which is below 5000, so under grant threshold rule 044d2b537b4d4a2593dbaca52c64b8da the request is DECLINE.\"\n      ],\n      \"evidence_ids\": [\n        \"ev:IN-8802:minimal_judgment!R2\"\n      ],\n      \"policy_ids\": [\n        \"044d2b537b4d4a2593dbaca52c64b8da\"\n      ],\n      \"unresolved_requirements\": []\n    }\n  ]\n}\n```",
+    "reasoning_content": "We need answer with review_result JSON only. Need assess subject IN-8802. Evidence row: Invoice Amount=4999.99. Policy 044d... says Requested amount below 5000 is DECLINE. Need decision DECLINE. Need basis cite reference and amount from row. Policy_ids array with that policy. Evidence ids ev:IN-8802:minimal_judgment!R2. unresolved_requirements empty. Need exactly one assessment. Ensure valid JSON, no prose."
+   },
+   "logprobs": null,
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 903,
+  "completion_tokens": 264,
+  "total_tokens": 1167,
+  "prompt_tokens_details": {
+   "cached_tokens": 384
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 101
+  },
+  "prompt_cache_hit_tokens": 384,
+  "prompt_cache_miss_tokens": 519
+ },
+ "system_fingerprint": "a307abda487cd1b463329ccb945ce396"
+}

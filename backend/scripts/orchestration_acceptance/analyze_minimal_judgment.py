@@ -59,11 +59,16 @@ def _raw_decision(text: str, subject: str) -> str | None:
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
-        print("usage: analyze_minimal_judgment.py <evidence-dir>", file=sys.stderr)
+    if len(sys.argv) not in (2, 3):
+        print(
+            "usage: analyze_minimal_judgment.py <evidence-dir> "
+            "[results.json]",
+            file=sys.stderr)
         return 2
     root = Path(sys.argv[1]).resolve()
-    results_path = root / "results.json"
+    results_path = (
+        Path(sys.argv[2]).resolve() if len(sys.argv) == 3
+        else root / "results.json")
     results = json.loads(results_path.read_text(encoding="utf-8"))
 
     def analyze(record: dict, subject: str) -> dict:
@@ -83,10 +88,21 @@ def main() -> int:
             "format_parseable": raw is not None,
         }
 
-    full = analyze(results["full_context"], "IN-7301")
+    if "full_context" in results:
+        full_record = results["full_context"]
+        minimal_records = results["minimal_cases"]
+    else:
+        full_record = next(
+            record for record in results["cases"]
+            if record.get("kind") == "full_context")
+        minimal_records = [
+            record for record in results["cases"]
+            if record.get("kind") == "minimal"
+        ]
+    full = analyze(full_record, "IN-7301")
     cases = [
         {"case_id": record["case_id"], **analyze(record, record["subject"])}
-        for record in results["minimal_cases"]
+        for record in minimal_records
     ]
     analysis = {
         "schema": "minimal-judgment-analysis-1",

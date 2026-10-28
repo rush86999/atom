@@ -1,9 +1,41 @@
-# DeepSeek judgment comparison — prepared, not authorized
+# DeepSeek judgment comparison — executed once, passed screening
 
-Status: **prepared_not_authorized**. No DeepSeek call has been made. The
+Status: **pass (diagnostic screening)**. The owner authorized one isolated
+exception to local-only operation. Seven fixed cases were sent once each to
+`deepseek/deepseek-v4-pro`; no semantic or transport retries were made. The
 application's local-only default, provider policy, stored credentials and the
-pilot are unchanged. This is a diagnostic direct-endpoint comparison, not
+pilot remain unchanged. This is a diagnostic direct-endpoint comparison, not
 application acceptance evidence.
+
+## Result
+
+| Case | Expected | Raw decision | Substantive | Certified |
+|---|---|---:|---:|---:|
+| Preserved full context | DECLINE / HOLD / HOLD | DECLINE / HOLD / HOLD | yes | yes |
+| Preserved 3200 | DECLINE | DECLINE | yes | yes |
+| Unfamiliar 4321.25 | DECLINE | DECLINE | yes | yes |
+| Boundary 4999.99 | DECLINE | DECLINE | yes | yes |
+| Boundary 5000 | HOLD | HOLD | yes | yes |
+| Boundary 9999 | HOLD | HOLD | yes | yes |
+| Boundary 10000 | HOLD | HOLD | yes | yes |
+
+- route/transport success: **7/7**
+- parseable output: **7/7**
+- substantive correctness: **7/7**
+- reference validity: **6/7 initial, 7/7 after offline revalidation**
+- latency: **3.5–21.5 s** per case, average **6.5 s**
+- usage: **8,900 input + 3,529 output = 12,429 tokens**
+- estimated cost: **$0.028** at conservative catalog rates
+- retries: **0 semantic, 0 transport**
+
+The initial 6/7 reference result was a harness bug: the full-context validator
+was given only `IN-7301` instead of the accepted three subjects, so the correct
+`IN-7302` and `IN-7303` assessments were reported as `unrequested_subject`.
+`revalidated_results.json` re-runs the same saved response through the product
+validator with the accepted subject set and gets `ok=true`, no errors. No model
+call and no decision rewrite occurred.
+
+Screening manifest: `SCREENING_MANIFEST.json`.
 
 ## Frozen comparison
 
@@ -56,9 +88,9 @@ python backend/scripts/orchestration_acceptance/compare_deepseek_judgment.py \
   --authorize-deepseek-exception
 ```
 
-This command must not be run until the owner explicitly authorizes this one
-comparison as the local-only exception. The script also refuses to overwrite
-an existing `results.json`.
+This is the command that was run after the owner authorized the one
+comparison. The script refuses to overwrite an existing `results.json` and
+still requires both gates for any future run.
 
 ## Outputs after an authorized run
 

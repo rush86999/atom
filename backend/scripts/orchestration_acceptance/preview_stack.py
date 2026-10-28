@@ -327,7 +327,14 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
                  "OLLAMA_MODEL", "OLLAMA_QUALITY_SCORE",
                  "ATOM_REVIEW_STRUCTURED", "ATOM_REVIEW_CAPTURE",
                  "ATOM_CHAT_TURN_BUDGET_SECONDS",
-                 "ATOM_TURN_INTERPRET_TIMEOUT_S"):
+                 "ATOM_TURN_INTERPRET_TIMEOUT_S",
+                 # DECLARED PRODUCT-ROUTE CONFIGURATION (2026-10-28): an
+                 # isolated world may select its provider/model explicitly.
+                 # This is env-only for that child process; the parent's
+                 # policy and the local-only default are not changed.
+                 "ATOM_LLM_PROVIDER_POLICY",
+                 "ATOM_PREFERRED_LLM_PROVIDER",
+                 "ATOM_PREFERRED_LLM_MODEL"):
         if os.environ.get(name):
             env[name] = os.environ[name]
     env.update({
@@ -368,6 +375,12 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
             "ATOM_CHAT_TURN_BUDGET_SECONDS", "95"),
         "ATOM_TURN_INTERPRET_TIMEOUT_S": env.get(
             "ATOM_TURN_INTERPRET_TIMEOUT_S", "65"),
+        "ATOM_LLM_PROVIDER_POLICY": env.get(
+            "ATOM_LLM_PROVIDER_POLICY", ""),
+        "ATOM_PREFERRED_LLM_PROVIDER": env.get(
+            "ATOM_PREFERRED_LLM_PROVIDER", ""),
+        "ATOM_PREFERRED_LLM_MODEL": env.get(
+            "ATOM_PREFERRED_LLM_MODEL", ""),
         "ATOM_SHEET_DATASETS": env["ATOM_SHEET_DATASETS"],
         "ENABLE_SCHEDULER": env["ENABLE_SCHEDULER"],
         "ENABLE_INGESTION_SYNC": env["ENABLE_INGESTION_SYNC"],
@@ -444,7 +457,7 @@ def cmd_up(args: argparse.Namespace) -> int:
 
     byok = {"skipped": True}
     if not args.no_user_byok:
-        byok = seed_byok_store(run_dir)
+        byok = seed_byok_store(run_dir, args.byok_source_dir)
         print(f"[preview] BYOK store seeded into run dir: "
               f"providers={','.join(byok['provider_ids_present']) or 'none'}")
 
@@ -659,10 +672,17 @@ def _terminate(proc: subprocess.Popen, grace: float = 15.0) -> None:
 BYOK_SEED_FILES = ("byok_keys.json", "byok_config.json", "byok_encryption_key")
 
 
-def seed_byok_store(run_dir: Path) -> Dict[str, Any]:
+def seed_byok_store(
+    run_dir: Path, source_dir: Optional[str] = None,
+) -> Dict[str, Any]:
     """Copy the encrypted BYOK store into the run dir. Returns a summary with
-    provider NAMES only -- never a key, a hash, or a length."""
-    src_dir = BACKEND / "data"
+    provider NAMES only -- never a key, a hash, or a length.
+
+    ``source_dir`` lets an isolated run copy the credential store from an
+    explicit source read-only (e.g. the app's own encrypted store) without
+    rewriting that source or the worktree's data directory.
+    """
+    src_dir = Path(source_dir).expanduser() if source_dir else BACKEND / "data"
     dst_dir = run_dir / "data"
     copied, missing = [], []
     for name in BYOK_SEED_FILES:
@@ -966,6 +986,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--no-user-byok", action="store_true",
                    help="do NOT seed the run dir with the repo's encrypted BYOK "
                         "store; the preview then has no real provider access")
+    p.add_argument("--byok-source-dir", default="",
+                   help="read the encrypted BYOK files from this directory "
+                        "instead of <backend>/data; the source is never "
+                        "modified")
     p.add_argument("--no-frontend", action="store_true",
                    help="backend only. The frontend farm at "
                         "frontend-nextjs/.preview-instance and its distDir are "

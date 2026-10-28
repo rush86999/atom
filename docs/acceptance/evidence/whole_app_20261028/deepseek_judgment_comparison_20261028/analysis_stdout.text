@@ -1,0 +1,9 @@
+{
+ "full_context_substantive_match": true,
+ "full_context_certified": true,
+ "minimal_substantive_matches": 6,
+ "minimal_total": 6,
+ "minimal_certified": 6,
+ "minimal_format_parseable": 6,
+ "substantively_wrong": []
+}

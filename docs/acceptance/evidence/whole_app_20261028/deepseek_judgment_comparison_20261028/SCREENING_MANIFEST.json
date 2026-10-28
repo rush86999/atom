@@ -1,0 +1,109 @@
+{
+ "schema": "deepseek-screening-manifest-1",
+ "status": "pass",
+ "not_acceptance_evidence": true,
+ "source_and_harness": {
+  "branch": "whole-app/successor-f5f",
+  "base_commit": "6d24588d0",
+  "spec": "docs/acceptance/evidence/whole_app_20261028/deepseek_judgment_comparison_20261028/SPEC.json",
+  "spec_sha256": "3ea4229841f52cfc25f08a9aebe6372fc2783ee05d7d3ca5166e7a31345491c5",
+  "harness": "backend/scripts/orchestration_acceptance/compare_deepseek_judgment.py",
+  "harness_sha256": "ead050a8132c41d7db8a8f637c9b8673da628e201b666df111a3cb8f8f715ffa",
+  "revalidator": "backend/scripts/orchestration_acceptance/revalidate_deepseek_comparison.py",
+  "revalidator_sha256": "1a86d59238651bb4f9d8f501bc0e561a5c946113a2fb06702293a6701d40156b",
+  "source_request_sha256": "f86dbbc660efa9576baadfc90b9bdb8b69d561347cf054056155234ca5670402",
+  "request_count": 7,
+  "attempts_per_case": 1,
+  "semantic_retries": 0,
+  "transport_retries": 0
+ },
+ "endpoint_and_model": {
+  "provider": "deepseek",
+  "base_url": "https://api.deepseek.com/v1",
+  "requested_model": "deepseek-v4-pro",
+  "credential_key_id": "tenant_default_deepseek_default_production",
+  "credential_key_hash": "cc1d28eb8b34001a845fbf176096e4124985bca4763ce44953fbe712727f32ee",
+  "fallback_behavior": "none; provider policy for product verification is deepseek-only and diagnostic harness has no fallback"
+ },
+ "settings": {
+  "temperature": 0.7,
+  "max_tokens": 6000,
+  "stream": false,
+  "request_timeout_seconds": 300,
+  "attempts_per_case": 1,
+  "semantic_retries": 0,
+  "transport_retries": 0,
+  "structured_output": false,
+  "prompt_changes_mid_run": false
+ },
+ "source_and_policy_revisions": {
+  "source_file": "vendor_loop.csv",
+  "source_content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+  "policy_id": "044d2b537b4d4a2593dbaca52c64b8da",
+  "policy_topic": "grant threshold rule",
+  "policy_lesson_sha256": "1a7ae2a4e2a9d65f1baf017968639b13dd87f045c0f43a1d3cc126f9c1864e45",
+  "allowed_decisions": [
+   "FUND",
+   "HOLD",
+   "DECLINE"
+  ]
+ },
+ "expected_results": {
+  "preserved_full_context": {
+   "amount": "3200",
+   "expected": "DECLINE"
+  },
+  "preserved_3200": {
+   "amount": "3200",
+   "expected": "DECLINE"
+  },
+  "unfamiliar_4321_25": {
+   "amount": "4321.25",
+   "expected": "DECLINE"
+  },
+  "boundary_4999_99": {
+   "amount": "4999.99",
+   "expected": "DECLINE"
+  },
+  "boundary_5000": {
+   "amount": "5000",
+   "expected": "HOLD"
+  },
+  "boundary_9999": {
+   "amount": "9999",
+   "expected": "HOLD"
+  },
+  "boundary_10000": {
+   "amount": "10000",
+   "expected": "HOLD"
+  }
+ },
+ "ceilings": {
+  "max_total_tokens": 100000,
+  "max_estimated_cost_usd": 0.1,
+  "per_case_max_output_tokens": 6000,
+  "request_timeout_seconds": 300
+ },
+ "actual": {
+  "route_transport_successes": 7,
+  "parseable_outputs": 7,
+  "reference_valid_initial_validation": 6,
+  "reference_valid_after_offline_revalidation": 7,
+  "substantive_correct": 7,
+  "latency_ms": {
+   "total": 45240,
+   "min": 3484,
+   "max": 21479,
+   "avg": 6462
+  },
+  "usage": {
+   "prompt_tokens": 8900,
+   "completion_tokens": 3529,
+   "total_tokens": 12429
+  },
+  "estimated_cost_usd": 0.027767,
+  "cost_basis": "conservative deepseek-v4-pro catalog rates $1.74/M input, $3.48/M output"
+ },
+ "initial_validation_note": "The first harness version bound the full-context validator to only IN-7301, producing two unrequested_subject errors for the correct IN-7302/IN-7303 assessments. Offline revalidation of the same saved response with the accepted three-subject set yielded ok=true and no errors. No model call or decision rewrite occurred.",
+ "decision": "DeepSeek passes screening; stop model search and verify the declared configuration through the real scoped product route."
+}

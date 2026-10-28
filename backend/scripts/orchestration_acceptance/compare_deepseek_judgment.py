@@ -174,6 +174,7 @@ def _build_requests(spec: dict, source: dict) -> list[dict]:
             evidence = full_evidence
             policy = full_policy
             execution_id = str(source.get("execution_id") or "deepseek-full")
+            requested_records = list(source["subjects"])
             request_meta = {
                 "kind": "preserved_full_context",
                 "message_count": len(messages),
@@ -186,6 +187,7 @@ def _build_requests(spec: dict, source: dict) -> list[dict]:
                 case["subject"], float(case["amount"]), evidence_entry,
                 full_policy[0], allowed)
             execution_id = f"deepseek-{case['case_id']}"
+            requested_records = [case["subject"]]
             request_meta = {
                 "kind": "minimal_complete",
                 "message_count": len(messages),
@@ -194,6 +196,7 @@ def _build_requests(spec: dict, source: dict) -> list[dict]:
         prepared.append({
             **case,
             "execution_id": execution_id,
+            "requested_records": requested_records,
             "messages": messages,
             "evidence_index": evidence,
             "policy_index": policy,
@@ -410,7 +413,7 @@ def main() -> int:
             content = _content(payload)
             review = build_review_result(
                 execution_id=case["execution_id"],
-                requested_records=[case["subject"]],
+                requested_records=case["requested_records"],
                 answer=content,
                 allowed_decisions=case["allowed_decisions"],
                 evidence_index=case["evidence_index"],
@@ -434,6 +437,7 @@ def main() -> int:
                 "subject": case["subject"],
                 "amount": case["amount"],
                 "expected": case["expected"],
+                "requested_records": case["requested_records"],
                 "raw_decision": decision,
                 "substantive_match": decision == case["expected"],
                 "certified": bool(review.get("ok")),
