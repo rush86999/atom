@@ -12,9 +12,9 @@ evidence was regenerated on the final repaired candidate (tested code
 | Slice | Result | Evidence |
 |---|---|---|
 | Office slices (workbook, email, DOCX, PPTX) | 40/40 UI checks total; 17/17 artifact checks | `ui_slices.json`, `artifact_checks.json`, `run_stdout.text`, `downloads/` |
-| Email with attachment + reply draft | Included in the 37 UI checks; envelope, attachment association, draft persistence and no-send verified | `ui_slices.json`, `downloads/` (email audit is in the world DB) |
-| DOCX read / generate / correct / download | Included in the 37 UI checks; generated document has real headings, a real table and source references | `ui_slices.json`, `artifact_checks.json`, `downloads/` |
-| PPTX read / generate / correct / download | Included in the 37 UI checks; slide order, table, speaker notes and sources verified | `ui_slices.json`, `artifact_checks.json`, `downloads/` |
+| Email with attachment + reply draft | Included in the 40 UI checks; envelope, attachment association, draft persistence and no-send verified | `ui_slices.json`, `downloads/` (email audit is in the world DB) |
+| DOCX read / generate / correct / download | Included in the 40 UI checks; generated document has real headings, a real table and source references | `ui_slices.json`, `artifact_checks.json`, `downloads/` |
+| PPTX read / generate / correct / download | Included in the 40 UI checks; slide order, table, speaker notes and sources verified | `ui_slices.json`, `artifact_checks.json`, `downloads/` |
 | User-created table canvas A | 33/33 UI checks for the two canvases | `capability_ui.json`, `capability_run_stdout.text` |
 | User-created table canvas B (different fields/decisions) | Same implementation; different vocabulary and policy | `capability_ui.json` |
 | Representative employee job | 16/16 pre-restart; 17/17 post-restart; 19/19 artifact checks | `employee_job.json`, `employee_job_after_restart.json`, `artifact_checks_after_restart.json`, `downloads/` |
