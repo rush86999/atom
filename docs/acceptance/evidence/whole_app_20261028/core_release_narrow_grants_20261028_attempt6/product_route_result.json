@@ -1,0 +1,592 @@
+{
+ "schema": "deepseek-product-route-verification-1",
+ "base_url": "http://127.0.0.1:8061",
+ "agent_id": "8c73ca57-63d5-4dd9-a690-ab297839a05e",
+ "user_id": "836669b5-e20a-469e-8855-3a18daa3b5c9",
+ "session_id": "d6a2f42f-579b-46f6-8e88-a57e1bc4fa89",
+ "policy_id": "ee7ab1ce24f5496da73255a99caf0c3e",
+ "policy_lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.",
+ "requested_model_header": "deepseek-v4-pro",
+ "request": {
+  "message": "Assess each Submitted application in grants_loop.csv under the taught threshold rule. Give a table with reference, amount and decision.",
+  "user_id": "836669b5-e20a-469e-8855-3a18daa3b5c9",
+  "session_id": "new",
+  "agent_id": "8c73ca57-63d5-4dd9-a690-ab297839a05e",
+  "request_id": "req_f7fc5e19-c61e-4d6a-b623-134bb09f264c",
+  "context": {
+   "current_page": "/chat",
+   "agent_id": "8c73ca57-63d5-4dd9-a690-ab297839a05e",
+   "conversation_history": []
+  }
+ },
+ "response_status": 200,
+ "latency_ms": 85123,
+ "response": {
+  "success": true,
+  "message": "| Application Ref | Applicant | Requested Amount | Stage | Decision |\n| --- | ---: | ---: | ---: | --- |\n| GR-2026-014 | Northwind Literacy Trust | 12000 | Submitted | FUND |\n| GR-2026-021 | Harbour Youth Collective | 7000 | Submitted | HOLD |\n| GR-2026-033 | Meadow Arts Network | 4800 | Submitted | DECLINE |\n\nSource: grants_loop.csv · rows from the bound selection\n\n\n\nVALIDATED REVIEW (request-bound):\n- GR-2026-014: Decision: FUND\n  Evidence: grants_loop.csv 4d8d540ebc51cc88ae49fb13c5162417577fe18c 4d8d540ebc51cc88ae49fb13c5162417577fe18c grants_loop!R2\n  Policy: grant threshold rule\n  Basis: Requested amount 12000 for GR-2026-014 Northwind Literacy Trust is at or above 10000, so the threshold rule requires FUND.\n- GR-2026-021: Decision: HOLD\n  Evidence: grants_loop.csv 4d8d540ebc51cc88ae49fb13c5162417577fe18c 4d8d540ebc51cc88ae49fb13c5162417577fe18c grants_loop!R3\n  Policy: grant threshold rule\n  Basis: Requested amount 7000 for GR-2026-021 Harbour Youth Collective is between 5000 and 9999, so the threshold rule requires HOLD.\n- GR-2026-033: Decision: DECLINE\n  Evidence: grants_loop.csv 4d8d540ebc51cc88ae49fb13c5162417577fe18c 4d8d540ebc51cc88ae49fb13c5162417577fe18c grants_loop!R4\n  Policy: grant threshold rule\n  Basis: Requested amount 4800 for GR-2026-033 Meadow Arts Network is below 5000, so the threshold rule requires DECLINE.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+  "session_id": "d6a2f42f-579b-46f6-8e88-a57e1bc4fa89",
+  "intent": "agent_request",
+  "confidence": 0.6,
+  "suggested_actions": [],
+  "requires_confirmation": false,
+  "next_steps": [
+   "Ask me to connect more services",
+   "Explore automation opportunities",
+   "Check your dashboard for insights"
+  ],
+  "timestamp": "2026-10-28T11:58:16.546895",
+  "metadata": {
+   "review_result": {
+    "schema_version": "review-result-2",
+    "execution_id": "54fecad3-c88b-4565-9f52-00a6e80c184f",
+    "requested_subjects": [
+     "GR-2026-014",
+     "GR-2026-021",
+     "GR-2026-033"
+    ],
+    "allowed_decisions": [
+     "FUND",
+     "HOLD",
+     "DECLINE"
+    ],
+    "source_execution_ids": [
+     "54fecad3-c88b-4565-9f52-00a6e80c184f"
+    ],
+    "assessments": [
+     {
+      "subject_id": "GR-2026-014",
+      "decision": "FUND",
+      "basis": [
+       "Requested amount 12000 for GR-2026-014 Northwind Literacy Trust is at or above 10000, so the threshold rule requires FUND."
+      ],
+      "evidence_refs": [
+       {
+        "evidence_id": "ev:GR-2026-014:grants_loop!R2",
+        "subject_id": "GR-2026-014",
+        "row_ref": "grants_loop!R2",
+        "source_identity": {
+         "file_name": "grants_loop.csv",
+         "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+         "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+        },
+        "retrieval_operation": "select:4d8d540ebc51:54fecad3-c88b-4565-9f52-00a6e80c184f",
+        "retrieval_execution_id": "54fecad3-c88b-4565-9f52-00a6e80c184f",
+        "values": [
+         {
+          "field": "Applicant",
+          "value": "Northwind Literacy Trust"
+         },
+         {
+          "field": "Requested Amount",
+          "value": 12000
+         },
+         {
+          "field": "Stage",
+          "value": "Submitted"
+         }
+        ]
+       }
+      ],
+      "policy_refs": [
+       {
+        "policy_id": "ee7ab1ce24f5496da73255a99caf0c3e",
+        "topic": "grant threshold rule",
+        "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+       }
+      ],
+      "unresolved_requirements": [],
+      "reported_unresolved_requirements": [],
+      "accepted_unresolved_requirements": [],
+      "basis_supported_requirements": [],
+      "unclassified_requirements": [],
+      "source_execution_ids": [
+       "54fecad3-c88b-4565-9f52-00a6e80c184f"
+      ],
+      "resumed_read": false
+     },
+     {
+      "subject_id": "GR-2026-021",
+      "decision": "HOLD",
+      "basis": [
+       "Requested amount 7000 for GR-2026-021 Harbour Youth Collective is between 5000 and 9999, so the threshold rule requires HOLD."
+      ],
+      "evidence_refs": [
+       {
+        "evidence_id": "ev:GR-2026-021:grants_loop!R3",
+        "subject_id": "GR-2026-021",
+        "row_ref": "grants_loop!R3",
+        "source_identity": {
+         "file_name": "grants_loop.csv",
+         "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+         "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+        },
+        "retrieval_operation": "select:4d8d540ebc51:54fecad3-c88b-4565-9f52-00a6e80c184f",
+        "retrieval_execution_id": "54fecad3-c88b-4565-9f52-00a6e80c184f",
+        "values": [
+         {
+          "field": "Applicant",
+          "value": "Harbour Youth Collective"
+         },
+         {
+          "field": "Requested Amount",
+          "value": 7000
+         },
+         {
+          "field": "Stage",
+          "value": "Submitted"
+         }
+        ]
+       }
+      ],
+      "policy_refs": [
+       {
+        "policy_id": "ee7ab1ce24f5496da73255a99caf0c3e",
+        "topic": "grant threshold rule",
+        "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+       }
+      ],
+      "unresolved_requirements": [],
+      "reported_unresolved_requirements": [],
+      "accepted_unresolved_requirements": [],
+      "basis_supported_requirements": [],
+      "unclassified_requirements": [],
+      "source_execution_ids": [
+       "54fecad3-c88b-4565-9f52-00a6e80c184f"
+      ],
+      "resumed_read": false
+     },
+     {
+      "subject_id": "GR-2026-033",
+      "decision": "DECLINE",
+      "basis": [
+       "Requested amount 4800 for GR-2026-033 Meadow Arts Network is below 5000, so the threshold rule requires DECLINE."
+      ],
+      "evidence_refs": [
+       {
+        "evidence_id": "ev:GR-2026-033:grants_loop!R4",
+        "subject_id": "GR-2026-033",
+        "row_ref": "grants_loop!R4",
+        "source_identity": {
+         "file_name": "grants_loop.csv",
+         "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+         "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+        },
+        "retrieval_operation": "select:4d8d540ebc51:54fecad3-c88b-4565-9f52-00a6e80c184f",
+        "retrieval_execution_id": "54fecad3-c88b-4565-9f52-00a6e80c184f",
+        "values": [
+         {
+          "field": "Applicant",
+          "value": "Meadow Arts Network"
+         },
+         {
+          "field": "Requested Amount",
+          "value": 4800
+         },
+         {
+          "field": "Stage",
+          "value": "Submitted"
+         }
+        ]
+       }
+      ],
+      "policy_refs": [
+       {
+        "policy_id": "ee7ab1ce24f5496da73255a99caf0c3e",
+        "topic": "grant threshold rule",
+        "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+       }
+      ],
+      "unresolved_requirements": [],
+      "reported_unresolved_requirements": [],
+      "accepted_unresolved_requirements": [],
+      "basis_supported_requirements": [],
+      "unclassified_requirements": [],
+      "source_execution_ids": [
+       "54fecad3-c88b-4565-9f52-00a6e80c184f"
+      ],
+      "resumed_read": false
+     }
+    ],
+    "candidate_assessments": [],
+    "errors": [],
+    "ok": true,
+    "required_actions": [],
+    "action_receipts": [],
+    "completion": "completed",
+    "reviewed_at_elapsed_s": 85.03
+   },
+   "review_contract": {
+    "subjects": [
+     "GR-2026-014",
+     "GR-2026-021",
+     "GR-2026-033"
+    ],
+    "accepted_inputs": {
+     "subjects": [
+      "GR-2026-014",
+      "GR-2026-021",
+      "GR-2026-033"
+     ],
+     "requested_fields": [
+      "amount"
+     ],
+     "source_version": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+     "teaching_revision": "70044a0543eaaa3a5210bb2f",
+     "decision_schema": [
+      "FUND",
+      "HOLD",
+      "DECLINE"
+     ],
+     "required_actions": []
+    },
+    "policy_revision": "70044a0543eaaa3a5210bb2f",
+    "source_revision": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+    "required_evidence": [
+     {
+      "file_name": "grants_loop.csv",
+      "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+      "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+     },
+     {
+      "file_name": "grants_loop.csv",
+      "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+      "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+     },
+     {
+      "file_name": "grants_loop.csv",
+      "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+      "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+     }
+    ],
+    "allowed_decisions": [
+     "FUND",
+     "HOLD",
+     "DECLINE"
+    ],
+    "evidence_ids": [
+     "ev:GR-2026-014:grants_loop!R2",
+     "ev:GR-2026-021:grants_loop!R3",
+     "ev:GR-2026-033:grants_loop!R4"
+    ],
+    "policy_ids": [
+     "ee7ab1ce24f5496da73255a99caf0c3e"
+    ]
+   },
+   "review_summary": "VALIDATED REVIEW (request-bound):\n- GR-2026-014: Decision: FUND\n  Evidence: grants_loop.csv 4d8d540ebc51cc88ae49fb13c5162417577fe18c 4d8d540ebc51cc88ae49fb13c5162417577fe18c grants_loop!R2\n  Policy: grant threshold rule\n  Basis: Requested amount 12000 for GR-2026-014 Northwind Literacy Trust is at or above 10000, so the threshold rule requires FUND.\n- GR-2026-021: Decision: HOLD\n  Evidence: grants_loop.csv 4d8d540ebc51cc88ae49fb13c5162417577fe18c 4d8d540ebc51cc88ae49fb13c5162417577fe18c grants_loop!R3\n  Policy: grant threshold rule\n  Basis: Requested amount 7000 for GR-2026-021 Harbour Youth Collective is between 5000 and 9999, so the threshold rule requires HOLD.\n- GR-2026-033: Decision: DECLINE\n  Evidence: grants_loop.csv 4d8d540ebc51cc88ae49fb13c5162417577fe18c 4d8d540ebc51cc88ae49fb13c5162417577fe18c grants_loop!R4\n  Policy: grant threshold rule\n  Basis: Requested amount 4800 for GR-2026-033 Meadow Arts Network is below 5000, so the threshold rule requires DECLINE.",
+   "open_work": {
+    "actions": [],
+    "owner_decisions": [],
+    "exhausted": []
+   },
+   "task_run_id": "d208cad2-f54e-4b97-b4f8-35a17148e3df",
+   "delivery": {
+    "status": "recorded",
+    "delivery_id": "2432a7ff-d9d7-49f3-9ad3-e2269509d110",
+    "message_id": "6033b3dc-4f53-40b6-a7e8-c15dc0b06fe7"
+   },
+   "persistence": {
+    "status": "persisted"
+   },
+   "replay_pin": {
+    "status": "pinned",
+    "durable": true
+   }
+  },
+  "memory_context": "TRAINING LESSONS — PERMANENT INSTRUCTIONS you were taught by your supervisor/mentor. This is standing guidance for ALL your work (it does not expire): apply it to the current task, match the preferences it describes, and never contradict it unless the user explicitly overrides it in this conversation:\n1. [grant threshold rule] Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row. — taught on canvas \"Untitled canvas\" (Document) — taught to a DIFFERENT agent in this workspace; workspace background only, not authority for this task\n2. [grant threshold rule] Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row. — taught to a DIFFERENT agent in this workspace; workspace background only, not authority for this task\n3. [grant threshold rule] Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row. — taught to a DIFFERENT agent in this workspace; workspace background only, not authority for this task\n4. [grant threshold rule] Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.",
+  "model": "structured",
+  "provider": "structured",
+  "reasoning": null,
+  "execution_id": "54fecad3-c88b-4565-9f52-00a6e80c184f",
+  "error_code": null,
+  "failure_reason": null,
+  "recovery_url": null,
+  "outcome": "completed"
+ },
+ "review": {
+  "schema_version": "review-result-2",
+  "execution_id": "54fecad3-c88b-4565-9f52-00a6e80c184f",
+  "requested_subjects": [
+   "GR-2026-014",
+   "GR-2026-021",
+   "GR-2026-033"
+  ],
+  "allowed_decisions": [
+   "FUND",
+   "HOLD",
+   "DECLINE"
+  ],
+  "source_execution_ids": [
+   "54fecad3-c88b-4565-9f52-00a6e80c184f"
+  ],
+  "assessments": [
+   {
+    "subject_id": "GR-2026-014",
+    "decision": "FUND",
+    "basis": [
+     "Requested amount 12000 for GR-2026-014 Northwind Literacy Trust is at or above 10000, so the threshold rule requires FUND."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:GR-2026-014:grants_loop!R2",
+      "subject_id": "GR-2026-014",
+      "row_ref": "grants_loop!R2",
+      "source_identity": {
+       "file_name": "grants_loop.csv",
+       "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+       "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+      },
+      "retrieval_operation": "select:4d8d540ebc51:54fecad3-c88b-4565-9f52-00a6e80c184f",
+      "retrieval_execution_id": "54fecad3-c88b-4565-9f52-00a6e80c184f",
+      "values": [
+       {
+        "field": "Applicant",
+        "value": "Northwind Literacy Trust"
+       },
+       {
+        "field": "Requested Amount",
+        "value": 12000
+       },
+       {
+        "field": "Stage",
+        "value": "Submitted"
+       }
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "ee7ab1ce24f5496da73255a99caf0c3e",
+      "topic": "grant threshold rule",
+      "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "54fecad3-c88b-4565-9f52-00a6e80c184f"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "GR-2026-021",
+    "decision": "HOLD",
+    "basis": [
+     "Requested amount 7000 for GR-2026-021 Harbour Youth Collective is between 5000 and 9999, so the threshold rule requires HOLD."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:GR-2026-021:grants_loop!R3",
+      "subject_id": "GR-2026-021",
+      "row_ref": "grants_loop!R3",
+      "source_identity": {
+       "file_name": "grants_loop.csv",
+       "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+       "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+      },
+      "retrieval_operation": "select:4d8d540ebc51:54fecad3-c88b-4565-9f52-00a6e80c184f",
+      "retrieval_execution_id": "54fecad3-c88b-4565-9f52-00a6e80c184f",
+      "values": [
+       {
+        "field": "Applicant",
+        "value": "Harbour Youth Collective"
+       },
+       {
+        "field": "Requested Amount",
+        "value": 7000
+       },
+       {
+        "field": "Stage",
+        "value": "Submitted"
+       }
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "ee7ab1ce24f5496da73255a99caf0c3e",
+      "topic": "grant threshold rule",
+      "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "54fecad3-c88b-4565-9f52-00a6e80c184f"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "GR-2026-033",
+    "decision": "DECLINE",
+    "basis": [
+     "Requested amount 4800 for GR-2026-033 Meadow Arts Network is below 5000, so the threshold rule requires DECLINE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:GR-2026-033:grants_loop!R4",
+      "subject_id": "GR-2026-033",
+      "row_ref": "grants_loop!R4",
+      "source_identity": {
+       "file_name": "grants_loop.csv",
+       "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+       "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+      },
+      "retrieval_operation": "select:4d8d540ebc51:54fecad3-c88b-4565-9f52-00a6e80c184f",
+      "retrieval_execution_id": "54fecad3-c88b-4565-9f52-00a6e80c184f",
+      "values": [
+       {
+        "field": "Applicant",
+        "value": "Meadow Arts Network"
+       },
+       {
+        "field": "Requested Amount",
+        "value": 4800
+       },
+       {
+        "field": "Stage",
+        "value": "Submitted"
+       }
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "ee7ab1ce24f5496da73255a99caf0c3e",
+      "topic": "grant threshold rule",
+      "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "54fecad3-c88b-4565-9f52-00a6e80c184f"
+    ],
+    "resumed_read": false
+   }
+  ],
+  "candidate_assessments": [],
+  "errors": [],
+  "ok": true,
+  "required_actions": [],
+  "action_receipts": [],
+  "completion": "completed",
+  "reviewed_at_elapsed_s": 85.03
+ },
+ "decisions": {
+  "GR-2026-014": "FUND",
+  "GR-2026-021": "HOLD",
+  "GR-2026-033": "DECLINE"
+ },
+ "expected": {
+  "GR-2026-014": "FUND",
+  "GR-2026-021": "HOLD",
+  "GR-2026-033": "DECLINE"
+ },
+ "dataset_entries": [
+  {
+   "file_name": "grants_loop.csv",
+   "entity_name": "grants_loop",
+   "dataset_name": "upload_grants_loop__grants_loop",
+   "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+   "row_count": 4
+  }
+ ],
+ "steps": [
+  {
+   "name": "admin login",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "authenticated workspace/user",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "workspace_id": null
+   }
+  },
+  {
+   "name": "agent created through product API",
+   "ok": true,
+   "detail": {
+    "status": 201,
+    "agent_id": "8c73ca57-63d5-4dd9-a690-ab297839a05e"
+   }
+  },
+  {
+   "name": "policy taught through product API",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "policy_id": "ee7ab1ce24f5496da73255a99caf0c3e",
+    "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+   }
+  },
+  {
+   "name": "source uploaded through product API",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "document_id": "doc_45cd101f1f4ee7ad8289f328"
+   }
+  },
+  {
+   "name": "authoritative sheet dataset materialized",
+   "ok": true,
+   "detail": [
+    {
+     "file_name": "grants_loop.csv",
+     "entity_name": "grants_loop",
+     "dataset_name": "upload_grants_loop__grants_loop",
+     "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+     "row_count": 4
+    }
+   ]
+  },
+  {
+   "name": "one assessment turn returned",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "latency_ms": 85123
+   }
+  },
+  {
+   "name": "review structurally certified",
+   "ok": true,
+   "detail": []
+  },
+  {
+   "name": "review decisions match the taught policy",
+   "ok": true,
+   "detail": {
+    "GR-2026-014": "FUND",
+    "GR-2026-021": "HOLD",
+    "GR-2026-033": "DECLINE"
+   }
+  },
+  {
+   "name": "source hash present",
+   "ok": true,
+   "detail": [
+    {
+     "file_name": "grants_loop.csv",
+     "entity_name": "grants_loop",
+     "dataset_name": "upload_grants_loop__grants_loop",
+     "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+     "row_count": 4
+    }
+   ]
+  }
+ ],
+ "all_ok": true
+}

@@ -1,0 +1,92 @@
+{
+  "schema_version": "core-release-ledger-2",
+  "title": "Atom demonstrated core-release ledger — 2026-10-28",
+  "generated_at": "2026-10-28T12:10:00Z",
+  "candidate": {
+    "branch": "whole-app/successor-f5f",
+    "app_code_commit": "ec5ca78b8",
+    "transport_repair_commits": [
+      "f547a0dd1",
+      "f028ab2ab",
+      "114652088",
+      "ec5ca78b8",
+      "9a588e1bf",
+      "0640b95e2"
+    ],
+    "worktree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app"
+  },
+  "configuration": {
+    "provider": "deepseek",
+    "endpoint": "https://api.deepseek.com/v1",
+    "model": "deepseek-v4-pro",
+    "provider_policy": {
+      "mode": "selected",
+      "allowed_providers": ["deepseek"],
+      "preferred": {"provider": "deepseek", "model": "deepseek-v4-pro"}
+    },
+    "fallback": "none",
+    "review_model": "deepseek-v4-pro",
+    "review_structured": true,
+    "streaming": false,
+    "turn_budget_seconds": 180,
+    "request_deadline_seconds": 180,
+    "client_timeout_ms": 300000
+  },
+  "screening": {
+    "status": "pass",
+    "cases": 7,
+    "substantive_correct": 7,
+    "reference_valid": 7,
+    "semantic_retries": 0,
+    "transport_retries": 0,
+    "evidence": "docs/acceptance/evidence/whole_app_20261028/deepseek_judgment_comparison_20261028/"
+  },
+  "product_route": {
+    "status": "pass",
+    "actual_provider": "deepseek",
+    "actual_model": "deepseek-v4-pro",
+    "review_certified": true,
+    "decisions": {
+      "IN-7301": "DECLINE",
+      "IN-7302": "HOLD",
+      "IN-7303": "HOLD"
+    },
+    "evidence": "docs/acceptance/evidence/whole_app_20261028/deepseek_product_route_20261028/"
+  },
+  "narrow_grants_boundary": {
+    "status": "pass",
+    "attempt": "core_release_narrow_grants_20261028_attempt8",
+    "decisions": {
+      "GR-2026-014": "FUND",
+      "GR-2026-021": "HOLD",
+      "GR-2026-033": "DECLINE"
+    },
+    "evidence": "docs/acceptance/evidence/whole_app_20261028/core_release_narrow_grants_20261028_attempt8/"
+  },
+  "core_ui_loop": {
+    "status": "pass",
+    "attempt": "core_release_ui_loop_deepseek_20261028_final2",
+    "checks_passed": 25,
+    "checks_failed": 0,
+    "calculation_total": "22200.00",
+    "fresh_post_restart_assessment": "pass",
+    "zero_unauthorized_writes": true,
+    "evidence": "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/"
+  },
+  "supported_workflows": [
+    "CSV/workbook import through the product UI",
+    "deterministic row selection, explicit sum/count, full eligible-dataset arithmetic, gap detection and cell citations",
+    "task-owned teaching and in-place correction",
+    "unfamiliar cross-schema assessment with the taught vocabulary",
+    "persistence of teaching, source identity, result and history across restart",
+    "fresh post-restart assessment",
+    "zero unauthorized side-effect writes on the demonstrated loop"
+  ],
+  "residual_limitations": [
+    "One successful UI loop after four preserved failed attempts is a demonstrated slice, not a general reliability guarantee.",
+    "This is not whole-app certification; deferred integrations, scheduling, marketplace and broader agent evolution remain out of scope.",
+    "No deployment, credential rotation or live-data operation was performed."
+  ],
+  "core_release_ready": true,
+  "deployment_authorized": false
+}
