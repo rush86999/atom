@@ -320,6 +320,7 @@ class OfficeSyncService:
             return {"success": False, "error": f"File not found: {file_path}"}
 
         ext = Path(file_path).suffix.lower()
+        res = {"success": True}
         try:
             if ext == ".xlsx" and edit_type == "cell":
                 cell_path = data.get("cell_path")
@@ -345,6 +346,7 @@ class OfficeSyncService:
                 # In-place paragraph sync — preserves headings, tables, images
                 # and paragraph styles (the old rebuild lost all of them).
                 self._sync_docx_in_place(file_path, str(content))
+                res = {"success": True}
 
             elif ext == ".pptx" and edit_type == "slide":
                 res = self.office.pptx.modify_slides(
@@ -413,14 +415,21 @@ class OfficeSyncService:
             self._refresh_canvas_row(canvas_id, content_snapshot, user_id)
 
             # After saving the file, push updated preview back to all subscribers
-            self.broadcast_file_update(canvas_id, file_path, user_id)
+            self.broadcast_file_update(
+                canvas_id, file_path, user_id,
+                snapshot_overrides={
+                    key: content_snapshot.get(key)
+                    for key in ("recalc_status", "recalculated", "formula_gaps")
+                    if content_snapshot.get(key) is not None
+                },
+            )
 
             return {
                 "success": True,
                 "message": f"Successfully synchronized canvas {canvas_id} changes to {file_path}",
                 "component": component,
                 "canvas_type": canvas_type,
-                "content": self._read_structured_content(file_path),
+                "content": content_snapshot,
             }
 
         except Exception as e:
@@ -458,7 +467,10 @@ class OfficeSyncService:
         if row is None and not canvas_id:
             candidates = (
                 self.db.query(Canvas)
-                .filter(Canvas.status == "active")
+                .filter(
+                    Canvas.status == "active",
+                    Canvas.created_by == str(user_id),
+                )
                 .order_by(Canvas.updated_at.desc())
                 .limit(100)
                 .all()
@@ -656,7 +668,10 @@ class OfficeSyncService:
     # File → Canvas broadcast
     # ------------------------------------------------------------------
 
-    def broadcast_file_update(self, canvas_id: str, file_path: str, user_id: str):
+    def broadcast_file_update(
+        self, canvas_id: str, file_path: str, user_id: str,
+        snapshot_overrides: Optional[Dict[str, Any]] = None,
+    ):
         """Broadcast updated document HTML render to the Canvas WebSocket subscribers."""
         # R53: contain the path — this reads the file (render + memory
         # ingestion) and stores its HTML in CanvasAudit/WS state the caller
@@ -697,6 +712,8 @@ class OfficeSyncService:
             # Structured snapshot rides along so editable UIs can render real
             # inputs instead of scraping HTML.
             content_snapshot = self._read_structured_content(file_path)
+            if snapshot_overrides:
+                content_snapshot.update(snapshot_overrides)
             payload_data: Dict[str, Any] = dict(content_snapshot)
             payload_data.update({
                 "html": html,

@@ -42,6 +42,7 @@ def office(monkeypatch):
     # These route-coverage tests use a Mock session; ownership enforcement is
     # covered by the dedicated authorization tests.
     monkeypatch.setattr("api.office_routes._require_canvas_owner", lambda *a, **k: None)
+    monkeypatch.setattr("api.office_routes._require_file_binding", lambda *a, **k: None)
     return svc
 
 

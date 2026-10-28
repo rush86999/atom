@@ -156,7 +156,7 @@ async def bind_capability_file(
             db, canvas, current_user, columns, rows,
             source={
                 "file_name": file.filename or "dataset",
-                "file_sha256": __import__("hashlib").sha256(content).hexdigest(),
+                "_verified_file_sha256": __import__("hashlib").sha256(content).hexdigest(),
             },
             title=title or file.filename,
         )

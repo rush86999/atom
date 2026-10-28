@@ -132,6 +132,16 @@ def _check_file_access(
     # Until then, team is the only resolution — no denial is reachable.
     return
 
+def _require_file_binding(db: Session, canvas_id: str, file_path: str) -> None:
+    from core.models import Canvas
+
+    row = db.query(Canvas).filter(Canvas.id == str(canvas_id)).first()
+    content = dict(row.content or {}) if row is not None else {}
+    bound = {str(content.get("office_file") or ""), str(content.get("file_path") or "")}
+    if _require_office_path(file_path) not in bound:
+        raise HTTPException(status_code=403, detail="File is not bound to this canvas")
+
+
 def _require_canvas_owner(db: Session, canvas_id: str, user: User) -> None:
     """A caller may only bind/mutate a canvas they own or authored."""
     from core.models import Canvas
@@ -520,6 +530,7 @@ async def sync_update(
 ):
     """Synchronize canvas co-editing operations back to the local filesystem file."""
     _require_canvas_owner(db, req.canvas_id, current_user)
+    _require_file_binding(db, req.canvas_id, req.file_path)
     sync_service = OfficeSyncService(db)
     res = sync_service.sync_canvas_to_file(
         canvas_id=req.canvas_id,

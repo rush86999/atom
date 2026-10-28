@@ -311,6 +311,19 @@ def test_manifest_revision_is_stable_across_resave(db, canvas, user):
     assert first == second
 
 
+def test_client_file_sha_is_not_trusted_for_json_binding(db, canvas, user):
+    from core.canvas_capability_service import bind_dataset, set_manifest
+
+    set_manifest(db, canvas, user, _manifest())
+    result = bind_dataset(
+        db, canvas, user, ["Ref", "Amount"],
+        [["R-1", 10]],
+        source={"file_name": "forged.csv", "file_sha256": "deadbeef"},
+    )
+    assert result["source"]["sha256"] != "deadbeef"
+    assert len(result["source"]["sha256"]) == 64
+
+
 def test_export_numeric_measure_is_numeric_and_formula_text_is_not_live(db, canvas, user, office_root):
     from core.canvas_capability_service import bind_dataset, export_operation, set_manifest
     import openpyxl

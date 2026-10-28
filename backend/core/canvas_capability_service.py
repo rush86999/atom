@@ -277,7 +277,7 @@ def _require_approval(canvas: Canvas, manifest: Dict[str, Any], operation: str, 
     required = {str(item) for item in (manifest.get("required_approvals") or [])}
     if operation in required:
         role = str(getattr(user, "role", "") or "").lower()
-        if role not in {"workspace_admin", "admin", "owner"}:
+        if role not in {"workspace_admin", "admin", "owner", "super_admin"}:
             raise CapabilityError(
                 "approval_required",
                 f"Operation '{operation}' requires an approved supervisor.",
@@ -425,7 +425,8 @@ def bind_dataset(
     source["source_version"] = dataset_hash[:16]
     # A client-supplied sha is not authority. Preserve a verified file hash
     # only when the file-upload path supplied one explicitly.
-    source["sha256"] = str(source.get("file_sha256") or dataset_hash)
+    verified_file_sha = source.pop("_verified_file_sha256", None)
+    source["sha256"] = str(verified_file_sha or dataset_hash)
     content = _canvas_content(canvas)
     manifest = get_manifest(canvas) or default_manifest()
     content["dataset"] = {
@@ -1015,5 +1016,5 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
         },
         "source": source,
         "manifest_revision": manifest.get("manifest_revision"),
-        "download_url": f"/api/v1/office/download?file_path={target}",
+        "download_url": f"/api/v1/office/download?file_path={target}&canvas_id={canvas.id}",
     }

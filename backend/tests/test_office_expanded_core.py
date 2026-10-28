@@ -243,3 +243,101 @@ def test_office_canvas_owner_gate_rejects_foreign_canvas(office_root):
     with pytest.raises(HTTPException) as exc:
         _require_canvas_owner(db, "c-owned", stranger)
     assert exc.value.status_code == 404
+
+
+def test_docx_sync_update_reports_success_after_writing(office_root, tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    from core.database import Base
+    from core.models import Canvas
+    from core.office_sync_service import OfficeSyncService
+
+    path = office_root / "sync.docx"
+    document = docx.Document()
+    document.add_paragraph("Before")
+    document.save(path)
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+    db.add(Canvas(
+        id="c-doc-sync", tenant_id="default", workspace_id="default",
+        created_by="u1", name="sync.docx", canvas_type="docs",
+        content={"office_file": str(path), "format": "docx"},
+        status="active",
+    ))
+    db.commit()
+    result = OfficeSyncService(db).sync_canvas_to_file(
+        "c-doc-sync", str(path), "u1", "document", {"content": "After"},
+    )
+    assert result["success"] is True
+    assert result["content"]["text"] == "After"
+    assert docx.Document(str(path)).paragraphs[0].text == "After"
+
+
+def test_sync_update_carries_recalc_verdict(office_root, tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    from core.database import Base
+    from core.models import Canvas
+    from core.office_sync_service import OfficeSyncService
+
+    path = office_root / "recalc.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["Qty", "Price", "Total"])
+    ws.append([2, 10, "=A2*B2"])
+    wb.save(path)
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+    db.add(Canvas(
+        id="c-recalc", tenant_id="default", workspace_id="default",
+        created_by="u1", name="recalc.xlsx", canvas_type="sheets",
+        content={"office_file": str(path), "format": "xlsx"},
+        status="active",
+    ))
+    db.commit()
+    result = OfficeSyncService(db).sync_canvas_to_file(
+        "c-recalc", str(path), "u1", "cell",
+        {"cell_path": "/Sheet/A2", "value": "5", "is_formula": False},
+    )
+    assert result["success"] is True
+    assert result["content"]["recalc_status"] in ("complete", "partial", "failed", "unavailable")
+    assert result["content"]["recalculated"] is True
+
+
+def test_present_reuse_never_adopts_another_users_canvas(office_root):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    from core.database import Base
+    from core.models import Canvas
+    from core.office_sync_service import OfficeSyncService
+
+    path = office_root / "shared.xlsx"
+    openpyxl.Workbook().save(path)
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+    db.add(Canvas(
+        id="c-foreign", tenant_id="default", workspace_id="default",
+        created_by="user-a", name="shared.xlsx", canvas_type="sheets",
+        content={"office_file": str(path), "format": "xlsx"},
+        status="active",
+    ))
+    db.commit()
+    bound = OfficeSyncService(db).ensure_canvas_for_file(
+        None, str(path), "user-b", title="shared.xlsx")
+    assert bound["id"] != "c-foreign"
+    assert bound["created"] is True

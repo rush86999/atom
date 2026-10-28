@@ -139,8 +139,10 @@ async function canvasIdFromUrl(url) {
   // Edit a precedent value and verify dependent formulas update.
   const qty = page.locator('[data-testid="excel-cell-/Orders/C2"]');
   await qty.fill('5');
+  const cellSaveP = page.waitForResponse(r => r.url().includes('/api/v1/office/sync-update') && r.request().method() === 'POST', { timeout: 120000 }).catch(() => null);
   await qty.blur();
-  await page.waitForResponse(r => r.url().includes('/api/v1/office/sync-update') && r.request().method() === 'POST', { timeout: 120000 }).catch(() => null);
+  const cellSave = await cellSaveP;
+  record('workbook edit save accepted by sync endpoint', cellSave && cellSave.status() < 300, cellSave ? cellSave.status() : null);
   await page.waitForTimeout(2500);
   record('authorized cell edit propagated dependent formula', Number(await cell('E2')) === 62.5, await cell('E2'));
   record('dependent grand total recalculated', Number(await cell('E6')) === 135, await cell('E6'));
@@ -201,8 +203,11 @@ async function canvasIdFromUrl(url) {
   await docText.click();
   await page.keyboard.press('Control+End');
   await page.keyboard.type('\nCorrection: approved for dispatch.');
+  const docSaveP = page.waitForResponse(r => r.url().includes('/api/v1/office/sync-update') && r.request().method() === 'POST', { timeout: 120000 }).catch(() => null);
   await docText.blur();
-  await page.waitForTimeout(3000);
+  const docSave = await docSaveP;
+  record('DOCX correction save accepted by sync endpoint', docSave && docSave.status() < 300, docSave ? docSave.status() : null);
+  await page.waitForTimeout(2500);
   const docDownload = await downloadArtifact(page, 'brief-corrected.docx');
   record('DOCX corrected artifact downloaded', fs.statSync(docDownload).size > 1000, fs.statSync(docDownload).size);
 
@@ -238,8 +243,11 @@ async function canvasIdFromUrl(url) {
   record('PPTX speaker notes read at UI boundary', notes.includes('orders.xlsx'), notes.slice(0, 160));
   const slide2 = page.getByTestId('pptx-content-2');
   await slide2.fill((await slide2.inputValue()) + ' Correction: confirm stock before dispatch.');
+  const deckSaveP = page.waitForResponse(r => r.url().includes('/api/v1/office/sync-update') && r.request().method() === 'POST', { timeout: 120000 }).catch(() => null);
   await slide2.blur();
-  await page.waitForTimeout(3000);
+  const deckSave = await deckSaveP;
+  record('PPTX correction save accepted by sync endpoint', deckSave && deckSave.status() < 300, deckSave ? deckSave.status() : null);
+  await page.waitForTimeout(2500);
   const deckDownload = await downloadArtifact(page, 'brief-corrected.pptx');
   record('PPTX corrected artifact downloaded', fs.statSync(deckDownload).size > 1000, fs.statSync(deckDownload).size);
 

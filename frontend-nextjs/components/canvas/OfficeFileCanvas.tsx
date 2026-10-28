@@ -341,16 +341,19 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
                         {error}
                     </span>
                 )}
-                {!!content.formula_gaps?.length && (
+                {((content.formula_gaps?.length || 0) > 0
+                    || (content.recalc_status && !["complete", "not_applicable"].includes(content.recalc_status))) && (
                     <span
                         data-testid="office-formula-gaps"
                         className="text-[10px] text-amber-600 dark:text-amber-400"
-                        title={content.formula_gaps.map((g) => `${g.sheet}!${g.cell} ${g.formula || ""}`).join("\n")}
+                        title={(content.formula_gaps || []).map((g) => `${g.sheet}!${g.cell} ${g.formula || ""}`).join("\n")}
                     >
-                        {content.recalc_status && content.recalc_status !== "complete" && content.recalc_status !== "not_applicable"
+                        {content.recalc_status && !["complete", "not_applicable"].includes(content.recalc_status)
                             ? `recalculation ${content.recalc_status}: `
                             : ""}
-                        {content.formula_gaps.length} formula(s) without a computed value
+                        {(content.formula_gaps?.length || 0) > 0
+                            ? `${content.formula_gaps!.length} formula(s) without a computed value`
+                            : "dependent values are not certified"}
                     </span>
                 )}
                 {filePath && (
