@@ -1,0 +1,41 @@
+{
+  "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/core_release_ui_final_20261028/runs/run-d427fd5e3b04/data/atom.db",
+  "tables_present": {
+    "tasks": true,
+    "board_tasks": true,
+    "boards": true,
+    "scheduled_messages": true,
+    "unified_messages": true,
+    "message_delivery_reports": true,
+    "ses_email_events": true,
+    "agent_proactive_messages": true,
+    "service_tasks": true,
+    "swarm_tasks": true,
+    "distributed_tasks": true,
+    "sales_follow_up_tasks": true
+  },
+  "side_effect_counts": {
+    "tasks": 0,
+    "board_tasks": 0,
+    "boards": 0,
+    "scheduled_messages": 0,
+    "unified_messages": 0,
+    "message_delivery_reports": 0,
+    "ses_email_events": 0,
+    "agent_proactive_messages": 0,
+    "service_tasks": 0,
+    "swarm_tasks": 0,
+    "distributed_tasks": 0,
+    "sales_follow_up_tasks": 0
+  },
+  "authorized_counts": {
+    "canvases": 2,
+    "knowledge_documents": 0,
+    "agent_registry": 3,
+    "chat_messages": 18,
+    "invocation_events": 0
+  },
+  "invocation_kinds": [],
+  "forbidden_invocation_kinds": [],
+  "zero_unauthorized_writes": true
+}
