@@ -28368,6 +28368,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # response validator rejects residue before persistence or
                 # display; only stream assembly may clean partial fragments.
                 _content = response_data.get("content") or ""
+                # STRUCTURED REVIEW IS IMMUTABLE (2026-10-28 review): later
+                # grounding/absence/comparison guards may regenerate plain
+                # prose. Preserve the certified structured response and
+                # restore it before validation so a guard can never replace
+                # the assessment while leaving the turn completed.
+                _structured_review_response = (
+                    dict(response_data)
+                    if isinstance(response_data, dict)
+                    and response_data.get("structured_review") else None)
                 from core.chat_tool_planner import (
                     _explicit_web_research_requested,
                 )
@@ -29689,6 +29698,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 except Exception as _cmp_err:  # noqa: BLE001 — never gate
                     logger.debug(
                         "[comparison-missing] guard skipped: %r", _cmp_err)
+                if _structured_review_response is not None:
+                    response_data = dict(_structured_review_response)
+                    _content = str(response_data.get("content") or "")
                 _claimed_content = await self._canvas_claim_correction(
                     _content, canvas_context, session_id, user_id,
                     async_continuation_forked,

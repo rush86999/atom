@@ -779,11 +779,36 @@ async def test_structured_review_uses_scoped_pin_and_keeps_message_order(
 
 
 @pytest.mark.asyncio
-async def test_structured_review_empty_payload_is_typed_failure():
+async def test_structured_review_refuses_an_unavailable_pin(monkeypatch):
     from core.review_result import (
         LAST_STRUCTURED_REVIEW,
         generate_structured_review,
     )
+
+    class _ShouldNotDispatch:
+        async def generate_structured_response(self, **kwargs):
+            raise AssertionError("unpinned review must not dispatch")
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.build_provider_model_pin",
+        lambda *args, **kwargs: {})
+    answer = await generate_structured_review(
+        _ShouldNotDispatch(), messages=[
+            {"role": "system", "content": "contract"},
+            {"role": "user", "content": "assess"},
+        ], model="deepseek-flash")
+    assert answer is None
+    assert LAST_STRUCTURED_REVIEW["failure_kind"] == "pin_unavailable"
+    assert LAST_STRUCTURED_REVIEW["failure_stage"] == "pin"
+
+
+@pytest.mark.asyncio
+async def test_structured_review_empty_payload_is_typed_failure(monkeypatch):
+    from core.review_result import (
+        LAST_STRUCTURED_REVIEW,
+        generate_structured_review,
+    )
+    monkeypatch.delenv("ATOM_REVIEW_MODEL", raising=False)
 
     class _EmptyLLM:
         async def generate_structured_response(self, **kwargs):
@@ -793,18 +818,19 @@ async def test_structured_review_empty_payload_is_typed_failure():
         _EmptyLLM(), messages=[
             {"role": "system", "content": "contract"},
             {"role": "user", "content": "assess"},
-        ], model="deepseek-v4-pro")
+        ], model="auto")
     assert answer is None
     assert LAST_STRUCTURED_REVIEW["failure_kind"] == "empty_payload"
     assert LAST_STRUCTURED_REVIEW["failure_stage"] == "dispatch"
 
 
 @pytest.mark.asyncio
-async def test_structured_review_provider_exception_is_typed_failure():
+async def test_structured_review_provider_exception_is_typed_failure(monkeypatch):
     from core.review_result import (
         LAST_STRUCTURED_REVIEW,
         generate_structured_review,
     )
+    monkeypatch.delenv("ATOM_REVIEW_MODEL", raising=False)
 
     class _BrokenLLM:
         async def generate_structured_response(self, **kwargs):
@@ -814,7 +840,7 @@ async def test_structured_review_provider_exception_is_typed_failure():
         _BrokenLLM(), messages=[
             {"role": "system", "content": "contract"},
             {"role": "user", "content": "assess"},
-        ], model="deepseek-v4-pro")
+        ], model="auto")
     assert answer is None
     assert LAST_STRUCTURED_REVIEW["failure_kind"] == "provider_exception"
     assert "RuntimeError" in LAST_STRUCTURED_REVIEW["failure_detail"]

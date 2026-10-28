@@ -216,6 +216,12 @@ async def generate_structured_review(
                 tenant_id=scope.get("tenant_id"))
         except Exception as exc:  # noqa: BLE001 — pinning is best effort
             logger.debug("structured review pin skipped: %r", exc)
+    if provider and resolved_model not in ("", "auto") and not pin_kwargs:
+        _structured_review_failure(
+            "pin_unavailable", "pin",
+            f"no scoped pin for {provider}/{resolved_model}; refusing an "
+            "unpinned review dispatch")
+        return None
     LAST_STRUCTURED_REVIEW.update(
         provider=provider or None, model=resolved_model,
         pin=dict(pin_kwargs), output_mode="json")
@@ -254,9 +260,20 @@ async def generate_structured_review(
             "empty_payload", "dispatch",
             "structured service returned no payload")
         return None
+    served_provider = None
+    served_model = None
+    try:
+        handler = llm_service._get_handler(
+            workspace_id=scope.get("workspace_id"),
+            tenant_id=scope.get("tenant_id"))
+        served_provider = getattr(handler, "_last_used_provider", None)
+        served_model = getattr(handler, "_last_used_model", None)
+    except Exception:  # noqa: BLE001 — provenance is best effort
+        pass
     LAST_STRUCTURED_REVIEW.update(
         ok=True, failure_kind=None, failure_stage=None,
-        payload_type=type(payload).__name__)
+        dispatched=True, served_provider=served_provider,
+        served_model=served_model, payload_type=type(payload).__name__)
     try:
         serialized = serialize_review_payload(payload)
     except Exception as exc:  # noqa: BLE001 — validation boundary
