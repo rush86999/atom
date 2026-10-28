@@ -1,0 +1,32 @@
+{
+ "id": "f662ca74-6f11-45c9-94b2-d67b0b5bb932",
+ "object": "chat.completion",
+ "created": 1793206073,
+ "model": "deepseek-flash",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```review_result\n{\"assessments\":[{\"subject_id\":\"IN-8804\",\"decision\":\"HOLD\",\"basis\":[\"Invoice Amount is 9999.0, which falls in the 5000 to 9999 range; policy 044d2b537b4d4a2593dbaca52c64b8da requires HOLD for that range.\"],\"evidence_ids\":[\"ev:IN-8804:minimal_judgment!R2\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}\n```",
+    "reasoning_content": "We need answer only fenced block valid JSON. Need assess IN-8804. Policy: threshold: >=10000 HOLD for CFO review. 5000 to 9999 HOLD. Below 5000 DECLINE. Amount=9999.0. State=Open. 9999 in 5000-9999 => HOLD. Need evidence_ids ev:IN-8804:minimal_judgment!R2. policy_ids 044d... Basis explain reference and amount from row. unresolved_requirements empty. Need valid JSON one assessment. Decision label only HOLD. basis array strings. policy_ids non-empty. Evidence ids array. Ensure closing brace. No prose."
+   },
+   "logprobs": null,
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 851,
+  "completion_tokens": 278,
+  "total_tokens": 1129,
+  "prompt_tokens_details": {
+   "cached_tokens": 256
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 142
+  },
+  "prompt_cache_hit_tokens": 256,
+  "prompt_cache_miss_tokens": 595
+ },
+ "system_fingerprint": "bc19ba97cbe016479903222bb1578db6"
+}

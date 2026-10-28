@@ -1,0 +1,32 @@
+{
+ "id": "d31d6ba2-e6ec-4d5d-877b-604410e2aaf0",
+ "object": "chat.completion",
+ "created": 1793206074,
+ "model": "deepseek-flash",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```review_result\n{\"assessments\":[{\"subject_id\":\"IN-8805\",\"decision\":\"HOLD\",\"basis\":[\"Row minimal_judgment!R2 shows Invoice Amount=10000.0 and State=Open. Under policy 044d2b537b4d4a2593dbaca52c64b8da, a requested amount at or above 10000 is HOLD for CFO review; therefore IN-8805 is HOLD.\"],\"evidence_ids\":[\"ev:IN-8805:minimal_judgment!R2\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}\n```",
+    "reasoning_content": "We need answer only fenced block valid JSON. Need assess IN-8805. Policy: Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Row amount=10000.0 State=Open. Decision HOLD. Need basis explain using cited row values and policy text. Evidence ids: ev:IN-8805:minimal_judgment!R2. policy_ids nonempty: 044d2b537b4d4a2593dbaca52c64b8da. unresolved_requirements: What accepted review work unfinished? User asked assess and give decision. We did. No unfinished? Could be empty array. They specifically require every assessment include unresolved_requirements. It can be []. Basis: Invoice Amount 10000.0 at or above 10000 threshold, policy says HOLD for CFO review. State Open maybe mention. No need unresolved. Ensure JSON only in fenced block."
+   },
+   "logprobs": null,
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 851,
+  "completion_tokens": 366,
+  "total_tokens": 1217,
+  "prompt_tokens_details": {
+   "cached_tokens": 256
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 211
+  },
+  "prompt_cache_hit_tokens": 256,
+  "prompt_cache_miss_tokens": 595
+ },
+ "system_fingerprint": "bc19ba97cbe016479903222bb1578db6"
+}

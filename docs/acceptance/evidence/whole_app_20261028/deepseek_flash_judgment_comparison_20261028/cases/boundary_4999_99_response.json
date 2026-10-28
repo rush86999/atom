@@ -1,0 +1,32 @@
+{
+ "id": "255c6be7-28c4-4e27-b15a-616bb2050b4e",
+ "object": "chat.completion",
+ "created": 1793206069,
+ "model": "deepseek-flash",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```review_result\n{\"assessments\":[{\"subject_id\":\"IN-8802\",\"decision\":\"DECLINE\",\"basis\":[\"Row minimal_judgment!R2 shows Invoice Amount=4999.99 (State=Open).\",\"Policy 044d2b537b4d4a2593dbaca52c64b8da: amounts at or above 10000 are HOLD for CFO review, 5000 to 9999 are HOLD, and below 5000 are DECLINE.\",\"4999.99 is below the 5000 threshold, so the required decision is DECLINE.\"],\"evidence_ids\":[\"ev:IN-8802:minimal_judgment!R2\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}\n```",
+    "reasoning_content": "The policy: amount 4999.99 is below 5000 → DECLINE. Cite policy ID 044d2b537b4d4a2593dbaca52c64b8da and evidence ev:IN-8802:minimal_judgment!R2."
+   },
+   "logprobs": null,
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 851,
+  "completion_tokens": 245,
+  "total_tokens": 1096,
+  "prompt_tokens_details": {
+   "cached_tokens": 256
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 60
+  },
+  "prompt_cache_hit_tokens": 256,
+  "prompt_cache_miss_tokens": 595
+ },
+ "system_fingerprint": "bc19ba97cbe016479903222bb1578db6"
+}

@@ -1,92 +1,121 @@
 {
-  "schema_version": "core-release-ledger-2",
-  "title": "Atom demonstrated core-release ledger — 2026-10-28",
-  "generated_at": "2026-10-28T12:10:00Z",
-  "candidate": {
-    "branch": "whole-app/successor-f5f",
-    "app_code_commit": "ec5ca78b8",
-    "transport_repair_commits": [
-      "f547a0dd1",
-      "f028ab2ab",
-      "114652088",
-      "ec5ca78b8",
-      "9a588e1bf",
-      "0640b95e2"
-    ],
-    "worktree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app"
-  },
-  "configuration": {
+ "schema_version": "core-release-ledger-2",
+ "title": "Atom demonstrated core-release ledger \u2014 2026-10-28",
+ "generated_at": "2026-10-28T12:10:00Z",
+ "candidate": {
+  "branch": "whole-app/successor-f5f",
+  "app_code_commit": "ec5ca78b8",
+  "transport_repair_commits": [
+   "f547a0dd1",
+   "f028ab2ab",
+   "114652088",
+   "ec5ca78b8",
+   "9a588e1bf",
+   "0640b95e2",
+   "b8acb5082"
+  ],
+  "worktree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app"
+ },
+ "configuration": {
+  "provider": "deepseek",
+  "endpoint": "https://api.deepseek.com/v1",
+  "model": "deepseek-flash",
+  "provider_policy": {
+   "mode": "selected",
+   "allowed_providers": [
+    "deepseek"
+   ],
+   "preferred": {
     "provider": "deepseek",
-    "endpoint": "https://api.deepseek.com/v1",
-    "model": "deepseek-v4-pro",
-    "provider_policy": {
-      "mode": "selected",
-      "allowed_providers": ["deepseek"],
-      "preferred": {"provider": "deepseek", "model": "deepseek-v4-pro"}
-    },
-    "fallback": "none",
-    "review_model": "deepseek-v4-pro",
-    "review_structured": true,
-    "streaming": false,
-    "turn_budget_seconds": 180,
-    "request_deadline_seconds": 180,
-    "client_timeout_ms": 300000
+    "model": "deepseek-flash"
+   }
   },
-  "screening": {
-    "status": "pass",
-    "cases": 7,
-    "substantive_correct": 7,
-    "reference_valid": 7,
-    "semantic_retries": 0,
-    "transport_retries": 0,
-    "evidence": "docs/acceptance/evidence/whole_app_20261028/deepseek_judgment_comparison_20261028/"
+  "fallback": "none",
+  "review_model": "deepseek-flash",
+  "review_structured": true,
+  "streaming": false,
+  "turn_budget_seconds": 180,
+  "request_deadline_seconds": 180,
+  "client_timeout_ms": 300000
+ },
+ "screening": {
+  "status": "pass",
+  "cases": 7,
+  "substantive_correct": 7,
+  "reference_valid": 7,
+  "semantic_retries": 0,
+  "transport_retries": 0,
+  "model": "deepseek-flash",
+  "estimated_cost_usd": 0.005666,
+  "latency_ms": {
+   "avg": 2305,
+   "min": 1801,
+   "max": 3620
   },
-  "product_route": {
-    "status": "pass",
-    "actual_provider": "deepseek",
-    "actual_model": "deepseek-v4-pro",
-    "review_certified": true,
-    "decisions": {
-      "IN-7301": "DECLINE",
-      "IN-7302": "HOLD",
-      "IN-7303": "HOLD"
-    },
-    "evidence": "docs/acceptance/evidence/whole_app_20261028/deepseek_product_route_20261028/"
+  "evidence": "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/"
+ },
+ "product_route": {
+  "status": "pass (Pro); Flash core UI loop passed",
+  "actual_provider": "deepseek",
+  "actual_model": "deepseek-v4-pro",
+  "review_certified": true,
+  "decisions": {
+   "IN-7301": "DECLINE",
+   "IN-7302": "HOLD",
+   "IN-7303": "HOLD"
   },
-  "narrow_grants_boundary": {
-    "status": "pass",
-    "attempt": "core_release_narrow_grants_20261028_attempt8",
-    "decisions": {
-      "GR-2026-014": "FUND",
-      "GR-2026-021": "HOLD",
-      "GR-2026-033": "DECLINE"
-    },
-    "evidence": "docs/acceptance/evidence/whole_app_20261028/core_release_narrow_grants_20261028_attempt8/"
+  "evidence": "docs/acceptance/evidence/whole_app_20261028/deepseek_product_route_20261028/"
+ },
+ "narrow_grants_boundary": {
+  "status": "pass",
+  "attempt": "core_release_narrow_grants_20261028_attempt8",
+  "decisions": {
+   "GR-2026-014": "FUND",
+   "GR-2026-021": "HOLD",
+   "GR-2026-033": "DECLINE"
   },
-  "core_ui_loop": {
-    "status": "pass",
-    "attempt": "core_release_ui_loop_deepseek_20261028_final2",
-    "checks_passed": 25,
-    "checks_failed": 0,
-    "calculation_total": "22200.00",
-    "fresh_post_restart_assessment": "pass",
-    "zero_unauthorized_writes": true,
-    "evidence": "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/"
-  },
-  "supported_workflows": [
-    "CSV/workbook import through the product UI",
-    "deterministic row selection, explicit sum/count, full eligible-dataset arithmetic, gap detection and cell citations",
-    "task-owned teaching and in-place correction",
-    "unfamiliar cross-schema assessment with the taught vocabulary",
-    "persistence of teaching, source identity, result and history across restart",
-    "fresh post-restart assessment",
-    "zero unauthorized side-effect writes on the demonstrated loop"
-  ],
-  "residual_limitations": [
-    "One successful UI loop after four preserved failed attempts is a demonstrated slice, not a general reliability guarantee.",
-    "This is not whole-app certification; deferred integrations, scheduling, marketplace and broader agent evolution remain out of scope.",
-    "No deployment, credential rotation or live-data operation was performed."
-  ],
-  "core_release_ready": true,
-  "deployment_authorized": false
+  "evidence": "docs/acceptance/evidence/whole_app_20261028/core_release_narrow_grants_20261028_attempt8/"
+ },
+ "core_ui_loop": {
+  "status": "pass",
+  "attempt": "core_release_ui_loop_deepseek_flash_20261028",
+  "checks_passed": 28,
+  "checks_failed": 0,
+  "model": "deepseek-flash",
+  "calculation_total": "22200.00",
+  "fresh_post_restart_assessment": "pass",
+  "zero_unauthorized_writes": true,
+  "evidence": "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_flash_20261028/"
+ },
+ "supported_workflows": [
+  "CSV/workbook import through the product UI",
+  "deterministic row selection, explicit sum/count, full eligible-dataset arithmetic, gap detection and cell citations",
+  "task-owned teaching and in-place correction",
+  "unfamiliar cross-schema assessment with the taught vocabulary",
+  "persistence of teaching, source identity, result and history across restart",
+  "fresh post-restart assessment",
+  "zero unauthorized side-effect writes on the demonstrated loop"
+ ],
+ "residual_limitations": [
+  "One successful UI loop after four preserved failed attempts is a demonstrated slice, not a general reliability guarantee.",
+  "This is not whole-app certification; deferred integrations, scheduling, marketplace and broader agent evolution remain out of scope.",
+  "No deployment, credential rotation or live-data operation was performed."
+ ],
+ "core_release_ready": true,
+ "deployment_authorized": false,
+ "verified_alternatives": [
+  {
+   "model": "deepseek-v4-pro",
+   "status": "passed earlier core UI loop",
+   "evidence": "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/"
+  }
+ ],
+ "recommended_launch_configuration": "deepseek-flash",
+ "release_package": {
+  "status": "ready",
+  "identity": "tag core-release-2026-10-28 (single release commit)",
+  "path": "docs/acceptance/release_package_20261028/",
+  "checksums": "docs/acceptance/release_package_20261028/CHECKSUMS.sha256",
+  "deployed": false
+ }
 }

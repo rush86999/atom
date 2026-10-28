@@ -1,0 +1,50 @@
+{
+ "schema": "deepseek-flash-screening-manifest-1",
+ "status": "pass",
+ "model": "deepseek-flash",
+ "provider": "deepseek",
+ "cases": 7,
+ "substantive_correct": 7,
+ "certified": 7,
+ "semantic_retries": 0,
+ "transport_retries": 0,
+ "usage": {
+  "prompt_tokens": 8542,
+  "completion_tokens": 2586,
+  "total_tokens": 11128
+ },
+ "estimated_cost_usd": 0.005666,
+ "latency_ms": {
+  "total": 16135,
+  "min": 1801,
+  "max": 3620,
+  "avg": 2305
+ },
+ "cost_basis": "DeepSeek direct flash rates $0.30/M input, $1.20/M output",
+ "files": {
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/SPEC_FLASH.json": "d08fae8bcee67d2d47d1b87bc032d996c1e3a1ca7a3b8b34f29a07a88ab87b29",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/boundary_10000_request.json": "c9af853e944dbbf88ead91c8161bdf59b90b2e0ec635c19149b7e13d9b27d1aa",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/boundary_10000_response.json": "1f4b957b5a20c6700c613d02b3f254a1c57205ad3377cdeb81f692907a3e8838",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/boundary_10000_review.json": "f49718328efd24abfdd29c746e26f4ef89ba1fd5d59c6c0a09df2fa28cb92d57",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/boundary_4999_99_request.json": "3335c750a5f92f8f8008602fa2cc85d409a94ff8301673c5fe8a92477a596c4e",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/boundary_4999_99_response.json": "ba35fac03bd91e5426951acf3ade9ed9cbdd45d78a2fec2133d0972a6ffd5d0f",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/boundary_4999_99_review.json": "18e959028e3ec2479c9614728a8f85565688547a0ed1fb8530c8bcb3af6b52de",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/boundary_5000_request.json": "645c0536da2901ed79c036cb2f9cff43329a11791de4dc40137ca420c50fde1b",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/boundary_5000_response.json": "83e4c1194264dda7902ec6adcf5e6bd03ddb6c13843d066b7ebbcc987ccecca8",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/boundary_5000_review.json": "6c89c9401693d31a954268fd1bc345676b6fc67f5dc0067360dd3c560cf26bfc",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/boundary_9999_request.json": "cee677b95143bf6ade9a98cfa0171b3b0eb7619c7dfe8dfeccb315d3acd4f1ec",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/boundary_9999_response.json": "914fa40fac4bcd1370fd43832b4777dc768e8f31d9a60610adc1fe27ee405b2f",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/boundary_9999_review.json": "e4a7cabb4382f366d7b16eab8878706e235fa5feb16b69e3f93ce676d903c0a9",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/preserved_3200_request.json": "618d19427fed2d00f0f7defd58224a2fb4c640169920589f377f1c88cdc2946e",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/preserved_3200_response.json": "163d26e59ff8308f15db9bb984339d18c9550382a6d9da11d62608c208e8fc76",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/preserved_3200_review.json": "a25eae2fbeecb214ac37bcb6b05a4a8684b4297a2fdb79e0da6f9cf9970a35d8",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/preserved_full_context_request.json": "b616895b6df6c9600bb5c26ef4159ce87c6573f95f579e4e83a6b58d9d1a7027",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/preserved_full_context_response.json": "89b3184a40918da9151c6e4a68727be84cf9780e4a0f46de147ac22063b9b96a",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/preserved_full_context_review.json": "bc5bc9e5210b8f5d93fc0cea4ba50f3712e5e74c0f6ddfd3340ba79d47cc48a8",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/unfamiliar_4321_25_request.json": "47ec9385352429598dc0fbbcf1ec68cb302a6180cdc6649efe7aaf42fd507a31",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/unfamiliar_4321_25_response.json": "95dfe9a5d6b4ad33b82a7fb71ff0faafde4ba7166d6676878c2192fb5b1361bd",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/cases/unfamiliar_4321_25_review.json": "98c28ed383f78a11b004973c4b4dc3b308ce532c5d8b044cbabbc10c99171021",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/results.json": "c8d0e8cd9de0f5c98e5ed4eb6f27ca15237e218e3b00aadfd98aea405bca2b43",
+  "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/run_stdout.text": "5be8042b32d8eaf43f934c050a73f3fff0f17964d7c449169db6b3ffa2d0c486"
+ }
+}

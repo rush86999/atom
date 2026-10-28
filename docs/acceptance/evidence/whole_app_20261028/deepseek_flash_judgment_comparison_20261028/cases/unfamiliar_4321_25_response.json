@@ -1,0 +1,32 @@
+{
+ "id": "c70e0602-ed84-4c99-bde3-59ba635391dd",
+ "object": "chat.completion",
+ "created": 1793206066,
+ "model": "deepseek-flash",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```review_result\n{\"assessments\":[{\"subject_id\":\"IN-8801\",\"decision\":\"DECLINE\",\"basis\":[\"Policy 044d2b537b4d4a2593dbaca52c64b8da states that an amount below 5000 is DECLINE. The bound row minimal_judgment!R2 shows Invoice Amount=4321.25, which is below 5000.\"],\"evidence_ids\":[\"ev:IN-8801:minimal_judgment!R2\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}\n```",
+    "reasoning_content": "We need answer only fenced JSON block. Need assess subject IN-8801. Policy says requested amount at or above 10000 HOLD, 5000 to 9999 HOLD, below 5000 DECLINE. Amount 4321.25 below 5000 -> DECLINE. Cite reference and amount in basis. Evidence id ev:IN-8801:minimal_judgment!R2. policy id. unresolved_requirements likely empty. Need exact one assessment. Decision label only. basis array strings why. policy_ids nonempty. JSON valid.\n\nNeed ensure no prose. Use ```review_result fenced block. Include closing brace.\n\nLet's craft:\n{\"assessments\":[{\"subject_id\":\"IN-8801\",\"decision\":\"DECLINE\",\"basis\":[\"Policy 044d2... states below 5000 is DECLINE; row minimal_judgment!R2 shows Invoice Amount=4321.25, which is below 5000.\"],\"evidence_ids\":[\"ev:IN-8801:minimal_judgment!R2\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}\n\nNeed perhaps mention State=Open? Not necessary but basis using cited row values. Could include State Open but not decision relevant. Ensure policy text supports. Fine."
+   },
+   "logprobs": null,
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 851,
+  "completion_tokens": 433,
+  "total_tokens": 1284,
+  "prompt_tokens_details": {
+   "cached_tokens": 256
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 288
+  },
+  "prompt_cache_hit_tokens": 256,
+  "prompt_cache_miss_tokens": 595
+ },
+ "system_fingerprint": "bc19ba97cbe016479903222bb1578db6"
+}

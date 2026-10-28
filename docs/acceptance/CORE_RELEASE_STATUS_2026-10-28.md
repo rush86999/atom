@@ -1,42 +1,39 @@
-# Core release status — 2026-10-28 — demonstrated loop PASS
+# Core release status — 2026-10-28
 
-Candidate: `whole-app/successor-f5f` app code `ec5ca78b8`, with transport and
-launch repairs through `0640b95e2`. This is the demonstrated core-release
-slice, not whole-app certification.
+## Recommended launch configuration
 
-## Winning configuration
+DeepSeek direct **`deepseek-flash`**, provider policy selected to `deepseek`
+only, no Pro or local fallback, structured review on, streaming off, 180 s
+turn and request deadlines, 300,000 ms client timeout.
 
-DeepSeek direct `deepseek-v4-pro`, provider policy selected to `deepseek` only,
-no Ollama/other fallback, structured review on, streaming off, 180 s backend
-turn/request budget and 300,000 ms client timeout. The global local-only
-default and stored credentials are unchanged; the exception applied only to
-the isolated child.
+`deepseek-v4-pro` remains a verified alternative from the earlier core loop.
 
-## Gates
+## State
 
-| Gate | Result |
-|---|---|
-| Fixed screening (7 cases, full context + boundaries) | 7/7 substantive, 7/7 certified |
-| Real scoped product route | actual `deepseek-v4-pro`, certified, correct decisions |
-| Narrow previously intermittent grants request | pass, certified, actual v4-pro |
-| Unchanged core UI loop | 25/25 checks pass |
-| Calculation | 22200.00, 3 Open rows, cell citations, source hash |
-| Correction + different unfamiliar assessment | pass |
-| Restart persistence + fresh assessment | pass |
-| Zero unauthorized writes | pass |
+| State | Meaning | Current |
+|---|---|---|
+| Core workflow verified | The demonstrated CSV assessment/calculation/correction/restart loop passed | **Yes — 28/28 checks** |
+| Package ready | Durable package, checksums, template, startup/backup/smoke/rollback docs exist | **Yes** |
+| Deployed | Installed on a live environment | **No — deployment decision pending** |
 
 ## Evidence
 
-- `docs/acceptance/evidence/whole_app_20261028/deepseek_judgment_comparison_20261028/`
-- `docs/acceptance/evidence/whole_app_20261028/deepseek_product_route_20261028/`
-- `docs/acceptance/evidence/whole_app_20261028/core_release_narrow_grants_20261028_attempt8/`
-- `docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/`
-- Four failed UI attempts remain preserved in the sibling attempt directories.
+- Flash screening: `docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/` — 7/7 substantive and certified, avg 2.3 s, est. $0.0057.
+- Flash core loop: `docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_flash_20261028/` — 28/28 checks, calculation 22200.00, correction, fresh post-restart judgment, zero unauthorized writes.
+- Pro core loop (verified alternative): `docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/`.
+- All earlier failed attempts remain preserved.
 
-## Residual
+## Scope of the claim
 
-A single passing UI loop after four preserved failures is a demonstrated
-workflow, not a general reliability guarantee. Deferred integrations,
-scheduling, marketplace, broader BYOK certification and whole-app claims remain
-out of scope. No deployment is authorized; this stops at the deployment
-boundary.
+This is the demonstrated core CSV assessment/calculation workflow. It does not
+certify every common-data workflow: email, PowerPoint, document generation and
+other surfaces remain bound to their own evidence. Broader BYOK, streaming and
+whole-app certification are separate.
+
+One passing loop is a bounded pilot claim, not universal reliability.
+
+## Deployment
+
+No deployment has been performed. A controlled core pilot using the verified
+Flash configuration is the recommended launch position. Deployment approval is
+required separately.
