@@ -320,6 +320,14 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
     env = {k: os.environ[k] for k in R.SERVER_ENV_WHITELIST if k in os.environ}
     creds, cred_names = model_credentials()
     env.update(creds)
+    # Local-only preview configuration. These are product settings, not
+    # harness credentials; without them an isolated UI run cannot exercise
+    # the same local Ollama route the release candidate is verified on.
+    for name in ("ATOM_LOCAL_ONLY", "OLLAMA_BASE_URL", "OLLAMA_HOST",
+                 "OLLAMA_MODEL", "OLLAMA_QUALITY_SCORE",
+                 "ATOM_REVIEW_STRUCTURED", "ATOM_REVIEW_CAPTURE"):
+        if os.environ.get(name):
+            env[name] = os.environ[name]
     env.update({
         "DATABASE_URL": f"sqlite:///{run_dir / 'data' / 'atom.db'}",
         "ATOM_DATA_DIR": str(run_dir / "data"),
@@ -353,6 +361,7 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
         "CHAT_FINALIZATION_M1": env["CHAT_FINALIZATION_M1"],
         "CHAT_FINALIZATION_M2": env["CHAT_FINALIZATION_M2"],
         "ATOM_CHAT_STREAMING": env["ATOM_CHAT_STREAMING"],
+        "ATOM_LOCAL_ONLY": env.get("ATOM_LOCAL_ONLY", "false"),
         "ATOM_SHEET_DATASETS": env["ATOM_SHEET_DATASETS"],
         "ENABLE_SCHEDULER": env["ENABLE_SCHEDULER"],
         "ENABLE_INGESTION_SYNC": env["ENABLE_INGESTION_SYNC"],
