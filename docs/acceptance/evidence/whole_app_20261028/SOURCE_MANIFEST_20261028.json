@@ -103,13 +103,23 @@
   "docs/acceptance/evidence/whole_app_20261028/deepseek_judgment_comparison_20261028/revalidated_results.json": "40c030437eb5456f8912265bfd8d57acfe068f168a61922cbc712009cc720da8",
   "docs/acceptance/evidence/whole_app_20261028/deepseek_judgment_comparison_20261028/revalidation_stdout.text": "5be8042b32d8eaf43f934c050a73f3fff0f17964d7c449169db6b3ffa2d0c486",
   "docs/acceptance/evidence/whole_app_20261028/deepseek_judgment_comparison_20261028/run_stdout.text": "a07ed4813ec3e452cea5f5fdd6e3effeb338aa00ffbdc4c2f6b676866315986b",
-  "backend/scripts/orchestration_acceptance/preview_stack.py": "6ddfcfb890275f08948a367521b6891372e4307c84a837be84ed2da67d7b37cf"
+  "backend/scripts/orchestration_acceptance/preview_stack.py": "6ddfcfb890275f08948a367521b6891372e4307c84a837be84ed2da67d7b37cf",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/README.md": "80ccc189d88383cc348b73fc36e34ea8c95276ae2ce219532f05c1566560cf53",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/SOURCE_MANIFEST.json": "c031d0a71344f63d293ccdc53fb73ec49d6e896b53903d9d0f532197c194d44e",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/db_check.json": "e7c59fbeae4a40d5013daea4ce57e78f98d7233ea72af208e43d6e38cedb6ad7",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/final_after_restart.png": "527700057fa374a1ac0bd1243d3066db30e2808cdf0844fdfcad0ff63ce63fd8",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/fresh_after_restart_ui.text": "e70b87467bbeff29cf69f18c1dd3af038fb251a3044f44355c8be139413dbb0a",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/pre_restart_final.json": "fc6b5b2af3be80dfcceba5828823c83dfd463b1915ea4812ae5c0bb3d3b1673f",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/run_stdout.text": "ad7c595ab8c5cd7d143de7ec4896c83d7cb676bead22e6d2b0d50dd5a986d5e9",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/ui_loop_final.json": "8a5973d12677afa1ccdb1223dc5582e3213eeccc654aeb9660d50d3fd496c789",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028/UI_LAUNCH_CONFIG.json": "235525b9575424820626045cf37fbd718e5e8acdf90d1dc496b04e074bf3313d"
  },
  "notes": [
   "The failed UI evidence under docs/acceptance/evidence/whole_app_20261027/core_release_ui_loop_20261028 is unchanged.",
   "Judgment evidence includes a preserved pilot with incomplete minimal input; it is not used for the capability conclusion.",
   "The candidate core UI loop was not run because the judgment precondition did not pass.",
   "DeepSeek comparison is prepared_not_authorized; zero external calls were made.",
-  "DeepSeek screening executed once under owner authorization: 7/7 substantive and certified after offline revalidation."
+  "DeepSeek screening executed once under owner authorization: 7/7 substantive and certified after offline revalidation.",
+  "Core UI loop attempt 4 blocked on first-assessment review-block format; no release claim."
  ]
 }

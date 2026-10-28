@@ -90,5 +90,9 @@
   "unaffected_positive_twin": "GR-2026-033 remains DECLINE and IN-7302 remains HOLD after the correction",
   "expected_judgments_in_fixture": true
  },
- "deployment_authorized": false
+ "deployment_authorized": false,
+ "diagnostic_attempt_4": {
+  "ATOM_REVIEW_STRUCTURED": "1",
+  "result": "first grants assessment still returned no parseable review block; vendor and fresh assessments passed"
+ }
 }
