@@ -3766,6 +3766,14 @@ try:
         logger.warning(f"Canvas email routes not found: {e}")
 
     try:
+        from api.canvas_capability_routes import router as canvas_capability_router
+
+        app.include_router(canvas_capability_router)
+        logger.info("✓ Canvas Capability Routes Loaded (/api/canvas/{id}/capability)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Canvas capability routes not found: {e}")
+
+    try:
         from api.canvas_pdf_routes import router as canvas_pdf_router
 
         app.include_router(canvas_pdf_router)

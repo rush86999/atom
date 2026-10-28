@@ -17,6 +17,7 @@ import { JourneyPanel } from "@/components/canvas/JourneyPanel";
 import { AutonomyPanel } from "@/components/canvas/AutonomyPanel";
 import { AgentAttachModal } from "@/components/canvas/AgentAttachModal";
 import { CanvasDataSection } from "@/components/canvas/CanvasDataSection";
+import { CanvasCapabilityPanel } from "@/components/canvas/CanvasCapabilityPanel";
 import { ResizableDivider } from "@/components/ui/ResizableDivider";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
 import ChatMarkdown from "@/components/canvas/ChatMarkdown";
@@ -1367,6 +1368,13 @@ export default function CanvasDetailPage() {
                                     void loadCanvasAgents();
                                     setAttachNonce(n => n + 1);
                                 }}
+                                onLoaded={() => { void loadCanvas(); }}
+                            />
+                        )}
+                        {canvasData && (
+                            <CanvasCapabilityPanel
+                                canvasId={canvasId as string}
+                                onChanged={() => { void loadCanvas(); }}
                             />
                         )}
                         {/* Step 2 nudge: a canvas with no resolvable hire

@@ -214,6 +214,38 @@ async def create_email_canvas(request: CreateEmailRequest, current_user: User = 
     return result
 
 
+@router.post("/{canvas_id}/import-eml")
+async def import_eml_canvas(
+    canvas_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Import an EML into this canvas as a received message + reply draft.
+
+    Import never sends. Attachment records are stored as source evidence and
+    marked non-sendable, so a later reply cannot silently return them.
+    """
+    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
+    content = await file.read()
+    max_bytes = int(__import__("os").getenv("MAX_UPLOAD_BYTES", "52428800"))
+    if len(content) > max_bytes:
+        raise router.validation_error(field="file", message="File too large")
+    result = EmailCanvasService(db).import_eml(
+        canvas_id=canvas_id,
+        user_id=str(current_user.id),
+        content=content,
+        filename=file.filename or "message.eml",
+    )
+    if not result.get("success"):
+        raise router.error_response(
+            error_code="EMAIL_EML_IMPORT_FAILED",
+            message=result.get("error", "Failed to import EML"),
+            status_code=400,
+        )
+    return result
+
+
 @router.post("/{canvas_id}/message")
 async def add_message(canvas_id: str, request: AddMessageRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Add a message to an email thread."""

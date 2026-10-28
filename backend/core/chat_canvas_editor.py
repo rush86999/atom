@@ -5665,6 +5665,8 @@ async def apply_canvas_edit(
 
     if spec.content_kind == "file_backed":
         return _out(None, "file_backed")
+    if spec.edit_policy == "none":
+        return _out(None, "unsupported_operation")
 
     # Restore mode: revert to an earlier version by audit_id through the
     # audit-trail restore (append-only — the pre-restore state stays in

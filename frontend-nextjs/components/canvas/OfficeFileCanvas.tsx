@@ -15,7 +15,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Globe, Loader2, Plus } from "lucide-react";
+import { Check, Download, Globe, Loader2, Plus } from "lucide-react";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { apiClient } from "@/lib/api";
 
@@ -28,6 +28,8 @@ export interface OfficeSlide {
     slide_number: number;
     title: string;
     content: string;
+    tables?: { name?: string; rows: string[][] }[];
+    notes?: string;
 }
 
 export interface OfficeFileContent {
@@ -40,9 +42,12 @@ export interface OfficeFileContent {
     sheet_names?: string[];
     sheets?: OfficeSheet[];
     formulas?: Record<string, Record<string, string>>;
+    formula_gaps?: { sheet: string; cell: string; formula: string; reason?: string }[];
+    source_identity?: { file_name?: string; sha256?: string; size?: number };
     // docx
     text?: string;
     paragraphs?: { index: number; text: string; style: string }[];
+    tables?: { index: number; rows: string[][] }[];
     // pptx
     slides?: OfficeSlide[];
 }
@@ -107,27 +112,26 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
         (async () => {
             try {
                 if (format === "xlsx") {
-                    const res = await apiClient.get("/api/v1/office/excel", {
-                        // No leading slash: "A1:Z500" reads the ACTIVE sheet —
-                        // "/A1:Z500" would parse as a sheet named "A1:Z500".
-                        params: { file_path: filePath, cell_path: "A1:Z500" },
+                    // Overview first: it carries every sheet's USED rectangle.
+                    // The old hydration hardcoded A1:Z500, silently truncating
+                    // wider/taller workbooks and never reading past column Z.
+                    const overview = await apiClient.get("/api/v1/office/excel", {
+                        params: { file_path: filePath },
                     });
-                    const first = res.data;
+                    const first = overview.data;
                     if (!cancelled && first?.sheet_name) {
-                        // Hydrate EVERY sheet (the WS snapshot carries all of
-                        // them; REST reload must match or the tabs are dead)
-                        // plus the formulas map the formula bar renders.
                         const names: string[] = first.sheet_names?.length ? first.sheet_names : [first.sheet_name];
-                        const readSheet = async (name: string, payload: any) => {
-                            if (payload) return payload;
+                        const dims = new Map<string, string>(
+                            (first.sheets || []).map((s: any) => [s.name, s.dimensions || "A1"])
+                        );
+                        const readSheet = async (name: string) => {
+                            const range = dims.get(name) || "A1";
                             const r = await apiClient.get("/api/v1/office/excel", {
-                                params: { file_path: filePath, cell_path: `/${name}/A1:Z500` },
+                                params: { file_path: filePath, cell_path: `/${name}/${range}` },
                             });
                             return r.data;
                         };
-                        const results = await Promise.all(
-                            names.map((name) => readSheet(name, name === first.sheet_name ? first : null))
-                        );
+                        const results = await Promise.all(names.map((name) => readSheet(name)));
                         // Trim each requested range to the used rectangle —
                         // otherwise the grid renders hundreds of empty rows.
                         // Only TRAILING empty rows/cols are trimmed — blank
@@ -149,9 +153,18 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
                             };
                         });
                         const formulas: Record<string, Record<string, string>> = {};
+                        const formulaGaps: NonNullable<OfficeFileContent["formula_gaps"]> = [];
                         for (const payload of results) {
                             if (payload?.formulas && Object.keys(payload.formulas).length) {
                                 formulas[payload.sheet_name] = payload.formulas;
+                            }
+                            for (const cell of payload?.formula_gaps || []) {
+                                formulaGaps.push({
+                                    sheet: payload.sheet_name,
+                                    cell,
+                                    formula: payload.formulas?.[cell] || "",
+                                    reason: "no_cached_value_from_engine",
+                                });
                             }
                         }
                         setContent((prev) => ({
@@ -160,6 +173,7 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
                             active_sheet: first.sheet_name,
                             sheet_names: first.sheet_names?.length ? first.sheet_names : names,
                             formulas,
+                            formula_gaps: formulaGaps,
                         }));
                     }
                 } else if (format === "docx") {
@@ -175,7 +189,12 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
                             while (lines.length < p.index) lines.push("");
                             lines[p.index] = p.text;
                         }
-                        setContent((prev) => ({ ...prev, text: lines.join("\n") }));
+                        setContent((prev) => ({
+                            ...prev,
+                            text: lines.join("\n"),
+                            tables: res.data?.tables || [],
+                            source_identity: res.data?.source_identity,
+                        }));
                         setDocText(lines.join("\n"));
                     }
                 } else if (format === "pptx") {
@@ -191,7 +210,13 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
                                 .filter((sh: any) => sh !== titleShape && sh.type === "text")
                                 .map((sh: any) => sh.text)
                                 .join("\n");
-                            return { slide_number: i + 1, title: titleShape?.text || "", content: body };
+                            return {
+                                slide_number: i + 1,
+                                title: titleShape?.text || "",
+                                content: body,
+                                tables: shapes.filter((sh: any) => sh.type === "table").map((sh: any) => ({ name: sh.name, rows: sh.table || [] })),
+                                notes: s.notes || "",
+                            };
                         });
                         setContent((prev) => ({ ...prev, slides }));
                     }
@@ -315,6 +340,41 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
                         {error}
                     </span>
                 )}
+                {!!content.formula_gaps?.length && (
+                    <span
+                        data-testid="office-formula-gaps"
+                        className="text-[10px] text-amber-600 dark:text-amber-400"
+                        title={content.formula_gaps.map((g) => `${g.sheet}!${g.cell} ${g.formula || ""}`).join("\n")}
+                    >
+                        {content.formula_gaps.length} formula(s) without a computed value
+                    </span>
+                )}
+                {filePath && (
+                    <button
+                        type="button"
+                        data-testid="office-download"
+                        onClick={async () => {
+                            try {
+                                const res = await apiClient.get("/api/v1/office/download", {
+                                    params: { file_path: filePath },
+                                    responseType: "blob",
+                                });
+                                const url = URL.createObjectURL(res.data as Blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = (content.source_identity?.file_name || filePath.split("/").pop() || "artifact");
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            } catch (e: any) {
+                                setError(e?.response?.data?.detail || e?.message || "Download failed");
+                            }
+                        }}
+                        className="text-[10px] px-2 py-0.5 rounded border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 flex items-center gap-1"
+                        title="Download the authoritative file"
+                    >
+                        <Download className="h-3 w-3" /> Download
+                    </button>
+                )}
             </div>
 
             <div className="flex-1 overflow-auto custom-scrollbar">
@@ -333,6 +393,7 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
                 {format === "docx" && (
                     <DocxEditor
                         text={docText}
+                        tables={content.tables || []}
                         setText={(t) => {
                             setDocText(t);
                             setDocDirty(true);
@@ -395,6 +456,22 @@ function ExcelEditor({
 
     // Selected cell drives the formula bar (kept on blur, like Excel).
     const [selection, setSelection] = useState<{ sheet: string; row: number; col: number } | null>(null);
+    // Presentation-only row filter. It never changes the file or a formula;
+    // totals are computed over the authoritative workbook, not this view.
+    const [filterColumn, setFilterColumn] = useState("");
+    const [filterValue, setFilterValue] = useState("");
+    const headerCols = (padded[0] || []).map((cell, idx) => ({
+        idx,
+        label: String(cell ?? "").trim() || colLetter(idx),
+    }));
+    const visibleRows = filterColumn && filterValue
+        ? padded
+            .map((row, rowIdx) => ({ row, rowIdx }))
+            .filter(({ row }) => String(row[headerCols.find((h) => h.label === filterColumn)?.idx ?? 0] ?? "")
+                .toLowerCase()
+                .includes(filterValue.toLowerCase()))
+        : padded.map((row, rowIdx) => ({ row, rowIdx }));
+    const filterColIdx = headerCols.find((h) => h.label === filterColumn)?.idx;
     const selected = selection?.sheet === activeSheet
         ? { row: selection.row, col: selection.col }
         : null;
@@ -457,6 +534,31 @@ function ExcelEditor({
                 />
             </div>
 
+            {/* Filter view — display only; formulas/cells stay authoritative. */}
+            <div className="flex items-center gap-2 mb-1 text-[10px] text-zinc-500" data-testid="excel-filter-bar">
+                <span className="uppercase tracking-wider text-zinc-400">Filter</span>
+                <select
+                    aria-label="Filter column"
+                    value={filterColumn}
+                    onChange={(e) => setFilterColumn(e.target.value)}
+                    className="rounded border border-zinc-200 dark:border-white/10 bg-transparent px-1 py-0.5"
+                >
+                    <option value="">No filter</option>
+                    {headerCols.map((h) => <option key={h.idx} value={h.label}>{h.label}</option>)}
+                </select>
+                <input
+                    aria-label="Filter value"
+                    value={filterValue}
+                    onChange={(e) => setFilterValue(e.target.value)}
+                    placeholder="contains…"
+                    className="rounded border border-zinc-200 dark:border-white/10 bg-transparent px-1 py-0.5 w-32"
+                />
+                <span data-testid="excel-filter-count">
+                    {filterColumn && filterValue ? `${visibleRows.length} of ${padded.length} rows shown` : `${padded.length} rows`}
+                </span>
+                <span className="text-zinc-400">(view only; formulas use the full workbook)</span>
+            </div>
+
             {/* Sheet tabs */}
             {(content.sheet_names?.length || 0) > 1 && (
                 <div className="flex gap-1 mb-1 border-b border-zinc-100 dark:border-white/5">
@@ -488,7 +590,7 @@ function ExcelEditor({
                     </tr>
                 </thead>
                 <tbody>
-                    {padded.map((row, rowIdx) => (
+                    {visibleRows.map(({ row, rowIdx }) => (
                         <tr key={rowIdx}>
                             <td className="border border-zinc-100 dark:border-white/10 bg-zinc-50 dark:bg-white/5 p-1 text-center text-[10px] text-zinc-400 font-mono italic">
                                 {rowIdx + 1}
@@ -506,6 +608,7 @@ function ExcelEditor({
                                     >
                                         <input
                                             type="text"
+                                            data-testid={`excel-cell-${cellPath}`}
                                             defaultValue={cell == null ? "" : String(cell)}
                                             key={`${cellPath}:${String(cell)}`}
                                             onFocus={(e) => {
@@ -535,6 +638,13 @@ function ExcelEditor({
                             })}
                         </tr>
                     ))}
+                    {filterColumn && filterValue && visibleRows.length === 0 && (
+                        <tr>
+                            <td colSpan={colCount + 1} className="p-2 text-center text-[11px] text-zinc-400">
+                                No rows match this display filter. The workbook is unchanged.
+                            </td>
+                        </tr>
+                    )}
                     <tr>
                         <td colSpan={colCount + 1} className="p-1 border border-zinc-100 dark:border-white/5 text-center">
                             <button
@@ -557,23 +667,26 @@ function ExcelEditor({
 
 function DocxEditor({
     text,
+    tables,
     setText,
     commit,
     onFocusKey,
     onBlur,
 }: {
     text: string;
+    tables: { index: number; rows: string[][] }[];
     setText: (t: string) => void;
     commit: () => void;
     onFocusKey: () => void;
     onBlur: () => void;
 }) {
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col overflow-auto">
             <div className="px-4 pt-2 text-[10px] text-zinc-400">
                 One line = one paragraph. Styles, tables and images in the document are preserved on save.
             </div>
             <textarea
+                data-testid="docx-text"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onFocus={onFocusKey}
@@ -582,8 +695,30 @@ function DocxEditor({
                     onBlur();
                 }}
                 spellCheck={false}
-                className="flex-1 m-3 p-4 rounded-lg border border-zinc-100 dark:border-white/10 bg-transparent text-sm text-zinc-900 dark:text-zinc-200 font-mono leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                className="flex-1 min-h-[320px] m-3 p-4 rounded-lg border border-zinc-100 dark:border-white/10 bg-transparent text-sm text-zinc-900 dark:text-zinc-200 font-mono leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
             />
+            {!!tables.length && (
+                <div className="px-3 pb-3" data-testid="docx-tables">
+                    <div className="text-[10px] uppercase tracking-wider text-zinc-400 mb-1">Tables (read-only)</div>
+                    {tables.map((table) => (
+                        <div key={table.index} className="mb-2 overflow-auto">
+                            <table className="border-collapse text-[11px]">
+                                <tbody>
+                                    {table.rows.map((row, r) => (
+                                        <tr key={r}>
+                                            {row.map((cell, c) => (
+                                                <td key={c} className="border border-zinc-200 dark:border-white/10 px-2 py-1 align-top">
+                                                    {cell}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -627,6 +762,7 @@ function PptxEditor({
                     </div>
                     <input
                         type="text"
+                        data-testid={`pptx-title-${slide.slide_number}`}
                         defaultValue={slide.title}
                         key={`t:${slide.slide_number}:${slide.title}`}
                         onFocus={() => onFocusKey(`slide:${slide.slide_number}`)}
@@ -638,6 +774,7 @@ function PptxEditor({
                         className="w-full mb-2 bg-transparent border-b border-zinc-200 dark:border-white/10 focus:border-indigo-500/50 text-sm font-semibold text-zinc-900 dark:text-zinc-100 p-1 focus:outline-none"
                     />
                     <textarea
+                        data-testid={`pptx-content-${slide.slide_number}`}
                         defaultValue={slide.content}
                         key={`c:${slide.slide_number}:${slide.content}`}
                         onFocus={() => onFocusKey(`slide:${slide.slide_number}`)}
@@ -649,6 +786,31 @@ function PptxEditor({
                         rows={4}
                         className="w-full bg-transparent border border-zinc-100 dark:border-white/10 rounded-lg p-2 text-[13px] text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y"
                     />
+                    {!!slide.tables?.length && (
+                        <div className="mt-2 space-y-2" data-testid="pptx-tables">
+                            {slide.tables.map((table, ti) => (
+                                <table key={ti} className="border-collapse text-[11px]">
+                                    <tbody>
+                                        {table.rows.map((row, r) => (
+                                            <tr key={r}>
+                                                {row.map((cell, c) => (
+                                                    <td key={c} className="border border-zinc-200 dark:border-white/10 px-2 py-1 align-top">
+                                                        {cell}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ))}
+                        </div>
+                    )}
+                    {!!slide.notes && (
+                        <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400" data-testid="pptx-notes">
+                            <span className="uppercase tracking-wider text-[9px] text-zinc-400 mr-1">Speaker notes</span>
+                            <span className="whitespace-pre-wrap">{slide.notes}</span>
+                        </div>
+                    )}
                 </div>
             ))}
             <button

@@ -183,12 +183,20 @@ export function CanvasPanel({ lastMessage, onSocketMessage, registerFlushBeforeS
     const auditTrailContent = (): { content: any; echo: string } | null => {
         if (!state) return null;
         if (state.component === "email") {
+            // Preserve imported-message provenance/binding fields. Email
+            // autosave previously rebuilt only to/cc/subject/body, dropping
+            // thread references, source identity and attachment records on
+            // the first save after an EML import.
+            const existing = typeof state.data === "object" && state.data
+                ? state.data
+                : {};
             return {
                 content: {
+                    ...existing,
                     to: emailMetadata.to,
                     cc: emailMetadata.cc,
                     subject: emailMetadata.subject,
-                    body: localContentRef.current || "",
+                    body: localContentRef.current || existing.body || "",
                 },
                 echo: localContentRef.current || "",
             };
@@ -985,6 +993,14 @@ function CanvasContent({
         case "email":
             return (
                 <div className="flex flex-col h-full bg-white dark:bg-[#0F172A]">
+                    {(data as any)?.source_message_id && (
+                        <div className="px-4 py-2 border-b border-sky-100 dark:border-sky-900/40 bg-sky-50/70 dark:bg-sky-900/10 text-[11px] text-sky-800 dark:text-sky-300" data-testid="email-import-banner">
+                            Imported message from <strong>{(data as any)?.imported_from || "unknown sender"}</strong>
+                            {" "}to {(data as any)?.imported_to?.join?.(", ") || "unknown recipient"}
+                            {((data as any)?.imported_cc?.length || 0) > 0 ? `, cc ${(data as any).imported_cc.join(", ")}` : ""}
+                            {" "}— thread reference preserved. This is an editable reply draft; nothing is sent without the Send action.
+                        </div>
+                    )}
                     <div className="p-4 border-b border-zinc-100 dark:border-white/5 space-y-3 bg-zinc-50/50 dark:bg-black/20">
                         <EmailRecipientField
                             label="To:"

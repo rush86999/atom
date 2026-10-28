@@ -23,6 +23,7 @@ Co-editing model (#39):
 import asyncio
 import logging
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -72,6 +73,21 @@ def _office_path_key(path: Any) -> str:
         return path.strip()
 
 
+def _file_identity(file_path: str) -> Dict[str, Any]:
+    """Stable artifact identity for snapshots/receipts (bytes, name, hash)."""
+    import hashlib
+
+    try:
+        data = Path(file_path).read_bytes()
+        return {
+            "file_name": Path(file_path).name,
+            "file_sha256": hashlib.sha256(data).hexdigest(),
+            "file_size": len(data),
+        }
+    except Exception:
+        return {}
+
+
 class OfficeSyncService:
     """Service coordinates bi-directional sync between files and canvas UI."""
 
@@ -102,17 +118,34 @@ class OfficeSyncService:
                 wb_raw = openpyxl.load_workbook(file_path, data_only=False)
                 sheets: List[Dict[str, Any]] = []
                 formulas: Dict[str, Dict[str, str]] = {}
+                formula_gaps: List[Dict[str, Any]] = []
                 for ws in wb.worksheets:
                     rows: List[List[Any]] = []
+                    computed: Dict[str, Any] = {}
                     for row in ws.iter_rows():
-                        rows.append([c.value for c in row])
-                    sheets.append({"name": ws.title, "rows": rows})
+                        row_values = []
+                        for c in row:
+                            row_values.append(c.value)
+                            computed[c.coordinate] = c.value
+                        rows.append(row_values)
+                    sheets.append({
+                        "name": ws.title,
+                        "rows": rows,
+                        "dimensions": ws.dimensions,
+                    })
                     # data_only=True strips formulas — read raw for the bar.
                     fmap: Dict[str, str] = {}
                     for rrow in wb_raw[ws.title].iter_rows():
                         for c in rrow:
                             if isinstance(c.value, str) and c.value.startswith("="):
                                 fmap[c.coordinate] = c.value
+                                if computed.get(c.coordinate) is None:
+                                    formula_gaps.append({
+                                        "sheet": ws.title,
+                                        "cell": c.coordinate,
+                                        "formula": c.value,
+                                        "reason": "no_cached_value_from_engine",
+                                    })
                     if fmap:
                         formulas[ws.title] = fmap
                 return {
@@ -121,6 +154,8 @@ class OfficeSyncService:
                     "sheet_names": wb.sheetnames,
                     "sheets": sheets,
                     "formulas": formulas,
+                    "formula_gaps": formula_gaps,
+                    "source_identity": _file_identity(file_path),
                 }
 
             if ext == ".docx":
@@ -129,9 +164,23 @@ class OfficeSyncService:
                 paragraphs = [
                     {"index": i, "text": p.text, "style": getattr(p.style, "name", "Normal")}
                     for i, p in enumerate(d.paragraphs)
-                    if p.text.strip()
                 ]
-                return {"format": "docx", "text": "\n".join(all_lines), "paragraphs": paragraphs}
+                tables = []
+                for t_idx, table in enumerate(d.tables):
+                    tables.append({
+                        "index": t_idx,
+                        "rows": [
+                            [cell.text.strip() for cell in row.cells]
+                            for row in table.rows
+                        ],
+                    })
+                return {
+                    "format": "docx",
+                    "text": "\n".join(all_lines),
+                    "paragraphs": paragraphs,
+                    "tables": tables,
+                    "source_identity": _file_identity(file_path),
+                }
 
             if ext == ".pptx":
                 if not PPTX_AVAILABLE:
@@ -146,20 +195,57 @@ class OfficeSyncService:
                     except Exception:
                         pass
                     parts: List[str] = []
-                    for ph in slide.placeholders:
+                    tables: List[Dict[str, Any]] = []
+                    shapes: List[Dict[str, Any]] = []
+                    for shape in slide.shapes:
+                        if shape.has_table:
+                            table_rows = [
+                                [cell.text for cell in row.cells]
+                                for row in shape.table.rows
+                            ]
+                            tables.append({"name": shape.name, "rows": table_rows})
+                            shapes.append({
+                                "type": "table", "name": shape.name,
+                                "table": table_rows,
+                            })
+                            continue
+                        if not shape.has_text_frame or not shape.text_frame.text:
+                            continue
+                        is_title = False
                         try:
-                            if ph.placeholder_format.idx == 0:
-                                continue
+                            is_title = bool(
+                                getattr(shape, "is_placeholder", False)
+                                and shape.placeholder_format.idx == 0)
                         except Exception:
-                            pass
-                        if ph.has_text_frame and ph.text_frame.text:
-                            parts.append(ph.text_frame.text)
+                            is_title = False
+                        if is_title:
+                            title = title or shape.text_frame.text
+                        else:
+                            parts.append(shape.text_frame.text)
+                        shapes.append({
+                            "type": "text", "name": shape.name,
+                            "text": shape.text_frame.text,
+                            "is_title": is_title,
+                        })
+                    notes = ""
+                    try:
+                        if slide.has_notes_slide:
+                            notes = slide.notes_slide.notes_text_frame.text or ""
+                    except Exception:
+                        notes = ""
                     slides.append({
                         "slide_number": idx + 1,
                         "title": title,
                         "content": "\n".join(parts),
+                        "tables": tables,
+                        "shapes": shapes,
+                        "notes": notes,
                     })
-                return {"format": "pptx", "slides": slides}
+                return {
+                    "format": "pptx",
+                    "slides": slides,
+                    "source_identity": _file_identity(file_path),
+                }
         except Exception as e:
             logger.debug(f"Structured read skipped for {file_path}: {e}")
         return {}
@@ -377,6 +463,10 @@ class OfficeSyncService:
             self.db.add(row)
             created = True
 
+        # Existing blank/typed canvases must ADOPT the office type when they
+        # bind a real file; leaving canvas_type="document" made the page and
+        # gallery treat a workbook as a text document.
+        row.canvas_type = canvas_type
         snapshot = dict(self._read_structured_content(contained))
         meta = dict(row.content if isinstance(row.content, dict) else {})
         meta.update(snapshot)
@@ -395,6 +485,70 @@ class OfficeSyncService:
             "component": component,
             "content": meta,
         }
+
+    def materialize_upload(
+        self,
+        canvas_id: str,
+        file_name: str,
+        content: bytes,
+        user_id: str,
+        title: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Write uploaded office bytes into ATOM_OFFICE_DIR and bind the canvas.
+
+        Uploaded documents previously went only to memory ingestion; no real
+        file existed for the office read/edit endpoints, so the workbook/doc/
+        deck canvas had nothing authoritative to open. This is the connection.
+        """
+        import hashlib
+
+        safe_stem = re.sub(
+            r"[^A-Za-z0-9._-]+", "-", Path(file_name).stem
+        ).strip("-")[:60] or "upload"
+        ext = Path(file_name).suffix.lower()
+        if ext not in {".xlsx", ".xlsm", ".docx", ".pptx"}:
+            return {"success": False, "error": f"Unsupported office format: {ext}"}
+        office_dir = Path(
+            os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))
+        ).resolve()
+        office_dir.mkdir(parents=True, exist_ok=True)
+        target = _validate_office_path(
+            str(office_dir / f"{safe_stem}-{uuid.uuid4().hex[:8]}{ext}")
+        )
+        Path(target).write_bytes(content)
+        if ext in {".xlsx", ".xlsm"}:
+            # Uploaded workbooks often carry formulas with no cached values.
+            # Evaluate and cache them BEFORE the snapshot is persisted, so the
+            # canvas opens with real computed values (formula strings stay).
+            try:
+                from core.office_service import _run_async_sync
+                from core.workbook_runtime import get_workbook_runtime
+
+                runtime = get_workbook_runtime()
+                if runtime.can_evaluate:
+                    _run_async_sync(runtime.recalculate(target))
+            except Exception as recalc_err:
+                logger.warning(f"Upload recalc skipped for {target}: {recalc_err}")
+        bound = self.ensure_canvas_for_file(
+            canvas_id=canvas_id, file_path=target,
+            user_id=user_id, title=title or file_name,
+        )
+        meta = dict(bound.get("content") or {})
+        meta["source_identity"] = {
+            "file_name": file_name,
+            "stored_name": Path(target).name,
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "size": len(content),
+            "uploaded_by": user_id,
+        }
+        row = self.db.query(Canvas).filter(Canvas.id == bound["id"]).first()
+        if row is not None:
+            row.content = meta
+            self.db.commit()
+        bound["content"] = meta
+        bound["file_path"] = target
+        bound["source_identity"] = meta["source_identity"]
+        return {"success": True, **bound}
 
     def _refresh_canvas_row(
         self, canvas_id: str, content_snapshot: Dict[str, Any], user_id: str

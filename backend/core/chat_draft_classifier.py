@@ -588,7 +588,7 @@ def _style_markdown_tables(body: str) -> str:
     return "\n".join(out)
 
 
-def normalize_email_content(content: Any) -> Dict[str, str]:
+def normalize_email_content(content: Any) -> Dict[str, Any]:
     """Normalize any stored email-canvas content into ``{to, subject, body}``.
 
     Handles the shapes that historically land on email canvases:
@@ -606,7 +606,12 @@ def normalize_email_content(content: Any) -> Dict[str, str]:
         if isinstance(draft, dict):
             to = draft.get("to_emails")
             cc = draft.get("cc_emails")
+            # Preserve provenance/binding fields (thread refs, source
+            # identity, attachment records). The old normalizer rebuilt only
+            # the four composer fields, so an imported/reloaded email lost
+            # its source association on the first read.
             return {
+                **content,
                 "to": ", ".join(to) if isinstance(to, list) else str(to or ""),
                 "cc": ", ".join(cc) if isinstance(cc, list) else str(cc or ""),
                 "subject": str(draft.get("subject") or content.get("subject") or ""),
@@ -616,6 +621,7 @@ def normalize_email_content(content: Any) -> Dict[str, str]:
         if not isinstance(body, str):
             body = content.get("content") if isinstance(content.get("content"), str) else ""
         return {
+            **content,
             "to": str(content.get("to") or ""),
             "cc": str(content.get("cc") or ""),
             "subject": str(content.get("subject") or ""),

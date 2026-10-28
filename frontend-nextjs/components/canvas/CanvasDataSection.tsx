@@ -46,6 +46,7 @@ export function CanvasDataSection({
     hireAttached,
     provenanceAgent,
     onAttached,
+    onLoaded,
 }: {
     canvasId: string;
     hireAttached: boolean;
@@ -55,6 +56,8 @@ export function CanvasDataSection({
      *  one-click attachment of THAT hire closes the contradiction. */
     provenanceAgent?: { id: string; name: string } | null;
     onAttached?: () => void;
+    /** Reload the canvas after an upload binds a real office/email artifact. */
+    onLoaded?: () => void;
 }) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
@@ -116,6 +119,16 @@ export function CanvasDataSection({
         try {
             const res = await uploadCanvasData(canvasId, file);
             const ing = res?.ingestion;
+            if (res?.office_canvas?.canvas_id || res?.email_canvas?.canvas_id) {
+                const kind = res?.office_canvas?.canvas_type
+                    || (res?.email_canvas ? "email" : "artifact");
+                setNotice({
+                    kind: "ok",
+                    text: `Opened “${file.name}” as a ${kind} canvas. Edits now save to the authoritative artifact.`,
+                });
+                onLoaded?.();
+                return;
+            }
             if (ing?.status === "ingested") {
                 setNotice({ kind: "ok", text: `Loaded “${file.name}” — ${res.role ? `${res.role} hire` : "agent"} can recall it.` });
             } else if (ing?.status === "skipped" && (ing?.reason || ing?.status) === "unchanged") {
@@ -130,7 +143,7 @@ export function CanvasDataSection({
         } finally {
             setUploading(false);
         }
-    }, [canvasId]);
+    }, [canvasId, onLoaded]);
 
     // ── drive pickers ───────────────────────────────────────────────────
 
@@ -289,6 +302,7 @@ export function CanvasDataSection({
                     ref={fileInputRef}
                     type="file"
                     className="hidden"
+                    data-testid="canvas-upload-input"
                     onChange={(e) => {
                         const f = e.target.files?.[0];
                         if (f) void handleUpload(f);

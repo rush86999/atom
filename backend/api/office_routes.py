@@ -5,11 +5,16 @@ Exposes HTTP endpoints under /api/v1/office for Word, Excel, and PowerPoint
 document manipulation, visualization, and canvas synchronization.
 """
 
+import hashlib
 import logging
+import mimetypes
+import os
+import re
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -197,6 +202,89 @@ def read_excel(
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
     return res
+
+
+@router.post("/upload")
+async def upload_office_file(
+    file: UploadFile = File(...),
+    canvas_id: Optional[str] = Form(None),
+    title: Optional[str] = Form(None),
+    db: Session = Depends(get_db_session_dep),
+    current_user: User = Depends(get_current_user),
+):
+    """Store an uploaded office file in ATOM_OFFICE_DIR and optionally bind it
+    to a canvas. This is the missing upload → real-file-canvas connection;
+    the canvas data upload path also calls the same materializer."""
+    file_name = Path(file.filename or "upload").name
+    ext = Path(file_name).suffix.lower().lstrip(".")
+    if ext not in {"xlsx", "xlsm", "docx", "pptx"}:
+        raise HTTPException(status_code=400, detail=f"Unsupported office format: {ext or 'unknown'}")
+    content = await file.read()
+    max_bytes = int(os.getenv("MAX_UPLOAD_BYTES", "52428800"))
+    if len(content) > max_bytes:
+        raise HTTPException(status_code=400, detail="File too large")
+    safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(file_name).stem).strip("-")[:60] or "upload"
+    office_dir = Path(os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))).resolve()
+    office_dir.mkdir(parents=True, exist_ok=True)
+    stored = _require_office_path(str(office_dir / f"{safe_stem}-{uuid.uuid4().hex[:8]}.{ext}"))
+    Path(stored).write_bytes(content)
+
+    result: Dict[str, Any] = {
+        "success": True,
+        "file_path": stored,
+        "file_name": Path(stored).name,
+        "original_name": file_name,
+        "format": ext,
+        "size_bytes": len(content),
+        "sha256": hashlib.sha256(content).hexdigest(),
+    }
+    if canvas_id:
+        from core.office_sync_service import OfficeSyncService
+        sync = OfficeSyncService(db)
+        bound = sync.ensure_canvas_for_file(
+            canvas_id=canvas_id, file_path=stored,
+            user_id=str(current_user.id), title=title or file_name,
+        )
+        # Stamp provenance on the bound snapshot (artifact identity travels
+        # with the canvas, not only in this response).
+        from core.models import Canvas
+        row = db.query(Canvas).filter(Canvas.id == bound["id"]).first()
+        if row is not None:
+            meta = dict(row.content or {})
+            meta["source_identity"] = {
+                "file_name": file_name,
+                "stored_name": Path(stored).name,
+                "sha256": result["sha256"],
+                "size": len(content),
+                "uploaded_by": str(current_user.id),
+            }
+            row.content = meta
+            db.commit()
+            result["canvas"] = {
+                "canvas_id": bound["id"],
+                "canvas_type": bound["canvas_type"],
+                "component": bound["component"],
+                "content": meta,
+            }
+    return result
+
+
+@router.get("/download")
+def download_office_file(
+    file_path: str = Query(..., description="Path to an office file"),
+):
+    """Download the authoritative office artifact (XLSX/DOCX/PPTX)."""
+    contained = _require_office_path(file_path)
+    path = Path(contained)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    media = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    return FileResponse(
+        str(path),
+        media_type=media,
+        filename=path.name,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.post("/excel")
