@@ -386,6 +386,7 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
         "ATOM_PREFERRED_LLM_MODEL": env.get(
             "ATOM_PREFERRED_LLM_MODEL", ""),
         "ATOM_REVIEW_MODEL": env.get("ATOM_REVIEW_MODEL", ""),
+        "ATOM_REVIEW_STRUCTURED": env.get("ATOM_REVIEW_STRUCTURED", "0"),
         "ATOM_SHEET_DATASETS": env["ATOM_SHEET_DATASETS"],
         "ENABLE_SCHEDULER": env["ENABLE_SCHEDULER"],
         "ENABLE_INGESTION_SYNC": env["ENABLE_INGESTION_SYNC"],
