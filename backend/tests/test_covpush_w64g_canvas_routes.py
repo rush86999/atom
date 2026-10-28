@@ -92,7 +92,7 @@ def user(db):
 
 
 @pytest.fixture
-def client(db, user):
+def client(db, user, monkeypatch):
     app = FastAPI()
     app.include_router(canvas_email_routes.router)
     app.include_router(canvas_coding_routes.router)
@@ -113,9 +113,17 @@ def client(db, user):
 
     app.dependency_overrides[get_db] = _get_db
     app.dependency_overrides[get_current_user] = lambda: user
+    # Route-coverage tests use synthetic audits; dedicated authorization
+    # tests cover the owner gate itself.
+    monkeypatch.setattr(
+        canvas_email_routes, "_get_owned_email_canvas_or_error",
+        lambda *args, **kwargs: None)
     c = TestClient(app, raise_server_exceptions=False)
     yield c
     app.dependency_overrides.clear()
+
+
+_ORIGINAL_EMAIL_OWNER_GUARD = canvas_email_routes._get_owned_email_canvas_or_error
 
 
 def _audit(db, user, canvas_id, canvas_type, details=None, action_type="canvas_open"):
@@ -296,7 +304,9 @@ class TestEmailGet:
     def test_get_ownership_denied_403(self, client, db, user):
         other = _other_user(db)
         _audit(db, other, "ec-4", "email", details={"x": 1})
-        response = client.get("/api/canvas/email/ec-4")
+        with patch("api.canvas_email_routes._get_owned_email_canvas_or_error",
+                   _ORIGINAL_EMAIL_OWNER_GUARD):
+            response = client.get("/api/canvas/email/ec-4")
         assert response.status_code == 403
 
     def test_get_wrong_canvas_type_404(self, client, db, user):

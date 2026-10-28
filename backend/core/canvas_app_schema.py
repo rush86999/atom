@@ -198,6 +198,27 @@ _ALIASES = {
     "office_slides": "office_pptx",
 }
 
+_CAPABILITY_TABLE = CanvasAppSpec(
+    canvas_type="capability_table", label="Structured table", content_kind="json",
+    edit_policy="none",
+    edit_hint=(
+        "Backed by a versioned capability manifest and a bound dataset. "
+        "Selection, calculation, assessment and edits must go through the "
+        "canvas capability operations endpoint so authorization, revision "
+        "checks and readback are enforced. A direct content write is refused."
+    ),
+)
+
+_CAPABILITY_UNSUPPORTED = CanvasAppSpec(
+    canvas_type="capability_unsupported", label="Unsupported structured canvas",
+    content_kind="json", edit_policy="none",
+    edit_hint=(
+        "This canvas declares structured capabilities but has no installed "
+        "adapter for its base component. It must not acquire text-replace or "
+        "write authority from its type or label."
+    ),
+)
+
 _TEXT_FALLBACK = CanvasAppSpec(
     canvas_type="generic", label="Text", content_kind="text",
     edit_policy="text",
@@ -265,6 +286,12 @@ def resolve_app_spec(canvas_type: Optional[str], content: Any = None) -> CanvasA
     office_type = office_app_type_for_content(content)
     if office_type:
         return _APPS[office_type]
+    if isinstance(content, dict) and isinstance(
+            content.get("capability_manifest"), dict):
+        base = str(content["capability_manifest"].get("base_component") or "").lower()
+        if base == "table":
+            return _CAPABILITY_TABLE
+        return _CAPABILITY_UNSUPPORTED
     return get_app_spec(canvas_type)
 
 
@@ -323,6 +350,11 @@ def app_prompt_section(canvas_type: Optional[str], content: Any) -> str:
         lines.append(
             "Its content is structured chart data; return the complete new "
             "content object in replace mode (same keys and types)."
+        )
+    elif spec.edit_policy == "none":
+        lines.append(
+            "This canvas declares structured operations; direct content edits "
+            "are refused. Use the declared capability operations instead."
         )
     elif spec.content_kind == "file_backed":
         lines.append(

@@ -1,10 +1,10 @@
 {
  "schema_version": "core-release-ledger-2",
- "title": "Atom demonstrated core-release ledger \u2014 2026-10-28",
+ "title": "Atom demonstrated core-release ledger \u2014 2026-10-28 (expanded core verified)",
  "generated_at": "2026-10-28T17:30:00Z",
  "candidate": {
   "branch": "whole-app/successor-f5f",
-  "app_code_commit": "35860a7f0",
+  "app_code_commit": "c04591909",
   "transport_repair_commits": [
    "f547a0dd1",
    "f028ab2ab",
@@ -77,7 +77,7 @@
   "evidence": "docs/acceptance/evidence/whole_app_20261028/core_release_narrow_grants_20261028_attempt8/"
  },
  "core_ui_loop": {
-  "status": "pass",
+  "status": "pass (CSV package)",
   "attempt": "core_release_ui_loop_deepseek_flash_20261028_fixed2",
   "checks_passed": 28,
   "checks_failed": 0,
@@ -88,16 +88,21 @@
   "evidence": "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_flash_20261028_fixed2/"
  },
  "supported_workflows": [
-  "CSV/workbook import through the product UI",
-  "deterministic row selection, explicit sum/count, full eligible-dataset arithmetic, gap detection and cell citations",
-  "task-owned teaching and in-place correction",
-  "unfamiliar cross-schema assessment with the taught vocabulary",
-  "persistence of teaching, source identity, result and history across restart",
-  "fresh post-restart assessment",
-  "zero unauthorized side-effect writes on the demonstrated loop"
+  "CSV/workbook import and deterministic selection/calculation (frozen CSV package)",
+  "XLSX workbook canvas: sheets/headers/values/blanks/types, display filtering, supported formula recalculation, authorized cell edit, unrelated-cell/sheet preservation, save/reopen/download",
+  "EML import with attachment association and editable reply draft persisted across restart; send remains separately authorized and was not performed",
+  "DOCX read including tables; real generated DOCX with headings/tables/sources; correction; reopen/download agreement",
+  "PPTX read including slide text/tables/speaker notes; real generated PPTX with order/tables/sources; correction; reopen/download agreement",
+  "User-created table canvases with versioned capability manifests, deterministic selection/sum/count, certified task-defined assessment, revision-checked edit/readback and XLSX export",
+  "One bounded cross-material employee job with teaching, workbook calculation, reply/document/deck deliverables, correction, unfamiliar variation and restart persistence"
  ],
  "residual_limitations": [
-  "One successful UI loop after four preserved failed attempts is a demonstrated slice, not a general reliability guarantee.",
+  "One bounded acceptance campaign is a demonstrated slice, not a general reliability guarantee.",
+  "Workbook formula support is the demonstrated subset; formulas with no computed cache are named in formula_gaps and never used as certified totals.",
+  "Embedded images/charts in DOCX/PPTX are not interpreted.",
+  "Email sending was not performed and remains separately authorized; imported source attachments are non-sendable.",
+  "The capability adapter supports the table base component only; unknown adapters get no write authority.",
+  "Fork/copy strips private teaching, policy, approvals and source binding from capability canvases.",
   "This is not whole-app certification; deferred integrations, scheduling, marketplace and broader agent evolution remain out of scope.",
   "No deployment, credential rotation or live-data operation was performed."
  ],
@@ -113,10 +118,77 @@
  "recommended_launch_configuration": "deepseek-flash",
  "release_package": {
   "status": "ready",
-  "identity": "tag core-release-2026-10-28 (single release commit)",
-  "path": "docs/acceptance/release_package_20261028/",
-  "checksums": "docs/acceptance/release_package_20261028/CHECKSUMS.sha256",
+  "identity": "tag expanded-core-2026-10-28-r3 (single release commit)",
+  "path": "docs/acceptance/release_package_20261028_expanded/",
+  "external_path": "/Users/rushiparikh/projects/atom-releases/expanded-core-2026-10-28-r3/",
+  "decision": "deployment_decision_pending",
   "deployed": false,
-  "source_archive_scrubbed": true
- }
+  "source_archive_scrubbed": true,
+  "supports": "Expanded core verified on the demonstrated workflows; not deployed."
+ },
+ "expanded_core_scope": {
+  "scope_document": "docs/acceptance/CORE_RELEASE_SCOPE_2026-10-28.md",
+  "support_statement": "Expanded core verified on the demonstrated workflows; package prepared; not deployed.",
+  "required_slices": [
+   {
+    "id": "workbook_canvas",
+    "status": "pass",
+    "evidence": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/ui_slices.json",
+    "artifact_checks": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/artifact_checks.json",
+    "checks": "40/40 UI; 17/17 artifacts"
+   },
+   {
+    "id": "email",
+    "status": "pass",
+    "evidence": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/ui_slices.json",
+    "checks": "envelope, To/Cc, body, RFC references, attachment association, editable reply draft, reload persistence, no send"
+   },
+   {
+    "id": "document",
+    "status": "pass",
+    "evidence": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/ui_slices.json",
+    "artifact_checks": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/artifact_checks.json",
+    "checks": "table read; generated headings/table/sources; correction; reopen/download agreement"
+   },
+   {
+    "id": "presentation",
+    "status": "pass",
+    "evidence": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/ui_slices.json",
+    "artifact_checks": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/artifact_checks.json",
+    "checks": "slide text/tables/notes read; generated order/table/sources; correction; reopen/download agreement"
+   },
+   {
+    "id": "employee_job",
+    "status": "pass",
+    "evidence": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/employee_job.json",
+    "after_restart": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/employee_job_after_restart.json",
+    "artifact_checks": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/artifact_checks_after_restart.json",
+    "checks": "16/16 pre-restart; 17/17 post-restart; 19/19 artifact checks"
+   },
+   {
+    "id": "user_created_canvases",
+    "status": "pass",
+    "evidence": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/capability_ui.json",
+    "checks": "two differently-shaped canvases; 33/33 UI checks; task-defined decisions; edit/readback; export; reload persistence"
+   }
+  ],
+  "acceptance_rule": "Each slice has its own UI/public-boundary and artifact evidence. No format is certified from another format pass.",
+  "review_remediation": "Three read-only reviews found release blockers/follow-on defects; fixed in b4060236b, 65fe6e575 and c04591909; evidence regenerated on world expanded_core_final_20261028 run-ca4d4d520140."
+ },
+ "expanded_core_ready": true,
+ "frozen_csv_package": {
+  "tag": "core-release-2026-10-28",
+  "commit": "ab4506f1d4a4b87391d9be3d112d6acf748840ad",
+  "claim": "CSV workflow verified; superseded in scope by the expanded package but preserved unchanged."
+ },
+ "superseded_candidates": [
+  {
+   "tag": "expanded-core-2026-10-28",
+   "status": "superseded after read-only review found release blockers"
+  },
+  {
+   "tag": "expanded-core-2026-10-28-r2",
+   "status": "superseded after focused re-review found follow-on office/recalc/hash defects"
+  }
+ ]
 }

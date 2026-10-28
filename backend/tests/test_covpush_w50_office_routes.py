@@ -39,6 +39,10 @@ def office(monkeypatch):
     svc.pptx.modify_slides.return_value = {"success": True, "data": {}}
     monkeypatch.setattr("api.office_routes.office_service", svc)
     monkeypatch.setattr("api.office_routes._validate_office_path", lambda p: p)
+    # These route-coverage tests use a Mock session; ownership enforcement is
+    # covered by the dedicated authorization tests.
+    monkeypatch.setattr("api.office_routes._require_canvas_owner", lambda *a, **k: None)
+    monkeypatch.setattr("api.office_routes._require_file_binding", lambda *a, **k: None)
     return svc
 
 

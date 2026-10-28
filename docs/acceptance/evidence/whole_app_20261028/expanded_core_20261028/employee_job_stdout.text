@@ -1,0 +1,17 @@
+PASS admin login API 200
+PASS employee attached to job canvas "e45de0de-b97c-4822-963d-edd2c01cfc0c"
+PASS task policy taught through training UI {"count":1,"topic":"pipeline approval policy"}
+PASS workbook evidence visible before job edit {"c2":"4","e6":"122.5"}
+PASS employee calculation updated the workbook total {"e2":"75","e6":"147.5"}
+PASS employee assessment before correction {"A-101":"APPROVE","A-102":"APPROVE","A-104":"REVIEW"}
+PASS baseline assessment before correction {"A-101":"APPROVE","A-102":"APPROVE","A-104":"REVIEW"}
+PASS authorized correction read back from authoritative store [{"row":5,"column":"Amount","before":"95","after":"120","changed":true,"already_satisfied":false,"readback":"120","readback_matches":true}]
+PASS correction changed the affected assessment {"A-101":"APPROVE","A-102":"APPROVE","A-104":"APPROVE"}
+PASS unfamiliar variation assessed with different vocabulary {"T-900":"ACCEPT","T-901":"ESCALATE","T-903":"REVIEW"}
+PASS reply draft produced and persisted with grounded facts "Hi Maya, ORD-1001 is approved for 6 widgets. The recalculated order total is 147.50. Pipeline review: A-101 APPROVE, A-102 APPROVE, A-104 APPROVE. Source: orders.xlsx Orders rows 2-5; order-detail.csv; pipeline_a.csv. Nothing has been sent; this is the reply d"
+PASS employee produced a real DOCX through product boundary 200
+PASS generated DOCX carries grounded facts and table {"table":"TABLES (READ-ONLY)\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\tpipeline_a.csv row 2\nA-102\tAPPROVE\tpipeline_a.csv row 3\nA-104\tAPPROVE\tpipeline_a.csv row 5"}
+PASS employee produced a real PPTX through product boundary 200
+PASS generated PPTX has grounded slides, table and sources {"deckTitle1":"Order decision","deckTitle2":"Recommendation","deckTable":"Subject\tDecision\nA-101\tAPPROVE\nA-102\tAPPROVE\nA-104\tAPPROVE","deckNotes":"SPEAKER NOTESSources orders.xlsx, order-detail.csv, pipeline_a.csv."}
+PASS job receipts carry source and artifact identity {"workbook":"9731dfd088fbb8ee07327d8fc92ed1764930333c0e7e11da7364d21df2d32ffd","email":"247306d3621d4960fab8476e6861b36410ffe3852c3063a6a0a0ccfed5fb8c62"}
+STATUS PRE_RESTART_PASSED 16/16

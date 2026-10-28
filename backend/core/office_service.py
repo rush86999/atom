@@ -37,6 +37,38 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+def _run_async_sync(coro):
+    """Run an async runtime call from a sync method.
+
+    FastAPI sync routes run in a worker thread (no running loop), but tests
+    and tool callers may invoke this from inside one. In that case run the
+    coroutine on a private thread's loop instead of raising "already running".
+    """
+    import asyncio
+    import threading
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+    result = {}
+    error = {}
+
+    def _worker():
+        try:
+            result["value"] = asyncio.run(coro)
+        except Exception as exc:  # noqa: BLE001 — re-raised in caller
+            error["error"] = exc
+
+    thread = threading.Thread(target=_worker)
+    thread.start()
+    thread.join()
+    if "error" in error:
+        raise error["error"]
+    return result.get("value")
+
+
 def _validate_office_path(file_path: str) -> str:
     """Contain user-supplied file paths to the configured office directory.
 
@@ -58,6 +90,104 @@ def _validate_office_path(file_path: str) -> str:
             f"Access denied: path '{file_path}' is outside the allowed office directory"
         )
     return str(resolved)
+
+
+
+
+def _parse_markdown_table(lines, start):
+    """Parse one contiguous GitHub-style table starting at ``lines[start]``.
+
+    Returns ``(rows, next_index)`` or ``(None, start)``. Separator rows are
+    dropped; the header row is retained.
+    """
+    import re as _re
+    if start + 1 >= len(lines):
+        return None, start
+    if "|" not in lines[start] or not _re.match(
+            r"^\s*\|?\s*:?-{2,}", lines[start + 1] or ""):
+        return None, start
+    rows = []
+    idx = start
+    while idx < len(lines):
+        line = lines[idx]
+        if "|" not in line or not line.strip():
+            break
+        if idx == start + 1 and _re.match(r"^\s*\|?\s*:?-{2,}", line):
+            idx += 1
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        rows.append(cells)
+        idx += 1
+    return (rows if len(rows) >= 2 else None), idx
+
+
+def _markdown_blocks(markdown: str):
+    """Yield (kind, payload) blocks: heading, paragraph, bullets, table."""
+    lines = str(markdown or "").replace("\r\n", "\n").split("\n")
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        if not stripped:
+            i += 1
+            continue
+        rows, nxt = _parse_markdown_table(lines, i)
+        if rows:
+            yield "table", rows
+            i = nxt
+            continue
+        if stripped.startswith("#"):
+            level = min(len(stripped) - len(stripped.lstrip("#")), 3)
+            yield "heading", (level, stripped.lstrip("#").strip())
+            i += 1
+            continue
+        if stripped.startswith(("- ", "* ", "+ ")):
+            items = []
+            while i < len(lines):
+                item = lines[i].strip()
+                if item.startswith(("- ", "* ", "+ ")):
+                    items.append(item[2:].strip())
+                    i += 1
+                elif not item and i + 1 < len(lines) and lines[i + 1].strip().startswith(("- ", "* ", "+ ")):
+                    i += 1
+                else:
+                    break
+            yield "bullets", items
+            continue
+        para = [stripped]
+        i += 1
+        while i < len(lines):
+            nxt_line = lines[i].strip()
+            if not nxt_line or nxt_line.startswith("#") or nxt_line.startswith(("- ", "* ", "+ ")):
+                break
+            if _parse_markdown_table(lines, i)[0]:
+                break
+            para.append(nxt_line)
+            i += 1
+        yield "paragraph", " ".join(para)
+
+
+def _extract_sources(markdown: str):
+    """Source references explicitly present in the draft (Source: lines or a
+    Sources section). They are copied to the artifact, never invented."""
+    import re as _re
+    found = []
+    in_sources = False
+    for raw in str(markdown or "").splitlines():
+        line = raw.strip()
+        if _re.match(r"^#{1,6}\s*sources?\s*$", line, _re.I):
+            in_sources = True
+            continue
+        if in_sources and line.startswith("#"):
+            in_sources = False
+        match = _re.match(r"^(?:source|sources|reference|references)\s*:\s*(.+)$", line, _re.I)
+        if match:
+            found.append(match.group(1).strip())
+        elif in_sources and line.startswith(("- ", "* ", "+ ")):
+            found.append(line[2:].strip())
+        elif in_sources and line and not line.startswith("#"):
+            found.append(line)
+    return [item for item in dict.fromkeys(found) if item]
 
 
 class ExcelManager:
@@ -100,12 +230,23 @@ class ExcelManager:
                 sheet_name = ws.title
 
             if not coordinate:
-                # Return sheet overview or all cells if range is empty
+                # Return sheet overview (including EVERY sheet's used
+                # rectangle) so the canvas hydrates the full workbook instead
+                # of truncating at a hardcoded A1:Z500 window.
                 return {
                     "success": True,
                     "sheet_name": sheet_name,
                     "dimensions": ws.dimensions,
-                    "sheet_names": wb.sheetnames
+                    "sheet_names": wb.sheetnames,
+                    "sheets": [
+                        {
+                            "name": sheet.title,
+                            "dimensions": sheet.dimensions,
+                            "max_row": sheet.max_row,
+                            "max_column": sheet.max_column,
+                        }
+                        for sheet in wb.worksheets
+                    ],
                 }
 
             # Check if it's a range or a single cell
@@ -127,16 +268,28 @@ class ExcelManager:
                 raw_wb = openpyxl.load_workbook(file_path, data_only=False)
                 raw_ws = raw_wb[sheet_name] if sheet_name in raw_wb.sheetnames else raw_wb.active
                 formulas: Dict[str, str] = {}
+                computed = {
+                    cell.get("cell_ref"): cell.get("value")
+                    for row in data for cell in row
+                    if isinstance(cell, dict)
+                }
                 for raw_row in raw_ws[coordinate]:
                     for raw_cell in raw_row:
                         if isinstance(raw_cell.value, str) and raw_cell.value.startswith('='):
                             formulas[raw_cell.coordinate] = raw_cell.value
+                # A formula with no cached value is NOT a blank cell: the
+                # engine did not support/evaluate it. Name it explicitly.
+                formula_gaps = [
+                    coord for coord in formulas
+                    if computed.get(coord) is None
+                ]
                 return {
                     "success": True,
                     "sheet_name": sheet_name,
                     "coordinate": coordinate,
                     "cells": data,
                     "formulas": formulas,
+                    "formula_gaps": formula_gaps,
                     "sheet_names": wb.sheetnames
                 }
             else:
@@ -154,6 +307,7 @@ class ExcelManager:
                     "coordinate": coordinate,
                     "value": cell.value,
                     "formula": formula,
+                    "cached_value_missing": bool(is_formula and cell.value is None),
                     "cell_type": "formula" if is_formula else "text"
                 }
         except Exception as e:
@@ -235,27 +389,51 @@ class ExcelManager:
             wb.save(file_path)
 
             # Recalculate via the workbook runtime so the agent sees computed
-            # results immediately (not stale formula strings). Best-effort:
-            # a runtime failure doesn't break the write.
+            # results immediately (not stale formula strings). This MUST run
+            # for a plain value edit too: editing A1 is exactly how a dependent
+            # =SUM(A1:B1) changes. The old `and is_formula` gate certified the
+            # formula string while leaving every dependent stale.
             computed_value = value
+            recalculated = False
+            recalc_engine = "none"
+            recalc_status = "not_applicable"
+            formula_gaps: List[str] = []
+            formula_cells: List[tuple] = []
             try:
                 from core.workbook_runtime import get_workbook_runtime
                 runtime = get_workbook_runtime()
-                if runtime.can_evaluate and is_formula:
-                    # Run recalc synchronously (write_cell is a sync method).
-                    import asyncio
-                    try:
-                        loop = asyncio.new_event_loop()
-                        loop.run_until_complete(runtime.recalculate(file_path))
-                        loop.close()
-                    except Exception:
-                        pass  # Recalc failed — keep the formula as the value.
-                    # Read the now-computed value.
-                    wb2 = openpyxl.load_workbook(file_path, data_only=True)
-                    ws2 = wb2[sheet_name] if sheet_name in wb2.sheetnames else wb2.active
-                    computed_value = ws2[coordinate].value
+                recalc_engine = runtime.engine
+                raw_wb = openpyxl.load_workbook(file_path, data_only=False)
+                for ws_any in raw_wb.worksheets:
+                    for row_any in ws_any.iter_rows():
+                        for c in row_any:
+                            if isinstance(c.value, str) and c.value.startswith('='):
+                                formula_cells.append((ws_any.title, c.coordinate))
+                if formula_cells:
+                    if not runtime.can_evaluate:
+                        recalc_status = "unavailable"
+                        formula_gaps = [f"{sheet}!{cell}" for sheet, cell in formula_cells]
+                    else:
+                        _run_async_sync(runtime.recalculate(file_path))
+                        wb2 = openpyxl.load_workbook(file_path, data_only=True)
+                        ws2 = wb2[sheet_name] if sheet_name in wb2.sheetnames else wb2.active
+                        computed_value = ws2[coordinate].value
+                        evaluated = 0
+                        for ws_name, cell_ref in formula_cells:
+                            calc_ws = wb2[ws_name] if ws_name in wb2.sheetnames else None
+                            value_now = calc_ws[cell_ref].value if calc_ws is not None else None
+                            if value_now is None:
+                                formula_gaps.append(f"{ws_name}!{cell_ref}")
+                            else:
+                                evaluated += 1
+                        recalculated = evaluated == len(formula_cells)
+                        recalc_status = "complete" if not formula_gaps else "partial"
+                else:
+                    recalc_status = "not_applicable"
             except Exception as recalc_err:
-                logger.debug(f"Recalc after write skipped (non-fatal): {recalc_err}")
+                logger.warning(f"Recalc after write failed (non-fatal): {recalc_err}")
+                recalc_status = "failed"
+                formula_gaps = [f"{sheet}!{cell}" for sheet, cell in formula_cells] or ["<recalc_failed>"]
 
             return {
                 "success": True,
@@ -263,6 +441,10 @@ class ExcelManager:
                 "coordinate": coordinate,
                 "value": computed_value,
                 "formula": value if is_formula else None,
+                "recalculated": recalculated,
+                "recalc_status": recalc_status,
+                "recalc_engine": recalc_engine,
+                "formula_gaps": formula_gaps,
                 "message": f"Updated {sheet_name}!{coordinate} successfully"
             }
         except Exception as e:
@@ -407,6 +589,87 @@ class WordManager:
             logger.error(f"Error reading Word document: {e}")
             return {"success": False, "error": "Failed to read Word document"}
 
+
+    def create_from_markdown(
+        self,
+        file_path: str,
+        markdown: str,
+        title: Optional[str] = None,
+        sources: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Create a REAL .docx from a markdown draft.
+
+        Headings become Word headings, bullets become list paragraphs, and
+        markdown tables become real Word tables (the old generator flattened
+        every line into a paragraph, so "requested table" was never a table).
+        Source references already present in the draft are carried into the
+        document metadata and a Sources section.
+        """
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+        try:
+            document = docx.Document()
+            blocks = list(_markdown_blocks(markdown))
+            first_heading = next(
+                (payload[1] for kind, payload in blocks if kind == "heading" and payload[1]),
+                "",
+            )
+            if title and str(title).strip().lower() != str(first_heading).strip().lower():
+                document.add_heading(str(title), level=0)
+            for kind, payload in blocks:
+                if kind == "heading":
+                    level, text = payload
+                    if text:
+                        document.add_heading(text, level=level)
+                elif kind == "bullets":
+                    for item in payload:
+                        document.add_paragraph(item, style="List Bullet")
+                elif kind == "table":
+                    rows = payload
+                    cols = max(len(row) for row in rows)
+                    table = document.add_table(rows=len(rows), cols=cols)
+                    table.style = "Table Grid"
+                    for r_idx, row in enumerate(rows):
+                        for c_idx in range(cols):
+                            cell = table.cell(r_idx, c_idx)
+                            cell.text = row[c_idx] if c_idx < len(row) else ""
+                            if r_idx == 0:
+                                for run in cell.paragraphs[0].runs:
+                                    run.bold = True
+                else:
+                    text = str(payload or "").strip()
+                    if text:
+                        document.add_paragraph(text)
+            source_list = [str(item) for item in (sources or []) if str(item).strip()]
+            has_sources_heading = any(
+                kind == "heading" and str(payload[1]).strip().lower() in ("source", "sources")
+                for kind, payload in blocks
+            )
+            if source_list and not has_sources_heading:
+                document.add_heading("Sources", level=1)
+                for item in dict.fromkeys(source_list):
+                    document.add_paragraph(item, style="List Bullet")
+            props = document.core_properties
+            props.title = title or "Atom generated document"
+            props.subject = "Generated by Atom"
+            props.comments = "Grounded artifact; sources: " + ("; ".join(source_list) or "none recorded")
+            props.author = "Atom"
+            os.makedirs(os.path.dirname(file_path) or ".", exist_ok=True)
+            document.save(file_path)
+            return {
+                "success": True,
+                "file_path": file_path,
+                "format": "docx",
+                "tables": sum(1 for kind, _ in _markdown_blocks(markdown) if kind == "table"),
+                "sources": source_list,
+                "size_bytes": os.path.getsize(file_path),
+            }
+        except Exception as e:
+            logger.error(f"Error creating Word document: {e}")
+            return {"success": False, "error": "Failed to create Word document"}
+
     def modify_document(self, file_path: str, action: str, content: str, options: dict = None) -> Dict[str, Any]:
         """Modify a Word document."""
         options = options or {}
@@ -472,13 +735,7 @@ class PowerPointManager:
             for idx, slide in enumerate(prs.slides):
                 shapes = []
                 for shape in slide.shapes:
-                    if shape.has_text_frame:
-                        shapes.append({
-                            "type": "text",
-                            "name": shape.name,
-                            "text": shape.text_frame.text
-                        })
-                    elif shape.has_table:
+                    if shape.has_table:
                         table_data = []
                         for row in shape.table.rows:
                             row_data = [cell.text for cell in row.cells]
@@ -488,10 +745,25 @@ class PowerPointManager:
                             "name": shape.name,
                             "table": table_data
                         })
-
+                    elif shape.has_text_frame and shape.text_frame.text:
+                        shapes.append({
+                            "type": "text",
+                            "name": shape.name,
+                            "text": shape.text_frame.text,
+                            "is_title": bool(getattr(shape, "is_placeholder", False)
+                                             and shape.placeholder_format.idx == 0),
+                        })
+                notes = ""
+                try:
+                    if slide.has_notes_slide:
+                        notes = slide.notes_slide.notes_text_frame.text or ""
+                except Exception:
+                    notes = ""
                 slides.append({
                     "slide_index": idx,
-                    "shapes": shapes
+                    "slide_number": idx + 1,
+                    "shapes": shapes,
+                    "notes": notes,
                 })
 
             return {
@@ -502,6 +774,151 @@ class PowerPointManager:
         except Exception as e:
             logger.error(f"Error reading PowerPoint: {e}")
             return {"success": False, "error": "Failed to read PowerPoint"}
+
+
+    def create_from_markdown(
+        self,
+        file_path: str,
+        markdown: str,
+        title: Optional[str] = None,
+        sources: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Create a REAL .pptx from a Slide N: outline.
+
+        Body lines can be bullets, prose, or markdown tables; tables become
+        native PowerPoint tables. Speaker notes and source references are
+        written to the notes pane so they survive reopen/download. Text boxes
+        stay inside the slide bounds and shrink for dense slides (no clipping).
+        """
+        if not PPTX_AVAILABLE:
+            return {"success": False, "error": "python-pptx library not installed"}
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+        try:
+            from core.chat_draft_classifier import extract_slide_outline
+            from pptx.util import Inches, Pt
+
+            slides_data = extract_slide_outline(markdown)
+            if not slides_data:
+                return {
+                    "success": False,
+                    "error": "No `Slide N:` outline found; a presentation was not generated.",
+                }
+            prs = pptx.Presentation()
+            prs.slide_width = Inches(13.333)
+            prs.slide_height = Inches(7.5)
+            title_layout = prs.slide_layouts[5]  # Title Only (real placeholder)
+            source_list = [str(item) for item in (sources or []) if str(item).strip()]
+
+            for deck_slide in slides_data:
+                slide = prs.slides.add_slide(title_layout)
+                title_shape = slide.shapes.title
+                if title_shape is None:
+                    title_shape = slide.shapes.add_textbox(
+                        Inches(0.55), Inches(0.35), Inches(12.2), Inches(0.9))
+                title_shape.left = Inches(0.55)
+                title_shape.top = Inches(0.35)
+                title_shape.width = Inches(12.2)
+                title_shape.height = Inches(0.9)
+                title_frame = title_shape.text_frame
+                title_frame.word_wrap = True
+                title_frame.text = deck_slide.get("title") or "Slide"
+                for para in title_frame.paragraphs:
+                    for run in para.runs:
+                        run.font.size = Pt(28)
+                        run.font.bold = True
+
+                body_lines = str(deck_slide.get("content") or "").splitlines()
+                notes_lines = []
+                kept = []
+                for line in body_lines:
+                    stripped = line.strip()
+                    if stripped.lower().startswith(("notes:", "speaker notes:")):
+                        notes_lines.append(stripped.split(":", 1)[1].strip())
+                    elif stripped.lower().startswith(("source:", "sources:", "reference:", "references:")):
+                        notes_lines.append(stripped)
+                    else:
+                        kept.append(line)
+                table_rows = None
+                table_start = 0
+                for i in range(len(kept)):
+                    rows, nxt = _parse_markdown_table(kept, i)
+                    if rows:
+                        table_rows = rows
+                        table_start = nxt
+                        break
+                if table_rows:
+                    rows_n = len(table_rows)
+                    cols_n = max(len(row) for row in table_rows)
+                    table_top = Inches(1.45)
+                    table_height = Inches(min(0.42 * rows_n, 4.9))
+                    shape = slide.shapes.add_table(
+                        rows_n, cols_n, Inches(0.55), table_top,
+                        Inches(12.2), table_height,
+                    )
+                    table = shape.table
+                    font_size = Pt(12 if rows_n <= 8 else 9)
+                    for r_idx, row in enumerate(table_rows):
+                        for c_idx in range(cols_n):
+                            cell = table.cell(r_idx, c_idx)
+                            cell.text = row[c_idx] if c_idx < len(row) else ""
+                            for para in cell.text_frame.paragraphs:
+                                for run in para.runs:
+                                    run.font.size = font_size
+                                    if r_idx == 0:
+                                        run.font.bold = True
+                    remainder = "\n".join(kept[table_start:]).strip()
+                    if remainder:
+                        below = slide.shapes.add_textbox(
+                            Inches(0.55), Inches(1.45 + min(0.42 * rows_n, 4.9) + 0.2),
+                            Inches(12.2), Inches(1.4))
+                        below.text_frame.word_wrap = True
+                        below.text_frame.text = remainder
+                        for para in below.text_frame.paragraphs:
+                            for run in para.runs:
+                                run.font.size = Pt(12)
+                else:
+                    body = "\n".join(kept).strip()
+                    if body:
+                        body_box = slide.shapes.add_textbox(
+                            Inches(0.55), Inches(1.45), Inches(12.2), Inches(5.55))
+                        frame = body_box.text_frame
+                        frame.word_wrap = True
+                        frame.text = body
+                        dense = len([ln for ln in body.splitlines() if ln.strip()]) > 10
+                        for para in frame.paragraphs:
+                            for run in para.runs:
+                                run.font.size = Pt(12 if dense else 16)
+
+                notes_text = "\n".join(
+                    item for item in dict.fromkeys(notes_lines + source_list) if item
+                )
+                if notes_text:
+                    try:
+                        slide.notes_slide.notes_text_frame.text = notes_text
+                    except Exception:
+                        pass
+
+            props = prs.core_properties
+            props.title = title or "Atom generated presentation"
+            props.subject = "Generated by Atom"
+            props.comments = "Grounded artifact; sources: " + ("; ".join(source_list) or "none recorded")
+            props.author = "Atom"
+            os.makedirs(os.path.dirname(file_path) or ".", exist_ok=True)
+            prs.save(file_path)
+            return {
+                "success": True,
+                "file_path": file_path,
+                "format": "pptx",
+                "slides": len(slides_data),
+                "sources": source_list,
+                "size_bytes": os.path.getsize(file_path),
+            }
+        except Exception as e:
+            logger.error(f"Error creating PowerPoint: {e}")
+            return {"success": False, "error": "Failed to create PowerPoint"}
 
     def modify_slides(self, file_path: str, action: str, options: dict) -> Dict[str, Any]:
         """Modify slide deck."""
@@ -544,6 +961,12 @@ class PowerPointManager:
 
                 new_content = options.get("content")
                 if new_content is not None:
+                    # Exclude the title by stable shape identity. A proxy
+                    # identity check (`shape is not title_shape`) can fail in
+                    # python-pptx, which made a body edit overwrite the slide
+                    # title when the slide had no body placeholder.
+                    title_shape = slide.shapes.title
+                    title_id = getattr(title_shape, "shape_id", None)
                     target = None
                     for ph in slide.placeholders:
                         try:
@@ -554,13 +977,23 @@ class PowerPointManager:
                             target = ph
                             break
                     if target is None:
-                        title_shape = slide.shapes.title
                         for shape in slide.shapes:
-                            if shape.has_text_frame and shape is not title_shape:
-                                target = shape
-                                break
+                            if not shape.has_text_frame:
+                                continue
+                            if title_id is not None and getattr(shape, "shape_id", None) == title_id:
+                                continue
+                            target = shape
+                            break
                     if target is not None:
                         target.text_frame.text = str(new_content)
+                    else:
+                        # No body shape: create one below the title instead of
+                        # mutating an unrelated shape or silently dropping text.
+                        from pptx.util import Inches as _Inches
+                        box = slide.shapes.add_textbox(
+                            _Inches(0.6), _Inches(1.5), _Inches(8.5), _Inches(4.5))
+                        box.text_frame.word_wrap = True
+                        box.text_frame.text = str(new_content)
 
             elif action == "set_shape_text":
                 # Canvas co-edit: replace the text of an existing shape while

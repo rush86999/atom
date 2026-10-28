@@ -2724,37 +2724,27 @@ def _office_draft(content: str, kind: str, title: str) -> Optional[tuple]:
 
     office = OfficeService()
     try:
+        from core.office_service import _extract_sources
+
+        sources = _extract_sources(content)
         if kind == "table":
             rows = markdown_table_rows(content) or []
+            if not rows:
+                return None
             res = office.excel.create_spreadsheet(file_path, rows)
         elif kind == "slides":
-            res = {"success": True}
-            for i, slide in enumerate(extract_slide_outline(content)):
-                res = office.pptx.modify_slides(
-                    file_path,
-                    "add_slide",
-                    {"title": slide["title"], "content": slide["content"]},
-                )
-                if not res.get("success"):
-                    break
+            # A forced PPTX with no `Slide N:` outline must NOT return a
+            # binding to a file that was never written (the old loop left
+            # res={"success": True} and shipped a nonexistent artifact).
+            outline = extract_slide_outline(content)
+            if not outline:
+                logger.warning("Office draft creation refused: no slide outline")
+                return None
+            res = office.pptx.create_from_markdown(
+                file_path, content, title=title, sources=sources)
         else:  # doc
-            res = {"success": True}
-            for ln in content.splitlines():
-                text = ln.strip()
-                if not text:
-                    continue
-                if text.startswith("# "):
-                    style = "Title"
-                elif text.startswith("## "):
-                    style = "Heading 1"
-                elif text.startswith("### "):
-                    style = "Heading 2"
-                else:
-                    style = "Normal"
-                text = text.lstrip("#").strip()
-                res = office.word.modify_document(file_path, "append", text, {"style": style})
-                if not res.get("success"):
-                    break
+            res = office.word.create_from_markdown(
+                file_path, content, title=title, sources=sources)
         if not res.get("success"):
             logger.warning(f"Office draft creation failed ({kind}): {res.get('error')}")
             return None

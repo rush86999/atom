@@ -63,7 +63,8 @@ class EmailMessage:
         timestamp: datetime = None,
         thread_id: str = None,
         attachments: List[Dict] = None,
-        read: bool = False
+        read: bool = False,
+        extra: Optional[Dict[str, Any]] = None,
     ):
         self.message_id = message_id
         self.from_email = from_email
@@ -75,6 +76,7 @@ class EmailMessage:
         self.thread_id = thread_id
         self.attachments = attachments or []
         self.read = read
+        self.extra = extra or {}
 
 
 class EmailDraft:
@@ -279,6 +281,179 @@ class EmailCanvasService:
             self.db.rollback()
             return {"success": False, "error": str(e)}
 
+    def import_eml(
+        self,
+        canvas_id: str,
+        user_id: str,
+        content: bytes,
+        filename: str = "message.eml",
+        agent_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Import an EML into an existing canvas as a received message and
+        seed an editable reply draft.
+
+        The imported message (envelope, body, thread headers, attachment
+        records) is persisted in the email audit trail; the Canvas row carries
+        the reply draft plus the source references so reload/restart agree.
+        Reading/importing NEVER sends. Imported attachments are marked
+        non-sendable so a later reply cannot silently return the source file.
+        """
+        import html as _html
+
+        from core.email_eml_import import parse_eml
+        from core.email_attachment_store import save_staged
+
+        try:
+            canvas = self.db.query(Canvas).filter(Canvas.id == canvas_id).first()
+            if canvas is None:
+                return {"success": False, "error": "Canvas not found"}
+            if canvas.created_by != str(user_id):
+                return {"success": False, "error": "Not the canvas owner"}
+
+            parsed = parse_eml(content, filename=filename)
+            attachments: List[Dict[str, Any]] = []
+            for item in parsed["attachments"]:
+                record = {
+                    "attachment_id": f"eml_{uuid.uuid4().hex}",
+                    "message_id": parsed["message_id"] or None,
+                    "provider": "local",
+                    "filename": item["filename"],
+                    "content_type": item["content_type"],
+                    "size": item["size"],
+                    "is_inline": item["inline"],
+                    "origin": "received",
+                    "direction": "received",
+                    "sendable": False,
+                    "ingestion": None,
+                    "added_by": {"actor": "import", "user_id": str(user_id), "agent_id": agent_id},
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                }
+                try:
+                    staged = save_staged(
+                        str(user_id), canvas_id, item["filename"],
+                        item["bytes"], item["content_type"])
+                    record["attachment_id"] = staged["attachment_id"]
+                    record["staged"] = True
+                except Exception as attach_err:
+                    record["staged"] = False
+                    record["store_error"] = str(attach_err)[:200]
+                attachments.append(record)
+
+            body_plain = parsed["body_plain"] or parsed["body_html"] or ""
+            subject = parsed["subject"] or "(no subject)"
+            reply_subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
+            quoted = _html.escape(body_plain).replace("\n", "<br/>")
+            reply_body = (
+                "<p></p>"
+                f"<hr/><p><strong>From:</strong> {_html.escape(parsed['from_email'])}<br/>"
+                f"<strong>Sent:</strong> {_html.escape(str(parsed.get('sent_at') or ''))}<br/>"
+                f"<strong>Subject:</strong> {_html.escape(subject)}</p>"
+                f"<blockquote>{quoted}</blockquote>"
+            )
+
+            message = EmailMessage(
+                message_id=parsed["message_id"] or str(uuid.uuid4()),
+                from_email=parsed["from_email"],
+                to_emails=parsed["to_emails"],
+                cc_emails=parsed["cc_emails"],
+                subject=subject,
+                body=body_plain,
+                thread_id=parsed.get("thread_key") or None,
+                attachments=attachments,
+                extra={
+                    "source": "eml_import",
+                    "source_file": filename,
+                    "in_reply_to": parsed.get("in_reply_to") or "",
+                    "references": parsed.get("references") or "",
+                    "sent_at": parsed.get("sent_at"),
+                    "body_html": parsed.get("body_html") or "",
+                },
+            )
+            draft = EmailDraft(
+                draft_id=str(uuid.uuid4()),
+                to_emails=[parsed["from_email"]] if parsed["from_email"] else [],
+                cc_emails=[],
+                subject=reply_subject,
+                body=reply_body,
+                attachments=[],
+            )
+            source_identity = {
+                "file_name": filename,
+                "sha256": parsed["source_sha256"],
+                "size": parsed["source_size"],
+                "message_id": parsed.get("message_id") or "",
+                "references": parsed.get("references") or "",
+                "in_reply_to": parsed.get("in_reply_to") or "",
+            }
+            metadata = {
+                "canvas_type": "email",
+                "component_type": "thread_view",
+                "subject": reply_subject,
+                "layout": "conversation",
+                "thread_id": parsed.get("thread_key") or str(uuid.uuid4()),
+                "draft": self._draft_to_dict(draft),
+                "messages": [self._message_to_dict(message)],
+                "attachments": attachments,
+                "imported_message": self._message_to_dict(message),
+                "source_identity": source_identity,
+                "source_file": filename,
+                "in_reply_to": parsed.get("in_reply_to") or "",
+                "references": parsed.get("references") or "",
+            }
+
+            canvas.canvas_type = "email"
+            canvas.name = subject
+            canvas.description = f"Email canvas: {subject}"
+            canvas.content = {
+                "to": ", ".join(draft.to_emails),
+                "cc": "",
+                "subject": reply_subject,
+                "body": reply_body,
+                "thread_id": metadata["thread_id"],
+                "in_reply_to": metadata["in_reply_to"],
+                "references": metadata["references"],
+                "source_message_id": parsed.get("message_id") or "",
+                "source_identity": source_identity,
+                "attachments": attachments,
+                "imported_from": parsed.get("from_email") or "",
+                "imported_to": parsed.get("to_emails") or [],
+                "imported_cc": parsed.get("cc_emails") or [],
+                "imported_subject": subject,
+                "imported_sent_at": parsed.get("sent_at"),
+            }
+            canvas.last_edited_by = str(user_id)
+            canvas.last_edited_at = datetime.now(timezone.utc)
+            self.db.add(canvas)
+
+            audit = CanvasAudit(
+                id=str(uuid.uuid4()),
+                created_at=_audit_now(),
+                tenant_id=canvas.tenant_id or "default",
+                agent_id=agent_id,
+                user_id=str(user_id),
+                canvas_id=canvas_id,
+                action_type="import_eml",
+                canvas_type="email",
+                details_json=metadata,
+            )
+            self.db.add(audit)
+            self.db.commit()
+            return {
+                "success": True,
+                "canvas_id": canvas_id,
+                "message_id": message.message_id,
+                "thread_id": metadata["thread_id"],
+                "subject": subject,
+                "draft_subject": reply_subject,
+                "draft_to": draft.to_emails,
+                "attachments": attachments,
+                "source_identity": source_identity,
+            }
+        except Exception as e:
+            logger.error(f"Failed to import EML: {e}")
+            self.db.rollback()
+            return {"success": False, "error": str(e)}
+
     def add_message_to_thread(
         self,
         canvas_id: str,
@@ -305,6 +480,9 @@ class EmailCanvasService:
             Dict with message details
         """
         try:
+            if self._canvas_owner_id(canvas_id) != str(user_id):
+                return {"success": False, "error": "Not the canvas owner"}
+
             audit = self.db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
                 CanvasAudit.canvas_type == "email"
@@ -387,6 +565,9 @@ class EmailCanvasService:
             Dict with draft details
         """
         try:
+            if self._canvas_owner_id(canvas_id) != str(user_id):
+                return {"success": False, "error": "Not the canvas owner"}
+
             audit = self.db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == canvas_id,
                 CanvasAudit.canvas_type == "email"
@@ -409,6 +590,22 @@ class EmailCanvasService:
             metadata["draft"] = self._draft_to_dict(draft)
             metadata["last_saved"] = datetime.now().isoformat()
 
+            # The Canvas row is the public read surface. A save_draft that
+            # only appends an audit row returned success while GET /api/canvas
+            # kept serving the pre-edit body.
+            canvas_row = self.db.query(Canvas).filter(Canvas.id == canvas_id).first()
+            if canvas_row is not None:
+                content = dict(canvas_row.content or {}) if isinstance(canvas_row.content, dict) else {}
+                content.update({
+                    "to": ", ".join(to_emails or []),
+                    "cc": ", ".join(cc_emails or []),
+                    "subject": subject,
+                    "body": body,
+                })
+                canvas_row.content = content
+                canvas_row.last_edited_by = str(user_id)
+                canvas_row.last_edited_at = datetime.now(timezone.utc)
+
             # Create draft audit entry
             draft_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
@@ -422,6 +619,7 @@ class EmailCanvasService:
                     "canvas_type": "email",
                     "component_type": "compose_form",
                     **metadata,
+                    "content": dict(canvas_row.content or {}) if canvas_row is not None else {},
                 }
             )
 
@@ -448,6 +646,8 @@ class EmailCanvasService:
         category: str,
         color: Optional[str] = None
     ) -> Dict[str, Any]:
+        if self._canvas_owner_id(canvas_id) != str(user_id):
+            return {"success": False, "error": "Not the canvas owner"}
         """
         Categorize an email into a bucket.
 
@@ -846,6 +1046,11 @@ class EmailCanvasService:
             record = known.get(aid)
             if not record:
                 raise ValueError(f"Unknown attachment: {aid}")
+            if record.get("sendable") is False:
+                raise ValueError(
+                    "A source attachment imported with the email cannot be "
+                    "sent back automatically; add a new attachment explicitly."
+                )
             filename = record.get("filename") or "attachment"
             if record.get("provider") == "local":
                 data = read_staged(user_id, canvas_id, aid)
@@ -911,6 +1116,9 @@ class EmailCanvasService:
     ) -> Dict[str, Any]:
         """Send the composed email through the deterministic email policy.
 
+        if canvas_id and self._canvas_owner_id(canvas_id) != str(user_id):
+            return {"success": False, "error": "Not the canvas owner"}
+
         With ``thread_id`` (an Outlook conversationId) the send becomes a
         REPLY inside that thread — Graph derives In-Reply-To/References and
         the Re: subject; the composer's To/Cc/Subject ride the reply's
@@ -928,6 +1136,8 @@ class EmailCanvasService:
         ``email_send_attempt`` — and broadcast as a ``canvas:update`` so
         agents/users co-editing the canvas see it live.
         """
+        if canvas_id and self._canvas_owner_id(canvas_id) != str(user_id):
+            return {"success": False, "error": "Not the canvas owner"}
         from core.email_policy import evaluate_email_action
 
         # Grounded send gate (Installation Adaptation Plan Phase 4): the
@@ -1848,6 +2058,7 @@ class EmailCanvasService:
                 status="active",
             ))
 
+        previous = self._latest_email_metadata(canvas_id) or {}
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
             created_at=_audit_now(),
@@ -1866,6 +2077,12 @@ class EmailCanvasService:
                 "reason": decision.get("reason"),
                 "payload": payload,
                 "sent_at": datetime.now().isoformat(),
+                # Send rows are events, not a new empty canvas. Carry the
+                # draft/attachment state so /attachments does not go blank
+                # after a blocked/failed/successful send attempt.
+                "draft": previous.get("draft"),
+                "attachments": previous.get("attachments") or [],
+                "messages": previous.get("messages") or [],
             },
         )
         self.db.add(audit)
@@ -1909,7 +2126,8 @@ class EmailCanvasService:
             "timestamp": message.timestamp.isoformat(),
             "thread_id": message.thread_id,
             "attachments": message.attachments,
-            "read": message.read
+            "read": message.read,
+            **dict(getattr(message, "extra", {}) or {}),
         }
 
     def _draft_to_dict(self, draft: EmailDraft) -> Dict[str, Any]:

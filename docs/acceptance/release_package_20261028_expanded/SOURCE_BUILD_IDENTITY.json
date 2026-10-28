@@ -1,0 +1,56 @@
+{
+ "schema": "atom-expanded-core-source-build-identity-3",
+ "release_tag": "expanded-core-2026-10-28-r3",
+ "tested_app_code_commit": "c04591909",
+ "supersedes": [
+  {
+   "tag": "expanded-core-2026-10-28",
+   "status": "withdrawn after read-only review"
+  },
+  {
+   "tag": "expanded-core-2026-10-28-r2",
+   "status": "withdrawn after focused re-review"
+  }
+ ],
+ "source_files": {
+  "backend/api/office_routes.py": "718952d07d77228495c9f3e3ae84a729610a5343cb48a314d9583fde549414fe",
+  "backend/api/canvas_routes.py": "d18dd0673587da6b174224bc2e9b3422780323e7e80ec31e19a33cae99318d2b",
+  "backend/api/canvas_email_routes.py": "b46200939f9447387e43bbf419a4c55ba78ff1d9fcd1db31baa6f2762e098bc4",
+  "backend/api/canvas_capability_routes.py": "13b0a717089bd8654314640e7e29645187798b9b2c0679397f6e60349e24d0c9",
+  "backend/core/office_service.py": "a571656aed661697938eda0b636bded3a6300f26a60b0bac39bb88b43bbd9797",
+  "backend/core/office_sync_service.py": "9e5fa4def29544a1832f75a4be7575c883e5510e18f944842d828eb56b4a7a73",
+  "backend/core/canvas_email_service.py": "68746e84028856a50e3ee35e9151d46808ba159de2de5b577b193c2c8aab133e",
+  "backend/core/email_eml_import.py": "201d89ba6e5d220cd58bce93141d786d29e1c654230e6013e752fb2862186bbf",
+  "backend/core/canvas_capability_service.py": "d63f7a0d557260fc058007ae23f038089c2b8a47fdd96954542c5807f92b87d4",
+  "backend/core/canvas_app_schema.py": "41a29633bf9b9f4c3fa7a7d303e98e5d64154763961d9748fd727c20d379b3d1",
+  "backend/core/chat_canvas_editor.py": "2b113258f28a509ee2252ac722ec50fe3c4f8e772b585b33d6a380e2bebb23d1",
+  "backend/core/chat_draft_classifier.py": "a529128002dff8c2836a153c7f0eb6ed6a0a8c72415083b07b7daa14b5d0953f",
+  "backend/tools/canvas_crud_tool.py": "2d3c99a86918abb739a622b79df31465020124f42f88c65cc068a63beca03601",
+  "backend/integrations/chat_routes.py": "c5e33d1d703440f0a7679bec91f6aba1913cd0c4b54b56456588d524d7b393c4",
+  "frontend-nextjs/components/canvas/OfficeFileCanvas.tsx": "18aca4b5bbb4ab0ef49ba03d3695ae62b8ed42fba87250bb95061dd1a949a63f",
+  "frontend-nextjs/components/canvas/CanvasCapabilityPanel.tsx": "fb2e09240bc531b89bb277d16a6fb3034fe98b877008f0b6904fee811774be00",
+  "frontend-nextjs/components/canvas/CanvasDataSection.tsx": "cfb45f2d5509e3561203908a71b6d48acf9e02b569edccc4a4bbea60715b7e7a",
+  "frontend-nextjs/components/canvas/CanvasPanel.tsx": "5e9d5eba8333014d7034abeb93f1cc51629afade45a0f08afbaeb09417c0384d",
+  "frontend-nextjs/pages/canvas/[id].tsx": "f152da2eb299485c839d46db1c92444a3bf6655d294bea90f2caf18fb85fd08a",
+  "scripts/acceptance/expanded_core_slices.cjs": "2ad33596195c3434d65bc56fe11d6a4d2c69a1a911911a7078e222b98d6c6d1a",
+  "scripts/acceptance/canvas_capability_ui.cjs": "7c8c83e4cbd7f8768080b33ed7215764b869dbc3edf29a5c9a9bd43666c3d749",
+  "scripts/acceptance/employee_job.cjs": "00162344e290aa99ea49063918e935d0d9d68fb294c1da26fcb0731b3714c393",
+  "scripts/acceptance/employee_job_after_restart.cjs": "7882ae0f07cd50302a30439c0cfc9ce5fbd665d55af67058ec6cf614369bbb88",
+  "backend/tests/test_canvas_capability_service.py": "f67c2c8a272a9a5ee1110686248fb93c9e6461e1652bfd25b9e9dbbe3bab989c"
+ },
+ "frontend_build": {
+  "build_id": "x6PCJJ04yaXGfge46krsN",
+  "build_id_sha256": "d2a023aa4e0f84cfd0db7b736a8ccee11c0752aa6cc93d7fd15bd3d23faf0aba"
+ },
+ "config": "config.env.template",
+ "evidence": {
+  "office_ui": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/ui_slices.json",
+  "office_artifacts": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/artifact_checks.json",
+  "capability_ui": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/capability_ui.json",
+  "employee_job": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/employee_job.json",
+  "employee_job_after_restart": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/employee_job_after_restart.json",
+  "artifacts_after_restart": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/artifact_checks_after_restart.json"
+ },
+ "world": "expanded_core_final_20261028 (run-ca4d4d520140)",
+ "note": "The distributed source archive is built from the tagged release commit; its hash is in the external RELEASE_MANIFEST.json."
+}

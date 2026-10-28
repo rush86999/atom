@@ -171,18 +171,30 @@ describe("OfficeFileCanvas", () => {
 
   describe("hydration (REST reload with no structured snapshot)", () => {
     it("fetches every sheet plus the formulas map for the formula bar", async () => {
-      getMock.mockImplementation((_url: string, params: { params: { cell_path: string } }) => {
-        if (params.params.cell_path === "A1:Z500") {
+      getMock.mockImplementation((_url: string, params: any) => {
+        if (!params.params.cell_path) {
           return Promise.resolve({
             data: {
               success: true,
               sheet_name: "Sheet1",
               sheet_names: ["Sheet1", "Summary"],
+              sheets: [
+                { name: "Sheet1", dimensions: "A1:C20" },
+                { name: "Summary", dimensions: "A1:B2" },
+              ],
+            },
+          });
+        }
+        if (params.params.cell_path === "/Sheet1/A1:C20") {
+          return Promise.resolve({
+            data: {
+              success: true,
+              sheet_name: "Sheet1",
               cells: [[{ cell_ref: "A1", value: "Widget", cell_type: "text" }]],
             },
           });
         }
-        if (params.params.cell_path === "/Summary/A1:Z500") {
+        if (params.params.cell_path === "/Summary/A1:B2") {
           return Promise.resolve({
             data: {
               success: true,
@@ -207,7 +219,10 @@ describe("OfficeFileCanvas", () => {
       expect(screen.getByLabelText("Formula bar")).toHaveDisplayValue("=SUM(Sheet1!A1)");
 
       expect(getMock).toHaveBeenCalledWith("/api/v1/office/excel", {
-        params: { file_path: "/data/office/book.xlsx", cell_path: "A1:Z500" },
+        params: { file_path: "/data/office/book.xlsx" },
+      });
+      expect(getMock).toHaveBeenCalledWith("/api/v1/office/excel", {
+        params: { file_path: "/data/office/book.xlsx", cell_path: "/Summary/A1:B2" },
       });
     });
   });
@@ -320,8 +335,8 @@ describe("OfficeFileCanvas", () => {
       expect(lastBody().data).toMatchObject({
         slide_number: 1,
         title: "Agenda",
-        content: "Body text",
       });
+      expect(lastBody().data).not.toHaveProperty("content");
     });
 
     it("adds a slide via the Add Slide button", async () => {

@@ -1,0 +1,208 @@
+{
+ "status": "passed",
+ "checks": [
+  {
+   "name": "post-restart workbook keeps quantity",
+   "ok": true,
+   "detail": 6
+  },
+  {
+   "name": "post-restart workbook keeps total",
+   "ok": true,
+   "detail": 147.5
+  },
+  {
+   "name": "post-restart workbook keeps formula",
+   "ok": true,
+   "detail": "=SUM(E2:E5)"
+  },
+  {
+   "name": "post-restart workbook keeps unrelated sheet",
+   "ok": true,
+   "detail": "Unrelated sheet must survive"
+  },
+  {
+   "name": "post-restart DOCX keeps total",
+   "ok": true,
+   "detail": "Employee job memo\nOrder 1001 decision memo\nMaya Chen requested approval for ORD-"
+  },
+  {
+   "name": "post-restart DOCX keeps table",
+   "ok": true,
+   "detail": [
+    [
+     "Subject",
+     "Decision",
+     "Evidence"
+    ],
+    [
+     "A-101",
+     "APPROVE",
+     "pipeline_a.csv row 2"
+    ],
+    [
+     "A-102",
+     "APPROVE",
+     "pipeline_a.csv row 3"
+    ],
+    [
+     "A-104",
+     "APPROVE",
+     "pipeline_a.csv row 5"
+    ]
+   ]
+  },
+  {
+   "name": "post-restart DOCX keeps correction",
+   "ok": true,
+   "detail": "2-6\norder-detail.csv\npipeline_a.csv\nCorrection: final approval confirmed by Maya Chen for 6 widgets."
+  },
+  {
+   "name": "post-restart DOCX keeps sources",
+   "ok": true,
+   "detail": " the order total is 147.50.\nSources\norders.xlsx Orders rows 2-6\norder-detail.csv\npipeline_a.csv\nCorrection: final approval confirmed by Maya Chen for 6 widgets."
+  },
+  {
+   "name": "post-restart PPTX slide order",
+   "ok": true,
+   "detail": [
+    "Order decision",
+    "Recommendation"
+   ]
+  },
+  {
+   "name": "post-restart PPTX keeps table",
+   "ok": true,
+   "detail": null
+  },
+  {
+   "name": "post-restart PPTX keeps notes",
+   "ok": true,
+   "detail": "Sources orders.xlsx, order-detail.csv, pipeline_a.csv."
+  },
+  {
+   "name": "capability A export has data rows",
+   "ok": true,
+   "detail": 4
+  },
+  {
+   "name": "capability A export carries provenance",
+   "ok": true,
+   "detail": [
+    "canvas_id",
+    "source_resource_id",
+    "source_file",
+    "source_version",
+    "manifest_revision",
+    "policy_revision",
+    "exported_at"
+   ]
+  },
+  {
+   "name": "capability A export numeric measure",
+   "ok": true,
+   "detail": [
+    [
+     120,
+     "n"
+    ],
+    [
+     110,
+     "n"
+    ],
+    [
+     20,
+     "n"
+    ],
+    [
+     95,
+     "n"
+    ]
+   ]
+  },
+  {
+   "name": "capability A export includes corrected amount",
+   "ok": true,
+   "detail": [
+    [
+     120,
+     "n"
+    ],
+    [
+     110,
+     "n"
+    ],
+    [
+     20,
+     "n"
+    ],
+    [
+     95,
+     "n"
+    ]
+   ]
+  },
+  {
+   "name": "capability B export has data rows",
+   "ok": true,
+   "detail": 4
+  },
+  {
+   "name": "capability B export carries provenance",
+   "ok": true,
+   "detail": [
+    "canvas_id",
+    "source_resource_id",
+    "source_file",
+    "source_version",
+    "manifest_revision",
+    "policy_revision",
+    "exported_at"
+   ]
+  },
+  {
+   "name": "capability B export numeric measure",
+   "ok": true,
+   "detail": [
+    [
+     2.5,
+     "n"
+    ],
+    [
+     8,
+     "n"
+    ],
+    [
+     12,
+     "n"
+    ],
+    [
+     4,
+     "n"
+    ]
+   ]
+  },
+  {
+   "name": "capability B export includes corrected hours",
+   "ok": true,
+   "detail": [
+    [
+     2.5,
+     "n"
+    ],
+    [
+     8,
+     "n"
+    ],
+    [
+     12,
+     "n"
+    ],
+    [
+     4,
+     "n"
+    ]
+   ]
+  }
+ ]
+}

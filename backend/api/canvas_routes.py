@@ -427,7 +427,7 @@ async def detach_canvas_agent(
 # not a second opinion per surface.
 CANVAS_UPLOAD_ALLOWED_EXTENSIONS = {
     "txt", "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt",
-    "csv", "json", "md", "html", "htm", "rtf", "odt", "png", "jpg",
+    "csv", "json", "md", "html", "htm", "rtf", "odt", "eml", "png", "jpg",
     "jpeg", "gif", "bmp", "tiff", "mp3", "wav", "mp4", "avi", "mov",
 }
 
@@ -489,6 +489,62 @@ async def upload_canvas_data(
     )
     ingested = result.get("status") == "ingested"
 
+    # ── File → authoritative canvas binding ─────────────────────────────
+    # Ingestion alone makes the file recallable in chat, but the workbook/
+    # document/deck canvas needs the REAL file on disk. Similarly an EML must
+    # become a structured email canvas (envelope/body/attachments), not a
+    # flat text memory row. Both bindings are workspace-owned through the
+    # canvas row and are returned so the UI can reload the opened artifact.
+    office_canvas = None
+    email_canvas = None
+    if file_ext in ("xlsx", "xlsm", "docx", "pptx"):
+        from core.office_sync_service import OfficeSyncService
+
+        bound = OfficeSyncService(db).materialize_upload(
+            canvas_id=canvas_id,
+            file_name=file_name,
+            content=content,
+            user_id=str(current_user.id),
+            title=file_name,
+        )
+        if bound.get("success"):
+            office_canvas = {
+                "canvas_id": bound["id"],
+                "canvas_type": bound["canvas_type"],
+                "component": bound["component"],
+                "file_path": bound["file_path"],
+                "content": bound["content"],
+            }
+    elif file_ext == "eml":
+        from core.canvas_email_service import EmailCanvasService
+
+        imported = EmailCanvasService(db).import_eml(
+            canvas_id=canvas_id,
+            user_id=str(current_user.id),
+            content=content,
+            filename=file_name,
+            agent_id=hire_id,
+        )
+        if imported.get("success"):
+            from core.models import Canvas as _Canvas
+
+            _row = db.query(_Canvas).filter(_Canvas.id == canvas_id).first()
+            email_canvas = {
+                "canvas_id": imported["canvas_id"],
+                "subject": imported.get("subject"),
+                "draft_subject": imported.get("draft_subject"),
+                "attachments": imported.get("attachments") or [],
+                "source_identity": imported.get("source_identity") or {},
+                "content": dict(_row.content or {}) if _row is not None else {},
+            }
+
+    # The data-loaded audit row is the read surface. Pin the canvas type to
+    # the artifact that was actually bound (email / sheets / docs /
+    # presentation), otherwise the page renders the pre-upload document shell.
+    if email_canvas:
+        canvas.canvas_type = "email"
+    elif office_canvas:
+        canvas.canvas_type = office_canvas["canvas_type"]
     db.add(CanvasAudit(
         canvas_id=canvas_id,
         tenant_id=canvas.tenant_id or "default",
@@ -502,6 +558,12 @@ async def upload_canvas_data(
             "role": role,
             "ingested": ingested,
             "doc_id": result.get("doc_id"),
+            # The latest audit row is what /api/canvas/{id} serves. Without
+            # the bound snapshot here, a file upload read back as the canvas's
+            # pre-upload blank document snapshot.
+            **(office_canvas["content"] if office_canvas else {}),
+            **({"content": office_canvas["content"]} if office_canvas else {}),
+            **({"content": email_canvas["content"]} if email_canvas else {}),
         },
     ))
     db.commit()
@@ -513,6 +575,8 @@ async def upload_canvas_data(
         "role": role,
         "file_name": file_name,
         "ingestion": result,
+        "office_canvas": office_canvas,
+        "email_canvas": email_canvas,
     }
 
 
@@ -746,6 +810,11 @@ async def fork_canvas(
         # Canvas.content column, so copying src.content forked the creation-era
         # snapshot instead of the draft the user sees. Copy the resolved read.
         new_canvas_type = source_read.get("canvas_type") or src.canvas_type
+        from core.canvas_capability_service import sanitize_capability_copy
+
+        # Capability copies keep the data shape but drop private teaching,
+        # source identity and approval bindings (independent instance).
+        forked_content = sanitize_capability_copy(source_read["content"], new_id)
 
         # 2. Independent copy: copied fields, all identity/state fields reset.
         new_canvas = Canvas(
@@ -756,7 +825,7 @@ async def fork_canvas(
             name=new_name,
             description=src.description,
             canvas_type=new_canvas_type,
-            content=source_read["content"],
+            content=forked_content,
             style=src.style,
             is_collaborative=src.is_collaborative,
             share_token=None,          # never inherit a share token
@@ -793,7 +862,7 @@ async def fork_canvas(
             details_json={
                 "source_canvas_id": canvas_id,
                 "title": new_name,
-                "content": source_read["content"],
+                "content": forked_content,
             },
         ))
 

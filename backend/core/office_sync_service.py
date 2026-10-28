@@ -23,6 +23,7 @@ Co-editing model (#39):
 import asyncio
 import logging
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -72,6 +73,21 @@ def _office_path_key(path: Any) -> str:
         return path.strip()
 
 
+def _file_identity(file_path: str) -> Dict[str, Any]:
+    """Stable artifact identity for snapshots/receipts (bytes, name, hash)."""
+    import hashlib
+
+    try:
+        data = Path(file_path).read_bytes()
+        return {
+            "file_name": Path(file_path).name,
+            "file_sha256": hashlib.sha256(data).hexdigest(),
+            "file_size": len(data),
+        }
+    except Exception:
+        return {}
+
+
 class OfficeSyncService:
     """Service coordinates bi-directional sync between files and canvas UI."""
 
@@ -102,17 +118,34 @@ class OfficeSyncService:
                 wb_raw = openpyxl.load_workbook(file_path, data_only=False)
                 sheets: List[Dict[str, Any]] = []
                 formulas: Dict[str, Dict[str, str]] = {}
+                formula_gaps: List[Dict[str, Any]] = []
                 for ws in wb.worksheets:
                     rows: List[List[Any]] = []
+                    computed: Dict[str, Any] = {}
                     for row in ws.iter_rows():
-                        rows.append([c.value for c in row])
-                    sheets.append({"name": ws.title, "rows": rows})
+                        row_values = []
+                        for c in row:
+                            row_values.append(c.value)
+                            computed[c.coordinate] = c.value
+                        rows.append(row_values)
+                    sheets.append({
+                        "name": ws.title,
+                        "rows": rows,
+                        "dimensions": ws.dimensions,
+                    })
                     # data_only=True strips formulas — read raw for the bar.
                     fmap: Dict[str, str] = {}
                     for rrow in wb_raw[ws.title].iter_rows():
                         for c in rrow:
                             if isinstance(c.value, str) and c.value.startswith("="):
                                 fmap[c.coordinate] = c.value
+                                if computed.get(c.coordinate) is None:
+                                    formula_gaps.append({
+                                        "sheet": ws.title,
+                                        "cell": c.coordinate,
+                                        "formula": c.value,
+                                        "reason": "no_cached_value_from_engine",
+                                    })
                     if fmap:
                         formulas[ws.title] = fmap
                 return {
@@ -121,17 +154,37 @@ class OfficeSyncService:
                     "sheet_names": wb.sheetnames,
                     "sheets": sheets,
                     "formulas": formulas,
+                    "formula_gaps": formula_gaps,
+                    "sheets_complete": True,
+                    "source_identity": _file_identity(file_path),
                 }
 
             if ext == ".docx":
                 d = docx.Document(file_path)
-                all_lines = [p.text for p in d.paragraphs]
+                # Soft line breaks inside one paragraph must not look like a
+                # new paragraph: the textarea is line↔paragraph mapped. Use a
+                # line-separator sentinel that the save path converts back.
+                all_lines = [p.text.replace("\n", "\u2028") for p in d.paragraphs]
                 paragraphs = [
                     {"index": i, "text": p.text, "style": getattr(p.style, "name", "Normal")}
                     for i, p in enumerate(d.paragraphs)
-                    if p.text.strip()
                 ]
-                return {"format": "docx", "text": "\n".join(all_lines), "paragraphs": paragraphs}
+                tables = []
+                for t_idx, table in enumerate(d.tables):
+                    tables.append({
+                        "index": t_idx,
+                        "rows": [
+                            [cell.text.strip() for cell in row.cells]
+                            for row in table.rows
+                        ],
+                    })
+                return {
+                    "format": "docx",
+                    "text": "\n".join(all_lines),
+                    "paragraphs": paragraphs,
+                    "tables": tables,
+                    "source_identity": _file_identity(file_path),
+                }
 
             if ext == ".pptx":
                 if not PPTX_AVAILABLE:
@@ -146,20 +199,57 @@ class OfficeSyncService:
                     except Exception:
                         pass
                     parts: List[str] = []
-                    for ph in slide.placeholders:
+                    tables: List[Dict[str, Any]] = []
+                    shapes: List[Dict[str, Any]] = []
+                    for shape in slide.shapes:
+                        if shape.has_table:
+                            table_rows = [
+                                [cell.text for cell in row.cells]
+                                for row in shape.table.rows
+                            ]
+                            tables.append({"name": shape.name, "rows": table_rows})
+                            shapes.append({
+                                "type": "table", "name": shape.name,
+                                "table": table_rows,
+                            })
+                            continue
+                        if not shape.has_text_frame or not shape.text_frame.text:
+                            continue
+                        is_title = False
                         try:
-                            if ph.placeholder_format.idx == 0:
-                                continue
+                            is_title = bool(
+                                getattr(shape, "is_placeholder", False)
+                                and shape.placeholder_format.idx == 0)
                         except Exception:
-                            pass
-                        if ph.has_text_frame and ph.text_frame.text:
-                            parts.append(ph.text_frame.text)
+                            is_title = False
+                        if is_title:
+                            title = title or shape.text_frame.text
+                        else:
+                            parts.append(shape.text_frame.text)
+                        shapes.append({
+                            "type": "text", "name": shape.name,
+                            "text": shape.text_frame.text,
+                            "is_title": is_title,
+                        })
+                    notes = ""
+                    try:
+                        if slide.has_notes_slide:
+                            notes = slide.notes_slide.notes_text_frame.text or ""
+                    except Exception:
+                        notes = ""
                     slides.append({
                         "slide_number": idx + 1,
                         "title": title,
                         "content": "\n".join(parts),
+                        "tables": tables,
+                        "shapes": shapes,
+                        "notes": notes,
                     })
-                return {"format": "pptx", "slides": slides}
+                return {
+                    "format": "pptx",
+                    "slides": slides,
+                    "source_identity": _file_identity(file_path),
+                }
         except Exception as e:
             logger.debug(f"Structured read skipped for {file_path}: {e}")
         return {}
@@ -195,7 +285,7 @@ class OfficeSyncService:
             # bytes written by tooling). There is no structure to preserve —
             # fall back to a fresh document carrying the new lines.
             d = docx.Document()
-        lines = content.split("\n")
+        lines = [line.replace("\u2028", "\n") for line in content.split("\n")]
         paras = list(d.paragraphs)
 
         for i, p in enumerate(paras):
@@ -230,6 +320,7 @@ class OfficeSyncService:
             return {"success": False, "error": f"File not found: {file_path}"}
 
         ext = Path(file_path).suffix.lower()
+        res = {"success": True}
         try:
             if ext == ".xlsx" and edit_type == "cell":
                 cell_path = data.get("cell_path")
@@ -255,6 +346,7 @@ class OfficeSyncService:
                 # In-place paragraph sync — preserves headings, tables, images
                 # and paragraph styles (the old rebuild lost all of them).
                 self._sync_docx_in_place(file_path, str(content))
+                res = {"success": True}
 
             elif ext == ".pptx" and edit_type == "slide":
                 res = self.office.pptx.modify_slides(
@@ -285,8 +377,32 @@ class OfficeSyncService:
             else:
                 return {"success": False, "error": f"Unsupported sync edit type: {edit_type} for extension {ext}"}
 
-            # Snapshot AFTER the write so callers/UI get fresh content.
+            # Snapshot AFTER the write so callers/UI get fresh content. Carry
+            # the write's recalc verdict forward: a failed/unavailable engine
+            # must not look like a successful recalculation just because old
+            # cached values are still present in the file.
             content_snapshot = self._read_structured_content(file_path)
+            if isinstance(res, dict) and res.get("formula_gaps"):
+                existing = {
+                    (gap.get("sheet"), gap.get("cell"))
+                    for gap in content_snapshot.get("formula_gaps") or []
+                    if isinstance(gap, dict)
+                }
+                for gap in res.get("formula_gaps") or []:
+                    if isinstance(gap, str) and "!" in gap and gap != "<recalc_failed>":
+                        sheet, cell = gap.split("!", 1)
+                        if (sheet, cell) not in existing:
+                            content_snapshot.setdefault("formula_gaps", []).append({
+                                "sheet": sheet, "cell": cell,
+                                "reason": res.get("recalc_status") or "recalc_failed",
+                            })
+                    elif gap == "<recalc_failed>":
+                        content_snapshot.setdefault("formula_gaps", []).append({
+                            "sheet": "", "cell": "", "reason": "recalc_failed",
+                        })
+            if isinstance(res, dict):
+                content_snapshot["recalc_status"] = res.get("recalc_status")
+                content_snapshot["recalculated"] = res.get("recalculated")
             component, canvas_type = OFFICE_COMPONENT_MAP.get(ext, ("office_word", "docs"))
 
             # Keep any persisted Canvas row's content fresh so reloading
@@ -299,14 +415,21 @@ class OfficeSyncService:
             self._refresh_canvas_row(canvas_id, content_snapshot, user_id)
 
             # After saving the file, push updated preview back to all subscribers
-            self.broadcast_file_update(canvas_id, file_path, user_id)
+            self.broadcast_file_update(
+                canvas_id, file_path, user_id,
+                snapshot_overrides={
+                    key: content_snapshot.get(key)
+                    for key in ("recalc_status", "recalculated", "formula_gaps")
+                    if content_snapshot.get(key) is not None
+                },
+            )
 
             return {
                 "success": True,
                 "message": f"Successfully synchronized canvas {canvas_id} changes to {file_path}",
                 "component": component,
                 "canvas_type": canvas_type,
-                "content": self._read_structured_content(file_path),
+                "content": content_snapshot,
             }
 
         except Exception as e:
@@ -344,7 +467,10 @@ class OfficeSyncService:
         if row is None and not canvas_id:
             candidates = (
                 self.db.query(Canvas)
-                .filter(Canvas.status == "active")
+                .filter(
+                    Canvas.status == "active",
+                    Canvas.created_by == str(user_id),
+                )
                 .order_by(Canvas.updated_at.desc())
                 .limit(100)
                 .all()
@@ -377,6 +503,10 @@ class OfficeSyncService:
             self.db.add(row)
             created = True
 
+        # Existing blank/typed canvases must ADOPT the office type when they
+        # bind a real file; leaving canvas_type="document" made the page and
+        # gallery treat a workbook as a text document.
+        row.canvas_type = canvas_type
         snapshot = dict(self._read_structured_content(contained))
         meta = dict(row.content if isinstance(row.content, dict) else {})
         meta.update(snapshot)
@@ -395,6 +525,70 @@ class OfficeSyncService:
             "component": component,
             "content": meta,
         }
+
+    def materialize_upload(
+        self,
+        canvas_id: str,
+        file_name: str,
+        content: bytes,
+        user_id: str,
+        title: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Write uploaded office bytes into ATOM_OFFICE_DIR and bind the canvas.
+
+        Uploaded documents previously went only to memory ingestion; no real
+        file existed for the office read/edit endpoints, so the workbook/doc/
+        deck canvas had nothing authoritative to open. This is the connection.
+        """
+        import hashlib
+
+        safe_stem = re.sub(
+            r"[^A-Za-z0-9._-]+", "-", Path(file_name).stem
+        ).strip("-")[:60] or "upload"
+        ext = Path(file_name).suffix.lower()
+        if ext not in {".xlsx", ".xlsm", ".docx", ".pptx"}:
+            return {"success": False, "error": f"Unsupported office format: {ext}"}
+        office_dir = Path(
+            os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))
+        ).resolve()
+        office_dir.mkdir(parents=True, exist_ok=True)
+        target = _validate_office_path(
+            str(office_dir / f"{safe_stem}-{uuid.uuid4().hex[:8]}{ext}")
+        )
+        Path(target).write_bytes(content)
+        if ext in {".xlsx", ".xlsm"}:
+            # Uploaded workbooks often carry formulas with no cached values.
+            # Evaluate and cache them BEFORE the snapshot is persisted, so the
+            # canvas opens with real computed values (formula strings stay).
+            try:
+                from core.office_service import _run_async_sync
+                from core.workbook_runtime import get_workbook_runtime
+
+                runtime = get_workbook_runtime()
+                if runtime.can_evaluate:
+                    _run_async_sync(runtime.recalculate(target))
+            except Exception as recalc_err:
+                logger.warning(f"Upload recalc skipped for {target}: {recalc_err}")
+        bound = self.ensure_canvas_for_file(
+            canvas_id=canvas_id, file_path=target,
+            user_id=user_id, title=title or file_name,
+        )
+        meta = dict(bound.get("content") or {})
+        meta["source_identity"] = {
+            "file_name": file_name,
+            "stored_name": Path(target).name,
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "size": len(content),
+            "uploaded_by": user_id,
+        }
+        row = self.db.query(Canvas).filter(Canvas.id == bound["id"]).first()
+        if row is not None:
+            row.content = meta
+            self.db.commit()
+        bound["content"] = meta
+        bound["file_path"] = target
+        bound["source_identity"] = meta["source_identity"]
+        return {"success": True, **bound}
 
     def _refresh_canvas_row(
         self, canvas_id: str, content_snapshot: Dict[str, Any], user_id: str
@@ -474,7 +668,10 @@ class OfficeSyncService:
     # File → Canvas broadcast
     # ------------------------------------------------------------------
 
-    def broadcast_file_update(self, canvas_id: str, file_path: str, user_id: str):
+    def broadcast_file_update(
+        self, canvas_id: str, file_path: str, user_id: str,
+        snapshot_overrides: Optional[Dict[str, Any]] = None,
+    ):
         """Broadcast updated document HTML render to the Canvas WebSocket subscribers."""
         # R53: contain the path — this reads the file (render + memory
         # ingestion) and stores its HTML in CanvasAudit/WS state the caller
@@ -515,6 +712,8 @@ class OfficeSyncService:
             # Structured snapshot rides along so editable UIs can render real
             # inputs instead of scraping HTML.
             content_snapshot = self._read_structured_content(file_path)
+            if snapshot_overrides:
+                content_snapshot.update(snapshot_overrides)
             payload_data: Dict[str, Any] = dict(content_snapshot)
             payload_data.update({
                 "html": html,

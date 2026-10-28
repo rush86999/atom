@@ -1,0 +1,256 @@
+{
+ "status": "passed",
+ "checks": [
+  {
+   "name": "admin login API",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "agent created through product API",
+   "ok": true,
+   "detail": 201
+  },
+  {
+   "name": "workbook uploaded through UI data-loading surface",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "canvas": "sheets"
+   }
+  },
+  {
+   "name": "workbook canvas opened as real XLSX",
+   "ok": true,
+   "detail": "sheets"
+  },
+  {
+   "name": "headers and text identifiers preserved",
+   "ok": true,
+   "detail": {
+    "a1": "Order ID",
+    "a2": "ORD-1001"
+   }
+  },
+  {
+   "name": "blank cell preserved as blank",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "numeric cell preserved as a number",
+   "ok": true,
+   "detail": "12.5"
+  },
+  {
+   "name": "formula cell displays computed value",
+   "ok": true,
+   "detail": "50"
+  },
+  {
+   "name": "select/filter rows through the canvas UI",
+   "ok": true,
+   "detail": "3 of 6 rows shown"
+  },
+  {
+   "name": "workbook edit save accepted by sync endpoint",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "authorized cell edit propagated dependent formula",
+   "ok": true,
+   "detail": "62.5"
+  },
+  {
+   "name": "dependent grand total recalculated",
+   "ok": true,
+   "detail": "135"
+  },
+  {
+   "name": "formula source preserved separately from computed value",
+   "ok": true,
+   "detail": "=SUM(E2:E5)"
+  },
+  {
+   "name": "unrelated sheet preserved",
+   "ok": true,
+   "detail": "Unrelated sheet must survive"
+  },
+  {
+   "name": "XLSX download produced a file",
+   "ok": true,
+   "detail": 5661
+  },
+  {
+   "name": "EML uploaded and bound as email canvas",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "canvas": "06ef78a9-fc77-4e44-95b1-d54f01412605"
+   }
+  },
+  {
+   "name": "sender/recipients/thread visible at UI boundary",
+   "ok": true,
+   "detail": "Imported message from maya.chen@example.com to pilot@atom.test, cc ops@example.com — thread reference preserved. This is an editable reply draft; nothing is sent without the Send action."
+  },
+  {
+   "name": "editable reply draft prefilled with reply recipient",
+   "ok": true,
+   "detail": "maya.chen@example.com"
+  },
+  {
+   "name": "reply subject preserved",
+   "ok": true,
+   "detail": "Re: Approve ORD-1001 and send summary"
+  },
+  {
+   "name": "attachment association preserved in composer",
+   "ok": true,
+   "detail": "ATTACHMENTS\norder-detail.csv\n33 B\nMAIL\nAttach"
+  },
+  {
+   "name": "reply draft persists across reload",
+   "ok": true,
+   "detail": "Reply draft: ORD-1001 is approved for 4 widgets. Source: order-detail.csv."
+  },
+  {
+   "name": "imported envelope preserved in durable canvas state",
+   "ok": true,
+   "detail": {
+    "from": "maya.chen@example.com",
+    "to": [
+     "pilot@atom.test"
+    ],
+    "cc": [
+     "ops@example.com"
+    ]
+   }
+  },
+  {
+   "name": "no send occurred during import/draft",
+   "ok": true,
+   "detail": [
+    "update",
+    "data_loaded",
+    "import_eml",
+    "agent_attached",
+    "create"
+   ]
+  },
+  {
+   "name": "DOCX table read at UI boundary",
+   "ok": true,
+   "detail": "TABLES (READ-ONLY)\nOrder\tQty\nORD-1001\t4\nORD-1002\t2"
+  },
+  {
+   "name": "DOCX correction save accepted by sync endpoint",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "DOCX corrected artifact downloaded",
+   "ok": true,
+   "detail": 36864
+  },
+  {
+   "name": "DOCX generated through product boundary",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "generated DOCX has requested headings and real table",
+   "ok": true,
+   "detail": {
+    "table": "TABLES (READ-ONLY)\nOrder\tQty\tLine total\nORD-1001\t4\t50.00\nORD-1002\t2\t60.00"
+   }
+  },
+  {
+   "name": "generated DOCX downloadable",
+   "ok": true,
+   "detail": 36977
+  },
+  {
+   "name": "PPTX slide order/title read",
+   "ok": true,
+   "detail": {
+    "s1": "Order briefing",
+    "s2": "Risk"
+   }
+  },
+  {
+   "name": "PPTX table read at UI boundary",
+   "ok": true,
+   "detail": "Order\tQty\nORD-1001\t4"
+  },
+  {
+   "name": "PPTX speaker notes read at UI boundary",
+   "ok": true,
+   "detail": "SPEAKER NOTESSource: orders.xlsx Orders rows 2-3."
+  },
+  {
+   "name": "PPTX correction save accepted by sync endpoint",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "PPTX corrected artifact downloaded",
+   "ok": true,
+   "detail": 34113
+  },
+  {
+   "name": "PPTX generated through product boundary",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "generated PPTX has correct slide order",
+   "ok": true,
+   "detail": {
+    "s1": "Order summary",
+    "s2": "Recommendation"
+   }
+  },
+  {
+   "name": "generated PPTX contains a real table",
+   "ok": true,
+   "detail": "Order\tQty\tLine total\nORD-1001\t4\t50.00\nORD-1002\t2\t60.00"
+  },
+  {
+   "name": "generated PPTX carries source notes",
+   "ok": true,
+   "detail": "SPEAKER NOTESSource orders.xlsx Orders rows 2-3 and order-detail.csv."
+  },
+  {
+   "name": "generated PPTX downloadable",
+   "ok": true,
+   "detail": 34318
+  },
+  {
+   "name": "no browser page errors",
+   "ok": true,
+   "detail": []
+  }
+ ],
+ "workbook_canvas_id": "42449c2f-9918-4b65-b47b-f187fbb6f9ef",
+ "email_canvas_id": "06ef78a9-fc77-4e44-95b1-d54f01412605",
+ "doc_canvas_id": "dba2594d-f197-436d-b507-2644bac29d54",
+ "pptx_canvas_id": "715cd3ee-ff36-4a2f-b5cd-528521f64c12",
+ "downloads": [
+  "brief-corrected.docx",
+  "brief-corrected.pptx",
+  "capability-a-export.xlsx",
+  "capability-b-export.xlsx",
+  "employee-job-deck-after-restart.pptx",
+  "employee-job-deck.pptx",
+  "employee-job-memo-after-restart.docx",
+  "employee-job-memo-corrected.docx",
+  "employee-job-workbook-after-restart.xlsx",
+  "employee-job-workbook.xlsx",
+  "generated-order-deck.pptx",
+  "generated-order-memo.docx",
+  "orders-after-edit.xlsx"
+ ],
+ "page_errors": []
+}
