@@ -1327,6 +1327,19 @@ async def _execute_selection_plan(
     chosen = next(
         (e for e in entries if str(e.get("dataset_name")) == dataset_name), None
     )
+    # EXPLICIT-SHEET BINDING (2026-10-28): a local planner can omit
+    # dataset_name while the request itself names the sheet and the catalog
+    # has exactly one entry for it. Bind THAT entry deterministically; never
+    # guess among several. This is the same authority the request already
+    # supplied, not a fallback to another sheet.
+    if sheet_name is not None and chosen is None and not dataset_name:
+        bound = [
+            e for e in entries
+            if _norm_sheet(e.get("entity_name")) == sheet_name
+        ]
+        if len(bound) == 1:
+            chosen = bound[0]
+            dataset_name = str(chosen.get("dataset_name") or "")
     if sheet_name is not None and chosen is None:
         return _error_block(
             "SHEET BINDING VIOLATED",
