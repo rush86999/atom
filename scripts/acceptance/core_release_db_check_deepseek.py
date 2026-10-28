@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Zero-unauthorized-write check for the isolated core UI loop."""
 import json
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -9,9 +10,11 @@ WORLD = Path(
     "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/"
     "core_release_deepseek_20261028")
 OUT = Path(
-    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/"
-    "atom-whole-app/docs/acceptance/evidence/whole_app_20261028/"
-    "core_release_ui_loop_deepseek_20261028/db_check.json")
+    os.environ.get(
+        "UI_OUT_DIR",
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/"
+        "atom-whole-app/docs/acceptance/evidence/whole_app_20261028/"
+        "core_release_ui_loop_deepseek_20261028/db_check.json")) / "db_check.json"
 state = json.loads((WORLD / "preview_stack.json").read_text())
 db = Path(state["db_path"])
 con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)

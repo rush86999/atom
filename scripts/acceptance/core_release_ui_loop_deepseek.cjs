@@ -8,9 +8,12 @@ const BASE = 'http://127.0.0.1:3114';
 const API = 'http://127.0.0.1:8061';
 const WORLD = '/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/core_release_deepseek_20261028';
 const PW = fs.readFileSync(WORLD + '/backend_root/logs/bootstrap_admin_password.txt', 'utf8').trim();
-const OUT = path.join(ROOT, 'docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028');
-const GRANTS = path.join(OUT, 'fixtures/grants_loop.csv');
-const VENDOR = path.join(OUT, 'fixtures/vendor_loop.csv');
+const OUT = process.env.UI_OUT_DIR
+  ? path.resolve(process.env.UI_OUT_DIR)
+  : path.join(ROOT, 'docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt2');
+const FIXTURES = path.join(ROOT, 'docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028/fixtures');
+const GRANTS = path.join(FIXTURES, 'grants_loop.csv');
+const VENDOR = path.join(FIXTURES, 'vendor_loop.csv');
 const RESTART = path.join(ROOT, 'scripts/acceptance/core_release_ui_restart_deepseek.py');
 const DB_CHECK = path.join(ROOT, 'scripts/acceptance/core_release_db_check_deepseek.py');
 const ORIGINAL = 'Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.';
