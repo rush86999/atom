@@ -27431,17 +27431,36 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             max_tokens=extra_kwargs.get("max_tokens"),
                         ))
                     if _structured_review_answer:
+                        _structured_provider = (
+                            getattr(self.llm_service.handler,
+                                    "_last_used_provider", None)
+                            or "structured")
+                        _structured_model = (
+                            getattr(self.llm_service.handler,
+                                    "_last_used_model", None)
+                            or "structured")
                         _streamed = _structured_review_answer
                         _stream_route = (
-                            getattr(self.llm_service.handler,
-                                    "_last_used_provider", None) or "structured",
-                            getattr(self.llm_service.handler,
-                                    "_last_used_model", None) or "structured",
-                        )
+                            _structured_provider, _structured_model)
+                        # The later grounding/validation/persistence
+                        # pipeline reads response_data, not _streamed.
+                        # Populate it HERE so the structured review is the
+                        # turn's answer instead of being replaced by empty
+                        # text or a later regeneration.
+                        response_data = {
+                            "success": True,
+                            "content": _structured_review_answer,
+                            "model": _structured_model,
+                            "provider": _structured_provider,
+                            "requested_model": _structured_model,
+                            "requested_provider": _structured_provider,
+                            "structured_review": True,
+                        }
                         logger.info(
                             "[review-diag] structured generation_completed "
-                            "content_len=%d",
-                            len(_structured_review_answer))
+                            "content_len=%d provider=%s model=%s",
+                            len(_structured_review_answer),
+                            _structured_provider, _structured_model)
                     else:
                         from core.review_result import LAST_STRUCTURED_REVIEW
 
