@@ -824,6 +824,17 @@ async def test_block_recovery_retry_uses_same_contract_and_ids():
     assert review["ok"] is True
 
 
+def test_review_generation_model_prefers_the_declared_review_model(monkeypatch):
+    from integrations.chat_orchestrator import _review_generation_model
+
+    monkeypatch.setenv("ATOM_REVIEW_MODEL", "deepseek-v4-pro")
+    assert _review_generation_model("auto") == "deepseek-v4-pro"
+    assert _review_generation_model("") == "deepseek-v4-pro"
+    assert _review_generation_model("explicit-model") == "explicit-model"
+    monkeypatch.delenv("ATOM_REVIEW_MODEL")
+    assert _review_generation_model("auto") == "auto"
+
+
 @pytest.mark.asyncio
 async def test_block_recovery_pins_the_last_used_model():
     """A format-collapse retry must not silently switch provider models."""

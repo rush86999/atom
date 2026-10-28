@@ -1372,6 +1372,20 @@ def _remaining_budget(turn_t0: float, budget: Optional[float] = None) -> float:
 _REVIEW_BLOCK_RECOVERY_RESERVE_S = 25.0
 
 
+def _review_generation_model(model: Any) -> str:
+    """The model for an assessment turn: explicit override, then the
+    installation's declared review model, then auto.
+
+    A verified launch configuration must not silently switch models between
+    the review generation and its contract-only format recovery.
+    """
+    text = str(model or "").strip()
+    if text.lower() not in ("", "auto"):
+        return text
+    pinned = str(os.getenv("ATOM_REVIEW_MODEL", "") or "").strip()
+    return pinned or "auto"
+
+
 async def _cancel_and_confirm(
     tasks: List["asyncio.Task"], *, grace: float = 1.0, label: str = "turn"
 ) -> Dict[str, Any]:
@@ -27244,6 +27258,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _ev_text[:280])
 
             forced_model = (routing_overrides or {}).get("model", "auto")
+            if _review_ask:
+                forced_model = _review_generation_model(forced_model)
             # MEASURE THE WHOLE PROMPT, not just the evidence section. The 18k
             # char evidence budget is a per-section budget; what the model
             # actually reads is instructions + history + canvas + evidence +
@@ -27354,6 +27370,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # ``tier``/``intent`` are forwarded as kwargs to the BYOK handler.
             overrides = routing_overrides or {}
             forced_model = overrides.get("model", "auto")
+            if _review_ask:
+                forced_model = _review_generation_model(forced_model)
             extra_kwargs: Dict[str, Any] = {}
             if "tier" in overrides:
                 extra_kwargs["cognitive_tier"] = overrides["tier"]

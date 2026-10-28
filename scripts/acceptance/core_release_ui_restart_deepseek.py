@@ -35,7 +35,10 @@ for _ in range(40):
 env = dict(os.environ)
 env.update(json.loads(ENV_FILE.read_text()))
 bp = int(STATE["backend_port"])
-fp = int(STATE.get("frontend_port") or 3114)
+# The production UI is the pre-existing build served on 3114; the preview
+# state may reserve a different unused frontend port because --no-frontend
+# was used for the API process.
+fp = 3114
 env["ACC_PORT"] = str(bp)
 env["ADDITIONAL_ALLOWED_ORIGINS"] = (
     f"http://localhost:{fp},http://127.0.0.1:{fp}")

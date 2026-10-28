@@ -334,7 +334,8 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
                  # policy and the local-only default are not changed.
                  "ATOM_LLM_PROVIDER_POLICY",
                  "ATOM_PREFERRED_LLM_PROVIDER",
-                 "ATOM_PREFERRED_LLM_MODEL"):
+                 "ATOM_PREFERRED_LLM_MODEL",
+                 "ATOM_REVIEW_MODEL"):
         if os.environ.get(name):
             env[name] = os.environ[name]
     env.update({
@@ -381,6 +382,7 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
             "ATOM_PREFERRED_LLM_PROVIDER", ""),
         "ATOM_PREFERRED_LLM_MODEL": env.get(
             "ATOM_PREFERRED_LLM_MODEL", ""),
+        "ATOM_REVIEW_MODEL": env.get("ATOM_REVIEW_MODEL", ""),
         "ATOM_SHEET_DATASETS": env["ATOM_SHEET_DATASETS"],
         "ENABLE_SCHEDULER": env["ENABLE_SCHEDULER"],
         "ENABLE_INGESTION_SYNC": env["ENABLE_INGESTION_SYNC"],
