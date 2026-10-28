@@ -1,0 +1,56 @@
+{
+ "status": "complete",
+ "complete": true,
+ "operation": "sum",
+ "measure": "Invoice Amount",
+ "file_name": "vendor_loop.csv",
+ "sheet": "vendor_loop",
+ "version": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+ "source_row_count": 4,
+ "selected_count": 3,
+ "not_selected_count": 1,
+ "source_status_counts": {
+  "Open": 3,
+  "Closed": 1
+ },
+ "selected_status_counts": {
+  "Open": 3
+ },
+ "known_count": 3,
+ "gaps": [],
+ "subtotals": {
+  "(unstated)": {
+   "rows": 3,
+   "value": "22200.00"
+  }
+ },
+ "rows": [
+  {
+   "identity": "IN-7301",
+   "identity_source": "identity_column",
+   "row": 2,
+   "value": "3200.00",
+   "currency": "",
+   "value_cell": "B2"
+  },
+  {
+   "identity": "IN-7302",
+   "identity_source": "identity_column",
+   "row": 3,
+   "value": "7000.00",
+   "currency": "",
+   "value_cell": "B3"
+  },
+  {
+   "identity": "IN-7303",
+   "identity_source": "identity_column",
+   "row": 4,
+   "value": "12000.00",
+   "currency": "",
+   "value_cell": "B4"
+  }
+ ],
+ "coverage": {},
+ "block": "LIVE TOOL RESULTS (datasets.aggregate \u2014 deterministic; the model did not compute this):\nWorkbook: `vendor_loop.csv`; Sheet: `vendor_loop`; Version: `0a84a5f50661`\nOperation: sum; measure: Invoice Amount\nSelected rows: 3; computable: 3; gaps: 0\nSheet rows: 4; selected by the predicate: 3; not selected: 1\nSelected status counts: Open=3\n| Currency | Rows | Value |\n|---|---:|---:|\n| (unstated) | 3 | 22200.00 |\nCompleteness: complete. All selected rows had required inputs.\nContributing rows:\n- row 2 (IN-7301): 3200.00  [B2]\n- row 3 (IN-7302): 7000.00  [B3]\n- row 4 (IN-7303): 12000.00  [B4]",
+ "answer": "Workbook: `vendor_loop.csv`; Sheet: `vendor_loop`; Version: `0a84a5f50661`\nOperation: sum; measure: Invoice Amount\nSelected rows: 3; computable: 3; gaps: 0\nSheet rows: 4; selected by the predicate: 3; not selected: 1\nSelected status counts: Open=3\n| Currency | Rows | Value |\n|---|---:|---:|\n| (unstated) | 3 | 22200.00 |\nCompleteness: complete. All selected rows had required inputs.\nContributing rows:\n- row 2 (IN-7301): 3200.00  [B2]\n- row 3 (IN-7302): 7000.00  [B3]\n- row 4 (IN-7303): 12000.00  [B4]"
+}

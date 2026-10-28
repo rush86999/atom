@@ -1,0 +1,59 @@
+{
+ "messages": [
+  {
+   "role": "system",
+   "content": "REVIEW OUTPUT CONTRACT. Return ONLY one fenced block with valid JSON; no prose before or after it. The outer JSON object MUST have its closing brace.\n```review_result\n{\"assessments\":[{\"subject_id\":\"<subject>\",\"decision\":\"<allowed decision>\",\"basis\":[\"<why this decision was made>\"],\"evidence_ids\":[\"<evidence id>\"],\"policy_ids\":[\"<policy id>\"],\"unresolved_requirements\":[]}]}\n```\nOnly the structured block is certified; the prose is explanatory. Use exactly one assessment object for every requested subject and no other object; every object MUST include subject_id. Use only the IDs listed here, and do not add subjects. Every assessment MUST set `decision` to exactly one allowed label below — not null, not an empty string, and not a request to confirm; produce the final decisions now. Every assessment MUST also include `evidence_ids`, `basis`, `unresolved_requirements`, and a NON-EMPTY `policy_ids` array. Copy at least one policy ID from the Policy IDs list below; never omit policy_ids, guess an ID, or attach a policy whose text does not support the decision. An assessment with a missing or empty policy_ids array is rejected.\n`decision` must be the label ONLY (for example HOLD), with no amount, parentheses or explanation; put the reasoning in `basis`. `basis` is WHY you made the decision: the policy, a business restriction, a negative finding, or an action required of another person. `unresolved_requirements` is ONLY accepted review work still unfinished (requested subjects/fields not assessed, or an action/send the user asked Atom to perform that was not performed). A negative recommendation, escalation recommendation, business restriction or required action by another person is not automatically an unfinished review. Report what remains necessary to fulfil the user's assigned task separately from the reasons supporting your decision.\nAllowed decisions: FUND, HOLD, DECLINE\nSubjects: IN-7301\nPolicy entries are INDEPENDENT standing instructions, not an ordered revision log. Do not infer that an entry supersedes another from its position. A correction is authoritative only when it rewrites the same policy ID in place; use that entry's current text. A newer unrelated lesson never invalidates an older applicable rule. Apply every entry that is applicable, and keep genuinely conflicting applicable rules explicit in `basis` and/or `unresolved_requirements` instead of silently choosing one.\nOnly the entries listed under Policy IDs are authorized to govern this assessment. Other workspace/memory lessons — including ones taught to a different agent — are background context only; they must not change the allowed decisions, subjects, evidence IDs, or policy IDs for this task.\nUse the applicable instruction text below, not just its topic. For every assessment, `basis` must explain the decision using the cited row values and the applicable policy text.\nEvidence IDs:\n- ev:IN-7301:vendor_loop!R2 | subject=IN-7301 | row=vendor_loop!R2\nPolicy IDs:\n- 044d2b537b4d4a2593dbaca52c64b8da | grant threshold rule\n  Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+  },
+  {
+   "role": "system",
+   "content": "AUTHORITATIVE BOUND ROW (the only row in this request):\n- source: vendor_loop.csv | version: 0a84a5f50661bc8a7917d158bcd36cad5b3f0262\n- row: vendor_loop!R2 | subject: IN-7301\n- values: Invoice Amount=3200; State=Open\nApply the policy below to these values."
+  },
+  {
+   "role": "user",
+   "content": "Assess IN-7301 under the taught threshold rule. Give the decision."
+  }
+ ],
+ "contract": {
+  "subjects": [
+   "IN-7301"
+  ],
+  "allowed_decisions": [
+   "FUND",
+   "HOLD",
+   "DECLINE"
+  ],
+  "required_actions": []
+ },
+ "evidence_index": [
+  {
+   "evidence_id": "ev:IN-7301:vendor_loop!R2",
+   "subject_id": "IN-7301",
+   "source_identity": {
+    "file_name": "vendor_loop.csv",
+    "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+    "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+   },
+   "retrieval_operation": "select:0a84a5f50661:41a36e6a-bb4b-4ec0-a743-2a890dc10128",
+   "retrieval_execution_id": "41a36e6a-bb4b-4ec0-a743-2a890dc10128",
+   "row_ref": "vendor_loop!R2",
+   "target_status": "matched",
+   "values": [
+    {
+     "field": "Invoice Amount",
+     "value": 3200
+    },
+    {
+     "field": "State",
+     "value": "Open"
+    }
+   ]
+  }
+ ],
+ "policy_index": [
+  {
+   "policy_id": "044d2b537b4d4a2593dbaca52c64b8da",
+   "topic": "grant threshold rule",
+   "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+  }
+ ]
+}

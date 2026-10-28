@@ -1,0 +1,94 @@
+{
+ "schema": "minimal-judgment-analysis-1",
+ "results_sha256": "1bc8ebbcf385d928c6ae599b730cbe4a5569b38d9a41721d9113a8cd000941ef",
+ "note": "Substance is the decision written in the response JSON. Certification is the product validator's separate reference/shape result. No decision was rewritten, and no label is ranked.",
+ "full_context": {
+  "subject": "IN-7301",
+  "expected": "DECLINE",
+  "raw_decision": "HOLD",
+  "substantive_match": false,
+  "certified": true,
+  "certification_errors": [],
+  "format_parseable": true
+ },
+ "minimal_cases": [
+  {
+   "case_id": "preserved_3200",
+   "subject": "IN-7301",
+   "expected": "DECLINE",
+   "raw_decision": "DECLINE",
+   "substantive_match": true,
+   "certified": false,
+   "certification_errors": [
+    "missing_structured_review",
+    "missing_decision"
+   ],
+   "format_parseable": true
+  },
+  {
+   "case_id": "unfamiliar_4321_25",
+   "subject": "IN-8801",
+   "expected": "DECLINE",
+   "raw_decision": "DECLINE",
+   "substantive_match": true,
+   "certified": true,
+   "certification_errors": [],
+   "format_parseable": true
+  },
+  {
+   "case_id": "boundary_4999_99",
+   "subject": "IN-8802",
+   "expected": "DECLINE",
+   "raw_decision": "DECLINE",
+   "substantive_match": true,
+   "certified": false,
+   "certification_errors": [
+    "unknown_evidence_id"
+   ],
+   "format_parseable": true
+  },
+  {
+   "case_id": "boundary_5000",
+   "subject": "IN-8803",
+   "expected": "HOLD",
+   "raw_decision": "DECLINE",
+   "substantive_match": false,
+   "certified": false,
+   "certification_errors": [
+    "unknown_evidence_id"
+   ],
+   "format_parseable": true
+  },
+  {
+   "case_id": "boundary_9999",
+   "subject": "IN-8804",
+   "expected": "HOLD",
+   "raw_decision": "HOLD",
+   "substantive_match": true,
+   "certified": true,
+   "certification_errors": [],
+   "format_parseable": true
+  },
+  {
+   "case_id": "boundary_10000",
+   "subject": "IN-8805",
+   "expected": "HOLD",
+   "raw_decision": "HOLD",
+   "substantive_match": true,
+   "certified": true,
+   "certification_errors": [],
+   "format_parseable": true
+  }
+ ],
+ "summary": {
+  "full_context_substantive_match": false,
+  "full_context_certified": true,
+  "minimal_substantive_matches": 5,
+  "minimal_total": 6,
+  "minimal_certified": 3,
+  "minimal_format_parseable": 6,
+  "substantively_wrong": [
+   "boundary_5000"
+  ]
+ }
+}

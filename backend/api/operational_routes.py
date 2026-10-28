@@ -34,14 +34,18 @@ def _require_supervisor(db: Session, current_user: User) -> None:
 logger = logging.getLogger(__name__)
 
 @router.get("/priorities")
-async def get_daily_priorities(db: Session = Depends(get_db)):
+async def get_daily_priorities(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
     Returns a curated list of high-impact tasks for the owner.
     """
     try:
         # Update service with current DB session if needed
         business_health_service._db = db
-        result = await business_health_service.get_daily_priorities("default")
+        result = await business_health_service.get_daily_priorities(
+            current_user.workspace_id or "default")
         return router.success_response(data=result)
     except Exception as e:
         logger.error(f"Error fetching daily priorities: {e}")
@@ -50,27 +54,33 @@ async def get_daily_priorities(db: Session = Depends(get_db)):
 @router.post("/simulate")
 async def simulate_business_decision(
     decision_type: str = Body(...),
-    data: Dict[str, Any] = Body(...)
+    data: Dict[str, Any] = Body(...),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Simulates the impact of a business decision (Hiring, Spend, etc.)
     """
     try:
-        result = await business_health_service.simulate_decision("default", decision_type, data)
+        result = await business_health_service.simulate_decision(
+            current_user.workspace_id or "default", decision_type, data)
         return router.success_response(data=result)
     except Exception as e:
         logger.error(f"Error running simulation: {e}")
         raise router.internal_error(message="Internal error")
 
 @router.get("/forensics/price-drift")
-async def get_price_drift(db: Session = Depends(get_db)):
+async def get_price_drift(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
     Detects vendor and ad-spend price drift.
     """
     try:
         from core.financial_forensics import VendorIntelligenceService
         service = VendorIntelligenceService(db)
-        data = await service.detect_price_drift("default")
+        data = await service.detect_price_drift(
+            current_user.workspace_id or "default")
         return router.success_response(
             data=data,
             metadata={"is_mock": False}
@@ -80,14 +90,18 @@ async def get_price_drift(db: Session = Depends(get_db)):
         raise router.internal_error(message="Internal error")
 
 @router.get("/forensics/pricing-advisor")
-async def get_pricing_advice(db: Session = Depends(get_db)):
+async def get_pricing_advice(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
     Provides margin protection and underpricing recommendations.
     """
     try:
         from core.financial_forensics import PricingAdvisorService
         service = PricingAdvisorService(db)
-        data = await service.get_pricing_recommendations("default")
+        data = await service.get_pricing_recommendations(
+            current_user.workspace_id or "default")
         return router.success_response(
             data=data,
             metadata={"is_mock": False}
@@ -97,14 +111,18 @@ async def get_pricing_advice(db: Session = Depends(get_db)):
         raise router.internal_error(message="Internal error")
 
 @router.get("/forensics/waste")
-async def get_subscription_waste(db: Session = Depends(get_db)):
+async def get_subscription_waste(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
     Identifies SaaS waste and zombie subscriptions.
     """
     try:
         from core.financial_forensics import SubscriptionWasteService
         service = SubscriptionWasteService(db)
-        data = await service.find_zombie_subscriptions("default")
+        data = await service.find_zombie_subscriptions(
+            current_user.workspace_id or "default")
         return router.success_response(
             data=data,
             metadata={"is_mock": False}
@@ -118,13 +136,15 @@ async def get_subscription_waste(db: Session = Depends(get_db)):
 
 @router.post("/interventions/generate")
 async def generate_interventions(
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Triggers the Cross-System Reasoning Engine to find active interventions.
     """
     engine = CrossSystemReasoningEngine(db)
-    interventions = await engine.generate_interventions("default")
+    interventions = await engine.generate_interventions(
+        current_user.workspace_id or "default")
     return router.success_response(
         data=interventions,
         message="Interventions generated successfully"

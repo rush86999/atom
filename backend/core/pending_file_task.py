@@ -299,10 +299,16 @@ _RERUN_RE = re.compile(
 #: not an aggregation; it needs a row-selection/grouping qualifier.
 _AGGREGATE_STRONG_RE = re.compile(
     r"\bgroup\s+by\s+[A-Za-z_]\w*"
+    # "total the requested amount", "sum hours", "add up the costs" — a
+    # calculation verb plus a named measure. Measure vocabulary is
+    # operation-shaped, not a business domain: the same grammar totals
+    # grants, ticket hours or part quantities.
+    r"|\bhow\s+many\b"
+    r"|\b(?:totals?|subtotals?|sums?|add\s+up|calculate)\b"
+    r"[^\n]{0,40}?\b(?:amount|value|cost|total|hours?|minutes?|"
+    r"units?|quantity|qty|count|balance|score|weight)s?\b"
     r"|\b(?:totals?|subtotals?|sums?|aggregates?)\b[^\n]{0,80}"
-    r"\bby\s+[A-Za-z_]\w*"
-    r"|\b(?:select|list|show|filter)\s+(?:only\s+)?(?:the\s+)?"
-    r"(?:[A-Za-z][\w-]*\s+){0,3}(?:rows?|records?)\b",
+    r"\bby\s+[A-Za-z_]\w*",
     re.IGNORECASE,
 )
 _AGGREGATE_CALC_RE = re.compile(
@@ -346,10 +352,25 @@ def is_aggregate_request(message: str) -> bool:
     )
 
 
+def is_table_selection_request(message: str) -> bool:
+    """A list/show of table columns or rows (not an item lookup/aggregate).
+
+    Delegates to the shared selection boundary so the classifier and the
+    executor cannot disagree. Imported lazily to keep this module free of
+    pandas/duckdb at import time.
+    """
+    try:
+        from core.table_selection import is_table_selection_request as _is_sel
+
+        return _is_sel(message)
+    except Exception:  # noqa: BLE001 — classification must never crash a turn
+        return False
+
+
 def classify_file_operation(message: str) -> str:
     """Which operation a continuation turn asks for: explicit refresh/re-run
-    first, then formula reference or row selection/aggregation. Unclassified
-    read-shaped turns are "read"."""
+    first, then formula reference, aggregation, table selection or a plain
+    read. Unclassified read-shaped turns are "read"."""
     t = message or ""
     if is_source_refresh_request(t):
         return "refresh"
@@ -357,6 +378,8 @@ def classify_file_operation(message: str) -> str:
         return "re-run"
     if is_formula_reference_request(t):
         return "formula_reference"
+    if is_table_selection_request(t):
+        return "table_select"
     if is_aggregate_request(t):
         return "aggregate"
     if is_filename_confirmation(t):

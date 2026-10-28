@@ -1,0 +1,32 @@
+{
+ "id": "5a081d46-cef6-4340-8672-bc919437ed44",
+ "object": "chat.completion",
+ "created": 1793192029,
+ "model": "deepseek-v4-pro",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```json\n{\n  \"assessments\": [\n    {\n      \"subject_id\": \"IN-8805\",\n      \"decision\": \"HOLD\",\n      \"basis\": \"The invoice amount is 10000.0, which is at or above 10000, so the grant threshold rule requires HOLD for CFO review.\",\n      \"evidence_ids\": [\n        \"ev:IN-8805:minimal_judgment!R2\"\n      ],\n      \"policy_ids\": [\n        \"044d2b537b4d4a2593dbaca52c64b8da\"\n      ],\n      \"unresolved_requirements\": []\n    }\n  ]\n}\n```",
+    "reasoning_content": "We need answer only JSON. Need assess IN-8805. Policy 044... threshold rule: requested amount at or above 10000 HOLD for CFO review. Row amount 10000.0. So HOLD. Need include subject_id, decision HOLD, basis citing reference amount and policy text. evidence_ids ev:IN-8805:minimal_judgment!R2. policy_ids 044... unresolved_requirements empty. basis explain amount 10000.0 at or above 10000 triggers HOLD. Ensure valid JSON fenced block only."
+   },
+   "logprobs": null,
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 903,
+  "completion_tokens": 258,
+  "total_tokens": 1161,
+  "prompt_tokens_details": {
+   "cached_tokens": 384
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 117
+  },
+  "prompt_cache_hit_tokens": 384,
+  "prompt_cache_miss_tokens": 519
+ },
+ "system_fingerprint": "a307abda487cd1b463329ccb945ce396"
+}

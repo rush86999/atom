@@ -1,0 +1,457 @@
+{
+ "schema": "deepseek-product-route-verification-1",
+ "base_url": "http://127.0.0.1:8061",
+ "agent_id": "9e735228-7958-425b-8fba-2d17bdcbb7f7",
+ "user_id": "836669b5-e20a-469e-8855-3a18daa3b5c9",
+ "session_id": "ffb8b72d-ab12-430a-814d-9d7f20b3ffba",
+ "policy_id": "1369a22d4b45428d8635072d418d90ef",
+ "policy_lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.",
+ "requested_model_header": "deepseek-v4-pro",
+ "request": {
+  "message": "Assess each Submitted application in grants_loop.csv under the taught threshold rule. Give a table with reference, amount and decision.",
+  "user_id": "836669b5-e20a-469e-8855-3a18daa3b5c9",
+  "session_id": "new",
+  "agent_id": "9e735228-7958-425b-8fba-2d17bdcbb7f7",
+  "request_id": "req_9c75f394-c02e-4ace-b6f5-2dbb20c3a99d",
+  "context": {
+   "current_page": "/chat",
+   "agent_id": "9e735228-7958-425b-8fba-2d17bdcbb7f7",
+   "conversation_history": []
+  }
+ },
+ "response_status": 200,
+ "latency_ms": 77208,
+ "response": {
+  "success": false,
+  "message": "Here is what I have so far — the rest of this request is still open (read rows A2 of grants_loop.csv for the requested fields; read rows A3 of grants_loop.csv for the requested fields; read rows A4 of grants_loop.csv for the requested fields; read grants_loop.csv for GR-2026-014). Tell me to continue and I will.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+  "session_id": "ffb8b72d-ab12-430a-814d-9d7f20b3ffba",
+  "intent": "data_analysis",
+  "confidence": 0.9,
+  "suggested_actions": [
+   "Open Search UI for detailed results",
+   "Save this search for later",
+   "Set up alert for similar content"
+  ],
+  "requires_confirmation": false,
+  "next_steps": [
+   "read rows A2 of grants_loop.csv for the requested fields",
+   "read rows A3 of grants_loop.csv for the requested fields",
+   "read rows A4 of grants_loop.csv for the requested fields"
+  ],
+  "timestamp": "2026-10-28T11:52:31.985465",
+  "metadata": {
+   "ai_analytics": {
+    "message": "AI Analytics logic here"
+   },
+   "search": {
+    "results": [],
+    "query": "Assess each Submitted application in grants_loop.csv under the taught threshold rule. Give a table with reference, amount and decision.",
+    "platforms_searched": [
+     "storage"
+    ]
+   },
+   "open_work": {
+    "actions": [
+     {
+      "question_id": "c2832887-4a97-4fad-807c-5dcf84600ff1",
+      "item": "GR-2026-014",
+      "question": "GR-2026-014: located at grants_loop/A2 — read the rows' requested fields",
+      "kind": "verification",
+      "next_action": "read rows A2 of grants_loop.csv for the requested fields",
+      "decision_owner": null,
+      "inputs": {
+       "service": "datasets",
+       "intent": "row_read",
+       "file": "grants_loop.csv",
+       "candidates": [
+        {
+         "sheet": "grants_loop",
+         "row": 2,
+         "identity_column": "Application Ref",
+         "identity_cell": "A2"
+        }
+       ],
+       "item": "GR-2026-014",
+       "identity_context": "Assess each Submitted application in grants_loop.csv under the taught threshold rule. Give a table with reference, amount and decision.",
+       "candidates_total": 1,
+       "candidates_omitted": 0,
+       "requested_fields": [
+        {
+         "key": "price",
+         "labels": [
+          "price",
+          "cost",
+          "list",
+          "net",
+          "cad"
+         ],
+         "value_type": "money",
+         "unit": null,
+         "currency": null,
+         "basis": "pricing",
+         "lesson_id": null
+        }
+       ]
+      },
+      "attempts": 0
+     },
+     {
+      "question_id": "361fb14a-1e1e-4edc-8eff-8c552030d8cb",
+      "item": "GR-2026-021",
+      "question": "GR-2026-021: located at grants_loop/A3 — read the rows' requested fields",
+      "kind": "verification",
+      "next_action": "read rows A3 of grants_loop.csv for the requested fields",
+      "decision_owner": null,
+      "inputs": {
+       "service": "datasets",
+       "intent": "row_read",
+       "file": "grants_loop.csv",
+       "candidates": [
+        {
+         "sheet": "grants_loop",
+         "row": 3,
+         "identity_column": "Application Ref",
+         "identity_cell": "A3"
+        }
+       ],
+       "item": "GR-2026-021",
+       "identity_context": "Assess each Submitted application in grants_loop.csv under the taught threshold rule. Give a table with reference, amount and decision.",
+       "candidates_total": 1,
+       "candidates_omitted": 0,
+       "requested_fields": [
+        {
+         "key": "price",
+         "labels": [
+          "price",
+          "cost",
+          "list",
+          "net",
+          "cad"
+         ],
+         "value_type": "money",
+         "unit": null,
+         "currency": null,
+         "basis": "pricing",
+         "lesson_id": null
+        }
+       ]
+      },
+      "attempts": 0
+     },
+     {
+      "question_id": "7c0ac2a2-1efe-400b-be6a-51bc1398e796",
+      "item": "GR-2026-033",
+      "question": "GR-2026-033: located at grants_loop/A4 — read the rows' requested fields",
+      "kind": "verification",
+      "next_action": "read rows A4 of grants_loop.csv for the requested fields",
+      "decision_owner": null,
+      "inputs": {
+       "service": "datasets",
+       "intent": "row_read",
+       "file": "grants_loop.csv",
+       "candidates": [
+        {
+         "sheet": "grants_loop",
+         "row": 4,
+         "identity_column": "Application Ref",
+         "identity_cell": "A4"
+        }
+       ],
+       "item": "GR-2026-033",
+       "identity_context": "Assess each Submitted application in grants_loop.csv under the taught threshold rule. Give a table with reference, amount and decision.",
+       "candidates_total": 1,
+       "candidates_omitted": 0,
+       "requested_fields": [
+        {
+         "key": "price",
+         "labels": [
+          "price",
+          "cost",
+          "list",
+          "net",
+          "cad"
+         ],
+         "value_type": "money",
+         "unit": null,
+         "currency": null,
+         "basis": "pricing",
+         "lesson_id": null
+        }
+       ]
+      },
+      "attempts": 0
+     }
+    ],
+    "owner_decisions": [],
+    "exhausted": []
+   },
+   "task_run_id": "9cdec93e-2895-4c3e-a8a4-42b94a534ece",
+   "review_contract": {
+    "subjects": [
+     "GR-2026-014",
+     "GR-2026-021",
+     "GR-2026-033"
+    ],
+    "accepted_inputs": {
+     "subjects": [],
+     "requested_fields": [
+      "amount"
+     ],
+     "source_version": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+     "teaching_revision": "bfa56f2794061243a58a95f0",
+     "decision_schema": [
+      "FUND",
+      "HOLD",
+      "DECLINE"
+     ],
+     "required_actions": []
+    },
+    "policy_revision": "bfa56f2794061243a58a95f0",
+    "source_revision": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+    "required_evidence": [
+     {
+      "file_name": "grants_loop.csv",
+      "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+      "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+     },
+     {
+      "file_name": "grants_loop.csv",
+      "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+      "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+     },
+     {
+      "file_name": "grants_loop.csv",
+      "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+      "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+     }
+    ],
+    "allowed_decisions": [
+     "FUND",
+     "HOLD",
+     "DECLINE"
+    ],
+    "evidence_ids": [
+     "ev:GR-2026-014:grants_loop!R2",
+     "ev:GR-2026-021:grants_loop!R3",
+     "ev:GR-2026-033:grants_loop!R4"
+    ],
+    "policy_ids": [
+     "1369a22d4b45428d8635072d418d90ef"
+    ]
+   },
+   "review_result": {
+    "schema_version": "review-result-2",
+    "execution_id": "c90a6002-759c-4668-956f-13534263a342",
+    "requested_subjects": [
+     "GR-2026-014",
+     "GR-2026-021",
+     "GR-2026-033"
+    ],
+    "allowed_decisions": [
+     "FUND",
+     "HOLD",
+     "DECLINE"
+    ],
+    "source_execution_ids": [],
+    "assessments": [],
+    "candidate_assessments": [],
+    "errors": [
+     {
+      "code": "missing_structured_review"
+     },
+     {
+      "code": "missing_decision",
+      "subject_id": "GR-2026-014"
+     },
+     {
+      "code": "missing_decision",
+      "subject_id": "GR-2026-021"
+     },
+     {
+      "code": "missing_decision",
+      "subject_id": "GR-2026-033"
+     }
+    ],
+    "ok": false,
+    "required_actions": [],
+    "action_receipts": [],
+    "completion": "incomplete"
+   },
+   "delivery": {
+    "status": "recorded",
+    "delivery_id": "cee85cbb-696b-42e6-952f-317bd04e42b5",
+    "message_id": "3298466a-9691-4fe7-a6ae-c4d3c47054c2"
+   },
+   "persistence": {
+    "status": "persisted"
+   },
+   "replay_pin": {
+    "status": "pinned",
+    "durable": true
+   }
+  },
+  "memory_context": null,
+  "model": "template",
+  "provider": "template",
+  "reasoning": null,
+  "execution_id": "c90a6002-759c-4668-956f-13534263a342",
+  "error_code": "turn_objective_not_met",
+  "failure_reason": null,
+  "recovery_url": null,
+  "outcome": "failed"
+ },
+ "review": {
+  "schema_version": "review-result-2",
+  "execution_id": "c90a6002-759c-4668-956f-13534263a342",
+  "requested_subjects": [
+   "GR-2026-014",
+   "GR-2026-021",
+   "GR-2026-033"
+  ],
+  "allowed_decisions": [
+   "FUND",
+   "HOLD",
+   "DECLINE"
+  ],
+  "source_execution_ids": [],
+  "assessments": [],
+  "candidate_assessments": [],
+  "errors": [
+   {
+    "code": "missing_structured_review"
+   },
+   {
+    "code": "missing_decision",
+    "subject_id": "GR-2026-014"
+   },
+   {
+    "code": "missing_decision",
+    "subject_id": "GR-2026-021"
+   },
+   {
+    "code": "missing_decision",
+    "subject_id": "GR-2026-033"
+   }
+  ],
+  "ok": false,
+  "required_actions": [],
+  "action_receipts": [],
+  "completion": "incomplete"
+ },
+ "decisions": {},
+ "expected": {
+  "GR-2026-014": "FUND",
+  "GR-2026-021": "HOLD",
+  "GR-2026-033": "DECLINE"
+ },
+ "dataset_entries": [
+  {
+   "file_name": "grants_loop.csv",
+   "entity_name": "grants_loop",
+   "dataset_name": "upload_grants_loop__grants_loop",
+   "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+   "row_count": 4
+  }
+ ],
+ "steps": [
+  {
+   "name": "admin login",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "authenticated workspace/user",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "workspace_id": null
+   }
+  },
+  {
+   "name": "agent created through product API",
+   "ok": true,
+   "detail": {
+    "status": 201,
+    "agent_id": "9e735228-7958-425b-8fba-2d17bdcbb7f7"
+   }
+  },
+  {
+   "name": "policy taught through product API",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "policy_id": "1369a22d4b45428d8635072d418d90ef",
+    "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+   }
+  },
+  {
+   "name": "source uploaded through product API",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "document_id": "doc_45cd101f1f4ee7ad8289f328"
+   }
+  },
+  {
+   "name": "authoritative sheet dataset materialized",
+   "ok": true,
+   "detail": [
+    {
+     "file_name": "grants_loop.csv",
+     "entity_name": "grants_loop",
+     "dataset_name": "upload_grants_loop__grants_loop",
+     "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+     "row_count": 4
+    }
+   ]
+  },
+  {
+   "name": "one assessment turn returned",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "latency_ms": 77208
+   }
+  },
+  {
+   "name": "review structurally certified",
+   "ok": false,
+   "detail": [
+    {
+     "code": "missing_structured_review"
+    },
+    {
+     "code": "missing_decision",
+     "subject_id": "GR-2026-014"
+    },
+    {
+     "code": "missing_decision",
+     "subject_id": "GR-2026-021"
+    },
+    {
+     "code": "missing_decision",
+     "subject_id": "GR-2026-033"
+    }
+   ]
+  },
+  {
+   "name": "review decisions match the taught policy",
+   "ok": false,
+   "detail": {}
+  },
+  {
+   "name": "source hash present",
+   "ok": true,
+   "detail": [
+    {
+     "file_name": "grants_loop.csv",
+     "entity_name": "grants_loop",
+     "dataset_name": "upload_grants_loop__grants_loop",
+     "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+     "row_count": 4
+    }
+   ]
+  }
+ ],
+ "all_ok": false
+}

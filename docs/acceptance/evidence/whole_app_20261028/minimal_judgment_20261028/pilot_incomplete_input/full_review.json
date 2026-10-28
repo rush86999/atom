@@ -1,0 +1,38 @@
+{
+ "schema_version": "review-result-2",
+ "execution_id": "605af591-153e-4428-a62d-44a0f8f58987",
+ "requested_subjects": [
+  "IN-7301",
+  "IN-7302",
+  "IN-7303"
+ ],
+ "allowed_decisions": [
+  "FUND",
+  "HOLD",
+  "DECLINE"
+ ],
+ "source_execution_ids": [],
+ "assessments": [],
+ "candidate_assessments": [],
+ "errors": [
+  {
+   "code": "missing_structured_review"
+  },
+  {
+   "code": "missing_decision",
+   "subject_id": "IN-7301"
+  },
+  {
+   "code": "missing_decision",
+   "subject_id": "IN-7302"
+  },
+  {
+   "code": "missing_decision",
+   "subject_id": "IN-7303"
+  }
+ ],
+ "ok": false,
+ "required_actions": [],
+ "action_receipts": [],
+ "completion": "incomplete"
+}

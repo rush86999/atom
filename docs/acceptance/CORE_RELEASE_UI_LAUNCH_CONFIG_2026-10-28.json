@@ -1,0 +1,58 @@
+{
+  "schema": "core-release-ui-launch-config-1",
+  "note": "The recorded failed UI run is bound to 180 s backend turn budget and 300000 ms client timeout. Results from earlier budget configurations (including 95 s/120 s and 240 s client waits) are NOT transferable to this evidence.",
+  "recorded_failed_run": {
+    "evidence_dir": "docs/acceptance/evidence/whole_app_20261027/core_release_ui_loop_20261028",
+    "evidence_manifest": "docs/acceptance/evidence/whole_app_20261027/core_release_ui_loop_20261028/source_manifest.json",
+    "evidence_manifest_sha256": "7f9037f60e3d94898ec31f368c5531a413b23a0a0ab6acd66c6d6c6dd0eb41da",
+    "failed_readme_sha256": "6676ac151cf896c97e45ae256ed6a34a94a8275df94d6b3f78ed9e496ee5cc2a",
+    "candidate_commit": "8b2f6cfcf",
+    "world": "core_release_ui_final_20261028",
+    "world_manifest_sha256": "5b2bb97a9447f944cb515fc992cc76e3b62c6c289d45cba9cf1a9f6fd2eb3b52",
+    "world_launch_descriptor_sha256": "b5e15d760a448eb2c61b72db77858a175efa2af293e8ef47ce548f5129000e46",
+    "run_dir": "run-d427fd5e3b04",
+    "backend": {
+      "ATOM_CHAT_TURN_BUDGET_SECONDS": 180,
+      "ATOM_TURN_INTERPRET_TIMEOUT_S": 20,
+      "ATOM_CHAT_STREAMING": "false",
+      "ATOM_LOCAL_ONLY": "true",
+      "ATOM_REVIEW_STRUCTURED": "0",
+      "OLLAMA_MODEL": "llama3.1:8b"
+    },
+    "client": {
+      "timeout_ms": 300000,
+      "source": "frontend-nextjs/pages/canvas/[id].tsx",
+      "source_line": 868,
+      "source_sha256": "675f4771d6e8312717022b6a88a835bcaa52f1856c33cc0d3851982c14d1d3a5"
+    }
+  },
+  "candidate_run": {
+    "status": "not_run",
+    "reason": "The minimal-input judgment diagnosis still contradicts the policy at the 5000 boundary, so the precondition for the final core UI loop was not met.",
+    "backend": {
+      "ATOM_CHAT_TURN_BUDGET_SECONDS": 180,
+      "ATOM_TURN_INTERPRET_TIMEOUT_S": 20,
+      "ATOM_CHAT_STREAMING": "false",
+      "ATOM_LOCAL_ONLY": "true",
+      "ATOM_REVIEW_STRUCTURED": "0",
+      "OLLAMA_MODEL": "llama3.1:8b"
+    },
+    "client": {
+      "timeout_ms": 300000,
+      "source": "frontend-nextjs/pages/canvas/[id].tsx",
+      "source_sha256": "675f4771d6e8312717022b6a88a835bcaa52f1856c33cc0d3851982c14d1d3a5"
+    }
+  },
+  "superseded_configurations": [
+    {
+      "backend_turn_budget_seconds": 95,
+      "client_timeout_ms": 120000,
+      "transferable": false
+    },
+    {
+      "backend_turn_budget_seconds": 95,
+      "client_timeout_ms": 240000,
+      "transferable": false
+    }
+  ]
+}

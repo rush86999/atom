@@ -280,7 +280,7 @@ async def test_replan_arm_survives_turn_deadline_with_derived_sources():
     survive, attempt the bounded replan, and record the honest
     planning-failure block."""
     orch = _orch()
-    orch._agent_lessons = lambda agent_id, query, limit=5: [
+    orch._agent_lessons = lambda agent_id, query, limit=5, **kwargs: [
         {"source": "teacher",
          "lesson": "always check the designated workbook first, and the "
                    "vendor correspondence for anything not in it"}]
@@ -5174,7 +5174,7 @@ async def test_resumed_review_request_reaches_narration_not_raw_read():
         "model": "m",
         "provider": "p",
     })
-    orch._agent_lessons = lambda agent_id, query, limit=5: [{
+    orch._agent_lessons = lambda agent_id, query, limit=5, **kwargs: [{
         "id": "vendor-policy",
         "topic": "Vendor risk policy",
         "lesson": "Deny vendors without an insurance certificate.",

@@ -1,0 +1,11 @@
+FAIL admin login API 401
+FAIL agent created through product API 403
+FATAL locator.setInputFiles: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('#chat-file-upload')[22m
+
+    at async uploadViaChat (/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/scripts/acceptance/core_release_ui_loop_deepseek.cjs:69:3)
+    at async /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/scripts/acceptance/core_release_ui_loop_deepseek.cjs:110:20 {
+  log: [ "  - waiting for locator('#chat-file-upload')" ],
+  name: 'TimeoutError'
+}

@@ -667,6 +667,19 @@ def _risk(high_churn=True):
     return {"churn": churn, "fraud": fraud}
 
 
+def _empty_signals():
+    """No recorded financial/risk rows: the truthful empty workspace."""
+    empty = MagicMock()
+    for name in ("detect_price_drift", "get_pricing_recommendations",
+                 "find_zombie_subscriptions", "predict_churn_risk",
+                 "detect_ar_delays", "detect_anomalies"):
+        setattr(empty, name, AsyncMock(return_value=[]))
+    return {
+        "forensics": {"vendor": empty, "pricing": empty, "waste": empty},
+        "risk": {"churn": empty, "fraud": empty},
+    }
+
+
 class _FakeTaskType:
     CONVERSATION_ANALYSIS = "conversation"
     PREDICTIVE_ANALYTICS = "predictive"
@@ -750,14 +763,14 @@ class TestGetDailyPriorities:
         assert "strong fit" in lead_prio["description"]
         email_lead = next(p for p in priorities if p["id"] == "lead_L2")
         assert "b@x.com" in email_lead["title"]
-        assert "Extremely high conversion" in email_lead["description"]
+        assert "No qualification summary recorded" in email_lead["description"]
         assert any(p["id"] == "job_J1" for p in priorities)
         assert any(p["id"] == "drift_v1" for p in priorities)
         assert any(p["id"] == "pricing_SKU1" for p in priorities)
         assert any(p["id"] == "waste_s1" for p in priorities)
         assert any(p["id"] == "churn_c1" for p in priorities)
         assert any(p["id"] == "fraud_t1" for p in priorities)
-        assert result["owner_advice"] == "Focus on Sales: Your top leads represent the fastest path to revenue growth."
+        assert result["owner_advice"].startswith("Review the")
 
     def test_low_churn_risk_excluded(self):
         db = _bh_db(leads=[], jobs=[])
@@ -800,24 +813,30 @@ class TestGetDailyPriorities:
 
     def test_ai_advice_default_when_no_rationale(self):
         db = _bh_db(leads=[], jobs=[])
+        sig = _empty_signals()
         ai = MagicMock()
         ai.process_ai_request = AsyncMock(
             return_value=SimpleNamespace(output_data={"other": "x"})
         )
-        result = _run_priorities(db, ai_service=ai)
-        assert result["owner_advice"].startswith("Focus on Sales")
+        result = _run_priorities(db, ai_service=ai,
+                                 forensics=sig["forensics"], risk=sig["risk"])
+        assert result["owner_advice"].startswith("No business risks")
 
     def test_ai_advice_default_when_ai_raises(self):
         db = _bh_db(leads=[], jobs=[])
+        sig = _empty_signals()
         ai = MagicMock()
         ai.process_ai_request = AsyncMock(side_effect=RuntimeError("llm down"))
-        result = _run_priorities(db, ai_service=ai)
-        assert result["owner_advice"].startswith("Focus on Sales")
+        result = _run_priorities(db, ai_service=ai,
+                                 forensics=sig["forensics"], risk=sig["risk"])
+        assert result["owner_advice"].startswith("No business risks")
 
     def test_ai_service_absent_uses_default_advice(self):
         db = _bh_db(leads=[], jobs=[])
-        result = _run_priorities(db, ai_service=None)
-        assert result["owner_advice"].startswith("Focus on Sales")
+        sig = _empty_signals()
+        result = _run_priorities(db, ai_service=None,
+                                 forensics=sig["forensics"], risk=sig["risk"])
+        assert result["owner_advice"].startswith("No business risks")
 
     def test_db_closed_when_no_injected_db(self):
         with patch("core.business_health_service.get_db_session") as g:

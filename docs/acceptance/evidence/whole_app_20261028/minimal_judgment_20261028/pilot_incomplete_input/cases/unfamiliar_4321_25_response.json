@@ -1,0 +1,22 @@
+{
+ "id": "chatcmpl-380",
+ "object": "chat.completion",
+ "created": 1793189699,
+ "model": "llama3.1:8b",
+ "system_fingerprint": "fp_ollama",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```json\n{\"assessments\":[{\"subject_id\":\"IN-8801\",\"decision\":\"HOLD\",\"basis\":[\"Requested amount is 8000, which is below 10000 but above 5000.\"],\"evidence_ids\":[\"ev:IN-8801:minimal_judgment!R2\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}\n```"
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 734,
+  "completion_tokens": 94,
+  "total_tokens": 828
+ }
+}

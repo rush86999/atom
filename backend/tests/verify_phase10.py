@@ -24,10 +24,13 @@ class TestRiskPrevention(unittest.TestCase):
         risks = loop.run_until_complete(self.services["churn"].predict_churn_risk("ws_test"))
         loop.close()
         
-        self.assertTrue(len(risks) > 0)
-        self.assertIn("churn_probability", risks[0])
-        print(f"High-Risk Customers: {len(risks)}")
-        print("✅ Churn Logic Verified")
+        # Truthful contract (2026-10-27): no fabricated customer rows when no
+        # usage/customer feed is connected. Any returned row must be recorded.
+        self.assertIsInstance(risks, list)
+        for risk in risks:
+            self.assertIn("churn_probability", risk)
+        print(f"Recorded churn signals: {len(risks)}")
+        print("✅ Churn Logic Verified (no invented records)")
 
     def test_early_warning_signals(self):
         print("\n🧪 Testing Early Warning (AR & Bookings)...")
@@ -39,11 +42,12 @@ class TestRiskPrevention(unittest.TestCase):
         booking_scan = loop.run_until_complete(self.services["warning"].monitor_booking_drops("ws_test"))
         loop.close()
         
-        self.assertTrue(len(ar_delays) > 0)
-        self.assertEqual(booking_scan["status"], "warning")
-        print(f"AR Risks: {len(ar_delays)}")
-        print(f"Booking Anomaly: {booking_scan['anomaly_detected']}")
-        print("✅ Early Warning Verified")
+        self.assertIsInstance(ar_delays, list)
+        self.assertEqual(booking_scan["status"], "no_data")
+        self.assertFalse(booking_scan["anomaly_detected"])
+        print(f"Recorded AR risks: {len(ar_delays)}")
+        print(f"Booking state: {booking_scan['status']}")
+        print("✅ Early Warning Verified (truthful empty state)")
 
     def test_fraud_alerts(self):
         print("\n🧪 Testing Fraud Detection...")
@@ -53,10 +57,11 @@ class TestRiskPrevention(unittest.TestCase):
         alerts = loop.run_until_complete(self.services["fraud"].detect_anomalies("ws_test"))
         loop.close()
         
-        self.assertTrue(len(alerts) > 0)
-        self.assertEqual(alerts[0]["severity"], "HIGH")
-        print(f"Fraud Alerts: {len(alerts)}")
-        print("✅ Fraud Logic Verified")
+        self.assertIsInstance(alerts, list)
+        for alert in alerts:
+            self.assertIn("severity", alert)
+        print(f"Recorded fraud alerts: {len(alerts)}")
+        print("✅ Fraud Logic Verified (no invented records)")
 
     def test_growth_readiness(self):
         print("\n🧪 Testing Growth Readiness...")
@@ -66,10 +71,11 @@ class TestRiskPrevention(unittest.TestCase):
         readiness = loop.run_until_complete(self.services["growth"].check_scaling_readiness("ws_test"))
         loop.close()
         
-        self.assertTrue(readiness["can_scale"])
         self.assertIn("bottlenecks", readiness)
-        print(f"Readiness Score: {readiness['readiness_score']}")
-        print("✅ Expansion Playbook Verified")
+        self.assertEqual(readiness["status"], "no_data")
+        self.assertIsNone(readiness["can_scale"])
+        print(f"Readiness state: {readiness['status']}")
+        print("✅ Expansion Playbook Verified (truthful empty state)")
 
 if __name__ == "__main__":
     unittest.main()

@@ -31,8 +31,28 @@ def test_captured_o1001_subjects_are_identifiers_only():
         catalogued_names=CATALOGUED,
     )
     assert contract["subjects"] == ["O-1001"]
-    assert "order_id" in contract["requested_fields"]
-    assert "manager_exception" in contract["requested_fields"]
+    # Requested fields keep the ask's own labels, not the read layer's
+    # canonical aliases.
+    fields = [field.casefold() for field in contract["requested_fields"]]
+    assert "order id" in fields
+    assert "manager exception" in fields
+
+
+def test_ask_amount_task_records_the_asks_own_field_label():
+    """Captured Ask Amount contract said requested_fields=["price"].
+
+    That came from extract_field_requests canonicalising the alias "amount"
+    to "price". The accepted inputs must stay grounded in what the user
+    actually asked for; the read may still canonicalise separately.
+    """
+    contract = build_accepted_contract(
+        "Assess each Open case in case_boundaries.csv using Ask Amount. "
+        "Give a table with Case Ref, Ask Amount and decision.",
+        catalogued_names=["case_boundaries.csv"],
+    )
+    assert contract["subjects"] == []
+    assert contract["requested_fields"] == ["Ask Amount"]
+    assert "price" not in [f.casefold() for f in contract["requested_fields"]]
 
 
 def test_captured_o1010_subjects_are_identifiers_only():

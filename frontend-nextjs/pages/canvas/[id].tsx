@@ -861,7 +861,11 @@ export default function CanvasDetailPage() {
                 // main chat uses (useChatInterface). Without it the reply is
                 // generated server-side but the UI already showed "Could not
                 // reach the agent", and the auto-retry re-fired the request.
-                timeout: 120000,
+                // Local 8B assessment turns (selection + grounded review +
+                // guards) can exceed the old 120 s client bound. The backend's
+                // ATOM_CHAT_TURN_BUDGET_SECONDS remains the hard stop; give the
+                // served boundary room to receive the validated result.
+                timeout: 300000,
                 // @ts-ignore
                 retry: false,
             });

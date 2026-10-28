@@ -1,0 +1,22 @@
+{
+ "id": "chatcmpl-510",
+ "object": "chat.completion",
+ "created": 1793189783,
+ "model": "llama3.1:8b",
+ "system_fingerprint": "fp_ollama",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "{\"assessments\":[{\"subject_id\":\"IN-8801\",\"decision\":\"DECLINE\",\"basis\":[\"Below 5000 is DECLINE.\",\"Cite the reference and amount from the row.\"],\"evidence_ids\":[\"ev:IN-8801:minimal_judgment!R2\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}"
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 809,
+  "completion_tokens": 89,
+  "total_tokens": 898
+ }
+}

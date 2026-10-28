@@ -1,0 +1,13 @@
+{
+ "all_ok": true,
+ "checks": {
+  "teaching_persisted": true,
+  "review_certified": true,
+  "decisions_match": true,
+  "evidence_bound": true,
+  "policy_refs_match": true,
+  "response_model_deepseek_v4_pro": true,
+  "history_agrees": true,
+  "actual_dispatch_captured": true
+ }
+}

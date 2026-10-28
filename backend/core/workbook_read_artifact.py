@@ -252,6 +252,90 @@ def extract_field_requests(texts: Sequence[str]) -> List[str]:
     ]
 
 
+#: Words that qualify a field label without being the field itself. A
+#: preceding word is kept ONLY when it is one of these; otherwise the label
+#: is the alias alone. This avoids sentence words ("policy cite order id")
+#: leaking into a contract while preserving "Ask Amount" / "Unit Price".
+_FIELD_LABEL_QUALIFIERS = frozenset({
+    "ask", "requested", "request", "unit", "list", "quoted", "quote",
+    "selling", "dealer", "factory", "retail", "wholesale", "gross", "net",
+    "first", "second", "manager", "approval", "minimum", "maximum",
+    "invoice", "line", "item", "order", "case", "employee", "customer",
+    "supplier", "vendor", "required", "current", "original", "revised",
+})
+
+
+def extract_field_labels(texts: Sequence[str]) -> List[str]:
+    """The request's OWN field labels, not canonical aliases.
+
+    ``extract_field_requests`` canonicalises business vocabulary for column
+    selection ("Ask Amount" -> "price"). That is correct for a read, but an
+    accepted contract must not claim the user asked for a field they did not
+    name. This preserves the literal phrase from the request (for example
+    "Ask Amount") while still requiring it to match a known field alias.
+
+    Only aliases that participate in field requests are considered, and ONE
+    known qualifier is kept so column labels such as "Ask Amount",
+    "Requested Amount" and "Unit Price" survive intact.
+    """
+    labels: List[str] = []
+    for text in texts or []:
+        original = str(text or "")
+        if not original.strip():
+            continue
+        for canonical in _FIELD_ALIAS_ORDER:
+            if canonical not in _FIELD_REQUEST_GROUPS:
+                continue
+            best: Optional[str] = None
+            for alias in _field_aliases(canonical):
+                if not alias:
+                    continue
+                match = re.search(
+                    r"(?<![A-Za-z0-9])" + re.escape(alias)
+                    + r"(?![A-Za-z0-9])",
+                    original,
+                    re.IGNORECASE,
+                )
+                if not match:
+                    continue
+                prefix = original[max(0, match.start() - 48):match.start()]
+                # Only the clause immediately before the alias can qualify
+                # it; punctuation ends the label.
+                prefix = re.split(
+                    r"[.;:,!?()\[\]\n]", prefix)[-1]
+                words = re.findall(r"[A-Za-z][A-Za-z0-9_-]*", prefix)
+                kept: List[str] = []
+                if words and words[-1].casefold() in (
+                        _FIELD_LABEL_QUALIFIERS - set(alias.split())):
+                    kept = [words[-1]]
+                label = " ".join(
+                    kept + [original[match.start():match.end()]]).strip()
+                label = re.sub(r"\s+", " ", label)
+                if label and (best is None or len(label) > len(best)):
+                    best = label
+            if best:
+                labels.append(best)
+    out: List[str] = []
+    seen = set()
+    for label in labels:
+        key = label.casefold()
+        if not key or key in seen:
+            continue
+        # A longer label already contains the shorter alias ("Unit Price"
+        # over "Price"); keep the specific one only.
+        if any(
+            label != other
+            and re.search(
+                r"(?<![a-z0-9])" + re.escape(label.casefold())
+                + r"(?![a-z0-9])", other.casefold())
+            for other in labels
+        ):
+            continue
+        seen.add(key)
+        out.append(label)
+    return out[:20]
+
+
 # Aliases whose +"s" plural is commonly a VERB ("lists the rows",
 # "amounts to") rather than the requested field — plural matching
 # stays off for these; the singular still matches. Verb forms that

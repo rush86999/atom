@@ -1,0 +1,38 @@
+{
+  "world_id": "whole-app-world-20261027",
+  "candidate_commit": "f5f3148d24351217b20e4994fe7602131f8ae220",
+  "candidate_tree": "d5804aed4be4a920a2c6067c253efc7f89cc539f",
+  "worktree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app",
+  "frontend": {
+    "url": "http://127.0.0.1:3001",
+    "command": "next dev -p 3001 --webpack",
+    "note": "Turbopack rejects the worktree's node_modules symlink; webpack dev is used for browser breadth."
+  },
+  "backend": {
+    "url": "http://127.0.0.1:8105",
+    "command": "uvicorn main_api_app:app --host 127.0.0.1 --port 8105",
+    "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend",
+    "identity": "f5f3148d2435"
+  },
+  "database": {
+    "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/whole-app-world/data/atom.db",
+    "source_snapshot": "/Users/rushiparikh/projects/atom-releases/c912375de/backend/data/backups/atom-pre-ae0c2fda3-20261026T234157Z.db.gz",
+    "isolated_from_live": true
+  },
+  "credentials": {
+    "live_env_copied": false,
+    "stripped_variables": 26,
+    "external_traffic_policy": "disabled; no Telegram/Graph/Outlook pollers, no outbound integration sync",
+    "llm_keys_present": false
+  },
+  "workers": {
+    "ENABLE_SCHEDULER": "false",
+    "ENABLE_INGESTION_SYNC": "false",
+    "consequence": "autonomous scheduling and external integration continuation are environment-limited, not product failures"
+  },
+  "roles": {
+    "admin": "admin@example.com (workspace_admin, level 5)",
+    "ordinary": "wholeapp.member@example.com (member, level 3; created in-world)"
+  },
+  "captured_at": "2026-10-27T18:35:00Z"
+}

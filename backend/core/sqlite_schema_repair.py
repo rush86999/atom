@@ -103,5 +103,25 @@ def repair_known_drift() -> None:
             # agent_templates.verified_record (goal-run evidence on sellable
             # listings) — see 20260912_agent_verified_record.
             ensure_sqlite_columns(engine, AgentTemplate)
+
+            # Marketing intelligence models (marketing/models.py) carry
+            # workspace_id, but pre-existing SQLite files were created from
+            # the older tenant-scoped shape. Every /api/marketing/dashboard
+            # query then died with "no such column:
+            # marketing_channels.workspace_id". Repair the three tables the
+            # dashboard reads.
+            try:
+                from marketing.models import (
+                    AdSpendEntry,
+                    AttributionEvent,
+                    MarketingChannel as MarketingChannelModel,
+                )
+
+                ensure_sqlite_columns(engine, MarketingChannelModel)
+                ensure_sqlite_columns(engine, AdSpendEntry)
+                ensure_sqlite_columns(engine, AttributionEvent)
+            except Exception as marketing_err:
+                logger.warning(
+                    "marketing schema repair skipped: %s", marketing_err)
     except Exception as e:
         logger.warning(f"known-drift repair skipped: {e}")

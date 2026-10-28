@@ -1,0 +1,19 @@
+PASS admin login 200
+PASS authenticated workspace/user {'status': 200, 'workspace_id': None}
+PASS agent created through product API {'status': 201, 'agent_id': '013059d6-0ffa-4745-8f04-08f2537e14f4'}
+PASS policy taught through product API {'status': 200, 'policy_id': '59631b477acc45b3bc67c72b3a05d344', 'lesson': 'Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.'}
+PASS source uploaded through product API {'status': 200, 'document_id': 'doc_45cd101f1f4ee7ad8289f328'}
+PASS authoritative sheet dataset materialized [{'file_name': 'grants_loop.csv', 'entity_name': 'grants_loop', 'dataset_name': 'upload_grants_loop__grants_loop', 'content_hash': '4d8d540ebc51cc88ae49fb13c5162417577fe18c', 'row_count': 4}]
+PASS one assessment turn returned {'status': 200, 'latency_ms': 122482}
+PASS review structurally certified []
+PASS review decisions match the taught policy {'GR-2026-014': 'FUND', 'GR-2026-021': 'HOLD', 'GR-2026-033': 'DECLINE'}
+PASS source hash present [{'file_name': 'grants_loop.csv', 'entity_name': 'grants_loop', 'dataset_name': 'upload_grants_loop__grants_loop', 'content_hash': '4d8d540ebc51cc88ae49fb13c5162417577fe18c', 'row_count': 4}]
+{
+ "all_ok": true,
+ "decisions": {
+  "GR-2026-014": "FUND",
+  "GR-2026-021": "HOLD",
+  "GR-2026-033": "DECLINE"
+ },
+ "latency_ms": 122482
+}

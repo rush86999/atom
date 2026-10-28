@@ -1,0 +1,125 @@
+{
+  "schema": "deepseek-judgment-comparison-spec-1",
+  "status": "prepared_not_authorized",
+  "authorization": {
+    "required": true,
+    "scope": "one diagnostic direct-endpoint comparison, seven fixed cases, no acceptance claim",
+    "local_only_default_unchanged": true,
+    "provider_policy_unchanged": true,
+    "stored_credentials_unchanged": true,
+    "pilot_unchanged": true,
+    "not_acceptance_evidence": true,
+    "authorized_by": null,
+    "authorized_at": null
+  },
+  "source": {
+    "preserved_request": "docs/acceptance/evidence/whole_app_20261028/minimal_judgment_20261028/preserved_full_request.json",
+    "preserved_request_sha256": "f86dbbc660efa9576baadfc90b9bdb8b69d561347cf054056155234ca5670402",
+    "policy_id": "044d2b537b4d4a2593dbaca52c64b8da",
+    "policy_topic": "grant threshold rule",
+    "policy_lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.",
+    "allowed_decisions": [
+      "FUND",
+      "HOLD",
+      "DECLINE"
+    ],
+    "expected_rule": "Below 5000 is DECLINE; 5000 to 9999 is HOLD; at or above 10000 is HOLD for CFO review. Labels have no inherent safety ranking."
+  },
+  "provider": {
+    "id": "deepseek",
+    "name": "DeepSeek direct",
+    "base_url": "https://api.deepseek.com/v1",
+    "model": "deepseek-v4-pro",
+    "credential_env_var": "DEEPSEEK_API_KEY",
+    "credential_source": "existing authorized DeepSeek credential supplied to the isolated process at run time, or read-only from the existing encrypted BYOK store; never copied into evidence, the repository, or the app configuration",
+    "credential_key_id": "tenant_default_deepseek_default_production",
+    "credential_key_hash": "cc1d28eb8b34001a845fbf176096e4124985bca4763ce44953fbe712727f32ee",
+    "isolated_world_store_note": "The failed UI world's BYOK store contains only ollama; the existing active DeepSeek key is in the main app's encrypted store. The harness reads it without writing.",
+    "served_model_evidence": "backend/data/provider_model_catalog.json reports deepseek served=[deepseek-flash, deepseek-v4-pro], auth_ok=true"
+  },
+  "generation": {
+    "temperature": 0.7,
+    "max_tokens": 6000,
+    "stream": false,
+    "request_timeout_seconds": 300,
+    "attempts_per_case": 1,
+    "semantic_retries": 0,
+    "transport_retries": 0,
+    "structured_output": false,
+    "prompt_changes_mid_run": false
+  },
+  "cases": [
+    {
+      "case_id": "preserved_full_context",
+      "kind": "full_context",
+      "subject": "IN-7301",
+      "amount": "3200",
+      "expected": "DECLINE"
+    },
+    {
+      "case_id": "preserved_3200",
+      "kind": "minimal",
+      "subject": "IN-7301",
+      "amount": "3200",
+      "expected": "DECLINE",
+      "preserved_row": true
+    },
+    {
+      "case_id": "unfamiliar_4321_25",
+      "kind": "minimal",
+      "subject": "IN-8801",
+      "amount": "4321.25",
+      "expected": "DECLINE",
+      "preserved_row": false
+    },
+    {
+      "case_id": "boundary_4999_99",
+      "kind": "minimal",
+      "subject": "IN-8802",
+      "amount": "4999.99",
+      "expected": "DECLINE",
+      "preserved_row": false
+    },
+    {
+      "case_id": "boundary_5000",
+      "kind": "minimal",
+      "subject": "IN-8803",
+      "amount": "5000",
+      "expected": "HOLD",
+      "preserved_row": false
+    },
+    {
+      "case_id": "boundary_9999",
+      "kind": "minimal",
+      "subject": "IN-8804",
+      "amount": "9999",
+      "expected": "HOLD",
+      "preserved_row": false
+    },
+    {
+      "case_id": "boundary_10000",
+      "kind": "minimal",
+      "subject": "IN-8805",
+      "amount": "10000",
+      "expected": "HOLD",
+      "preserved_row": false
+    }
+  ],
+  "measurement": {
+    "raw_judgment_correctness": "the decision written in the response, compared with the expected label from the policy text",
+    "product_format_reference_validity": "build_review_result ok/errors, including exact evidence and policy references",
+    "separate": true,
+    "accept_completeness_as_judgment": false,
+    "accept_validity_as_judgment": false
+  },
+  "preserve": [
+    "policy text, vocabulary and evidence",
+    "requested output contract",
+    "expected decisions",
+    "effective generation settings",
+    "model/provider identity",
+    "latency and token usage",
+    "raw responses",
+    "validator errors"
+  ]
+}

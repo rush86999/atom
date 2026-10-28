@@ -1,0 +1,28 @@
+{
+ "schema_version": "review-result-2",
+ "execution_id": "minimal-preserved_3200",
+ "requested_subjects": [
+  "IN-7301"
+ ],
+ "allowed_decisions": [
+  "FUND",
+  "HOLD",
+  "DECLINE"
+ ],
+ "source_execution_ids": [],
+ "assessments": [],
+ "candidate_assessments": [],
+ "errors": [
+  {
+   "code": "missing_structured_review"
+  },
+  {
+   "code": "missing_decision",
+   "subject_id": "IN-7301"
+  }
+ ],
+ "ok": false,
+ "required_actions": [],
+ "action_receipts": [],
+ "completion": "incomplete"
+}

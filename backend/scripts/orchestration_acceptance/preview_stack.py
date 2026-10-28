@@ -71,7 +71,9 @@ BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
 FRONTEND = REPO / "frontend-nextjs"
 PREVIEW_FE = FRONTEND / ".preview-instance"
-VENV_PY = BACKEND / "venv314" / "bin" / "python"
+VENV_PY = Path(os.environ.get(
+    "ATOM_PREVIEW_PYTHON",
+    str(BACKEND / "venv314" / "bin" / "python")))
 APP_PY = BACKEND / "scripts" / "orchestration_acceptance" / "_app.py"
 
 sys.path.insert(0, str(BACKEND))
@@ -318,12 +320,35 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
     env = {k: os.environ[k] for k in R.SERVER_ENV_WHITELIST if k in os.environ}
     creds, cred_names = model_credentials()
     env.update(creds)
+    # Local-only preview configuration. These are product settings, not
+    # harness credentials; without them an isolated UI run cannot exercise
+    # the same local Ollama route the release candidate is verified on.
+    for name in ("ATOM_LOCAL_ONLY", "OLLAMA_BASE_URL", "OLLAMA_HOST",
+                 "OLLAMA_MODEL", "OLLAMA_QUALITY_SCORE",
+                 "ATOM_REVIEW_STRUCTURED", "ATOM_REVIEW_CAPTURE",
+                 "ATOM_CHAT_TURN_BUDGET_SECONDS",
+                 "ATOM_CHAT_REQUEST_DEADLINE_SECONDS",
+                 "ATOM_TURN_INTERPRET_TIMEOUT_S",
+                 # DECLARED PRODUCT-ROUTE CONFIGURATION (2026-10-28): an
+                 # isolated world may select its provider/model explicitly.
+                 # This is env-only for that child process; the parent's
+                 # policy and the local-only default are not changed.
+                 "ATOM_LLM_PROVIDER_POLICY",
+                 "ATOM_PREFERRED_LLM_PROVIDER",
+                 "ATOM_PREFERRED_LLM_MODEL",
+                 "ATOM_REVIEW_MODEL"):
+        if os.environ.get(name):
+            env[name] = os.environ[name]
     env.update({
         "DATABASE_URL": f"sqlite:///{run_dir / 'data' / 'atom.db'}",
         "ATOM_DATA_DIR": str(run_dir / "data"),
         "LANCEDB_URI": str(run_dir / "data" / "atom_memory"),
         "ATOM_SHEET_DATASETS": "1",
-        "ATOM_CHAT_STREAMING": "1",
+        # CORE RELEASE CONFIGURATION (2026-10-27): streaming is outside the
+        # verified claim. The orchestrator only enables the streaming leg for
+        # the literal "true"; this launcher states the release value explicitly
+        # so a descriptor cannot read "1" as on when the code treats it off.
+        "ATOM_CHAT_STREAMING": "false",
         "ENABLE_SCHEDULER": "false",
         "ENABLE_INGESTION_SYNC": "false",
         "ACC_PORT": str(backend_port),
@@ -347,6 +372,21 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
         "CHAT_FINALIZATION_M1": env["CHAT_FINALIZATION_M1"],
         "CHAT_FINALIZATION_M2": env["CHAT_FINALIZATION_M2"],
         "ATOM_CHAT_STREAMING": env["ATOM_CHAT_STREAMING"],
+        "ATOM_LOCAL_ONLY": env.get("ATOM_LOCAL_ONLY", "false"),
+        "ATOM_CHAT_TURN_BUDGET_SECONDS": env.get(
+            "ATOM_CHAT_TURN_BUDGET_SECONDS", "95"),
+        "ATOM_CHAT_REQUEST_DEADLINE_SECONDS": env.get(
+            "ATOM_CHAT_REQUEST_DEADLINE_SECONDS", "95"),
+        "ATOM_TURN_INTERPRET_TIMEOUT_S": env.get(
+            "ATOM_TURN_INTERPRET_TIMEOUT_S", "65"),
+        "ATOM_LLM_PROVIDER_POLICY": env.get(
+            "ATOM_LLM_PROVIDER_POLICY", ""),
+        "ATOM_PREFERRED_LLM_PROVIDER": env.get(
+            "ATOM_PREFERRED_LLM_PROVIDER", ""),
+        "ATOM_PREFERRED_LLM_MODEL": env.get(
+            "ATOM_PREFERRED_LLM_MODEL", ""),
+        "ATOM_REVIEW_MODEL": env.get("ATOM_REVIEW_MODEL", ""),
+        "ATOM_REVIEW_STRUCTURED": env.get("ATOM_REVIEW_STRUCTURED", "0"),
         "ATOM_SHEET_DATASETS": env["ATOM_SHEET_DATASETS"],
         "ENABLE_SCHEDULER": env["ENABLE_SCHEDULER"],
         "ENABLE_INGESTION_SYNC": env["ENABLE_INGESTION_SYNC"],
@@ -423,7 +463,7 @@ def cmd_up(args: argparse.Namespace) -> int:
 
     byok = {"skipped": True}
     if not args.no_user_byok:
-        byok = seed_byok_store(run_dir)
+        byok = seed_byok_store(run_dir, args.byok_source_dir)
         print(f"[preview] BYOK store seeded into run dir: "
               f"providers={','.join(byok['provider_ids_present']) or 'none'}")
 
@@ -638,10 +678,17 @@ def _terminate(proc: subprocess.Popen, grace: float = 15.0) -> None:
 BYOK_SEED_FILES = ("byok_keys.json", "byok_config.json", "byok_encryption_key")
 
 
-def seed_byok_store(run_dir: Path) -> Dict[str, Any]:
+def seed_byok_store(
+    run_dir: Path, source_dir: Optional[str] = None,
+) -> Dict[str, Any]:
     """Copy the encrypted BYOK store into the run dir. Returns a summary with
-    provider NAMES only -- never a key, a hash, or a length."""
-    src_dir = BACKEND / "data"
+    provider NAMES only -- never a key, a hash, or a length.
+
+    ``source_dir`` lets an isolated run copy the credential store from an
+    explicit source read-only (e.g. the app's own encrypted store) without
+    rewriting that source or the worktree's data directory.
+    """
+    src_dir = Path(source_dir).expanduser() if source_dir else BACKEND / "data"
     dst_dir = run_dir / "data"
     copied, missing = [], []
     for name in BYOK_SEED_FILES:
@@ -785,10 +832,43 @@ def cmd_verify(args: argparse.Namespace) -> int:
     check("real model credentials were forwarded",
           bool(st.get("effective_flags", {}).get("credential_names_present")),
           ",".join(st.get("effective_flags", {}).get("credential_names_present", [])) or "NONE")
+    # CORE RELEASE CONFIGURATION (2026-10-27): streaming is outside the
+    # verified claim. Check BOTH the descriptor we intended to launch with and
+    # the running process's own environment — a requested flag is not evidence
+    # that the child received it.
+    check("release declares streaming off",
+          st.get("effective_flags", {}).get("ATOM_CHAT_STREAMING") == "false",
+          st.get("effective_flags", {}).get("ATOM_CHAT_STREAMING"))
+    live_env = _process_env(st["backend_pid"])
+    check("running backend has streaming off",
+          live_env.get("ATOM_CHAT_STREAMING") == "false",
+          live_env.get("ATOM_CHAT_STREAMING") or f"unreadable ({live_env.get('error', '')})")
 
     bad = [f for f in findings if not f["ok"]]
     print(f"\n{len(findings)-len(bad)}/{len(findings)} checks passed")
     return 0 if not bad else 1
+
+
+def _process_env(pid: int) -> Dict[str, str]:
+    """Environment the RUNNING child actually received (macOS: ps eww).
+
+    ``server_env`` is the launch intent; this is the observable process state.
+    Keep the value set narrow and never print credentials.
+    """
+    try:
+        out = subprocess.run(["ps", "eww", "-p", str(pid)],
+                             capture_output=True, text=True, timeout=15).stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+        return {"error": type(exc).__name__}
+    got: Dict[str, str] = {}
+    for token in out.split():
+        if "=" not in token:
+            continue
+        key, _, value = token.partition("=")
+        if key in ("ATOM_CHAT_STREAMING", "ATOM_TASK_LIFECYCLE_ENABLED",
+                   "CHAT_FINALIZATION_M1", "CHAT_FINALIZATION_M2"):
+            got[key] = value
+    return got
 
 
 def _opened_sqlite(pid: int) -> List[str]:
@@ -912,6 +992,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--no-user-byok", action="store_true",
                    help="do NOT seed the run dir with the repo's encrypted BYOK "
                         "store; the preview then has no real provider access")
+    p.add_argument("--byok-source-dir", default="",
+                   help="read the encrypted BYOK files from this directory "
+                        "instead of <backend>/data; the source is never "
+                        "modified")
     p.add_argument("--no-frontend", action="store_true",
                    help="backend only. The frontend farm at "
                         "frontend-nextjs/.preview-instance and its distDir are "

@@ -70,6 +70,29 @@ def _plan(entry, sql, roles=None):
 
 
 @pytest.mark.asyncio
+async def test_explicit_sheet_binds_sole_entry_when_planner_omits_dataset(
+        tmp_path):
+    """The planner may leave dataset_name empty; the request's explicit sheet
+    plus one catalog entry is still a deterministic binding, not a fallback."""
+    entries = _entries(tmp_path)
+    po = next(e for e in entries if e["entity_name"] == "PO Register")
+    plan = _plan(
+        po,
+        'SELECT "__sheet_row", "PO ID", "Status", "Qty", '
+        '"Unit Price", "Currency" FROM df WHERE "Status" = \'Approved\'')
+    plan["dataset_name"] = ""
+    result = await execute_validated_aggregate_plan(
+        entries,
+        plan,
+        "PO Register sheet approved totals",
+        file_name="spreadsheet_job_20261025.xlsx",
+    )
+    assert result["status"] == "complete"
+    assert result["selected_count"] == 4
+    assert result["subtotals"]["CAD"]["value"] == "8050.00"
+
+
+@pytest.mark.asyncio
 async def test_po_register_approved_totals_and_provenance(tmp_path):
     entries = _entries(tmp_path)
     po = next(e for e in entries if e["entity_name"] == "PO Register")
@@ -160,7 +183,11 @@ def test_operation_classification_is_general():
     assert classify_file_operation(
         "calculate formula for workbook.xlsx Sheet1 cell D8"
     ) == "formula_reference"
-    assert is_aggregate_request("filter the rows where status is open") is True
+    # A plain row filter is a selection, not an aggregate; it carries no
+    # calculation and no quantity x price assumption.
+    assert is_aggregate_request("filter the rows where status is open") is False
+    assert classify_file_operation(
+        "filter the rows where status is open") == "table_select"
 
 
 @pytest.mark.asyncio
@@ -324,7 +351,7 @@ def test_operation_classifier_does_not_divert_lookups_or_refresh():
     assert classify_file_operation(
         "re-read the workbook and show totals by status") == "re-run"
     assert classify_file_operation(
-        "list the approved rows in the PO Register") == "aggregate"
+        "list the approved rows in the PO Register") == "table_select"
     assert classify_file_operation(
         "Calculate the approved totals for the workbook.") == "aggregate"
 

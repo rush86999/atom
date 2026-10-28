@@ -349,6 +349,30 @@ async def resume_goal_run(
     if not run:
         raise router.not_found_error("GoalRun", run_id)
     _require_run_access(db, current_user, run)
+
+    # The run page resumes through this endpoint; close the matching HITL
+    # rows too, otherwise the generic Approvals queue keeps showing a
+    # decision that was already made ("no pending decision" on decide).
+    from datetime import datetime, timezone
+
+    decision_status = (HITLActionStatus.APPROVED.value if payload.approved
+                       else HITLActionStatus.REJECTED.value)
+    pending = (
+        db.query(HITLAction)
+        .filter(
+            HITLAction.status == HITLActionStatus.PENDING.value,
+            HITLAction.action_type == "goal_run_decision",
+        )
+        .all()
+    )
+    for action in pending:
+        if (action.params or {}).get("run_id") == run_id:
+            action.status = decision_status
+            action.reviewed_by = str(current_user.id)
+            action.reviewed_at = datetime.now(timezone.utc)
+            action.user_feedback = payload.guidance
+    db.commit()
+
     try:
         return await svc.resume(run_id, approved=payload.approved,
                                 reviewer=str(current_user.id),

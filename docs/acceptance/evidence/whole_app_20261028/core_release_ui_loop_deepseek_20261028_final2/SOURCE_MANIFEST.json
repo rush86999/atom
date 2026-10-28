@@ -1,0 +1,28 @@
+{
+ "schema": "core-release-ui-loop-source-manifest-2",
+ "status": "passed",
+ "app_code_commit": "ec5ca78b8",
+ "world_export_sha256": "e4da5b007c7f1558",
+ "run_dir": "run-d9be5d4534b8",
+ "configuration": {
+  "model": "deepseek-v4-pro",
+  "provider_policy": "deepseek-only",
+  "streaming": false,
+  "review_structured": true,
+  "turn_budget_seconds": 180,
+  "request_deadline_seconds": 180,
+  "client_timeout_ms": 300000
+ },
+ "files": {
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/README.md": "18e894e075da0b9880c772363fffb156b990378fdee30183d40365bac5e67267",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/db_check.json": "5ab02fe62d43fd84766ad2b9ebf51477f110d5e0a7c522500b263480ac0a7d48",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/dispatch_evidence.txt": "6affaa46a721c5433e44e00dd561bb18e7716dee863412d81fd739c99275379b",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/final_after_restart.png": "51387433edeb08ebb0743897d36c28fcf1b69600aabe42d7bac29375eef28aa3",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/fresh_after_restart_ui.text": "31d3142aed4b81cd96489e9c1ee832e60ab0548e3ec1b8fbc5d7d0908c4976bf",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/pre_restart_final.json": "d6a5c9d841360d2daff058fe1a4adafb480774369047eb20c6ce8ac4616e8787",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/run_stdout.text": "72b43858712dec60c73e82c66570ba27b9026d320b51e70cd8b528102ff9c6b8",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/ui_loop_final.json": "fce802fe997c4a50c34d3e8f490dd7afdb340f52a15d965e56eb742392fadc00"
+ },
+ "checks_passed": 28,
+ "checks_failed": 0
+}

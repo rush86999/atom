@@ -1,0 +1,99 @@
+{
+ "schema": "core-release-ui-launch-declaration-1",
+ "status": "declared_before_ui_loop",
+ "candidate": {
+  "branch": "whole-app/successor-f5f",
+  "commit": "242b1f76b",
+  "worktree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app"
+ },
+ "scratch_resources": {
+  "world": "core_release_deepseek_20261028",
+  "run_dir": "run-23a44bdc4b9d",
+  "backend_port": 8061,
+  "frontend_port": 3114,
+  "frontend_build": "existing frozen production build; client API origin http://localhost:8061"
+ },
+ "provider": {
+  "id": "deepseek",
+  "endpoint": "https://api.deepseek.com/v1",
+  "model": "deepseek-v4-pro",
+  "provider_policy": {
+   "mode": "selected",
+   "allowed_providers": [
+    "deepseek"
+   ],
+   "preferred": {
+    "provider": "deepseek",
+    "model": "deepseek-v4-pro"
+   }
+  },
+  "fallback": "none; local Ollama and all other providers excluded"
+ },
+ "environment": {
+  "ATOM_LOCAL_ONLY": "false",
+  "ATOM_LLM_PROVIDER_POLICY": "{\"mode\":\"selected\",\"allowed_providers\":[\"deepseek\"],\"preferred\":{\"provider\":\"deepseek\",\"model\":\"deepseek-v4-pro\"}}",
+  "ATOM_PREFERRED_LLM_PROVIDER": "deepseek",
+  "ATOM_PREFERRED_LLM_MODEL": "deepseek-v4-pro",
+  "ATOM_CHAT_STREAMING": "false",
+  "ATOM_REVIEW_STRUCTURED": "0",
+  "ATOM_CHAT_TURN_BUDGET_SECONDS": "180",
+  "ATOM_TURN_INTERPRET_TIMEOUT_S": "20",
+  "ATOM_REVIEW_MODEL": "deepseek-v4-pro",
+  "ATOM_CHAT_REQUEST_DEADLINE_SECONDS": "180"
+ },
+ "client_timeout_ms": 300000,
+ "teaching_and_expected": {
+  "original": {
+   "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.",
+   "first_assessment": {
+    "GR-2026-014": "FUND",
+    "GR-2026-021": "HOLD",
+    "GR-2026-033": "DECLINE"
+   }
+  },
+  "corrected": {
+   "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.",
+   "different_unfamiliar_assessment": {
+    "IN-7301": "DECLINE",
+    "IN-7302": "HOLD",
+    "IN-7303": "HOLD"
+   },
+   "fresh_post_restart_assessment": {
+    "IN-7301": "DECLINE",
+    "IN-7302": "HOLD",
+    "IN-7303": "HOLD"
+   }
+  }
+ },
+ "calculation": {
+  "ask": "What is the total Invoice Amount for Open invoices in vendor_loop.csv? Use a sum and cite the rows.",
+  "expected_total": "22200.00",
+  "expected_rows": [
+   "IN-7301",
+   "IN-7302",
+   "IN-7303"
+  ],
+  "old_23800_value": "incorrect; not accepted"
+ },
+ "held_out_set": {
+  "unfamiliar_subjects": [
+   "IN-7301",
+   "IN-7302",
+   "IN-7303"
+  ],
+  "boundaries": [
+   "4800 below 5000",
+   "7000 in 5000-9999",
+   "12000 at or above 10000"
+  ],
+  "renamed_schema": "vendor_loop.csv uses Vendor Ref / Invoice Amount / State while grants_loop.csv uses Application Ref / Applicant / Requested Amount / Stage",
+  "in_place_correction": "the same teaching point is rewritten from 10000+ FUND to 10000+ HOLD for CFO review",
+  "unaffected_positive_twin": "GR-2026-033 remains DECLINE and IN-7302 remains HOLD after the correction",
+  "expected_judgments_in_fixture": true
+ },
+ "deployment_authorized": false,
+ "diagnostic_attempt_4": {
+  "ATOM_REVIEW_STRUCTURED": "1",
+  "result": "first grants assessment still returned no parseable review block; vendor and fresh assessments passed"
+ }
+}

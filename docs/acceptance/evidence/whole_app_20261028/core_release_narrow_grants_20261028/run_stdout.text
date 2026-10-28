@@ -1,0 +1,6 @@
+PASS admin login 200
+PASS authenticated workspace/user {'status': 200, 'workspace_id': None}
+PASS agent created through product API {'status': 201, 'agent_id': '82d06efa-584d-490c-bd48-f87b815299a8'}
+PASS policy taught through product API {'status': 200, 'policy_id': 'b9de42ce2d6242689649ee021ebe2d97', 'lesson': 'Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.'}
+PASS source uploaded through product API {'status': 200, 'document_id': 'doc_45cd101f1f4ee7ad8289f328'}
+FAIL authoritative sheet dataset materialized []

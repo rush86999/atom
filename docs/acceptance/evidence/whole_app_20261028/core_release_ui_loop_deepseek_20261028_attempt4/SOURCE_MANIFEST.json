@@ -1,0 +1,20 @@
+{
+ "schema": "core-release-ui-loop-attempt-source-manifest-1",
+ "status": "blocked_format_boundary",
+ "candidate_code_commit": "9e6886563",
+ "files": {
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/README.md": "80ccc189d88383cc348b73fc36e34ea8c95276ae2ce219532f05c1566560cf53",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/db_check.json": "e7c59fbeae4a40d5013daea4ce57e78f98d7233ea72af208e43d6e38cedb6ad7",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/final_after_restart.png": "527700057fa374a1ac0bd1243d3066db30e2808cdf0844fdfcad0ff63ce63fd8",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/fresh_after_restart_ui.text": "e70b87467bbeff29cf69f18c1dd3af038fb251a3044f44355c8be139413dbb0a",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/pre_restart_final.json": "fc6b5b2af3be80dfcceba5828823c83dfd463b1915ea4812ae5c0bb3d3b1673f",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/run_stdout.text": "ad7c595ab8c5cd7d143de7ec4896c83d7cb676bead22e6d2b0d50dd5a986d5e9",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_attempt4/ui_loop_final.json": "8a5973d12677afa1ccdb1223dc5582e3213eeccc654aeb9660d50d3fd496c789"
+ },
+ "world_export_sha256": "678e9abc8b983bf8",
+ "run_dir": "run-d9be5d4534b8",
+ "external_calls": {
+  "review_calls": 3,
+  "semantic_retries": 0
+ }
+}

@@ -1,0 +1,2547 @@
+{
+  "schema_version": "core-release-1",
+  "title": "Atom core-release readiness ledger \u2014 2026-10-27",
+  "generated_at": "2026-10-27T23:50:44.149807+00:00",
+  "supersedes": "WHOLE_APP_READINESS_LEDGER_2026-10-27",
+  "decision": "docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md",
+  "candidate": {
+    "commit": "f5f3148d24351217b20e4994fe7602131f8ae220",
+    "tree": "d5804aed4be4a920a2c6067c253efc7f89cc539f",
+    "branch": "whole-app/successor-f5f",
+    "preserved_package": "/Users/rushiparikh/projects/atom-releases/f5f3148d2",
+    "preserved_evidence": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence"
+  },
+  "environment": {
+    "id": "whole-app-world-20261027",
+    "frontend": "http://127.0.0.1:3001 (next dev --webpack, f5f3148d2 source)",
+    "backend": "http://127.0.0.1:8105 (uvicorn, f5f3148d2 source)",
+    "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/whole-app-world/data/atom.db",
+    "database_source": "c912375de backup atom-pre-ae0c2fda3-20261026T234157Z.db.gz",
+    "external_traffic": "disabled: live credentials stripped from the worktree .env, ENABLE_SCHEDULER=false, ENABLE_INGESTION_SYNC=false, no Telegram/Graph pollers",
+    "roles": {
+      "ordinary": "wholeapp.member@example.com (member, created in-world)",
+      "admin": "admin@example.com (workspace_admin)"
+    },
+    "not_live": true
+  },
+  "status_legend": {
+    "verified": "Executed end-to-end on the named candidate/config; the stated user-visible action succeeded.",
+    "failed": "Reproduced failure at the boundary the user touches.",
+    "partial": "An early transition passed; the named later transition did not.",
+    "unproven": "Rendered or existed, but the action was not executed; no candidate-bound pass.",
+    "environment_limited": "Cannot execute without credentials or a scheduler this isolated world intentionally disables. Not a pass.",
+    "blocked_external": "Needs a real external account or communication; outside this run's constraints.",
+    "not_authorized": "Would deploy, spend, or contact outside the sandbox; no authorization.",
+    "deferred_scope": "Excluded from the core release by the 2026-10-27 product decision; code and data retained."
+  },
+  "summary": {
+    "total": 110,
+    "by_status": {
+      "deferred_scope": 47,
+      "environment_limited": 2,
+      "failed": 2,
+      "not_authorized": 1,
+      "partial": 11,
+      "unproven": 2,
+      "verified": 45
+    },
+    "core_statuses": {
+      "environment_limited": 2,
+      "failed": 2,
+      "partial": 11,
+      "unproven": 2,
+      "verified": 45
+    },
+    "deferred_items": 47,
+    "core_release_ready": false,
+    "reason": "The core surface is configured and browser-enforced, and the domain-independent calculation/decision contracts pass. The trained-employee loop, deliverable formats and the production build remain open; deferred surfaces are an explicit product decision, not failures."
+  },
+  "items": [
+    {
+      "id": "WA-001",
+      "area": "candidate",
+      "feature": "Preserved f5f3148d2 package",
+      "action": "Verify the frozen candidate identity and package manifest still match",
+      "candidate_bound": false,
+      "config": "preserved-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "manifest",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/PACKAGE.json",
+          "detail": "commit f5f3148d2 / tree d5804aed; package and evidence directories untouched this run"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "The task instruction says the six artifact/evidence hashes were independently checked on 2026-10-27; this run did not re-run the packaged rehearsal."
+    },
+    {
+      "id": "WA-002",
+      "area": "candidate",
+      "feature": "Pre-restart packaged rehearsal",
+      "action": "Run the packaged pre-restart acceptance checks",
+      "candidate_bound": false,
+      "config": "preserved-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "evidence",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/PACKAGE.json",
+          "detail": "pre: 15/15"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-003",
+      "area": "candidate",
+      "feature": "Post-restart packaged verification",
+      "action": "Restart the packaged candidate and run the post-restart checks",
+      "candidate_bound": false,
+      "config": "preserved-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "evidence",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/PACKAGE.json",
+          "detail": "post: 7/7"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-004",
+      "area": "candidate",
+      "feature": "Resume probe",
+      "action": "Resume the interrupted partial probe",
+      "candidate_bound": false,
+      "config": "preserved-f5f3148d2",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "evidence",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/PACKAGE.json",
+          "detail": "resume probe preserved as partial; not rescored"
+        }
+      ],
+      "first_failed_transition": "The preserved probe did not complete its resume transition.",
+      "next_action": "Keep as partial; do not count it toward whole-app acceptance.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-005",
+      "area": "deployment",
+      "feature": "Guarded launcher preflight",
+      "action": "Run the f5f3148d2 launcher read-only preflight",
+      "candidate_bound": false,
+      "config": "launcher-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/cutover/preflight-final-20261027.txt",
+          "detail": "candidate source matches archive; pilot 19046; live smoke precheck OK"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Preflight is read-only; no cutover performed."
+    },
+    {
+      "id": "WA-006",
+      "area": "deployment",
+      "feature": "Stale identity rejection",
+      "action": "Try to pass an ae0c2fda3 package through the f5f launcher",
+      "candidate_bound": false,
+      "config": "launcher-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/cutover/stale-identity-check.txt",
+          "detail": "candidate identity commit mismatch"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-007",
+      "area": "deployment",
+      "feature": "Wrong token rejection",
+      "action": "Try to apply with the old approval token",
+      "candidate_bound": false,
+      "config": "launcher-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/cutover/wrong-token-check.txt",
+          "detail": "explicit approval missing"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-008",
+      "area": "deployment",
+      "feature": "Fake-release rollback",
+      "action": "Exercise scoped stop and automatic code rollback on a fake release",
+      "candidate_bound": false,
+      "config": "launcher-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/cutover/selftest-f5f3148d2-20261027.txt",
+          "detail": "stop_scoped_pid=ok; fake_rollback=ok; selftest=passed"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-009",
+      "area": "deployment",
+      "feature": "Cutover",
+      "action": "Cut over the live pilot to f5f3148d2",
+      "candidate_bound": false,
+      "config": "launcher-f5f3148d2",
+      "status": "not_authorized",
+      "evidence": [
+        {
+          "kind": "document",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/CUTOVER_AUTHORIZATION_f5f3148d2.md",
+          "detail": "awaiting explicit token f5f3148d2"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Obtain explicit authorization; previous ae0c2fda3 authorization does not transfer.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-010",
+      "area": "auth",
+      "feature": "API-first login",
+      "action": "Sign in with email/password and land on the dashboard",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "login -> /dashboard; token persisted"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "POST /api/auth/login 200; GET /api/auth/me 200"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Login form uses /api/auth/login directly; NextAuth session is not the identity source."
+    },
+    {
+      "id": "WA-011",
+      "area": "auth",
+      "feature": "Session reload",
+      "action": "Reload a deep page and keep the authenticated session",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "reload phase on dashboard/tasks/boards/approvals/goal-runs"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-012",
+      "area": "auth",
+      "feature": "Ordinary role navigation",
+      "action": "Verify a member does not see Approvals or the admin band after role resolution",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/role-visibility.json",
+          "detail": "member nav excludes /approvals, /admin/*, /audit-trail, /dev-studio after role fetch"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-013",
+      "area": "auth",
+      "feature": "Ordinary role direct-URL authorization",
+      "action": "Navigate a member directly to an admin URL",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-member.json",
+          "detail": "page shell renders; backend returns 403 on admin APIs"
+        }
+      ],
+      "first_failed_transition": "The page renders an admin shell for a member instead of a clean denied state; backend correctly denies the data.",
+      "next_action": "Add a page-level 403 state (or redirect) so direct links do not render an empty admin surface.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-014",
+      "area": "auth",
+      "feature": "Workspace-admin governance access",
+      "action": "Open JIT Verification and Business Facts as workspace_admin",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "jit: no bad responses; facts: no bad responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": true,
+      "notes": "Backend gates aligned to WORKSPACE_ADMIN for the two workspace-scoped governance routers; the sidebar already exposed them at that level."
+    },
+    {
+      "id": "WA-015",
+      "area": "tasks",
+      "feature": "Task CRUD",
+      "action": "Create, list, update, and delete a task through /api/v1/tasks",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "POST/GET/PUT/DELETE 200; title/status round-trip"
+        },
+        {
+          "kind": "test",
+          "path": "backend/tests/test_nav_stub_task_crud.py",
+          "detail": "3 tests"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Task tracking is deferred; work and results stay in Activity.",
+      "blocking": false,
+      "notes": "The GET-only nav stub was replaced with durable UserTask CRUD (tenant-scoped, owner-scoped). Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "tasks"
+    },
+    {
+      "id": "WA-016",
+      "area": "tasks",
+      "feature": "Task persistence",
+      "action": "Reload and restart the backend, then list the task",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "'Restart survival task' still listed after process restart"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Task tracking is deferred; work and results stay in Activity.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "tasks"
+    },
+    {
+      "id": "WA-017",
+      "area": "tasks",
+      "feature": "Task create failure honesty",
+      "action": "Create a task while the create endpoint is unavailable",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "test",
+          "path": "backend/tests/test_nav_stub_task_crud.py",
+          "detail": "create requires a title; durable row"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Task tracking is deferred; work and results stay in Activity.",
+      "blocking": false,
+      "notes": "Before the fix the UI optimistically showed 'Task created' while POST 405'd; the endpoint now exists, and the wrapper still surfaces a failure toast on non-2xx. Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "tasks"
+    },
+    {
+      "id": "WA-018",
+      "area": "boards",
+      "feature": "Board create/open",
+      "action": "Create a board and open its detail page",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/board-priority.json",
+          "detail": "board created and opened; URL /boards/<id>"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "GET /api/boards/<id> 200 with columns"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Kanban is deferred; task definitions live in the accepted task.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "boards"
+    },
+    {
+      "id": "WA-019",
+      "area": "boards",
+      "feature": "Board task create/persist",
+      "action": "Add a task to a board column and reload",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "task and decompose child returned after restart"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/board-priority.json",
+          "detail": "task visible after create"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Kanban is deferred; task definitions live in the accepted task.",
+      "blocking": true,
+      "notes": "The earlier reload flake was Next dev compiling the dynamic route on first hard navigation; the durable row was present and the API returned it after restart. Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "boards"
+    },
+    {
+      "id": "WA-020",
+      "area": "boards",
+      "feature": "Task comments",
+      "action": "Post a comment on a board task and reload it",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "POST comment 201; GET comments 200 after backend restart"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Kanban is deferred; task definitions live in the accepted task.",
+      "blocking": false,
+      "notes": "api/board_comment_routes.py was not mounted; it is now included at /api. Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "boards"
+    },
+    {
+      "id": "WA-021",
+      "area": "boards",
+      "feature": "Task decomposition",
+      "action": "Commit a decomposition proposal into child tasks",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "POST .../decompose/commit 201; child appears with parent_task_id"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Kanban is deferred; task definitions live in the accepted task.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "boards"
+    },
+    {
+      "id": "WA-022",
+      "area": "boards",
+      "feature": "LLM decomposition proposal",
+      "action": "Generate subtask proposals from a task",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "code",
+          "path": "backend/api/board_decompose_routes.py",
+          "detail": "proposal path needs LLM/BYOK; commit path tested separately"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Kanban is deferred; task definitions live in the accepted task.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "boards"
+    },
+    {
+      "id": "WA-023",
+      "area": "workflows",
+      "feature": "Workflow create/save",
+      "action": "Create a visual workflow and confirm it is listed after reload",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/workflow-priority.json",
+          "detail": "Create Workflow -> AI node -> Save; API list contains 'Visual Workflow ...'"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "POST /api/v1/workflows/workflows 200; GET list 200"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Workflow builder/scheduling/unattended automation is deferred; the core work loop is directed, reviewed work.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "workflows"
+    },
+    {
+      "id": "WA-024",
+      "area": "workflows",
+      "feature": "Workflow failure execution",
+      "action": "Execute a deterministic failing workflow",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "status failed; errors ['Unknown service: ...']"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Workflow builder/scheduling/unattended automation is deferred; the core work loop is directed, reviewed work.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "workflows"
+    },
+    {
+      "id": "WA-025",
+      "area": "workflows",
+      "feature": "Failure persistence",
+      "action": "Restart the backend and re-read the failed execution",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "execution still 'failed' with the same error after restart"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Workflow builder/scheduling/unattended automation is deferred; the core work loop is directed, reviewed work.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "workflows"
+    },
+    {
+      "id": "WA-026",
+      "area": "workflows",
+      "feature": "Workflow execute success",
+      "action": "Execute a normal workflow end-to-end",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/workflow-success.log",
+          "detail": "database.query step -> status completed, errors []"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Workflow builder/scheduling/unattended automation is deferred; the core work loop is directed, reviewed work.",
+      "blocking": false,
+      "notes": "A local database step exercises the real engine without external credentials. Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "workflows"
+    },
+    {
+      "id": "WA-027",
+      "area": "workflows",
+      "feature": "Workflow schedule create/list/delete",
+      "action": "Schedule a workflow, list jobs, remove the job",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "POST schedule 200; GET scheduler/jobs 200 with workflow_id; DELETE 200"
+        },
+        {
+          "kind": "test",
+          "path": "backend/ai/workflow_scheduler.py",
+          "detail": "list_jobs tolerates a not-yet-started scheduler"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Workflow builder/scheduling/unattended automation is deferred; the core work loop is directed, reviewed work.",
+      "blocking": false,
+      "notes": "The page called /scheduler/jobs and /workflows/... without /api/v1/workflows; the URL base and list shape were fixed. Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "workflows"
+    },
+    {
+      "id": "WA-028",
+      "area": "workflows",
+      "feature": "Scheduled firing",
+      "action": "Wait for a scheduled workflow to fire and record an execution",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "config",
+          "path": "docs/acceptance/evidence/whole_app_20261027/environment.json",
+          "detail": "ENABLE_SCHEDULER=false in the isolated world"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Workflow builder/scheduling/unattended automation is deferred; the core work loop is directed, reviewed work.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "workflows"
+    },
+    {
+      "id": "WA-029",
+      "area": "workflows",
+      "feature": "Workflow governance pause",
+      "action": "Pause a workflow on a governance denial and resume it after approval",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "code",
+          "path": "backend/core/workflow_engine.py",
+          "detail": "pause path creates HITLAction with execution_id/workflow_id; resume bridge implemented in core/hitl_resume.py"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Workflow builder/scheduling/unattended automation is deferred; the core work loop is directed, reviewed work.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "workflows"
+    },
+    {
+      "id": "WA-030",
+      "area": "approvals",
+      "feature": "Pending queue",
+      "action": "List pending HITL actions as the admin",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "Approvals page rendered 51 pending review badge and decision buttons after load"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "GET /api/agents/approvals/pending 200"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-031",
+      "area": "approvals",
+      "feature": "Approve resumes goal run",
+      "action": "Approve a held goal-run decision through the generic Approvals page/API",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "before paused_hitl with pending_decision; after status=active, pending_decision=None, resumes handled=true"
+        },
+        {
+          "kind": "test",
+          "path": "backend/tests/test_hitl_resume.py",
+          "detail": "5 tests"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Before the fix the endpoint returned 200 'approved' and the run stayed paused forever."
+    },
+    {
+      "id": "WA-032",
+      "area": "approvals",
+      "feature": "Reject records correction",
+      "action": "Reject a held goal-run decision with guidance",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "status active; decision_log override with guidance 'change the approach'"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/approval-reject.json",
+          "detail": "Reject -> 56 to 55 buttons; 'Action rejected.'; reload keeps 55"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-033",
+      "area": "approvals",
+      "feature": "Stale pending rows",
+      "action": "Resume a run through its own endpoint and re-check the generic queue",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/post-restart-checks.log",
+          "detail": "hitl_before=1, hitl_after=0, run_status=active"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-034",
+      "area": "background",
+      "feature": "Goal-run create/list/detail",
+      "action": "Create a supervisor goal run and read it back",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "POST /api/goal-runs 200; GET detail 200; paused_hitl on the held decision"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-035",
+      "area": "background",
+      "feature": "Goal-run checkpoint",
+      "action": "Reach a human_checkpoint step and resolve it",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "environment_limited",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "the router held on ASK_HUMAN before the plan's checkpoint because no LLM was configured"
+        }
+      ],
+      "first_failed_transition": "Without an LLM the router returns an unusable decision, so execution never reaches the checkpoint step.",
+      "next_action": "Run the checkpoint transition with a configured model or a scripted router stub.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-036",
+      "area": "background",
+      "feature": "Decision durability across restart",
+      "action": "Restart the backend after a held decision and read the run",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "run/decision rows persisted; approval after restart resumed the run"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-037",
+      "area": "background",
+      "feature": "Chat continuation",
+      "action": "Resume an interrupted chat turn after restart",
+      "candidate_bound": false,
+      "config": "preserved-f5f3148d2",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "evidence",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/PACKAGE.json",
+          "detail": "preserved resume probe is partial"
+        }
+      ],
+      "first_failed_transition": "The preserved probe did not complete its resume transition.",
+      "next_action": "Do not rescore; keep the partial probe visible.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-038",
+      "area": "documents",
+      "feature": "TXT upload/search",
+      "action": "Upload a text file and find its content by search",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "200; search 'blue widget' returned probe.txt"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-039",
+      "area": "documents",
+      "feature": "DOCX upload/search",
+      "action": "Upload a Word document and find its content by search",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "200; search 'green widget' returned probe.docx with extracted text"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-040",
+      "area": "documents",
+      "feature": "PPTX upload/search",
+      "action": "Upload a PowerPoint deck and find its slide text by search",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "200; search 'red widget' returned probe.pptx with '--- Slide 1 ---' text"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "python-pptx fallback added; previously this stored an empty placeholder without docling."
+    },
+    {
+      "id": "WA-041",
+      "area": "documents",
+      "feature": "Legacy/unsupported formats",
+      "action": "Upload .doc, .ppt, .rtf, or .odt without docling",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": ".doc -> 415 with a clear docling message instead of a silent empty success"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "The feature remains unavailable without docling, but the product no longer claims success. Installing docling is a separate decision."
+    },
+    {
+      "id": "WA-042",
+      "area": "documents",
+      "feature": "PDF/Markdown",
+      "action": "Upload PDF and Markdown files",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "txt/docx/pptx executed; PDF/MD rely on existing packaged evidence and were not re-uploaded"
+        }
+      ],
+      "first_failed_transition": "Not executed in this world.",
+      "next_action": "Upload one PDF and one MD and assert extracted text and search hits.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-043",
+      "area": "documents",
+      "feature": "Document list reload",
+      "action": "Reload the Documents page and list the uploaded files",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/documents renders after reload; list API returns the uploads"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-044",
+      "area": "chat",
+      "feature": "Chat text turn",
+      "action": "Send a text turn and reload history",
+      "candidate_bound": false,
+      "config": "preserved-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "evidence",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/PACKAGE.json",
+          "detail": "pre 15/15 includes the chat journey"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Not re-run in the isolated world because no LLM credentials/spend are authorized."
+    },
+    {
+      "id": "WA-045",
+      "area": "canvas",
+      "feature": "Canvas create/edit/reload",
+      "action": "Create a canvas artifact, edit it, reload",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/canvas renders; no artifact transition executed"
+        }
+      ],
+      "first_failed_transition": "Render only.",
+      "next_action": "Run the existing canvas journey against this world or reuse the packaged J5 evidence.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-046",
+      "area": "search",
+      "feature": "Search query",
+      "action": "Search memory/documents and inspect results",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "document search returned the uploaded txt/docx/pptx"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/search renders"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Unified search is deferred; document search remains in Data.",
+      "blocking": true,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "search"
+    },
+    {
+      "id": "WA-047",
+      "area": "agents",
+      "feature": "Agents list/maturity",
+      "action": "Open the Agents page and read the maturity ladder",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/agents renders; training/promotion actions not executed"
+        }
+      ],
+      "first_failed_transition": "No agent run/training transition executed (LLM).",
+      "next_action": "Use the existing trained-review evidence for the AI slice; add one non-LLM agent-list assertion.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-048",
+      "area": "automations",
+      "feature": "Automations list/create/schedule",
+      "action": "Use the Automations tabs and workflow surface",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/workflow-priority.json",
+          "detail": "builder save and workflow list"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "templates/tables/versions tabs render"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "The 401 on the workflow GETs was the missing Bearer bridge; it is now injected from the auth cookie."
+    },
+    {
+      "id": "WA-049",
+      "area": "marketplace",
+      "feature": "Marketplace",
+      "action": "Browse the marketplace catalog",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/marketplace renders"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Marketplace is deferred; agents are created and taught in Agents.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "marketplace"
+    },
+    {
+      "id": "WA-050",
+      "area": "command-centers",
+      "feature": "Projects dashboard",
+      "action": "Open Projects and read its data",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: 0 bad API responses (was 401)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-051",
+      "area": "command-centers",
+      "feature": "Sales & CRM dashboard",
+      "action": "Open Sales & CRM and read its data",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: 0 bad API responses (was 401)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-052",
+      "area": "command-centers",
+      "feature": "Support dashboard",
+      "action": "Open Support and read its data",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "0 bad API responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-053",
+      "area": "command-centers",
+      "feature": "Knowledge dashboard",
+      "action": "Open Knowledge and read its data",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "0 bad API responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-054",
+      "area": "command-centers",
+      "feature": "Communication center",
+      "action": "Open Communication and read its data",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: 0 bad API responses (was 401)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-055",
+      "area": "business",
+      "feature": "Sales",
+      "action": "Open the Sales page and read leads",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: leads request authorized via cookie bridge"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Business dashboards are deferred; business rules come from teaching.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "business"
+    },
+    {
+      "id": "WA-056",
+      "area": "business",
+      "feature": "Marketing",
+      "action": "Open Marketing and load the summary",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "marketing: no bad responses"
+        },
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/post-restart-checks.log",
+          "detail": "marketing summary 200"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Business dashboards are deferred; business rules come from teaching.",
+      "blocking": true,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "business"
+    },
+    {
+      "id": "WA-057",
+      "area": "business",
+      "feature": "Finance",
+      "action": "Open Finance and read its data",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/finance renders"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Business dashboards are deferred; business rules come from teaching.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "business"
+    },
+    {
+      "id": "WA-058",
+      "area": "business",
+      "feature": "Analytics",
+      "action": "Open Analytics and read KPI cards",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: 0 bad API responses (was 401)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Business dashboards are deferred; business rules come from teaching.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "business"
+    },
+    {
+      "id": "WA-059",
+      "area": "productivity",
+      "feature": "Calendar",
+      "action": "Open Calendar and read events",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: /api/dashboard/events 200 (was 404)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Calendar/health/voice are deferred.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "productivity"
+    },
+    {
+      "id": "WA-060",
+      "area": "productivity",
+      "feature": "Health",
+      "action": "Open Health and read business-health/risk cards",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "risk 404 fixed; business-health now authorized; intervention-generate remains 403"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Calendar/health/voice are deferred.",
+      "blocking": true,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "productivity"
+    },
+    {
+      "id": "WA-061",
+      "area": "productivity",
+      "feature": "Voice",
+      "action": "Open Voice and check readiness",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/voice renders"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Calendar/health/voice are deferred.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "productivity"
+    },
+    {
+      "id": "WA-062",
+      "area": "governance",
+      "feature": "JIT Verification",
+      "action": "Read JIT cache/worker metrics as workspace_admin",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "jit: no bad responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": true,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-063",
+      "area": "governance",
+      "feature": "BPE Workspace",
+      "action": "Open BPE Workspace",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/admin/bpe renders"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-064",
+      "area": "governance",
+      "feature": "Learning & Verification",
+      "action": "Open Learning & Verification",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/admin/learning-verification renders"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-065",
+      "area": "governance",
+      "feature": "Business Facts",
+      "action": "List business facts as workspace_admin",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "business-facts: no bad responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": true,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-066",
+      "area": "governance",
+      "feature": "User Management",
+      "action": "List users as workspace_admin",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/admin/users renders; list API authorized"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": false,
+      "notes": "Creating an admin user still requires super_admin; that is a separate elevated action. Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-067",
+      "area": "governance",
+      "feature": "Admin Settings",
+      "action": "Open runtime settings",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "renders"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-068",
+      "area": "governance",
+      "feature": "Audit Trail",
+      "action": "Open the audit trail and read a decision",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-member.json",
+          "detail": "member page shows soft-error text; admin page renders"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": true,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-069",
+      "area": "governance",
+      "feature": "Skill Builder",
+      "action": "Open the skill editor",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/admin/skills/new renders"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-070",
+      "area": "governance",
+      "feature": "Owner Cockpit",
+      "action": "Open the owner cockpit and read priorities",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: business-health priorities authorized; no 'Failed to load dashboard data'"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-071",
+      "area": "governance",
+      "feature": "Forensics",
+      "action": "Open Forensics and read vendor/pricing/waste panels",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: /api/forensics/* 200 (was 404)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-072",
+      "area": "governance",
+      "feature": "Dev Studio",
+      "action": "Open Dev Studio",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "render OK; WhatsApp health 503 because WhatsApp is not configured"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": true,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-073",
+      "area": "platform",
+      "feature": "Integrations catalog",
+      "action": "Browse the integration catalog",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/integrations renders; no bad API responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Broad connector management is deferred; provider keys stay in Settings.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "connectors"
+    },
+    {
+      "id": "WA-074",
+      "area": "platform",
+      "feature": "Integration data ingestion settings",
+      "action": "Open Integration Data and list integrations",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: /api/document-ingestion/integrations 200 (was 404)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Broad connector management is deferred; provider keys stay in Settings.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "connectors"
+    },
+    {
+      "id": "WA-075",
+      "area": "platform",
+      "feature": "Settings",
+      "action": "Open Account/AI/Sessions/Routing/Local Models settings",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "tabs render; /api/satellite/key 404 fixed by proxy"
+        }
+      ],
+      "first_failed_transition": "No setting was saved and reloaded.",
+      "next_action": "Save and restore one preference per tab.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "WA-076",
+      "area": "platform",
+      "feature": "System Status",
+      "action": "Open System Status and read the aggregate",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "system-status: no hard error, no bad API responses"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": true,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-077",
+      "area": "platform",
+      "feature": "Scheduling page",
+      "action": "Open Scheduling and list events",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix: /api/dashboard/events 200 (was 404)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Calendar/health/voice are deferred.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "productivity"
+    },
+    {
+      "id": "WA-078",
+      "area": "platform",
+      "feature": "Team chat",
+      "action": "Open Team Chat",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "renders"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Team chat is deferred.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "team_chat"
+    },
+    {
+      "id": "WA-079",
+      "area": "platform",
+      "feature": "Network failure UX",
+      "action": "Block an API route and inspect the page's error state",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "unproven",
+      "evidence": [],
+      "first_failed_transition": "Not executed.",
+      "next_action": "Abort /api/v1/tasks and /api/boards and assert a durable error/retry state, not a blank page.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-080",
+      "area": "platform",
+      "feature": "Installation",
+      "action": "Run a clean-machine install from the documented quickstart",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "environment_limited",
+      "evidence": [
+        {
+          "kind": "document",
+          "path": "docs/getting_started/quick-start.md",
+          "detail": "Python 3.11-3.13 required; host default is 3.14; venv314 is prebuilt"
+        }
+      ],
+      "first_failed_transition": "A clean install on this host would need python3.11; installing dependencies was not run (no spending/network install authorized).",
+      "next_action": "Run scripts/quickstart.sh in a disposable clone with python3.11 and assert health + login.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-081",
+      "area": "platform",
+      "feature": "Restart/backup/rollback operations",
+      "action": "Restart the isolated backend and verify data survival",
+      "candidate_bound": false,
+      "config": "launcher-f5f3148d2",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/priority-flows.log",
+          "detail": "task, board comment, failed execution and goal-run decisions survived restart"
+        },
+        {
+          "kind": "log",
+          "path": "/Users/rushiparikh/projects/atom-releases/f5f3148d2-evidence/cutover/selftest-f5f3148d2-20261027.txt",
+          "detail": "fake-release automatic code rollback passed"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-082",
+      "area": "platform",
+      "feature": "External integrations",
+      "action": "Connect and sync a real external account",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "config",
+          "path": "docs/acceptance/evidence/whole_app_20261027/environment.json",
+          "detail": "credentials stripped; no outbound traffic"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Broad connector management is deferred; provider keys stay in Settings.",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "connectors"
+    },
+    {
+      "id": "WA-083",
+      "area": "auth",
+      "feature": "API cookie-to-Bearer bridge",
+      "action": "Call same-origin API paths that rely on the auth cookie",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/post-restart-checks.log",
+          "detail": "workflows, dashboard events, sales, communication, notifications and 2FA all 200 with the cookie alone"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "post-fix admin breadth: /automations, /communication, /sales, /tasks have no 401s"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "middleware forwards auth_token as Bearer for API requests, including public auth paths; NextAuth local handlers still take precedence."
+    },
+    {
+      "id": "WA-084",
+      "area": "platform",
+      "feature": "API fallback proxy",
+      "action": "Call API paths that had no explicit Next rewrite",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/post-restart-checks.log",
+          "detail": "/api/dashboard/events, /api/document-ingestion/integrations, /api/satellite/key, /api/forensics/*, /api/risk/* all 200"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Deferred platform surface (connectors/team chat/system status).",
+      "blocking": false,
+      "notes": "fallback rewrites (not afterFiles) keep /api/auth/session and /api/auth/_log on NextAuth. Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "platform"
+    },
+    {
+      "id": "WA-085",
+      "area": "boards",
+      "feature": "Board realtime channel",
+      "action": "Open the Kanban board WebSocket with a valid token",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/board-realtime.log",
+          "detail": "WebSocket /ws/boards/<id> accepted; client result 'open'"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Kanban is deferred; task definitions live in the accepted task.",
+      "blocking": false,
+      "notes": "The repo-root websocket_routes.py was not mounted; only /ws from api.websocket_routes existed. Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "boards"
+    },
+    {
+      "id": "WA-086",
+      "area": "platform",
+      "feature": "Marketing schema repair",
+      "action": "Read the marketing dashboard after startup schema repair",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/post-restart-checks.log",
+          "detail": "marketing summary 200; repair added workspace_id to marketing_channels/ad_spend/attribution_events"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Deferred platform surface (connectors/team chat/system status).",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "platform"
+    },
+    {
+      "id": "WA-087",
+      "area": "platform",
+      "feature": "System status aggregate",
+      "action": "Read /api/status and /api/services/registry from the System Status page",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "system-status: matches expected, no hard error, no bad API responses"
+        },
+        {
+          "kind": "log",
+          "path": "docs/acceptance/evidence/whole_app_20261027/post-restart-checks.log",
+          "detail": "/api/status 200 with services"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Deferred platform surface (connectors/team chat/system status).",
+      "blocking": false,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "platform"
+    },
+    {
+      "id": "WA-088",
+      "area": "platform",
+      "feature": "Settings sessions",
+      "action": "List and revoke sessions from Settings > Sessions",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "GET/POST/DELETE /api/auth/sessions 401/404"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Deferred platform surface (connectors/team chat/system status).",
+      "blocking": true,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "platform"
+    },
+    {
+      "id": "WA-089",
+      "area": "governance",
+      "feature": "Dev Studio optional WhatsApp panel",
+      "action": "Open Dev Studio and read the WhatsApp health card",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "deferred_scope",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "/dev-studio 503 from /api/whatsapp/health"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Admin/governance/self-healing tools are deferred from the core release.",
+      "blocking": true,
+      "notes": "Deferred by the 2026-10-27 core-release product decision; code and recorded data are retained.",
+      "deferred_capability": "governance"
+    },
+    {
+      "id": "WA-090",
+      "area": "breadth",
+      "feature": "Admin sidebar breadth",
+      "action": "Visit every sidebar route plus key orphan routes as workspace_admin",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-admin.json",
+          "detail": "56 routes + 6 reloads captured on the core profile"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/targeted-fixes.json",
+          "detail": "JIT, facts, marketing, system status, analytics re-verified after restart"
+        }
+      ],
+      "first_failed_transition": "Most core-profile route visits land on the explicit NotInRelease scope page; the full-profile spot check exposes them cleanly.",
+      "next_action": "Run the full 56-route breadth under the full profile after the product-scope decision, and add the 3 remaining direct-admin/member checks.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "WA-091",
+      "area": "breadth",
+      "feature": "Ordinary sidebar breadth",
+      "action": "Visit every sidebar route plus key orphan routes as a member",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-breadth-member.json",
+          "detail": "34 routes + 6 reloads on the core profile"
+        },
+        {
+          "kind": "json",
+          "path": "docs/acceptance/evidence/whole_app_20261027/role-visibility.json",
+          "detail": "member nav hides Approvals/admin at 500ms, 1.5s and 4s after login"
+        }
+      ],
+      "first_failed_transition": "The member run overlapped backend restarts (transient 500s) and the earlier sidebar failed open during role loading; the sidebar now hides elevated items while the role loads.",
+      "next_action": "Run the member breadth again on the full profile after the scope decision; core-profile direct admin links intentionally land on NotInRelease.",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "CR-001",
+      "area": "surface",
+      "feature": "One capability configuration",
+      "action": "Serve /api/product/profile and use it for navigation, dashboard links and direct-page access",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-core-surface.json",
+          "detail": "admin: 13 core routes loaded, sidebar showed only core labels, 23 deferred routes rendered the scope page; member: six core labels, Approvals hidden, direct /approvals showed the supervisor-required state; no page errors or 5xx. Production build repeated the same check."
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "ATOM_PRODUCT_PROFILE=core (default); full restores the wider surface."
+    },
+    {
+      "id": "CR-002",
+      "area": "surface",
+      "feature": "Deferred direct links",
+      "action": "Open each deferred route directly and confirm the explicit scope page",
+      "candidate_bound": true,
+      "config": "whole-app-world-20261027",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-core-surface.json",
+          "detail": "23/23 deferred routes showed 'not part of this release'"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "CR-003",
+      "area": "surface",
+      "feature": "Core worker defaults",
+      "action": "Assert the core profile disables autonomous scheduling, external ingestion sync and agent evolution by default",
+      "candidate_bound": true,
+      "config": "unit test",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test",
+          "path": "backend/tests/test_product_profile.py",
+          "detail": "test_core_worker_defaults_are_disabled"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Explicit operator settings still win; the isolated world may enable a worker for a specific check."
+    },
+    {
+      "id": "CR-004",
+      "area": "calculation",
+      "feature": "General spreadsheet operations",
+      "action": "Run line_total, sum and count through the same provenance/gap discipline, without a quantity x price assumption",
+      "candidate_bound": true,
+      "config": "unit test",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test",
+          "path": "backend/tests/test_core_domain_independence.py",
+          "detail": "6 tests: sum/count, unstated currency, classification vocabulary"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Missing required inputs are named gaps; no column is guessed when the measure is not named."
+    },
+    {
+      "id": "CR-005",
+      "area": "trained-agent",
+      "feature": "Task-owned decisions",
+      "action": "Accept decisions from the accepted task in three unrelated domains and reject a decision outside the taught set",
+      "candidate_bound": true,
+      "config": "unit test",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test",
+          "path": "backend/tests/test_core_domain_independence.py",
+          "detail": "Process/Escalate, Fund/Decline/Hold, Close/Reassign; rogue decision rejected"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "CR-006",
+      "area": "trained-agent",
+      "feature": "Subject identity",
+      "action": "Accept codes, references and human labels as review subjects; no fixed ID regex",
+      "candidate_bound": true,
+      "config": "unit test",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test",
+          "path": "backend/tests/test_core_domain_independence.py",
+          "detail": "0007, O-1001, GR-2026-014, HD-88 and 'Acme renewal'"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": ""
+    },
+    {
+      "id": "CR-007",
+      "area": "data",
+      "feature": "Imported email",
+      "action": "Upload an .eml file and preserve participants, date, subject, body and attachment names",
+      "candidate_bound": true,
+      "config": "unit test",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "test",
+          "path": "backend/tests/test_eml_parsing.py",
+          "detail": "headers/body/attachment names preserved; attachment bytes not dumped"
+        }
+      ],
+      "first_failed_transition": "The .eml upload has not been exercised through the browser and a durable document row on this successor.",
+      "next_action": "Upload a representative .eml through Data, search its body, and reload.",
+      "blocking": false,
+      "notes": "A connected mailbox remains a separate capability."
+    },
+    {
+      "id": "CR-008",
+      "area": "trained-agent",
+      "feature": "Teaching UI",
+      "action": "Teach through chat or the canvas Training tab; inspect, edit and delete teaching points; keep global/goal scope",
+      "candidate_bound": false,
+      "config": "existing candidate evidence + component tests",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "code",
+          "path": "frontend-nextjs/components/canvas/TrainingPanel.tsx",
+          "detail": "Training panel + teaching-point edit/delete; /teach chat channel"
+        },
+        {
+          "kind": "test",
+          "path": "frontend-nextjs/components/canvas/__tests__/TrainingPanel.test.tsx",
+          "detail": "component tests"
+        }
+      ],
+      "first_failed_transition": "The click path through the Training tab was not exercised; the API teach path and restart persistence were.",
+      "next_action": "Run the same teach/correct/delete actions through the rendered UI.",
+      "blocking": true,
+      "notes": "Storage/injection is not the gate; measurable improvement on later work is."
+    },
+    {
+      "id": "CR-009",
+      "area": "trained-agent",
+      "feature": "Trained-employee loop",
+      "action": "Teach through the UI, run an unfamiliar task, inspect deliverable/sources, correct, run a different task, restart, verify scoped persistence",
+      "candidate_bound": true,
+      "config": "isolated world + local Ollama llama3.1:8b (no external spend)",
+      "status": "failed",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/agent.json",
+          "detail": "Record Auditor created as STUDENT"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/lessons_after_restart.json",
+          "detail": "grant-threshold lesson persisted across a backend restart"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/task2.json",
+          "detail": "attempt 1: labeled grants_loop.csv but listed Roper-011/Tennsmith-001 rows from another workbook; outcome failed"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/task2_attempt2.json",
+          "detail": "attempt 2 after removing the implicit price field: still invented GL001/GL002 rows, never bound the four real grant rows; outcome failed"
+        },
+        {
+          "kind": "fixture",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/grants_loop.csv",
+          "detail": "the four grant rows the answer should have cited"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_grants_loop.json",
+          "detail": "unfamiliar-task judgment now follows the newest taught correction: GR-2026-033 (4800) DECLINE (was wrongly FUND); one generation, validated, outcome completed"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_helpdesk_different_task.json",
+          "detail": "different-task leg: the helpdesk block omitted evidence_ids and mislabeled a 2.25h ticket ESCALATE; refused with recorded codes, deterministic rows delivered, turn failed"
+        }
+      ],
+      "first_failed_transition": "Teach, unfamiliar task and correction legs now hold: the unfamiliar-task assessment follows the newest correction (4800 -> DECLINE, attempt2 grants) and restart persistence holds (fresh history after restart). The loop still fails at the different-task leg: on helpdesk_loop.csv the model produced a defective block (no evidence IDs, 2.25h labeled ESCALATE) which the platform correctly refused \u2014 judgment quality on the local 8b model is not reliable across domains.",
+      "next_action": "Make cross-domain judgment reliable on the configured local model (or qualify the model requirement), then repeat teach -> unfamiliar task -> correct -> different task -> restart end to end.",
+      "blocking": true,
+      "notes": "The failing different-task turn was correctly marked failed; no unvalidated decision reached the user. This is the core acceptance gate and it is NOT met."
+    },
+    {
+      "id": "CR-012",
+      "area": "calculation",
+      "feature": "Deterministic result authority",
+      "action": "When a deterministic file read computes rows, the delivered answer must cite those rows and not a model-written table that contradicts them",
+      "candidate_bound": true,
+      "config": "isolated world + local Ollama",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test",
+          "path": "backend/tests/test_table_selection.py",
+          "detail": "deliver_selection: fabricated Roper-011/Tennsmith-001/GL001/GL002 text never appears in the delivered message; kept in diagnostics"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assess_final.json",
+          "detail": "assessment ask delivered only the deterministic source rows and explicitly said no decision was accepted (success=false)"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "For a validated selection the model does not author the table. For an assessment the deterministic rows are delivered and an unvalidated decision table is withheld; decision delivery is CR-014."
+    },
+    {
+      "id": "CR-013",
+      "area": "calculation",
+      "feature": "Tabular selection ask",
+      "action": "List named columns for rows matching a condition in a named table (list Application Ref and Requested Amount for Submitted rows)",
+      "candidate_bound": true,
+      "config": "isolated world; controlled production-path tests + API",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test",
+          "path": "backend/tests/test_table_selection.py",
+          "detail": "exact grants selection (3 rows, Withdrawn excluded), renamed schema, helpdesk twin, ambiguity, model-table rejection, completion contract"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/selection_api_verified.json",
+          "detail": "GET /api/chat/message returned the deterministic 3-row table with the correct filter; model=deterministic"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/selection_missing_file_guard.json",
+          "detail": "unknown file: no table delivered, success=false"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/selection_helpdesk_api.json",
+          "detail": "different domain: Ticket/Hours for Open rows, 2 rows, Closed excluded"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/selection_after_restart.json",
+          "detail": "same grants selection after a real backend restart"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "Promote after the browser UI check of the same ask.",
+      "blocking": false,
+      "notes": "The operation is selected before item extraction; columns and predicate come from the bound sheet's headers/values, not business nouns."
+    },
+    {
+      "id": "CR-014",
+      "area": "trained-agent",
+      "feature": "Assessment decision binding",
+      "action": "Use deterministic subjects/facts, accept only task-defined decisions from the model, validate subject/evidence/policy references and render the final table",
+      "candidate_bound": true,
+      "config": "isolated world + local Ollama",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_structurally_valid_wrong_judgment.json",
+          "detail": "one generation, 3 subjects, validated table (HOLD/HOLD/FUND), response+history completed; GR-2026-033 4800 was FUND while the correction says DECLINE"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_malformed_safe_failure.json",
+          "detail": "next generation emitted no valid block; deterministic rows delivered, no decisions, success=false"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_boundaries_green.json",
+          "detail": "corrected rule: 3200 DECLINE, 5000 HOLD, 10000 HOLD, 12000 HOLD; source/policy basis; success/completed"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_renamed_schema_green.json",
+          "detail": "renamed schema/labels: 3200 REJECT, 5000 REVIEW, 10000 REVIEW; success/completed"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_after_restart_failed.json",
+          "detail": "renamed assessment after restart: no valid block, deterministic rows only, success=false (reliability tracked as CR-019)"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_boundaries_after_restart_green.json",
+          "detail": "grants boundary assessment after restart: 3200 DECLINE, 5000 HOLD, 10000 HOLD, 12000 HOLD; success/completed"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_history_after_restart.json",
+          "detail": "green run persisted with the table and outcome=completed after restart"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_grants_loop.json",
+          "detail": "the previously-failing case fixed: GR-2026-033 (4800) DECLINE under the newest taught correction; one generation (952 chars), 3 subjects, evidence ev:...R2/R3/R4, policy = the corrected rule; response success=true outcome=completed"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_history_after_restart.json",
+          "detail": "fresh history after a backend restart agrees: success=true, outcome=completed, decision table and VALIDATED REVIEW present"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_helpdesk_different_task.json",
+          "detail": "a block missing evidence_ids (and one wrong label) was REFUSED with recorded codes missing_evidence_ids; deterministic rows delivered, no certified decisions \u2014 acceptance-only validation holds"
+        },
+        {
+          "kind": "test",
+          "path": "backend/tests/test_table_selection.py",
+          "detail": "artifact mapping, ambiguous subject clarification, valid/invalid review variants, table join, teaching revision"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Binding is verified: decisions are task-defined, subject/evidence/policy-bound, and a defective block is refused with recorded codes while the deterministic rows remain. Judgment CORRECTNESS on green runs followed the newest teaching every time (4800 DECLINE; boundary 3200 DECLINE; renamed 3200 REJECT). Generation reliability across restarts is tracked separately as CR-019; cross-domain judgment variance is CR-009."
+    },
+    {
+      "id": "CR-016",
+      "area": "trained-agent",
+      "feature": "Structured review pipeline",
+      "action": "Selection -> structured review artifact -> one generation -> subject/evidence/policy validation -> table joined to authoritative rows",
+      "candidate_bound": true,
+      "config": "isolated world + local Ollama",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_structurally_valid_wrong_judgment.json",
+          "detail": "generation started/completed once; 3 subjects; evidence IDs ev:...R2/R3/R4; two policy IDs; validation ok"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_history_after_restart.json",
+          "detail": "response, persisted row and fresh history agree (success=true, outcome=completed, table present)"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_grants_loop.json",
+          "detail": "attempt2: artifact built (subjects=3, evidence=3), generation completed once (952 chars, block_recovery not needed), validation ok in 198ms"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt2/assessment_helpdesk_different_task.json",
+          "detail": "when the reply leg lost the block, the one contract-only retry fired with the SAME evidence/policy IDs and the result was re-validated by the unchanged gate; provider-failure text is treated as a failed generation, never as model content"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Validation certifies subject coverage/evidence/policy/decision labels, not the substantive correctness of a decision."
+    },
+    {
+      "id": "CR-015",
+      "area": "calculation",
+      "feature": "Completion contract",
+      "action": "A selection turn completes only with a bound source, resolved columns, predicate, row references and delivery",
+      "candidate_bound": true,
+      "config": "isolated world",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test",
+          "path": "backend/tests/test_table_selection.py",
+          "detail": "lookup receipt rejected; valid receipt passes; missing-file ask redacted"
+        },
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/selection_missing_file_guard.json",
+          "detail": "missing file produced success=false and no table"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "The guard runs at the public response boundary, so a route-level 2xx or an item-lookup receipt cannot satisfy a selection ask."
+    },
+    {
+      "id": "CR-017",
+      "area": "trained-agent",
+      "feature": "Self-contained review policy",
+      "action": "Give every selectable policy ID its applicable instruction text in the review prompt; same policy index for generation and validation",
+      "candidate_bound": true,
+      "config": "local prompt capture + unit tests",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "private-capture",
+          "path": "backend/logs/review_diagnosis/review_prompt_4800_capture.json",
+          "detail": "pre-fix prompt had policy IDs/topics only; below-5000 text absent"
+        },
+        {
+          "kind": "test",
+          "path": "backend/tests/test_review_result.py",
+          "detail": "policy text, row-values basis, newest-first precedence, allowed labels, evidence IDs present"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "No grant thresholds, labels or business nouns were added to platform code; the text comes from the lesson record."
+    },
+    {
+      "id": "CR-018",
+      "area": "background",
+      "feature": "Review read-obligation reconciliation",
+      "action": "After a validated review, settle only the read obligations it satisfied; keep genuine freshness obligations; leave an incomplete review's work open",
+      "candidate_bound": true,
+      "config": "isolated world task lifecycle",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "state",
+          "path": "task run d56267c8",
+          "detail": "completed assessment: 3 read obligations settled; 3 genuine freshness obligations remain open"
+        },
+        {
+          "kind": "state",
+          "path": "task run 66ebd241",
+          "detail": "post-restart green assessment: 4 read obligations settled; 4 freshness obligations remain open"
+        },
+        {
+          "kind": "state",
+          "path": "task run 558425c5",
+          "detail": "incomplete assessment: 3 read + 3 freshness obligations remain open"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "A stale 'Still needed' history row created before settlement remains as history; new continuations must reflect the settled state.",
+      "blocking": false,
+      "notes": "History is not deleted; only the task-state obligation is reconciled through resolve_unresolved_questions."
+    },
+    {
+      "id": "CR-019",
+      "area": "trained-agent",
+      "feature": "Post-restart assessment reliability",
+      "action": "Repeat a previously green assessment after a real restart and require a validated decision table",
+      "candidate_bound": true,
+      "config": "isolated world + local Ollama",
+      "status": "failed",
+      "evidence": [
+        {
+          "kind": "api",
+          "path": "docs/acceptance/evidence/whole_app_20261027/core_loop_attempt1/assessment_after_restart_failed.json",
+          "detail": "no valid block; deterministic rows delivered, success=false"
+        }
+      ],
+      "first_failed_transition": "The renamed-schema assessment did not emit a valid block after restart; a separate grants boundary assessment after the same restart did pass (assessment_boundaries_after_restart_green.json), so restart reliability is mixed, not uniformly broken.",
+      "next_action": "Measure the post-restart generation failure (provider/context/format) before changing the loop; do not keep repeating unchanged requests.",
+      "blocking": true,
+      "notes": "Pre-restart green runs prove the pipeline and judgment on those inputs; this is a reliability gap, not a structural one."
+    },
+    {
+      "id": "CR-010",
+      "area": "workspace",
+      "feature": "Deliverable formats",
+      "action": "Produce and reopen an email draft, document, calculated table and presentation in Workspace",
+      "candidate_bound": false,
+      "config": "isolated world",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "code",
+          "path": "backend/core/office_service.py",
+          "detail": "pptx/docx/xlsx create+revise paths"
+        },
+        {
+          "kind": "code",
+          "path": "frontend-nextjs/pages/canvas/[id].tsx",
+          "detail": "canvas editor"
+        },
+        {
+          "kind": "test",
+          "path": "backend/tests/test_pptx_parsing.py",
+          "detail": "slide text, tables and notes parsed with provenance"
+        }
+      ],
+      "first_failed_transition": "No browser deliverable check for email/presentation on this successor.",
+      "next_action": "Create one of each in Workspace, reopen after reload and verify content survives.",
+      "blocking": true,
+      "notes": ""
+    },
+    {
+      "id": "CR-011",
+      "area": "release",
+      "feature": "Production build",
+      "action": "Build the shipping frontend and run the core browser breadth against that build",
+      "candidate_bound": false,
+      "config": "successor tree, NEXT_PUBLIC_ALLOW_LOOPBACK=1 (isolated build)",
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "build",
+          "path": "frontend-nextjs/.next/BUILD_ID",
+          "detail": "next build --webpack compiled successfully; 139/139 static pages generated"
+        },
+        {
+          "kind": "browser",
+          "path": "docs/acceptance/evidence/whole_app_20261027/browser-core-surface-prod.json",
+          "detail": "production server on :3002 passed the same core/scope/member checks"
+        }
+      ],
+      "first_failed_transition": null,
+      "next_action": "",
+      "blocking": false,
+      "notes": "Turbopack refuses the worktree's node_modules symlink; the build was repeated from a hardlinked copy with real node_modules. Loopback is an explicit opt-in for this isolated build only."
+    }
+  ]
+}

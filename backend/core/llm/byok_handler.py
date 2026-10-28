@@ -2683,8 +2683,56 @@ class BYOKHandler:
             _PROVIDER_COOLDOWN_REASON[provider_id] = (
                 cause, sanitize_error_text(detail))
 
+    @staticmethod
+    def _exception_status(exc: Optional[BaseException]) -> Optional[int]:
+        """The HTTP status carried by a provider exception, when present.
+
+        Prefer structure over prose: SDK exceptions expose ``status_code``
+        (and often ``response.status_code``); a status embedded in a dumped
+        completion is not evidence of the HTTP response.
+        """
+        if exc is None:
+            return None
+        for attr in ("status_code", "http_status"):
+            value = getattr(exc, attr, None)
+            if isinstance(value, int):
+                return value
+        response = getattr(exc, "response", None)
+        value = getattr(response, "status_code", None)
+        if isinstance(value, int):
+            return value
+        code = getattr(exc, "code", None)
+        if isinstance(code, int):
+            return code
+        return None
+
+    @staticmethod
+    def _quota_evidence_status(err_text: str) -> Optional[int]:
+        """Status evidence in a provider error string, never model prose.
+
+        Accept only explicit HTTP/API status spellings. A bare ``"402"`` is
+        deliberately insufficient: instructor embeds token logprobs and
+        generated text in its retry error, where ``-0.000402`` once benched a
+        healthy local route for 30 minutes.
+        """
+        low = (err_text or "").lower()
+        if re.search(
+                r"(?:error\s*code|http|status)\s*:?\s*402\b"
+                r"|\b402\s+payment\s+required\b", low):
+            return 402
+        if re.search(
+                r"\b(?:insufficient_quota|quota_exceeded|"
+                r"billing_hard_limit_reached|insufficient_credits|"
+                r"credit_balance_too_low)\b", low):
+            return 429
+        if "exceeded your current quota" in low:
+            return 429
+        return None
+
     def _bench_provider_on_quota_error(
-        self, provider_id: str, err_text: str
+        self, provider_id: str, err_text: str = "", *,
+        exc: Optional[BaseException] = None,
+        status: Optional[int] = None,
     ) -> bool:
         """Bench a provider whose ACCOUNT-level balance/quota failed.
 
@@ -2693,12 +2741,45 @@ class BYOKHandler:
         credits/quota failure rejects every model on the provider
         identically, so the provider pauses for the quota cooldown and
         healthy providers take over (user directive 2026-09-22: opencode-go
-        must serve while openrouter's balance is low)."""
+        must serve while openrouter's balance is low).
+
+        Evidence rule: a structured HTTP status or an explicit provider quota
+        code is required. Model output and diagnostic dumps must never
+        establish account exhaustion — instructor's Mode.TOOLS retry text
+        embeds every failed generation, including token logprobs.
+        """
         try:
             low = (err_text or "").lower()
-            if not ("402" in (err_text or "") or "more credits" in low
-                    or "quota" in low):
+            # Schema/protocol failures are not quota failures. Instructor's
+            # retry exception embeds every failed generation (including token
+            # logprobs and model-written prose), so a numeric "402" can occur
+            # inside otherwise harmless diagnostic text. Live 2026-10-27:
+            # a Mode.TOOLS retry dump benched a healthy Ollama route for 30
+            # minutes as "account-level credit exhaustion".
+            if any(marker in low for marker in (
+                    "no tool calls or function call",
+                    "<failed_attempts>",
+                    "validation error",
+                    "json decode error",
+                    "mode: tools",
+                    "max retries exceeded")):
                 return False
+            structured_status = (
+                status if isinstance(status, int)
+                else self._exception_status(exc))
+            if structured_status is None:
+                structured_status = self._quota_evidence_status(err_text)
+            if structured_status not in (402, 429):
+                return False
+            # A 429 is only account-quota when the body itself carries an
+            # explicit quota code; rate limiting is handled by its own bench.
+            if structured_status == 429:
+                if not re.search(
+                        r"\b(?:insufficient_quota|quota_exceeded|"
+                        r"billing_hard_limit_reached|insufficient_credits|"
+                        r"credit_balance_too_low)\b", low) \
+                        and "exceeded your current quota" not in low:
+                    return False
             self._bench_provider(
                 provider_id, cause="quota_exhausted", detail=err_text,
                 seconds=_PROVIDER_QUOTA_COOLDOWN_SECONDS)
@@ -4152,6 +4233,16 @@ class BYOKHandler:
             if not _tier_default:
                 continue
             if self._model_cooldown_active(_fb_provider, _tier_default):
+                continue
+            # CAPABILITY PARITY ON THE ABSOLUTE FALLBACK (2026-10-27): the
+            # ranked path filters tool/structured requirements before it can
+            # return a pair. The fallback must not re-admit a model the call
+            # declared incompatible. ``_model_supports_tools`` reads the
+            # registered-local route's declared capability (stamped into the
+            # pricing cache), so this is the same evidence the ranked path
+            # uses — not a name heuristic.
+            if (requires_tools or requires_structured) and not \
+                    self._model_supports_tools(_tier_default):
                 continue
             _serves = self._provider_serves_model(
                 _fb_provider, _tier_default)
@@ -5973,8 +6064,38 @@ class BYOKHandler:
                             "options. Defaulting to GPT-4o.")
                         options = [("openai", "gpt-4o")]
             
-            if not options:
-                return "No eligible LLM providers found for your current plan."
+            if not options and self._local_only_active():
+                # MIRROR THE STREAMING PATH'S ABSOLUTE FALLBACK (2026-10-27):
+                # stream_completion gets its route from get_optimal_provider,
+                # which walks the same configured providers after an empty
+                # ranking. The non-streaming reply/review retry called
+                # generate_response directly and stopped here, so a healthy
+                # local-only runtime returned the 54-char "No eligible LLM
+                # providers" sentinel while the SAME turn's stream leg served
+                # from ollama. The fallback is not a ranking bypass: it walks
+                # configured providers through the existing catalog, cooldown,
+                # local-only, policy and capability checks, and only supplies
+                # one route when the ranked pool is truly empty.
+                try:
+                    _fb_provider, _fb_model = await self.get_optimal_provider(
+                        complexity,
+                        task_type,
+                        prefer_cost,
+                        tenant_plan,
+                        is_managed,
+                        requires_tools=requires_tools,
+                        requires_structured=False,
+                        turn_index=turn_index,
+                    )
+                except NoProvidersConfiguredError:
+                    return (
+                        "No eligible LLM providers found for your current "
+                        "plan.")
+                options = [(_fb_provider, _fb_model)]
+                logger.warning(
+                    "[routing] ranked pool empty — using the absolute "
+                    "dispatchable fallback %s/%s",
+                    _fb_provider, _fb_model)
 
             # P4 prompt-taint gate (single check — the prompt text is
             # identical for every candidate provider).
@@ -6339,15 +6460,15 @@ class BYOKHandler:
                     logger.warning(f"Attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
                     _attempt_str = str(attempt_err)
-                    if ("402" in _attempt_str or "more credits" in _attempt_str.lower()
-                            or "quota" in _attempt_str.lower()):
+                    # ACCOUNT-LEVEL BENCH (mirrors the structured path):
+                    # without it the dead gateway re-entered the top of
+                    # the ranking on the very next turn and killed it
+                    # (live 2026-10-03, step 4 of the taught job). The
+                    # helper requires structured status/code evidence; the
+                    # old substring test also matched model prose.
+                    if self._bench_provider_on_quota_error(
+                            provider_id, _attempt_str, exc=attempt_err):
                         _credit_failed_providers.add(provider_id)
-                        # ACCOUNT-LEVEL BENCH (mirrors the structured path):
-                        # without it the dead gateway re-entered the top of
-                        # the ranking on the very next turn and killed it
-                        # (live 2026-10-03, step 4 of the taught job).
-                        self._bench_provider_on_quota_error(
-                            provider_id, _attempt_str)
 
                     # TEMPERATURE-LOCKED recovery (provider-general,
                     # 2026-09-21): endpoints announce their single allowed
@@ -7426,6 +7547,9 @@ class BYOKHandler:
         _sweep_depth: int = 0,                   # internal: sweep recursion guard
         route_trace_id: Optional[str] = None,
         _force_candidates: Optional[List[Tuple[str, str]]] = None,  # sweep: catalog-driven pool
+        messages: Optional[List[Dict[str, Any]]] = None,  # complete ordered messages
+        output_mode: Optional[str] = None,  # "json" forces instructor JSON mode
+        claim_wait_seconds: Optional[float] = None,  # bounded sibling-claim wait
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
@@ -7967,7 +8091,9 @@ class BYOKHandler:
                         failed_providers.add(provider_id)
                         continue
                     instructor_client = instructor.from_openai(client)
-                    _json_mode = f"{provider_id}/{model}" in _TOOLCHOICE_UNSUPPORTED
+                    _json_mode = (
+                        str(output_mode or "").strip().lower() == "json"
+                        or f"{provider_id}/{model}" in _TOOLCHOICE_UNSUPPORTED)
                     if _json_mode:
                         instructor_client = instructor.from_openai(
                             client, mode=instructor.Mode.JSON)
@@ -8018,25 +8144,38 @@ class BYOKHandler:
                     # Make the structured request
                     logger.info(f"Structured generation ({tenant_plan}, {'Managed' if is_managed else 'BYOK'}): {provider_id}/{model}")
                     
-                    # Construct Messages (Phase 14: Multimodal)
-                    messages = []
-                    messages.append({"role": "system", "content": system_instruction})
-                    
-                    if image_payload:
-                        # OpenAI / Compatible Vision Format
-                        user_content = [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": image_payload if image_payload.startswith("http") else f"data:image/jpeg;base64,{image_payload}"
-                                }
-                            }
+                    # Construct Messages (Phase 14: Multimodal). A caller that
+                    # supplies the COMPLETE ordered list (review transport)
+                    # keeps every message; the legacy prompt/system path is
+                    # byte-identical for all other callers.
+                    if messages:
+                        request_messages = [
+                            dict(message) for message in messages
+                            if isinstance(message, dict)
                         ]
-                        messages.append({"role": "user", "content": user_content})
-                        logger.info(f"Adding visual payload to STRUCTURED request for {model}")
                     else:
-                        messages.append({"role": "user", "content": prompt})
+                        request_messages = [{
+                            "role": "system", "content": system_instruction,
+                        }]
+                        if image_payload:
+                            # OpenAI / Compatible Vision Format
+                            user_content = [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": image_payload if image_payload.startswith("http") else f"data:image/jpeg;base64,{image_payload}"
+                                    }
+                                }
+                            ]
+                            request_messages.append(
+                                {"role": "user", "content": user_content})
+                            logger.info(
+                                f"Adding visual payload to STRUCTURED "
+                                f"request for {model}")
+                        else:
+                            request_messages.append(
+                                {"role": "user", "content": prompt})
 
                     _structured_start = time.time()
                     # R83 #6: soft self-consistency — request logprobs and
@@ -8070,7 +8209,7 @@ class BYOKHandler:
                     _create_kwargs = dict(
                         model=_direct_api_model_name(provider_id, model),
                         response_model=response_model,
-                        messages=messages,
+                        messages=request_messages,
                         temperature=_effective_temperature,
                         max_tokens=_structured_max_tokens,
                     )
@@ -8131,7 +8270,8 @@ class BYOKHandler:
                             # inside the caller's own wait_for deadline —
                             # for the current holder to finish, instead
                             # of failing the sibling leg.
-                            _claim_wait_deadline = time.time() + 20.0
+                            _claim_wait_deadline = time.time() + float(
+                                claim_wait_seconds or 20.0)
                             while not self._claim_model_attempt(
                                     provider_id, model,
                                     holder="completion2:" + str(
@@ -8415,6 +8555,12 @@ class BYOKHandler:
 
                             raise
                     self._capture_echoed_model(result)  # reads _raw_response.model
+                    # PROVENANCE (2026-10-28): structured successes must set
+                    # the same last-used pair as text completions. Review
+                    # finalization reads this to report the route that actually
+                    # served the payload, never the startup/requested value.
+                    self._last_used_provider = provider_id
+                    self._last_used_model = model
                     _structured_latency_ms = (time.time() - _structured_start) * 1000.0
                     if _soft_sc_on:
                         # Best-effort — no stamp ⇒ voter weight 1.0.
@@ -8640,20 +8786,20 @@ class BYOKHandler:
                         isinstance(attempt_err, _PydanticValidationError)
                         or isinstance(attempt_err, json.JSONDecodeError)
                         or "validation error" in err_str.lower())
+                    # QUOTA (2026-09-20): a credits-exhausted account
+                    # (openrouter 402 "can only afford N tokens") fails
+                    # IDENTICALLY for every model on the provider —
+                    # without this each cascade paid one 402 round
+                    # trip per openrouter model on every call while
+                    # the balance was zero. The helper requires a
+                    # structured status/code; a dump is not evidence.
+                    _quota_failure = False
                     if not _is_schema_attempt:
-                        self._bench_provider_on_quota_error(
-                            provider_id, err_str)
+                        _quota_failure = self._bench_provider_on_quota_error(
+                            provider_id, err_str, exc=attempt_err)
                     if (not _is_schema_attempt
                             and ("401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str
-                            # QUOTA (2026-09-20): a credits-exhausted account
-                            # (openrouter 402 "can only afford N tokens") fails
-                            # IDENTICALLY for every model on the provider —
-                            # without this each cascade paid one 402 round
-                            # trip per openrouter model on every call while
-                            # the balance was zero.
-                            or "402" in err_str
-                            or "more credits" in err_str.lower()
-                            or "quota" in err_str.lower())):
+                            or _quota_failure)):
                         failed_providers.add(provider_id)
                         continue
                     # Phase 2 cascade classification. Instructor wraps the

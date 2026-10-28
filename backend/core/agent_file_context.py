@@ -125,6 +125,19 @@ _TIER_RANK = {
 
 
 def _strip_leading_noise(name: str) -> str:
+    # A single-token filename after a boundary word ("... rows in
+    # grants_loop.csv") must not keep the whole conversational clause as
+    # its identity. Only the underscore/hyphen form is rewritten here;
+    # spaced names ("Consolidated Price List 2019.xlsx") are untouched.
+    boundary = re.search(
+        r"\b(?:in|from|of|for|at|using)\s+"
+        r"([A-Za-z0-9][A-Za-z0-9_\-()]*\.[A-Za-z0-9]+)$",
+        name or "", re.IGNORECASE,
+    )
+    if boundary:
+        tail = boundary.group(1)
+        if "_" in tail or "-" in tail:
+            return tail
     tokens = name.split()
     while len(tokens) > 1:
         first = tokens[0].lower().strip(".?!,'\"")

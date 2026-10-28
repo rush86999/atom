@@ -1,0 +1,20 @@
+{
+ "schema": "atom-core-pilot-source-build-identity-1",
+ "release_tag": "core-release-2026-10-28",
+ "tested_app_code_commit": "35860a7f0",
+ "source_files": {
+  "backend/core/review_result.py": "d1970f9be8ece024a91cf4ae688cb75223cb795e585b9d204a42a74992c2c255",
+  "backend/core/llm/byok_handler.py": "7eef0c32e2722b22f33dc27d4a63f544d50f1db3ec84cafb062dfba2ab40f744",
+  "backend/integrations/chat_orchestrator.py": "61952ef13dfbfe2e7b0a295f13232b4fc8b1ae5aeccf02a345b25cdc4c9bbf99",
+  "backend/scripts/orchestration_acceptance/preview_stack.py": "77ffb1cfa608941405398b70c231bf0e5531dfb616b4184429830acb59d0578d",
+  "scripts/acceptance/core_release_ui_loop_deepseek.cjs": "78bed5427ae8788b55b74987dc4a978bbd3575620c54740b4872c3d6f5faac06",
+  "scripts/acceptance/core_release_ui_restart_deepseek.py": "87fc653c4f847e62acd1910fef0d1607793e4653ac060af2ed5b315841515802"
+ },
+ "frontend_build": {
+  "build_id": "lI6dz7XTOxhMIQAL1_lQ-",
+  "build_id_sha256": "e908ba7df4bb1c4b00b66c8707db140b1e3f2ed0d354f8a0b9235b146cbad093",
+  "source_commit": "bdd3dcaadcaa29d6345ec6455496f301af178368"
+ },
+ "config": "config.env.template",
+ "note": "The source archive is created from the tagged release commit; its hash is recorded in the external package RELEASE_MANIFEST.json."
+}

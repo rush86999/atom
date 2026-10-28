@@ -1,0 +1,196 @@
+{
+  "success": false,
+  "message": "Selection: `helpdesk_loop` in `helpdesk_loop.csv`\nRows: 2 selected; 1 outside the filter\n\n| Ticket | Hours |\n| --- | ---: |\n| HD-88 | 1.5 |\n| HD-91 | 2.25 |\n\nFilter: State = Open\n\nAssessment not delivered: the proposed decision table was not validated against the selected subjects and evidence, so no decision was accepted.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+  "session_id": "8a5e4e40-105d-46d8-afa1-8db6eedd5e5d",
+  "intent": "agent_request",
+  "confidence": 0.5,
+  "suggested_actions": [],
+  "requires_confirmation": false,
+  "next_steps": [
+    "re-verify HD-88 against the live source when access is available",
+    "re-verify HD-91 against the live source when access is available",
+    "read helpdesk_loop.csv for HD-91"
+  ],
+  "timestamp": "2026-10-27T19:46:33.707110",
+  "metadata": {
+    "review_result": {
+      "schema_version": "review-result-2",
+      "execution_id": "59d4756f-b5e7-4b87-938a-8085e5530770",
+      "requested_subjects": [
+        "HD-88",
+        "HD-91"
+      ],
+      "allowed_decisions": [
+        "ESCALATE",
+        "STANDARD"
+      ],
+      "source_execution_ids": [],
+      "assessments": [],
+      "candidate_assessments": [
+        {
+          "subject_id": "HD-88",
+          "decision": "STANDARD",
+          "basis": [
+            "Ticket HD-88 has 1.5 hours of response time, which is less than or equal to 8.",
+            "According to policy entry 23aee4794e9e4ae7b6dae9b3175d8158: \"Response hours of 8 or fewer is STANDARD.\""
+          ],
+          "evidence_refs": [],
+          "policy_refs": [
+            {
+              "policy_id": "23aee4794e9e4ae7b6dae9b3175d8158",
+              "topic": "support response rule",
+              "lesson": "Use exactly these decision labels: ESCALATE, STANDARD. Response hours greater than 8 is ESCALATE. Response hours of 8 or fewer is STANDARD. Cite the ticket and hours from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "HD-91",
+          "decision": "ESCALATE",
+          "basis": [
+            "Ticket HD-91 has 2.25 hours of response time, which exceeds the threshold.",
+            "According to policy entry 23aee4794e9e4ae7b6dae9b3175d8158: \"Response hours greater than 8 is ESCALATE.\""
+          ],
+          "evidence_refs": [],
+          "policy_refs": [
+            {
+              "policy_id": "23aee4794e9e4ae7b6dae9b3175d8158",
+              "topic": "support response rule",
+              "lesson": "Use exactly these decision labels: ESCALATE, STANDARD. Response hours greater than 8 is ESCALATE. Response hours of 8 or fewer is STANDARD. Cite the ticket and hours from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [],
+          "resumed_read": false
+        }
+      ],
+      "errors": [
+        {
+          "code": "missing_evidence_ids",
+          "subject_id": "HD-88"
+        },
+        {
+          "code": "missing_evidence_ids",
+          "subject_id": "HD-91"
+        }
+      ],
+      "ok": false,
+      "required_actions": [],
+      "action_receipts": [],
+      "completion": "incomplete",
+      "reviewed_at_elapsed_s": 30.03
+    },
+    "review_contract": {
+      "subjects": [
+        "HD-88",
+        "HD-91"
+      ],
+      "accepted_inputs": {
+        "subjects": [
+          "HD-88",
+          "HD-91"
+        ],
+        "requested_fields": [],
+        "source_version": "",
+        "teaching_revision": "a68be6d177ce2d709d75cad0",
+        "decision_schema": [
+          "ESCALATE",
+          "STANDARD"
+        ],
+        "required_actions": []
+      },
+      "required_evidence": [
+        {
+          "file_name": "helpdesk_loop.csv",
+          "resource_id": "cf416d132c2899ff4be2a23e48cc3a077bc2f0c6",
+          "content_hash": "cf416d132c2899ff4be2a23e48cc3a077bc2f0c6"
+        },
+        {
+          "file_name": "helpdesk_loop.csv",
+          "resource_id": "cf416d132c2899ff4be2a23e48cc3a077bc2f0c6",
+          "content_hash": "cf416d132c2899ff4be2a23e48cc3a077bc2f0c6"
+        }
+      ],
+      "allowed_decisions": [
+        "ESCALATE",
+        "STANDARD"
+      ],
+      "evidence_ids": [
+        "ev:HD-88:helpdesk_loop!R2",
+        "ev:HD-91:helpdesk_loop!R3"
+      ],
+      "policy_ids": [
+        "23aee4794e9e4ae7b6dae9b3175d8158"
+      ]
+    },
+    "open_work": {
+      "actions": [
+        {
+          "question_id": "f56867da-ce97-4256-ae1d-0b21de76499c",
+          "item": "HD-88",
+          "question": "HD-88: saved-copy value read; freshness against the live source unverified",
+          "kind": "verification",
+          "next_action": "re-verify HD-88 against the live source when access is available",
+          "decision_owner": null,
+          "inputs": null,
+          "attempts": 0
+        },
+        {
+          "question_id": "8f166768-1523-414c-aa9b-d18381151cae",
+          "item": "HD-91",
+          "question": "HD-91: saved-copy value read; freshness against the live source unverified",
+          "kind": "verification",
+          "next_action": "re-verify HD-91 against the live source when access is available",
+          "decision_owner": null,
+          "inputs": null,
+          "attempts": 0
+        },
+        {
+          "question_id": "38694296-69f0-4311-80a6-bc118e02d907",
+          "item": "HD-91",
+          "question": "HD-91 is carried by helpdesk_loop.csv \u2014 the cell/figure is not yet read",
+          "kind": "verification",
+          "next_action": "read helpdesk_loop.csv for HD-91",
+          "decision_owner": null,
+          "inputs": {
+            "item": "HD-91",
+            "file": "helpdesk_loop.csv",
+            "service": "datasets",
+            "intent": "find_all"
+          },
+          "attempts": 0
+        }
+      ],
+      "owner_decisions": [],
+      "exhausted": []
+    },
+    "task_run_id": "66dda1ae-00f1-4a09-bbfb-fde54fd5875c",
+    "delivery": {
+      "status": "recorded",
+      "delivery_id": "28f53286-f741-4e57-8f98-b5b61f303462",
+      "message_id": "e78457d9-6177-4548-8eff-3415483feafa"
+    },
+    "persistence": {
+      "status": "persisted"
+    }
+  },
+  "memory_context": null,
+  "model": "llama3.1:8b",
+  "provider": "local_661c3ac2",
+  "reasoning": null,
+  "execution_id": "59d4756f-b5e7-4b87-938a-8085e5530770",
+  "error_code": "turn_objective_not_met",
+  "failure_reason": null,
+  "recovery_url": null,
+  "outcome": "failed"
+}

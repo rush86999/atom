@@ -1,0 +1,317 @@
+{
+ "schema": "deepseek-product-route-verification-1",
+ "base_url": "http://127.0.0.1:8061",
+ "agent_id": "ef4ef57e-bc05-4b60-a260-9edce25ba655",
+ "user_id": "836669b5-e20a-469e-8855-3a18daa3b5c9",
+ "session_id": "d3045a58-cbf9-404c-8190-a13c0b4f6c8c",
+ "policy_id": "18e0c09cbcf54f829cf59abf04e095bf",
+ "policy_lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.",
+ "requested_model_header": "deepseek-v4-pro",
+ "request": {
+  "message": "Assess each Submitted application in grants_loop.csv under the taught threshold rule. Give a table with reference, amount and decision.",
+  "user_id": "836669b5-e20a-469e-8855-3a18daa3b5c9",
+  "session_id": "new",
+  "agent_id": "ef4ef57e-bc05-4b60-a260-9edce25ba655",
+  "request_id": "req_1a605ef2-2de2-4f4d-a8e1-9a8c62dc6d9a",
+  "context": {
+   "current_page": "/chat",
+   "agent_id": "ef4ef57e-bc05-4b60-a260-9edce25ba655",
+   "conversation_history": []
+  }
+ },
+ "response_status": 200,
+ "latency_ms": 95089,
+ "response": {
+  "success": false,
+  "message": "This turn ran past its time budget before a reply could be generated. Please try again.",
+  "session_id": "d3045a58-cbf9-404c-8190-a13c0b4f6c8c",
+  "intent": "agent_request",
+  "confidence": 0.6,
+  "suggested_actions": [],
+  "requires_confirmation": false,
+  "next_steps": [
+   "Ask me to connect more services",
+   "Explore automation opportunities",
+   "Check your dashboard for insights"
+  ],
+  "timestamp": "2026-10-28T12:01:05.191097",
+  "metadata": {
+   "open_work": {
+    "actions": [],
+    "owner_decisions": [],
+    "exhausted": []
+   },
+   "task_run_id": "9565d6f2-86f3-40f2-b1eb-3541da809654",
+   "budget_recovery": {
+    "write_landed": false,
+    "verdict": "unverified"
+   },
+   "review_contract": {
+    "subjects": [
+     "GR-2026-014",
+     "GR-2026-021",
+     "GR-2026-033"
+    ],
+    "accepted_inputs": {
+     "subjects": [],
+     "requested_fields": [
+      "amount"
+     ],
+     "source_version": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+     "teaching_revision": "f033861c1500c7b4e0592ef7",
+     "decision_schema": [
+      "FUND",
+      "HOLD",
+      "DECLINE"
+     ],
+     "required_actions": []
+    },
+    "policy_revision": "f033861c1500c7b4e0592ef7",
+    "source_revision": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+    "required_evidence": [
+     {
+      "file_name": "grants_loop.csv",
+      "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+      "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+     },
+     {
+      "file_name": "grants_loop.csv",
+      "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+      "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+     },
+     {
+      "file_name": "grants_loop.csv",
+      "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+      "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+     }
+    ],
+    "allowed_decisions": [
+     "FUND",
+     "HOLD",
+     "DECLINE"
+    ],
+    "evidence_ids": [
+     "ev:GR-2026-014:grants_loop!R2",
+     "ev:GR-2026-021:grants_loop!R3",
+     "ev:GR-2026-033:grants_loop!R4"
+    ],
+    "policy_ids": [
+     "18e0c09cbcf54f829cf59abf04e095bf"
+    ]
+   },
+   "review_result": {
+    "schema_version": "review-result-2",
+    "execution_id": "8b4e091a-dd09-4a3c-b4f6-5cd97ca194c3",
+    "requested_subjects": [
+     "GR-2026-014",
+     "GR-2026-021",
+     "GR-2026-033"
+    ],
+    "allowed_decisions": [
+     "FUND",
+     "HOLD",
+     "DECLINE"
+    ],
+    "source_execution_ids": [],
+    "assessments": [],
+    "candidate_assessments": [],
+    "errors": [
+     {
+      "code": "missing_structured_review"
+     },
+     {
+      "code": "missing_decision",
+      "subject_id": "GR-2026-014"
+     },
+     {
+      "code": "missing_decision",
+      "subject_id": "GR-2026-021"
+     },
+     {
+      "code": "missing_decision",
+      "subject_id": "GR-2026-033"
+     }
+    ],
+    "ok": false,
+    "required_actions": [],
+    "action_receipts": [],
+    "completion": "incomplete"
+   },
+   "delivery": {
+    "status": "recorded",
+    "delivery_id": "918b64bd-ddfe-441f-a61f-1eea5d28742b",
+    "message_id": "054dbfe1-106c-4c3b-b446-60cc56290415"
+   },
+   "persistence": {
+    "status": "persisted"
+   },
+   "replay_pin": {
+    "status": "pinned",
+    "durable": true
+   }
+  },
+  "memory_context": null,
+  "model": null,
+  "provider": null,
+  "reasoning": null,
+  "execution_id": "8b4e091a-dd09-4a3c-b4f6-5cd97ca194c3",
+  "error_code": "turn_objective_not_met",
+  "failure_reason": null,
+  "recovery_url": null,
+  "outcome": "failed"
+ },
+ "review": {
+  "schema_version": "review-result-2",
+  "execution_id": "8b4e091a-dd09-4a3c-b4f6-5cd97ca194c3",
+  "requested_subjects": [
+   "GR-2026-014",
+   "GR-2026-021",
+   "GR-2026-033"
+  ],
+  "allowed_decisions": [
+   "FUND",
+   "HOLD",
+   "DECLINE"
+  ],
+  "source_execution_ids": [],
+  "assessments": [],
+  "candidate_assessments": [],
+  "errors": [
+   {
+    "code": "missing_structured_review"
+   },
+   {
+    "code": "missing_decision",
+    "subject_id": "GR-2026-014"
+   },
+   {
+    "code": "missing_decision",
+    "subject_id": "GR-2026-021"
+   },
+   {
+    "code": "missing_decision",
+    "subject_id": "GR-2026-033"
+   }
+  ],
+  "ok": false,
+  "required_actions": [],
+  "action_receipts": [],
+  "completion": "incomplete"
+ },
+ "decisions": {},
+ "expected": {
+  "GR-2026-014": "FUND",
+  "GR-2026-021": "HOLD",
+  "GR-2026-033": "DECLINE"
+ },
+ "dataset_entries": [
+  {
+   "file_name": "grants_loop.csv",
+   "entity_name": "grants_loop",
+   "dataset_name": "upload_grants_loop__grants_loop",
+   "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+   "row_count": 4
+  }
+ ],
+ "steps": [
+  {
+   "name": "admin login",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "authenticated workspace/user",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "workspace_id": null
+   }
+  },
+  {
+   "name": "agent created through product API",
+   "ok": true,
+   "detail": {
+    "status": 201,
+    "agent_id": "ef4ef57e-bc05-4b60-a260-9edce25ba655"
+   }
+  },
+  {
+   "name": "policy taught through product API",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "policy_id": "18e0c09cbcf54f829cf59abf04e095bf",
+    "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+   }
+  },
+  {
+   "name": "source uploaded through product API",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "document_id": "doc_45cd101f1f4ee7ad8289f328"
+   }
+  },
+  {
+   "name": "authoritative sheet dataset materialized",
+   "ok": true,
+   "detail": [
+    {
+     "file_name": "grants_loop.csv",
+     "entity_name": "grants_loop",
+     "dataset_name": "upload_grants_loop__grants_loop",
+     "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+     "row_count": 4
+    }
+   ]
+  },
+  {
+   "name": "one assessment turn returned",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "latency_ms": 95089
+   }
+  },
+  {
+   "name": "review structurally certified",
+   "ok": false,
+   "detail": [
+    {
+     "code": "missing_structured_review"
+    },
+    {
+     "code": "missing_decision",
+     "subject_id": "GR-2026-014"
+    },
+    {
+     "code": "missing_decision",
+     "subject_id": "GR-2026-021"
+    },
+    {
+     "code": "missing_decision",
+     "subject_id": "GR-2026-033"
+    }
+   ]
+  },
+  {
+   "name": "review decisions match the taught policy",
+   "ok": false,
+   "detail": {}
+  },
+  {
+   "name": "source hash present",
+   "ok": true,
+   "detail": [
+    {
+     "file_name": "grants_loop.csv",
+     "entity_name": "grants_loop",
+     "dataset_name": "upload_grants_loop__grants_loop",
+     "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+     "row_count": 4
+    }
+   ]
+  }
+ ],
+ "all_ok": false
+}

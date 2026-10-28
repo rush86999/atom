@@ -1,0 +1,691 @@
+{
+  "started_at": 1793151068.3058538,
+  "env_flag": "0",
+  "server_up": {
+    "booted": true,
+    "seconds": 5.3,
+    "status": "healthy",
+    "pid": 83899,
+    "git_commit": "f8792bf42bf0"
+  },
+  "base": "http://127.0.0.1:63084",
+  "user": {
+    "registered": true,
+    "http": 200,
+    "email": "jprobe_f7f051bbe3@example.com",
+    "password": "dhusgVO85ybCkVYaA1",
+    "id": "d206b5df-7c8b-448e-91a1-742b289c9325",
+    "workspace_id": "524d33e3-ec44-4e79-9972-beb253bdfeb7",
+    "register_http": 200
+  },
+  "provider_register": {
+    "status": 200,
+    "body": {
+      "id": "92f2072f-7f61-4456-8db2-ee7cfc9cef1b",
+      "name": "Scratch Ollama",
+      "registered": true
+    }
+  },
+  "capabilities": {
+    "status": 200,
+    "body": {
+      "model_id": "llama3.1:8b",
+      "set": true
+    }
+  },
+  "agent_id": "d89a6973-372b-4344-9c9a-0ddfbc180cb8",
+  "agent_create": {
+    "custom": {
+      "status": 403,
+      "body": {
+        "detail": "Operation requires permission: agent:manage"
+      }
+    },
+    "guided": {
+      "status": 201,
+      "body": {
+        "success": true,
+        "data": {
+          "agent_id": "d89a6973-372b-4344-9c9a-0ddfbc180cb8",
+          "name": "PolicyEvaluator",
+          "category": "Operations",
+          "template": "custom",
+          "maturity": "student",
+          "created_by": "employee"
+        },
+        "timestamp": "2026-10-28T01:31:20.868785+00:00",
+        "message": "Agent 'PolicyEvaluator' created — it starts as a STUDENT and learns with guidance"
+      }
+    }
+  },
+  "teach_original": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "status": "ok",
+        "source": "teacher",
+        "confidence": 0.15000000000000002,
+        "confidence_boost": 0.05,
+        "at_learning_ceiling": false,
+        "note": null,
+        "teaching_point_id": "0f69a68d1c5249eb9ca007c3feefc402",
+        "scope": "global",
+        "goal_id": null
+      },
+      "timestamp": "2026-10-28T01:31:20.891970+00:00",
+      "message": "Lesson recorded — the student's confidence grew"
+    }
+  },
+  "policy_point_id": "0f69a68d1c5249eb9ca007c3feefc402",
+  "upload_baseline": {
+    "status": 200,
+    "body": {
+      "id": "doc_4d2b6b260cd36a23960e3c50",
+      "title": "case_boundaries.csv",
+      "type": "text/csv",
+      "metadata": {
+        "source": "upload",
+        "size": 102,
+        "title": "case_boundaries.csv",
+        "filename": "case_boundaries.csv",
+        "file_type": "csv",
+        "ingested_at": "2026-10-27T21:31:21.132975",
+        "doc_id": "doc_4d2b6b260cd36a23960e3c50",
+        "pg_document_id": "doc_4d2b6b260cd36a23960e3c50",
+        "source_type": "upload",
+        "integration_id": "manual_upload",
+        "author": "jprobe_f7f051bbe3@example.com"
+      },
+      "ingested_at": "2026-10-27T21:31:21.132975",
+      "chunk_count": 1
+    }
+  },
+  "baseline": {
+    "status": 200,
+    "elapsed_s": 75.83,
+    "body": {
+      "success": true,
+      "message": "| Case Ref | Ask Amount | Decision |\n| --- | ---: | --- |\n| CX-9101 | 3200 | REVIEW |\n| CX-9102 | 7000 | APPROVE |\n| CX-9103 | 12000 | APPROVE |\n\nSource: case_boundaries.csv · rows from the bound selection\n\nBased on the evidence provided, I will create an assessment for each Open case in `case_boundaries.csv`. Here is the assessment table:\n\n| Case Ref | Ask Amount | Decision |\n| ---: | ---: | :--- |\n| CX-9101  | 3200    | REVIEW   |\n| CX-9102  | 7000    | APPROVE  |\n| CX-9103  | 12000   | APPROVE  |\n\nThe decisions are based on the `case amount rule` policy, which states:\n\n* Ask Amount at or above 10000 is APPROVE\n* 5000 to 9999 is REVIEW\n* Below 5000 is REJECT\n\nThe evidence for each case reference can be found in `case_boundaries.csv`:\n\n| Case Ref | Ask Amount |\n| ---: | ---: |\n| CX-9101 | 3200    |\n| CX-9102 | 7000    |\n| CX-9103 | 12000   |\n\nHere is the certified assessment output:\n\nVALIDATED REVIEW (request-bound):\n- CX-9101: Decision: REVIEW\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R2\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 3200 falls between 5000 and 9999.\n- CX-9102: Decision: APPROVE\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R3\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 7000 is at or above 10000.\n- CX-9103: Decision: APPROVE\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R4\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 12000 is at or above 10000.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+      "session_id": "rb-baseline-73a8c055",
+      "intent": "agent_request",
+      "confidence": 0.2,
+      "suggested_actions": [],
+      "requires_confirmation": false,
+      "next_steps": [
+        "read case_boundaries.csv for CX-9101",
+        "read case_boundaries.csv for CX-9102",
+        "read case_boundaries.csv for CX-9103"
+      ],
+      "timestamp": "2026-10-27T21:32:37.400866",
+      "metadata": {
+        "review_result": {
+          "schema_version": "review-result-2",
+          "execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+          "requested_subjects": [
+            "CX-9101",
+            "CX-9102",
+            "CX-9103"
+          ],
+          "allowed_decisions": [
+            "APPROVE",
+            "REVIEW",
+            "REJECT"
+          ],
+          "source_execution_ids": [
+            "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+          ],
+          "assessments": [
+            {
+              "subject_id": "CX-9101",
+              "decision": "REVIEW",
+              "basis": [
+                "According to the case amount rule, Ask Amount of 3200 falls between 5000 and 9999."
+              ],
+              "evidence_refs": [
+                {
+                  "evidence_id": "ev:CX-9101:case_boundaries!R2",
+                  "subject_id": "CX-9101",
+                  "row_ref": "case_boundaries!R2",
+                  "source_identity": {
+                    "file_name": "case_boundaries.csv",
+                    "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+                    "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+                  },
+                  "retrieval_operation": "select:8d54f69bfe1f:2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+                  "retrieval_execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+                  "values": [
+                    {
+                      "field": "Ask Amount",
+                      "value": 3200
+                    }
+                  ]
+                }
+              ],
+              "policy_refs": [
+                {
+                  "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+                  "topic": "case amount rule",
+                  "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+                }
+              ],
+              "unresolved_requirements": [],
+              "reported_unresolved_requirements": [],
+              "accepted_unresolved_requirements": [],
+              "basis_supported_requirements": [],
+              "unclassified_requirements": [],
+              "source_execution_ids": [
+                "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+              ],
+              "resumed_read": false
+            },
+            {
+              "subject_id": "CX-9102",
+              "decision": "APPROVE",
+              "basis": [
+                "According to the case amount rule, Ask Amount of 7000 is at or above 10000."
+              ],
+              "evidence_refs": [
+                {
+                  "evidence_id": "ev:CX-9102:case_boundaries!R3",
+                  "subject_id": "CX-9102",
+                  "row_ref": "case_boundaries!R3",
+                  "source_identity": {
+                    "file_name": "case_boundaries.csv",
+                    "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+                    "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+                  },
+                  "retrieval_operation": "select:8d54f69bfe1f:2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+                  "retrieval_execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+                  "values": [
+                    {
+                      "field": "Ask Amount",
+                      "value": 7000
+                    }
+                  ]
+                }
+              ],
+              "policy_refs": [
+                {
+                  "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+                  "topic": "case amount rule",
+                  "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+                }
+              ],
+              "unresolved_requirements": [],
+              "reported_unresolved_requirements": [],
+              "accepted_unresolved_requirements": [],
+              "basis_supported_requirements": [],
+              "unclassified_requirements": [],
+              "source_execution_ids": [
+                "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+              ],
+              "resumed_read": false
+            },
+            {
+              "subject_id": "CX-9103",
+              "decision": "APPROVE",
+              "basis": [
+                "According to the case amount rule, Ask Amount of 12000 is at or above 10000."
+              ],
+              "evidence_refs": [
+                {
+                  "evidence_id": "ev:CX-9103:case_boundaries!R4",
+                  "subject_id": "CX-9103",
+                  "row_ref": "case_boundaries!R4",
+                  "source_identity": {
+                    "file_name": "case_boundaries.csv",
+                    "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+                    "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+                  },
+                  "retrieval_operation": "select:8d54f69bfe1f:2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+                  "retrieval_execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+                  "values": [
+                    {
+                      "field": "Ask Amount",
+                      "value": 12000
+                    }
+                  ]
+                }
+              ],
+              "policy_refs": [
+                {
+                  "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+                  "topic": "case amount rule",
+                  "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+                }
+              ],
+              "unresolved_requirements": [],
+              "reported_unresolved_requirements": [],
+              "accepted_unresolved_requirements": [],
+              "basis_supported_requirements": [],
+              "unclassified_requirements": [],
+              "source_execution_ids": [
+                "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+              ],
+              "resumed_read": false
+            }
+          ],
+          "candidate_assessments": [],
+          "errors": [],
+          "ok": true,
+          "required_actions": [],
+          "action_receipts": [],
+          "completion": "completed",
+          "reviewed_at_elapsed_s": 45.65
+        },
+        "review_contract": {
+          "subjects": [
+            "CX-9101",
+            "CX-9102",
+            "CX-9103"
+          ],
+          "accepted_inputs": {
+            "subjects": [
+              "CX-9101",
+              "CX-9102",
+              "CX-9103"
+            ],
+            "requested_fields": [
+              "Ask Amount"
+            ],
+            "source_version": "8d54f69bfe1faad936555636f9b3ffca29569809",
+            "teaching_revision": "ec8578fc768ed26a6d2838c6",
+            "decision_schema": [
+              "APPROVE",
+              "REVIEW",
+              "REJECT"
+            ],
+            "required_actions": []
+          },
+          "policy_revision": "ec8578fc768ed26a6d2838c6",
+          "source_revision": "8d54f69bfe1faad936555636f9b3ffca29569809",
+          "required_evidence": [
+            {
+              "file_name": "case_boundaries.csv",
+              "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+              "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+            },
+            {
+              "file_name": "case_boundaries.csv",
+              "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+              "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+            },
+            {
+              "file_name": "case_boundaries.csv",
+              "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+              "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+            }
+          ],
+          "allowed_decisions": [
+            "APPROVE",
+            "REVIEW",
+            "REJECT"
+          ],
+          "evidence_ids": [
+            "ev:CX-9101:case_boundaries!R2",
+            "ev:CX-9102:case_boundaries!R3",
+            "ev:CX-9103:case_boundaries!R4"
+          ],
+          "policy_ids": [
+            "0f69a68d1c5249eb9ca007c3feefc402"
+          ]
+        },
+        "review_summary": "VALIDATED REVIEW (request-bound):\n- CX-9101: Decision: REVIEW\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R2\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 3200 falls between 5000 and 9999.\n- CX-9102: Decision: APPROVE\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R3\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 7000 is at or above 10000.\n- CX-9103: Decision: APPROVE\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R4\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 12000 is at or above 10000.",
+        "open_work": {
+          "actions": [
+            {
+              "question_id": "08301532-26cd-4633-825d-fbe6a7024b23",
+              "item": "CX-9101",
+              "question": "CX-9101 is carried by case_boundaries.csv — the cell/figure is not yet read",
+              "kind": "verification",
+              "next_action": "read case_boundaries.csv for CX-9101",
+              "decision_owner": null,
+              "inputs": {
+                "item": "CX-9101",
+                "file": "case_boundaries.csv",
+                "service": "datasets",
+                "intent": "find_all",
+                "requested_fields": [
+                  "price"
+                ]
+              },
+              "attempts": 0
+            },
+            {
+              "question_id": "2cf0a705-b275-48d8-a304-64f41ba812b9",
+              "item": "CX-9102",
+              "question": "CX-9102 is carried by case_boundaries.csv — the cell/figure is not yet read",
+              "kind": "verification",
+              "next_action": "read case_boundaries.csv for CX-9102",
+              "decision_owner": null,
+              "inputs": {
+                "item": "CX-9102",
+                "file": "case_boundaries.csv",
+                "service": "datasets",
+                "intent": "find_all",
+                "requested_fields": [
+                  "price"
+                ]
+              },
+              "attempts": 0
+            },
+            {
+              "question_id": "d62abb37-4612-4941-a8b6-47bba508887f",
+              "item": "CX-9103",
+              "question": "CX-9103 is carried by case_boundaries.csv — the cell/figure is not yet read",
+              "kind": "verification",
+              "next_action": "read case_boundaries.csv for CX-9103",
+              "decision_owner": null,
+              "inputs": {
+                "item": "CX-9103",
+                "file": "case_boundaries.csv",
+                "service": "datasets",
+                "intent": "find_all",
+                "requested_fields": [
+                  "price"
+                ]
+              },
+              "attempts": 0
+            }
+          ],
+          "owner_decisions": [],
+          "exhausted": []
+        },
+        "task_run_id": "5f20a690-9159-46f5-a03c-4b40ae16722a",
+        "delivery": {
+          "status": "recorded",
+          "delivery_id": "3a9e7718-5568-4c4b-94ad-7b8cc63e35bf",
+          "message_id": "67d1e861-1e85-40b7-bed7-ae4574ea27d6"
+        },
+        "persistence": {
+          "status": "persisted"
+        }
+      },
+      "memory_context": "TRAINING LESSONS — PERMANENT INSTRUCTIONS you were taught by your supervisor/mentor. This is standing guidance for ALL your work (it does not expire): apply it to the current task, match the preferences it describes, and never contradict it unless the user explicitly overrides it in this conversation:\n1. [case amount rule] Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row.",
+      "model": "llama3.1:8b",
+      "provider": "local_92f2072f",
+      "reasoning": null,
+      "execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+      "error_code": null,
+      "failure_reason": null,
+      "recovery_url": null,
+      "outcome": "completed"
+    },
+    "review": {
+      "schema_version": "review-result-2",
+      "execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+      "requested_subjects": [
+        "CX-9101",
+        "CX-9102",
+        "CX-9103"
+      ],
+      "allowed_decisions": [
+        "APPROVE",
+        "REVIEW",
+        "REJECT"
+      ],
+      "source_execution_ids": [
+        "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+      ],
+      "assessments": [
+        {
+          "subject_id": "CX-9101",
+          "decision": "REVIEW",
+          "basis": [
+            "According to the case amount rule, Ask Amount of 3200 falls between 5000 and 9999."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:CX-9101:case_boundaries!R2",
+              "subject_id": "CX-9101",
+              "row_ref": "case_boundaries!R2",
+              "source_identity": {
+                "file_name": "case_boundaries.csv",
+                "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+                "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+              },
+              "retrieval_operation": "select:8d54f69bfe1f:2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+              "retrieval_execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+              "values": [
+                {
+                  "field": "Ask Amount",
+                  "value": 3200
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+              "topic": "case amount rule",
+              "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+          ],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "CX-9102",
+          "decision": "APPROVE",
+          "basis": [
+            "According to the case amount rule, Ask Amount of 7000 is at or above 10000."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:CX-9102:case_boundaries!R3",
+              "subject_id": "CX-9102",
+              "row_ref": "case_boundaries!R3",
+              "source_identity": {
+                "file_name": "case_boundaries.csv",
+                "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+                "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+              },
+              "retrieval_operation": "select:8d54f69bfe1f:2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+              "retrieval_execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+              "values": [
+                {
+                  "field": "Ask Amount",
+                  "value": 7000
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+              "topic": "case amount rule",
+              "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+          ],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "CX-9103",
+          "decision": "APPROVE",
+          "basis": [
+            "According to the case amount rule, Ask Amount of 12000 is at or above 10000."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:CX-9103:case_boundaries!R4",
+              "subject_id": "CX-9103",
+              "row_ref": "case_boundaries!R4",
+              "source_identity": {
+                "file_name": "case_boundaries.csv",
+                "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+                "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+              },
+              "retrieval_operation": "select:8d54f69bfe1f:2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+              "retrieval_execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+              "values": [
+                {
+                  "field": "Ask Amount",
+                  "value": 12000
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+              "topic": "case amount rule",
+              "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+          ],
+          "resumed_read": false
+        }
+      ],
+      "candidate_assessments": [],
+      "errors": [],
+      "ok": true,
+      "required_actions": [],
+      "action_receipts": [],
+      "completion": "completed",
+      "reviewed_at_elapsed_s": 45.65
+    },
+    "contract": {
+      "subjects": [
+        "CX-9101",
+        "CX-9102",
+        "CX-9103"
+      ],
+      "accepted_inputs": {
+        "subjects": [
+          "CX-9101",
+          "CX-9102",
+          "CX-9103"
+        ],
+        "requested_fields": [
+          "Ask Amount"
+        ],
+        "source_version": "8d54f69bfe1faad936555636f9b3ffca29569809",
+        "teaching_revision": "ec8578fc768ed26a6d2838c6",
+        "decision_schema": [
+          "APPROVE",
+          "REVIEW",
+          "REJECT"
+        ],
+        "required_actions": []
+      },
+      "policy_revision": "ec8578fc768ed26a6d2838c6",
+      "source_revision": "8d54f69bfe1faad936555636f9b3ffca29569809",
+      "required_evidence": [
+        {
+          "file_name": "case_boundaries.csv",
+          "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+          "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+        },
+        {
+          "file_name": "case_boundaries.csv",
+          "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+          "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+        },
+        {
+          "file_name": "case_boundaries.csv",
+          "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+          "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+        }
+      ],
+      "allowed_decisions": [
+        "APPROVE",
+        "REVIEW",
+        "REJECT"
+      ],
+      "evidence_ids": [
+        "ev:CX-9101:case_boundaries!R2",
+        "ev:CX-9102:case_boundaries!R3",
+        "ev:CX-9103:case_boundaries!R4"
+      ],
+      "policy_ids": [
+        "0f69a68d1c5249eb9ca007c3feefc402"
+      ]
+    },
+    "history": {
+      "status": 200,
+      "body": {
+        "session_id": "rb-baseline-73a8c055",
+        "messages": [
+          {
+            "id": "0a069e7f-e496-403f-8feb-b36d145f2d5e",
+            "role": "user",
+            "message": "Assess each Open case in case_boundaries.csv using Ask Amount. Give a table with Case Ref, Ask Amount and decision.",
+            "response": null,
+            "timestamp": "2026-10-28T01:32:37.408863"
+          },
+          {
+            "id": "67d1e861-1e85-40b7-bed7-ae4574ea27d6",
+            "role": "assistant",
+            "message": null,
+            "response": {
+              "message": "| Case Ref | Ask Amount | Decision |\n| --- | ---: | --- |\n| CX-9101 | 3200 | REVIEW |\n| CX-9102 | 7000 | APPROVE |\n| CX-9103 | 12000 | APPROVE |\n\nSource: case_boundaries.csv · rows from the bound selection\n\nBased on the evidence provided, I will create an assessment for each Open case in `case_boundaries.csv`. Here is the assessment table:\n\n| Case Ref | Ask Amount | Decision |\n| ---: | ---: | :--- |\n| CX-9101  | 3200    | REVIEW   |\n| CX-9102  | 7000    | APPROVE  |\n| CX-9103  | 12000   | APPROVE  |\n\nThe decisions are based on the `case amount rule` policy, which states:\n\n* Ask Amount at or above 10000 is APPROVE\n* 5000 to 9999 is REVIEW\n* Below 5000 is REJECT\n\nThe evidence for each case reference can be found in `case_boundaries.csv`:\n\n| Case Ref | Ask Amount |\n| ---: | ---: |\n| CX-9101 | 3200    |\n| CX-9102 | 7000    |\n| CX-9103 | 12000   |\n\nHere is the certified assessment output:\n\nVALIDATED REVIEW (request-bound):\n- CX-9101: Decision: REVIEW\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R2\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 3200 falls between 5000 and 9999.\n- CX-9102: Decision: APPROVE\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R3\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 7000 is at or above 10000.\n- CX-9103: Decision: APPROVE\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R4\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 12000 is at or above 10000.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+              "success": true,
+              "outcome": "completed"
+            },
+            "timestamp": "2026-10-28T01:32:37.409006",
+            "workbook_result": {
+              "schema": "workbook-result-1",
+              "file": "case_boundaries.csv",
+              "source_note": "saved copy · 2026-10-28",
+              "coverage": null,
+              "items": [
+                {
+                  "item": "CX-9101",
+                  "status": "found",
+                  "value": null,
+                  "basis": null,
+                  "ref": "case_boundaries!R2",
+                  "identity_cells": [],
+                  "other_bases": []
+                },
+                {
+                  "item": "CX-9102",
+                  "status": "found",
+                  "value": null,
+                  "basis": null,
+                  "ref": "case_boundaries!R3",
+                  "identity_cells": [],
+                  "other_bases": []
+                },
+                {
+                  "item": "CX-9103",
+                  "status": "found",
+                  "value": null,
+                  "basis": null,
+                  "ref": "case_boundaries!R4",
+                  "identity_cells": [],
+                  "other_bases": []
+                }
+              ]
+            },
+            "execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+          }
+        ],
+        "timestamp": ""
+      }
+    }
+  }
+}

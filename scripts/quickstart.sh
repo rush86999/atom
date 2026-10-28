@@ -112,6 +112,11 @@ CHAT_FINALIZATION_M1=1
 CHAT_FINALIZATION_M2=1
 ATOM_TASK_LIFECYCLE_ENABLED=1
 
+# Core release configuration. The verified release serves the non-streaming
+# reply path; streaming remains outside the current release claim. The
+# orchestrator enables the stream leg only for the literal "true".
+ATOM_CHAT_STREAMING=false
+
 # Add your LLM API key here (at least one required for AI features):
 # OPENAI_API_KEY=sk-your-key-here
 # ANTHROPIC_API_KEY=sk-ant-your-key-here
@@ -157,6 +162,11 @@ fi
 
 echo ""
 echo "✅ Setup complete!"
+echo ""
+echo "This release is the core company-data + trained-agent workspace:"
+echo "  Chat · Data · Workspace · Agents · Activity · Settings"
+echo "Deferred surfaces stay in the codebase but are not exposed"
+echo "(see docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md)."
 echo ""
 echo "Next steps:"
 echo "  1. Edit backend/.env — add an API key or set ATOM_LOCAL_ONLY=true"

@@ -38,6 +38,17 @@ load_dotenv(os.path.join(backend_dir, ".env"))
 load_dotenv(os.path.join(project_root, ".env"))
 load_dotenv(os.path.join(project_root, ".env.local"), override=True)
 
+# Product surface: the shipped release is the core company-data + trained
+# agent workspace. Apply its worker defaults before any service reads them
+# (autonomous scheduling and external ingestion sync stay off).
+try:
+    from core.product_profile import apply_runtime_defaults as _apply_profile_defaults
+
+    _apply_profile_defaults()
+except Exception as _profile_err:  # noqa: BLE001 — never block startup
+    print(f"product profile defaults skipped: {_profile_err}")
+
+
 # Track which integrations have been loaded globally
 _loaded_integrations = set()
 import traceback
@@ -298,8 +309,11 @@ def safe_import_router(module_path: str, router_name: str = "router"):
 
 analytics_router = safe_import_router("core.analytics_endpoints")
 workspace_router = safe_import_router("api.workspace_routes")
-# risk_routes was never included (dead import removed, round 80f) — the
-# orphaned router stays unmounted by design; see docs/INTEGRATIONS_JOURNEY_AUDIT.md §4.4
+# Risk routes: the Health and Risk dashboards call /api/risk/*, but the
+# router was never mounted (round 80f removed the import as "dead"). The
+# frontend surfaces stayed live, so every card 404'd. Mount the real,
+# auth-gated router again; the endpoints are read-only intelligence.
+risk_router = safe_import_router("api.risk_routes")
 template_router = safe_import_router("api.workflow_template_routes")
 entity_type_router = safe_import_router("api.entity_type_routes")
 multi_entity_extraction_router = safe_import_router("core.multi_entity_extraction_routes")
@@ -308,6 +322,7 @@ token_refresh_router = safe_import_router("integrations.token_refresh_routes")
 webhook_renewal_router = safe_import_router("integrations.webhook_renewal_routes")
 agent_routes_v2_router = safe_import_router("api.agent_routes")
 health_router = safe_import_router("api.health_routes")
+system_status_router = safe_import_router("api.system_status_routes")
 messaging_router = safe_import_router("api.messaging_routes")
 platform_webhook_router = safe_import_router("api.routes.webhooks")
 ingestion_webhooks_router = safe_import_router("api.routes.webhooks.ingestion_webhooks")
@@ -2026,6 +2041,8 @@ app.include_router(forensics_router, prefix="/api/v1/forensics", tags=["forensic
 # router at its declared root as well; the legacy mangled mount stays for
 # any existing consumer.
 app.include_router(forensics_router, tags=["forensics"])
+# Health + Risk dashboards (pages/health.tsx, pages/dashboard/risk.tsx)
+app.include_router(risk_router, tags=["risk"])
 app.include_router(debug_router)
 # Agent status router: do NOT add a prefix — the router already declares its
 # own prefix="/api/agent-status" with internal routes /agent/status/{task_id}.
@@ -2038,6 +2055,11 @@ app.include_router(user_templates_router)
 # so every /api/boards call from the frontend Kanban page 404'd.
 board_router = safe_import_router("api.board_routes")
 app.include_router(board_router)
+# Board comments + decompose: the drawers/API clients call these paths, but
+# only the board CRUD router was mounted, so every comment post and every
+# "Decompose" action 404'd. Include the real routers at their declared roots.
+app.include_router(safe_import_router("api.board_comment_routes"))
+app.include_router(safe_import_router("api.board_decompose_routes"))
 
 # Audit trail (per-decision agent audit) — api/audit_routes.py declares its
 # own /api/audit prefix, so include BARE. Previously never mounted: every
@@ -3340,6 +3362,19 @@ try:
     except (ImportError, TypeError):
         logger.warning("WebSocket routes not found, skipping.")
 
+    # Board realtime channel lives in the repo-root websocket_routes.py.
+    # Only api.websocket_routes was mounted, so /ws/boards/{id} had no route
+    # and the browser handshake was rejected with 403. The duplicate /ws
+    # definition in this module is harmless: the first registration wins, and
+    # the board path is unique.
+    try:
+        from websocket_routes import router as board_ws_router
+
+        app.include_router(board_ws_router, tags=["Board WebSockets"])
+        logger.info("✓ Board WebSocket channel mounted at /ws/boards/{id}")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Board WebSocket routes not mounted: {e}")
+
     # 4b. ACP bridge — standard Agent Client Protocol v1 endpoint so any
     # ACP-compatible client (Zed, Berd-style shells) can drive Atom agents.
     try:
@@ -3831,6 +3866,36 @@ try:
         logger.info("✓ Health Monitoring Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Health monitoring routes not found: {e}")
+
+    try:
+        # /api/status aggregate consumed by pages/system-status.tsx.
+        from api.system_status_routes import router as system_status_router
+
+        app.include_router(system_status_router)
+        logger.info("✓ System Status aggregate mounted at /api/status")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"System status route not mounted: {e}")
+
+    try:
+        # Public product-surface contract: one capability configuration for
+        # navigation, dashboard links and direct-page access.
+        from api.product_profile_routes import router as product_profile_router
+
+        app.include_router(product_profile_router)
+        logger.info("✓ Product profile mounted at /api/product/profile")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Product profile route not mounted: {e}")
+
+    try:
+        # The System Status page also lists registered services. The router
+        # existed in core/service_registry.py but was never mounted, so the
+        # page's whole fetch failed on /api/services/registry.
+        from core.service_registry import router as service_registry_router
+
+        app.include_router(service_registry_router)
+        logger.info("✓ Service registry mounted at /api/services/registry")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Service registry not mounted: {e}")
 
     try:
         from api.project_health_routes import router as project_health_router

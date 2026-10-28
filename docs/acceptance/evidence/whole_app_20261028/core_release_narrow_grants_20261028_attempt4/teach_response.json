@@ -1,0 +1,16 @@
+{
+ "success": true,
+ "data": {
+  "status": "ok",
+  "source": "teacher",
+  "confidence": 0.39999999999999997,
+  "confidence_boost": 0.05,
+  "at_learning_ceiling": false,
+  "note": null,
+  "teaching_point_id": "1369a22d4b45428d8635072d418d90ef",
+  "scope": "global",
+  "goal_id": null
+ },
+ "timestamp": "2026-10-28T15:51:14.486707+00:00",
+ "message": "Lesson recorded — the student's confidence grew"
+}

@@ -28,6 +28,7 @@ import {
 const MarketingDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [summary, setSummary] = useState<any>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [researchQuery, setResearchQuery] = useState("");
     const [researchResult, setResearchResult] = useState<any>(null);
     const [researching, setResearching] = useState(false);
@@ -37,35 +38,25 @@ const MarketingDashboard: React.FC = () => {
     const fetchMarketingData = async () => {
         try {
             setLoading(true);
+            setLoadError(null);
             const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
             const res = await fetch("/api/marketing/dashboard/summary", {
                 headers: token ? { "Authorization": `Bearer ${token}` } : {},
-            }).catch((): null => null);
-
-            if (res && res.ok) {
-                const data = await res.json().catch((): null => null);
-                if (data) {
-                    setSummary(data);
-                    return;
-                }
-            }
-
-            // Fallback intelligence summary if ad integrations are not active yet
-            setSummary({
-                status: "success",
-                summary: "AI Marketing Engine Active. Connect ad channels to stream real-time ROI analytics.",
-                metrics: {
-                    total_reach: "24.5K",
-                    conversion_rate: "3.8%",
-                    active_campaigns: 4,
-                    roi: "3.2x"
-                },
-                narrative_report: {
-                    content: "AI Marketing Engine Active. Connect ad channels to stream real-time ROI analytics."
-                }
             });
+            if (!res.ok) {
+                throw new Error(`Marketing summary returned ${res.status}`);
+            }
+            const data = await res.json();
+            setSummary(data);
         } catch (error) {
-            console.error("Failed to fetch marketing summary:", error);
+            // Never substitute fabricated metrics. The page states the
+            // failure and stays empty until real data is available.
+            setSummary(null);
+            setLoadError(
+                error instanceof Error
+                    ? error.message
+                    : "Could not load marketing data."
+            );
         } finally {
             setLoading(false);
         }
@@ -106,6 +97,21 @@ const MarketingDashboard: React.FC = () => {
         fetchMarketingData();
     }, []);
 
+    const narrative =
+        typeof summary?.narrative_report === "string"
+            ? summary.narrative_report
+            : summary?.narrative_report?.content || "";
+    const channelEntries = Object.entries(summary?.performance_metrics || {}).filter(
+        ([name, data]: [string, any]) =>
+            name !== "no_data" &&
+            data &&
+            (Number(data.leads || 0) || Number(data.spend || data.cost || 0) || Number(data.conversions || 0))
+    );
+    const maxLeads = Math.max(
+        1,
+        ...channelEntries.map(([, data]: [string, any]) => Number(data.leads || 0))
+    );
+
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
             <div className="max-w-[1400px] mx-auto space-y-8">
@@ -134,9 +140,23 @@ const MarketingDashboard: React.FC = () => {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-2xl font-medium text-gray-800 dark:text-gray-200 leading-relaxed">
-                            {summary?.narrative_report?.content || "Analyzing your marketing data for actionable insights..."}
-                        </p>
+                        {loadError ? (
+                            <div role="alert" className="space-y-2">
+                                <p className="text-base font-medium text-red-700 dark:text-red-400">
+                                    Could not load marketing data: {loadError}
+                                </p>
+                                <Button variant="outline" size="sm" onClick={fetchMarketingData}>
+                                    Retry
+                                </Button>
+                            </div>
+                        ) : (
+                            <p className="text-2xl font-medium text-gray-800 dark:text-gray-200 leading-relaxed">
+                                {loading
+                                    ? "Loading recorded marketing data..."
+                                    : narrative ||
+                                      "No marketing channel data is available yet. Connect a channel or record ad spend to see performance."}
+                            </p>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -167,7 +187,6 @@ const MarketingDashboard: React.FC = () => {
                                         </div>
                                         <div className="text-right">
                                             <Badge className="bg-green-600">{lead.score}% Intent</Badge>
-                                            <p className="text-xs text-gray-400 mt-1">Found via Google</p>
                                         </div>
                                     </div>
                                 ))}
@@ -219,20 +238,31 @@ const MarketingDashboard: React.FC = () => {
                                 <CardTitle className="text-lg">Channel Performance</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                {summary?.performance_metrics && Object.entries(summary.performance_metrics).map(([channel, data]: [string, any]) => (
-                                    <div key={channel} className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                            <span className="capitalize font-medium">{channel.replace('_', ' ')}</span>
-                                            <span className="text-sm text-gray-500 dark:text-gray-400">{data.calls} calls</span>
+                                {channelEntries.map(([channel, data]: [string, any]) => {
+                                    const leads = Number(data.leads || 0);
+                                    const spend = Number(data.spend ?? data.cost ?? 0);
+                                    return (
+                                        <div key={channel} className="space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <span className="capitalize font-medium">{channel.replace(/_/g, ' ')}</span>
+                                                <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                    {leads} leads{spend ? ` · ${spend} spend` : ""}
+                                                </span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                                                <div
+                                                    className="bg-blue-600 h-full transition-all duration-1000"
+                                                    style={{ width: `${(leads / maxLeads) * 100}%` }}
+                                                ></div>
+                                            </div>
                                         </div>
-                                        <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
-                                            <div
-                                                className="bg-blue-600 h-full transition-all duration-1000"
-                                                style={{ width: `${(data.calls / 15) * 100}%` }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
+                                {!loading && channelEntries.length === 0 && !loadError && (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        No channel performance recorded yet.
+                                    </p>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -246,12 +276,18 @@ const MarketingDashboard: React.FC = () => {
                                     <Star className="w-8 h-8 text-yellow-600 fill-yellow-600" />
                                 </div>
                                 <div>
-                                    <h3 className="text-2xl font-bold">4.8</h3>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">Global Review Average</p>
-                                </div>
-                                <div className="flex justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
-                                    <span>Sentiment Score</span>
-                                    <span className="text-green-600 font-bold">Positive (92%)</span>
+                                    <h3 className="text-xl font-bold">
+                                        {summary?.gmb_status === "active"
+                                            ? "Google Business Profile connected"
+                                            : summary?.gmb_status === "mock"
+                                            ? "Google Business Profile (mock mode)"
+                                            : "Google Business Profile not connected"}
+                                    </h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        {summary?.gmb_status === "active"
+                                            ? `${summary?.pending_reviews ?? 0} reviews awaiting a response`
+                                            : "Connect the integration to load review data. No review figures are shown until then."}
+                                    </p>
                                 </div>
                                 <Button variant="outline" className="w-full gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
                                     <MessageSquare className="w-4 h-4" />

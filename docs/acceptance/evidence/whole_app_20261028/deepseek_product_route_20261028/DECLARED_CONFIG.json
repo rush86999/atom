@@ -1,0 +1,72 @@
+{
+ "schema": "deepseek-product-route-declaration-1",
+ "status": "declared_before_run",
+ "candidate": {
+  "branch": "whole-app/successor-f5f",
+  "commit": "67586f6c2",
+  "worktree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app"
+ },
+ "scratch_resources": {
+  "world": "core_release_deepseek_20261028",
+  "backend_port": 8062,
+  "frontend_port": 3114,
+  "worlds_root": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds"
+ },
+ "provider": {
+  "id": "deepseek",
+  "endpoint": "https://api.deepseek.com/v1",
+  "model": "deepseek-v4-pro",
+  "credential_source": "existing encrypted BYOK store read-only, copied into the isolated run dir",
+  "credential_key_id": "tenant_default_deepseek_default_production",
+  "credential_key_hash": "cc1d28eb8b34001a845fbf176096e4124985bca4763ce44953fbe712727f32ee"
+ },
+ "provider_policy": {
+  "mode": "selected",
+  "allowed_providers": [
+   "deepseek"
+  ],
+  "preferred": {
+   "provider": "deepseek",
+   "model": "deepseek-v4-pro"
+  },
+  "fallback": "none; Ollama and every other provider are outside the isolated policy"
+ },
+ "environment": {
+  "ATOM_LOCAL_ONLY": "false",
+  "ATOM_LLM_PROVIDER_POLICY": "{\"mode\":\"selected\",\"allowed_providers\":[\"deepseek\"],\"preferred\":{\"provider\":\"deepseek\",\"model\":\"deepseek-v4-pro\"}}",
+  "ATOM_PREFERRED_LLM_PROVIDER": "deepseek",
+  "ATOM_PREFERRED_LLM_MODEL": "deepseek-v4-pro",
+  "ATOM_CHAT_STREAMING": "false",
+  "ATOM_REVIEW_STRUCTURED": "0",
+  "ATOM_CHAT_TURN_BUDGET_SECONDS": "180",
+  "ATOM_TURN_INTERPRET_TIMEOUT_S": "20",
+  "OLLAMA_MODEL": "llama3.1:8b",
+  "ATOM_REVIEW_MODEL": "deepseek-v4-pro",
+  "ATOM_CHAT_REQUEST_DEADLINE_SECONDS": "180"
+ },
+ "client": {
+  "timeout_ms": 300000,
+  "source": "frontend-nextjs/pages/canvas/[id].tsx"
+ },
+ "generation": {
+  "temperature": 0.7,
+  "max_tokens": 6000,
+  "stream": false,
+  "structured_output": false
+ },
+ "verification_targets": [
+  "authenticated workspace and agent",
+  "actual dispatched provider/model captured from the running process",
+  "complete message list and full applicable teaching text",
+  "task-owned decision vocabulary",
+  "authoritative source rows and version",
+  "consistent evidence/policy IDs between generation and validation",
+  "final structured result propagation",
+  "response, persistence and fresh-history agreement"
+ ],
+ "calculation_expectation": "22200.00 over the three Open rows (old 23800 driver value is wrong and not used)",
+ "local_only_default_unchanged": true,
+ "global_provider_policy_unchanged": true,
+ "stored_credentials_unchanged": true,
+ "deployment_authorized": false
+}

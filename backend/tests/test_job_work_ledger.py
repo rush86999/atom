@@ -103,6 +103,13 @@ class TestExecutionFacts:
         assert normalize_execution_facts(
             {"invoked": False, "outcome": "weird"})["outcome"] == (
             "not_dispatched")
+        assert normalize_execution_facts(
+            {"invoked": True, "outcome": "read_succeeded",
+             "served_basis": "saved_copy",
+             "freshness_requested": True})["freshness_requested"] is True
+        assert normalize_execution_facts(
+            {"invoked": True, "outcome": "read_succeeded",
+             "served_basis": "saved_copy"})["freshness_requested"] is False
 
     def test_facts_attach_to_the_operation(self, lifecycle):
         session = {}
@@ -979,12 +986,42 @@ class TestValueTraceProductionHandoff:
             lifecycle, run_id, op2, structured_result=None, freshness=None,
             execution={"invoked": True, "outcome": "read_succeeded",
                        "served_basis": "saved_copy",
+                       "freshness_requested": True,
                        "items": {"Manual Flanger": "single"}})
         w = next_unfinished_work(lifecycle.get_task(run_id))
         assert any(
             "freshness" in str(a.get("question") or "").lower()
             for a in w["actions"]), (
-            "the saved-copy read leaves a selectable freshness obligation")
+            "a requested live verification leaves a selectable freshness "
+            "obligation")
+
+    def test_snapshot_assessment_does_not_invent_live_work(self, lifecycle):
+        """An uploaded snapshot assessed AS THAT VERSION is a complete read.
+
+        Captured Ask Amount assessment: the user asked to assess the
+        uploaded rows, never to re-verify them against a live source. The
+        saved-copy read must not spawn "re-verify ... live source" work.
+        """
+        from core.task_lifecycle import (
+            begin_retrieval_turn, next_unfinished_work, record_read_outcome)
+
+        run_id, _ = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-snapshot", "assess cases", "e1")
+        _, op = begin_retrieval_turn(
+            lifecycle, {"id": "s1"}, "conv-snapshot",
+            "assess uploaded cases", "e2")
+        record_read_outcome(
+            lifecycle, run_id, op, structured_result=None, freshness=None,
+            execution={"invoked": True, "outcome": "read_succeeded",
+                       "served_basis": "saved_copy",
+                       "freshness_requested": False,
+                       "items": {"CX-9101": "single"}})
+        w = next_unfinished_work(lifecycle.get_task(run_id))
+        assert not any(
+            "freshness" in str(a.get("question") or "").lower()
+            or "live source" in str(a.get("next_action") or "").lower()
+            for a in w["actions"]), (
+            "a snapshot assessment must not manufacture live-source work")
 
     def test_ambiguous_containment_resolves_neither(self, lifecycle):
         """Round 48: two question items containment-matching the same read
@@ -1085,6 +1122,7 @@ class TestFreshnessSuccessorCannotLoop:
                 freshness=None,
                 execution={"invoked": True, "outcome": "read_succeeded",
                            "served_basis": "saved_copy",
+                           "freshness_requested": True,
                            "items": {"Manual Flanger": "single"}})
         w = next_unfinished_work(lifecycle.get_task(run_id))
         fresh = [a for a in w["actions"]

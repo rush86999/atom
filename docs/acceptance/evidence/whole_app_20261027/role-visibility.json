@@ -1,0 +1,56 @@
+{
+  "role": "member",
+  "samples": [
+    {
+      "after_ms": 500,
+      "forbidden": [],
+      "labels": []
+    },
+    {
+      "after_ms": 1500,
+      "forbidden": [],
+      "labels": []
+    },
+    {
+      "after_ms": 4000,
+      "forbidden": [],
+      "labels": [
+        "Dashboard",
+        "Chat",
+        "Workspace",
+        "Search",
+        "Data",
+        "Tasks",
+        "Kanban",
+        "Automations",
+        "Agents",
+        "Activity",
+        "Marketplace",
+        "Projects",
+        "Sales & CRM",
+        "Support",
+        "Knowledge",
+        "Communication",
+        "Sales",
+        "Marketing",
+        "Finance",
+        "Analytics",
+        "Calendar",
+        "Health",
+        "Voice",
+        "Self-Healing Harness",
+        "Integrations",
+        "Settings",
+        "Records0documents available to read",
+        "Workspace0drafts and deliverables",
+        "Agents10agents you can teach",
+        "Unfinished work00 in progress",
+        "View all",
+        "Open Activity",
+        "Execution history"
+      ]
+    }
+  ],
+  "forbiddenVisible": [],
+  "roleVisibilityPass": true
+}

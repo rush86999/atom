@@ -336,7 +336,11 @@ export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, 
                 }
             }, {
                 signal: abortControllerRef.current.signal,
-                timeout: 120000,
+                // Local 8B assessment turns (selection + grounded review +
+                // guards) can exceed the old 120 s client bound. The backend's
+                // ATOM_CHAT_TURN_BUDGET_SECONDS remains the hard stop; give the
+                // served boundary room to receive the validated result.
+                timeout: 300000,
                 // @ts-ignore
                 retry: false
             }) as any;

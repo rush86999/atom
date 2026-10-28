@@ -1,0 +1,13 @@
+{
+ "schema": "core-release-narrow-check-source-manifest-1",
+ "status": "passed",
+ "case": "previously intermittent first grants assessment",
+ "model": "deepseek-v4-pro",
+ "files": {
+  "docs/acceptance/evidence/whole_app_20261028/core_release_narrow_grants_20261028_attempt8/agent_detail_after_teach.json": "4eba4be305ce260ac9754b19f01125d9111b63b92ea7a584c4460e5c6af6072f",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_narrow_grants_20261028_attempt8/history.json": "9587bfe733652f1d4f98ad4ce43899d72cf21c6cd0465270f9b6812da288f40a",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_narrow_grants_20261028_attempt8/product_route_result.json": "515a5b688eded26d66242566e93f4428d83e7ca6a7ebb9cd8c065df2ba92bb07",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_narrow_grants_20261028_attempt8/run_stdout.text": "4e48fe21f2684fe4933ce38fdb31355f972ae6d7fdfc5c6d131ddbc66b03d8ba",
+  "docs/acceptance/evidence/whole_app_20261028/core_release_narrow_grants_20261028_attempt8/teach_response.json": "a595478ee24c90e090d279889f79d7cd6e1658f91cd99bcc68f1454fbb31e6ad"
+ }
+}

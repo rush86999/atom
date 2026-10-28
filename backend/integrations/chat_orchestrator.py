@@ -89,6 +89,32 @@ def _presentation_record_from_meta(
 
 logger = logging.getLogger(__name__)
 
+
+def _capture_review_payload(kind: str, execution_id: str, payload: Any) -> None:
+    """Private, env-gated capture of review generation input/output.
+
+    Content-bearing (business rows/lessons) and therefore written only to
+    the local logs directory, never to committed evidence. Enabled with
+    ATOM_REVIEW_CAPTURE=1 for diagnosis; disabled by default.
+    """
+    try:
+        if os.getenv("ATOM_REVIEW_CAPTURE", "").lower() not in (
+                "1", "true", "on", "yes"):
+            return
+        import json as _json
+        import os as _os
+        base = _os.getenv("ATOM_REVIEW_CAPTURE_DIR") or _os.path.join(
+            _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+            "logs", "review_diagnosis")
+        _os.makedirs(base, exist_ok=True)
+        safe_exec = str(execution_id or "unknown").replace("/", "_")[:80]
+        path = _os.path.join(base, f"{kind}_{safe_exec}.json")
+        with open(path, "w") as fh:
+            _json.dump(payload, fh, indent=2, default=str)
+    except Exception:  # noqa: BLE001 — diagnostics never break a turn
+        pass
+
+
 from core.request_scope import current_request_scope
 
 # Control A fallback bound (owner diagnostic bounds, 2026-10-12): when
@@ -1339,6 +1365,25 @@ def _remaining_budget(turn_t0: float, budget: Optional[float] = None) -> float:
     if budget <= 0:
         return float("inf")
     return max(0.0, budget - (time.monotonic() - turn_t0))
+
+
+# The one contract-only review-block retry fires only while this much turn
+# budget remains — the review still has to be finalized inside the turn.
+_REVIEW_BLOCK_RECOVERY_RESERVE_S = 25.0
+
+
+def _review_generation_model(model: Any) -> str:
+    """The model for an assessment turn: explicit override, then the
+    installation's declared review model, then auto.
+
+    A verified launch configuration must not silently switch models between
+    the review generation and its contract-only format recovery.
+    """
+    text = str(model or "").strip()
+    if text.lower() not in ("", "auto"):
+        return text
+    pinned = str(os.getenv("ATOM_REVIEW_MODEL", "") or "").strip()
+    return pinned or "auto"
 
 
 async def _cancel_and_confirm(
@@ -7979,6 +8024,116 @@ def _capture_resolved_row_bindings(
         logger.debug("resolved-binding capture skipped: %r", exc)
 
 
+
+
+def _settle_review_read_obligations(session: Any, subjects: List[str],
+                                    workspace_id: Any = None) -> int:
+    """Reconcile READ obligations a validated review just satisfied.
+
+    Freshness obligations ("re-verify against the live source") are genuine
+    and stay open. Only open "read <file> for <subject>" questions for the
+    reviewed subjects are settled, through the existing task-lifecycle
+    resolution path. History is not deleted.
+    """
+    try:
+        if not isinstance(session, dict):
+            return 0
+        run_id = str(session.get("_task_run_id") or "")
+        if not subjects:
+            return 0
+        lifecycle = _task_lifecycle_for(None, workspace_id)
+        if lifecycle is None:
+            return 0
+        if not run_id:
+            # The session's private key may have been projected away; find
+            # the run by this conversation through the same lifecycle store.
+            _conv = str(session.get("id") or session.get("session_id") or "")
+            try:
+                for _run in lifecycle.runs.list_runs(
+                        include_terminal=True, limit=100):
+                    _rid = str(_run.get("id") or _run.get("run_id") or "")
+                    _rec = lifecycle.get_task(_rid) if _rid else None
+                    if _rec and str(_rec.get("conversation_id") or "") == _conv:
+                        run_id = _rid
+                        break
+            except Exception:
+                run_id = ""
+        if not run_id:
+            return 0
+        from core.task_lifecycle import (
+            open_unresolved_questions,
+            resolve_unresolved_questions,
+        )
+
+        record = lifecycle.get_task(run_id)
+        if not record:
+            return 0
+        subject_set = {str(s) for s in subjects}
+        read_ids = []
+        for question in open_unresolved_questions(record):
+            item = str(question.get("item") or "")
+            action = str(question.get("next_action") or "")
+            if item in subject_set and action.lower().startswith("read "):
+                read_ids.append(str(question.get("question_id")))
+        if not read_ids:
+            return 0
+        settled = resolve_unresolved_questions(
+            lifecycle, run_id, question_ids=read_ids,
+            resolution=(
+                "validated selection/review delivered the source rows for "
+                "these subjects"))
+        logger.info(
+            "[review-result] settled %d read obligation(s) after validated "
+            "review (run=%s)", len(settled), run_id[:8])
+        return len(settled)
+    except Exception as exc:  # noqa: BLE001 — bookkeeping only
+        logger.warning(
+            "[review-result] read-obligation settlement skipped: %r", exc)
+        return 0
+
+def _review_source_revision(
+    structured: Any,
+    evidence_index: Any = None,
+) -> str:
+    """The exact source revision this review's evidence came from.
+
+    The accepted contract's source_version was empty in the captured
+    assessments even though every evidence ref carried a content hash. Read
+    the binding the validator will use (evidence refs first, then the
+    structured record's source identity) so response, persistence and history
+    all record the effective version.
+    """
+    for entry in (evidence_index or []):
+        if not isinstance(entry, dict):
+            continue
+        source = entry.get("source_identity")
+        if isinstance(source, dict):
+            version = str(
+                source.get("content_hash")
+                or source.get("resource_id")
+                or source.get("version")
+                or "").strip()
+            if version:
+                return version[:120]
+    if isinstance(structured, dict):
+        source = structured.get("source_identity")
+        if isinstance(source, dict):
+            version = str(
+                source.get("content_hash")
+                or source.get("resource_id")
+                or source.get("version")
+                or "").strip()
+            if version:
+                return version[:120]
+        version = str(
+            structured.get("source_version")
+            or structured.get("evidence_revision")
+            or "").strip()
+        if version:
+            return version[:120]
+    return ""
+
+
 def _task_lifecycle_for(tenant_id: Any,
                         workspace_id: Any) -> Optional[Any]:
     """Flag-gated TaskLifecycle bound to the turn's scope (Step 1 wiring).
@@ -8608,7 +8763,8 @@ class ChatOrchestrator:
 
                     _review_lessons = (
                         self._agent_lessons(
-                            agent_id, objective, limit=10) or [])
+                            agent_id, objective, limit=10,
+                            include_workspace=False) or [])
                     _review_allowed_decisions = (
                         decision_options_from_lessons(_review_lessons))
                 except Exception:  # noqa: BLE001 — teaching is additive
@@ -9382,11 +9538,22 @@ class ChatOrchestrator:
                         _review_evidence_index = build_evidence_index(
                             _review_struct,
                             subjects=_review_requested_records)
+                        _review_source_version = _review_source_revision(
+                            _review_struct, _review_evidence_index)
+                        if (_review_source_version
+                                and not _review_accepted_contract.get(
+                                    "source_version")):
+                            _review_accepted_contract["source_version"] = (
+                                _review_source_version)
                         _review_policy_index = build_policy_index(
                             _review_lessons, _review_allowed_decisions)
                         _review_contract = {
                             "subjects": list(_review_requested_records),
                             "accepted_inputs": _review_accepted_contract,
+                            "policy_revision": _review_accepted_contract.get(
+                                "teaching_revision"),
+                            "source_revision": _review_accepted_contract.get(
+                                "source_version"),
                             "required_evidence": [
                                 dict(entry.get("source_identity") or {})
                                 for entry in _review_evidence_index
@@ -11729,7 +11896,25 @@ class ChatOrchestrator:
                     except Exception as _nfr_err:  # noqa: BLE001
                         logger.debug(
                             "named-file routing skipped: %r", _nfr_err)
-                if _ask_mention and _FILE_READ_SHAPE_RE.search(message or ""):
+                _selection_shaped_turn = False
+                try:
+                    from core.table_selection import (
+                        is_table_selection_request as _is_sel_shape,
+                    )
+
+                    _selection_shaped_turn = _is_sel_shape(message or "")
+                    if not _selection_shaped_turn:
+                        from core.chat_tool_planner import (
+                            _assessment_request as _is_assess_shape,
+                        )
+
+                        _selection_shaped_turn = _is_assess_shape(
+                            message or "")
+                except Exception:  # noqa: BLE001 — shape gate only
+                    _selection_shaped_turn = False
+                if _ask_mention and (
+                        _selection_shaped_turn
+                        or _FILE_READ_SHAPE_RE.search(message or "")):
                     # A TEACHING DIRECTIVE IS NOT A READ (2026-10-01
                     # consistency-run T3: 'always include the tennsmith
                     # sheet for roper whitney searches' was hijacked by
@@ -11793,7 +11978,8 @@ class ChatOrchestrator:
                         )
 
                         if (is_aggregate_request(message)
-                                or is_formula_reference_request(message)):
+                                or is_formula_reference_request(message)
+                                or _selection_shaped_turn):
                             _ask_direct = True
             except Exception:  # noqa: BLE001 — shape gate only
                 _ask_direct = False
@@ -11804,7 +11990,8 @@ class ChatOrchestrator:
                 )
 
                 if (is_aggregate_request(message)
-                        or is_formula_reference_request(message)):
+                        or is_formula_reference_request(message)
+                        or locals().get("_selection_shaped_turn")):
                     _ask_direct = True
             # R4 EARLY RECOVERY CHECK (2026-10-16): one request-local
             # decision BEFORE any planner-independent retrieval. When the
@@ -12449,6 +12636,7 @@ class ChatOrchestrator:
                     _ask_action_summary = None
                     _ask_full_action = None
                     if (_ask_result.get("datasets_aggregate")
+                            or _ask_result.get("table_selection")
                             or _ask_result.get("formula_reference")):
                         _ask_content = str(
                             _ask_result.get("rendered_answer")
@@ -12700,6 +12888,7 @@ class ChatOrchestrator:
                             _ask_structured, dict) and not _ask_result.get(
                                 "named_document") and not _ask_result.get(
                                 "datasets_aggregate") and not _ask_result.get(
+                                "table_selection") and not _ask_result.get(
                                 "formula_reference"):
                         _ask_verdict = _ask_result.get("meta") or {}
                         _ask_note = str(
@@ -12733,6 +12922,7 @@ class ChatOrchestrator:
                     elif not _ask_items_used and not _ask_result.get(
                             "named_document") and not _ask_result.get(
                             "datasets_aggregate") and not _ask_result.get(
+                            "table_selection") and not _ask_result.get(
                             "formula_reference"):
                         _offer = ""
                         try:
@@ -12845,7 +13035,8 @@ class ChatOrchestrator:
                         if review_requested(_ask_task, _ask_review_text):
                             _ask_review_lessons = self._agent_lessons(
                                 (context or {}).get("agent_id"),
-                                _ask_review_text, limit=10)
+                                _ask_review_text, limit=10,
+                                include_workspace=False)
                             _ask_review_ask = bool(
                                 decision_options_from_lessons(
                                     _ask_review_lessons))
@@ -12946,6 +13137,7 @@ class ChatOrchestrator:
                                 "failure_stage": _tl_fresh_out.get("stage"),
                                 "freshness_status": _ask_freshness.get(
                                     "status"),
+                                "freshness_requested": bool(_ask_freshness),
                                 "items": {
                                     str((t or {}).get("item") or ""):
                                         str(((t or {}).get("identity")
@@ -13238,8 +13430,23 @@ class ChatOrchestrator:
                             "turn to narration with the evidence (the "
                             "escalation is trained knowledge)")
                     else:
+                        _selection_delivered_ok = True
+                        if _ask_result.get("table_selection"):
+                            try:
+                                from core.table_selection import (
+                                    selection_receipt as _sel_receipt,
+                                )
+
+                                _selection_delivered_ok = _sel_receipt(
+                                    _ask_result.get("selection_record") or {},
+                                    (_ask_result.get("selection_record")
+                                     or {}).get("source") or {},
+                                    delivered=True,
+                                )["ok"]
+                            except Exception:  # noqa: BLE001
+                                _selection_delivered_ok = False
                         _ask_response = {
-                        "success": True,
+                        "success": bool(_selection_delivered_ok),
                         "message": _ask_content,
                             "session_id": session_id,
                             "execution_id": _execution_id,
@@ -13254,6 +13461,10 @@ class ChatOrchestrator:
                                     if _ask_result.get(
                                         "named_document") else None),
                                 "deterministic_delivery": True,
+                                "table_selection": (
+                                    _ask_result.get("selection_record")
+                                    if _ask_result.get("table_selection")
+                                    else None),
                                 "file_identity": _ask_identity,
                                 "coverage_complete": _ask_complete,
                                 "calculation_complete": (
@@ -13276,17 +13487,137 @@ class ChatOrchestrator:
                             "requires_confirmation": False,
                             "next_steps": _tl_next_steps,
                             "suggested_actions": [],
+                            "outcome": (
+                                None if _selection_delivered_ok else "failed"),
+                            "error_code": (
+                                None if _selection_delivered_ok
+                                else "turn_objective_not_met"),
                         }
                         if _ask_review_ask:
-                            # A review ask is evidence, not the answer: keep
-                            # the read for narration and retain the review
-                            # contract instead of shipping the row block.
-                            _review_objective_hint = str(
-                                _ask_task.get("original_message") or message)
-                            _prefetched_review_block = _ask_content
-                            logger.info(
-                                "[file-ask] review ask — read staged for "
-                                "narration; deterministic read withheld")
+                            _selection_review = (
+                                _ask_result.get("selection_review")
+                                if _ask_result.get("table_selection")
+                                else None)
+                            if (_ask_result.get("table_selection")
+                                    and not (_selection_review or {}).get("ok")):
+                                # The deterministic rows exist, but they
+                                # cannot be turned into subject-bound review
+                                # evidence (ambiguous/blank subject mapping).
+                                # Deliver the rows and name the exact reason.
+                                _review_reason = str(
+                                    (_selection_review or {}).get("reason")
+                                    or "selection_review_artifact_unavailable")
+                                _review_blocked_message = (
+                                    _ask_content
+                                    + "\n\nAssessment not delivered: the "
+                                      "selected rows could not be mapped to "
+                                      "review subjects (" + _review_reason
+                                    + "), so no decision was accepted. The "
+                                      "rows above are the deterministic "
+                                      "source evidence.")
+                                _review_blocked_response = dict(_ask_response)
+                                _review_blocked_response.update({
+                                    "success": False,
+                                    "message": _review_blocked_message,
+                                    "outcome": "failed",
+                                    "error_code": "turn_objective_not_met",
+                                    "data": {
+                                        "deterministic_delivery": True,
+                                        "table_selection": _ask_result.get(
+                                            "selection_record"),
+                                        "review_blocked": True,
+                                        "review_block_reason": _review_reason,
+                                    },
+                                })
+                                self._update_session(
+                                    session, message,
+                                    _review_blocked_response,
+                                    {"primary_intent": "search",
+                                     "confidence": 0.9})
+                                await self._emit_agent_status(
+                                    session_id, _trace_agent_id,
+                                    _execution_id, "failed")
+                                self._finish_chat_execution(
+                                    _execution_id, "failed",
+                                    _review_blocked_message,
+                                    session=session,
+                                    message=message,
+                                    response=_review_blocked_response,
+                                    deadline=_deadline,
+                                    pending_task=session.get(
+                                        "_pending_file_task"),
+                                    authorized_actions=["read"],
+                                )
+                                logger.info(
+                                    "[file-ask] review ask — evidence-only "
+                                    "failure (%s)", _review_reason)
+                                return _review_blocked_response
+                            if _ask_result.get("table_selection"):
+                                # Stage the validated rows as the SAME review
+                                # artifact the narration path consumes, then
+                                # continue into structured-review generation.
+                                _sel_subjects = list(
+                                    _ask_result.get("selection_subjects")
+                                    or [])
+                                _sel_identity = dict(
+                                    (_ask_result.get("selection_review") or {})
+                                    .get("source_identity") or {})
+                                _turn_structured_record = (
+                                    _ask_result.get("structured_result"))
+                                _sel_task = (
+                                    dict(_pending_file_task)
+                                    if isinstance(_pending_file_task, dict)
+                                    else {
+                                        "mention": str(
+                                            _ask_mention or
+                                            _sel_identity.get(
+                                                "file_name") or ""),
+                                        "original_message": str(
+                                            _ask_task.get("original_message")
+                                            or message),
+                                        "status": "pending",
+                                    })
+                                _sel_task["requested_targets"] = list(
+                                    _sel_subjects)
+                                _sel_task["operation"] = "table_select"
+                                if _sel_identity:
+                                    _sel_task["resolved_file"] = dict(
+                                        _sel_identity)
+                                session[FILE_TASK_SESSION_KEY] = _sel_task
+                                session["_pending_file_task"] = _sel_task
+                                _pending_file_task = _sel_task
+                                if _sel_identity:
+                                    session["_resolved_file_identity"] = (
+                                        _sel_identity)
+                                session["_pending_file_result"] = {
+                                    "status": "retrieved",
+                                    "execution_id": _execution_id,
+                                    "source_execution_id": _execution_id,
+                                    "identity": dict(_sel_identity),
+                                    "structured_result": (
+                                        _ask_result.get("structured_result")),
+                                    "evidence_index": list(
+                                        _ask_result.get("evidence_index")
+                                        or []),
+                                    "rendered": _ask_content,
+                                    "original_request": str(
+                                        _ask_task.get("original_message")
+                                        or message),
+                                    "table_selection": _ask_result.get(
+                                        "selection_record"),
+                                }
+                                _review_objective_hint = str(
+                                    _ask_task.get("original_message")
+                                    or message)
+                                _prefetched_review_block = _ask_content
+                                logger.info(
+                                    "[file-ask] review ask — %d validated "
+                                    "rows staged for structured review "
+                                    "(subjects=%d)",
+                                    len(_ask_result.get("selection_record")
+                                        .get("rows") or []),
+                                    len(_sel_subjects))
+
                         else:
                             self._update_session(
                                 session, message, _ask_response,
@@ -14319,6 +14650,7 @@ class ChatOrchestrator:
                                     else "none"),
                                 "failure_stage": _tl_fresh_out.get("stage"),
                                 "freshness_status": _freshness.get("status"),
+                                "freshness_requested": bool(_freshness),
                                 "items": {
                                     str((t or {}).get("item") or ""):
                                         str(((t or {}).get("identity")
@@ -19824,6 +20156,27 @@ class ChatOrchestrator:
             "workbook_read": meta.get("workbook_read"),
             "execution_id": meta.get("execution_id"),
         }
+        _selection_record = meta.get("table_selection")
+        _selection_valid = False
+        if isinstance(_selection_record, dict):
+            try:
+                from core.table_selection import selection_receipt
+
+                # Structural validity for the READ; delivery is verified
+                # again on the response envelope before success is claimed.
+                _selection_valid = selection_receipt(
+                    _selection_record,
+                    _selection_record.get("source") or {},
+                    delivered=True,
+                )["ok"]
+            except Exception:  # noqa: BLE001 — receipt is the completion gate
+                _selection_valid = False
+        logger.info(
+            "[pending-file-task] direct read block=%s table_selection=%s "
+            "storage_completed=%s identity=%s reason=%r",
+            bool(block), bool(meta.get("table_selection")),
+            meta.get("completed"), meta.get("identity_verified"),
+            "" if block else "no block")
         result = {
             "ok": bool(block),
             "block": block or "",
@@ -19833,9 +20186,21 @@ class ChatOrchestrator:
             "coverage_complete": coverage_complete,
             "retrieval_complete": bool(
                 meta.get("completed") and identity_verified and coverage_complete
+                and (
+                    _selection_valid
+                    if isinstance(_selection_record, dict)
+                    else True
+                )
             ),
             "rendered_answer": meta.get("rendered_answer") or "",
             "structured_result": meta.get("structured_result"),
+            "table_selection": bool(
+                isinstance(_selection_record, dict)
+                and _selection_record.get("operation") == "table_select"),
+            "selection_record": (
+                _selection_record
+                if isinstance(_selection_record, dict) else None),
+            "selection_valid": _selection_valid,
             "datasets_aggregate": bool(meta.get("datasets_aggregate")),
             "aggregate_record": (
                 _aggregate_record
@@ -19846,6 +20211,59 @@ class ChatOrchestrator:
             "formula_reference": bool(meta.get("formula_reference")),
             "reason": "" if block else "file-scoped reader returned no result",
         }
+        _selection_review = None
+        if isinstance(_selection_record, dict):
+            try:
+                from core.table_selection import (
+                    build_selection_review_artifact as _build_sel_review,
+                )
+
+                _selection_review = _build_sel_review(
+                    _selection_record, execution_id=execution_id)
+                if _selection_review.get("ok"):
+                    result["structured_result"] = _selection_review[
+                        "structured_result"]
+                    result["evidence_index"] = _selection_review[
+                        "evidence_index"]
+                    result["selection_subjects"] = _selection_review[
+                        "subjects"]
+                    result["selection_subject_column"] = _selection_review[
+                        "subject_column"]
+                    meta["structured_result"] = _selection_review[
+                        "structured_result"]
+                    meta["selection_subjects"] = _selection_review[
+                        "subjects"]
+                    logger.info(
+                        "[table-select] review artifact built "
+                        "(subjects=%d, evidence=%d)",
+                        len(_selection_review["subjects"]),
+                        len(_selection_review["evidence_index"]))
+                else:
+                    logger.info(
+                        "[table-select] review artifact not built: %s",
+                        _selection_review.get("reason"))
+                result["selection_review"] = _selection_review
+            except Exception as _sel_review_err:  # noqa: BLE001
+                logger.warning(
+                    "[table-select] review artifact error: %r",
+                    _sel_review_err)
+                result["selection_review"] = {
+                    "ok": False, "reason": "artifact_error",
+                    "detail": str(_sel_review_err)[:300]}
+
+        _requested_operation = str(
+            (pending_task or {}).get("operation") or "")
+        _program_kind = str(
+            ((pending_task or {}).get("turn_program") or {}).get("kind")
+            or ((pending_task or {}).get("turn_program") or {}).get(
+                "operation") or "")
+        if (_requested_operation == "table_select"
+                or _program_kind == "table_select") and not _selection_valid:
+            # A lookup receipt cannot satisfy a selection contract: the
+            # bound source, columns, predicate and row references all have
+            # to be present.
+            result["ok"] = False
+            result["reason"] = "selection_contract_not_satisfied"
         if (pending_task or {}).get("operation") in ("refresh", "compare"):
             # REFRESH (2026-09-24 review round 3): a source-freshness
             # request must verify the UPSTREAM version and retrieve
@@ -19909,6 +20327,10 @@ class ChatOrchestrator:
         Every outcome — refreshed, upstream-newer-but-refresh-failed, or
         unverified — states exactly what happened; a stale copy is never
         presented as current."""
+        # Stage-attributed refresh outcome must exist before the nested
+        # _verdict closure can be called on an early (unverified) return.
+        _refresh_outcome: Dict[str, Any] = {
+            "attempted": False, "stage": "not_attempted", "detail": ""}
         identity = result.get("identity") or {}
         service = str(identity.get("service") or "")
         resource_id = (
@@ -19982,8 +20404,6 @@ class ChatOrchestrator:
         # download timeout, source refusal, or parse/identity — so the
         # report names the actual stage. Statuses only: no tokens, no
         # document contents in this record.
-        _refresh_outcome = {
-            "attempted": False, "stage": "not_attempted", "detail": ""}
         try:
             if deadline is not None:
                 fetch_timeout = min(
@@ -22002,6 +22422,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     "saved_copy"
                                     if _pf_invoked else "none"),
                                 "failure_stage": None,
+                                "freshness_requested": False,
                                 "planning": dict(
                                     (_prefetch_result_meta.get(
                                         "planning") or {})),
@@ -26577,7 +26998,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _review_lessons = (
                         self._agent_lessons(
                             agent_id, _review_objective_text,
-                            limit=10) or [])
+                            limit=10,
+                            include_workspace=False) or [])
                     _allowed = decision_options_from_lessons(
                         _review_lessons)
                     _review_pending = (
@@ -26614,6 +27036,31 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     _subjects = list(
                         _review_accepted.get("subjects") or [])
+                    if not _subjects:
+                        # The deterministic read's targets ARE the accepted
+                        # subject set when the objective did not enumerate
+                        # them ("assess each submitted application").
+                        _subject_sources = [
+                            _turn_structured_record,
+                            ((_review_pending or {}).get(
+                                "structured_result")
+                             if isinstance(_review_pending, dict)
+                             else None),
+                        ]
+                        for _subject_source in _subject_sources:
+                            if not isinstance(_subject_source, dict):
+                                continue
+                            _subjects = [
+                                str(target.get("item"))
+                                for target in (
+                                    _subject_source.get("targets") or [])
+                                if isinstance(target, dict)
+                                and str(target.get("item") or "").strip()
+                            ]
+                            if _subjects:
+                                _review_accepted["subjects"] = list(
+                                    _subjects)
+                                break
                     if not _subjects:
                         _subjects = [
                             str(item) for item in (
@@ -26720,8 +27167,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         logger.info(
                             "[review-result] no read evidence supplied for "
                             "the review prompt")
+                    _review_source_version = _review_source_revision(
+                        _review_struct, _evidence_index)
+                    if (_review_source_version
+                            and not _review_accepted.get("source_version")):
+                        _review_accepted["source_version"] = (
+                            _review_source_version)
                     _policy_index = build_policy_index(
                         _review_lessons, _allowed)
+                    logger.info(
+                        "[review-result] gate review_ask=%s subjects=%d "
+                        "allowed=%s evidence=%d policy=%d structured=%s",
+                        _review_ask, len(_subjects), _allowed,
+                        len(_evidence_index), len(_policy_index),
+                        bool(_review_struct))
                     if (_allowed and _subjects
                             and _evidence_index and _policy_index):
                         messages.append({
@@ -26739,6 +27198,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             ),
                         })
                         _review_contract_active = True
+                        logger.info(
+                            "[review-diag] generation_started subjects=%d "
+                            "evidence_ids=%s policy_ids=%s",
+                            len(_subjects),
+                            [entry.get("evidence_id")
+                             for entry in _evidence_index],
+                            [entry.get("policy_id")
+                             for entry in _policy_index])
                 except Exception as _review_prompt_err:  # noqa: BLE001
                     logger.debug(
                         "[review-result] output contract skipped: %r",
@@ -26791,6 +27258,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _ev_text[:280])
 
             forced_model = (routing_overrides or {}).get("model", "auto")
+            if _review_ask:
+                forced_model = _review_generation_model(forced_model)
             # MEASURE THE WHOLE PROMPT, not just the evidence section. The 18k
             # char evidence budget is a per-section budget; what the model
             # actually reads is instructions + history + canvas + evidence +
@@ -26882,11 +27351,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 logger.debug(f"prompt accounting skipped: {_acct_err}")
 
             messages.append({"role": "user", "content": message})
+            if _review_contract_active:
+                # The full contract is above; repeat ONLY the final shape at
+                # the generation boundary. Local models were observed writing
+                # the correct table but dropping the machine block when the
+                # long contract sat far from the user turn.
+                messages.append({"role": "system", "content": (
+                    "FINAL OUTPUT REQUIREMENT for this assessment: end your "
+                    "reply with exactly one fenced ```review_result block "
+                    "containing {\"assessments\": [...]}. Every assessment "
+                    "must include subject_id, decision, evidence_ids, basis, "
+                    "unresolved_requirements, and a NON-EMPTY policy_ids "
+                    "array copied from the Policy IDs above. The block is the "
+                    "only certified output; a table or prose without it is "
+                    "not an assessment.")})
 
             # Unpack routing overrides. ``model`` overrides the auto default;
             # ``tier``/``intent`` are forwarded as kwargs to the BYOK handler.
             overrides = routing_overrides or {}
             forced_model = overrides.get("model", "auto")
+            if _review_ask:
+                forced_model = _review_generation_model(forced_model)
             extra_kwargs: Dict[str, Any] = {}
             if "tier" in overrides:
                 extra_kwargs["cognitive_tier"] = overrides["tier"]
@@ -26922,12 +27407,81 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # can offer the same bounded cross-route retry instead of raising
             # (or, worse, silently retrying the route that just failed).
             _fb_routes: List[tuple] = []
+            # STRUCTURED REVIEW GENERATION (2026-10-27): when the turn carries
+            # the review contract, use the existing structured-output
+            # facility on ONE generation so every assessment is required to
+            # carry subject/decision/evidence/policy/basis/unresolved fields.
+            # A transport that cannot honour the schema falls through to the
+            # ordinary completion path below; a produced-but-invalid payload
+            # is still refused by build_review_result (never re-rolled).
+            if (
+                _review_contract_active
+                and os.getenv("ATOM_REVIEW_STRUCTURED", "0").lower()
+                in ("1", "true", "on", "yes")
+            ):
+                try:
+                    from core.review_result import generate_structured_review
+
+                    _structured_review_answer = (
+                        await generate_structured_review(
+                            self.llm_service,
+                            messages=messages,
+                            model=forced_model,
+                            llm_scope=_llm_scope,
+                            max_tokens=extra_kwargs.get("max_tokens"),
+                        ))
+                    if _structured_review_answer:
+                        _structured_provider = (
+                            getattr(self.llm_service.handler,
+                                    "_last_used_provider", None)
+                            or "structured")
+                        _structured_model = (
+                            getattr(self.llm_service.handler,
+                                    "_last_used_model", None)
+                            or "structured")
+                        _streamed = _structured_review_answer
+                        _stream_route = (
+                            _structured_provider, _structured_model)
+                        # The later grounding/validation/persistence
+                        # pipeline reads response_data, not _streamed.
+                        # Populate it HERE so the structured review is the
+                        # turn's answer instead of being replaced by empty
+                        # text or a later regeneration.
+                        response_data = {
+                            "success": True,
+                            "content": _structured_review_answer,
+                            "model": _structured_model,
+                            "provider": _structured_provider,
+                            "requested_model": _structured_model,
+                            "requested_provider": _structured_provider,
+                            "structured_review": True,
+                        }
+                        logger.info(
+                            "[review-diag] structured generation_completed "
+                            "content_len=%d provider=%s model=%s",
+                            len(_structured_review_answer),
+                            _structured_provider, _structured_model)
+                    else:
+                        from core.review_result import LAST_STRUCTURED_REVIEW
+
+                        logger.warning(
+                            "[review-diag] structured generation unavailable: "
+                            "%s", LAST_STRUCTURED_REVIEW)
+                except Exception as _structured_review_err:  # noqa: BLE001
+                    logger.warning(
+                        "[review-diag] structured generation skipped: %r",
+                        _structured_review_err)
             # One completeness regeneration per turn, whichever leg runs the
             # guard chain (streaming first; the common chain only when the reply
             # did not stream).
             _chain_retry_done = False
             if (
-                os.getenv("ATOM_CHAT_STREAMING", "true").lower() == "true"
+                # A structured review answer is already the final reply.
+                # Running the streaming leg here used to regenerate and
+                # overwrite the validated structured payload, leaving the
+                # turn with an uncertified prose reply (2026-10-28).
+                _streamed is None
+                and os.getenv("ATOM_CHAT_STREAMING", "true").lower() == "true"
                 and user_id and session_id
                 # routing_overrides is None on the common path — must not crash
                 and not (routing_overrides or {}).get("model")
@@ -26970,6 +27524,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # feedback training captures WHAT the model was thinking.
                     _reasoning_parts: List[str] = []
                     _reasoning_sink: Dict[str, Any] = {"deltas": _reasoning_parts}
+                    _capture_review_payload(
+                        "input", str(execution_id or "unknown"), {
+                            "execution_id": execution_id,
+                            "review_contract": bool(_review_contract_active),
+                            "subjects": locals().get("_subjects"),
+                            "evidence_index": locals().get("_evidence_index"),
+                            "policy_index": locals().get("_policy_index"),
+                            "allowed_decisions": locals().get("_allowed"),
+                            "messages": messages,
+                        })
                     _stream_agen = self.llm_service.stream_completion(
     **_llm_scope,
                         messages=messages,
@@ -27131,6 +27695,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         if _stream_residue_detected:
                             break
                     _full = "".join(_buf).strip()
+                    if _review_contract_active:
+                        _capture_review_payload(
+                            "output", str(execution_id or "unknown"),
+                            {"content": _full, "review_contract": True})
                     if _full:
                         from core.chat_tool_planner import (
                             _explicit_web_research_requested,
@@ -27721,6 +28289,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "non-streaming fallback pinned to next-ranked "
                                 f"model {_ns_model} after a "
                                 "zero-visible stream")
+                        _capture_review_payload(
+                            "input_nonstream",
+                            str(execution_id or "unknown"), {
+                                "execution_id": execution_id,
+                                "review_contract": bool(
+                                    _review_contract_active),
+                                "subjects": locals().get("_subjects"),
+                                "evidence_index": locals().get(
+                                    "_evidence_index"),
+                                "policy_index": locals().get(
+                                    "_policy_index"),
+                                "allowed_decisions": locals().get("_allowed"),
+                                "messages": messages,
+                            })
                         response_data = await asyncio.wait_for(
                             self.llm_service.generate_completion(
                                 messages=messages,
@@ -27730,6 +28312,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             ),
                             timeout=_ns_left,
                         )
+                        if _review_contract_active:
+                            _capture_review_payload(
+                                "output_nonstream",
+                                str(execution_id or "unknown"),
+                                {"content": str(
+                                    (response_data or {}).get("content")
+                                    or ""), "review_contract": True})
                     except asyncio.TimeoutError:
                         logger.warning(
                             f"chat reply generation timed out on the turn budget "
@@ -27779,6 +28368,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # response validator rejects residue before persistence or
                 # display; only stream assembly may clean partial fragments.
                 _content = response_data.get("content") or ""
+                # STRUCTURED REVIEW IS IMMUTABLE (2026-10-28 review): later
+                # grounding/absence/comparison guards may regenerate plain
+                # prose. Preserve the certified structured response and
+                # restore it before validation so a guard can never replace
+                # the assessment while leaving the turn completed.
+                _structured_review_response = (
+                    dict(response_data)
+                    if isinstance(response_data, dict)
+                    and response_data.get("structured_review") else None)
                 from core.chat_tool_planner import (
                     _explicit_web_research_requested,
                 )
@@ -29100,11 +29698,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 except Exception as _cmp_err:  # noqa: BLE001 — never gate
                     logger.debug(
                         "[comparison-missing] guard skipped: %r", _cmp_err)
+                if _structured_review_response is not None:
+                    response_data = dict(_structured_review_response)
+                    _content = str(response_data.get("content") or "")
                 _claimed_content = await self._canvas_claim_correction(
                     _content, canvas_context, session_id, user_id,
                     async_continuation_forked,
                     execution_id=execution_id,
                 )
+                logger.info(
+                    "[review-diag] generation_completed content_len=%d "
+                    "review_ask=%s",
+                    len(str(_claimed_content or "")), _review_ask)
+                logger.debug(
+                    "[review-result] outer validation reached ask=%s "
+                    "content_len=%d contract=%s",
+                    _review_ask, len(str(_claimed_content or "")),
+                    _review_contract_active)
                 if _review_ask:
                     _review_validate_t0 = time.monotonic()
                     try:
@@ -29116,6 +29726,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             build_policy_index,
                             build_review_result,
                             decision_options_from_lessons,
+                            missing_block_only,
                             render_review_result,
                             strip_review_block,
                         )
@@ -29125,7 +29736,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _review_lessons = (
                             self._agent_lessons(
                                 agent_id, _review_objective_text,
-                                limit=10) or [])
+                                limit=10,
+                                include_workspace=False) or [])
                         _allowed = decision_options_from_lessons(
                             _review_lessons)
                         _review_pending = (
@@ -29161,6 +29773,42 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     "source_version") or ""),
                             lessons=_review_lessons,
                         )
+                        _subjects = list(
+                            _review_accepted.get("subjects") or [])
+                        if not _subjects:
+                            for _src in (
+                                    _turn_structured_record,
+                                    (_review_pending.get(
+                                        "structured_result")
+                                     if isinstance(
+                                         _review_pending, dict) else None)):
+                                if not isinstance(_src, dict):
+                                    continue
+                                _subjects = [
+                                    str(t.get("item"))
+                                    for t in (_src.get("targets") or [])
+                                    if isinstance(t, dict)
+                                    and str(t.get("item") or "").strip()]
+                                if _subjects:
+                                    _review_accepted["subjects"] = list(
+                                        _subjects)
+                                    break
+                        if not _subjects:
+                            _subjects = [
+                                str(item) for item in (
+                                    (_review_task_row or {}).get(
+                                        "requested_targets") or [])
+                                if str(item or "").strip()]
+                        logger.info(
+                            "[review-result] validation state "
+                            "subjects=%d pending_keys=%s struct_targets=%d",
+                            len(_subjects),
+                            sorted((_review_pending or {}).keys())
+                            if isinstance(_review_pending, dict) else None,
+                            len(((_review_pending or {}).get(
+                                "structured_result") or {}).get(
+                                    "targets") or [])
+                            if isinstance(_review_pending, dict) else 0)
                         _subjects = list(
                             _review_accepted.get("subjects") or [])
                         if not _subjects:
@@ -29264,8 +29912,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             logger.warning(
                                 "[review-result] no read evidence supplied "
                                 "for the assessment")
+                        _review_source_version = _review_source_revision(
+                            _review_struct, _evidence_index)
+                        if (_review_source_version
+                                and not _review_accepted.get(
+                                    "source_version")):
+                            _review_accepted["source_version"] = (
+                                _review_source_version)
                         _policy_index = build_policy_index(
                             _review_lessons, _allowed)
+                        logger.info(
+                            "[review-result] validating allowed=%s "
+                            "subjects=%d evidence=%d policy=%d pending=%s",
+                            _allowed, len(_subjects),
+                            len(_evidence_index), len(_policy_index),
+                            isinstance(_review_pending, dict))
                         if _allowed and _subjects:
                             _review = build_review_result(
                                 execution_id=execution_id,
@@ -29277,6 +29938,54 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 policy_index=_policy_index,
                                 accepted_contract=_review_accepted,
                             )
+                            if (not _review.get("ok")
+                                    and _review_contract_active
+                                    and missing_block_only(
+                                        _review.get("errors") or [])
+                                    and _evidence_index and _policy_index
+                                    and (deadline is None or not
+                                         deadline.expired(
+                                             reserve=(
+                                                 _REVIEW_BLOCK_RECOVERY_RESERVE_S)))):
+                                # The reply leg lost the fenced block (format
+                                # collapse), not a rejected judgment: one
+                                # contract-only retry with the SAME evidence
+                                # and policy IDs, validated by the SAME gate.
+                                # A refused block never gets re-rolled —
+                                # missing_block_only already excluded it.
+                                _recovered_answer = await (
+                                    self._retry_review_block(
+                                        objective_text=(
+                                            _review_objective_text),
+                                        rendered_rows=(
+                                            (_review_pending or {}).get(
+                                                "rendered") or "")
+                                        if isinstance(
+                                            _review_pending, dict) else "",
+                                        subjects=_subjects,
+                                        allowed_decisions=_allowed,
+                                        evidence_index=_evidence_index,
+                                        policy_index=_policy_index,
+                                        model=forced_model,
+                                        llm_scope=_llm_scope,
+                                        extra_kwargs=extra_kwargs,
+                                    ))
+                                if _recovered_answer:
+                                    _review = build_review_result(
+                                        execution_id=execution_id,
+                                        expected_execution_id=execution_id,
+                                        requested_records=_subjects,
+                                        answer=_recovered_answer,
+                                        allowed_decisions=_allowed,
+                                        evidence_index=_evidence_index,
+                                        policy_index=_policy_index,
+                                        accepted_contract=_review_accepted,
+                                    )
+                                    if _review.get("ok"):
+                                        _claimed_content = _recovered_answer
+                                        logger.info(
+                                            "[review-result] block recovered "
+                                            "via one contract-only retry")
                             if deadline is not None:
                                 _review.setdefault(
                                     "reviewed_at_elapsed_s",
@@ -29294,6 +30003,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             response_data["review_contract"] = {
                                 "subjects": list(_subjects),
                                 "accepted_inputs": _review_accepted,
+                                "policy_revision": _review_accepted.get(
+                                    "teaching_revision"),
+                                "source_revision": _review_accepted.get(
+                                    "source_version"),
                                 "required_evidence": [
                                     dict(entry.get("source_identity") or {})
                                     for entry in _evidence_index
@@ -29332,17 +30045,55 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _review_prose = strip_review_block(
                                 str(_claimed_content or ""))
                             if _review.get("ok"):
+                                from core.review_result import (
+                                    render_assessment_table as _render_assess,
+                                )
+
+                                _review_table = _render_assess(
+                                    _review, _review_struct
+                                    if isinstance(_review_struct, dict)
+                                    else {})
                                 _review_block = render_review_result(_review)
                                 _claimed_content = (
-                                    f"{_review_prose.rstrip()}"
+                                    (f"{_review_table}\n\n"
+                                     if _review_table else "")
+                                    + f"{_review_prose.rstrip()}"
                                     f"\n\n{_review_block}")
                                 response_data["review_summary"] = (
                                     _review_block)
+                                _settle_review_read_obligations(
+                                    session, list(_subjects), workspace_id)
+                                response_data["structured_result"] = (
+                                    _review_struct if isinstance(
+                                        _review_struct, dict) else None)
+                                response_data["table_selection"] = (
+                                    (_review_pending or {}).get(
+                                        "table_selection")
+                                    if isinstance(_review_pending, dict)
+                                    else None)
+                                response_data["deterministic_delivery"] = True
+                                response_data["coverage_complete"] = True
                             else:
+                                # DETERMINISTIC ROWS OWN THE FACTUAL TABLE.
+                                # An unvalidated assessment does not get to
+                                # deliver the model's table; ship the
+                                # source rows and say no decision was
+                                # accepted. Rejected text stays private.
+                                _review_det_table = ""
+                                if isinstance(_review_pending, dict):
+                                    _review_det_table = str(
+                                        _review_pending.get("rendered")
+                                        or "")
                                 _claimed_content = (
-                                    _review_prose.rstrip()
-                                    or "I couldn't complete the requested "
-                                       "review.")
+                                    (f"{_review_det_table.rstrip()}\n\n"
+                                     if _review_det_table else "")
+                                    + "Assessment not delivered: the "
+                                      "proposed decision table was not "
+                                      "validated against the selected "
+                                      "subjects and evidence, so no "
+                                      "decision was accepted.")
+                                response_data["review_errors"] = list(
+                                    _review.get("errors") or [])
                                 logger.info(
                                     "[review-result] delivery not certified: %s",
                                     _review.get("errors"))
@@ -29372,6 +30123,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "review_contract": (
                         response_data.get("review_contract")
                         if isinstance(response_data, dict) else None),
+                    "structured_result": (
+                        response_data.get("structured_result")
+                        if isinstance(response_data, dict) else None),
+                    "table_selection": (
+                        response_data.get("table_selection")
+                        if isinstance(response_data, dict) else None),
+                    "deterministic_delivery": bool(
+                        (response_data or {}).get(
+                            "deterministic_delivery")),
                     "review_required": bool(_review_contract_active),
                 }
 
@@ -30809,19 +31569,36 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
             if not review_requested(None, text):
                 return False
-            lessons = self._agent_lessons(agent_id, text, limit=10)
+            lessons = self._agent_lessons(
+                agent_id, text, limit=10, include_workspace=False)
             return bool(decision_options_from_lessons(lessons))
         except Exception:  # noqa: BLE001 — additive
             return False
 
-    def _agent_lessons(self, agent_id: Optional[str], query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    def _agent_lessons(
+        self,
+        agent_id: Optional[str],
+        query: str,
+        limit: int = 5,
+        *,
+        include_workspace: bool = True,
+    ) -> List[Dict[str, Any]]:
         """The operating hire's PERMANENT taught lessons (TrainingPanel /teach,
         mentor lessons, observed human corrections) for the edit plan. Teaching
         stored the lesson but nothing fed it back at work time — this is the
         retrieval half, applied to the canvas co-editor for every agent and
         every canvas app. Fault-isolated like the corrections lookup: [] on
-        any failure, never blocks the edit."""
+        any failure, never blocks the edit.
+
+        ``include_workspace`` defaults to True because ordinary work benefits
+        from relevant sibling knowledge. A REVIEW passes False: only the
+        operating hire's own teaching is authorized to define that task's
+        decision policy. Shared knowledge still reaches prompts through the
+        general memory block; it must not become a review policy ID.
+        """
         if not agent_id:
+            if not include_workspace:
+                return []
             # TEACHING FALLBACK FOR AGENT-LESS TURNS (2026-10-09 value
             # trial): a plain chat request carries no agent_id, so the
             # lessons lookup returned [] — and with it the required-
@@ -30847,10 +31624,105 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             from core.student_learning_service import get_agent_lessons
 
             with get_db_session() as db:
-                return get_agent_lessons(db, agent_id, query=query, limit=limit)
+                return get_agent_lessons(
+                    db, agent_id, query=query, limit=limit,
+                    include_workspace=include_workspace)
         except Exception as e:
             logger.debug(f"agent lessons lookup skipped: {e}")
             return []
+
+    async def _retry_review_block(
+        self,
+        *,
+        objective_text: str,
+        rendered_rows: str,
+        subjects: List[str],
+        allowed_decisions: List[Any],
+        evidence_index: List[Dict[str, Any]],
+        policy_index: List[Dict[str, Any]],
+        model: Any = "auto",
+        llm_scope: Optional[Dict[str, Any]] = None,
+        extra_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Optional[str]:
+        """ONE contract-only retry when the reply leg lost the review block.
+
+        The streaming fallback can ship a reply with no fenced block at all
+        (live 2026-10-27: 'structured:chat' produced no tokens in 10s, the
+        grounded regeneration shipped a 54-char reply) while the contract
+        itself was sound. This retries ONCE with a minimal prompt: the same
+        review_output_instruction, the same evidence/policy IDs, the
+        deterministic rows. Validation is NOT relaxed — the recovered block
+        must pass the same build_review_result gate. A block that was
+        produced and REFUSED is never re-rolled; the caller checks
+        missing_block_only first.
+        """
+        try:
+            from core.review_result import review_output_instruction
+        except Exception:  # noqa: BLE001 — contract module unavailable
+            return None
+        instruction = review_output_instruction(
+            {
+                "subjects": list(subjects),
+                "allowed_decisions": list(allowed_decisions),
+                "required_actions": [],
+            },
+            evidence_index,
+            policy_index,
+        )
+        # PIN THE VERIFIED ROUTE (2026-10-28): an automatic retry must not
+        # silently switch models. A contract-only recovery after a format
+        # collapse has to use the same model that produced the failed reply;
+        # otherwise a verified DeepSeek route can fall through to a cheaper
+        # sibling (observed: deepseek-v4-pro -> deepseek-flash) while the
+        # response still claims the requested route.
+        if str(model or "").strip().lower() in ("", "auto"):
+            handler = getattr(self.llm_service, "handler", None)
+            last_model = str(
+                getattr(handler, "_last_used_model", "") or "").strip()
+            if last_model and last_model not in ("auto", "structured"):
+                model = last_model
+                logger.info(
+                    "[review-diag] block_recovery pins last used model=%s",
+                    last_model)
+        task = (
+            f"Task: {str(objective_text or '').strip()}\n\n"
+            f"Validated source rows:\n"
+            f"{str(rendered_rows or '').strip()[:6000]}\n\n"
+            "Produce the required review_result block now."
+        )
+        messages = [
+            {"role": "system", "content": instruction},
+            {"role": "user", "content": task},
+        ]
+        logger.info(
+            "[review-diag] block_recovery generation_started subjects=%d "
+            "evidence_ids=%s policy_ids=%s",
+            len(subjects),
+            [entry.get("evidence_id") for entry in evidence_index],
+            [entry.get("policy_id") for entry in policy_index])
+        try:
+            kwargs = dict(llm_scope or {})
+            kwargs.update(extra_kwargs or {})
+            result = await self.llm_service.generate_completion(
+                messages=messages, model=model, **kwargs)
+        except Exception as exc:  # noqa: BLE001 — provider failure is a skip
+            logger.warning(
+                "[review-diag] block_recovery generation_failed: %r", exc)
+            return None
+        content = str((result or {}).get("content") or "")
+        logger.info(
+            "[review-diag] block_recovery generation_completed "
+            "content_len=%d", len(content))
+        if _is_llm_error_text(content):
+            # The handler surfaced a provider/router failure as content.
+            # Feeding it to the validator would read as "no block" and
+            # pollute the rejection codes; a provider failure is a skip,
+            # not a judgment (same lesson as _guarded_regen, 2026-09-21).
+            logger.info(
+                "[review-diag] block_recovery provider_error_content — "
+                "treating as failed generation")
+            return None
+        return content or None
 
     async def _cross_canvas_learnings(
         self,

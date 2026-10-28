@@ -42,12 +42,18 @@ async def get_marketing_summary(
     import os
     
     try:
+        # Scope every read to the caller's workspace. The previous hardcoded
+        # "default" returned another workspace's rows for any non-default
+        # user, which is a cross-workspace leak and an unusable state for
+        # everyone else.
+        workspace_id = getattr(user, "workspace_id", None) or "default"
+
         # 1. Fetch real metrics from MarketingIntelligenceService
         from marketing.intelligence_service import MarketingIntelligenceService
         marketing_service = MarketingIntelligenceService(db)
         
         # Get channel performance data
-        channel_data = marketing_service.get_channel_performance("default")
+        channel_data = marketing_service.get_channel_performance(workspace_id)
         
         # Convert to metrics format expected by reporter
         metrics = {}
@@ -66,9 +72,9 @@ async def get_marketing_summary(
         # 2. Generate narrative report
         narrative = await reporter.generate_narrative_report(metrics)
         
-        # 3. Get high-intent leads
+        # 3. Get high-intent leads (same workspace as the channel data)
         high_intent_leads = db.query(Lead).filter(
-            Lead.workspace_id == "default",
+            Lead.workspace_id == workspace_id,
             Lead.ai_score > 70
         ).order_by(Lead.ai_score.desc()).limit(5).all()
         
@@ -77,11 +83,12 @@ async def get_marketing_summary(
         gmb_configured = bool(os.getenv("GOOGLE_BUSINESS_API_KEY") or os.getenv("GMB_CREDENTIALS"))
         gmb_status = "active" if gmb_configured else ("mock" if mock_mode else "not_configured")
         
-        # 5. Pending reviews
+        # 5. Pending reviews. Never invent a count: without the integration
+        # the truthful state is "integration_required"; in mock mode say so.
         if gmb_configured:
             pending_reviews = None # Fetch needed
         elif mock_mode:
-            pending_reviews = 12 # Mock data
+            pending_reviews = "mock"
         else:
             pending_reviews = "integration_required"
         
@@ -98,7 +105,7 @@ async def get_marketing_summary(
             ],
             "gmb_status": gmb_status,
             "pending_reviews": pending_reviews,
-            "data_source": "mock" if mock_mode else "live"
+            "data_source": "mock" if mock_mode else ("no_data" if list(metrics) == ["no_data"] else "live")
         }
     except Exception as e:
         logger.error(f"Error fetching marketing summary: {e}")

@@ -1,0 +1,12 @@
+{
+ "steps": [
+  {
+   "name": "admin login",
+   "ok": false,
+   "detail": 401
+  }
+ ],
+ "login": {
+  "detail": "Incorrect username or password"
+ }
+}

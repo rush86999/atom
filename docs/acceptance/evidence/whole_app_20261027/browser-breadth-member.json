@@ -1,0 +1,1152 @@
+{
+  "role": "member",
+  "tokenOk": true,
+  "navLabels": [
+    "Dashboard",
+    "Chat",
+    "Canvases",
+    "Search",
+    "Documents",
+    "Tasks",
+    "Kanban",
+    "Automations",
+    "Agents",
+    "Approvals",
+    "Goal Runs",
+    "Marketplace",
+    "Projects",
+    "Sales & CRM",
+    "Support",
+    "Knowledge",
+    "Communication",
+    "Sales",
+    "Marketing",
+    "Finance",
+    "Analytics",
+    "Calendar",
+    "Health",
+    "Voice",
+    "JIT Verification",
+    "BPE Workspace",
+    "Learning & Verification",
+    "Self-Healing Harness",
+    "Business Facts",
+    "User Management",
+    "Admin Settings",
+    "Audit Trail",
+    "Skill Builder",
+    "Owner Cockpit",
+    "Forensics",
+    "Integrations",
+    "Dev Studio",
+    "Settings"
+  ],
+  "navLinks": [
+    {
+      "href": "/",
+      "text": "Dashboard"
+    },
+    {
+      "href": "/chat",
+      "text": "Chat"
+    },
+    {
+      "href": "/canvas",
+      "text": "Canvases"
+    },
+    {
+      "href": "/search",
+      "text": "Search"
+    },
+    {
+      "href": "/documents",
+      "text": "Documents"
+    },
+    {
+      "href": "/tasks",
+      "text": "Tasks"
+    },
+    {
+      "href": "/boards",
+      "text": "Kanban"
+    },
+    {
+      "href": "/automations",
+      "text": "Automations"
+    },
+    {
+      "href": "/agents",
+      "text": "Agents"
+    },
+    {
+      "href": "/approvals",
+      "text": "Approvals"
+    },
+    {
+      "href": "/goal-runs",
+      "text": "Goal Runs"
+    },
+    {
+      "href": "/marketplace",
+      "text": "Marketplace"
+    },
+    {
+      "href": "/dashboards/projects",
+      "text": "Projects"
+    },
+    {
+      "href": "/dashboards/sales",
+      "text": "Sales & CRM"
+    },
+    {
+      "href": "/dashboards/support",
+      "text": "Support"
+    },
+    {
+      "href": "/dashboards/knowledge",
+      "text": "Knowledge"
+    },
+    {
+      "href": "/communication",
+      "text": "Communication"
+    },
+    {
+      "href": "/sales",
+      "text": "Sales"
+    },
+    {
+      "href": "/marketing",
+      "text": "Marketing"
+    },
+    {
+      "href": "/finance",
+      "text": "Finance"
+    },
+    {
+      "href": "/analytics",
+      "text": "Analytics"
+    },
+    {
+      "href": "/calendar",
+      "text": "Calendar"
+    },
+    {
+      "href": "/health",
+      "text": "Health"
+    },
+    {
+      "href": "/voice",
+      "text": "Voice"
+    },
+    {
+      "href": "/admin/jit-verification",
+      "text": "JIT Verification"
+    },
+    {
+      "href": "/admin/bpe",
+      "text": "BPE Workspace"
+    },
+    {
+      "href": "/admin/learning-verification",
+      "text": "Learning & Verification"
+    },
+    {
+      "href": "/settings/harness-evolution",
+      "text": "Self-Healing Harness"
+    },
+    {
+      "href": "/admin/business-facts",
+      "text": "Business Facts"
+    },
+    {
+      "href": "/admin/users",
+      "text": "User Management"
+    },
+    {
+      "href": "/admin/settings",
+      "text": "Admin Settings"
+    },
+    {
+      "href": "/audit-trail",
+      "text": "Audit Trail"
+    },
+    {
+      "href": "/admin/skills/new",
+      "text": "Skill Builder"
+    },
+    {
+      "href": "/dashboard/owner",
+      "text": "Owner Cockpit"
+    },
+    {
+      "href": "/dashboard/forensics",
+      "text": "Forensics"
+    },
+    {
+      "href": "/integrations",
+      "text": "Integrations"
+    },
+    {
+      "href": "/dev-studio",
+      "text": "Dev Studio"
+    },
+    {
+      "href": "/settings",
+      "text": "Settings"
+    }
+  ],
+  "forbiddenVisible": [
+    {
+      "href": "/approvals",
+      "text": "Approvals"
+    },
+    {
+      "href": "/admin/jit-verification",
+      "text": "JIT Verification"
+    },
+    {
+      "href": "/admin/bpe",
+      "text": "BPE Workspace"
+    },
+    {
+      "href": "/admin/learning-verification",
+      "text": "Learning & Verification"
+    },
+    {
+      "href": "/admin/business-facts",
+      "text": "Business Facts"
+    },
+    {
+      "href": "/admin/users",
+      "text": "User Management"
+    },
+    {
+      "href": "/admin/settings",
+      "text": "Admin Settings"
+    },
+    {
+      "href": "/audit-trail",
+      "text": "Audit Trail"
+    },
+    {
+      "href": "/admin/skills/new",
+      "text": "Skill Builder"
+    },
+    {
+      "href": "/dev-studio",
+      "text": "Dev Studio"
+    }
+  ],
+  "roleVisibilityPass": false,
+  "generatedAt": "2026-10-27T19:44:46.605Z",
+  "results": [
+    {
+      "label": "Dashboard",
+      "route": "/dashboard",
+      "finalUrl": "/dashboard",
+      "docStatus": 200,
+      "ms": 17940,
+      "bodyChars": 1168,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Chat",
+      "route": "/chat",
+      "finalUrl": "/chat",
+      "docStatus": 200,
+      "ms": 16893,
+      "bodyChars": 1046,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Canvases",
+      "route": "/canvas",
+      "finalUrl": "/canvas",
+      "docStatus": 200,
+      "ms": 8597,
+      "bodyChars": 626,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Search",
+      "route": "/search",
+      "finalUrl": "/search",
+      "docStatus": 200,
+      "ms": 6574,
+      "bodyChars": 635,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Documents",
+      "route": "/documents",
+      "finalUrl": "/documents",
+      "docStatus": 200,
+      "ms": 6283,
+      "bodyChars": 925,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Tasks",
+      "route": "/tasks",
+      "finalUrl": "/tasks",
+      "docStatus": 200,
+      "ms": 5464,
+      "bodyChars": 405,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Kanban",
+      "route": "/boards",
+      "finalUrl": "/boards",
+      "docStatus": 200,
+      "ms": 8281,
+      "bodyChars": 482,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Automations",
+      "route": "/automations",
+      "finalUrl": "/automations",
+      "docStatus": 200,
+      "ms": 14421,
+      "bodyChars": 542,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Agents",
+      "route": "/agents",
+      "finalUrl": "/agents",
+      "docStatus": 200,
+      "ms": 22419,
+      "bodyChars": 3012,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Goal Runs",
+      "route": "/goal-runs",
+      "finalUrl": "/goal-runs",
+      "docStatus": 200,
+      "ms": 12018,
+      "bodyChars": 582,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Marketplace",
+      "route": "/marketplace",
+      "finalUrl": "/marketplace",
+      "docStatus": 200,
+      "ms": 7969,
+      "bodyChars": 4000,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Projects",
+      "route": "/dashboards/projects",
+      "finalUrl": "/dashboards/projects",
+      "docStatus": 200,
+      "ms": 6781,
+      "bodyChars": 641,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Sales & CRM",
+      "route": "/dashboards/sales",
+      "finalUrl": "/dashboards/sales",
+      "docStatus": 200,
+      "ms": 6737,
+      "bodyChars": 654,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Support",
+      "route": "/dashboards/support",
+      "finalUrl": "/dashboards/support",
+      "docStatus": 200,
+      "ms": 7287,
+      "bodyChars": 913,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Knowledge",
+      "route": "/dashboards/knowledge",
+      "finalUrl": "/dashboards/knowledge",
+      "docStatus": 200,
+      "ms": 9983,
+      "bodyChars": 856,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Communication",
+      "route": "/communication",
+      "finalUrl": "/communication",
+      "docStatus": 200,
+      "ms": 8646,
+      "bodyChars": 738,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Sales",
+      "route": "/sales",
+      "finalUrl": "/sales",
+      "docStatus": 200,
+      "ms": 8107,
+      "bodyChars": 982,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Marketing",
+      "route": "/marketing",
+      "finalUrl": "/marketing",
+      "docStatus": 200,
+      "ms": 5436,
+      "bodyChars": 1054,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Finance",
+      "route": "/finance",
+      "finalUrl": "/finance",
+      "docStatus": 200,
+      "ms": 14409,
+      "bodyChars": 582,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Analytics",
+      "route": "/analytics",
+      "finalUrl": "/analytics",
+      "docStatus": 200,
+      "ms": 7402,
+      "bodyChars": 425,
+      "markers": [
+        "soft-error-text"
+      ],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to fetch analytics: ReferenceError: authHeaders is not defined\n    at fetchData (webpack-internal:///(pages-dir-browser)/./pages/analytics.tsx:35:26)\n    at AnalyticsPage.useEffect (webpack-internal:///(pages-dir-browser)/./pages/analytics.tsx:48:13)\n    at commitHookEffectListMount (webpack-internal:///(pages-dir-browser)/../../../../../../../../../Users/rushiparikh/projects/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:23184:26)\n    at commitPassiveMountOnFibe",
+        "Failed to fetch analytics: ReferenceError: authHeaders is not defined\n    at fetchData (webpack-internal:///(pages-dir-browser)/./pages/analytics.tsx:35:26)\n    at AnalyticsPage.useEffect (webpack-internal:///(pages-dir-browser)/./pages/analytics.tsx:48:13)\n    at commitHookEffectListMount (webpack-internal:///(pages-dir-browser)/../../../../../../../../../Users/rushiparikh/projects/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:23184:26)\n    at invokePassiveEffectMount",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Calendar",
+      "route": "/calendar",
+      "finalUrl": "/calendar",
+      "docStatus": 200,
+      "ms": 6532,
+      "bodyChars": 558,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Health",
+      "route": "/health",
+      "finalUrl": "/health",
+      "docStatus": 200,
+      "ms": 6938,
+      "bodyChars": 1261,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Voice",
+      "route": "/voice",
+      "finalUrl": "/voice",
+      "docStatus": 200,
+      "ms": 7646,
+      "bodyChars": 770,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Integrations",
+      "route": "/integrations",
+      "finalUrl": "/integrations",
+      "docStatus": 200,
+      "ms": 5629,
+      "bodyChars": 919,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Settings",
+      "route": "/settings",
+      "finalUrl": "/settings",
+      "docStatus": 200,
+      "ms": 7872,
+      "bodyChars": 590,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Workflow Builder",
+      "route": "/workflows/builder",
+      "finalUrl": "/workflows/builder",
+      "docStatus": 200,
+      "ms": 15722,
+      "bodyChars": 613,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+      ],
+      "failed": [
+        {
+          "url": "http://127.0.0.1:8105/api/auth/me",
+          "error": "net::ERR_CONNECTION_REFUSED"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/onboarding/status",
+          "error": "net::ERR_CONNECTION_REFUSED"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/users/me",
+          "error": "net::ERR_CONNECTION_REFUSED"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/auth/me",
+          "error": "net::ERR_CONNECTION_REFUSED"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/onboarding/status",
+          "error": "net::ERR_CONNECTION_REFUSED"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/users/me",
+          "error": "net::ERR_CONNECTION_REFUSED"
+        }
+      ],
+      "badResponses": [
+        {
+          "url": "/api/workflow-templates",
+          "status": 500
+        },
+        {
+          "url": "/api/v1/preferences",
+          "status": 500
+        },
+        {
+          "url": "/api/workflow-templates",
+          "status": 500
+        },
+        {
+          "url": "/api/v1/preferences",
+          "status": 500
+        },
+        {
+          "url": "/api/chat/history/session_1793129906007_fru9naf7q",
+          "status": 500
+        },
+        {
+          "url": "/api/chat/history/session_1793129906007_fru9naf7q",
+          "status": 500
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Workflow Schedule",
+      "route": "/workflows/schedule",
+      "finalUrl": "/workflows/schedule",
+      "docStatus": 200,
+      "ms": 7715,
+      "bodyChars": 726,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "WebSocket connection to 'ws://127.0.0.1:8105/ws?token=<redacted>' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Scheduling",
+      "route": "/scheduling",
+      "finalUrl": "/scheduling",
+      "docStatus": 200,
+      "ms": 18437,
+      "bodyChars": 875,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "failed": [],
+      "badResponses": [
+        {
+          "url": "/api/chat/history/session_1793129906007_fru9naf7q",
+          "status": 500
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "System Status",
+      "route": "/system-status",
+      "finalUrl": "/system-status",
+      "docStatus": 200,
+      "ms": 5524,
+      "bodyChars": 413,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "WebSocket connection to 'ws://127.0.0.1:8105/ws?token=<redacted>' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Approvals (direct)",
+      "route": "/approvals",
+      "finalUrl": "/approvals",
+      "docStatus": 200,
+      "ms": 5875,
+      "bodyChars": 3328,
+      "markers": [
+        "soft-error-text"
+      ],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Admin Users (direct)",
+      "route": "/admin/users",
+      "finalUrl": "/admin/users",
+      "docStatus": 200,
+      "ms": 7432,
+      "bodyChars": 848,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [
+        {
+          "url": "http://127.0.0.1:8105/api/enterprise/users",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin or higher\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/enterprise/roles",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin or higher\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/enterprise/users",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin or higher\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/enterprise/roles",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin or higher\"}"
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "JIT Verification (direct)",
+      "route": "/admin/jit-verification",
+      "finalUrl": "/admin/jit-verification",
+      "docStatus": 200,
+      "ms": 19516,
+      "bodyChars": 1261,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/worker/metrics}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/cache/stats}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/health}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/worker/metrics}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/cache/stats}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/health}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/worker/metrics}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/cache/stats}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/health}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/worker/metrics}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/health}",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "[Admin API Error] {code: ERR_BAD_REQUEST, status: 403, message: Request failed with status code 403, url: /api/admin/governance/jit/cache/stats}"
+      ],
+      "failed": [],
+      "badResponses": [
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/worker/metrics",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/cache/stats",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/health",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/worker/metrics",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/cache/stats",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/health",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/worker/metrics",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/cache/stats",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/health",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/worker/metrics",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/health",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/admin/governance/jit/cache/stats",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: workspace_admin\"}"
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Audit Trail (direct)",
+      "route": "/audit-trail",
+      "finalUrl": "/audit-trail",
+      "docStatus": 200,
+      "ms": 8161,
+      "bodyChars": 673,
+      "markers": [
+        "soft-error-text"
+      ],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load audit overview Error: Audit API error: HTTP 403\n    at auditFetch (webpack-internal:///(pages-dir-browser)/./lib/audit-api.ts:29:15)\n    at async Promise.all (index 0)\n    at async AuditTrailExplorer.useCallback[loadOverview] (webpack-internal:///(pages-dir-browser)/./components/Audit/AuditTrailExplorer.tsx:224:42)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load audit overview Error: Audit API error: HTTP 403\n    at auditFetch (webpack-internal:///(pages-dir-browser)/./lib/audit-api.ts:29:15)\n    at async Promise.all (index 0)\n    at async AuditTrailExplorer.useCallback[loadOverview] (webpack-internal:///(pages-dir-browser)/./components/Audit/AuditTrailExplorer.tsx:224:42)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [
+        {
+          "url": "http://127.0.0.1:8105/api/audit/summary",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: team_lead or higher\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/audit/executions",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: team_lead or higher\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/audit/summary",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: team_lead or higher\"}"
+        },
+        {
+          "url": "http://127.0.0.1:8105/api/audit/executions",
+          "status": 403,
+          "body": "{\"detail\":\"Insufficient permissions. Required role: team_lead or higher\"}"
+        }
+      ],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "Dev Studio (direct)",
+      "route": "/dev-studio",
+      "finalUrl": "/dev-studio",
+      "docStatus": 200,
+      "ms": 7613,
+      "bodyChars": 822,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    }
+  ],
+  "reloads": [
+    {
+      "label": "reload",
+      "route": "/dashboard",
+      "finalUrl": "/dashboard",
+      "docStatus": 200,
+      "ms": 6267,
+      "bodyChars": 1341,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "reload",
+      "route": "/tasks",
+      "finalUrl": "/tasks",
+      "docStatus": 200,
+      "ms": 6014,
+      "bodyChars": 405,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "reload",
+      "route": "/boards",
+      "finalUrl": "/boards",
+      "docStatus": 200,
+      "ms": 8430,
+      "bodyChars": 716,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "reload",
+      "route": "/workflows/builder",
+      "finalUrl": "/workflows/builder",
+      "docStatus": 200,
+      "ms": 7368,
+      "bodyChars": 613,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "reload",
+      "route": "/approvals",
+      "finalUrl": "/approvals",
+      "docStatus": 200,
+      "ms": 7286,
+      "bodyChars": 3292,
+      "markers": [
+        "soft-error-text"
+      ],
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      ],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    },
+    {
+      "label": "reload",
+      "route": "/goal-runs",
+      "finalUrl": "/goal-runs",
+      "docStatus": 200,
+      "ms": 7119,
+      "bodyChars": 433,
+      "markers": [],
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failed": [],
+      "badResponses": [],
+      "navError": null,
+      "textSample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar"
+    }
+  ]
+}

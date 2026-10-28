@@ -1,0 +1,172 @@
+{
+  "steps": [
+    {
+      "name": "automations-loaded",
+      "detail": {
+        "url": "http://127.0.0.1:3001/automations"
+      }
+    },
+    {
+      "name": "builder-open",
+      "detail": {
+        "saveButtons": 1
+      }
+    },
+    {
+      "name": "saved-toast",
+      "detail": {
+        "body": "A\nATOM\nCORE\nDashboard\nChat\nCanvases\nSearch\nDocuments\nTasks\nKanban\nAutomations\nAgents\nApprovals\n51\n51 pending reviews\nGoal Runs\nMarketplace\nCOMMAND CENTERS\nProjects\nSales & CRM\nSupport\nKnowledge\nCommunication\nBUSINESS\nSales\nMarketing\nFinance\nAnalytics\nPRODUCTIVITY\nCalendar\nHealth\nVoice\nGOVERNANCE\nJIT Verification\nBPE Workspace\nLearning & Verification\nSelf-Healing Harness\nBusiness Facts\nUser Management\nAdmin Settings\nAudit Trail\nSkill Builder\nOwner Cockpit\nForensics\nPLATFORM\nIntegrations\nDev Studi"
+      }
+    },
+    {
+      "name": "workflow-list",
+      "detail": {
+        "visual": [],
+        "hasError": false
+      }
+    },
+    {
+      "name": "workflow-api",
+      "detail": {
+        "status": 200,
+        "id": "71872d81-c8e5-403d-840c-d6705ed66ff0",
+        "name": "Visual Workflow 2:10:18 PM"
+      }
+    },
+    {
+      "name": "schedule-page",
+      "detail": {
+        "url": "http://127.0.0.1:3001/workflows/schedule",
+        "body": "A\nATOM\nCORE\nDashboard\nChat\nCanvases\nSearch\nDocuments\nTasks\nKanban\nAutomations\nAgents\nApprovals\nGoal Runs\nMarketplace\nCOMMAND CENTERS\nProjects\nSales & CRM\nSupport\nKnowledge\nCommunication\nBUSINESS\nSales\nMarketing\nFinance\nAnalytics\nPRODUCTIVITY\nCalendar\nHealth\nVoice\nGOVERNANCE\nJIT Verification\nBPE Workspace\nLearning & Verification\nSelf-Healing Harness\nBusiness Facts\nUser Management\nAdmin Settings\nAud"
+      }
+    },
+    {
+      "name": "schedule-submit",
+      "detail": {
+        "body": "A\nATOM\nCORE\nDashboard\nChat\nCanvases\nSearch\nDocuments\nTasks\nKanban\nAutomations\nAgents\nApprovals\n51\n51 pending reviews\nGoal Runs\nMarketplace\nCOMMAND CENTERS\nProjects\nSales & CRM\nSupport\nKnowledge\nCommunication\nBUSINESS\nSales\nMarketing\nFinance\nAnalytics\nPRODUCTIVITY\nCalendar\nHealth\nVoice\nGOVERNANCE\nJIT Verification\nBPE Workspace\nLearning & Verification\nSelf-Healing Harness\nBusiness Facts\nUser Management\nAdmin Settings\nAudit Trail\nSkill Builder\nOwner Cockpit\nForensics\nPLATFORM\nIntegrations\nDev Studi"
+      }
+    }
+  ],
+  "net": [
+    {
+      "url": "/api/auth/session",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/session",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "http://127.0.0.1:8105/api/notifications?limit=10",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "http://127.0.0.1:8105/api/notifications?unread_only=true&type=agent_graduated&limit=5",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "/api/v1/preferences?user_id=me&workspace_id=default",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "http://127.0.0.1:8105/api/notifications?limit=10",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "http://127.0.0.1:8105/api/notifications?unread_only=true&type=agent_graduated&limit=5",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "/api/v1/preferences?user_id=me&workspace_id=default",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "/api/auth/_log",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/_log",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/session",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/session",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/_log",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/_log",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "http://127.0.0.1:8105/api/v1/external-integrations/",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "http://127.0.0.1:8105/api/v1/external-integrations/",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "/api/auth/session",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/session",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/_log",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/_log",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/session",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/session",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/_log",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    {
+      "url": "/api/auth/_log",
+      "status": 404,
+      "body": "{\"detail\":\"Not Found\"}"
+    }
+  ]
+}

@@ -31,17 +31,262 @@ silently rewritten.
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
+import os
 import re
 from typing import Any, Dict, List, Optional, Sequence
+
+logger = logging.getLogger(__name__)
+
+try:  # The repository already carries Pydantic; keep this module importable
+    # in a minimal extraction that does not.
+    from pydantic import BaseModel, Field
+except Exception:  # pragma: no cover - only for stripped environments
+    BaseModel = None  # type: ignore[assignment]
+    Field = None  # type: ignore[assignment]
 
 _IDENTITY_KEYS = ("file_name", "resource_id", "content_hash")
 REVIEW_BLOCK_LANGUAGE = "review_result"
 _REVIEW_BLOCK_RE = re.compile(
-    r"```(?:review_result|review-result|json:review_result)\s*"
-    r"(\{.*?\})\s*```",
+    r"```(?:review_result|review-result|json:review_result|json)\s*"
+    r"(\{.*\})\s*```",
     re.DOTALL | re.IGNORECASE,
 )
+
+if BaseModel is not None:
+    class ReviewAssessmentModel(BaseModel):  # type: ignore[misc,valid-type]
+        """Transport-level shape for ONE assessment.
+
+        Fields are REQUIRED and arrays that identify evidence/policy are
+        non-empty. This constrains generation where the provider supports a
+        schema; ``build_review_result`` still validates every reference
+        against the authoritative evidence/policy indexes afterwards.
+        """
+
+        subject_id: str = Field(..., min_length=1)
+        decision: str = Field(..., min_length=1)
+        evidence_ids: List[str] = Field(..., min_length=1)
+        policy_ids: List[str] = Field(..., min_length=1)
+        basis: List[str] = Field(..., min_length=1)
+        unresolved_requirements: List[str] = Field(...)
+
+    class ReviewPayloadModel(BaseModel):  # type: ignore[misc,valid-type]
+        """The structured review call's complete output.
+
+        ``explanation`` is the user-facing prose; ``assessments`` is the
+        machine block that the validator certifies.
+        """
+
+        explanation: str = ""
+        assessments: List[ReviewAssessmentModel] = Field(..., min_length=1)
+else:  # pragma: no cover - stripped environments only
+    ReviewAssessmentModel = None  # type: ignore[assignment]
+    ReviewPayloadModel = None  # type: ignore[assignment]
+
+
+def review_output_schema() -> Dict[str, Any]:
+    """JSON schema for the existing structured-output facility.
+
+    Callers that can constrain transport output pass this schema/model to the
+    SAME generation call. It is additive: content validation never trusts the
+    transport and still runs through ``build_review_result``.
+    """
+    if ReviewPayloadModel is None:
+        return {}
+    if hasattr(ReviewPayloadModel, "model_json_schema"):
+        return ReviewPayloadModel.model_json_schema()
+    return ReviewPayloadModel.schema()  # type: ignore[no-any-return]
+
+
+def serialize_review_payload(payload: Any) -> str:
+    """Turn a structured review payload into the fenced contract answer.
+
+    The model's explanation stays user-facing prose; only ``assessments`` is
+    placed in the machine block. ``build_review_result`` still validates every
+    subject/evidence/policy reference, so a transport-valid object is never
+    automatically certified.
+    """
+    if hasattr(payload, "model_dump"):
+        payload = payload.model_dump()
+    elif hasattr(payload, "dict"):
+        payload = payload.dict()
+    if not isinstance(payload, dict):
+        return ""
+    assessments = payload.get("assessments")
+    if not isinstance(assessments, list) or not assessments:
+        return ""
+    explanation = str(payload.get("explanation") or "").strip()
+    block = json.dumps(
+        {"assessments": assessments}, ensure_ascii=False, default=str)
+    return (f"{explanation}\n\n" if explanation else "") + (
+        f"```review_result\n{block}\n```")
+
+
+#: Diagnostic state for the LAST structured-review attempt. It deliberately
+#: carries no prompt/response body — only the request identity, the resolved
+#: route, the transport mode and the failure stage. Callers/logs can
+#: distinguish "not dispatched" from "empty payload" and "schema rejection".
+LAST_STRUCTURED_REVIEW: Dict[str, Any] = {}
+
+
+def _review_request_sha(messages: Sequence[Dict[str, Any]]) -> str:
+    payload = json.dumps(
+        list(messages or []), sort_keys=True, separators=(",", ":"),
+        default=str, ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _structured_review_failure(
+    kind: str, stage: str, detail: str = "", **extra: Any,
+) -> None:
+    LAST_STRUCTURED_REVIEW.update(
+        ok=False, failure_kind=kind, failure_stage=stage,
+        failure_detail=str(detail or "")[:500], **extra)
+    logger.warning(
+        "[review-structured] failed kind=%s stage=%s detail=%s",
+        kind, stage, str(detail or "")[:300])
+
+
+async def generate_structured_review(
+    llm_service: Any,
+    *,
+    messages: Sequence[Dict[str, Any]],
+    model: Any = "auto",
+    llm_scope: Optional[Dict[str, Any]] = None,
+    max_tokens: Optional[int] = None,
+) -> Optional[str]:
+    """Use the existing structured-output facility for ONE review call.
+
+    The caller's COMPLETE ordered message list is passed through to the
+    handler. The model/provider pin is resolved with the existing scoped pin
+    helper, and the handler records the route it actually served.
+
+    Returns the same fenced answer shape the validator already accepts, or
+    ``None`` with a typed reason in ``LAST_STRUCTURED_REVIEW``. The caller may
+    fall back to the ordinary completion path; a payload that was produced but
+    fails reference validation is NEVER re-rolled here.
+    """
+    ordered = [dict(msg) for msg in (messages or []) if isinstance(msg, dict)]
+    request_sha = _review_request_sha(ordered)
+    LAST_STRUCTURED_REVIEW.clear()
+    LAST_STRUCTURED_REVIEW.update(
+        ok=False, request_sha256=request_sha, message_count=len(ordered),
+        failure_kind=None, failure_stage=None, dispatched=None,
+        provider=None, model=None, output_mode="json")
+    if ReviewPayloadModel is None:
+        _structured_review_failure(
+            "unsupported_structured_transport", "import",
+            "ReviewPayloadModel unavailable")
+        return None
+    system_parts = [
+        str(msg.get("content") or "")
+        for msg in ordered
+        if msg.get("role") == "system"
+        and str(msg.get("content") or "").strip()
+    ]
+    user_prompt = ""
+    for msg in reversed(ordered):
+        if msg.get("role") == "user":
+            user_prompt = str(msg.get("content") or "")
+            break
+    if not system_parts or not user_prompt:
+        _structured_review_failure(
+            "invalid_request", "message_shape",
+            f"system_parts={len(system_parts)} user_prompt={bool(user_prompt)}")
+        return None
+
+    scope = dict(llm_scope or {})
+    resolved_model = str(model or "").strip()
+    if resolved_model.lower() in ("", "auto"):
+        resolved_model = str(
+            os.getenv("ATOM_REVIEW_MODEL", "") or "").strip() or "auto"
+    provider = str(os.getenv("ATOM_REVIEW_PROVIDER", "") or "").strip()
+    if not provider and resolved_model.startswith("deepseek"):
+        provider = "deepseek"
+    pin_kwargs: Dict[str, Any] = {}
+    if provider and resolved_model not in ("", "auto"):
+        try:
+            from core.llm.pinned_planning import build_provider_model_pin
+
+            pin_kwargs = build_provider_model_pin(
+                llm_service, provider, resolved_model,
+                workspace_id=scope.get("workspace_id"),
+                tenant_id=scope.get("tenant_id"))
+        except Exception as exc:  # noqa: BLE001 — pinning is best effort
+            logger.debug("structured review pin skipped: %r", exc)
+    if provider and resolved_model not in ("", "auto") and not pin_kwargs:
+        _structured_review_failure(
+            "pin_unavailable", "pin",
+            f"no scoped pin for {provider}/{resolved_model}; refusing an "
+            "unpinned review dispatch")
+        return None
+    LAST_STRUCTURED_REVIEW.update(
+        provider=provider or None, model=resolved_model,
+        pin=dict(pin_kwargs), output_mode="json")
+    kwargs: Dict[str, Any] = {
+        "prompt": user_prompt,
+        "response_model": ReviewPayloadModel,
+        "system_instruction": "\n\n".join(system_parts),
+        "messages": ordered,
+        "model": resolved_model,
+        "task_type": "review",
+        "allow_moa": False,
+        "cascade": False,
+        "output_mode": "json",
+        "claim_wait_seconds": 45.0,
+        **pin_kwargs,
+    }
+    for key in ("workspace_id", "tenant_id", "agent_id", "temperature"):
+        if scope.get(key) is not None:
+            kwargs[key] = scope[key]
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+    try:
+        payload = await llm_service.generate_structured_response(**kwargs)
+    except Exception as exc:  # noqa: BLE001 — transport capability, not judgment
+        text = str(exc).lower()
+        kind = (
+            "unsupported_structured_transport"
+            if any(term in text for term in (
+                "instructor", "protocol", "not supported", "unsupported"))
+            else "provider_exception")
+        _structured_review_failure(
+            kind, "dispatch", f"{type(exc).__name__}: {exc}")
+        return None
+    if payload is None:
+        _structured_review_failure(
+            "empty_payload", "dispatch",
+            "structured service returned no payload")
+        return None
+    served_provider = None
+    served_model = None
+    try:
+        handler = llm_service._get_handler(
+            workspace_id=scope.get("workspace_id"),
+            tenant_id=scope.get("tenant_id"))
+        served_provider = getattr(handler, "_last_used_provider", None)
+        served_model = getattr(handler, "_last_used_model", None)
+    except Exception:  # noqa: BLE001 — provenance is best effort
+        pass
+    LAST_STRUCTURED_REVIEW.update(
+        ok=True, failure_kind=None, failure_stage=None,
+        dispatched=True, served_provider=served_provider,
+        served_model=served_model, payload_type=type(payload).__name__)
+    try:
+        serialized = serialize_review_payload(payload)
+    except Exception as exc:  # noqa: BLE001 — validation boundary
+        _structured_review_failure(
+            "payload_validation_failure", "serialize",
+            f"{type(exc).__name__}: {exc}")
+        return None
+    if not serialized:
+        _structured_review_failure(
+            "payload_validation_failure", "serialize",
+            "payload had no assessments")
+        return None
+    return serialized
 
 
 def _clean(value: Any) -> str:
@@ -259,6 +504,54 @@ def review_completion(
     return "completed"
 
 
+_DECISION_LABEL_PATTERNS = (
+    re.compile(
+        r"(?:use\s+exactly\s+these\s+)?decision\s+labels?\s*:\s*"
+        r"([A-Za-z][A-Za-z0-9 _-]*(?:\s*[,/;|]\s*[A-Za-z][A-Za-z0-9 _-]*)+)",
+        re.IGNORECASE),
+    re.compile(
+        r"(?:allowed|permitted)\s+decisions?\s*:\s*"
+        r"([A-Za-z][A-Za-z0-9 _-]*(?:\s*[,/;|]\s*[A-Za-z][A-Za-z0-9 _-]*)+)",
+        re.IGNORECASE),
+)
+
+
+def decision_options_from_text(text: str) -> List[str]:
+    """The decision labels a teacher explicitly names in a lesson.
+
+    The canvas/chat teaching surfaces do not expose a separate decision-option
+    form; the lesson itself is the contract. Parse ONLY an explicit
+    ``decision labels:`` / ``allowed decisions:`` list so ordinary prose
+    cannot manufacture a review schema. Returns [] when no list is declared.
+    """
+    source = str(text or "")
+    if not source:
+        return []
+    for pattern in _DECISION_LABEL_PATTERNS:
+        match = pattern.search(source)
+        if not match:
+            continue
+        raw = match.group(1)
+        options: List[str] = []
+        for part in re.split(r"\s*[,/;|]\s*", raw):
+            label = _clean(part)
+            if not label:
+                continue
+            label = re.sub(
+                r"\s+(?:and|or)$", "", label, flags=re.IGNORECASE).strip()
+            if not label or len(label) > 40:
+                continue
+            if re.fullmatch(
+                    r"(?:please|use|exactly|these|labels?|decisions?|the|and|or)",
+                    label, re.IGNORECASE):
+                continue
+            options.append(label)
+        options = _unique(options)
+        if len(options) >= 2:
+            return options[:20]
+    return []
+
+
 def decision_options_from_lessons(lessons: Sequence[Any]) -> List[str]:
     """The task policy's decision choices, from the first schema lesson."""
     for lesson in lessons or []:
@@ -268,6 +561,14 @@ def decision_options_from_lessons(lessons: Sequence[Any]) -> List[str]:
             option for option in (lesson.get("decision_options") or [])
             if _clean(option)
         ])
+        if options:
+            return options[:20]
+        # Teaching surfaces (canvas Training tab, /teach chat command) have
+        # no separate decision-option control: the lesson text IS the schema.
+        # Parse an explicit label list so those lessons can participate in
+        # the review path without an API-only argument.
+        options = decision_options_from_text(
+            str(lesson.get("lesson") or lesson.get("text") or ""))
         if options:
             return options[:20]
     return []
@@ -395,6 +696,13 @@ def build_policy_index(
             for option in (lesson.get("decision_options") or [])
             if _clean(option)
         }
+        if not options:
+            options = {
+                _decision_key(option)
+                for option in decision_options_from_text(
+                    str(lesson.get("lesson") or lesson.get("text") or ""))
+                if _clean(option)
+            }
         if options != allowed_keys:
             continue
         policy_id = _clean(lesson.get("id") or lesson.get("lesson_id"))
@@ -426,14 +734,18 @@ def review_output_instruction(
         f"| row={entry.get('row_ref') or 'no-row'}"
         for entry in evidence_index or []
     ]
-    policy_lines = [
-        f"- {entry.get('policy_id')} | {entry.get('topic') or 'policy'}"
-        for entry in policy_index or []
-    ]
+    policy_lines = []
+    for entry in policy_index or []:
+        policy_id = _clean(entry.get("policy_id"))
+        topic = _clean(entry.get("topic") or "policy")
+        lesson = _clean(entry.get("lesson"))
+        policy_lines.append(
+            f"- {policy_id} | {topic}" + (f"\n  {lesson}" if lesson else ""))
     required_actions = _as_text_list(contract.get("required_actions"))
     return (
-        "REVIEW OUTPUT CONTRACT. After your normal explanation, include "
-        "exactly one fenced block:\n"
+        "REVIEW OUTPUT CONTRACT. Return ONLY one fenced block with valid "
+        "JSON; no prose before or after it. The outer JSON object MUST have "
+        "its closing brace.\n"
         "```review_result\n"
         '{"assessments":[{"subject_id":"<subject>","decision":"<allowed '
         'decision>","basis":["<why this decision was made>"],'
@@ -441,8 +753,19 @@ def review_output_instruction(
         '"unresolved_requirements":[]}]}\n'
         "```\n"
         "Only the structured block is certified; the prose is explanatory. "
-        "Use one assessment for every requested subject, use only the IDs "
-        "listed here, and do not add subjects.\n"
+        "Use exactly one assessment object for every requested subject and "
+        "no other object; every object MUST include subject_id. Use only the "
+        "IDs listed here, and do not add subjects. Every assessment MUST set "
+        "`decision` to exactly one allowed label below — not null, not an "
+        "empty string, and not a request to confirm; produce the final "
+        "decisions now. Every assessment MUST also include `evidence_ids`, "
+        "`basis`, `unresolved_requirements`, and a NON-EMPTY `policy_ids` "
+        "array. Copy at least one policy ID from the Policy IDs list below; "
+        "never omit policy_ids, guess an ID, or attach a policy whose text "
+        "does not support the decision. An assessment with a missing or "
+        "empty policy_ids array is rejected.\n"
+        "`decision` must be the label ONLY (for example HOLD), with no "
+        "amount, parentheses or explanation; put the reasoning in `basis`. "
         "`basis` is WHY you made the decision: the policy, a business "
         "restriction, a negative finding, or an action required of another "
         "person. `unresolved_requirements` is ONLY accepted review work "
@@ -460,21 +783,89 @@ def review_output_instruction(
             + ", ".join(required_actions) + "\n"
             if required_actions else ""
         )
+        + "Policy entries are INDEPENDENT standing instructions, not an "
+          "ordered revision log. Do not infer that an entry supersedes "
+          "another from its position. A correction is authoritative only "
+          "when it rewrites the same policy ID in place; use that entry's "
+          "current text. A newer unrelated lesson never invalidates an "
+          "older applicable rule. Apply every entry that is applicable, "
+          "and keep genuinely conflicting applicable rules explicit in "
+          "`basis` and/or `unresolved_requirements` instead of silently "
+          "choosing one.\n"
+          "Only the entries listed under Policy IDs are authorized to "
+          "govern this assessment. Other workspace/memory lessons — "
+          "including ones taught to a different agent — are background "
+          "context only; they must not change the allowed decisions, "
+          "subjects, evidence IDs, or policy IDs for this task.\n"
+          "Use the applicable instruction text below, not just its topic. "
+          "For every assessment, `basis` must explain the decision using "
+          "the cited row values and the applicable policy text.\n"
         + "Evidence IDs:\n" + ("\n".join(evidence_lines) or "- none") + "\n"
         "Policy IDs:\n" + ("\n".join(policy_lines) or "- none")
     )
 
 
 def parse_review_payload(answer: str) -> Optional[Dict[str, Any]]:
-    """Parse the ONE structured review block; prose is never consulted."""
-    matches = list(_REVIEW_BLOCK_RE.finditer(str(answer or "")))
-    if len(matches) != 1:
-        return None
-    try:
-        payload = json.loads(matches[0].group(1))
-    except Exception:
-        return None
-    return payload if isinstance(payload, dict) else None
+    """Parse the ONE structured review block; prose is never consulted.
+
+    A `json` fence is accepted when its object carries the review schema
+    (`assessments`); unrelated JSON blocks are ignored. Content validation
+    stays in build_review_result.
+    """
+    text = str(answer or "")
+    candidates: List[Dict[str, Any]] = []
+    for match in _REVIEW_BLOCK_RE.finditer(text):
+        try:
+            payload = json.loads(match.group(1))
+        except Exception:
+            continue
+        if isinstance(payload, dict) and isinstance(
+                payload.get("assessments"), list):
+            candidates.append(payload)
+    if not candidates:
+        # Structured-output transports may return the object itself rather
+        # than a fenced block. Accept it only when it carries the review
+        # schema; arbitrary JSON prose is still ignored.
+        bare = text.strip()
+        if bare.startswith("{") and bare.endswith("}"):
+            try:
+                payload = json.loads(bare)
+            except Exception:
+                payload = None
+            if isinstance(payload, dict) and isinstance(
+                    payload.get("assessments"), list):
+                candidates.append(payload)
+    return candidates[0] if len(candidates) == 1 else None
+
+
+# Errors produced when the reply carried NO parseable review block at all.
+# A reply WITH a block that fails subject/evidence/policy validation emits
+# different codes — that is a judgment/validation failure and is never retried.
+_MISSING_BLOCK_CODES = frozenset({
+    "missing_structured_review", "missing_decision"})
+
+
+def missing_block_only(errors: Sequence[Any]) -> bool:
+    """True when validation failed ONLY because no block was parseable.
+
+    A streaming fallback can ship a reply that lost the fenced block while
+    still carrying the contract. That is a FORMAT collapse, not a rejected
+    judgment: one contract-only retry with the same evidence/policy IDs is
+    legitimate. Any other rejection code (wrong subject, swapped evidence,
+    unknown policy, bad decision label, execution mismatch) means a block
+    was produced and refused — retrying it would shop for acceptance, so
+    this returns False and the evidence-only failure stands.
+    """
+    if not errors:
+        return False
+    codes = {
+        str(error.get("code") or "")
+        for error in errors
+        if isinstance(error, dict)
+    }
+    if not codes or not codes.issubset(_MISSING_BLOCK_CODES):
+        return False
+    return "missing_structured_review" in codes
 
 
 def strip_review_block(answer: str) -> str:
@@ -794,6 +1185,72 @@ def align_review_failure(
     return True
 
 
+def render_assessment_table(
+    review: Dict[str, Any], structured: Dict[str, Any],
+) -> str:
+    """Render validated decisions joined to authoritative source rows.
+
+    Every selected subject must have both an assessment and a bound target
+    row; otherwise the table is withheld (the model cannot add/remove
+    membership). Values come from the structured read targets, never from
+    model prose.
+    """
+    if (not isinstance(review, dict) or review.get("ok") is not True
+            or not isinstance(structured, dict)):
+        return ""
+    subject_column = str(structured.get("subject_column") or "Subject")
+    fields = [str(f) for f in (structured.get("requested_fields") or [])]
+    subjects = [str(s) for s in (structured.get("requested_items") or [])]
+    targets = {
+        _record_key(t.get("item")): t
+        for t in (structured.get("targets") or [])
+        if isinstance(t, dict) and _clean(t.get("item"))
+    }
+    assessments = {
+        _record_key(a.get("subject_id")): a
+        for a in (review.get("assessments") or [])
+        if isinstance(a, dict) and _clean(a.get("subject_id"))
+    }
+    rows = []
+    for subject in subjects:
+        key = _record_key(subject)
+        target = targets.get(key)
+        assessment = assessments.get(key)
+        if not target or not assessment:
+            return ""
+        candidates = ((target.get("identity") or {}).get("candidates") or [])
+        if not candidates or not isinstance(candidates[0], dict):
+            return ""
+        values = {
+            str(v.get("field")): v.get("value")
+            for v in (candidates[0].get("values") or [])
+            if isinstance(v, dict) and v.get("field")
+        }
+        rows.append((subject, values, _clean(assessment.get("decision"))))
+    if not rows:
+        return ""
+    header = [subject_column] + fields + ["Decision"]
+    lines = [
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join(
+            "---" if i in (0, len(header) - 1) else "---:"
+            for i in range(len(header))
+        ) + " |",
+    ]
+    for subject, values, decision in rows:
+        cells = [subject] + [
+            "" if values.get(f) is None else str(values.get(f))
+            for f in fields
+        ] + [decision]
+        lines.append("| " + " | ".join(cells) + " |")
+    lines.append("")
+    lines.append(
+        "Source: " + str(
+            ((structured.get("source_identity") or {}).get("file_name"))
+            or "") + " · rows from the bound selection")
+    return "\n".join(lines)
+
+
 def render_review_result(review: Dict[str, Any]) -> str:
     """Render the validated decision block from the structured result."""
     if not isinstance(review, dict) or review.get("ok") is not True:
@@ -801,7 +1258,7 @@ def render_review_result(review: Dict[str, Any]) -> str:
     lines = ["VALIDATED REVIEW (request-bound):"]
     for assessment in review.get("assessments") or []:
         subject = assessment.get("subject_id")
-        value = _clean(assessment.get("decision")).title()
+        value = _clean(assessment.get("decision"))
         lines.append(f"- {subject}: Decision: {value}")
         evidence = assessment.get("evidence_refs") or []
         if evidence:

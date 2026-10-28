@@ -1,0 +1,106 @@
+{
+  "generatedAt": "2026-10-27T20:00:16.270Z",
+  "results": [
+    {
+      "route": "/tasks",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar Health Voi",
+      "bad": []
+    },
+    {
+      "route": "/boards",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": []
+    },
+    {
+      "route": "/automations",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar Health Voi",
+      "bad": []
+    },
+    {
+      "route": "/workflows/schedule",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": []
+    },
+    {
+      "route": "/analytics",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": []
+    },
+    {
+      "route": "/marketing",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": []
+    },
+    {
+      "route": "/health",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": []
+    },
+    {
+      "route": "/admin/jit-verification",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": []
+    },
+    {
+      "route": "/system-status",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": []
+    },
+    {
+      "route": "/integrations",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": [
+        {
+          "status": 503,
+          "url": "/api/whatsapp/health",
+          "body": "{\"detail\":\"Service not configured\"}"
+        },
+        {
+          "status": 503,
+          "url": "/api/whatsapp/health",
+          "body": "{\"detail\":\"Service not configured\"}"
+        }
+      ]
+    },
+    {
+      "route": "/search",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": []
+    },
+    {
+      "route": "/calendar",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": []
+    },
+    {
+      "route": "/marketplace",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": []
+    },
+    {
+      "route": "/dashboards/projects",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": []
+    },
+    {
+      "route": "/communication",
+      "notInRelease": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Activity Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVI",
+      "bad": []
+    }
+  ]
+}

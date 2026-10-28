@@ -299,7 +299,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 <DialogHeader>
                     <DialogTitle>Welcome to Atom</DialogTitle>
                     <DialogDescription>
-                        Your AI-powered automation workspace
+                        Bring your data, teach an agent how you work, and review
+                        sourced results.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -339,8 +340,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                         <div className="flex flex-col items-center text-center space-y-4">
                             <FaRobot className="w-16 h-16 text-purple-600 animate-bounce" />
                             <h2 className="text-2xl font-bold">Hello, {user?.first_name || "there"}!</h2>
-                            <p className="text-gray-600 dark:text-gray-400 max-w-sm">
-                                Atom is here to help you automate your work with the power of AI Agents.
+                            <p className="text-gray-600 dark:text-gray-400 max-w-md">
+                                Atom is a company-data workspace: upload records,
+                                teach an agent how they should be read, and ask it
+                                to produce results you can review and correct.
                             </p>
                         </div>
                     )}
@@ -364,10 +367,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="goal">What do you want to automate first?</Label>
+                                    <Label htmlFor="goal">What work do you want help with first?</Label>
                                     <Input
                                         id="goal"
-                                        placeholder="e.g. Lead processing, Email replies"
+                                        placeholder="e.g. Read a set of records and summarize the exceptions"
                                         value={profileData.goal}
                                         onChange={(e) => setProfileData({ ...profileData, goal: e.target.value })}
                                     />

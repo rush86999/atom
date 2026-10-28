@@ -1,0 +1,50 @@
+{
+  "backend": "isolated preview backend on :8061",
+  "candidate_branch": "whole-app/successor-f5f",
+  "candidate_commit": "8b2f6cfcf",
+  "config": {
+    "ATOM_CHAT_STREAMING": "false",
+    "ATOM_CHAT_TURN_BUDGET_SECONDS": "180",
+    "ATOM_LOCAL_ONLY": "true",
+    "ATOM_REVIEW_STRUCTURED": "0",
+    "ATOM_TURN_INTERPRET_TIMEOUT_S": "20",
+    "OLLAMA_MODEL": "llama3.1:8b"
+  },
+  "evidence_files": [
+    "FAILED_README.md",
+    "calculation_try2_ui.text",
+    "db_check.json",
+    "fresh_after_restart.png",
+    "fresh_after_restart_ui.text",
+    "history_after_restart.json",
+    "post_restart_canvas.png",
+    "pre_restart_final.json"
+  ],
+  "evidence_sha256": {
+    "FAILED_README.md": "6676ac151cf896c97e45ae256ed6a34a94a8275df94d6b3f78ed9e496ee5cc2a",
+    "calculation_try2_ui.text": "5c434fa4827eed7bcf004c65703842d7d2eafac1a609514121de5e13d84462c8",
+    "db_check.json": "c848a6e76751239b40a0bfd65497ccc31524d47a31ed35db7cb3a2ef24313620",
+    "fresh_after_restart.png": "4f900677d622ec347cb202022f2cd3f0c5cc6a53dce4631130264302bfc9ed59",
+    "fresh_after_restart_ui.text": "299bab57d94be56ef20b32e982c4427ae90d62cc267f6f6393828af362a58905",
+    "history_after_restart.json": "9e02f5fc2a7eb44a89405026e45f5f7fc6bf70b40dc70b1f312877448d242838",
+    "post_restart_canvas.png": "598c5178450650fa421f2290a8710e2017f55bd2174127158ddde1aee35f2c13",
+    "pre_restart_final.json": "0f71812ee19dea60a9289f6b8ac06789d6e18276110addb2c8f897eb1aaaebe7"
+  },
+  "frontend": "candidate production build (core profile), served on :3113",
+  "run_dir": "run-d427fd5e3b04",
+  "schema": "core-release-ui-loop-source-1",
+  "status": "failed",
+  "verified": {
+    "calculation": "failed",
+    "different_assessment": "passed",
+    "first_assessment": "passed",
+    "fresh_post_restart_judgment": "failed",
+    "in_place_correction": "passed",
+    "restart_history": "passed",
+    "streaming_flag_in_live_backend": "false",
+    "zero_unauthorized_writes": "passed"
+  },
+  "worktree_state": "clean at run time (only this evidence directory untracked afterwards)",
+  "world": "core_release_ui_final_20261028",
+  "world_code_export_sha256": "0664beba91d254ce..."
+}

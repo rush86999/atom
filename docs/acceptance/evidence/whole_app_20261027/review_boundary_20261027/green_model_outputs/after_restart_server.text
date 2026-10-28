@@ -1,0 +1,1069 @@
+INFO:main_api_app:================================================================================
+INFO:main_api_app:ATOM PLATFORM API STARTUP
+INFO:main_api_app:================================================================================
+INFO:main_api_app:Python version: 3.14.7 (main, Sep  1 2026, 14:05:28) [Clang 22.1.3 ]
+INFO:main_api_app:Working directory: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend
+INFO:main_api_app:Python path: ['', '/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend', '/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python314.zip']...
+INFO:main_api_app:✓ uvicorn imported
+INFO:main_api_app:✓ Standard library imports successful
+INFO:main_api_app:✓ dotenv imported
+INFO:main_api_app:✓ sqlalchemy.orm and exceptions imported
+INFO:core.database:Async database support enabled
+INFO:main_api_app:✓ core.models imported
+INFO:main_api_app:✓ core.models_registration imported
+INFO:core.cache:ℹ️ No distributed cache configured. Using Local Memory Cache only.
+INFO:main_api_app:✓ core.cache.RedisCacheService imported
+INFO:main_api_app:✓ core.database imported
+WARNING:main_api_app:Failed to import quota_manager: No module named 'core.quota_manager'
+INFO:main_api_app:✓ FastAPI imports successful
+INFO:core.llm_call_tracker:Created LLM call tracker singleton (maxlen=5000)
+INFO:core.config:Configuration loaded from environment variables
+INFO:core.llm.byok_handler:pair-constraint memos loaded: 0 temperature, 0 toolchoice, 0 reasoning, 0 logprobs, 0 auth, 2 latency
+INFO:core.lancedb_handler:Creating isolated LanceDBHandler for workspace: default_shared at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom_journey_review_boundary_nv23_t7u/data/atom_memory/default_shared
+INFO:core.dynamic_pricing_fetcher:Loaded 4805 model prices from cache
+INFO:core.byok_endpoints:Updated costs for 16 providers from dynamic pricing
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:core.provider_health_monitor:Created ProviderHealthMonitor singleton instance
+INFO:core.llm.rate_usage_persistence:Created RateUsagePersistence singleton instance
+INFO:core.llm.provider_rate_limits:Created ProviderRateTracker singleton instance
+INFO:core.embedding_service:Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO:core.lancedb_handler:LanceDBHandler initialized. ID: 4629686528. LANCEDB_AVAILABLE: True
+WARNING:core.lancedb_handler:LanceDB not initialized, chat history disabled
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:core.embedding_service:Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO:integrations.mcp_service:MCP Service initialized
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:enhanced_ai_workflow_endpoints:RealAIWorkflowService modernized with unified LLMService.
+INFO:enhanced_ai_workflow_endpoints:RealAIWorkflowService modernized with unified LLMService.
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:integrations.atom_communication_ingestion_pipeline:Webhook processor initialized and callback registered
+WARNING:core.token_storage:Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+INFO:core.token_storage:No token storage file found, starting empty
+WARNING:core.workflow_notifier:WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+WARNING:root:Discord integration services not available: No module named 'atom_ingestion_pipeline'
+INFO:integrations.atom_discord_integration:ATOM Discord Integration initialized
+WARNING:root:Enterprise services not available: No module named 'ai_enhanced_service'. Using stubs/None.
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:core.embedding_service:Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO:core.lancedb_handler:LanceDBHandler initialized. ID: 4780397328. LANCEDB_AVAILABLE: True
+INFO:integrations.atom_telegram_integration:LanceDB handler initialized for Telegram integration
+INFO:integrations.atom_telegram_integration:Telegram Integration initialized
+WARNING:root:AI integration services not available: No module named 'atom_discord_integration'
+INFO:integrations.atom_ai_integration:ATOM AI Integration initialized
+WARNING:root:Enterprise security services not available: No module named 'ai_enhanced_service'
+INFO:integrations.atom_enterprise_security_service:Enterprise Security Service initialized
+WARNING:root:Enterprise unified services not available: No module named 'ai_enhanced_service'
+INFO:integrations.atom_enterprise_unified_service:Enterprise Unified Service initialized
+WARNING:root:Google Chat integration services not available: No module named 'atom_ingestion_pipeline'
+INFO:integrations.google_chat_enhanced_service:Google Chat Enhanced Service initialized
+INFO:integrations.atom_google_chat_integration:ATOM Google Chat Integration initialized
+INFO:integrations.teams_enhanced_service:Teams Enhanced Service initialized
+INFO:integrations.atom_teams_integration:ATOM Teams Integration initialized
+INFO:integrations.atom_workflow_automation_service:Workflow Automation Service initialized
+INFO:integrations.atom_whatsapp_integration:WhatsApp Integration initialized
+WARNING:root:AI enhanced service not available for Document Logic Service
+WARNING:core.agent_integration_gateway:Enterprise document_logic_service not available, using stub
+INFO:integrations.google_chat_enhanced_service:Google Chat Enhanced Service initialized
+WARNING:core.agent_integration_gateway:Marketing service not available
+WARNING:core.agent_integration_gateway:Meta Business service not available
+WARNING:core.agent_integration_gateway:OpenClaw service not available
+INFO:integrations.slack_enhanced_service:Slack Enhanced Service initialized
+INFO:integrations.teams_enhanced_service:Teams Enhanced Service initialized
+[1793150971.5552351] Starting imports in main_api_app.py...
+[1793150971.555242] FastAPI imported
+{"level": "WARNING", "message": "Redis unavailable - webhook ingestion will process synchronously", "timestamp": "2026-10-28T01:29:34.175942+00:00", "logger": "core.webhook_ingestion_triggers", "module": "structured_logger", "function": "_log", "line": 118}
+WARNING:core.webhook_ingestion_triggers:Redis unavailable - webhook ingestion will process synchronously
+INFO:integrations.outlook_service_enhanced:OutlookEnhancedService initialized
+INFO:main_api_app:Configuration loaded
+INFO:main_api_app:Startup API key check
+INFO:main_api_app:CORS Allowed Origins: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
+INFO:main_api_app:Creating FastAPI application...
+INFO:main_api_app:✓ FastAPI app instance created
+WARNING:main_api_app:Connection leak detector not available: No module named 'core.connection_leak_detector'
+INFO:main_api_app:✓ Outlook integration routes registered at /api/integrations/outlook and /api/v1/integrations/outlook
+INFO:main_api_app:🚀 Eagerly loading 4 essential API plugins...
+INFO:core.lazy_integration_registry:Loading integration: auth (core.auth_endpoints)
+INFO:core.lazy_integration_registry:✓ Loaded auth
+INFO:main_api_app:  ✓ auth (prefix: root)
+INFO:core.lazy_integration_registry:Loading integration: oauth (api.oauth_routes)
+INFO:core.lazy_integration_registry:✓ Loaded oauth
+INFO:main_api_app:  ✓ oauth (prefix: root)
+INFO:core.lazy_integration_registry:Loading integration: system_status (core.system_status)
+INFO:core.lazy_integration_registry:✓ Loaded system_status
+INFO:main_api_app:  ✓ system_status (prefix: root)
+INFO:core.lazy_integration_registry:Loading integration: service_health (service_health_endpoints)
+INFO:core.lazy_integration_registry:✓ Loaded service_health
+INFO:main_api_app:  ✓ service_health (prefix: root)
+INFO:core.lazy_integration_registry:Loading integration: zoho_workdrive (api.zoho_workdrive_routes)
+INFO:core.lazy_integration_registry:✓ Loaded zoho_workdrive
+INFO:main_api_app:  ✓ zoho_workdrive (router-prefixed bare mount at /api/zoho-workdrive)
+WARNING:core.lazy_integration_registry:Unknown integration: zoho_crm
+WARNING:core.lazy_integration_registry:Unknown integration: zoho_books
+WARNING:core.lazy_integration_registry:Unknown integration: zoho_inventory
+INFO:core.lazy_integration_registry:Loading integration: outlook (integrations.outlook_routes)
+INFO:core.lazy_integration_registry:✓ Loaded outlook
+INFO:main_api_app:  ✓ outlook (Forced registration at /api/integrations/outlook)
+INFO:core.lazy_integration_registry:Loading integration: dropbox (integrations.dropbox_routes)
+INFO:core.lazy_integration_registry:✓ Loaded dropbox
+INFO:main_api_app:  ✓ dropbox (journey root mount)
+INFO:core.lazy_integration_registry:Loading integration: gitlab (integrations.gitlab_routes)
+INFO:core.lazy_integration_registry:✓ Loaded gitlab
+INFO:main_api_app:  ✓ gitlab (journey root mount)
+INFO:core.lazy_integration_registry:Loading integration: monday (integrations.monday_routes)
+INFO:core.lazy_integration_registry:✓ Loaded monday
+INFO:main_api_app:  ✓ monday (journey root mount)
+INFO:core.lazy_integration_registry:Loading integration: telegram (integrations.telegram_routes)
+INFO:core.lazy_integration_registry:✓ Loaded telegram
+INFO:main_api_app:  ✓ telegram (journey root mount)
+INFO:core.lazy_integration_registry:Loading integration: whatsapp (integrations.whatsapp_fastapi_routes)
+INFO:core.lazy_integration_registry:✓ Loaded whatsapp
+INFO:main_api_app:  ✓ whatsapp (journey root mount)
+INFO:core.lazy_integration_registry:Loading integration: xero (integrations.xero_routes)
+INFO:core.lazy_integration_registry:✓ Loaded xero
+INFO:main_api_app:  ✓ xero (journey root mount)
+INFO:main_api_app:  ✓ onedrive-journey (/api/onedrive/*, /api/auth/onedrive/*)
+INFO:main_api_app:  ✓ gdrive-journey (/api/gdrive/*, /api/ingest-gdrive-document, /api/auth/gdrive/*)
+INFO:main_api_app:✓ Agent audit trail mounted at /api/audit
+/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/api/episode_routes.py:386: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+  canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+INFO:main_api_app:✓ Live Workflow Endpoints mounted at /api/v1/workflows (incl. /conductor/execute)
+INFO:main_api_app:✓ Unified RPC surface mounted at /api/rpc/{action_name} (P1)
+INFO:main_api_app:✓ Gatekeeper config surface mounted at /api/gatekeeper (P3)
+INFO:main_api_app:✓ External MCP client config mounted at /api/mcp/servers (P6)
+INFO:main_api_app:✓ Mini-apps router mounted at /api/mini-apps
+INFO:main_api_app:✓ Automation Settings mounted at /api/v1/settings/automations
+INFO:main_api_app:✓ Finance Live API mounted at /api/atom/finance/live
+INFO:integrations.asana_service:AsanaService initialized for tenant default... without access token
+INFO:main_api_app:✓ Projects Live API mounted at /api/atom/projects/live
+INFO:main_api_app:✓ Sales Live API mounted at /api/atom/sales/live
+INFO:main_api_app:✓ Arbor HTR endpoints mounted at /api/v1/hypothesis-tree
+INFO:main_api_app:Loading Core API Routes...
+INFO:main_api_app:✓ OAuth Status and Authorization Routes Loaded
+INFO:main_api_app:✓ Telegram Chat Routes Loaded
+INFO:integrations.slack_service_unified:Slack unified service initialized with base URL: https://slack.com/api
+INFO:main_api_app:✓ Slack Chat Routes Loaded
+INFO:main_api_app:✓ Mobile Workflows Routes Loaded at /api/mobile/workflows
+INFO:main_api_app:✓ Operations Routes Loaded at /api/operations
+INFO:main_api_app:✓ Tools Routes Loaded at /api/tools
+WARNING:integrations.adapters.line_adapter:LINE adapter not configured or httpx not available
+INFO:main_api_app:✓ LINE Routes Loaded at /api/line (auth-gated)
+INFO:main_api_app:✅ Desktop authentication routes enabled (secure API keys)
+INFO:main_api_app:✅ Deep linking system enabled
+INFO:main_api_app:✅ Debug tenant check system enabled
+INFO:main_api_app:✓ Analytics Engine Routes Loaded
+INFO:main_api_app:✓ Workflow Import/Export Routes Loaded
+WARNING:main_api_app:Failed to load Governance Verification routes: No module named 'api.routes.admin'
+INFO:main_api_app:✓ JIT Verification & Admin Governance Routes Loaded
+INFO:main_api_app:✓ Workspace Context Routes Loaded
+INFO:main_api_app:✓ Governance Manual Fact Entry Routes Loaded
+INFO:main_api_app:✓ Queue Monitoring Routes Loaded
+INFO:main_api_app:✓ Auto-Dev Review Routes Loaded
+INFO:main_api_app:✓ Canvas Skill Integration Routes Loaded
+INFO:main_api_app:✓ Business Facts Routes Loaded
+WARNING:main_api_app:Failed to load Paused Tasks routes: No module named 'api.routes.admin'
+INFO:main_api_app:✓ Migration Routes Loaded
+INFO:main_api_app:✓ Embedding Routes Loaded
+INFO:main_api_app:✓ Tenant Management Routes Loaded
+INFO:main_api_app:✓ Federation Routes Loaded
+INFO:main_api_app:✓ Local Model Routes Loaded (/api/local-models)
+WARNING:main_api_app:Failed to load business intelligence routes: No module named 'sales.deal_ingestion_routes'
+INFO:main_api_app:✓ Skill Management & Execution Routes Loaded
+INFO:main_api_app:✓ Learn Routes Loaded (workflow→skill distillation)
+INFO:main_api_app:✓ Admin Skill & Evolution Routes Loaded
+INFO:main_api_app:✓ Workflow UI Endpoints Loaded
+INFO:main_api_app:✓ Time-Travel Endpoints Loaded
+WARNING:main_api_app:Test deployed routes not found: No module named 'api.routes.test_deployed_routes'
+INFO:main_api_app:✓ Messaging OAuth (BYOK) Routes Loaded
+INFO:main_api_app:✓ Explicit Outlook Integration Routes Loaded at /api/integrations/outlook
+INFO:main_api_app:✓ Shopify REST routes loaded
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for whatsapp
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for slack
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for email
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for telegram
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for discord
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for sms
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for calls
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for microsoft_teams
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for zoom
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for notion
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for linear
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for outlook
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for gmail
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for salesforce
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for asana
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for dropbox
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for box
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for tableau
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for zoho
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for xero
+INFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for quickbooks
+WARNING:main_api_app:Razorpay routes not found, skipping: No module named 'api.routes.integrations'
+WARNING:integrations.trello_service:TrelloService for tenant default...: credentials not found. Service will be disabled.
+WARNING:root:Enterprise services not available: No module named 'ai_enhanced_service'
+INFO:integrations.atom_hubspot_integration_service:HubSpot Integration Service initialized
+WARNING:main_api_app:SageHR routes not found, skipping: No module named 'api.routes.integrations'
+INFO:main_api_app:Loading Slack webhooks...
+INFO:main_api_app:✓ Slack webhooks loaded
+INFO:main_api_app:Loading Shopify webhooks...
+INFO:main_api_app:✓ Shopify webhooks loaded
+INFO:main_api_app:Loading Twilio webhooks...
+INFO:main_api_app:✓ Twilio webhooks loaded
+INFO:main_api_app:✓ Standardized Webhook Endpoints Loaded
+INFO:main_api_app:✓ Admin Routes Loaded
+INFO:main_api_app:✓ 2FA Routes Loaded
+INFO:main_api_app:✓ Board WebSocket channel mounted at /ws/boards/{id}
+INFO:main_api_app:✓ ACP bridge mounted at /acp/ws
+INFO:main_api_app:✓ A2A endpoint mounted at /api/a2 (+ /.well-known/agent-card.json)
+INFO:main_api_app:✓ OIDC SSO mounted at /api/auth/sso/oidc
+INFO:main_api_app:✓ SCIM v2 mounted at /api/scim/v2
+INFO:main_api_app:✓ Observability mounted at /api/observability
+INFO:main_api_app:✓ BambooHR integration mounted at /api/bamboohr
+INFO:main_api_app:✓ Twitter/X integration mounted at /api/twitter
+INFO:main_api_app:✓ MCP Routes Loaded
+INFO:main_api_app:✓ Availability Routes Loaded
+INFO:main_api_app:✓ Proposal Routes Loaded
+INFO:main_api_app:✓ Supervision-Learning Routes Loaded
+INFO:main_api_app:✓ Integrations Catalog Routes Loaded
+INFO:main_api_app:✓ Dynamic Options Routes Loaded
+INFO:main_api_app:✓ Webhook Routes Loaded
+INFO:main_api_app:✓ Universal Auth Routes Loaded
+INFO:main_api_app:✓ Meta Compliance Routes Loaded
+INFO:main_api_app:✓ Consolidated Hardened WhatsApp Routes Loaded
+INFO:main_api_app:✓ External Integration Routes Loaded
+INFO:main_api_app:✓ Connection Management Routes Loaded
+INFO:main_api_app:✓ Integration Status Routes Loaded
+INFO:services.agent_service:ComputerUseAgent initialized for tenant default
+INFO:ai.workflow_scheduler:WorkflowScheduler using SQLAlchemyJobStore
+WARNING:integrations.chat_orchestrator:Accounting service modules not importable — finance chat handlers degraded
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:integrations.chat_orchestrator:ChatOrchestrator initialized with LLMService for tenant: default
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:ai.nlp_engine:NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO:integrations.slack_enhanced_service:Slack Enhanced Service initialized
+INFO:integrations.chat_orchestrator:Loaded 0 persisted sessions from file.
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:integrations.chat_orchestrator:ChatOrchestrator initialized with LLMService for tenant: default
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:ai.nlp_engine:NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO:integrations.slack_enhanced_service:Slack Enhanced Service initialized
+INFO:integrations.chat_orchestrator:Loaded 0 persisted sessions from file.
+INFO:main_api_app:✓ Chat Routes Loaded (incl. /api/chat/feedback, /api/chat/routing-stats)
+INFO:main_api_app:✓ Agent Governance Routes Loaded
+INFO:main_api_app:✓ HITL Approvals Alias Routes Loaded (/api/agents/approvals)
+INFO:main_api_app:✓ Enterprise User Management Routes Loaded (/api/enterprise/users|roles|teams|workspaces)
+WARNING:core.atom_saas_client:ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+INFO:main_api_app:✓ Workflow Marketplace Routes Loaded (/api/marketplace/*)
+INFO:main_api_app:✓ Agent Maturity Journey Routes Loaded (/api/maturity)
+INFO:main_api_app:✓ Protection API Routes Loaded (Skill Scanner)
+INFO:main_api_app:✓ User Preference Routes Loaded
+INFO:main_api_app:✓ Canvas Terminal Routes Loaded
+INFO:main_api_app:✓ Browser Automation Routes Loaded
+{"level": "INFO", "message": "Device WebSocket module loaded - real device communication enabled", "timestamp": "2026-10-28T01:29:35.784548+00:00", "logger": "tools.device_tool", "module": "structured_logger", "function": "_log", "line": 118}
+INFO:tools.device_tool:Device WebSocket module loaded - real device communication enabled
+INFO:main_api_app:✓ Device Capabilities Routes Loaded
+INFO:main_api_app:✓ Canvas Recording Routes Loaded
+INFO:main_api_app:✓ Autonomy Routes Loaded (action HITL policy)
+INFO:main_api_app:✓ Meeting Routes Loaded (attendance tracking)
+INFO:main_api_app:✓ Custom Components Routes Loaded
+INFO:main_api_app:✓ Canvas Email Routes Loaded (/api/canvas/email)
+INFO:main_api_app:✓ Canvas PDF Routes Loaded (/api/canvas/pdf)
+INFO:main_api_app:✓ Installation Profile Routes Loaded (/api/installation)
+INFO:main_api_app:✓ Playbook Routes Loaded (/api/playbooks)
+INFO:main_api_app:✓ Goal Run Routes Loaded (/api/goal-runs)
+INFO:main_api_app:✓ Goal Routes Loaded (/api/goals)
+INFO:main_api_app:✓ Usage Analytics Routes Loaded
+INFO:main_api_app:✓ Health Monitoring Routes Loaded
+INFO:main_api_app:✓ System Status aggregate mounted at /api/status
+INFO:main_api_app:✓ Product profile mounted at /api/product/profile
+INFO:main_api_app:✓ Service registry mounted at /api/services/registry
+INFO:main_api_app:✓ Ported Features (Canvas/Agent) Processing Complete
+INFO:main_api_app:✓ Governance Analytics & Remediation Routes Loaded
+INFO:main_api_app:✓ Memory Routes Loaded
+INFO:main_api_app:✓ Memory Management Routes Loaded (Consolidation, Archival, Recovery)
+INFO:main_api_app:✓ Memory Add-on Routes Loaded (Stripe Billing)
+INFO:main_api_app:✓ Document & Data Ingestion Routes Loaded
+INFO:main_api_app:✓ Document Hub Routes Loaded
+INFO:main_api_app:✓ Experience Marketplace Routes Loaded
+INFO:main_api_app:✓ Agent Marketplace Routes Loaded
+INFO:main_api_app:✓ Test Routes Loaded
+INFO:main_api_app:✓ AI Workflows Routes Loaded
+INFO:main_api_app:✓ Background Agent Routes Loaded
+WARNING:main_api_app:Integration Data routes not found, skipping: No module named 'api.routes.integrations'
+INFO:main_api_app:✓ Integration Data Routes Loaded
+INFO:main_api_app:✓ Integration & Service Health Routes Loaded
+INFO:main_api_app:✓ Historical Sync Routes Loaded
+INFO:main_api_app:✓ Worker Routes Loaded
+INFO:main_api_app:✓ Component Marketplace Routes Loaded
+INFO:main_api_app:✓ Agent Coordination Routes Loaded
+INFO:main_api_app:✓ OpenClaw Skill Integration Routes Loaded
+INFO:main_api_app:✓ OpenClaw Scan Integration Routes Loaded
+INFO:main_api_app:✓ OpenClaw Governance Integration Routes Loaded
+INFO:main_api_app:✓ Skill Composition Routes Loaded
+INFO:main_api_app:✓ Live Command Center APIs Loaded (Comm, Sales, Projects, Finance)
+INFO:main_api_app:✓ Scheduler Routes Loaded (QStash Ready)
+INFO:main_api_app:✓ Desktop Bridge Routes Loaded
+INFO:main_api_app:✓ Satellite Routes Loaded
+INFO:main_api_app:✓ Mobile Routes Loaded
+INFO:main_api_app:✓ Invitation Routes Loaded
+INFO:main_api_app:✓ Support Ticketing Routes Loaded
+INFO:main_api_app:✓ Bug Triage Routes Loaded
+INFO:main_api_app:✓ Communication Hub Routes Loaded
+INFO:main_api_app:✓ Universal Communication Routes Loaded
+INFO:main_api_app:✓ Document Hub Routes Loaded
+INFO:main_api_app:✓ Admin Retention Routes Loaded
+INFO:main_api_app:✓ Billing Routes Loaded
+INFO:main_api_app:✓ Public Pricing Routes Loaded
+INFO:main_api_app:✓ Social Media Routes Loaded
+INFO:main_api_app:✓ Audit Log Routes Loaded
+INFO:main_api_app:✓ Shell Security Routes Loaded
+WARNING:api.marketing_routes:Enterprise services not available: ai_enhanced_service module not found. Using stub.
+INFO:main_api_app:✓ Consolidated Core Routes Loaded (Intelligence, Marketing, Skills, Memory)
+INFO:main_api_app:✓ BYOK API Routes Loaded
+INFO:main_api_app:✓ LLM Gateway Routes Loaded
+INFO:main_api_app:✓ MCP Server Routes Loaded
+INFO:main_api_app:✓ SSO API Routes Loaded
+INFO:main_api_app:✓ Feature Flag Routes Loaded
+INFO:main_api_app:✓ Sandbox Execution Routes Loaded
+INFO:main_api_app:✓ External API Routes Loaded
+INFO:main_api_app:✓ Entity Type Routes Loaded
+INFO:main_api_app:✓ Entity Query Routes Loaded
+INFO:main_api_app:✓ Entity Linking Routes Loaded
+INFO:main_api_app:✓ Ingestion CRUD Routes Loaded
+INFO:main_api_app:✓ Entity Skill Routes Loaded
+INFO:main_api_app:✓ Agent Integration Routes Loaded
+INFO:main_api_app:✓ Meta Agent Routes Loaded
+INFO:main_api_app:✓ Admin Integration Catalog Routes Loaded
+INFO:main_api_app:✓ Domain Marketplace Routes Loaded
+INFO:main_api_app:✓ Agent-Domain Routes Loaded
+INFO:main_api_app:✓ Agent Marketplace Routes Loaded
+INFO:main_api_app:✓ Domain-Aware Graduation Routes Loaded
+INFO:main_api_app:✓ Capability Matrix Routes Loaded
+INFO:main_api_app:✓ Learning & Adaptation Routes Loaded
+INFO:main_api_app:✓ Stage Router Management Routes Loaded
+INFO:main_api_app:✓ Learning Router Management Routes Loaded
+INFO:main_api_app:✓ Admin Runtime Settings Routes Loaded
+INFO:main_api_app:✓ BPE Workspace Admin Routes Loaded
+INFO:main_api_app:✓ Fleet Router Management Routes Loaded
+INFO:main_api_app:✓ Decision Plane Management Routes Loaded
+INFO:main_api_app:✓ Decision Automation Loop Scheduled (mode=approve)
+INFO:main_api_app:✓ Org-Politics Management Routes Loaded
+INFO:main_api_app:✓ Org-Politics Automation Loop Scheduled (mode=auto)
+INFO:main_api_app:✓ Trust Calibration Routes Loaded (shadow, flag-gated)
+INFO:main_api_app:✓ Ontology Draft Automation Routes Loaded
+INFO:main_api_app:✓ Core Routes Loaded Successfully
+INFO:main_api_app:✓ Microsoft 365 Routes Loaded (isolated)
+INFO:main_api_app:✅ Debug endpoints enabled
+INFO:main_api_app:============================================================
+INFO:main_api_app:ATOM Platform Starting (Hybrid Mode)
+INFO:main_api_app:============================================================
+INFO:main_api_app:faulthandler: SIGUSR1 dumps thread stacks to stderr
+INFO:main_api_app:Initializing database tables...
+INFO:main_api_app:✓ Database tables initialized
+INFO:main_api_app:✓ documents.search FTS index ready
+INFO:main_api_app:Bootstrapping essential data (admin, tenants)...
+INFO:ATOM_BOOTSTRAP:BOOTSTRAP: User admin@example.com found. Resetting password (ADMIN_PASSWORD set)...
+INFO:ATOM_BOOTSTRAP:BOOTSTRAP: Password for admin@example.com has been reset
+INFO:ATOM_BOOTSTRAP:BOOTSTRAP: Default tenant and workspace ensured.
+INFO:main_api_app:✓ Bootstrap complete
+INFO:main_api_app:Loaded integrations so far: ['oauth', 'monday', 'system_status', 'gitlab', 'dropbox', 'auth', 'outlook', 'telegram', 'zoho_workdrive', 'service_health', 'xero', 'whatsapp']
+WARNING:core.execution_recovery:Crash recovery: reconciled 0 workflow execution(s) and 1 agent execution(s) with a VERIFIED dead owner; released 0 in-progress chat request(s); left 0 alone (live owner) and 0 UNKNOWN (ownership not established -- not touched, not declared crashed)
+INFO:main_api_app:Startup recovery summary: 0 workflow(s), 1 agent(s)
+INFO:main_api_app:Terminal-delivery recovery task started (outside the scheduler gate)
+INFO:main_api_app:Research continuation worker started (outside the scheduler gate)
+INFO:core.agent_event_bus:ℹ️ Initializing AgentEventBus in Postgres mode (Fallback)
+INFO:main_api_app:✓ Postgres Event Bus listener running
+INFO:main_api_app:✓ AI Workflow Service initialized
+INFO:main_api_app:⏩ Skipping redundant QStash schedule cleanup
+INFO:core.auto_dev.reflection_engine:ReflectionEngine registered on event bus
+INFO:main_api_app:✓ Auto-Dev ReflectionEngine registered on event bus
+INFO:main_api_app:✓ POMDP Memory Consolidation background task started (6h interval)
+INFO:main_api_app:✓ Exchange memory maintenance background task started
+INFO:main_api_app:============================================================
+INFO:main_api_app:✓ Server Ready
+INFO:core.async_turn_continuation:[async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+INFO:core.async_turn_continuation:[async-continuation] 165702e2-912f-4bea-a09e-420dfb93a84f effects start outcome=failed
+INFO:core.async_turn_continuation:[async-continuation] 165702e2-912f-4bea-a09e-420dfb93a84f effect 1/4 in-memory-session done (+0.0s)
+INFO:core.async_turn_continuation:[async-continuation] 165702e2-912f-4bea-a09e-420dfb93a84f effect 2/4 durable-chatmessage done (+0.0s)
+WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:'. type='chat_continuation'
+INFO:core.async_turn_continuation:[async-continuation] 165702e2-912f-4bea-a09e-420dfb93a84f effect 3/4 ws-broadcast done (+0.0s)
+INFO:core.async_turn_continuation:[async-continuation] 165702e2-912f-4bea-a09e-420dfb93a84f effect 4/4 notification done (+0.0s)
+INFO:core.async_turn_continuation:[async-continuation] 165702e2-912f-4bea-a09e-420dfb93a84f effects complete (+0.0s)
+INFO:core.async_turn_continuation:[async-continuation] terminal-delivery recovery: {'candidates': 1, 'deferred_in_flight': 0, 'delivered': 1, 'failed': 0}
+INFO:core.async_turn_continuation:[async-continuation] terminal-delivery recovery: delivered=1 deferred=0 candidates=1
+INFO:core.research_continuation:[research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+WARNING:core.agent_event_bus:PostgresEventBus requires PostgreSQL. Events will be local-only.
+INFO:core.memory.memory_consolidation_service:POMDP Memory Consolidation initialized
+INFO:core.memory.memory_consolidation_service:Full-system consolidation not yet implemented
+INFO:core.memory.memory_consolidation_service:Consolidation cycle completed: {'consolidated': 0, 'patterns_extracted': 0, 'associations_strengthened': 0, 'expired': 0, 'duration_seconds': 2.2e-05}
+INFO:main_api_app:✓ POMDP memory consolidation cycle complete
+INFO:main_api_app:🚀 [ULTRA LOUD] GET /api/health
+INFO:core.lancedb_handler:Lazy loading LanceDB connection...
+INFO:core.lancedb_handler:Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom_journey_review_boundary_nv23_t7u/data/atom_memory/default_shared with storage_options=None
+INFO:core.lancedb_handler:LanceDB connected successfully
+INFO:core.runtime_identity:runtime identity: source_id=f8792bf42bf0-dirty.d05d528e50f5 revision=f8792bf42bf0 dirty=True (14 modified, 4 untracked)
+INFO:main_api_app:🏁 [ULTRA LOUD] GET /api/health -> 200
+INFO:main_api_app:🔄 Auto-loading integration on-demand: chat
+INFO:core.lazy_integration_registry:Loading integration: chat (integrations.chat_routes)
+INFO:core.lazy_integration_registry:✓ Loaded chat
+INFO:main_api_app:✓ Auto-loaded: chat
+INFO:main_api_app:🚀 [ULTRA LOUD] POST /api/chat/message
+INFO:integrations.chat_routes:Processing chat message from user 1852ea68-baa8-48bd-9fae-5cd8ba732d77: len=115 fp=bfb537e4f443
+INFO:integrations.chat_routes:[CHATCTX] request.agent_id=None context=shape shape={"agent_id": "str(len=36)"}
+INFO:core.chat_session_manager:Created DB session: rb-after-restart-9269950d
+INFO:integrations.chat_orchestrator:[DBG4] continuation-detection reached; bare=False
+WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: 9ef389dd-d7ad-43b7-99a7-58461c242736
+INFO:integrations.chat_orchestrator:[turn-interpretation] bounded wait=59.9s (remaining=94.9s reserve=35.0s)
+{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-10-28T01:29:37.646333+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": true, "blocked_services": 23, "local_allowed_services": 18}}
+INFO:core.privsec.local_only_guard:LocalOnlyGuard initialized
+WARNING:core.llm.pinned_planning:LOCAL-ONLY: pin opencode-go/qwen3.8-flash refused — cloud dispatch is blocked; the call routes locally instead
+INFO:core.dynamic_pricing_fetcher:Auto-populating pricing cache synchronously...
+INFO:core.dynamic_pricing_fetcher:Using cached pricing data
+INFO:core.dynamic_pricing_fetcher:Pricing cache populated with 4806 models
+INFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1
+INFO:httpx:HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+INFO:core.llm.opencode_model_limits:Created OpencodeModelLimits singleton instance
+INFO:core.llm.byok_handler:BPC cost-priority active (task_type=planning): cheapest capable model local_5fdcc269/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+INFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)
+INFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1
+INFO:core.llm.byok_handler:BPC cost-priority active (task_type=planning): cheapest capable model local_5fdcc269/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+INFO:core.turn_decision:[turn-interpretation] empty reason=missing_scope
+INFO:integrations.chat_orchestrator:[named-document] branch not taken reader='datasets' state='resolved' mentions=['case_unfamiliar.csv']
+INFO:integrations.chat_orchestrator:[pending-file-task] direct read block=True table_selection=True storage_completed=True identity=True reason=''
+INFO:integrations.chat_orchestrator:[table-select] review artifact built (subjects=3, evidence=3)
+INFO:core.task_lifecycle:[job-work-ledger] settled run=57b03316 op=15d60fcb added=0 resolved_total=0 open(actions=0 owner=0 exhausted=0)
+INFO:integrations.chat_orchestrator:[source-requirements] required=['datasets'] evidence=[{'kind': 'message', 'source': 'datasets', 'lesson_id': None, 'scope': None, 'topic': None}] candidates=[]
+INFO:integrations.chat_orchestrator:[file-ask] review ask — 3 validated rows staged for structured review (subjects=3)
+INFO:integrations.chat_orchestrator:[named-document] branch not taken reader='datasets' state='resolved' mentions=['case_unfamiliar.csv']
+INFO:integrations.chat_orchestrator:[pending-file-task] direct read block=True table_selection=True storage_completed=True identity=True reason=''
+INFO:integrations.chat_orchestrator:[table-select] review artifact built (subjects=3, evidence=3)
+INFO:integrations.chat_orchestrator:[source-requirements] required=['datasets'] evidence=[{'kind': 'message', 'source': 'datasets', 'lesson_id': None, 'scope': None, 'topic': None}] candidates=[]
+INFO:integrations.chat_orchestrator:[pending-file-task] review ask — read retrieved; narration required
+INFO:integrations.chat_orchestrator:[pending-file-task] confirmation resumes the stored file ask (file='case_unfamiliar.csv', ask='Assess each Open case in case_unfamiliar.csv using Ask Amount. Give a table with Case Ref, Ask Amount and decision.', planner wait 55s)
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: 9ef389dd-d7ad-43b7-99a7-58461c242736
+INFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1
+INFO:core.llm.byok_handler:BPC cost-priority active (task_type=planning): cheapest capable model local_5fdcc269/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+INFO:core.llm.byok_handler:BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)
+INFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1
+INFO:core.llm.byok_handler:BPC cost-priority active (task_type=planning): cheapest capable model local_5fdcc269/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+INFO:integrations.chat_orchestrator:[timeline] chat planner finished: 0.1s after the turn's canvas-edit clock started
+INFO:integrations.chat_orchestrator:[MEMCTX] agent_id='16f6641b-2661-47a5-880d-a33ebdfef6ab'
+INFO:integrations.chat_orchestrator:[pending-file-task] resume turn: planner wait raised to 55s (deadline-bounded)
+INFO:integrations.chat_orchestrator:[deadline] chat-request stage=reply-leg-START dur=0.0s turn_offset=0.3s elapsed=0.3s remaining=94.7s budget=95.0s
+INFO:core.task_lifecycle:[job-work-ledger] settled run=57b03316 op=ebf3e2ee added=0 resolved_total=0 open(actions=0 owner=0 exhausted=0)
+INFO:integrations.chat_orchestrator:[stage-timing] tool exec: reused canvas-edit leg block (singleflight) — no second plan/execute
+INFO:integrations.chat_orchestrator:[derivation] workbook lane: no dataset block for this ask
+INFO:integrations.chat_orchestrator:[source-requirements] required=['datasets'] evidence=[{'kind': 'message', 'source': 'datasets', 'lesson_id': None, 'scope': None, 'topic': None}] candidates=[]
+INFO:integrations.chat_orchestrator:[planner-boundary] research turn recovery state: research=True required=['datasets'] consulted=[] planned=False block=True turn_left=95s
+INFO:core.chat_tool_planner:[etp-provenance] service=datasets intent=value_trace caller=chat_orchestrator.py:25812 _chain_attempt exec_id=True conv=rb-after-restart-9269950d
+INFO:integrations.chat_orchestrator:[planner-boundary] chained read persisted to the findings carrier (file='case_unfamiliar.csv', structured=False)
+INFO:integrations.chat_orchestrator:[planner-boundary] value-trace chained a confirmed-file read (file='case_unfamiliar.csv' item='CX-9201', block=1898 chars)
+INFO:integrations.chat_orchestrator:[planner-boundary] chained read persisted to the findings carrier (file='case_unfamiliar.csv', structured=False)
+INFO:integrations.chat_orchestrator:[planner-boundary] value-trace chained a confirmed-file read (file='case_unfamiliar.csv' item='CX-9202', block=1898 chars)
+INFO:integrations.chat_orchestrator:[planner-boundary] chained source datasets: NO usable receipt — obligation open (receipt={'structured_keys': [], 'searched_threads': 0, 'source_observations': 0, 'read_outcomes': 0, 'datasets_search': {}, 'value_trace_coverage': {'CX-9201': ['case_unfamiliar.csv'], 'CX-9202': ['case_unfamiliar.csv'], 'CX-9203': ['case_unfamiliar.csv']}, 'value_trace_items': 3, 'coverage_items': [], 'documents_read': {}, 'zoho_inventory': {}, 'zoho_inventory_error': None})
+INFO:core.task_lifecycle:[job-work-ledger] settled run=57b03316 op=b3792584 added=3 resolved_total=0 open(actions=3 owner=0 exhausted=0)
+INFO:integrations.chat_orchestrator:[source-requirements] required=['datasets'] evidence=[{'kind': 'message', 'source': 'datasets', 'lesson_id': None, 'scope': None, 'topic': None}, {'kind': 'accepted_task', 'source': 'datasets', 'lesson_id': None, 'scope': None, 'topic': None}] candidates=[]
+INFO:integrations.chat_orchestrator:[derivation] ask=False matched-row-evidence=False tool_block=4473 chars named_file=False
+WARNING:integrations.atom_communication_ingestion_pipeline:sentence_transformers not available (error: No module named 'sentence_transformers'), embeddings will be disabled
+WARNING:integrations.atom_communication_ingestion_pipeline:sentence-transformers unavailable — trying FastEmbed
+INFO:integrations.atom_communication_ingestion_pipeline:Using FastEmbed (bge-small, 384-dim) for communication embeddings
+INFO:integrations.atom_communication_ingestion_pipeline:Opened existing atom_communications table
+INFO:integrations.atom_communication_ingestion_pipeline:FTS index enabled on 'content' column
+INFO:integrations.atom_communication_ingestion_pipeline:Opened existing ingestion_metadata table
+INFO:integrations.atom_communication_ingestion_pipeline:LanceDB memory manager initialized successfully
+INFO:integrations.chat_orchestrator:[review-result] gate review_ask=True subjects=3 allowed=['APPROVE', 'REVIEW', 'REJECT'] evidence=3 policy=1 structured=True
+INFO:integrations.chat_orchestrator:[review-diag] generation_started subjects=3 evidence_ids=['ev:CX-9201:case_unfamiliar!R2', 'ev:CX-9202:case_unfamiliar!R3', 'ev:CX-9203:case_unfamiliar!R4'] policy_ids=['671fdcb0f0ae41f0a5f7d0eb7db6d93c']
+INFO:integrations.chat_orchestrator:[review-timing] contract_prompt_ms=20 elapsed_s=0.6 contract=True
+INFO:integrations.chat_orchestrator:tool plan executed: None
+INFO:integrations.chat_orchestrator:[prompt-budget] routing-default model=auto: input=2902 tokens (window=32000, output reservation=6000, fits=True, window estimated)
+INFO:httpx:HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+INFO:core.llm.byok_handler:LOCAL-ONLY: admitted healthy local runtime route ollama/llama3.1:8b (probe UP; declared quality 0.90; served: atom-preview, atom-preview:latest, llama3, llama3.1, llama3.1:8b, llama3:8b)
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: 9ef389dd-d7ad-43b7-99a7-58461c242736
+INFO:httpx:HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+INFO:core.llm.learning_router_registry:[LearningRouter] auto-mode readiness: 6 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+INFO:core.llm.byok_handler:Attempting stream with provider: ollama (requested: ollama) model=llama3.1:8b
+INFO:core.llm.byok_handler:[inflight] ollama/llama3.1:8b released by 'structured:chat' after 10.0s
+WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:1852ea68-baa8-48bd-9fae-5cd8ba732d77'. type='chat_heartbeat'
+WARNING:integrations.chat_orchestrator:chat streaming produced no tokens — falling back
+INFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1
+INFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)
+INFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1
+INFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:core.llm.byok_handler:[inflight] local_5fdcc269/llama3.1:8b released by 'completion:general' after 28.0s
+INFO:core.llm.byok_handler:BYOK Logic: complexity=simple, provider=local_5fdcc269, model=llama3.1:8b
+INFO:core.learning_llm_router:Initialized router with 30 models
+INFO:core.learning_llm_router:Loaded 6 routing feedback rows from DB
+INFO:core.llm.learning_router_registry:Learning router hydrated 6 feedback rows from DB
+INFO:core.llm.learning_router_registry:Learning router singleton initialized
+INFO:integrations.chat_orchestrator:[stage-timing] reply generation: 39.4s (incl. tool plan + exec above)
+INFO:integrations.chat_orchestrator:[deadline] chat-request stage=reply-leg dur=39.4s turn_offset=0.3s elapsed=39.7s remaining=55.3s budget=95.0s
+INFO:integrations.chat_orchestrator:[verify-panel] state: mode=shadow tool_block=True content=True mission=False
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+INFO:core.llm.self_consistency_voter:SC fan-out: 0 candidate(s) available; running all samples unpinned
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+INFO:core.llm.self_consistency_voter:SC fan-out: 0 candidate(s) available; running all samples unpinned
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_step_update'
+INFO:integrations.chat_orchestrator:[review-diag] generation_completed content_len=1181 review_ask=True
+INFO:integrations.chat_orchestrator:[review-result] validation state subjects=3 pending_keys=['accepted_contract', 'chained_read', 'coverage_complete', 'execution_id', 'identity', 'rendered', 'retrieved_at', 'source_execution_id', 'status', 'structured_result', 'target_extraction_version', 'workbook_read'] struct_targets=3
+INFO:integrations.chat_orchestrator:[review-result] validating allowed=['APPROVE', 'REVIEW', 'REJECT'] subjects=3 evidence=3 policy=1 pending=True
+INFO:integrations.chat_orchestrator:[review-timing] validation_ms=3 reviewed_at_s=39.8 ok=True subjects=['CX-9201', 'CX-9202', 'CX-9203']
+WARNING:integrations.chat_orchestrator:[review-result] render skipped: NameError("name 'context' is not defined")
+INFO:ai.nlp_engine:Parsing command: Assess each Open case in case_unfamiliar.csv using Ask Amount. Give a table with Case Ref, Ask Amount and decision.
+INFO:httpx:HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+INFO:core.llm.byok_handler:LOCAL-ONLY: admitted healthy local runtime route ollama/llama3.1:8b (probe UP; declared quality 0.90; served: atom-preview, atom-preview:latest, llama3, llama3.1, llama3.1:8b, llama3:8b)
+INFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)
+INFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)
+INFO:core.llm.byok_handler:Structured generation (free, Managed): ollama/llama3.1:8b
+INFO:core.llm.byok_handler:[structured-dispatch] ollama/llama3.1:8b route=structured-1d2f2e6dfbc1 attempt=1 prompt_chars=232 cap=6000 instructor_retries=2
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:core.async_turn_continuation:[async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+ERROR:instructor.v2.retry:Max retries exceeded. Total attempts: 4, Last error: No tool calls or function call found in response (mode: TOOLS)
+INFO:core.llm.byok_handler:[inflight] ollama/llama3.1:8b released by 'completion2:gpt-4o-mini' after 26.0s
+WARNING:core.llm.byok_handler:Structured attempt failed for ollama/llama3.1:8b: <failed_attempts>
+
+<generation number="1">
+<exception>
+    No tool calls or function call found in response (mode: TOOLS)
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-377', choices=[Choice(finish_reason='stop', index=0, logprobs=ChoiceLogprobs(content=[ChatCompletionTokenLogprob(token='{"', bytes=[123, 34], logprob=-0.30630579590797424, top_logprobs=None), ChatCompletionTokenLogprob(token='name', bytes=[110, 97, 109, 101], logprob=-3.541673140716739e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00038251798832789063, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.002685914747416973, top_logprobs=None), ChatCompletionTokenLogprob(token='analyze', bytes=[97, 110, 97, 108, 121, 122, 101], logprob=-0.6473808288574219, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.00928210187703371, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.02663564123213291, top_logprobs=None), ChatCompletionTokenLogprob(token='parameters', bytes=[112, 97, 114, 97, 109, 101, 116, 101, 114, 115], logprob=-2.7702044462785125e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.001444034744054079, top_logprobs=None), ChatCompletionTokenLogprob(token=' {"', bytes=[32, 123, 34], logprob=-0.10328573733568192, top_logprobs=None), ChatCompletionTokenLogprob(token='entities', bytes=[101, 110, 116, 105, 116, 105, 101, 115], logprob=-1.1439350843429565, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0006754682399332523, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.1785915344953537, top_logprobs=None), ChatCompletionTokenLogprob(token='case', bytes=[99, 97, 115, 101], logprob=-0.05873596668243408, top_logprobs=None), ChatCompletionTokenLogprob(token='_un', bytes=[95, 117, 110], logprob=-0.0006998658645898104, top_logprobs=None), ChatCompletionTokenLogprob(token='f', bytes=[102], logprob=-2.1630376068060286e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='amiliar', bytes=[97, 109, 105, 108, 105, 97, 114], logprob=-2.210902266597259e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='.csv', bytes=[46, 99, 115, 118], logprob=-0.00012755040370393544, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.024348890408873558, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0006576491286978126, top_logprobs=None), ChatCompletionTokenLogprob(token='platform', bytes=[112, 108, 97, 116, 102, 111, 114, 109], logprob=-2.602541208267212, top_logprobs=None), ChatCompletionTokenLogprob(token='s', bytes=[115], logprob=-0.02666785567998886, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00010670344636309892, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.007812893018126488, top_logprobs=None), ChatCompletionTokenLogprob(token='storage', bytes=[115, 116, 111, 114, 97, 103, 101], logprob=-0.6687242388725281, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.17583602666854858, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.00039666923112235963, top_logprobs=None), ChatCompletionTokenLogprob(token='parameters', bytes=[112, 97, 114, 97, 109, 101, 116, 101, 114, 115], logprob=-0.02988540008664131, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00019939964113291353, top_logprobs=None), ChatCompletionTokenLogprob(token=' {"', bytes=[32, 123, 34], logprob=-0.006908689625561237, top_logprobs=None), ChatCompletionTokenLogprob(token='case', bytes=[99, 97, 115, 101], logprob=-1.3341809511184692, top_logprobs=None), ChatCompletionTokenLogprob(token='_ref', bytes=[95, 114, 101, 102], logprob=-0.6037331819534302, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0077198222279548645, top_logprobs=None), ChatCompletionTokenLogprob(token=' null', bytes=[32, 110, 117, 108, 108], logprob=-1.69525146484375, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.0003652245213743299, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0002642338804434985, top_logprobs=None), ChatCompletionTokenLogprob(token='ask', bytes=[97, 115, 107], logprob=-0.10415267944335938, top_logprobs=None), ChatCompletionTokenLogprob(token='_amount', bytes=[95, 97, 109, 111, 117, 110, 116], logprob=-0.0014381110668182373, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.005283424165099859, top_logprobs=None), ChatCompletionTokenLogprob(token=' null', bytes=[32, 110, 117, 108, 108], logprob=-0.6623709201812744, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.11342860013246536, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0007542105740867555, top_logprobs=None), ChatCompletionTokenLogprob(token='decision', bytes=[100, 101, 99, 105, 115, 105, 111, 110], logprob=-0.01042110100388527, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00014367159747052938, top_logprobs=None), ChatCompletionTokenLogprob(token=' null', bytes=[32, 110, 117, 108, 108], logprob=-0.0014452463947236538, top_logprobs=None), ChatCompletionTokenLogprob(token='}}}', bytes=[125, 125, 125], logprob=-0.5023577809333801, top_logprobs=None)], refusal=None), message=ChatCompletionMessage(content='{"name": "analyze", "parameters": {"entities": ["case_unfamiliar.csv"], "platforms": ["storage"], "parameters": {"case_ref": null, "ask_amount": null, "decision": null}}}', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=1793151021, model='llama3.1:8b', object='chat.completion', moderation=None, service_tier=None, system_fingerprint='fp_ollama', usage=CompletionUsage(completion_tokens=47, prompt_tokens=391, total_tokens=438, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cache_write_tokens=None, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="2">
+<exception>
+    No tool calls or function call found in response (mode: TOOLS)
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-642', choices=[Choice(finish_reason='stop', index=0, logprobs=ChoiceLogprobs(content=[ChatCompletionTokenLogprob(token='{"', bytes=[123, 34], logprob=-0.006737982854247093, top_logprobs=None), ChatCompletionTokenLogprob(token='name', bytes=[110, 97, 109, 101], logprob=-3.8442605728050694e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0004938874044455588, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.008438687771558762, top_logprobs=None), ChatCompletionTokenLogprob(token='recall', bytes=[114, 101, 99, 97, 108, 108], logprob=-0.28426313400268555, top_logprobs=None), ChatCompletionTokenLogprob(token='_function', bytes=[95, 102, 117, 110, 99, 116, 105, 111, 110], logprob=-0.5950285792350769, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.0490475594997406, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0022583024110645056, top_logprobs=None), ChatCompletionTokenLogprob(token='parameters', bytes=[112, 97, 114, 97, 109, 101, 116, 101, 114, 115], logprob=-6.471478627645411e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-7.88584366091527e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' {"', bytes=[32, 123, 34], logprob=-0.016117140650749207, top_logprobs=None), ChatCompletionTokenLogprob(token='command', bytes=[99, 111, 109, 109, 97, 110, 100], logprob=-2.1381397247314453, top_logprobs=None), ChatCompletionTokenLogprob(token='_type', bytes=[95, 116, 121, 112, 101], logprob=-0.05400371178984642, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0016104462556540966, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.01639685407280922, top_logprobs=None), ChatCompletionTokenLogprob(token='report', bytes=[114, 101, 112, 111, 114, 116], logprob=-2.23690128326416, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.006712805014103651, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0002459936949890107, top_logprobs=None), ChatCompletionTokenLogprob(token='confidence', bytes=[99, 111, 110, 102, 105, 100, 101, 110, 99, 101], logprob=-1.1337891817092896, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-2.025461981247645e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.06266803294420242, top_logprobs=None), ChatCompletionTokenLogprob(token='0', bytes=[48], logprob=-0.41115042567253113, top_logprobs=None), ChatCompletionTokenLogprob(token='.', bytes=[46], logprob=-0.0030649045947939157, top_logprobs=None), ChatCompletionTokenLogprob(token='8', bytes=[56], logprob=-0.49104738235473633, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.0019094522576779127, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.00019209853780921549, top_logprobs=None), ChatCompletionTokenLogprob(token='entities', bytes=[101, 110, 116, 105, 116, 105, 101, 115], logprob=-0.026828905567526817, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-3.430927972658537e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.03256175294518471, top_logprobs=None), ChatCompletionTokenLogprob(token='case', bytes=[99, 97, 115, 101], logprob=-0.5419065356254578, top_logprobs=None), ChatCompletionTokenLogprob(token='_un', bytes=[95, 117, 110], logprob=-0.0016852628905326128, top_logprobs=None), ChatCompletionTokenLogprob(token='f', bytes=[102], logprob=-3.056134119105991e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='amiliar', bytes=[97, 109, 105, 108, 105, 97, 114], logprob=-1.7229356217285385e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='.csv', bytes=[46, 99, 115, 118], logprob=-0.0003871628432534635, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.05849852040410042, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.00010654125071596354, top_logprobs=None), ChatCompletionTokenLogprob(token='parameters', bytes=[112, 97, 114, 97, 109, 101, 116, 101, 114, 115], logprob=-0.05008195340633392, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-1.3847902664565481e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' {"', bytes=[32, 123, 34], logprob=-0.004041882231831551, top_logprobs=None), ChatCompletionTokenLogprob(token='error', bytes=[101, 114, 114, 111, 114], logprob=-1.7381914854049683, top_logprobs=None), ChatCompletionTokenLogprob(token='_message', bytes=[95, 109, 101, 115, 115, 97, 103, 101], logprob=-1.6420437097549438, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00021373630443122238, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0021494519896805286, top_logprobs=None), ChatCompletionTokenLogprob(token='No', bytes=[78, 111], logprob=-0.36505284905433655, top_logprobs=None), ChatCompletionTokenLogprob(token=' tool', bytes=[32, 116, 111, 111, 108], logprob=-0.00237589655444026, top_logprobs=None), ChatCompletionTokenLogprob(token=' calls', bytes=[32, 99, 97, 108, 108, 115], logprob=-0.0005369606660678983, top_logprobs=None), ChatCompletionTokenLogprob(token=' or', bytes=[32, 111, 114], logprob=-0.0004252078360877931, top_logprobs=None), ChatCompletionTokenLogprob(token=' function', bytes=[32, 102, 117, 110, 99, 116, 105, 111, 110], logprob=-2.5237788577214815e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' call', bytes=[32, 99, 97, 108, 108], logprob=-0.002564883092418313, top_logprobs=None), ChatCompletionTokenLogprob(token=' found', bytes=[32, 102, 111, 117, 110, 100], logprob=-0.00010637783270794898, top_logprobs=None), ChatCompletionTokenLogprob(token=' in', bytes=[32, 105, 110], logprob=-0.1392928659915924, top_logprobs=None), ChatCompletionTokenLogprob(token=' response', bytes=[32, 114, 101, 115, 112, 111, 110, 115, 101], logprob=-0.0003418897103983909, top_logprobs=None), ChatCompletionTokenLogprob(token=' (', bytes=[32, 40], logprob=-0.7607420682907104, top_logprobs=None), ChatCompletionTokenLogprob(token='mode', bytes=[109, 111, 100, 101], logprob=-4.881196946371347e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=':', bytes=[58], logprob=-4.6817549446132034e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' TO', bytes=[32, 84, 79], logprob=-0.008522158488631248, top_logprobs=None), ChatCompletionTokenLogprob(token='OLS', bytes=[79, 76, 83], logprob=-4.557554802886443e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=')"', bytes=[41, 34], logprob=-0.20168247818946838, top_logprobs=None), ChatCompletionTokenLogprob(token='}}}', bytes=[125, 125, 125], logprob=-0.7217074632644653, top_logprobs=None)], refusal=None), message=ChatCompletionMessage(content='{"name": "recall_function", "parameters": {"command_type": "report", "confidence": 0.8, "entities": ["case_unfamiliar.csv"], "parameters": {"error_message": "No tool calls or function call found in response (mode: TOOLS)"}}}', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=1793151025, model='llama3.1:8b', object='chat.completion', moderation=None, service_tier=None, system_fingerprint='fp_ollama', usage=CompletionUsage(completion_tokens=107, prompt_tokens=866, total_tokens=973, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cache_write_tokens=None, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="3">
+<exception>
+    No tool calls or function call found in response (mode: TOOLS)
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-719', choices=[Choice(finish_reason='stop', index=0, logprobs=ChoiceLogprobs(content=[ChatCompletionTokenLogprob(token='{"', bytes=[123, 34], logprob=-0.2733467221260071, top_logprobs=None), ChatCompletionTokenLogprob(token='name', bytes=[110, 97, 109, 101], logprob=-6.116302392911166e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0005173385143280029, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.001251110341399908, top_logprobs=None), ChatCompletionTokenLogprob(token='recall', bytes=[114, 101, 99, 97, 108, 108], logprob=-0.9721714854240417, top_logprobs=None), ChatCompletionTokenLogprob(token='_function', bytes=[95, 102, 117, 110, 99, 116, 105, 111, 110], logprob=-0.015395385213196278, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.0018443423323333263, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.015828359872102737, top_logprobs=None), ChatCompletionTokenLogprob(token='parameters', bytes=[112, 97, 114, 97, 109, 101, 116, 101, 114, 115], logprob=-1.381028414471075e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-9.563350613461807e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' {"', bytes=[32, 123, 34], logprob=-0.04174412786960602, top_logprobs=None), ChatCompletionTokenLogprob(token='command', bytes=[99, 111, 109, 109, 97, 110, 100], logprob=-0.4683088958263397, top_logprobs=None), ChatCompletionTokenLogprob(token='_type', bytes=[95, 116, 121, 112, 101], logprob=-0.004544912837445736, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00020099982793908566, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0012857323745265603, top_logprobs=None), ChatCompletionTokenLogprob(token='report', bytes=[114, 101, 112, 111, 114, 116], logprob=-0.3417535722255707, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.0038774379063397646, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.000742775562684983, top_logprobs=None), ChatCompletionTokenLogprob(token='confidence', bytes=[99, 111, 110, 102, 105, 100, 101, 110, 99, 101], logprob=-0.14236952364444733, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-1.5865058230701834e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.016221288591623306, top_logprobs=None), ChatCompletionTokenLogprob(token='0', bytes=[48], logprob=-0.06712086498737335, top_logprobs=None), ChatCompletionTokenLogprob(token='.', bytes=[46], logprob=-0.003607998602092266, top_logprobs=None), ChatCompletionTokenLogprob(token='8', bytes=[56], logprob=-0.04033372923731804, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.0024422877468168736, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0019985265098512173, top_logprobs=None), ChatCompletionTokenLogprob(token='entities', bytes=[101, 110, 116, 105, 116, 105, 101, 115], logprob=-0.029717518016695976, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-6.987194501562044e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.022679917514324188, top_logprobs=None), ChatCompletionTokenLogprob(token='case', bytes=[99, 97, 115, 101], logprob=-0.006785986479371786, top_logprobs=None), ChatCompletionTokenLogprob(token='_un', bytes=[95, 117, 110], logprob=-0.00028480676701292396, top_logprobs=None), ChatCompletionTokenLogprob(token='f', bytes=[102], logprob=-5.332913701749931e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='amiliar', bytes=[97, 109, 105, 108, 105, 97, 114], logprob=-8.457387252747139e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='.csv', bytes=[46, 99, 115, 118], logprob=-1.8986584109370597e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.09537608921527863, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0007636945229023695, top_logprobs=None), ChatCompletionTokenLogprob(token='platform', bytes=[112, 108, 97, 116, 102, 111, 114, 109], logprob=-1.2715967893600464, top_logprobs=None), ChatCompletionTokenLogprob(token='s', bytes=[115], logprob=-0.002506369026377797, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00027710714493878186, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.010110406205058098, top_logprobs=None), ChatCompletionTokenLogprob(token='storage', bytes=[115, 116, 111, 114, 97, 103, 101], logprob=-0.5259292125701904, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.05928238481283188, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.00048032376798801124, top_logprobs=None), ChatCompletionTokenLogprob(token='reason', bytes=[114, 101, 97, 115, 111, 110], logprob=-1.5534582138061523, top_logprobs=None), ChatCompletionTokenLogprob(token='ing', bytes=[105, 110, 103], logprob=-0.000759187329094857, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0001222281571244821, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.013909782283008099, top_logprobs=None), ChatCompletionTokenLogprob(token='No', bytes=[78, 111], logprob=-1.274880051612854, top_logprobs=None), ChatCompletionTokenLogprob(token=' tool', bytes=[32, 116, 111, 111, 108], logprob=-0.26277923583984375, top_logprobs=None), ChatCompletionTokenLogprob(token=' calls', bytes=[32, 99, 97, 108, 108, 115], logprob=-0.0024623493663966656, top_logprobs=None), ChatCompletionTokenLogprob(token=' or', bytes=[32, 111, 114], logprob=-0.0012230887077748775, top_logprobs=None), ChatCompletionTokenLogprob(token=' function', bytes=[32, 102, 117, 110, 99, 116, 105, 111, 110], logprob=-0.0001951761223608628, top_logprobs=None), ChatCompletionTokenLogprob(token=' call', bytes=[32, 99, 97, 108, 108], logprob=-0.06330381333827972, top_logprobs=None), ChatCompletionTokenLogprob(token=' found', bytes=[32, 102, 111, 117, 110, 100], logprob=-0.0014621986774727702, top_logprobs=None), ChatCompletionTokenLogprob(token=' in', bytes=[32, 105, 110], logprob=-0.0068629528395831585, top_logprobs=None), ChatCompletionTokenLogprob(token=' response', bytes=[32, 114, 101, 115, 112, 111, 110, 115, 101], logprob=-0.010676117613911629, top_logprobs=None), ChatCompletionTokenLogprob(token=' (', bytes=[32, 40], logprob=-0.14029811322689056, top_logprobs=None), ChatCompletionTokenLogprob(token='mode', bytes=[109, 111, 100, 101], logprob=-6.49287539999932e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=':', bytes=[58], logprob=-1.718314342724625e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' TO', bytes=[32, 84, 79], logprob=-0.008253837935626507, top_logprobs=None), ChatCompletionTokenLogprob(token='OLS', bytes=[79, 76, 83], logprob=-9.611603957182524e-08, top_logprobs=None), ChatCompletionTokenLogprob(token=')"', bytes=[41, 34], logprob=-0.11328304558992386, top_logprobs=None), ChatCompletionTokenLogprob(token='}}', bytes=[125, 125], logprob=-0.004240266978740692, top_logprobs=None)], refusal=None), message=ChatCompletionMessage(content='{"name": "recall_function", "parameters": {"command_type": "report", "confidence": 0.8, "entities": ["case_unfamiliar.csv"], "platforms": ["storage"], "reasoning": "No tool calls or function call found in response (mode: TOOLS)"}}', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=1793151034, model='llama3.1:8b', object='chat.completion', moderation=None, service_tier=None, system_fingerprint='fp_ollama', usage=CompletionUsage(completion_tokens=171, prompt_tokens=1438, total_tokens=1609, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cache_write_tokens=None, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="4">
+<exception>
+    No tool calls or function call found in response (mode: TOOLS)
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-130', choices=[Choice(finish_reason='stop', index=0, logprobs=ChoiceLogprobs(content=[ChatCompletionTokenLogprob(token='{"', bytes=[123, 34], logprob=-0.13459745049476624, top_logprobs=None), ChatCompletionTokenLogprob(token='name', bytes=[110, 97, 109, 101], logprob=-2.4472792574670166e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0005200949963182211, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0024920781143009663, top_logprobs=None), ChatCompletionTokenLogprob(token='recall', bytes=[114, 101, 99, 97, 108, 108], logprob=-1.824843406677246, top_logprobs=None), ChatCompletionTokenLogprob(token='_function', bytes=[95, 102, 117, 110, 99, 116, 105, 111, 110], logprob=-0.007214216515421867, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.0009372325148433447, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.010270494036376476, top_logprobs=None), ChatCompletionTokenLogprob(token='parameters', bytes=[112, 97, 114, 97, 109, 101, 116, 101, 114, 115], logprob=-1.4493743947241455e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00014614754763897508, top_logprobs=None), ChatCompletionTokenLogprob(token=' {"', bytes=[32, 123, 34], logprob=-0.027339018881320953, top_logprobs=None), ChatCompletionTokenLogprob(token='command', bytes=[99, 111, 109, 109, 97, 110, 100], logprob=-0.7621533870697021, top_logprobs=None), ChatCompletionTokenLogprob(token='_type', bytes=[95, 116, 121, 112, 101], logprob=-0.007173256948590279, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00023687009525019675, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0009154175058938563, top_logprobs=None), ChatCompletionTokenLogprob(token='report', bytes=[114, 101, 112, 111, 114, 116], logprob=-0.2244013398885727, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.0034831867087632418, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.00037246986175887287, top_logprobs=None), ChatCompletionTokenLogprob(token='confidence', bytes=[99, 111, 110, 102, 105, 100, 101, 110, 99, 101], logprob=-0.16172046959400177, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-1.2022923328913748e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.01730508916079998, top_logprobs=None), ChatCompletionTokenLogprob(token='0', bytes=[48], logprob=-0.06720506399869919, top_logprobs=None), ChatCompletionTokenLogprob(token='.', bytes=[46], logprob=-0.002528921002522111, top_logprobs=None), ChatCompletionTokenLogprob(token='8', bytes=[56], logprob=-0.023022910580039024, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.0018000907730311155, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0008608323987573385, top_logprobs=None), ChatCompletionTokenLogprob(token='entities', bytes=[101, 110, 116, 105, 116, 105, 101, 115], logprob=-0.047270797193050385, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-5.364535900298506e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.02484426647424698, top_logprobs=None), ChatCompletionTokenLogprob(token='case', bytes=[99, 97, 115, 101], logprob=-0.0034164786338806152, top_logprobs=None), ChatCompletionTokenLogprob(token='_un', bytes=[95, 117, 110], logprob=-0.00020990117627661675, top_logprobs=None), ChatCompletionTokenLogprob(token='f', bytes=[102], logprob=-3.885170372086577e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='amiliar', bytes=[97, 109, 105, 108, 105, 97, 114], logprob=-2.0636363728954166e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='.csv', bytes=[46, 99, 115, 118], logprob=-1.2697453712462448e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.05937669053673744, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0003949515230488032, top_logprobs=None), ChatCompletionTokenLogprob(token='platform', bytes=[112, 108, 97, 116, 102, 111, 114, 109], logprob=-0.17453092336654663, top_logprobs=None), ChatCompletionTokenLogprob(token='s', bytes=[115], logprob=-0.001593800145201385, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-9.201343345921487e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.006840152200311422, top_logprobs=None), ChatCompletionTokenLogprob(token='storage', bytes=[115, 116, 111, 114, 97, 103, 101], logprob=-0.014319968409836292, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.03859780356287956, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.00047840154729783535, top_logprobs=None), ChatCompletionTokenLogprob(token='reason', bytes=[114, 101, 97, 115, 111, 110], logprob=-0.07011760771274567, top_logprobs=None), ChatCompletionTokenLogprob(token='ing', bytes=[105, 110, 103], logprob=-6.264957482926548e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-6.909324292792007e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.012186368927359581, top_logprobs=None), ChatCompletionTokenLogprob(token='No', bytes=[78, 111], logprob=-0.10744201391935349, top_logprobs=None), ChatCompletionTokenLogprob(token=' tool', bytes=[32, 116, 111, 111, 108], logprob=-0.05422224849462509, top_logprobs=None), ChatCompletionTokenLogprob(token=' calls', bytes=[32, 99, 97, 108, 108, 115], logprob=-0.001123496564105153, top_logprobs=None), ChatCompletionTokenLogprob(token=' or', bytes=[32, 111, 114], logprob=-0.0003793092037085444, top_logprobs=None), ChatCompletionTokenLogprob(token=' function', bytes=[32, 102, 117, 110, 99, 116, 105, 111, 110], logprob=-0.00012498439173214138, top_logprobs=None), ChatCompletionTokenLogprob(token=' call', bytes=[32, 99, 97, 108, 108], logprob=-0.002801234368234873, top_logprobs=None), ChatCompletionTokenLogprob(token=' found', bytes=[32, 102, 111, 117, 110, 100], logprob=-0.0004009480180684477, top_logprobs=None), ChatCompletionTokenLogprob(token=' in', bytes=[32, 105, 110], logprob=-0.0027397286612540483, top_logprobs=None), ChatCompletionTokenLogprob(token=' response', bytes=[32, 114, 101, 115, 112, 111, 110, 115, 101], logprob=-0.0072880457155406475, top_logprobs=None), ChatCompletionTokenLogprob(token=' (', bytes=[32, 40], logprob=-0.01248733140528202, top_logprobs=None), ChatCompletionTokenLogprob(token='mode', bytes=[109, 111, 100, 101], logprob=-5.684285861207172e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=':', bytes=[58], logprob=-1.5399002222693525e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' TO', bytes=[32, 84, 79], logprob=-0.004655872005969286, top_logprobs=None), ChatCompletionTokenLogprob(token='OLS', bytes=[79, 76, 83], logprob=-3.1724013638267934e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=')"', bytes=[41, 34], logprob=-0.030209412798285484, top_logprobs=None), ChatCompletionTokenLogprob(token='}}', bytes=[125, 125], logprob=-0.0076636080630123615, top_logprobs=None)], refusal=None), message=ChatCompletionMessage(content='{"name": "recall_function", "parameters": {"command_type": "report", "confidence": 0.8, "entities": ["case_unfamiliar.csv"], "platforms": ["storage"], "reasoning": "No tool calls or function call found in response (mode: TOOLS)"}}', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=1793151043, model='llama3.1:8b', object='chat.completion', moderation=None, service_tier=None, system_fingerprint='fp_ollama', usage=CompletionUsage(completion_tokens=235, prompt_tokens=2111, total_tokens=2346, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cache_write_tokens=None, cached_tokens=0)))
+</completion>
+</generation>
+
+</failed_attempts>
+
+<last_exception>
+    No tool calls or function call found in response (mode: TOOLS)
+</last_exception>
+WARNING:core.llm.byok_handler:ollama benched for 1800s — account-level credit exhaustion; healthy providers take over
+WARNING:core.llm.byok_handler:[structured-pool] depth=0 candidates=[('ollama', 'llama3.1:8b')] attempted=True credit_failed=[]
+WARNING:core.llm.byok_handler:structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+INFO:core.llm.byok_handler:[route-exclusions] {"classification": {}, "dispatched": true, "event": "structured_cascade_exhausted", "exclusions": [], "interactive": true, "pool": {"families": {"ollama": 1}, "size": 1}, "pre_pool_skips": [], "providers_on_cooldown": {"ollama": {"cause": "quota_exhausted", "detail": "<failed_attempts>\n\n<generation number=\"1\">\n<exception>\n    No tool calls or function call found in response (mode: TOOLS)\n</exception>\n<completion>\n    ChatCompletion(id='chatcmpl-377', choices=[Choic", "seconds_remaining": 1800.0}}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "structured-1d2f2e6dfbc1"}
+INFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)
+INFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)
+INFO:core.llm.learning_router_registry:[LearningRouter] auto-mode readiness: 7 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)
+WARNING:core.llm.byok_handler:[structured-pool] depth=1 candidates=[('ollama', 'llama3.1:8b')] attempted=False credit_failed=[]
+ERROR:core.llm.byok_handler:All structured candidates SKIPPED before dispatch (gate/budget/rate exclusions; 1 of 1 examined) — no request was made
+ERROR:core.llm.byok_handler:All structured providers failed after 1 attempt(s). Last error: <failed_attempts>
+
+<generation number="1">
+<exception>
+    No tool calls or function call found in response (mode: TOOLS)
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-377', choices=[Choice(finish_reason='stop', index=0, logprobs=ChoiceLogprobs(content=[ChatCompletionTokenLogprob(token='{"', bytes=[123, 34], logprob=-0.30630579590797424, top_logprobs=None), ChatCompletionTokenLogprob(token='name', bytes=[110, 97, 109, 101], logprob=-3.541673140716739e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00038251798832789063, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.002685914747416973, top_logprobs=None), ChatCompletionTokenLogprob(token='analyze', bytes=[97, 110, 97, 108, 121, 122, 101], logprob=-0.6473808288574219, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.00928210187703371, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.02663564123213291, top_logprobs=None), ChatCompletionTokenLogprob(token='parameters', bytes=[112, 97, 114, 97, 109, 101, 116, 101, 114, 115], logprob=-2.7702044462785125e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.001444034744054079, top_logprobs=None), ChatCompletionTokenLogprob(token=' {"', bytes=[32, 123, 34], logprob=-0.10328573733568192, top_logprobs=None), ChatCompletionTokenLogprob(token='entities', bytes=[101, 110, 116, 105, 116, 105, 101, 115], logprob=-1.1439350843429565, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0006754682399332523, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.1785915344953537, top_logprobs=None), ChatCompletionTokenLogprob(token='case', bytes=[99, 97, 115, 101], logprob=-0.05873596668243408, top_logprobs=None), ChatCompletionTokenLogprob(token='_un', bytes=[95, 117, 110], logprob=-0.0006998658645898104, top_logprobs=None), ChatCompletionTokenLogprob(token='f', bytes=[102], logprob=-2.1630376068060286e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='amiliar', bytes=[97, 109, 105, 108, 105, 97, 114], logprob=-2.210902266597259e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='.csv', bytes=[46, 99, 115, 118], logprob=-0.00012755040370393544, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.024348890408873558, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0006576491286978126, top_logprobs=None), ChatCompletionTokenLogprob(token='platform', bytes=[112, 108, 97, 116, 102, 111, 114, 109], logprob=-2.602541208267212, top_logprobs=None), ChatCompletionTokenLogprob(token='s', bytes=[115], logprob=-0.02666785567998886, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00010670344636309892, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.007812893018126488, top_logprobs=None), ChatCompletionTokenLogprob(token='storage', bytes=[115, 116, 111, 114, 97, 103, 101], logprob=-0.6687242388725281, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.17583602666854858, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.00039666923112235963, top_logprobs=None), ChatCompletionTokenLogprob(token='parameters', bytes=[112, 97, 114, 97, 109, 101, 116, 101, 114, 115], logprob=-0.02988540008664131, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00019939964113291353, top_logprobs=None), ChatCompletionTokenLogprob(token=' {"', bytes=[32, 123, 34], logprob=-0.006908689625561237, top_logprobs=None), ChatCompletionTokenLogprob(token='case', bytes=[99, 97, 115, 101], logprob=-1.3341809511184692, top_logprobs=None), ChatCompletionTokenLogprob(token='_ref', bytes=[95, 114, 101, 102], logprob=-0.6037331819534302, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0077198222279548645, top_logprobs=None), ChatCompletionTokenLogprob(token=' null', bytes=[32, 110, 117, 108, 108], logprob=-1.69525146484375, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.0003652245213743299, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0002642338804434985, top_logprobs=None), ChatCompletionTokenLogprob(token='ask', bytes=[97, 115, 107], logprob=-0.10415267944335938, top_logprobs=None), ChatCompletionTokenLogprob(token='_amount', bytes=[95, 97, 109, 111, 117, 110, 116], logprob=-0.0014381110668182373, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.005283424165099859, top_logprobs=None), ChatCompletionTokenLogprob(token=' null', bytes=[32, 110, 117, 108, 108], logprob=-0.6623709201812744, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.11342860013246536, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0007542105740867555, top_logprobs=None), ChatCompletionTokenLogprob(token='decision', bytes=[100, 101, 99, 105, 115, 105, 111, 110], logprob=-0.01042110100388527, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00014367159747052938, top_logprobs=None), ChatCompletionTokenLogprob(token=' null', bytes=[32, 110, 117, 108, 108], logprob=-0.0014452463947236538, top_logprobs=None), ChatCompletionTokenLogprob(token='}}}', bytes=[125, 125, 125], logprob=-0.5023577809333801, top_logprobs=None)], refusal=None), message=ChatCompletionMessage(content='{"name": "analyze", "parameters": {"entities": ["case_unfamiliar.csv"], "platforms": ["storage"], "parameters": {"case_ref": null, "ask_amount": null, "decision": null}}}', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=1793151021, model='llama3.1:8b', object='chat.completion', moderation=None, service_tier=None, system_fingerprint='fp_ollama', usage=CompletionUsage(completion_tokens=47, prompt_tokens=391, total_tokens=438, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cache_write_tokens=None, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="2">
+<exception>
+    No tool calls or function call found in response (mode: TOOLS)
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-642', choices=[Choice(finish_reason='stop', index=0, logprobs=ChoiceLogprobs(content=[ChatCompletionTokenLogprob(token='{"', bytes=[123, 34], logprob=-0.006737982854247093, top_logprobs=None), ChatCompletionTokenLogprob(token='name', bytes=[110, 97, 109, 101], logprob=-3.8442605728050694e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0004938874044455588, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.008438687771558762, top_logprobs=None), ChatCompletionTokenLogprob(token='recall', bytes=[114, 101, 99, 97, 108, 108], logprob=-0.28426313400268555, top_logprobs=None), ChatCompletionTokenLogprob(token='_function', bytes=[95, 102, 117, 110, 99, 116, 105, 111, 110], logprob=-0.5950285792350769, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.0490475594997406, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0022583024110645056, top_logprobs=None), ChatCompletionTokenLogprob(token='parameters', bytes=[112, 97, 114, 97, 109, 101, 116, 101, 114, 115], logprob=-6.471478627645411e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-7.88584366091527e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' {"', bytes=[32, 123, 34], logprob=-0.016117140650749207, top_logprobs=None), ChatCompletionTokenLogprob(token='command', bytes=[99, 111, 109, 109, 97, 110, 100], logprob=-2.1381397247314453, top_logprobs=None), ChatCompletionTokenLogprob(token='_type', bytes=[95, 116, 121, 112, 101], logprob=-0.05400371178984642, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0016104462556540966, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.01639685407280922, top_logprobs=None), ChatCompletionTokenLogprob(token='report', bytes=[114, 101, 112, 111, 114, 116], logprob=-2.23690128326416, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.006712805014103651, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0002459936949890107, top_logprobs=None), ChatCompletionTokenLogprob(token='confidence', bytes=[99, 111, 110, 102, 105, 100, 101, 110, 99, 101], logprob=-1.1337891817092896, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-2.025461981247645e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.06266803294420242, top_logprobs=None), ChatCompletionTokenLogprob(token='0', bytes=[48], logprob=-0.41115042567253113, top_logprobs=None), ChatCompletionTokenLogprob(token='.', bytes=[46], logprob=-0.0030649045947939157, top_logprobs=None), ChatCompletionTokenLogprob(token='8', bytes=[56], logprob=-0.49104738235473633, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.0019094522576779127, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.00019209853780921549, top_logprobs=None), ChatCompletionTokenLogprob(token='entities', bytes=[101, 110, 116, 105, 116, 105, 101, 115], logprob=-0.026828905567526817, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-3.430927972658537e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.03256175294518471, top_logprobs=None), ChatCompletionTokenLogprob(token='case', bytes=[99, 97, 115, 101], logprob=-0.5419065356254578, top_logprobs=None), ChatCompletionTokenLogprob(token='_un', bytes=[95, 117, 110], logprob=-0.0016852628905326128, top_logprobs=None), ChatCompletionTokenLogprob(token='f', bytes=[102], logprob=-3.056134119105991e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='amiliar', bytes=[97, 109, 105, 108, 105, 97, 114], logprob=-1.7229356217285385e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='.csv', bytes=[46, 99, 115, 118], logprob=-0.0003871628432534635, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.05849852040410042, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.00010654125071596354, top_logprobs=None), ChatCompletionTokenLogprob(token='parameters', bytes=[112, 97, 114, 97, 109, 101, 116, 101, 114, 115], logprob=-0.05008195340633392, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-1.3847902664565481e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' {"', bytes=[32, 123, 34], logprob=-0.004041882231831551, top_logprobs=None), ChatCompletionTokenLogprob(token='error', bytes=[101, 114, 114, 111, 114], logprob=-1.7381914854049683, top_logprobs=None), ChatCompletionTokenLogprob(token='_message', bytes=[95, 109, 101, 115, 115, 97, 103, 101], logprob=-1.6420437097549438, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00021373630443122238, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0021494519896805286, top_logprobs=None), ChatCompletionTokenLogprob(token='No', bytes=[78, 111], logprob=-0.36505284905433655, top_logprobs=None), ChatCompletionTokenLogprob(token=' tool', bytes=[32, 116, 111, 111, 108], logprob=-0.00237589655444026, top_logprobs=None), ChatCompletionTokenLogprob(token=' calls', bytes=[32, 99, 97, 108, 108, 115], logprob=-0.0005369606660678983, top_logprobs=None), ChatCompletionTokenLogprob(token=' or', bytes=[32, 111, 114], logprob=-0.0004252078360877931, top_logprobs=None), ChatCompletionTokenLogprob(token=' function', bytes=[32, 102, 117, 110, 99, 116, 105, 111, 110], logprob=-2.5237788577214815e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' call', bytes=[32, 99, 97, 108, 108], logprob=-0.002564883092418313, top_logprobs=None), ChatCompletionTokenLogprob(token=' found', bytes=[32, 102, 111, 117, 110, 100], logprob=-0.00010637783270794898, top_logprobs=None), ChatCompletionTokenLogprob(token=' in', bytes=[32, 105, 110], logprob=-0.1392928659915924, top_logprobs=None), ChatCompletionTokenLogprob(token=' response', bytes=[32, 114, 101, 115, 112, 111, 110, 115, 101], logprob=-0.0003418897103983909, top_logprobs=None), ChatCompletionTokenLogprob(token=' (', bytes=[32, 40], logprob=-0.7607420682907104, top_logprobs=None), ChatCompletionTokenLogprob(token='mode', bytes=[109, 111, 100, 101], logprob=-4.881196946371347e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=':', bytes=[58], logprob=-4.6817549446132034e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' TO', bytes=[32, 84, 79], logprob=-0.008522158488631248, top_logprobs=None), ChatCompletionTokenLogprob(token='OLS', bytes=[79, 76, 83], logprob=-4.557554802886443e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=')"', bytes=[41, 34], logprob=-0.20168247818946838, top_logprobs=None), ChatCompletionTokenLogprob(token='}}}', bytes=[125, 125, 125], logprob=-0.7217074632644653, top_logprobs=None)], refusal=None), message=ChatCompletionMessage(content='{"name": "recall_function", "parameters": {"command_type": "report", "confidence": 0.8, "entities": ["case_unfamiliar.csv"], "parameters": {"error_message": "No tool calls or function call found in response (mode: TOOLS)"}}}', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=1793151025, model='llama3.1:8b', object='chat.completion', moderation=None, service_tier=None, system_fingerprint='fp_ollama', usage=CompletionUsage(completion_tokens=107, prompt_tokens=866, total_tokens=973, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cache_write_tokens=None, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="3">
+<exception>
+    No tool calls or function call found in response (mode: TOOLS)
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-719', choices=[Choice(finish_reason='stop', index=0, logprobs=ChoiceLogprobs(content=[ChatCompletionTokenLogprob(token='{"', bytes=[123, 34], logprob=-0.2733467221260071, top_logprobs=None), ChatCompletionTokenLogprob(token='name', bytes=[110, 97, 109, 101], logprob=-6.116302392911166e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0005173385143280029, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.001251110341399908, top_logprobs=None), ChatCompletionTokenLogprob(token='recall', bytes=[114, 101, 99, 97, 108, 108], logprob=-0.9721714854240417, top_logprobs=None), ChatCompletionTokenLogprob(token='_function', bytes=[95, 102, 117, 110, 99, 116, 105, 111, 110], logprob=-0.015395385213196278, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.0018443423323333263, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.015828359872102737, top_logprobs=None), ChatCompletionTokenLogprob(token='parameters', bytes=[112, 97, 114, 97, 109, 101, 116, 101, 114, 115], logprob=-1.381028414471075e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-9.563350613461807e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' {"', bytes=[32, 123, 34], logprob=-0.04174412786960602, top_logprobs=None), ChatCompletionTokenLogprob(token='command', bytes=[99, 111, 109, 109, 97, 110, 100], logprob=-0.4683088958263397, top_logprobs=None), ChatCompletionTokenLogprob(token='_type', bytes=[95, 116, 121, 112, 101], logprob=-0.004544912837445736, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00020099982793908566, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0012857323745265603, top_logprobs=None), ChatCompletionTokenLogprob(token='report', bytes=[114, 101, 112, 111, 114, 116], logprob=-0.3417535722255707, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.0038774379063397646, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.000742775562684983, top_logprobs=None), ChatCompletionTokenLogprob(token='confidence', bytes=[99, 111, 110, 102, 105, 100, 101, 110, 99, 101], logprob=-0.14236952364444733, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-1.5865058230701834e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.016221288591623306, top_logprobs=None), ChatCompletionTokenLogprob(token='0', bytes=[48], logprob=-0.06712086498737335, top_logprobs=None), ChatCompletionTokenLogprob(token='.', bytes=[46], logprob=-0.003607998602092266, top_logprobs=None), ChatCompletionTokenLogprob(token='8', bytes=[56], logprob=-0.04033372923731804, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.0024422877468168736, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0019985265098512173, top_logprobs=None), ChatCompletionTokenLogprob(token='entities', bytes=[101, 110, 116, 105, 116, 105, 101, 115], logprob=-0.029717518016695976, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-6.987194501562044e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.022679917514324188, top_logprobs=None), ChatCompletionTokenLogprob(token='case', bytes=[99, 97, 115, 101], logprob=-0.006785986479371786, top_logprobs=None), ChatCompletionTokenLogprob(token='_un', bytes=[95, 117, 110], logprob=-0.00028480676701292396, top_logprobs=None), ChatCompletionTokenLogprob(token='f', bytes=[102], logprob=-5.332913701749931e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='amiliar', bytes=[97, 109, 105, 108, 105, 97, 114], logprob=-8.457387252747139e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='.csv', bytes=[46, 99, 115, 118], logprob=-1.8986584109370597e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.09537608921527863, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0007636945229023695, top_logprobs=None), ChatCompletionTokenLogprob(token='platform', bytes=[112, 108, 97, 116, 102, 111, 114, 109], logprob=-1.2715967893600464, top_logprobs=None), ChatCompletionTokenLogprob(token='s', bytes=[115], logprob=-0.002506369026377797, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00027710714493878186, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.010110406205058098, top_logprobs=None), ChatCompletionTokenLogprob(token='storage', bytes=[115, 116, 111, 114, 97, 103, 101], logprob=-0.5259292125701904, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.05928238481283188, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.00048032376798801124, top_logprobs=None), ChatCompletionTokenLogprob(token='reason', bytes=[114, 101, 97, 115, 111, 110], logprob=-1.5534582138061523, top_logprobs=None), ChatCompletionTokenLogprob(token='ing', bytes=[105, 110, 103], logprob=-0.000759187329094857, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0001222281571244821, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.013909782283008099, top_logprobs=None), ChatCompletionTokenLogprob(token='No', bytes=[78, 111], logprob=-1.274880051612854, top_logprobs=None), ChatCompletionTokenLogprob(token=' tool', bytes=[32, 116, 111, 111, 108], logprob=-0.26277923583984375, top_logprobs=None), ChatCompletionTokenLogprob(token=' calls', bytes=[32, 99, 97, 108, 108, 115], logprob=-0.0024623493663966656, top_logprobs=None), ChatCompletionTokenLogprob(token=' or', bytes=[32, 111, 114], logprob=-0.0012230887077748775, top_logprobs=None), ChatCompletionTokenLogprob(token=' function', bytes=[32, 102, 117, 110, 99, 116, 105, 111, 110], logprob=-0.0001951761223608628, top_logprobs=None), ChatCompletionTokenLogprob(token=' call', bytes=[32, 99, 97, 108, 108], logprob=-0.06330381333827972, top_logprobs=None), ChatCompletionTokenLogprob(token=' found', bytes=[32, 102, 111, 117, 110, 100], logprob=-0.0014621986774727702, top_logprobs=None), ChatCompletionTokenLogprob(token=' in', bytes=[32, 105, 110], logprob=-0.0068629528395831585, top_logprobs=None), ChatCompletionTokenLogprob(token=' response', bytes=[32, 114, 101, 115, 112, 111, 110, 115, 101], logprob=-0.010676117613911629, top_logprobs=None), ChatCompletionTokenLogprob(token=' (', bytes=[32, 40], logprob=-0.14029811322689056, top_logprobs=None), ChatCompletionTokenLogprob(token='mode', bytes=[109, 111, 100, 101], logprob=-6.49287539999932e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=':', bytes=[58], logprob=-1.718314342724625e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' TO', bytes=[32, 84, 79], logprob=-0.008253837935626507, top_logprobs=None), ChatCompletionTokenLogprob(token='OLS', bytes=[79, 76, 83], logprob=-9.611603957182524e-08, top_logprobs=None), ChatCompletionTokenLogprob(token=')"', bytes=[41, 34], logprob=-0.11328304558992386, top_logprobs=None), ChatCompletionTokenLogprob(token='}}', bytes=[125, 125], logprob=-0.004240266978740692, top_logprobs=None)], refusal=None), message=ChatCompletionMessage(content='{"name": "recall_function", "parameters": {"command_type": "report", "confidence": 0.8, "entities": ["case_unfamiliar.csv"], "platforms": ["storage"], "reasoning": "No tool calls or function call found in response (mode: TOOLS)"}}', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=1793151034, model='llama3.1:8b', object='chat.completion', moderation=None, service_tier=None, system_fingerprint='fp_ollama', usage=CompletionUsage(completion_tokens=171, prompt_tokens=1438, total_tokens=1609, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cache_write_tokens=None, cached_tokens=0)))
+</completion>
+</generation>
+
+<generation number="4">
+<exception>
+    No tool calls or function call found in response (mode: TOOLS)
+</exception>
+<completion>
+    ChatCompletion(id='chatcmpl-130', choices=[Choice(finish_reason='stop', index=0, logprobs=ChoiceLogprobs(content=[ChatCompletionTokenLogprob(token='{"', bytes=[123, 34], logprob=-0.13459745049476624, top_logprobs=None), ChatCompletionTokenLogprob(token='name', bytes=[110, 97, 109, 101], logprob=-2.4472792574670166e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.0005200949963182211, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0024920781143009663, top_logprobs=None), ChatCompletionTokenLogprob(token='recall', bytes=[114, 101, 99, 97, 108, 108], logprob=-1.824843406677246, top_logprobs=None), ChatCompletionTokenLogprob(token='_function', bytes=[95, 102, 117, 110, 99, 116, 105, 111, 110], logprob=-0.007214216515421867, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.0009372325148433447, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.010270494036376476, top_logprobs=None), ChatCompletionTokenLogprob(token='parameters', bytes=[112, 97, 114, 97, 109, 101, 116, 101, 114, 115], logprob=-1.4493743947241455e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00014614754763897508, top_logprobs=None), ChatCompletionTokenLogprob(token=' {"', bytes=[32, 123, 34], logprob=-0.027339018881320953, top_logprobs=None), ChatCompletionTokenLogprob(token='command', bytes=[99, 111, 109, 109, 97, 110, 100], logprob=-0.7621533870697021, top_logprobs=None), ChatCompletionTokenLogprob(token='_type', bytes=[95, 116, 121, 112, 101], logprob=-0.007173256948590279, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-0.00023687009525019675, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0009154175058938563, top_logprobs=None), ChatCompletionTokenLogprob(token='report', bytes=[114, 101, 112, 111, 114, 116], logprob=-0.2244013398885727, top_logprobs=None), ChatCompletionTokenLogprob(token='",', bytes=[34, 44], logprob=-0.0034831867087632418, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.00037246986175887287, top_logprobs=None), ChatCompletionTokenLogprob(token='confidence', bytes=[99, 111, 110, 102, 105, 100, 101, 110, 99, 101], logprob=-0.16172046959400177, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-1.2022923328913748e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.01730508916079998, top_logprobs=None), ChatCompletionTokenLogprob(token='0', bytes=[48], logprob=-0.06720506399869919, top_logprobs=None), ChatCompletionTokenLogprob(token='.', bytes=[46], logprob=-0.002528921002522111, top_logprobs=None), ChatCompletionTokenLogprob(token='8', bytes=[56], logprob=-0.023022910580039024, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.0018000907730311155, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0008608323987573385, top_logprobs=None), ChatCompletionTokenLogprob(token='entities', bytes=[101, 110, 116, 105, 116, 105, 101, 115], logprob=-0.047270797193050385, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-5.364535900298506e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.02484426647424698, top_logprobs=None), ChatCompletionTokenLogprob(token='case', bytes=[99, 97, 115, 101], logprob=-0.0034164786338806152, top_logprobs=None), ChatCompletionTokenLogprob(token='_un', bytes=[95, 117, 110], logprob=-0.00020990117627661675, top_logprobs=None), ChatCompletionTokenLogprob(token='f', bytes=[102], logprob=-3.885170372086577e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='amiliar', bytes=[97, 109, 105, 108, 105, 97, 114], logprob=-2.0636363728954166e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='.csv', bytes=[46, 99, 115, 118], logprob=-1.2697453712462448e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.05937669053673744, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.0003949515230488032, top_logprobs=None), ChatCompletionTokenLogprob(token='platform', bytes=[112, 108, 97, 116, 102, 111, 114, 109], logprob=-0.17453092336654663, top_logprobs=None), ChatCompletionTokenLogprob(token='s', bytes=[115], logprob=-0.001593800145201385, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-9.201343345921487e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' ["', bytes=[32, 91, 34], logprob=-0.006840152200311422, top_logprobs=None), ChatCompletionTokenLogprob(token='storage', bytes=[115, 116, 111, 114, 97, 103, 101], logprob=-0.014319968409836292, top_logprobs=None), ChatCompletionTokenLogprob(token='"],', bytes=[34, 93, 44], logprob=-0.03859780356287956, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.00047840154729783535, top_logprobs=None), ChatCompletionTokenLogprob(token='reason', bytes=[114, 101, 97, 115, 111, 110], logprob=-0.07011760771274567, top_logprobs=None), ChatCompletionTokenLogprob(token='ing', bytes=[105, 110, 103], logprob=-6.264957482926548e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='":', bytes=[34, 58], logprob=-6.909324292792007e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' "', bytes=[32, 34], logprob=-0.012186368927359581, top_logprobs=None), ChatCompletionTokenLogprob(token='No', bytes=[78, 111], logprob=-0.10744201391935349, top_logprobs=None), ChatCompletionTokenLogprob(token=' tool', bytes=[32, 116, 111, 111, 108], logprob=-0.05422224849462509, top_logprobs=None), ChatCompletionTokenLogprob(token=' calls', bytes=[32, 99, 97, 108, 108, 115], logprob=-0.001123496564105153, top_logprobs=None), ChatCompletionTokenLogprob(token=' or', bytes=[32, 111, 114], logprob=-0.0003793092037085444, top_logprobs=None), ChatCompletionTokenLogprob(token=' function', bytes=[32, 102, 117, 110, 99, 116, 105, 111, 110], logprob=-0.00012498439173214138, top_logprobs=None), ChatCompletionTokenLogprob(token=' call', bytes=[32, 99, 97, 108, 108], logprob=-0.002801234368234873, top_logprobs=None), ChatCompletionTokenLogprob(token=' found', bytes=[32, 102, 111, 117, 110, 100], logprob=-0.0004009480180684477, top_logprobs=None), ChatCompletionTokenLogprob(token=' in', bytes=[32, 105, 110], logprob=-0.0027397286612540483, top_logprobs=None), ChatCompletionTokenLogprob(token=' response', bytes=[32, 114, 101, 115, 112, 111, 110, 115, 101], logprob=-0.0072880457155406475, top_logprobs=None), ChatCompletionTokenLogprob(token=' (', bytes=[32, 40], logprob=-0.01248733140528202, top_logprobs=None), ChatCompletionTokenLogprob(token='mode', bytes=[109, 111, 100, 101], logprob=-5.684285861207172e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=':', bytes=[58], logprob=-1.5399002222693525e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' TO', bytes=[32, 84, 79], logprob=-0.004655872005969286, top_logprobs=None), ChatCompletionTokenLogprob(token='OLS', bytes=[79, 76, 83], logprob=-3.1724013638267934e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=')"', bytes=[41, 34], logprob=-0.030209412798285484, top_logprobs=None), ChatCompletionTokenLogprob(token='}}', bytes=[125, 125], logprob=-0.0076636080630123615, top_logprobs=None)], refusal=None), message=ChatCompletionMessage(content='{"name": "recall_function", "parameters": {"command_type": "report", "confidence": 0.8, "entities": ["case_unfamiliar.csv"], "platforms": ["storage"], "reasoning": "No tool calls or function call found in response (mode: TOOLS)"}}', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=None))], created=1793151043, model='llama3.1:8b', object='chat.completion', moderation=None, service_tier=None, system_fingerprint='fp_ollama', usage=CompletionUsage(completion_tokens=235, prompt_tokens=2111, total_tokens=2346, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=0, reasoning_tokens=0, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=0, cache_write_tokens=None, cached_tokens=0)))
+</completion>
+</generation>
+
+</failed_attempts>
+
+<last_exception>
+    No tool calls or function call found in response (mode: TOOLS)
+</last_exception>
+INFO:integrations.chat_orchestrator:Routing to features: [<FeatureType.AGENT: 'agent'>]
+INFO:integrations.chat_orchestrator:Executing handler for FeatureType.AGENT
+INFO:core.lancedb_handler:Creating isolated LanceDBHandler for workspace: default at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom_journey_review_boundary_nv23_t7u/data/atom_memory/default
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:core.embedding_service:Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO:core.lancedb_handler:LanceDBHandler initialized. ID: 5262913808. LANCEDB_AVAILABLE: True
+INFO:core.workflow_template_system:Template manager initialized with 28 templates
+INFO:enhanced_ai_workflow_endpoints:RealAIWorkflowService modernized with unified LLMService.
+WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+INFO:core.atom_meta_agent:Atom executing request: Assess each Open case in case_unfamiliar.csv using... (mode: manual)
+INFO:core.lancedb_handler:Lazy loading LanceDB connection...
+INFO:core.lancedb_handler:Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom_journey_review_boundary_nv23_t7u/data/atom_memory/default with storage_options=None
+INFO:core.lancedb_handler:LanceDB connected successfully
+INFO:core.embedding_service:Loading FastEmbed model: BAAI/bge-small-en-v1.5
+INFO:core.graphrag_engine:Hybrid search: vector leg found 0 nodes
+INFO:core.graphrag_engine:Hybrid search: keyword leg found 0 nodes
+WARNING:core.lancedb_handler:embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+INFO:core.agent_world_model:Found 0 relevant formulas for agent task
+INFO:core.agent_world_model:Retrieved 5 recent conversation messages
+WARNING:core.agent_governance_service:can_perform_action() called from a running event loop (agent=atom_main action=read_memory); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+WARNING:core.agent_governance_service:can_perform_action() called from a running event loop (agent=atom_main action=semantic_search); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+INFO:tools.registry:Initializing tool registry...
+INFO:tools.registry:Discovering tools from modules: ['tools.dataset_tool', 'tools.device_tool', 'tools.canvas_crud_tool', 'tools.productivity_tool', 'tools.drive_tool', 'tools.data_analysis_tool', 'tools.agent_radio_tool', 'tools.media_tool', 'tools.canvas_docs_tool', 'tools.creative_tool', 'tools.memory_tool', 'tools.canvas_orchestration_tool', 'tools.platform_management_tool', 'tools.canvas_sheets_tool', 'tools.browser_tool', 'tools.canvas_terminal_tool', 'tools.canvas_email_tool', 'tools.pdf_canvas_tool', 'tools.email_attachment_tool', 'tools.agent_guidance_canvas_tool', 'tools.calendar_tool', 'tools.canvas_coding_tool', 'tools.mini_app_tool', 'tools.canvas_tool', 'tools.smarthome_tool', 'tools.email_ingest_tool', 'tools.office_tool']
+INFO:tools.registry:Registered tool: find_datasets v1.0.0 (dataset)
+INFO:tools.registry:Registered tool: load_registered_dataset v1.0.0 (dataset)
+INFO:tools.registry:Registered tool: device_camera_snap v1.0.0 (device)
+INFO:tools.registry:Registered tool: device_execute_command v1.0.0 (device)
+INFO:tools.registry:Registered tool: device_get_location v1.0.0 (device)
+INFO:tools.registry:Registered tool: device_screen_record_start v1.0.0 (device)
+INFO:tools.registry:Registered tool: device_screen_record_stop v1.0.0 (device)
+INFO:tools.registry:Registered tool: device_send_notification v1.0.0 (device)
+INFO:tools.registry:Registered tool: execute_device_command v1.0.0 (device)
+INFO:tools.registry:Registered tool: get_device_info v1.0.0 (device)
+INFO:tools.registry:Registered tool: list_devices v1.0.0 (device)
+INFO:tools.registry:Registered tool: send_device_command v1.0.0 (device)
+INFO:tools.registry:Registered tool: delete_canvas v1.0.0 (canvas_crud)
+INFO:tools.registry:Registered tool: list_canvas_versions v1.0.0 (canvas_crud)
+INFO:tools.registry:Registered tool: list_canvases v1.0.0 (canvas_crud)
+INFO:tools.registry:Registered tool: read_canvas v1.0.0 (canvas_crud)
+INFO:tools.registry:Registered tool: restore_canvas_version v1.0.0 (canvas_crud)
+INFO:tools.registry:Registered tool: restore_deleted_canvas v1.0.0 (canvas_crud)
+INFO:tools.registry:Registered tool: update_canvas_content v1.0.0 (canvas_crud)
+INFO:tools.registry:Registered tool: integration_ingest_item v1.0.0 (drive)
+INFO:tools.registry:Registered tool: integration_search_index v1.0.0 (drive)
+INFO:tools.registry:Registered tool: analyze_data v1.0.0 (data_analysis)
+INFO:tools.registry:Registered tool: describe_data v1.0.0 (data_analysis)
+INFO:tools.registry:Registered tool: list_datasets v1.0.0 (data_analysis)
+INFO:tools.registry:Registered tool: load_dataset v1.0.0 (data_analysis)
+INFO:tools.registry:Registered tool: query_data v1.0.0 (data_analysis)
+INFO:tools.registry:Registered tool: radio_create_thread v1.0.0 (agent_radio)
+INFO:tools.registry:Registered tool: radio_read_inbox v1.0.0 (agent_radio)
+INFO:tools.registry:Registered tool: radio_send_message v1.0.0 (agent_radio)
+INFO:tools.registry:Registered tool: radio_wait_for_mention v1.0.0 (agent_radio)
+WARNING:core.media.sonos_service:SoCo library not installed - Sonos functions will fail
+INFO:tools.registry:Registered tool: spotify_current v1.0.0 (media)
+INFO:tools.registry:Registered tool: spotify_play v1.0.0 (media)
+INFO:tools.registry:Registered tool: spotify_pause v1.0.0 (media)
+INFO:tools.registry:Registered tool: spotify_next v1.0.0 (media)
+INFO:tools.registry:Registered tool: spotify_previous v1.0.0 (media)
+INFO:tools.registry:Registered tool: spotify_volume v1.0.0 (media)
+INFO:tools.registry:Registered tool: spotify_devices v1.0.0 (media)
+INFO:tools.registry:Registered tool: sonos_discover v1.0.0 (media)
+INFO:tools.registry:Registered tool: sonos_play v1.0.0 (media)
+INFO:tools.registry:Registered tool: sonos_pause v1.0.0 (media)
+INFO:tools.registry:Registered tool: sonos_volume v1.0.0 (media)
+INFO:tools.registry:Registered tool: sonos_groups v1.0.0 (media)
+{"level": "INFO", "message": "Media control tools registered with tool registry", "timestamp": "2026-10-28T01:30:43.557327+00:00", "logger": "tools.media_tool", "module": "structured_logger", "function": "_log", "line": 118}
+INFO:tools.media_tool:Media control tools registered with tool registry
+INFO:tools.registry:Registered tool: present_docs_canvas v1.0.0 (canvas_docs)
+INFO:tools.registry:Registered tool: present_specialized_canvas v1.0.0 (canvas_docs)
+INFO:tools.registry:Registered tool: update_docs_canvas v1.0.0 (canvas_docs)
+{"level": "INFO", "message": "FFmpeg Python library loaded successfully", "timestamp": "2026-10-28T01:30:43.564752+00:00", "logger": "core.creative.ffmpeg_service", "module": "structured_logger", "function": "_log", "line": 118}
+INFO:core.creative.ffmpeg_service:FFmpeg Python library loaded successfully
+{"level": "INFO", "message": "FFmpegService initialized", "timestamp": "2026-10-28T01:30:43.565054+00:00", "logger": "core.creative.ffmpeg_service", "module": "structured_logger", "function": "_log", "line": 118, "allowed_dirs": ["./data/media", "./data/exports", "/app/data/media", "/app/data/exports"], "job_timeout": 300}
+INFO:core.creative.ffmpeg_service:FFmpegService initialized
+{"level": "INFO", "message": "FFmpegTool initialized", "timestamp": "2026-10-28T01:30:43.565091+00:00", "logger": "tools.creative_tool", "module": "structured_logger", "function": "_log", "line": 118, "service_available": true}
+INFO:tools.creative_tool:FFmpegTool initialized
+INFO:tools.registry:Registered tool: ffmpeg_edit v1.0.0 (creative)
+{"level": "INFO", "message": "FFmpeg creative tool registered", "timestamp": "2026-10-28T01:30:43.565145+00:00", "logger": "tools.creative_tool", "module": "structured_logger", "function": "_log", "line": 118, "category": "creative"}
+INFO:tools.creative_tool:FFmpeg creative tool registered
+INFO:tools.registry:Registered tool: memory_forget v1.0.0 (memory)
+INFO:tools.registry:Registered tool: memory_remember v1.0.0 (memory)
+INFO:tools.registry:Registered tool: present_orchestration_canvas v1.0.0 (canvas_orchestration)
+INFO:tools.registry:Registered tool: add_member_to_team v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: add_member_to_workspace v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: create_team v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: create_tenant v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: create_workspace v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: delete_team v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: delete_tenant v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: delete_workspace v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: get_platform_settings v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: list_tenant_members v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: manage_team v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: manage_tenant_member v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: manage_workspace v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: remove_member_from_team v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: remove_member_from_workspace v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: set_byok_api_key v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: update_platform_setting v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: update_team v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: update_tenant v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: update_tenant_profile v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: update_workspace v1.0.0 (platform_management)
+INFO:tools.registry:Registered tool: present_sheets_canvas v1.0.0 (canvas_sheets)
+INFO:tools.registry:Registered tool: attach_tiebreak v1.0.0 (browser)
+INFO:tools.registry:Registered tool: browser_click v1.0.0 (browser)
+INFO:tools.registry:Registered tool: browser_close_session v1.0.0 (browser)
+INFO:tools.registry:Registered tool: browser_create_session v1.0.0 (browser)
+INFO:tools.registry:Registered tool: browser_execute_script v1.0.0 (browser)
+INFO:tools.registry:Registered tool: browser_extract_text v1.0.0 (browser)
+INFO:tools.registry:Registered tool: browser_fill_form v1.0.0 (browser)
+INFO:tools.registry:Registered tool: browser_get_page_info v1.0.0 (browser)
+INFO:tools.registry:Registered tool: browser_navigate v1.0.0 (browser)
+INFO:tools.registry:Registered tool: browser_screenshot v1.0.0 (browser)
+INFO:tools.registry:Registered tool: present_terminal_canvas v1.0.0 (canvas_terminal)
+INFO:tools.registry:Registered tool: present_email_canvas v1.0.0 (canvas_email)
+INFO:tools.registry:Registered tool: pdf_canvas_annotate v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_apply_page_ops v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_approve v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_attach_to_email v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_flatten v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_generate_from_data v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_get_form_fields v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_get_state v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_list_versions v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_merge_canvas v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_read_text v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_redact v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_send_to_docusign v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_set_form_fields v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_stamp_signature v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: pdf_canvas_submit_for_review v1.0.0 (pdf_canvas)
+INFO:tools.registry:Registered tool: email_attachment_attach v1.0.0 (email_attachment)
+INFO:tools.registry:Registered tool: email_attachment_get_text v1.0.0 (email_attachment)
+INFO:tools.registry:Registered tool: email_attachment_ingest v1.0.0 (email_attachment)
+INFO:tools.registry:Registered tool: email_attachment_list v1.0.0 (email_attachment)
+INFO:tools.registry:Registered tool: email_attachment_remove v1.0.0 (email_attachment)
+INFO:tools.registry:Registered tool: email_attachment_stage_file v1.0.0 (email_attachment)
+INFO:tools.registry:Registered tool: present_coding_canvas v1.0.0 (canvas_coding)
+INFO:tools.registry:Registered tool: mini_app_db_query v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_db_write v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_dev_run v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_get_state v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_install v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_list v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_logic_history v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_publish v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_revert_logic v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_run v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_run_tests v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_scaffold v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_set_tests v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_status v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: mini_app_write_logic v1.0.0 (mini_app)
+INFO:tools.registry:Registered tool: canvas_execute_javascript v1.0.0 (canvas)
+INFO:tools.registry:Registered tool: close_canvas v1.0.0 (canvas)
+INFO:tools.registry:Registered tool: present_chart v1.0.0 (canvas)
+INFO:tools.registry:Registered tool: present_form v1.0.0 (canvas)
+INFO:tools.registry:Registered tool: present_markdown v1.0.0 (canvas)
+INFO:tools.registry:Registered tool: present_status_panel v1.0.0 (canvas)
+INFO:tools.registry:Registered tool: present_to_canvas v1.0.0 (canvas)
+INFO:tools.registry:Registered tool: update_canvas v1.0.0 (canvas)
+{"level": "INFO", "message": "python-hue-v2 library loaded - Hue integration enabled", "timestamp": "2026-10-28T01:30:43.745760+00:00", "logger": "core.smarthome.hue_service", "module": "structured_logger", "function": "_log", "line": 118}
+INFO:core.smarthome.hue_service:python-hue-v2 library loaded - Hue integration enabled
+INFO:tools.registry:Registered tool: hue_discover_bridges v1.0.0 (smarthome)
+INFO:tools.registry:Registered tool: hue_get_lights v1.0.0 (smarthome)
+INFO:tools.registry:Registered tool: hue_set_light_state v1.0.0 (smarthome)
+INFO:tools.registry:Registered tool: home_assistant_get_states v1.0.0 (smarthome)
+INFO:tools.registry:Registered tool: home_assistant_call_service v1.0.0 (smarthome)
+INFO:tools.registry:Registered tool: home_assistant_get_lights v1.0.0 (smarthome)
+{"level": "INFO", "message": "Smart home tools registered with ToolRegistry", "timestamp": "2026-10-28T01:30:43.746450+00:00", "logger": "tools.smarthome_tool", "module": "structured_logger", "function": "_log", "line": 118}
+INFO:tools.smarthome_tool:Smart home tools registered with ToolRegistry
+INFO:tools.registry:Registered tool: email_ingest_message v1.0.0 (email_ingest)
+INFO:tools.registry:Registered tool: add_excel_pivot_table v1.0.0 (office)
+INFO:tools.registry:Registered tool: get_excel_formula_result v1.0.0 (office)
+INFO:tools.registry:Registered tool: insert_excel_columns v1.0.0 (office)
+INFO:tools.registry:Registered tool: insert_excel_rows v1.0.0 (office)
+INFO:tools.registry:Registered tool: modify_pptx_slides v1.0.0 (office)
+INFO:tools.registry:Registered tool: modify_word_document v1.0.0 (office)
+INFO:tools.registry:Registered tool: present_coedit_canvas v1.0.0 (office)
+INFO:tools.registry:Registered tool: read_excel_cell v1.0.0 (office)
+INFO:tools.registry:Registered tool: read_pptx_slides v1.0.0 (office)
+INFO:tools.registry:Registered tool: read_word_document v1.0.0 (office)
+INFO:tools.registry:Registered tool: recalculate_excel v1.0.0 (office)
+INFO:tools.registry:Registered tool: run_excel_macro v1.0.0 (office)
+INFO:tools.registry:Registered tool: write_excel_cell v1.0.0 (office)
+INFO:tools.registry:Tool discovery complete. Discovered 131 new tools. Total tools: 149
+WARNING:tools.registry:Tool 'present_chart' already registered, updating...
+INFO:tools.registry:Registered tool: present_chart v1.2.0 (canvas)
+WARNING:tools.registry:Tool 'present_markdown' already registered, updating...
+INFO:tools.registry:Registered tool: present_markdown v1.2.0 (canvas)
+WARNING:tools.registry:Tool 'present_form' already registered, updating...
+INFO:tools.registry:Registered tool: present_form v1.2.0 (canvas)
+WARNING:tools.registry:Tool 'update_canvas' already registered, updating...
+INFO:tools.registry:Registered tool: update_canvas v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'read_canvas' already registered, updating...
+INFO:tools.registry:Registered tool: read_canvas v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'update_canvas_content' already registered, updating...
+INFO:tools.registry:Registered tool: update_canvas_content v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'delete_canvas' already registered, updating...
+INFO:tools.registry:Registered tool: delete_canvas v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'list_canvases' already registered, updating...
+INFO:tools.registry:Registered tool: list_canvases v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'browser_create_session' already registered, updating...
+INFO:tools.registry:Registered tool: browser_create_session v1.0.0 (browser)
+WARNING:tools.registry:Tool 'browser_navigate' already registered, updating...
+INFO:tools.registry:Registered tool: browser_navigate v1.0.0 (browser)
+WARNING:tools.registry:Tool 'browser_screenshot' already registered, updating...
+INFO:tools.registry:Registered tool: browser_screenshot v1.0.0 (browser)
+WARNING:tools.registry:Tool 'browser_fill_form' already registered, updating...
+INFO:tools.registry:Registered tool: browser_fill_form v1.0.0 (browser)
+WARNING:tools.registry:Tool 'browser_click' already registered, updating...
+INFO:tools.registry:Registered tool: browser_click v1.0.0 (browser)
+WARNING:tools.registry:Tool 'browser_extract_text' already registered, updating...
+INFO:tools.registry:Registered tool: browser_extract_text v1.0.0 (browser)
+WARNING:tools.registry:Tool 'browser_execute_script' already registered, updating...
+INFO:tools.registry:Registered tool: browser_execute_script v1.0.0 (browser)
+WARNING:tools.registry:Tool 'browser_close_session' already registered, updating...
+INFO:tools.registry:Registered tool: browser_close_session v1.0.0 (browser)
+WARNING:tools.registry:Tool 'browser_get_page_info' already registered, updating...
+INFO:tools.registry:Registered tool: browser_get_page_info v1.0.0 (browser)
+INFO:tools.registry:Registered tool: operator_start_task v1.0.0 (browser)
+INFO:tools.registry:Registered tool: operator_get_status v1.0.0 (browser)
+INFO:tools.registry:Registered tool: operator_get_screenshot v1.0.0 (browser)
+INFO:tools.registry:Registered tool: operator_stop_task v1.0.0 (browser)
+WARNING:tools.registry:Tool 'device_camera_snap' already registered, updating...
+INFO:tools.registry:Registered tool: device_camera_snap v1.0.0 (device)
+WARNING:tools.registry:Tool 'device_screen_record_start' already registered, updating...
+INFO:tools.registry:Registered tool: device_screen_record_start v1.0.0 (device)
+WARNING:tools.registry:Tool 'device_screen_record_stop' already registered, updating...
+INFO:tools.registry:Registered tool: device_screen_record_stop v1.0.0 (device)
+WARNING:tools.registry:Tool 'device_get_location' already registered, updating...
+INFO:tools.registry:Registered tool: device_get_location v1.0.0 (device)
+WARNING:tools.registry:Tool 'device_send_notification' already registered, updating...
+INFO:tools.registry:Registered tool: device_send_notification v1.0.0 (device)
+WARNING:tools.registry:Tool 'device_execute_command' already registered, updating...
+INFO:tools.registry:Registered tool: device_execute_command v1.0.0 (device)
+ERROR:integrations.google_calendar_service:No Google Calendar credentials provided
+{"level": "INFO", "message": "CalendarTool initialized", "timestamp": "2026-10-28T01:30:43.749292+00:00", "logger": "tools.calendar_tool", "module": "structured_logger", "function": "_log", "line": 118, "tool_available": true, "authenticated": false}
+INFO:tools.calendar_tool:CalendarTool initialized
+INFO:tools.registry:Registered tool: calendar_tool v1.0.0 (productivity)
+{"level": "INFO", "message": "CalendarTool registered with ToolRegistry", "timestamp": "2026-10-28T01:30:43.749339+00:00", "logger": "tools.calendar_tool", "module": "structured_logger", "function": "_log", "line": 118}
+INFO:tools.calendar_tool:CalendarTool registered with ToolRegistry
+{"level": "INFO", "message": "NotionTool initialized", "timestamp": "2026-10-28T01:30:43.749369+00:00", "logger": "tools.productivity_tool", "module": "structured_logger", "function": "_log", "line": 118, "tool_available": true}
+INFO:tools.productivity_tool:NotionTool initialized
+INFO:tools.registry:Registered tool: notion_tool v1.0.0 (productivity)
+{"level": "INFO", "message": "NotionTool registered with ToolRegistry", "timestamp": "2026-10-28T01:30:43.749405+00:00", "logger": "tools.productivity_tool", "module": "structured_logger", "function": "_log", "line": 118}
+INFO:tools.productivity_tool:NotionTool registered with ToolRegistry
+WARNING:tools.registry:Tool 'memory_remember' already registered, updating...
+INFO:tools.registry:Registered tool: memory_remember v1.0.0 (memory)
+WARNING:tools.registry:Tool 'memory_forget' already registered, updating...
+INFO:tools.registry:Registered tool: memory_forget v1.0.0 (memory)
+INFO:tools.memory_tool:memory_remember + memory_forget registered with ToolRegistry
+WARNING:tools.registry:Tool 'integration_search_index' already registered, updating...
+INFO:tools.registry:Registered tool: integration_search_index v1.0.0 (integrations)
+WARNING:tools.registry:Tool 'integration_ingest_item' already registered, updating...
+INFO:tools.registry:Registered tool: integration_ingest_item v1.0.0 (integrations)
+WARNING:tools.registry:Tool 'load_dataset' already registered, updating...
+INFO:tools.registry:Registered tool: load_dataset v1.0.0 (data)
+WARNING:tools.registry:Tool 'analyze_data' already registered, updating...
+INFO:tools.registry:Registered tool: analyze_data v1.0.0 (data)
+WARNING:tools.registry:Tool 'query_data' already registered, updating...
+INFO:tools.registry:Registered tool: query_data v1.0.0 (data)
+WARNING:tools.registry:Tool 'describe_data' already registered, updating...
+INFO:tools.registry:Registered tool: describe_data v1.0.0 (data)
+WARNING:tools.registry:Tool 'list_datasets' already registered, updating...
+INFO:tools.registry:Registered tool: list_datasets v1.0.0 (data)
+INFO:tools.data_analysis_tool:Data analysis tools registered with ToolRegistry
+WARNING:tools.registry:Tool 'find_datasets' already registered, updating...
+INFO:tools.registry:Registered tool: find_datasets v1.0.0 (data)
+WARNING:tools.registry:Tool 'load_registered_dataset' already registered, updating...
+INFO:tools.registry:Registered tool: load_registered_dataset v1.0.0 (data)
+INFO:tools.dataset_tool:Dataset catalog tools registered with ToolRegistry
+INFO:tools.registry:Registered tool: forecast v1.0.0 (data)
+INFO:tools.registry:Registered tool: run_model v1.0.0 (data)
+INFO:tools.predictive_tools:Predictive modeling tools registered with ToolRegistry
+INFO:tools.registry:Registered tool: radio.create_thread v1.0.0 (coordination)
+INFO:tools.registry:Registered tool: radio.send_message v1.0.0 (coordination)
+INFO:tools.registry:Registered tool: radio.wait_for_mention v1.0.0 (coordination)
+INFO:tools.registry:Registered tool: radio.read_inbox v1.0.0 (coordination)
+INFO:tools.agent_radio_tool:radio.* tools registered with ToolRegistry
+WARNING:tools.registry:Tool 'email_attachment_list' already registered, updating...
+INFO:tools.registry:Registered tool: email_attachment_list v1.0.0 (email)
+WARNING:tools.registry:Tool 'email_attachment_get_text' already registered, updating...
+INFO:tools.registry:Registered tool: email_attachment_get_text v1.0.0 (email)
+WARNING:tools.registry:Tool 'email_attachment_stage_file' already registered, updating...
+INFO:tools.registry:Registered tool: email_attachment_stage_file v1.0.0 (email)
+WARNING:tools.registry:Tool 'email_attachment_attach' already registered, updating...
+INFO:tools.registry:Registered tool: email_attachment_attach v1.0.0 (email)
+WARNING:tools.registry:Tool 'email_attachment_remove' already registered, updating...
+INFO:tools.registry:Registered tool: email_attachment_remove v1.0.0 (email)
+WARNING:tools.registry:Tool 'email_attachment_ingest' already registered, updating...
+INFO:tools.registry:Registered tool: email_attachment_ingest v1.0.0 (email)
+WARNING:tools.registry:Tool 'email_ingest_message' already registered, updating...
+INFO:tools.registry:Registered tool: email_ingest_message v1.0.0 (email)
+WARNING:tools.registry:Tool 'pdf_canvas_get_state' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_get_state v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_read_text' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_read_text v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_list_versions' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_list_versions v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_get_form_fields' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_get_form_fields v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_apply_page_ops' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_apply_page_ops v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_merge_canvas' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_merge_canvas v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_submit_for_review' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_submit_for_review v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_set_form_fields' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_set_form_fields v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_flatten' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_flatten v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_annotate' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_annotate v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_generate_from_data' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_generate_from_data v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_approve' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_approve v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_attach_to_email' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_attach_to_email v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_redact' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_redact v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_stamp_signature' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_stamp_signature v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_archive_to_onedrive' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (canvas)
+WARNING:tools.registry:Tool 'pdf_canvas_send_to_docusign' already registered, updating...
+INFO:tools.registry:Registered tool: pdf_canvas_send_to_docusign v1.0.0 (canvas)
+INFO:tools.registry:Tool registry initialized with 161 tools
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:ai.nlp_engine:NaturalLanguageEngine initialized with LLMService for tenant: default
+INFO:httpx:HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+INFO:core.llm.byok_handler:LOCAL-ONLY: admitted healthy local runtime route ollama/llama3.1:8b (probe UP; declared quality 0.90; served: atom-preview, atom-preview:latest, llama3, llama3.1, llama3.1:8b, llama3:8b)
+INFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)
+INFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)
+WARNING:core.llm.byok_handler:[structured-pool] depth=0 candidates=[('ollama', 'llama3.1:8b')] attempted=False credit_failed=[]
+WARNING:core.llm.byok_handler:structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers
+INFO:core.llm.byok_handler:[route-exclusions] {"classification": {"cooldown": 1}, "dispatched": false, "event": "structured_cascade_exhausted", "exclusions": [{"cooldown": {"cause": "quota_exhausted", "detail": "<failed_attempts>\n\n<generation number=\"1\">\n<exception>\n    No tool calls or function call found in response (mode: TOOLS)\n</exception>\n<completion>\n    ChatCompletion(id='chatcmpl-377', choices=[Choic", "seconds_remaining": 1799.6}, "reason": "provider_cooldown", "route": "ollama/llama3.1:8b"}], "interactive": true, "pool": {"families": {"ollama": 1}, "size": 1}, "pre_pool_skips": [], "providers_on_cooldown": {"ollama": {"cause": "quota_exhausted", "detail": "<failed_attempts>\n\n<generation number=\"1\">\n<exception>\n    No tool calls or function call found in response (mode: TOOLS)\n</exception>\n<completion>\n    ChatCompletion(id='chatcmpl-377', choices=[Choic", "seconds_remaining": 1799.6}}, "refresh": "not_eligible", "refresh_providers": [], "trace_id": "structured-e792fd2b1ea6"}
+INFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)
+INFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)
+WARNING:core.llm.byok_handler:[structured-pool] depth=1 candidates=[('ollama', 'llama3.1:8b')] attempted=False credit_failed=[]
+ERROR:core.llm.byok_handler:All structured candidates SKIPPED before dispatch (gate/budget/rate exclusions; 1 of 1 examined) — no request was made
+ERROR:core.llm.byok_handler:All structured candidates SKIPPED before dispatch (gate/budget/rate exclusions; 1 of 1 examined) — no request was made
+WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_step_update'
+WARNING:core.atom_meta_agent:Fleet routing failed, falling back to Queen→ReAct: 'AgentGovernanceService' object has no attribute 'canPerformAction'
+WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_step_update'
+INFO:core.agents.queen_agent:Queen: Designing architecture for goal: Assess each Open case in case_unfamiliar.csv using Ask Amount. Give a table with Case Ref, Ask Amount and decision. (Mode: one_off)
+ERROR:core.agents.queen_agent:Queen: Failed to generate blueprint: BYOKHandler.generate_response() got an unexpected keyword argument 'user_id'
+WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_step_update'
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1
+INFO:core.llm.escalation_manager:EscalationManager initialized
+INFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default
+INFO:core.skill_registry_service:Listed 0 skills (status=Active, type=None)
+INFO:httpx:HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+INFO:core.llm.byok_handler:LOCAL-ONLY: admitted healthy local runtime route ollama/llama3.1:8b (probe UP; declared quality 0.90; served: atom-preview, atom-preview:latest, llama3, llama3.1, llama3.1:8b, llama3:8b)
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.llm.byok_handler:Failed to get tenant plan: No dispatchable LLM route: every configured provider's default model is either not served by its discovered catalogue or on cooldown. You need an AI provider to continue. Add an API key in Settings or enable local Ollama to continue.
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.llm.byok_handler:Failed to fetch tenant plan: No dispatchable LLM route: every configured provider's default model is either not served by its discovered catalogue or on cooldown. You need an AI provider to continue. Add an API key in Settings or enable local Ollama to continue.
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)
+WARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)
+WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_step_update'
+WARNING:core.decision_service:[DecisionService] fallback (URLError: <urlopen error [Errno 61] Connection refused>)
+WARNING:core.decision_service:[DecisionService] fallback (URLError: <urlopen error [Errno 61] Connection refused>)
+INFO:core.lancedb_handler:Table 'agent_experience' created successfully
+INFO:core.lancedb_handler:Document added to 'agent_experience': 09949eab-0d83-44ce-9ed4-5378069236dd
+INFO:core.agent_governance_service:Recorded outcome for atom_main: success
+WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+INFO:integrations.chat_orchestrator:Handler FeatureType.AGENT succeeded
+INFO:integrations.chat_orchestrator:Feature handling complete. Handled: True, Intent: ChatIntent.AGENT_REQUEST
+INFO:integrations.chat_orchestrator:[deadline] chat-request stage=legacy-features dur=0.9s turn_offset=65.8s elapsed=66.8s remaining=28.2s budget=95.0s
+INFO:integrations.chat_orchestrator:[stage-timing] turn finalization: elapsed_s=66.8 review_at_s=39.77 success=True outcome=completed review_required=True
+WARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+WARNING:core.finalization:[apply-dbg] state=completed work_turn=True noop=None success_in=True
+INFO:main_api_app:🏁 [ULTRA LOUD] POST /api/chat/message -> 200
+INFO:main_api_app:🚀 [ULTRA LOUD] GET /api/chat/history/rb-after-restart-9269950d
+INFO:integrations.chat_routes:Retrieving history for session rb-after-restart-9269950d and user 1852ea68-baa8-48bd-9fae-5cd8ba732d77
+INFO:integrations.chat_routes:Loaded 2 messages from DB for session rb-after-restart-9269950d
+INFO:main_api_app:🏁 [ULTRA LOUD] GET /api/chat/history/rb-after-restart-9269950d -> 200

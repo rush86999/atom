@@ -1191,5 +1191,166 @@
     "id": "demo-sales-lead",
     "createdAt": "2025-12-13T00:00:00Z",
     "description": "Demo workflow for sales lead processing"
+  },
+  {
+    "id": "25dac4f8-2089-4f08-9f01-12bee0daf1ce",
+    "name": "Whole-app failure probe",
+    "description": "deterministic failing step",
+    "version": "1.0",
+    "nodes": [
+      {
+        "id": "n1",
+        "type": "action",
+        "title": "Fail deterministically",
+        "description": "unknown service",
+        "position": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "config": {
+          "service": "whole_app_missing_service",
+          "action": "whole_app_missing_action"
+        },
+        "connections": []
+      }
+    ],
+    "connections": [],
+    "triggers": [],
+    "enabled": true,
+    "createdAt": "2026-10-27T14:07:25.957797",
+    "updatedAt": "2026-10-27T14:07:25.957804",
+    "steps": null,
+    "steps_count": null
+  },
+  {
+    "id": "71872d81-c8e5-403d-840c-d6705ed66ff0",
+    "name": "Visual Workflow 2:10:18 PM",
+    "description": "Created via Visual Builder",
+    "version": "1.0",
+    "nodes": [
+      {
+        "id": "1",
+        "type": "ai_node",
+        "title": "AI Processing",
+        "description": "",
+        "position": {
+          "x": 62.67454071564935,
+          "y": 129.42243103727722
+        },
+        "config": {},
+        "connections": []
+      }
+    ],
+    "connections": [],
+    "triggers": [],
+    "enabled": true,
+    "createdAt": "2026-10-27T14:10:18.474478",
+    "updatedAt": "2026-10-27T14:10:18.474483",
+    "steps": null,
+    "steps_count": null
+  },
+  {
+    "id": "ff8d927e-4de7-4324-a236-2374510a3721",
+    "name": "Whole-app noop success",
+    "description": "zero steps",
+    "version": "1.0",
+    "nodes": [],
+    "connections": [],
+    "triggers": [],
+    "enabled": true,
+    "createdAt": "2026-10-27T15:38:53.352889",
+    "updatedAt": "2026-10-27T15:38:53.352900",
+    "steps": null,
+    "steps_count": null
+  },
+  {
+    "id": "651576ab-db5d-48a4-a66c-c5fa6528135c",
+    "name": "Whole-app success probe",
+    "description": "one local database step",
+    "version": "1.0",
+    "nodes": [
+      {
+        "id": "n1",
+        "type": "action",
+        "title": "Local no-op",
+        "description": "local",
+        "position": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "config": {
+          "service": "database",
+          "action": "query"
+        },
+        "connections": []
+      }
+    ],
+    "connections": [],
+    "triggers": [],
+    "enabled": true,
+    "createdAt": "2026-10-27T15:39:13.073363",
+    "updatedAt": "2026-10-27T15:39:13.073369",
+    "steps": null,
+    "steps_count": null
+  },
+  {
+    "id": "7097e99c-eefb-45a0-8d8e-bcd96d581cd5",
+    "name": "Whole-app evidence success",
+    "description": "local database step",
+    "version": "1.0",
+    "nodes": [
+      {
+        "id": "n1",
+        "type": "action",
+        "title": "Local",
+        "description": "local",
+        "position": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "config": {
+          "service": "database",
+          "action": "query"
+        },
+        "connections": []
+      }
+    ],
+    "connections": [],
+    "triggers": [],
+    "enabled": true,
+    "createdAt": "2026-10-27T15:42:26.605779",
+    "updatedAt": "2026-10-27T15:42:26.605784",
+    "steps": null,
+    "steps_count": null
+  },
+  {
+    "id": "a8701989-1330-4321-b547-80b06e426282",
+    "name": "Whole-app evidence success",
+    "description": "local database step",
+    "version": "1.0",
+    "nodes": [
+      {
+        "id": "n1",
+        "type": "action",
+        "title": "Local",
+        "description": "local",
+        "position": {
+          "x": 0.0,
+          "y": 0.0
+        },
+        "config": {
+          "service": "database",
+          "action": "query"
+        },
+        "connections": []
+      }
+    ],
+    "connections": [],
+    "triggers": [],
+    "enabled": true,
+    "createdAt": "2026-10-27T15:43:16.116842",
+    "updatedAt": "2026-10-27T15:43:16.116852",
+    "steps": null,
+    "steps_count": null
   }
 ]

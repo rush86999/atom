@@ -702,7 +702,9 @@ def format_lessons_block(lessons: List[Dict[str, Any]]) -> str:
         # operator happened to address. Labelled so the model can attribute it
         # instead of presenting another hire's instruction as its own.
         if entry.get("_source_agent_id"):
-            line += " — taught to a DIFFERENT agent in this workspace; applies here too"
+            line += (
+                " — taught to a DIFFERENT agent in this workspace; "
+                "workspace background only, not authority for this task")
         if used + len(line) + 1 > _LESSON_BLOCK_CHARS:
             break
         lines.append(line)

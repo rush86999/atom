@@ -1,0 +1,32 @@
+{
+ "id": "485d88e0-a904-4f81-b14b-59fe340e714d",
+ "object": "chat.completion",
+ "created": 1793192009,
+ "model": "deepseek-v4-pro",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```json\n{\n  \"assessments\": [\n    {\n      \"subject_id\": \"IN-7301\",\n      \"decision\": \"DECLINE\",\n      \"basis\": [\n        \"The row vendor_loop!R2 for IN-7301 shows Invoice Amount=3200, which is below 5000. Under policy 044d2b537b4d4a2593dbaca52c64b8da, amounts below 5000 are DECLINE.\"\n      ],\n      \"evidence_ids\": [\n        \"ev:IN-7301:vendor_loop!R2\"\n      ],\n      \"policy_ids\": [\n        \"044d2b537b4d4a2593dbaca52c64b8da\"\n      ],\n      \"unresolved_requirements\": []\n    }\n  ]\n}\n```",
+    "reasoning_content": "We need answer only JSON block. Need assess IN-7301. Need apply policy 044d... threshold rule: Requested amount at or above 10000 HOLD, 5000 to 9999 HOLD, below 5000 DECLINE. Row invoice amount=3200 below 5000 -> DECLINE. Need basis explain using cited row values and policy text. Evidence ids ev:IN-7301:vendor_loop!R2. Policy ids the given. unresolved_requirements []. Decision DECLINE. Need valid JSON fenced block only."
+   },
+   "logprobs": null,
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 912,
+  "completion_tokens": 288,
+  "total_tokens": 1200,
+  "prompt_tokens_details": {
+   "cached_tokens": 0
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 116
+  },
+  "prompt_cache_hit_tokens": 0,
+  "prompt_cache_miss_tokens": 912
+ },
+ "system_fingerprint": "a307abda487cd1b463329ccb945ce396"
+}

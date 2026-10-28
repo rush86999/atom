@@ -1,0 +1,66 @@
+{
+  "steps": [
+    {
+      "name": "board-created",
+      "detail": {
+        "visible": 1,
+        "url": "http://127.0.0.1:3001/boards"
+      }
+    },
+    {
+      "name": "board-open",
+      "detail": {
+        "url": "http://127.0.0.1:3001/boards/adbba242-5aca-4a33-8735-b942849a41f8",
+        "addButtons": 0
+      }
+    },
+    {
+      "name": "task-created",
+      "detail": {
+        "visible": 1
+      }
+    },
+    {
+      "name": "task-after-reload",
+      "detail": {
+        "visible": 0
+      }
+    },
+    {
+      "name": "comment-box-missing",
+      "detail": {}
+    }
+  ],
+  "net": [
+    {
+      "url": "http://127.0.0.1:8105/api/notifications?limit=10",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "http://127.0.0.1:8105/api/notifications?unread_only=true&type=agent_graduated&limit=5",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "/api/v1/preferences?user_id=me&workspace_id=default",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "http://127.0.0.1:8105/api/notifications?limit=10",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "http://127.0.0.1:8105/api/notifications?unread_only=true&type=agent_graduated&limit=5",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    },
+    {
+      "url": "/api/v1/preferences?user_id=me&workspace_id=default",
+      "status": 401,
+      "body": "{\"detail\":\"Could not validate credentials\"}"
+    }
+  ]
+}

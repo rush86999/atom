@@ -105,12 +105,18 @@ export default function GoalRunsIndexPage() {
 
     return (
         <div className="container mx-auto py-8 max-w-4xl" data-testid="goal-runs-page">
-            <Head><title>Goal Runs</title></Head>
+            <Head><title>Activity</title></Head>
             <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
                 <h1 className="text-2xl font-semibold flex items-center gap-2">
-                    <Target className="h-6 w-6" /> Goal Runs
+                    <Target className="h-6 w-6" /> Activity
                 </h1>
                 <div className="flex items-center gap-2">
+                    <Link
+                        href="/execution-history"
+                        className="text-sm text-blue-600 hover:underline"
+                    >
+                        Execution history
+                    </Link>
                     <Button variant="outline" size="sm" onClick={() => setIncludeTerminal((v) => !v)}>
                         {includeTerminal ? "Hide finished" : "Show finished"}
                     </Button>

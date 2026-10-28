@@ -1,0 +1,45 @@
+{
+  "generatedAt": "2026-10-27T19:37:37.960Z",
+  "results": [
+    {
+      "name": "jit",
+      "route": "/admin/jit-verification",
+      "matchesExpected": true,
+      "hardError": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar Health Voice GOVERNANCE JIT Verification BPE Workspace Learning & Verification Self-Healing Harness Business Facts User Management Admin Settings Audit Trail Skill Builder Owner Cockpit Forensics PLATFORM Integrations Dev Studio Settings admin admin",
+      "bad": []
+    },
+    {
+      "name": "business-facts",
+      "route": "/admin/business-facts",
+      "matchesExpected": true,
+      "hardError": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar Health Voice GOVERNANCE JIT Verification BPE Workspace Learning & Verification Self-Healing Harness Business Facts User Management Admin Settings Audit Trail Skill Builder Owner Cockpit Forensics PLATFORM Integrations Dev Studio Settings admin admin",
+      "bad": []
+    },
+    {
+      "name": "marketing",
+      "route": "/marketing",
+      "matchesExpected": true,
+      "hardError": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar Health Voice GOVERNANCE JIT Verification BPE Workspace Learning & Verification Self-Healing Harness Business Facts User Management Admin Settings Audit Trail Skill Builder Owner Cockpit Forensics PLATFORM Integrations Dev Studi",
+      "bad": []
+    },
+    {
+      "name": "system-status",
+      "route": "/system-status",
+      "matchesExpected": true,
+      "hardError": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar Health Voice GOVERNANCE JIT Verification BPE Workspace Learning & Verification Self-Healing Harness Business Facts User Management Admin Settings Audit Trail Skill Builder Owner Cockpit Forensics PLATFORM Integrations Dev Studi",
+      "bad": []
+    },
+    {
+      "name": "analytics",
+      "route": "/analytics",
+      "matchesExpected": true,
+      "hardError": false,
+      "bodySample": "A ATOM CORE Dashboard Chat Canvases Search Documents Tasks Kanban Automations Agents Approvals 50 50 pending reviews Goal Runs Marketplace COMMAND CENTERS Projects Sales & CRM Support Knowledge Communication BUSINESS Sales Marketing Finance Analytics PRODUCTIVITY Calendar Health Voice GOVERNANCE JIT Verification BPE Workspace Learning & Verification Self-Healing Harness Business Facts User Management Admin Settings Audit Trail Skill Builder Owner Cockpit Forensics PLATFORM Integrations Dev Studi",
+      "bad": []
+    }
+  ]
+}

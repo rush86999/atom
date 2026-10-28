@@ -1,0 +1,1110 @@
+{
+  "status": "passed",
+  "base": "http://127.0.0.1:3114",
+  "backend": "http://127.0.0.1:8061",
+  "agent_id": "198f20ff-dbae-4a0d-8dbe-c03231ce4f5c",
+  "canvas1": "http://127.0.0.1:3114/canvas/f4c91b02-9911-4f54-ab22-e051a45fd46e",
+  "canvas2": "http://127.0.0.1:3114/canvas/0e625f07-b273-4478-9834-529e7c7fe01d",
+  "source_materials": {
+    "grants": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028/fixtures/grants_loop.csv",
+    "vendor": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028/fixtures/vendor_loop.csv"
+  },
+  "expected_model": "deepseek-flash",
+  "checks": [
+    {
+      "name": "admin login API",
+      "ok": true,
+      "detail": 200
+    },
+    {
+      "name": "agent created through product API",
+      "ok": true,
+      "detail": 201
+    },
+    {
+      "name": "grants material uploaded through UI",
+      "ok": true,
+      "detail": 200
+    },
+    {
+      "name": "vendor material uploaded through UI",
+      "ok": true,
+      "detail": 200
+    },
+    {
+      "name": "first canvas created and agent attached via UI",
+      "ok": true
+    },
+    {
+      "name": "policy taught through UI",
+      "ok": true
+    },
+    {
+      "name": "first assessment validated",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "first assessment follows original policy",
+      "ok": true,
+      "detail": {
+        "GR-2026-014": "FUND",
+        "GR-2026-021": "HOLD",
+        "GR-2026-033": "DECLINE"
+      }
+    },
+    {
+      "name": "first assessment used declared DeepSeek route",
+      "ok": true,
+      "detail": {
+        "model": "deepseek-flash",
+        "provider": "deepseek"
+      }
+    },
+    {
+      "name": "in-place correction saved",
+      "ok": true,
+      "detail": 200
+    },
+    {
+      "name": "correction kept one teaching point",
+      "ok": true
+    },
+    {
+      "name": "second canvas created and agent attached via UI",
+      "ok": true
+    },
+    {
+      "name": "different unfamiliar assessment validated",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "different assessment follows correction",
+      "ok": true,
+      "detail": {
+        "IN-7301": "DECLINE",
+        "IN-7302": "HOLD",
+        "IN-7303": "HOLD"
+      }
+    },
+    {
+      "name": "different assessment excludes Closed row",
+      "ok": true
+    },
+    {
+      "name": "different assessment delivered a table",
+      "ok": true
+    },
+    {
+      "name": "different assessment used declared DeepSeek route",
+      "ok": true,
+      "detail": {
+        "model": "deepseek-flash",
+        "provider": "deepseek"
+      }
+    },
+    {
+      "name": "calculation delivers exact total",
+      "ok": true,
+      "detail": "Workbook: `vendor_loop.csv`; Sheet: `vendor_loop`; Version: `0a84a5f50661`\nOperation: sum; measure: Invoice Amount\nSelected rows: 3; computable: 3; gaps: 0\nSheet rows: 4; selected by the predicate: 3; not selected: 1\nSelected status counts: Open=3\n| Currency |"
+    },
+    {
+      "name": "calculation cites selected rows",
+      "ok": true
+    },
+    {
+      "name": "calculation binds source version",
+      "ok": true
+    },
+    {
+      "name": "backend restart healthy",
+      "ok": true,
+      "detail": 67048
+    },
+    {
+      "name": "corrected policy persists after restart",
+      "ok": true
+    },
+    {
+      "name": "pre-restart assessment history persists",
+      "ok": true
+    },
+    {
+      "name": "pre-restart calculation history persists",
+      "ok": true
+    },
+    {
+      "name": "fresh post-restart assessment validated",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "fresh post-restart assessment follows correction",
+      "ok": true,
+      "detail": {
+        "IN-7301": "DECLINE",
+        "IN-7302": "HOLD",
+        "IN-7303": "HOLD"
+      }
+    },
+    {
+      "name": "fresh post-restart assessment used declared DeepSeek route",
+      "ok": true,
+      "detail": {
+        "model": "deepseek-flash",
+        "provider": "deepseek"
+      }
+    },
+    {
+      "name": "zero unauthorized writes",
+      "ok": true,
+      "detail": {
+        "tasks": 0,
+        "board_tasks": 0,
+        "boards": 0,
+        "scheduled_messages": 0,
+        "unified_messages": 0,
+        "message_delivery_reports": 0,
+        "ses_email_events": 0,
+        "agent_proactive_messages": 0,
+        "service_tasks": 0,
+        "swarm_tasks": 0,
+        "distributed_tasks": 0,
+        "sales_follow_up_tasks": 0
+      }
+    }
+  ],
+  "grant": {
+    "status": 200,
+    "model": "deepseek-flash",
+    "provider": "deepseek",
+    "review": {
+      "schema_version": "review-result-2",
+      "execution_id": "aba88733-12d6-4505-939a-8461d0a1580f",
+      "requested_subjects": [
+        "GR-2026-014",
+        "GR-2026-021",
+        "GR-2026-033"
+      ],
+      "allowed_decisions": [
+        "FUND",
+        "HOLD",
+        "DECLINE"
+      ],
+      "source_execution_ids": [
+        "aba88733-12d6-4505-939a-8461d0a1580f"
+      ],
+      "assessments": [
+        {
+          "subject_id": "GR-2026-014",
+          "decision": "FUND",
+          "basis": [
+            "Requested amount 12000 (GR-2026-014, Northwind Literacy Trust) is at or above 10000, which the grant threshold rule maps to FUND."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:GR-2026-014:grants_loop!R2",
+              "subject_id": "GR-2026-014",
+              "row_ref": "grants_loop!R2",
+              "source_identity": {
+                "file_name": "grants_loop.csv",
+                "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+                "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+              },
+              "retrieval_operation": "select:4d8d540ebc51:aba88733-12d6-4505-939a-8461d0a1580f",
+              "retrieval_execution_id": "aba88733-12d6-4505-939a-8461d0a1580f",
+              "values": [
+                {
+                  "field": "Applicant",
+                  "value": "Northwind Literacy Trust"
+                },
+                {
+                  "field": "Requested Amount",
+                  "value": 12000
+                },
+                {
+                  "field": "Stage",
+                  "value": "Submitted"
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "a64c1560087a4081ab153085b070c776",
+              "topic": "grant threshold rule",
+              "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "aba88733-12d6-4505-939a-8461d0a1580f"
+          ],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "GR-2026-021",
+          "decision": "HOLD",
+          "basis": [
+            "Requested amount 7000 (GR-2026-021, Harbour Youth Collective) falls in the 5000 to 9999 band, which the grant threshold rule maps to HOLD."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:GR-2026-021:grants_loop!R3",
+              "subject_id": "GR-2026-021",
+              "row_ref": "grants_loop!R3",
+              "source_identity": {
+                "file_name": "grants_loop.csv",
+                "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+                "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+              },
+              "retrieval_operation": "select:4d8d540ebc51:aba88733-12d6-4505-939a-8461d0a1580f",
+              "retrieval_execution_id": "aba88733-12d6-4505-939a-8461d0a1580f",
+              "values": [
+                {
+                  "field": "Applicant",
+                  "value": "Harbour Youth Collective"
+                },
+                {
+                  "field": "Requested Amount",
+                  "value": 7000
+                },
+                {
+                  "field": "Stage",
+                  "value": "Submitted"
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "a64c1560087a4081ab153085b070c776",
+              "topic": "grant threshold rule",
+              "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "aba88733-12d6-4505-939a-8461d0a1580f"
+          ],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "GR-2026-033",
+          "decision": "DECLINE",
+          "basis": [
+            "Requested amount 4800 (GR-2026-033, Meadow Arts Network) is below 5000, which the grant threshold rule maps to DECLINE."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:GR-2026-033:grants_loop!R4",
+              "subject_id": "GR-2026-033",
+              "row_ref": "grants_loop!R4",
+              "source_identity": {
+                "file_name": "grants_loop.csv",
+                "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+                "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+              },
+              "retrieval_operation": "select:4d8d540ebc51:aba88733-12d6-4505-939a-8461d0a1580f",
+              "retrieval_execution_id": "aba88733-12d6-4505-939a-8461d0a1580f",
+              "values": [
+                {
+                  "field": "Applicant",
+                  "value": "Meadow Arts Network"
+                },
+                {
+                  "field": "Requested Amount",
+                  "value": 4800
+                },
+                {
+                  "field": "Stage",
+                  "value": "Submitted"
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "a64c1560087a4081ab153085b070c776",
+              "topic": "grant threshold rule",
+              "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "aba88733-12d6-4505-939a-8461d0a1580f"
+          ],
+          "resumed_read": false
+        }
+      ],
+      "candidate_assessments": [],
+      "errors": [],
+      "ok": true,
+      "required_actions": [],
+      "action_receipts": [],
+      "completion": "completed",
+      "reviewed_at_elapsed_s": 51.19
+    },
+    "contract": {
+      "subjects": [
+        "GR-2026-014",
+        "GR-2026-021",
+        "GR-2026-033"
+      ],
+      "accepted_inputs": {
+        "subjects": [
+          "GR-2026-014",
+          "GR-2026-021",
+          "GR-2026-033"
+        ],
+        "requested_fields": [
+          "amount"
+        ],
+        "source_version": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+        "teaching_revision": "827acde3f1f808092053d8cc",
+        "decision_schema": [
+          "FUND",
+          "HOLD",
+          "DECLINE"
+        ],
+        "required_actions": []
+      },
+      "policy_revision": "827acde3f1f808092053d8cc",
+      "source_revision": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+      "required_evidence": [
+        {
+          "file_name": "grants_loop.csv",
+          "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+          "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+        },
+        {
+          "file_name": "grants_loop.csv",
+          "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+          "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+        },
+        {
+          "file_name": "grants_loop.csv",
+          "resource_id": "4d8d540ebc51cc88ae49fb13c5162417577fe18c",
+          "content_hash": "4d8d540ebc51cc88ae49fb13c5162417577fe18c"
+        }
+      ],
+      "allowed_decisions": [
+        "FUND",
+        "HOLD",
+        "DECLINE"
+      ],
+      "evidence_ids": [
+        "ev:GR-2026-014:grants_loop!R2",
+        "ev:GR-2026-021:grants_loop!R3",
+        "ev:GR-2026-033:grants_loop!R4"
+      ],
+      "policy_ids": [
+        "a64c1560087a4081ab153085b070c776"
+      ]
+    },
+    "decisions": {
+      "GR-2026-014": "FUND",
+      "GR-2026-021": "HOLD",
+      "GR-2026-033": "DECLINE"
+    }
+  },
+  "correction": {
+    "status": 200,
+    "before": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.",
+    "after": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.",
+    "pointText": "Teaching points\n\n1 recorded\ntaught\n· grant threshold rule\n· edited\nOct 28, 2026\n\nUse exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.\n\n· canvas \"Untitled canvas\" (Document)"
+  },
+  "vendor": {
+    "status": 200,
+    "model": "deepseek-flash",
+    "provider": "deepseek",
+    "review": {
+      "schema_version": "review-result-2",
+      "execution_id": "ccba3e2f-84e1-4e74-807e-5d808df05905",
+      "requested_subjects": [
+        "IN-7301",
+        "IN-7302",
+        "IN-7303"
+      ],
+      "allowed_decisions": [
+        "FUND",
+        "HOLD",
+        "DECLINE"
+      ],
+      "source_execution_ids": [
+        "ccba3e2f-84e1-4e74-807e-5d808df05905"
+      ],
+      "assessments": [
+        {
+          "subject_id": "IN-7301",
+          "decision": "DECLINE",
+          "basis": [
+            "Policy a64c1560087a4081ab153085b070c776 states that a requested amount below 5000 is DECLINE. Row vendor_loop!R2 shows vendor reference IN-7301 with invoice amount 3200 and state Open, which falls below the 5000 threshold, so the decision is DECLINE."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:IN-7301:vendor_loop!R2",
+              "subject_id": "IN-7301",
+              "row_ref": "vendor_loop!R2",
+              "source_identity": {
+                "file_name": "vendor_loop.csv",
+                "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+                "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+              },
+              "retrieval_operation": "select:0a84a5f50661:ccba3e2f-84e1-4e74-807e-5d808df05905",
+              "retrieval_execution_id": "ccba3e2f-84e1-4e74-807e-5d808df05905",
+              "values": [
+                {
+                  "field": "Invoice Amount",
+                  "value": 3200
+                },
+                {
+                  "field": "State",
+                  "value": "Open"
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "a64c1560087a4081ab153085b070c776",
+              "topic": "grant threshold rule",
+              "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "ccba3e2f-84e1-4e74-807e-5d808df05905"
+          ],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "IN-7302",
+          "decision": "HOLD",
+          "basis": [
+            "Policy a64c1560087a4081ab153085b070c776 states that a requested amount from 5000 to 9999 is HOLD. Row vendor_loop!R3 shows vendor reference IN-7302 with invoice amount 7000 and state Open, which falls in the 5000-9999 band, so the decision is HOLD."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:IN-7302:vendor_loop!R3",
+              "subject_id": "IN-7302",
+              "row_ref": "vendor_loop!R3",
+              "source_identity": {
+                "file_name": "vendor_loop.csv",
+                "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+                "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+              },
+              "retrieval_operation": "select:0a84a5f50661:ccba3e2f-84e1-4e74-807e-5d808df05905",
+              "retrieval_execution_id": "ccba3e2f-84e1-4e74-807e-5d808df05905",
+              "values": [
+                {
+                  "field": "Invoice Amount",
+                  "value": 7000
+                },
+                {
+                  "field": "State",
+                  "value": "Open"
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "a64c1560087a4081ab153085b070c776",
+              "topic": "grant threshold rule",
+              "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "ccba3e2f-84e1-4e74-807e-5d808df05905"
+          ],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "IN-7303",
+          "decision": "HOLD",
+          "basis": [
+            "Policy a64c1560087a4081ab153085b070c776 states that a requested amount at or above 10000 is HOLD for CFO review. Row vendor_loop!R4 shows vendor reference IN-7303 with invoice amount 12000 and state Open, which meets the at-or-above-10000 threshold, so the decision is HOLD pending CFO review."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:IN-7303:vendor_loop!R4",
+              "subject_id": "IN-7303",
+              "row_ref": "vendor_loop!R4",
+              "source_identity": {
+                "file_name": "vendor_loop.csv",
+                "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+                "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+              },
+              "retrieval_operation": "select:0a84a5f50661:ccba3e2f-84e1-4e74-807e-5d808df05905",
+              "retrieval_execution_id": "ccba3e2f-84e1-4e74-807e-5d808df05905",
+              "values": [
+                {
+                  "field": "Invoice Amount",
+                  "value": 12000
+                },
+                {
+                  "field": "State",
+                  "value": "Open"
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "a64c1560087a4081ab153085b070c776",
+              "topic": "grant threshold rule",
+              "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "ccba3e2f-84e1-4e74-807e-5d808df05905"
+          ],
+          "resumed_read": false
+        }
+      ],
+      "candidate_assessments": [],
+      "errors": [],
+      "ok": true,
+      "required_actions": [],
+      "action_receipts": [],
+      "completion": "completed",
+      "reviewed_at_elapsed_s": 54.11
+    },
+    "contract": {
+      "subjects": [
+        "IN-7301",
+        "IN-7302",
+        "IN-7303"
+      ],
+      "accepted_inputs": {
+        "subjects": [
+          "IN-7301",
+          "IN-7302",
+          "IN-7303"
+        ],
+        "requested_fields": [
+          "amount"
+        ],
+        "source_version": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+        "teaching_revision": "5f7bb0e7b73328b2d04987c3",
+        "decision_schema": [
+          "FUND",
+          "HOLD",
+          "DECLINE"
+        ],
+        "required_actions": []
+      },
+      "policy_revision": "5f7bb0e7b73328b2d04987c3",
+      "source_revision": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+      "required_evidence": [
+        {
+          "file_name": "vendor_loop.csv",
+          "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+          "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+        },
+        {
+          "file_name": "vendor_loop.csv",
+          "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+          "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+        },
+        {
+          "file_name": "vendor_loop.csv",
+          "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+          "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+        }
+      ],
+      "allowed_decisions": [
+        "FUND",
+        "HOLD",
+        "DECLINE"
+      ],
+      "evidence_ids": [
+        "ev:IN-7301:vendor_loop!R2",
+        "ev:IN-7302:vendor_loop!R3",
+        "ev:IN-7303:vendor_loop!R4"
+      ],
+      "policy_ids": [
+        "a64c1560087a4081ab153085b070c776"
+      ]
+    },
+    "decisions": {
+      "IN-7301": "DECLINE",
+      "IN-7302": "HOLD",
+      "IN-7303": "HOLD"
+    }
+  },
+  "calculation": {
+    "status": 200,
+    "message": "Workbook: `vendor_loop.csv`; Sheet: `vendor_loop`; Version: `0a84a5f50661`\nOperation: sum; measure: Invoice Amount\nSelected rows: 3; computable: 3; gaps: 0\nSheet rows: 4; selected by the predicate: 3; not selected: 1\nSelected status counts: Open=3\n| Currency | Rows | Value |\n|---|---:|---:|\n| (unstated) | 3 | 22200.00 |\nCompleteness: complete. All selected rows had required inputs.\nContributing rows:\n- row 2 (IN-7301): 3200.00  [B2]\n- row 3 (IN-7302): 7000.00  [B3]\n- row 4 (IN-7303): 12000.00  [B4]",
+    "metadata": {
+      "workbook_result": null,
+      "document_result": null,
+      "deterministic_delivery": true,
+      "table_selection": null,
+      "file_identity": {
+        "service": "datasets",
+        "file_id": "sha1:0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+        "resource_id": "sha1:0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+        "file_name": "vendor_loop.csv",
+        "source": "upload",
+        "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+        "content_hash_algorithm": "sha1",
+        "ingested_at": "2026-10-28T17:20:41.040823",
+        "source_modified_at": null,
+        "version_verified": null,
+        "identity_verified": true,
+        "coverage_complete": true,
+        "coverage_limits": {
+          "known": true,
+          "source_row_count": 4,
+          "materialized_row_count": 4,
+          "truncated": false,
+          "row_cap": 500000
+        },
+        "workbook_read": null,
+        "execution_id": "91317385-83e9-4628-b3c7-b4bec2c52308"
+      },
+      "coverage_complete": true,
+      "calculation_complete": true,
+      "open_requirements": [],
+      "resumable": false,
+      "freshness": null,
+      "presentation_action": null,
+      "task_run_id": "40181776-e53a-4da8-9e1e-f959c6c8e296",
+      "task_operation": {
+        "run_id": "40181776-e53a-4da8-9e1e-f959c6c8e296",
+        "operation_id": "507ed46b-dbd4-47dd-8fd3-307110993b24"
+      },
+      "reconciliation_required": false,
+      "open_work": {
+        "actions": [],
+        "owner_decisions": [],
+        "exhausted": []
+      },
+      "delivery": {
+        "status": "recorded",
+        "delivery_id": "bffabdea-2334-4fb0-832d-97f4d3380acb",
+        "message_id": "122f68ba-6c56-49df-8cf5-796146b7e458"
+      },
+      "persistence": {
+        "status": "persisted"
+      },
+      "replay_pin": {
+        "status": "pinned",
+        "durable": true
+      }
+    }
+  },
+  "restart": {
+    "ok": true,
+    "pid": 67048,
+    "health": {
+      "pid": 67048,
+      "started_at": "2026-10-28T17:25:25.374169+00:00",
+      "cwd": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/core_release_deepseek_20261028/backend_root",
+      "git_commit": "ec69e24f4385",
+      "source_id": "ec69e24f4385-dirty.36e897467da4",
+      "instance_id": "ec69e24f4385-dirty.36e897467da4.67048.1793208328",
+      "revision": "ec69e24f4385727cf6a97270ed66eb9b56262c06",
+      "dirty": true,
+      "dirty_digest": "36e897467da4",
+      "dirty_paths": [
+        "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/summary.json",
+        "frontend-nextjs/.preview-instance/299-08-execution-summary.md",
+        "frontend-nextjs/.preview-instance/299-11-PROGRESS.md",
+        "frontend-nextjs/.preview-instance/ACCESSIBILITY.md",
+        "frontend-nextjs/.preview-instance/DEPLOYMENT.md",
+        "frontend-nextjs/.preview-instance/Dockerfile",
+        "frontend-nextjs/.preview-instance/Dockerfile.production",
+        "frontend-nextjs/.preview-instance/FAILURE_CATEGORIES-299-06.md",
+        "frontend-nextjs/.preview-instance/LIGHTHOUSE.md",
+        "frontend-nextjs/.preview-instance/PERCY.md",
+        "frontend-nextjs/.preview-instance/README.md",
+        "frontend-nextjs/.preview-instance/README_TEAM_CHAT.md",
+        "frontend-nextjs/.preview-instance/a11y-test-results.json",
+        "frontend-nextjs/.preview-instance/advanced-management.js",
+        "frontend-nextjs/.preview-instance/analyze_coverage.js",
+        "frontend-nextjs/.preview-instance/components",
+        "frontend-nextjs/.preview-instance/components.json",
+        "frontend-nextjs/.preview-instance/config",
+        "frontend-nextjs/.preview-instance/contexts",
+        "frontend-nextjs/.preview-instance/coverage",
+        "frontend-nextjs/.preview-instance/coverage-reports",
+        "frontend-nextjs/.preview-instance/data",
+        "frontend-nextjs/.preview-instance/docs",
+        "frontend-nextjs/.preview-instance/e2e",
+        "frontend-nextjs/.preview-instance/element-not-found-patterns.md",
+        "frontend-nextjs/.preview-instance/enterprise-dashboard.js",
+        "frontend-nextjs/.preview-instance/eslint.config.mjs",
+        "frontend-nextjs/.preview-instance/final-implementation.js",
+        "frontend-nextjs/.preview-instance/find-uncovered-files.js",
+        "frontend-nextjs/.preview-instance/fix-eslint-errors.js",
+        "frontend-nextjs/.preview-instance/fix-parsing-errors.js",
+        "frontend-nextjs/.preview-instance/hooks",
+        "frontend-nextjs/.preview-instance/jest.config.js",
+        "frontend-nextjs/.preview-instance/jest.setup.js",
+        "frontend-nextjs/.preview-instance/k8s",
+        "frontend-nextjs/.preview-instance/layouts",
+        "frontend-nextjs/.preview-instance/lib",
+        "frontend-nextjs/.preview-instance/lighthouserc.json",
+        "frontend-nextjs/.preview-instance/middleware.ts",
+        "frontend-nextjs/.preview-instance/next-env.d.ts"
+      ],
+      "untracked_paths": [
+        "backend/replay_subject_admission.py",
+        "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_221948/deployment_smoke_20261017_221948.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_222902/deployment_smoke_20261017_222902.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/deployment_smoke_20261017_223251.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_after_click.png",
+        "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/phase_d_ready_before_click.png",
+        "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_saved_edit.png",
+        "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223251/smoke_sourced_answer.png",
+        "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/deployment_smoke_20261017_223554.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_after_click.png",
+        "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/phase_d_ready_before_click.png",
+        "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_saved_edit.png",
+        "backend/scripts/orchestration_acceptance/journey_matrix/deployment_smoke_20261017_223554/smoke_sourced_answer.png",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j2_live_20261013_e8b01dcec.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j4_r16_20261013_164740_e5bc38.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/j5_r16_20261013_165009_e69d41.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_00a8312ed_r16/summary.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/driver_j45_r17.py",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j4_r17_20261014_065311_3ccbf8.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/j5_r17_20261014_065402_02a9bb.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/summary.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_config.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_encryption_key",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j4_r17__423cxgv/byok_keys.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_config.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_encryption_key",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_3b07ed75d_r17/world_atom_journey_j5_r17_560k0fk2/byok_keys.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105549/j4_evidence.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_105935/j5_evidence.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j45_campaign_74a9fbb82_20261013_110533/j5_evidence.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_20261014_204321.json",
+        "backend/scripts/orchestration_acceptance/journey_matrix/j6_draft_33f54ba75_r18/diagnostic_tool_planner_benchmark.py",
+        "backend/tests/test_direct_read_settlement_facts.py",
+        "backend/tests/test_probe_exec_row_tmp.py",
+        "backend/tests/test_t1_investigate_end_to_end.py",
+        "backend/tests/test_unmet_obligation_replay.py",
+        "docs/architecture/orchestration_migration/BRENNAN_FIRST_PRODUCT_COMPLETION_PLAN_2026_10_06.md",
+        "docs/architecture/orchestration_migration/DOMAIN_INDEPENDENT_JOB_COMPLETION_AGENT_GUIDE_2026_10_07.md",
+        "docs/architecture/orchestration_migration/INTENT_AND_FRESH_INSTALL_COMPLETION_GUIDE_2026_10_08.md",
+        "docs/architecture/orchestration_migration/RESEARCH_TO_DRAFT_COMPLETION_REPAIR_GUIDE_2026_10_08.md"
+      ],
+      "captured_at": "2026-10-28T17:25:27.964849+00:00",
+      "port": null,
+      "error": null,
+      "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/core_release_deepseek_20261028/runs/run-d9be5d4534b8/data/atom.db",
+      "byok_key_store": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/core_release_deepseek_20261028/backend_root/data/byok_keys.json"
+    }
+  },
+  "fresh": {
+    "status": 200,
+    "model": "deepseek-flash",
+    "provider": "deepseek",
+    "review": {
+      "schema_version": "review-result-2",
+      "execution_id": "ab7b3135-e28c-4551-9187-afc8d917c357",
+      "requested_subjects": [
+        "IN-7301",
+        "IN-7302",
+        "IN-7303"
+      ],
+      "allowed_decisions": [
+        "FUND",
+        "HOLD",
+        "DECLINE"
+      ],
+      "source_execution_ids": [
+        "ab7b3135-e28c-4551-9187-afc8d917c357"
+      ],
+      "assessments": [
+        {
+          "subject_id": "IN-7301",
+          "decision": "DECLINE",
+          "basis": [
+            "Row vendor_loop!R2: reference IN-7301, invoice amount 3200, state Open. Policy a64c1560087a4081ab153085b070c776: below 5000 is DECLINE — 3200 is below the 5000 floor, so DECLINE."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:IN-7301:vendor_loop!R2",
+              "subject_id": "IN-7301",
+              "row_ref": "vendor_loop!R2",
+              "source_identity": {
+                "file_name": "vendor_loop.csv",
+                "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+                "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+              },
+              "retrieval_operation": "select:0a84a5f50661:ab7b3135-e28c-4551-9187-afc8d917c357",
+              "retrieval_execution_id": "ab7b3135-e28c-4551-9187-afc8d917c357",
+              "values": [
+                {
+                  "field": "Invoice Amount",
+                  "value": 3200
+                },
+                {
+                  "field": "State",
+                  "value": "Open"
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "a64c1560087a4081ab153085b070c776",
+              "topic": "grant threshold rule",
+              "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "ab7b3135-e28c-4551-9187-afc8d917c357"
+          ],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "IN-7302",
+          "decision": "HOLD",
+          "basis": [
+            "Row vendor_loop!R3: reference IN-7302, invoice amount 7000, state Open. Policy a64c1560087a4081ab153085b070c776: 5000 to 9999 is HOLD — 7000 falls in that band, so HOLD."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:IN-7302:vendor_loop!R3",
+              "subject_id": "IN-7302",
+              "row_ref": "vendor_loop!R3",
+              "source_identity": {
+                "file_name": "vendor_loop.csv",
+                "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+                "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+              },
+              "retrieval_operation": "select:0a84a5f50661:ab7b3135-e28c-4551-9187-afc8d917c357",
+              "retrieval_execution_id": "ab7b3135-e28c-4551-9187-afc8d917c357",
+              "values": [
+                {
+                  "field": "Invoice Amount",
+                  "value": 7000
+                },
+                {
+                  "field": "State",
+                  "value": "Open"
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "a64c1560087a4081ab153085b070c776",
+              "topic": "grant threshold rule",
+              "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "ab7b3135-e28c-4551-9187-afc8d917c357"
+          ],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "IN-7303",
+          "decision": "HOLD",
+          "basis": [
+            "Row vendor_loop!R4: reference IN-7303, invoice amount 12000, state Open. Policy a64c1560087a4081ab153085b070c776: at or above 10000 is HOLD for CFO review — 12000 meets that threshold, so HOLD pending CFO review."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:IN-7303:vendor_loop!R4",
+              "subject_id": "IN-7303",
+              "row_ref": "vendor_loop!R4",
+              "source_identity": {
+                "file_name": "vendor_loop.csv",
+                "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+                "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+              },
+              "retrieval_operation": "select:0a84a5f50661:ab7b3135-e28c-4551-9187-afc8d917c357",
+              "retrieval_execution_id": "ab7b3135-e28c-4551-9187-afc8d917c357",
+              "values": [
+                {
+                  "field": "Invoice Amount",
+                  "value": 12000
+                },
+                {
+                  "field": "State",
+                  "value": "Open"
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "a64c1560087a4081ab153085b070c776",
+              "topic": "grant threshold rule",
+              "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "ab7b3135-e28c-4551-9187-afc8d917c357"
+          ],
+          "resumed_read": false
+        }
+      ],
+      "candidate_assessments": [],
+      "errors": [],
+      "ok": true,
+      "required_actions": [],
+      "action_receipts": [],
+      "completion": "completed",
+      "reviewed_at_elapsed_s": 56.59
+    },
+    "contract": {
+      "subjects": [
+        "IN-7301",
+        "IN-7302",
+        "IN-7303"
+      ],
+      "accepted_inputs": {
+        "subjects": [
+          "IN-7301",
+          "IN-7302",
+          "IN-7303"
+        ],
+        "requested_fields": [
+          "amount"
+        ],
+        "source_version": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+        "teaching_revision": "5f7bb0e7b73328b2d04987c3",
+        "decision_schema": [
+          "FUND",
+          "HOLD",
+          "DECLINE"
+        ],
+        "required_actions": []
+      },
+      "policy_revision": "5f7bb0e7b73328b2d04987c3",
+      "source_revision": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+      "required_evidence": [
+        {
+          "file_name": "vendor_loop.csv",
+          "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+          "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+        },
+        {
+          "file_name": "vendor_loop.csv",
+          "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+          "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+        },
+        {
+          "file_name": "vendor_loop.csv",
+          "resource_id": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+          "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262"
+        }
+      ],
+      "allowed_decisions": [
+        "FUND",
+        "HOLD",
+        "DECLINE"
+      ],
+      "evidence_ids": [
+        "ev:IN-7301:vendor_loop!R2",
+        "ev:IN-7302:vendor_loop!R3",
+        "ev:IN-7303:vendor_loop!R4"
+      ],
+      "policy_ids": [
+        "a64c1560087a4081ab153085b070c776"
+      ]
+    },
+    "decisions": {
+      "IN-7301": "DECLINE",
+      "IN-7302": "HOLD",
+      "IN-7303": "HOLD"
+    }
+  },
+  "history_survives": {
+    "vendor": true,
+    "calculation": true
+  },
+  "db_check": {
+    "db": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/core_release_deepseek_20261028/runs/run-d9be5d4534b8/data/atom.db",
+    "tables_present": {
+      "tasks": true,
+      "board_tasks": true,
+      "boards": true,
+      "scheduled_messages": true,
+      "unified_messages": true,
+      "message_delivery_reports": true,
+      "ses_email_events": true,
+      "agent_proactive_messages": true,
+      "service_tasks": true,
+      "swarm_tasks": true,
+      "distributed_tasks": true,
+      "sales_follow_up_tasks": true
+    },
+    "side_effect_counts": {
+      "tasks": 0,
+      "board_tasks": 0,
+      "boards": 0,
+      "scheduled_messages": 0,
+      "unified_messages": 0,
+      "message_delivery_reports": 0,
+      "ses_email_events": 0,
+      "agent_proactive_messages": 0,
+      "service_tasks": 0,
+      "swarm_tasks": 0,
+      "distributed_tasks": 0,
+      "sales_follow_up_tasks": 0
+    },
+    "authorized_counts": {
+      "canvases": 8,
+      "knowledge_documents": 0,
+      "agent_registry": 10,
+      "chat_messages": 68,
+      "invocation_events": 0
+    },
+    "invocation_kinds": [],
+    "forbidden_invocation_kinds": [],
+    "zero_unauthorized_writes": true
+  },
+  "page_errors": []
+}

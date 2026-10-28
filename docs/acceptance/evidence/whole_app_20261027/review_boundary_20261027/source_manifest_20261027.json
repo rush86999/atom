@@ -1,0 +1,61 @@
+{
+  "evidence_files": [
+    "run_summary_20261027.json",
+    "green_model_outputs/README.md",
+    "green_model_outputs/baseline_input.json",
+    "green_model_outputs/baseline_output.json",
+    "green_model_outputs/unfamiliar_input.json",
+    "green_model_outputs/unfamiliar_output.json",
+    "green_model_outputs/after_restart_input.json",
+    "green_model_outputs/after_restart_output.json",
+    "green_model_outputs/run_stdout.text",
+    "green_model_outputs/after_restart_server.text"
+  ],
+  "evidence_overwrite_note": "The green run raw API bodies (baseline.json, unfamiliar.json, after_restart.json) were later overwritten by a separate diagnostic probe and moved to probe_20261027/. probe_20261027 is NOT a pass. The authoritative green record is run_summary_20261027.json; the surviving transport captures and logs are in green_model_outputs/.",
+  "evidence_sha256": {
+    "green_model_outputs/README.md": "dc6ea357ed47f4e807abfb5e5b8b51091a4f81f798a47b160af85bc321d52da9",
+    "green_model_outputs/after_restart_input.json": "55aba65f4317f0159fceb59ff15706b5779bb52ed7a0315cd07755fd54cc9d69",
+    "green_model_outputs/after_restart_output.json": "f11a4a68b0d53d6e8fc7440adce411257ada9f5d604634b4b55fb5f24531e076",
+    "green_model_outputs/after_restart_server.text": "b00df2663edd332fbf7257e596101d652364751b9c08914250a21701d1af4b3a",
+    "green_model_outputs/baseline_input.json": "b150784a25317cf75327f08683ec9983e9e7c1be9491bdb66ad46592d69e7681",
+    "green_model_outputs/baseline_output.json": "8c3f75d33f70f49e7628018b623e2872c15c817fb2d215a3a83344af05918cbd",
+    "green_model_outputs/run_stdout.text": "2c3c5cb4e57ef700f23a253d6e0a029619848478ffcf7b08e821a1f7ac5ed64b",
+    "green_model_outputs/unfamiliar_input.json": "e0e15e103600f430e23ee01a03ea800a13bfa993afd110f6392fac8cfc4d214f",
+    "green_model_outputs/unfamiliar_output.json": "b85a6f08eef630def4fcb7db918092b948e84e4065f65a66b84680655e0bbb9e",
+    "run_summary_20261027.json": "89197306816690bc049e85fdab105832ff0680d3f43f50dd658c5b7badccc37f"
+  },
+  "generated_at_utc": "2026-10-27T21:30:30Z",
+  "head_commit": "f8792bf42bf04917c0cc978c00c69e05b50bc4ee",
+  "head_subject": "docs(acceptance): record decision binding verified and the block-recovery control",
+  "note": "This evidence was generated against a DIRTY working tree at HEAD f8792bf42bf0, before the freeze commit. It is explicitly not bound to the later freeze commit. The exact tracked source diff is in source_state_at_run.patch; apply it to HEAD to reproduce the source state used for run_summary_20261027.json.",
+  "post_run_changes_not_in_this_manifest": [
+    "backend/core/llm/byok_handler.py \u2014 quota evidence tightening + fallback capability parity",
+    "backend/integrations/chat_orchestrator.py \u2014 review settlement workspace_id fix",
+    "backend/tests/test_f5_local_planning_eligibility.py \u2014 negative controls",
+    "backend/tests/test_turn_budget_rca_fixes.py \u2014 quota evidence controls",
+    "backend/scripts/orchestration_acceptance/preview_stack.py \u2014 explicit ATOM_CHAT_STREAMING=false + live check",
+    "backend/scripts/orchestration_acceptance/preview_server.py \u2014 explicit ATOM_CHAT_STREAMING=false",
+    "backend/scripts/orchestration_acceptance/run_isolated.py \u2014 explicit ATOM_CHAT_STREAMING=false",
+    "scripts/quickstart.sh \u2014 generated env declares ATOM_CHAT_STREAMING=false",
+    "backend/.env.example \u2014 release configuration declares ATOM_CHAT_STREAMING=false",
+    "docs/acceptance/CORE_RELEASE_SCOPE_2026-10-27.md \u2014 release configuration statement",
+    "backend/scripts/orchestration_acceptance/preview_stack.py \u2014 ATOM_PREVIEW_PYTHON override and live streaming flag verification",
+    "backend/scripts/orchestration_acceptance/preview_server.py \u2014 generated env streaming=false",
+    "backend/scripts/orchestration_acceptance/run_isolated.py \u2014 generated env streaming=false",
+    "backend/tests/test_local_provider_dispatch_scope.py \u2014 not modified; regression run only"
+  ],
+  "schema": "review-boundary-source-manifest-1",
+  "source_files": {
+    "backend/core/llm/byok_handler.py": "eac30bbe85f41d8c1b3f10214c4cc9c314d0b8b4a949f3d4310e0f44cfc3ef90",
+    "backend/core/review_contract.py": "30595f749ee96ca453a20585914710e0fe4d6eee36b5f6d3f01b95bef25f669e",
+    "backend/core/review_result.py": "ec939a25d3f86d38b08ffec58589c804a48369dcee46110f53278e47adc30cc4",
+    "backend/core/student_learning_service.py": "ac1fedc56708ad26b1ed9507bd30c77f6eb4b8fe7d98dd95dd86545859c4cc13",
+    "backend/core/task_lifecycle.py": "a53fc7c79c9626c036cd3aa52258ac7c7418d7e2d42ff99781d1fb9a552735f7",
+    "backend/core/workbook_read_artifact.py": "ce2cc4a2a9e5ca6fe4e3ce9c53d33b5c39d5df1baadce71e09109dd869ac578a",
+    "backend/integrations/chat_orchestrator.py": "ff70e05c4f070a3c7e8103c723e707cd91903486fc33eae8f7e95ebb210670a8"
+  },
+  "source_state_patch": "source_state_at_run.patch",
+  "source_state_patch_bytes": 35531,
+  "source_state_patch_sha256": "df668dec7482d0504430522311f5c1e6bac55358dbaff7401548cb6ddadf919c",
+  "working_tree": "dirty"
+}

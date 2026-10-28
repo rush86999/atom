@@ -1,0 +1,345 @@
+{
+ "schema": "deepseek-judgment-comparison-revalidated-1",
+ "status": "completed",
+ "not_acceptance_evidence": true,
+ "spec": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/deepseek_judgment_comparison_20261028/SPEC.json",
+ "spec_sha256": "3ea4229841f52cfc25f08a9aebe6372fc2783ee05d7d3ca5166e7a31345491c5",
+ "source_request": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/minimal_judgment_20261028/preserved_full_request.json",
+ "source_request_sha256": "f86dbbc660efa9576baadfc90b9bdb8b69d561347cf054056155234ca5670402",
+ "authorization": {
+  "scope": "one diagnostic direct-endpoint comparison, seven fixed cases, no acceptance claim",
+  "local_only_default_unchanged": true,
+  "provider_policy_unchanged": true,
+  "stored_credentials_unchanged": true,
+  "pilot_unchanged": true
+ },
+ "provider": {
+  "id": "deepseek",
+  "name": "DeepSeek direct",
+  "base_url": "https://api.deepseek.com/v1",
+  "model": "deepseek-v4-pro",
+  "credential_env_var": "DEEPSEEK_API_KEY",
+  "credential_origin": "byok_store",
+  "credential_metadata": {
+   "key_id": "tenant_default_deepseek_default_production",
+   "key_hash": "cc1d28eb8b34001a845fbf176096e4124985bca4763ce44953fbe712727f32ee",
+   "is_active": true,
+   "store_sha256": "0c721c625c02b32037c8da63fde0ea1f828d7bf308add8032f9f9e4f06ee3ebc",
+   "store_path": "/Users/rushiparikh/projects/atom/backend/data/byok_keys.json",
+   "key_file_sha256": "fdb201a6283ff5ea120b423cbe9f22600b32c580d35fccf2cc8575c2be170ca9"
+  },
+  "credential_value_recorded": false
+ },
+ "generation": {
+  "temperature": 0.7,
+  "max_tokens": 6000,
+  "stream": false,
+  "request_timeout_seconds": 300,
+  "attempts_per_case": 1,
+  "semantic_retries": 0,
+  "transport_retries": 0,
+  "structured_output": false,
+  "prompt_changes_mid_run": false
+ },
+ "started_at_utc": "2026-10-28T12:53:07.602728+00:00",
+ "finished_at_utc": "2026-10-28T12:53:52.885107+00:00",
+ "request_hashes": {
+  "preserved_full_context": "da9f6f6bb3f41836dca40526e46dfa98ef450aaf99025cd5e00b2b5b92c86f39",
+  "preserved_3200": "5aa7654d5360cf339b980476a1c28dff50dcd6ba854b2218511012952a17e9c4",
+  "unfamiliar_4321_25": "a56b31db96c5e6d368b6ba8880d4a5b32de341b49e642a0d0ca2e609e02e32d6",
+  "boundary_4999_99": "cc44fde1e3159bb36ec51e3ea96dc5c30e17101be1d1051fdc77535833e4f11b",
+  "boundary_5000": "4786413d5765f904659c070f74dee50d821cd39d7a851f402e54e8931fb6b924",
+  "boundary_9999": "e893d51947bda3696d65ceae09478fa8a16d8878c88e456927d8cab390754965",
+  "boundary_10000": "ff4a74eee99a5399d76deb3edcd869d92ccff4edc0bc5c2711d18f050e0f79c2"
+ },
+ "transport_retries": 0,
+ "semantic_retries": 0,
+ "aborted": null,
+ "cases": [
+  {
+   "case_id": "preserved_full_context",
+   "kind": "full_context",
+   "subject": "IN-7301",
+   "amount": "3200",
+   "expected": "DECLINE",
+   "raw_decision": "DECLINE",
+   "substantive_match": true,
+   "certified": true,
+   "errors": [],
+   "request_sha256": "da9f6f6bb3f41836dca40526e46dfa98ef450aaf99025cd5e00b2b5b92c86f39",
+   "request_file": "cases/preserved_full_context_request.json",
+   "response_file": "cases/preserved_full_context_response.json",
+   "review_file": "cases/preserved_full_context_review.json",
+   "provider_id": "deepseek",
+   "model_requested": "deepseek-v4-pro",
+   "response_model": "deepseek-v4-pro",
+   "response_id": "9a566771-fb20-4081-ac81-a2f9856a25c3",
+   "latency_ms": 21479,
+   "usage": {
+    "prompt_tokens": 3473,
+    "completion_tokens": 1836,
+    "total_tokens": 5309
+   },
+   "http_status": 200,
+   "response_headers": {},
+   "transport_retries": 0,
+   "requested_records": [
+    "IN-7301",
+    "IN-7302",
+    "IN-7303"
+   ],
+   "decisions": [
+    {
+     "subject_id": "IN-7301",
+     "decision": "DECLINE"
+    },
+    {
+     "subject_id": "IN-7302",
+     "decision": "HOLD"
+    },
+    {
+     "subject_id": "IN-7303",
+     "decision": "HOLD"
+    }
+   ],
+   "revalidated_review_file": "cases/preserved_full_context_revalidated_review.json"
+  },
+  {
+   "case_id": "preserved_3200",
+   "kind": "minimal",
+   "subject": "IN-7301",
+   "amount": "3200",
+   "expected": "DECLINE",
+   "raw_decision": "DECLINE",
+   "substantive_match": true,
+   "certified": true,
+   "errors": [],
+   "request_sha256": "5aa7654d5360cf339b980476a1c28dff50dcd6ba854b2218511012952a17e9c4",
+   "request_file": "cases/preserved_3200_request.json",
+   "response_file": "cases/preserved_3200_response.json",
+   "review_file": "cases/preserved_3200_review.json",
+   "provider_id": "deepseek",
+   "model_requested": "deepseek-v4-pro",
+   "response_model": "deepseek-v4-pro",
+   "response_id": "485d88e0-a904-4f81-b14b-59fe340e714d",
+   "latency_ms": 4375,
+   "usage": {
+    "prompt_tokens": 912,
+    "completion_tokens": 288,
+    "total_tokens": 1200
+   },
+   "http_status": 200,
+   "response_headers": {},
+   "transport_retries": 0,
+   "requested_records": [
+    "IN-7301"
+   ],
+   "decisions": [
+    {
+     "subject_id": "IN-7301",
+     "decision": "DECLINE"
+    }
+   ],
+   "revalidated_review_file": "cases/preserved_3200_revalidated_review.json"
+  },
+  {
+   "case_id": "unfamiliar_4321_25",
+   "kind": "minimal",
+   "subject": "IN-8801",
+   "amount": "4321.25",
+   "expected": "DECLINE",
+   "raw_decision": "DECLINE",
+   "substantive_match": true,
+   "certified": true,
+   "errors": [],
+   "request_sha256": "a56b31db96c5e6d368b6ba8880d4a5b32de341b49e642a0d0ca2e609e02e32d6",
+   "request_file": "cases/unfamiliar_4321_25_request.json",
+   "response_file": "cases/unfamiliar_4321_25_response.json",
+   "review_file": "cases/unfamiliar_4321_25_review.json",
+   "provider_id": "deepseek",
+   "model_requested": "deepseek-v4-pro",
+   "response_model": "deepseek-v4-pro",
+   "response_id": "00004dee-2c0d-4ac0-a011-40db4d399de0",
+   "latency_ms": 4552,
+   "usage": {
+    "prompt_tokens": 903,
+    "completion_tokens": 307,
+    "total_tokens": 1210
+   },
+   "http_status": 200,
+   "response_headers": {},
+   "transport_retries": 0,
+   "requested_records": [
+    "IN-8801"
+   ],
+   "decisions": [
+    {
+     "subject_id": "IN-8801",
+     "decision": "DECLINE"
+    }
+   ],
+   "revalidated_review_file": "cases/unfamiliar_4321_25_revalidated_review.json"
+  },
+  {
+   "case_id": "boundary_4999_99",
+   "kind": "minimal",
+   "subject": "IN-8802",
+   "amount": "4999.99",
+   "expected": "DECLINE",
+   "raw_decision": "DECLINE",
+   "substantive_match": true,
+   "certified": true,
+   "errors": [],
+   "request_sha256": "cc44fde1e3159bb36ec51e3ea96dc5c30e17101be1d1051fdc77535833e4f11b",
+   "request_file": "cases/boundary_4999_99_request.json",
+   "response_file": "cases/boundary_4999_99_response.json",
+   "review_file": "cases/boundary_4999_99_review.json",
+   "provider_id": "deepseek",
+   "model_requested": "deepseek-v4-pro",
+   "response_model": "deepseek-v4-pro",
+   "response_id": "ca8539fa-641b-45fe-84a1-a6435c18c07e",
+   "latency_ms": 3803,
+   "usage": {
+    "prompt_tokens": 903,
+    "completion_tokens": 264,
+    "total_tokens": 1167
+   },
+   "http_status": 200,
+   "response_headers": {},
+   "transport_retries": 0,
+   "requested_records": [
+    "IN-8802"
+   ],
+   "decisions": [
+    {
+     "subject_id": "IN-8802",
+     "decision": "DECLINE"
+    }
+   ],
+   "revalidated_review_file": "cases/boundary_4999_99_revalidated_review.json"
+  },
+  {
+   "case_id": "boundary_5000",
+   "kind": "minimal",
+   "subject": "IN-8803",
+   "amount": "5000",
+   "expected": "HOLD",
+   "raw_decision": "HOLD",
+   "substantive_match": true,
+   "certified": true,
+   "errors": [],
+   "request_sha256": "4786413d5765f904659c070f74dee50d821cd39d7a851f402e54e8931fb6b924",
+   "request_file": "cases/boundary_5000_request.json",
+   "response_file": "cases/boundary_5000_response.json",
+   "review_file": "cases/boundary_5000_review.json",
+   "provider_id": "deepseek",
+   "model_requested": "deepseek-v4-pro",
+   "response_model": "deepseek-v4-pro",
+   "response_id": "356fdb9d-f535-4b81-a34f-1a9e71f434ca",
+   "latency_ms": 3992,
+   "usage": {
+    "prompt_tokens": 903,
+    "completion_tokens": 293,
+    "total_tokens": 1196
+   },
+   "http_status": 200,
+   "response_headers": {},
+   "transport_retries": 0,
+   "requested_records": [
+    "IN-8803"
+   ],
+   "decisions": [
+    {
+     "subject_id": "IN-8803",
+     "decision": "HOLD"
+    }
+   ],
+   "revalidated_review_file": "cases/boundary_5000_revalidated_review.json"
+  },
+  {
+   "case_id": "boundary_9999",
+   "kind": "minimal",
+   "subject": "IN-8804",
+   "amount": "9999",
+   "expected": "HOLD",
+   "raw_decision": "HOLD",
+   "substantive_match": true,
+   "certified": true,
+   "errors": [],
+   "request_sha256": "e893d51947bda3696d65ceae09478fa8a16d8878c88e456927d8cab390754965",
+   "request_file": "cases/boundary_9999_request.json",
+   "response_file": "cases/boundary_9999_response.json",
+   "review_file": "cases/boundary_9999_review.json",
+   "provider_id": "deepseek",
+   "model_requested": "deepseek-v4-pro",
+   "response_model": "deepseek-v4-pro",
+   "response_id": "0a1ababd-1e2f-40c3-b543-03001d0baadf",
+   "latency_ms": 3484,
+   "usage": {
+    "prompt_tokens": 903,
+    "completion_tokens": 283,
+    "total_tokens": 1186
+   },
+   "http_status": 200,
+   "response_headers": {},
+   "transport_retries": 0,
+   "requested_records": [
+    "IN-8804"
+   ],
+   "decisions": [
+    {
+     "subject_id": "IN-8804",
+     "decision": "HOLD"
+    }
+   ],
+   "revalidated_review_file": "cases/boundary_9999_revalidated_review.json"
+  },
+  {
+   "case_id": "boundary_10000",
+   "kind": "minimal",
+   "subject": "IN-8805",
+   "amount": "10000",
+   "expected": "HOLD",
+   "raw_decision": "HOLD",
+   "substantive_match": true,
+   "certified": true,
+   "errors": [],
+   "request_sha256": "ff4a74eee99a5399d76deb3edcd869d92ccff4edc0bc5c2711d18f050e0f79c2",
+   "request_file": "cases/boundary_10000_request.json",
+   "response_file": "cases/boundary_10000_response.json",
+   "review_file": "cases/boundary_10000_review.json",
+   "provider_id": "deepseek",
+   "model_requested": "deepseek-v4-pro",
+   "response_model": "deepseek-v4-pro",
+   "response_id": "5a081d46-cef6-4340-8672-bc919437ed44",
+   "latency_ms": 3555,
+   "usage": {
+    "prompt_tokens": 903,
+    "completion_tokens": 258,
+    "total_tokens": 1161
+   },
+   "http_status": 200,
+   "response_headers": {},
+   "transport_retries": 0,
+   "requested_records": [
+    "IN-8805"
+   ],
+   "decisions": [
+    {
+     "subject_id": "IN-8805",
+     "decision": "HOLD"
+    }
+   ],
+   "revalidated_review_file": "cases/boundary_10000_revalidated_review.json"
+  }
+ ],
+ "summary": {
+  "raw_judgment_matches": 7,
+  "certified": 7,
+  "total_cases": 7,
+  "expected_total_cases": 7,
+  "raw_and_certified": 7
+ },
+ "interpretation_rule": "A label is correct only when the applicable teaching's own threshold text yields it. No decision label has an inherent safety rank. Format/reference validity is reported separately and never substitutes for judgment.",
+ "validation_note": "Offline re-validation of saved raw responses with the accepted subject set. No model call, no decision rewrite."
+}

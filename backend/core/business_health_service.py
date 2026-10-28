@@ -68,7 +68,7 @@ class BusinessHealthService:
                     "id": f"lead_{lead.id}",
                     "type": "GROWTH",
                     "title": f"Follow up with {lead.first_name or lead.email}",
-                    "description": f"AI identified {lead.ai_score}% sales intent. {lead.ai_qualification_summary[:100] if lead.ai_qualification_summary else 'Extremely high conversion probability.'}",
+                    "description": f"Recorded AI intent score: {lead.ai_score}%. {lead.ai_qualification_summary[:100] if lead.ai_qualification_summary else 'No qualification summary recorded.'}",
                     "priority": "HIGH",
                     "action_link": f"/sales/leads/{lead.id}"
                 })
@@ -89,16 +89,9 @@ class BusinessHealthService:
                     "action_link": "/automations"
                 })
 
-            # 3. Decision Support Suggestion
-            # If cash flow looks healthy and workload is high, suggest hiring
-            priorities.append({
-                "id": "hiring_check",
-                "type": "STRATEGY",
-                "title": "Scale Check: Can you afford to hire?",
-                "description": "Workload is up 15%. AI can simulate the impact of a new hire on your cash flow.",
-                "priority": "LOW",
-                "action_link": "/health/simulate"
-            })
+            # 3. Decision support is offered only when there is a recorded
+            # signal. A fixed "workload is up 15%" card used to appear on
+            # every workspace regardless of activity.
 
             # 4. Financial Forensics (Phase 9)
             try:
@@ -179,7 +172,16 @@ class BusinessHealthService:
             # Use AI to synthesize the list and add specific "narrative" advice
             synth_prompt = f"Based on these items: {json.dumps(priorities)}, what is the absolute #1 thing the owner should do today to save time or make money?"
             
-            ai_advice = "Focus on Sales: Your top leads represent the fastest path to revenue growth."
+            if priorities:
+                ai_advice = (
+                    f"Review the {len(priorities)} recorded item(s) below; "
+                    "each one names the record it came from."
+                )
+            else:
+                ai_advice = (
+                    "No business risks or opportunities are recorded yet. "
+                    "Connect sales, accounting and support data to populate this list."
+                )
             if ai_enhanced_service:
                 request = AIRequest(
                     request_id=f"prioritize_{datetime.now().timestamp()}",
@@ -190,7 +192,13 @@ class BusinessHealthService:
                 )
                 try:
                     response = await ai_enhanced_service.process_ai_request(request)
-                    ai_advice = response.output_data.get("rationale", ai_advice)
+                    output = getattr(response, "output_data", None)
+                    if isinstance(output, dict):
+                        ai_advice = output.get("rationale") or ai_advice
+                    elif isinstance(output, str) and output.strip():
+                        ai_advice = output.strip()
+                    # Any other shape keeps the data-derived fallback rather
+                    # than leaking a provider object into the UI.
                 except Exception:
                     pass
 

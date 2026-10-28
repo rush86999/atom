@@ -1,0 +1,32 @@
+{
+ "id": "dbb5c813-8784-4025-a277-94b9d4bdea8d",
+ "object": "chat.completion",
+ "created": 1793206064,
+ "model": "deepseek-flash",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```review_result\n{\"assessments\":[{\"subject_id\":\"IN-7301\",\"decision\":\"DECLINE\",\"basis\":[\"The authoritative row vendor_loop!R2 for IN-7301 shows Invoice Amount=3200. Under policy 044d2b537b4d4a2593dbaca52c64b8da, amounts below 5000 are DECLINE; therefore this invoice is declined.\"],\"evidence_ids\":[\"ev:IN-7301:vendor_loop!R2\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}\n```",
+    "reasoning_content": "We need answer only fenced JSON. Need assess subject IN-7301. Policy: amount at or above 10000 HOLD; 5000-9999 HOLD; below 5000 DECLINE. Row amount 3200, state Open. So DECLINE. Basis explain using policy and row. Evidence id ev:IN-7301:vendor_loop!R2. Policy id 044... unresolved_requirements empty. Need exactly one assessment object. Ensure decision label only. JSON valid."
+   },
+   "logprobs": null,
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 860,
+  "completion_tokens": 247,
+  "total_tokens": 1107,
+  "prompt_tokens_details": {
+   "cached_tokens": 256
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 104
+  },
+  "prompt_cache_hit_tokens": 256,
+  "prompt_cache_miss_tokens": 604
+ },
+ "system_fingerprint": "bc19ba97cbe016479903222bb1578db6"
+}

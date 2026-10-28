@@ -257,7 +257,8 @@ def _wire(
 
     orch.llm_service.generate_completion = AsyncMock(
         side_effect=fake_narration)
-    orch._agent_lessons = lambda agent_id, query, limit=5: list(LESSONS)
+    orch._agent_lessons = (
+        lambda agent_id, query, limit=5, **kwargs: list(LESSONS))
     orch._required_research_sources = lambda **kwargs: {"datasets"}
 
     patches = [

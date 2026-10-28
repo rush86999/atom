@@ -56,7 +56,8 @@ def _orch():
         "success": True, "content": "reply", "model": "m", "provider": "p",
     })
     orch.llm_service = llm
-    orch._agent_lessons = lambda agent_id, query, limit=5: list(LESSONS)
+    orch._agent_lessons = (
+        lambda agent_id, query, limit=5, **kwargs: list(LESSONS))
     return orch
 
 

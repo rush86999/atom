@@ -1,0 +1,32 @@
+{
+ "id": "e4c01916-6a12-410f-83ae-d6cf859a73e3",
+ "object": "chat.completion",
+ "created": 1793206071,
+ "model": "deepseek-flash",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```review_result\n{\"assessments\":[{\"subject_id\":\"IN-8803\",\"decision\":\"HOLD\",\"basis\":[\"Invoice Amount is 5000.0 (row minimal_judgment!R2, State=Open). Under the grant threshold rule (044d2b537b4d4a2593dbaca52c64b8da), an amount in the 5000 to 9999 band is HOLD, so the 5000.0 amount is placed on HOLD for CFO review; it is neither at/above 10000 nor below 5000.\"],\"evidence_ids\":[\"ev:IN-8803:minimal_judgment!R2\"],\"policy_ids\":[\"044d2b537b4d4a2593dbaca52c64b8da\"],\"unresolved_requirements\":[]}]}\n```",
+    "reasoning_content": "The policy: amount >=10000 HOLD; 5000-9999 HOLD; below 5000 DECLINE. Amount = 5000.0, which falls in 5000 to 9999 → HOLD.\n\nEvidence: ev:IN-8803:minimal_judgment!R2. Policy ID: 044d2b537b4d4a2593dbaca52c64b8da.\n\nUnresolved requirements: none — assessment complete. Maybe note state Open? Not needed."
+   },
+   "logprobs": null,
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 851,
+  "completion_tokens": 291,
+  "total_tokens": 1142,
+  "prompt_tokens_details": {
+   "cached_tokens": 256
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 109
+  },
+  "prompt_cache_hit_tokens": 256,
+  "prompt_cache_miss_tokens": 595
+ },
+ "system_fingerprint": "bc19ba97cbe016479903222bb1578db6"
+}

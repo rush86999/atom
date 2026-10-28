@@ -1,0 +1,51 @@
+{
+ "success": true,
+ "data": {
+  "id": "013059d6-0ffa-4745-8f04-08f2537e14f4",
+  "name": "Core Release DeepSeek Assessor",
+  "description": "DeepSeek product-route verification hire.",
+  "category": "Operations",
+  "status": "student",
+  "confidence_score": 0.39999999999999997,
+  "module_path": "core.generic_agent",
+  "class_name": "GenericAgent",
+  "configuration": {
+   "system_prompt": "You assess tabular records against the policy you were taught and cite the source row.",
+   "learning": {
+    "log": [
+     {
+      "id": "59631b477acc45b3bc67c72b3a05d344",
+      "source": "teacher",
+      "teacher_agent_id": "human_supervisor",
+      "topic": "grant threshold rule",
+      "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.",
+      "learned_at": "2026-10-28T16:03:01.259563+00:00",
+      "scope": "global"
+     }
+    ],
+    "last_learned_at": "2026-10-28T16:03:01.259563+00:00",
+    "pathways_used": [
+     "teacher"
+    ]
+   },
+   "pedagogy": {
+    "mastery": {
+     "grant threshold rule": 1
+    },
+    "mastery_history": [
+     {
+      "topic": "grant threshold rule",
+      "positive": true,
+      "note": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.",
+      "at": "2026-10-28T16:03:01.261465+00:00"
+     }
+    ]
+   }
+  },
+  "schedule_config": {},
+  "version": "1.0.0",
+  "last_run": null
+ },
+ "timestamp": "2026-10-28T16:03:01.267038+00:00",
+ "message": "Agent retrieved successfully"
+}

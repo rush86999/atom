@@ -1,0 +1,67 @@
+{
+ "steps": [
+  {
+   "name": "admin login",
+   "ok": true,
+   "detail": 200
+  },
+  {
+   "name": "authenticated workspace/user",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "workspace_id": null
+   }
+  },
+  {
+   "name": "agent created through product API",
+   "ok": true,
+   "detail": {
+    "status": 201,
+    "agent_id": "7eab3cfb-0774-4f7c-a71a-59508989a0fe"
+   }
+  },
+  {
+   "name": "policy taught through product API",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "policy_id": "4d5b26935e264cdf9410002be293a4c2",
+    "lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is FUND. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row."
+   }
+  },
+  {
+   "name": "source uploaded through product API",
+   "ok": true,
+   "detail": {
+    "status": 200,
+    "document_id": "doc_45cd101f1f4ee7ad8289f328"
+   }
+  },
+  {
+   "name": "authoritative sheet dataset materialized",
+   "ok": false,
+   "detail": []
+  }
+ ],
+ "upload": {
+  "id": "doc_45cd101f1f4ee7ad8289f328",
+  "title": "grants_loop.csv",
+  "type": "text/csv",
+  "metadata": {
+   "source": "upload",
+   "size": 251,
+   "title": "grants_loop.csv",
+   "filename": "grants_loop.csv",
+   "file_type": "csv",
+   "ingested_at": "2026-10-28T11:48:28.387089",
+   "doc_id": "doc_45cd101f1f4ee7ad8289f328",
+   "pg_document_id": "doc_45cd101f1f4ee7ad8289f328",
+   "source_type": "upload",
+   "integration_id": "manual_upload",
+   "author": "admin@example.com"
+  },
+  "ingested_at": "2026-10-28T11:48:28.387089",
+  "chunk_count": 1
+ }
+}

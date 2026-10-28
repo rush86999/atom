@@ -684,16 +684,34 @@ async def decide_hitl_action(
     action.reviewed_by = user.id
 
     db.commit()
-    
+
+    # A decision is not the end of the journey: goal runs and workflows are
+    # waiting on this row. Resume the durable work before answering the UI so
+    # "approved" cannot mean "marked approved, still stuck".
+    resume: Dict[str, Any] = {"handled": False}
+    try:
+        from core.hitl_resume import resume_after_hitl_decision
+
+        resume = await resume_after_hitl_decision(
+            action_id,
+            approved=req.decision.lower() == "approved",
+            reviewer_id=str(user.id),
+            guidance=req.feedback,
+        )
+    except Exception as resume_err:  # noqa: BLE001 — decision already committed
+        logger.exception("HITL %s decided but resume bridge failed: %s", action_id, resume_err)
+        resume = {"handled": True, "resumed": False, "error": str(resume_err)}
+
     # Broadcast update to UI via WebSocket
     await ws_manager.broadcast("workspace:default", {
         "type": "hitl_decision",
         "action_id": action_id,
-        "decision": action.status
+        "decision": action.status,
+        "resume": resume,
     })
     
     return router.success_response(
-        data={"decision": action.status, "action_id": action_id},
+        data={"decision": action.status, "action_id": action_id, "resume": resume},
         message=f"Action {action_id} {action.status} successfully"
     )
 

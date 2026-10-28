@@ -1,0 +1,32 @@
+{
+ "id": "00004dee-2c0d-4ac0-a011-40db4d399de0",
+ "object": "chat.completion",
+ "created": 1793192013,
+ "model": "deepseek-v4-pro",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```json\n{\n  \"assessments\": [\n    {\n      \"subject_id\": \"IN-8801\",\n      \"decision\": \"DECLINE\",\n      \"basis\": [\n        \"The row for IN-8801 has Invoice Amount=4321.25, which is below 5000. Policy 044d2b537b4d4a2593dbaca52c64b8da states that requested amounts below 5000 are DECLINE.\"\n      ],\n      \"evidence_ids\": [\n        \"ev:IN-8801:minimal_judgment!R2\"\n      ],\n      \"policy_ids\": [\n        \"044d2b537b4d4a2593dbaca52c64b8da\"\n      ],\n      \"unresolved_requirements\": []\n    }\n  ]\n}\n```",
+    "reasoning_content": "We need answer only JSON block. Need assess subject IN-8801. Policy: grant threshold rule ID 044d... Requested amount at or above 10000 HOLD for CFO review. 5000 to 9999 HOLD. Below 5000 DECLINE. Cite reference and amount from row. Row values Invoice Amount=4321.25; State=Open. Amount below 5000 => DECLINE. Need basis explain using row values and policy. evidence_ids: ev:IN-8801:minimal_judgment!R2. policy_ids non-empty. unresolved_requirements []. Decision DECLINE. No prose. Ensure valid JSON."
+   },
+   "logprobs": null,
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 903,
+  "completion_tokens": 307,
+  "total_tokens": 1210,
+  "prompt_tokens_details": {
+   "cached_tokens": 0
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 136
+  },
+  "prompt_cache_hit_tokens": 0,
+  "prompt_cache_miss_tokens": 903
+ },
+ "system_fingerprint": "a307abda487cd1b463329ccb945ce396"
+}
