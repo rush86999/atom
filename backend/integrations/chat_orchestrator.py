@@ -27442,6 +27442,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "[review-diag] structured generation_completed "
                             "content_len=%d",
                             len(_structured_review_answer))
+                    else:
+                        from core.review_result import LAST_STRUCTURED_REVIEW
+
+                        logger.warning(
+                            "[review-diag] structured generation unavailable: "
+                            "%s", LAST_STRUCTURED_REVIEW)
                 except Exception as _structured_review_err:  # noqa: BLE001
                     logger.warning(
                         "[review-diag] structured generation skipped: %r",

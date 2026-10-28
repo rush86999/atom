@@ -31,9 +31,14 @@ silently rewritten.
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
+import os
 import re
 from typing import Any, Dict, List, Optional, Sequence
+
+logger = logging.getLogger(__name__)
 
 try:  # The repository already carries Pydantic; keep this module importable
     # in a minimal extraction that does not.
@@ -119,6 +124,31 @@ def serialize_review_payload(payload: Any) -> str:
         f"```review_result\n{block}\n```")
 
 
+#: Diagnostic state for the LAST structured-review attempt. It deliberately
+#: carries no prompt/response body — only the request identity, the resolved
+#: route, the transport mode and the failure stage. Callers/logs can
+#: distinguish "not dispatched" from "empty payload" and "schema rejection".
+LAST_STRUCTURED_REVIEW: Dict[str, Any] = {}
+
+
+def _review_request_sha(messages: Sequence[Dict[str, Any]]) -> str:
+    payload = json.dumps(
+        list(messages or []), sort_keys=True, separators=(",", ":"),
+        default=str, ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _structured_review_failure(
+    kind: str, stage: str, detail: str = "", **extra: Any,
+) -> None:
+    LAST_STRUCTURED_REVIEW.update(
+        ok=False, failure_kind=kind, failure_stage=stage,
+        failure_detail=str(detail or "")[:500], **extra)
+    logger.warning(
+        "[review-structured] failed kind=%s stage=%s detail=%s",
+        kind, stage, str(detail or "")[:300])
+
+
 async def generate_structured_review(
     llm_service: Any,
     *,
@@ -129,34 +159,78 @@ async def generate_structured_review(
 ) -> Optional[str]:
     """Use the existing structured-output facility for ONE review call.
 
+    The caller's COMPLETE ordered message list is passed through to the
+    handler. The model/provider pin is resolved with the existing scoped pin
+    helper, and the handler records the route it actually served.
+
     Returns the same fenced answer shape the validator already accepts, or
-    ``None`` when the transport cannot produce a schema-valid payload. The
-    caller may fall back to the ordinary completion path; a payload that was
-    produced but fails reference validation is NEVER re-rolled here.
+    ``None`` with a typed reason in ``LAST_STRUCTURED_REVIEW``. The caller may
+    fall back to the ordinary completion path; a payload that was produced but
+    fails reference validation is NEVER re-rolled here.
     """
+    ordered = [dict(msg) for msg in (messages or []) if isinstance(msg, dict)]
+    request_sha = _review_request_sha(ordered)
+    LAST_STRUCTURED_REVIEW.clear()
+    LAST_STRUCTURED_REVIEW.update(
+        ok=False, request_sha256=request_sha, message_count=len(ordered),
+        failure_kind=None, failure_stage=None, dispatched=None,
+        provider=None, model=None, output_mode="json")
     if ReviewPayloadModel is None:
+        _structured_review_failure(
+            "unsupported_structured_transport", "import",
+            "ReviewPayloadModel unavailable")
         return None
     system_parts = [
         str(msg.get("content") or "")
-        for msg in messages or []
-        if isinstance(msg, dict) and msg.get("role") == "system"
+        for msg in ordered
+        if msg.get("role") == "system"
         and str(msg.get("content") or "").strip()
     ]
     user_prompt = ""
-    for msg in reversed(list(messages or [])):
-        if isinstance(msg, dict) and msg.get("role") == "user":
+    for msg in reversed(ordered):
+        if msg.get("role") == "user":
             user_prompt = str(msg.get("content") or "")
             break
     if not system_parts or not user_prompt:
+        _structured_review_failure(
+            "invalid_request", "message_shape",
+            f"system_parts={len(system_parts)} user_prompt={bool(user_prompt)}")
         return None
+
     scope = dict(llm_scope or {})
+    resolved_model = str(model or "").strip()
+    if resolved_model.lower() in ("", "auto"):
+        resolved_model = str(
+            os.getenv("ATOM_REVIEW_MODEL", "") or "").strip() or "auto"
+    provider = str(os.getenv("ATOM_REVIEW_PROVIDER", "") or "").strip()
+    if not provider and resolved_model.startswith("deepseek"):
+        provider = "deepseek"
+    pin_kwargs: Dict[str, Any] = {}
+    if provider and resolved_model not in ("", "auto"):
+        try:
+            from core.llm.pinned_planning import build_provider_model_pin
+
+            pin_kwargs = build_provider_model_pin(
+                llm_service, provider, resolved_model,
+                workspace_id=scope.get("workspace_id"),
+                tenant_id=scope.get("tenant_id"))
+        except Exception as exc:  # noqa: BLE001 — pinning is best effort
+            logger.debug("structured review pin skipped: %r", exc)
+    LAST_STRUCTURED_REVIEW.update(
+        provider=provider or None, model=resolved_model,
+        pin=dict(pin_kwargs), output_mode="json")
     kwargs: Dict[str, Any] = {
         "prompt": user_prompt,
         "response_model": ReviewPayloadModel,
         "system_instruction": "\n\n".join(system_parts),
-        "model": model,
+        "messages": ordered,
+        "model": resolved_model,
+        "task_type": "review",
         "allow_moa": False,
         "cascade": False,
+        "output_mode": "json",
+        "claim_wait_seconds": 45.0,
+        **pin_kwargs,
     }
     for key in ("workspace_id", "tenant_id", "agent_id", "temperature"):
         if scope.get(key) is not None:
@@ -165,9 +239,37 @@ async def generate_structured_review(
         kwargs["max_tokens"] = max_tokens
     try:
         payload = await llm_service.generate_structured_response(**kwargs)
-    except Exception:  # noqa: BLE001 — transport capability, not judgment
+    except Exception as exc:  # noqa: BLE001 — transport capability, not judgment
+        text = str(exc).lower()
+        kind = (
+            "unsupported_structured_transport"
+            if any(term in text for term in (
+                "instructor", "protocol", "not supported", "unsupported"))
+            else "provider_exception")
+        _structured_review_failure(
+            kind, "dispatch", f"{type(exc).__name__}: {exc}")
         return None
-    return serialize_review_payload(payload) or None
+    if payload is None:
+        _structured_review_failure(
+            "empty_payload", "dispatch",
+            "structured service returned no payload")
+        return None
+    LAST_STRUCTURED_REVIEW.update(
+        ok=True, failure_kind=None, failure_stage=None,
+        payload_type=type(payload).__name__)
+    try:
+        serialized = serialize_review_payload(payload)
+    except Exception as exc:  # noqa: BLE001 — validation boundary
+        _structured_review_failure(
+            "payload_validation_failure", "serialize",
+            f"{type(exc).__name__}: {exc}")
+        return None
+    if not serialized:
+        _structured_review_failure(
+            "payload_validation_failure", "serialize",
+            "payload had no assessments")
+        return None
+    return serialized
 
 
 def _clean(value: Any) -> str:

@@ -715,6 +715,10 @@ async def test_structured_review_call_uses_same_contract_and_schema():
     assert captured["allow_moa"] is False and captured["cascade"] is False
     assert captured["workspace_id"] == "ws-1"
     assert captured["max_tokens"] == 800
+    assert captured["messages"] == messages
+    assert captured["output_mode"] == "json"
+    assert captured["task_type"] == "review"
+    assert captured["claim_wait_seconds"] == 45.0
     assert "policy_ids" in captured["system_instruction"]
     assert "lesson-1" in captured["system_instruction"]
     assert "```review_result" in (answer or "")
@@ -727,6 +731,93 @@ async def test_structured_review_call_uses_same_contract_and_schema():
         policy_index=[dict(POLICY_INDEX[0])],
     )
     assert review["ok"] is True
+
+
+@pytest.mark.asyncio
+async def test_structured_review_uses_scoped_pin_and_keeps_message_order(
+        monkeypatch):
+    from core.review_result import (
+        LAST_STRUCTURED_REVIEW,
+        ReviewPayloadModel,
+        generate_structured_review,
+    )
+
+    captured = {}
+
+    class _StructuredLLM:
+        async def generate_structured_response(self, **kwargs):
+            captured.update(kwargs)
+            return ReviewPayloadModel(
+                explanation="ok",
+                assessments=[{
+                    "subject_id": "O-1010",
+                    "decision": "Process",
+                    "evidence_ids": ["ev:O-1010:Orders!R11"],
+                    "policy_ids": ["lesson-1"],
+                    "basis": ["record is complete"],
+                    "unresolved_requirements": [],
+                }],
+            )
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.build_provider_model_pin",
+        lambda *args, **kwargs: {
+            "provider_model": ("deepseek", "deepseek-v4-pro")})
+    messages = [
+        {"role": "system", "content": "contract"},
+        {"role": "system", "content": "evidence"},
+        {"role": "user", "content": "assess"},
+    ]
+    answer = await generate_structured_review(
+        _StructuredLLM(), messages=messages, model="deepseek-v4-pro",
+        llm_scope={"workspace_id": "ws-1"})
+    assert answer
+    assert captured["provider_model"] == ("deepseek", "deepseek-v4-pro")
+    assert captured["messages"] == messages
+    assert LAST_STRUCTURED_REVIEW["ok"] is True
+    assert LAST_STRUCTURED_REVIEW["failure_kind"] is None
+
+
+@pytest.mark.asyncio
+async def test_structured_review_empty_payload_is_typed_failure():
+    from core.review_result import (
+        LAST_STRUCTURED_REVIEW,
+        generate_structured_review,
+    )
+
+    class _EmptyLLM:
+        async def generate_structured_response(self, **kwargs):
+            return None
+
+    answer = await generate_structured_review(
+        _EmptyLLM(), messages=[
+            {"role": "system", "content": "contract"},
+            {"role": "user", "content": "assess"},
+        ], model="deepseek-v4-pro")
+    assert answer is None
+    assert LAST_STRUCTURED_REVIEW["failure_kind"] == "empty_payload"
+    assert LAST_STRUCTURED_REVIEW["failure_stage"] == "dispatch"
+
+
+@pytest.mark.asyncio
+async def test_structured_review_provider_exception_is_typed_failure():
+    from core.review_result import (
+        LAST_STRUCTURED_REVIEW,
+        generate_structured_review,
+    )
+
+    class _BrokenLLM:
+        async def generate_structured_response(self, **kwargs):
+            raise RuntimeError("transport down")
+
+    answer = await generate_structured_review(
+        _BrokenLLM(), messages=[
+            {"role": "system", "content": "contract"},
+            {"role": "user", "content": "assess"},
+        ], model="deepseek-v4-pro")
+    assert answer is None
+    assert LAST_STRUCTURED_REVIEW["failure_kind"] == "provider_exception"
+    assert "RuntimeError" in LAST_STRUCTURED_REVIEW["failure_detail"]
 
 
 def test_missing_block_only_distinguishes_format_from_refusal():

@@ -7547,6 +7547,9 @@ class BYOKHandler:
         _sweep_depth: int = 0,                   # internal: sweep recursion guard
         route_trace_id: Optional[str] = None,
         _force_candidates: Optional[List[Tuple[str, str]]] = None,  # sweep: catalog-driven pool
+        messages: Optional[List[Dict[str, Any]]] = None,  # complete ordered messages
+        output_mode: Optional[str] = None,  # "json" forces instructor JSON mode
+        claim_wait_seconds: Optional[float] = None,  # bounded sibling-claim wait
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
@@ -8088,7 +8091,9 @@ class BYOKHandler:
                         failed_providers.add(provider_id)
                         continue
                     instructor_client = instructor.from_openai(client)
-                    _json_mode = f"{provider_id}/{model}" in _TOOLCHOICE_UNSUPPORTED
+                    _json_mode = (
+                        str(output_mode or "").strip().lower() == "json"
+                        or f"{provider_id}/{model}" in _TOOLCHOICE_UNSUPPORTED)
                     if _json_mode:
                         instructor_client = instructor.from_openai(
                             client, mode=instructor.Mode.JSON)
@@ -8139,25 +8144,38 @@ class BYOKHandler:
                     # Make the structured request
                     logger.info(f"Structured generation ({tenant_plan}, {'Managed' if is_managed else 'BYOK'}): {provider_id}/{model}")
                     
-                    # Construct Messages (Phase 14: Multimodal)
-                    messages = []
-                    messages.append({"role": "system", "content": system_instruction})
-                    
-                    if image_payload:
-                        # OpenAI / Compatible Vision Format
-                        user_content = [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": image_payload if image_payload.startswith("http") else f"data:image/jpeg;base64,{image_payload}"
-                                }
-                            }
+                    # Construct Messages (Phase 14: Multimodal). A caller that
+                    # supplies the COMPLETE ordered list (review transport)
+                    # keeps every message; the legacy prompt/system path is
+                    # byte-identical for all other callers.
+                    if messages:
+                        request_messages = [
+                            dict(message) for message in messages
+                            if isinstance(message, dict)
                         ]
-                        messages.append({"role": "user", "content": user_content})
-                        logger.info(f"Adding visual payload to STRUCTURED request for {model}")
                     else:
-                        messages.append({"role": "user", "content": prompt})
+                        request_messages = [{
+                            "role": "system", "content": system_instruction,
+                        }]
+                        if image_payload:
+                            # OpenAI / Compatible Vision Format
+                            user_content = [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": image_payload if image_payload.startswith("http") else f"data:image/jpeg;base64,{image_payload}"
+                                    }
+                                }
+                            ]
+                            request_messages.append(
+                                {"role": "user", "content": user_content})
+                            logger.info(
+                                f"Adding visual payload to STRUCTURED "
+                                f"request for {model}")
+                        else:
+                            request_messages.append(
+                                {"role": "user", "content": prompt})
 
                     _structured_start = time.time()
                     # R83 #6: soft self-consistency — request logprobs and
@@ -8191,7 +8209,7 @@ class BYOKHandler:
                     _create_kwargs = dict(
                         model=_direct_api_model_name(provider_id, model),
                         response_model=response_model,
-                        messages=messages,
+                        messages=request_messages,
                         temperature=_effective_temperature,
                         max_tokens=_structured_max_tokens,
                     )
@@ -8252,7 +8270,8 @@ class BYOKHandler:
                             # inside the caller's own wait_for deadline —
                             # for the current holder to finish, instead
                             # of failing the sibling leg.
-                            _claim_wait_deadline = time.time() + 20.0
+                            _claim_wait_deadline = time.time() + float(
+                                claim_wait_seconds or 20.0)
                             while not self._claim_model_attempt(
                                     provider_id, model,
                                     holder="completion2:" + str(
