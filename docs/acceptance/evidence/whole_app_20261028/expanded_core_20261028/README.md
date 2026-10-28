@@ -5,7 +5,7 @@ Status: **PASS** for the demonstrated workflows below on world
 acceptance campaign, not whole-app certification. Two frozen candidates were
 reviewed read-only; their release-blocking findings were fixed and this
 evidence was regenerated on the final repaired candidate (tested code
-`65fe6e575`).
+`c04591909`).
 
 ## Evidence sets
 

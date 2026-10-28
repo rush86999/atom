@@ -27,7 +27,7 @@ PPTX and one bounded cross-material employee job. Neither package is deployed.
 
 ## Evidence
 
-- Expanded core: `docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/` — office slices 40/40 UI + 17/17 artifact checks; two user-created capability canvases 33/33; employee job 16/16 before restart, 17/17 after restart, 19/19 artifact checks. Re-run after two read-only reviews and remediation; tested code `65fe6e575`.
+- Expanded core: `docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/` — office slices 40/40 UI + 17/17 artifact checks; two user-created capability canvases 33/33; employee job 16/16 before restart, 17/17 after restart, 19/19 artifact checks. Re-run after three read-only reviews and remediation; tested code `c04591909`.
 - Flash screening: `docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/` — 7/7 substantive and certified, avg 2.3 s, est. $0.0057.
 - Flash core loop: `docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_flash_20261028_fixed2/` — 28/28 checks, calculation 22200.00, correction, fresh post-restart judgment, zero unauthorized writes.
 - Pro core loop (verified alternative): `docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/`.

@@ -4,7 +4,7 @@
  "generated_at": "2026-10-28T17:30:00Z",
  "candidate": {
   "branch": "whole-app/successor-f5f",
-  "app_code_commit": "65fe6e575",
+  "app_code_commit": "c04591909",
   "transport_repair_commits": [
    "f547a0dd1",
    "f028ab2ab",
@@ -173,7 +173,7 @@
    }
   ],
   "acceptance_rule": "Each slice has its own UI/public-boundary and artifact evidence. No format is certified from another format pass.",
-  "review_remediation": "Two read-only reviews found release blockers and follow-on defects; fixed in b4060236b and 65fe6e575; evidence regenerated on world expanded_core_final_20261028 run-ca4d4d520140."
+  "review_remediation": "Three read-only reviews found release blockers/follow-on defects; fixed in b4060236b, 65fe6e575 and c04591909; evidence regenerated on world expanded_core_final_20261028 run-ca4d4d520140."
  },
  "expanded_core_ready": true,
  "frozen_csv_package": {

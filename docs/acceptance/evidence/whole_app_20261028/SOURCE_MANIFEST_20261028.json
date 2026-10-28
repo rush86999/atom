@@ -160,8 +160,8 @@
   "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/pre_restart_final.json": "d6a5c9d841360d2daff058fe1a4adafb480774369047eb20c6ce8ac4616e8787",
   "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/run_stdout.text": "72b43858712dec60c73e82c66570ba27b9026d320b51e70cd8b528102ff9c6b8",
   "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/ui_loop_final.json": "fce802fe997c4a50c34d3e8f490dd7afdb340f52a15d965e56eb742392fadc00",
-  "docs/acceptance/CORE_RELEASE_LEDGER_2026-10-28.json": "234b2f0d1faa51bdce39ade4991d31787a2cb462ad9dc845626254e9992e2e1c",
-  "docs/acceptance/CORE_RELEASE_STATUS_2026-10-28.md": "b64021d5d2fe8d3b147ebb55eb1069ac9a0cd544b2f480608cdc2149f053b709",
+  "docs/acceptance/CORE_RELEASE_LEDGER_2026-10-28.json": "819b669a375ccc0833740771bdab772068f22f6d60d84013c94a96b56e3258a6",
+  "docs/acceptance/CORE_RELEASE_STATUS_2026-10-28.md": "b7893f275b41fd9f8e792d723b44c2e4393bd0a9aeacaa88d731cea136b1fc54",
   "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/README.md": "5fbb05452993367d603d6dec1aa8bce83e9342c08eb8fc5a3267bc324783b77f",
   "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/SCREENING_MANIFEST.json": "6c18a7a91d7eba0ea7d81193e2715522c46eb32ecb595df10f1281787cc0f195",
   "docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/SPEC_FLASH.json": "d08fae8bcee67d2d47d1b87bc032d996c1e3a1ca7a3b8b34f29a07a88ab87b29",
@@ -213,7 +213,7 @@
   "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_flash_20261028_fixed2/run_stdout.text": "5165cf71e4687930da1e448e784010490b1b07be2d2c1febcf238b49d17f57dc",
   "docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_flash_20261028_fixed2/ui_loop_final.json": "7066d5886da83d09841761ab365671cc0b00836a11705304250c896aff5b69f1",
   "docs/acceptance/release_package_20261028/SECURITY_REDACTIONS.md": "11f1788edb66b10d0afea5e06b545f54848248a5cfe0808cae484deebc628c50",
-  "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/README.md": "0e99411aee00f9d8e5d4f1859fdb1a3abc03b3b784bb7d1f32a27331f6b4b093",
+  "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/README.md": "030c57d92f7b1830403a65d068a555439c3a8a1a7314a8631e552009b791bb13",
   "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/artifact_checks.json": "37d81df984c80f34106d091ec3bae8ea04a6ebac5f8b2d75d134c35b7d299e28",
   "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/artifact_checks_after_restart.json": "3049e4df0f57fbac77d5ab9f8556db4810f96a306b1cc46f5d293e3b8680872f",
   "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/capability_run_stdout.text": "1edc6bfd531692b34b56c4b56cda0d2bb410f088d25279ef91c6f02479deda4c",
@@ -251,12 +251,12 @@
   "docs/acceptance/release_package_20261028_expanded/ROLLBACK.md": "381c92a01a5072507992a11bf661d343981016ad286b163ce3964c8ed90d25c6",
   "docs/acceptance/release_package_20261028_expanded/SECURITY_REDACTIONS.md": "f5bdc0bf124e10c88185d2d4e4bf65b7961e7151e361dc237fdc162ee90d61a0",
   "docs/acceptance/release_package_20261028_expanded/SMOKE.md": "70a8ef1fae46001aed9845b87327c2410cc2dc8138fb34b20b87e82f1d861151",
-  "docs/acceptance/release_package_20261028_expanded/SOURCE_BUILD_IDENTITY.json": "05045b1446abd90afec753971e55f1d7644d7cb34a12db628fe853a3e266d474",
+  "docs/acceptance/release_package_20261028_expanded/SOURCE_BUILD_IDENTITY.json": "0341b059804a85c1553eb7af7b12232212105efd79ca86771377ae2b0ebc188e",
   "docs/acceptance/release_package_20261028_expanded/STARTUP.md": "445dd96e680bf0a9fe1f23a4b18cb9d350090b3a8b05018cdd68a8e1defa4118",
   "docs/acceptance/release_package_20261028_expanded/SUPPORTED_WORKFLOWS.md": "30e81bc08fd7933ce3ad92ea7492931a6e03f0b5e4e9f356618ef170f3a4d964",
   "docs/acceptance/release_package_20261028_expanded/config.env.template": "910ab32cedab83e52ee52ea57ee9dbdd233926a6f3fbbf106cc4633633a208ee",
   "docs/acceptance/CORE_RELEASE_SCOPE_2026-10-28.md": "f0a69ebbdbfdc0e1706990ab8da1c9251b3db9ac119ae854b2d6fbad70fbab53",
-  "docs/acceptance/release_package_20261028_expanded/CHECKSUMS.sha256": "8af317151fde0906a546decc8a4e559677e915637e10633e56e4273dc26de0a8"
+  "docs/acceptance/release_package_20261028_expanded/CHECKSUMS.sha256": "f773cac04482dc3d11d95b241e4a2dda529c594666e24e1cb3abc322ccb7ce48"
  },
  "notes": [
   "The failed UI evidence under docs/acceptance/evidence/whole_app_20261027/core_release_ui_loop_20261028 is unchanged.",
@@ -269,6 +269,7 @@
   "DeepSeek Flash passed screening and the core UI loop; Flash is the recommended launch configuration. Release package prepared; not deployed.",
   "Expanded core acceptance passed: workbook canvas, email, DOCX, PPTX, two user-created capability canvases and one bounded cross-material employee job with restart. Expanded package prepared; not deployed.",
   "Read-only review remediation: expanded candidate r1 withdrawn; r2 regenerated on expanded_core_final_20261028 with tested code b4060236b.",
-  "Final expanded candidate r3: tested code 65fe6e575; office 40/40; capability 33/33; job 16/16 + 17/17; artifacts 17/17 + 19/19."
+  "Final expanded candidate r3: tested code 65fe6e575; office 40/40; capability 33/33; job 16/16 + 17/17; artifacts 17/17 + 19/19.",
+  "Final expanded candidate r3: tested code c04591909; office 40/40; capability 33/33; job 16/16 + 17/17; artifacts 17/17 + 19/19."
  ]
 }
