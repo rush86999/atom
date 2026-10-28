@@ -1,0 +1,84 @@
+{
+ "schema": "deepseek-product-route-revalidation-1",
+ "no_model_call": true,
+ "policy_id": "40b2aa7ae06b46e48be12d513a9f6429",
+ "policy_lesson": "Use exactly these decision labels: FUND, HOLD, DECLINE. Requested amount at or above 10000 is HOLD for CFO review. 5000 to 9999 is HOLD. Below 5000 is DECLINE. Cite the reference and amount from the row.",
+ "checks": {
+  "teaching_persisted": true,
+  "review_certified": true,
+  "decisions_match": true,
+  "evidence_bound": true,
+  "policy_refs_match": true,
+  "response_model_deepseek_v4_pro": true,
+  "history_agrees": true,
+  "actual_dispatch_captured": true
+ },
+ "all_ok": true,
+ "decisions": {
+  "IN-7301": "DECLINE",
+  "IN-7302": "HOLD",
+  "IN-7303": "HOLD"
+ },
+ "expected": {
+  "IN-7301": "DECLINE",
+  "IN-7302": "HOLD",
+  "IN-7303": "HOLD"
+ },
+ "evidence": [
+  {
+   "subject": "IN-7301",
+   "row_ref": "vendor_loop!R2",
+   "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+   "values": {
+    "Invoice Amount": 3200,
+    "State": "Open"
+   }
+  },
+  {
+   "subject": "IN-7302",
+   "row_ref": "vendor_loop!R3",
+   "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+   "values": {
+    "Invoice Amount": 7000,
+    "State": "Open"
+   }
+  },
+  {
+   "subject": "IN-7303",
+   "row_ref": "vendor_loop!R4",
+   "content_hash": "0a84a5f50661bc8a7917d158bcd36cad5b3f0262",
+   "values": {
+    "Invoice Amount": 12000,
+    "State": "Open"
+   }
+  }
+ ],
+ "history_final_text": "| Vendor Ref | Invoice Amount | State | Decision |\n| --- | ---: | ---: | --- |\n| IN-7301 | 3200 | Open | DECLINE |\n| IN-7302 | 7000 | Open | HOLD |\n| IN-7303 | 12000 | Open | HOLD |\n\nSource: vendor_loop.csv · rows from the bound selection\n\n\n\nVALIDATED REVIEW (request-bound):\n- IN-7301: Decision: DECLINE\n  Evidence: vendor_loop.csv 0a84a5f50661bc8a7917d158bcd36cad5b3f0262 0a84a5f50661bc8a7917d158bcd36cad5b3f0262 vendor_loop!R2\n  Policy: grant threshold rule\n  Basis: Policy 40b2aa7ae06b46e48be12d513a9f6429 states requested amount below 5000 is DECLINE. Vendor reference IN-7301 has invoice amount 3200, which is below 5000.\n- IN-7302: Decision: HOLD\n  Evidence: vendor_loop.csv 0a84a5f50661bc8a7917d158bcd36cad5b3f0262 0a84a5f50661bc8a7917d158bcd36cad5b3f0262 vendor_loop!R3\n  Policy: grant threshold rule\n  Basis: Policy 40b2aa7ae06b46e48be12d513a9f6429 states requested amount 5000 to 9999 is HOLD. Vendor reference IN-7302 has invoice amount 7000, which falls in that range.\n- IN-7303: Decision: HOLD\n  Evidence: vendor_loop.csv 0a84a5f50661bc8a7917d158bcd36cad5b3f0262 0a84a5f50661bc8a7917d158bcd36cad5b3f0262 vendor_loop!R4\n  Policy: grant threshold rule\n  Basis: Policy 40b2aa7ae06b46e48be12d513a9f6429 states requested amount at or above 10000 is HOLD for CFO review. Vendor reference IN-7303 has invoice amount 12000, which is at or above 10000.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+ "dispatch": {
+  "provider_policy": [
+   "79d4ccbe7b7c"
+  ],
+  "route_gate": [
+   "[route-gate] EXPLICIT OVERRIDE deepseek/deepseek-v4-pro for operation=text — operator-selected route admitted under the documented override policy"
+  ],
+  "provider_http": [
+   "POST https://api.deepseek.com/v1/chat/completions \"HTTP/1.1 200 OK\"",
+   "POST https://api.deepseek.com/v1/chat/completions \"HTTP/1.1 400 Bad Request\""
+  ],
+  "inflight": [
+   "[inflight] deepseek/deepseek-v4-pro released by 'completion2:general' after 2.4s",
+   "[inflight] deepseek/deepseek-v4-pro released by 'completion2:general' after 6.3s",
+   "[inflight] deepseek/deepseek-v4-pro released by 'completion2:planning' after 0.4s",
+   "[inflight] deepseek/deepseek-v4-pro released by 'completion2:planning' after 19.1s",
+   "[inflight] deepseek/deepseek-v4-pro released by 'completion2:planning' after 20.1s",
+   "[inflight] deepseek/deepseek-v4-pro released by 'completion:general' after 9.5s"
+  ],
+  "byok_logic": [
+   "BYOK Logic: complexity=moderate, provider=deepseek, model=deepseek-v4-pro"
+  ],
+  "cost_lines": [
+   "LLM Cost Attributed (BYOK): deepseek-v4-pro - $0.004747 (Saved: $0.006403)"
+  ]
+ },
+ "note": "The first product-route script treated the teach response as a teaching_point object and marked that step false. The persisted agent journal and the review's policy refs prove the same point was written; no model call or decision rewrite occurred here."
+}

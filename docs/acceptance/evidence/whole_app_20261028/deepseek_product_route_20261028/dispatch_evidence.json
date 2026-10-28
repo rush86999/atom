@@ -1,0 +1,26 @@
+{
+ "provider_policy": [
+  "79d4ccbe7b7c"
+ ],
+ "route_gate": [
+  "[route-gate] EXPLICIT OVERRIDE deepseek/deepseek-v4-pro for operation=text — operator-selected route admitted under the documented override policy"
+ ],
+ "provider_http": [
+  "POST https://api.deepseek.com/v1/chat/completions \"HTTP/1.1 200 OK\"",
+  "POST https://api.deepseek.com/v1/chat/completions \"HTTP/1.1 400 Bad Request\""
+ ],
+ "inflight": [
+  "[inflight] deepseek/deepseek-v4-pro released by 'completion2:general' after 2.4s",
+  "[inflight] deepseek/deepseek-v4-pro released by 'completion2:general' after 6.3s",
+  "[inflight] deepseek/deepseek-v4-pro released by 'completion2:planning' after 0.4s",
+  "[inflight] deepseek/deepseek-v4-pro released by 'completion2:planning' after 19.1s",
+  "[inflight] deepseek/deepseek-v4-pro released by 'completion2:planning' after 20.1s",
+  "[inflight] deepseek/deepseek-v4-pro released by 'completion:general' after 9.5s"
+ ],
+ "byok_logic": [
+  "BYOK Logic: complexity=moderate, provider=deepseek, model=deepseek-v4-pro"
+ ],
+ "cost_lines": [
+  "LLM Cost Attributed (BYOK): deepseek-v4-pro - $0.004747 (Saved: $0.006403)"
+ ]
+}

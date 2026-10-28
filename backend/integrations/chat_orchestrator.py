@@ -31609,6 +31609,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             evidence_index,
             policy_index,
         )
+        # PIN THE VERIFIED ROUTE (2026-10-28): an automatic retry must not
+        # silently switch models. A contract-only recovery after a format
+        # collapse has to use the same model that produced the failed reply;
+        # otherwise a verified DeepSeek route can fall through to a cheaper
+        # sibling (observed: deepseek-v4-pro -> deepseek-flash) while the
+        # response still claims the requested route.
+        if str(model or "").strip().lower() in ("", "auto"):
+            handler = getattr(self.llm_service, "handler", None)
+            last_model = str(
+                getattr(handler, "_last_used_model", "") or "").strip()
+            if last_model and last_model not in ("auto", "structured"):
+                model = last_model
+                logger.info(
+                    "[review-diag] block_recovery pins last used model=%s",
+                    last_model)
         task = (
             f"Task: {str(objective_text or '').strip()}\n\n"
             f"Validated source rows:\n"

@@ -1,0 +1,19 @@
+PASS admin login 200
+PASS authenticated workspace/user {'status': 200, 'workspace_id': None}
+PASS agent created through product API {'status': 201, 'agent_id': '3253858f-7189-47e1-8e45-b56a54085cce'}
+FAIL policy taught through product API {'status': 200, 'policy_id': '', 'lesson': None}
+PASS source uploaded through product API {'status': 200, 'document_id': 'doc_48f408eb8d8a2c689d1f5157'}
+PASS authoritative sheet dataset materialized [{'file_name': 'vendor_loop.csv', 'entity_name': 'vendor_loop', 'dataset_name': 'upload_vendor_loop__vendor_loop', 'content_hash': '0a84a5f50661bc8a7917d158bcd36cad5b3f0262', 'row_count': 4}]
+PASS one assessment turn returned {'status': 200, 'latency_ms': 60343}
+PASS review structurally certified []
+PASS review decisions match the taught policy {'IN-7301': 'DECLINE', 'IN-7302': 'HOLD', 'IN-7303': 'HOLD'}
+PASS source hash present [{'file_name': 'vendor_loop.csv', 'entity_name': 'vendor_loop', 'dataset_name': 'upload_vendor_loop__vendor_loop', 'content_hash': '0a84a5f50661bc8a7917d158bcd36cad5b3f0262', 'row_count': 4}]
+{
+ "all_ok": false,
+ "decisions": {
+  "IN-7301": "DECLINE",
+  "IN-7302": "HOLD",
+  "IN-7303": "HOLD"
+ },
+ "latency_ms": 60343
+}

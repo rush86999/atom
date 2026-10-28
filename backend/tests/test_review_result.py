@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from core.review_result import (
     align_review_failure,
     build_evidence_index,
@@ -822,6 +824,39 @@ async def test_block_recovery_retry_uses_same_contract_and_ids():
     assert review["ok"] is True
 
 
+@pytest.mark.asyncio
+async def test_block_recovery_pins_the_last_used_model():
+    """A format-collapse retry must not silently switch provider models."""
+    from types import SimpleNamespace
+
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    captured = {}
+
+    class _StubLLM:
+        handler = SimpleNamespace(_last_used_model="deepseek-v4-pro")
+
+        async def generate_completion(self, **kwargs):
+            captured.update(kwargs)
+            return {"content": "assessed"}
+
+    answer = await ChatOrchestrator._retry_review_block(
+        SimpleNamespace(llm_service=_StubLLM()),
+        objective_text="assess",
+        rendered_rows="rows",
+        subjects=["O-1010"],
+        allowed_decisions=ORDER_DECISIONS,
+        evidence_index=[dict(EVIDENCE_INDEX[0])],
+        policy_index=[dict(POLICY_INDEX[0])],
+        model="auto",
+        llm_scope={"workspace_id": "ws-1"},
+        extra_kwargs={},
+    )
+    assert answer == "assessed"
+    assert captured.get("model") == "deepseek-v4-pro"
+
+
+@pytest.mark.asyncio
 async def test_block_recovery_provider_failure_returns_none():
     """A provider failure in the retry is a skip, not an exception: the
     caller falls through to the evidence-only failure."""
