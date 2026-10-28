@@ -402,6 +402,7 @@ def set_manifest(db, canvas: Canvas, user: Any, manifest: Dict[str, Any]) -> Dic
 def bind_dataset(
     db, canvas: Canvas, user: Any, columns: Sequence[str], rows: Sequence[Sequence[Any]],
     source: Optional[Dict[str, Any]] = None, title: Optional[str] = None,
+    verified_file_sha256: Optional[str] = None,
 ) -> Dict[str, Any]:
     clean_columns = [str(c).strip() for c in columns]
     if not clean_columns or any(not c for c in clean_columns):
@@ -425,8 +426,9 @@ def bind_dataset(
     source["source_version"] = dataset_hash[:16]
     # A client-supplied sha is not authority. Preserve a verified file hash
     # only when the file-upload path supplied one explicitly.
-    verified_file_sha = source.pop("_verified_file_sha256", None)
-    source["sha256"] = str(verified_file_sha or dataset_hash)
+    # The verified file hash is a server-side parameter, never a source-dict
+    # key a JSON client could supply.
+    source["sha256"] = str(verified_file_sha256 or dataset_hash)
     content = _canvas_content(canvas)
     manifest = get_manifest(canvas) or default_manifest()
     content["dataset"] = {

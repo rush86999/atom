@@ -154,11 +154,9 @@ async def bind_capability_file(
         columns, rows = parse_tabular_upload(file.filename or "dataset.csv", content)
         return bind_dataset(
             db, canvas, current_user, columns, rows,
-            source={
-                "file_name": file.filename or "dataset",
-                "_verified_file_sha256": __import__("hashlib").sha256(content).hexdigest(),
-            },
+            source={"file_name": file.filename or "dataset"},
             title=title or file.filename,
+            verified_file_sha256=__import__("hashlib").sha256(content).hexdigest(),
         )
     except CapabilityError as exc:
         return _error(exc)

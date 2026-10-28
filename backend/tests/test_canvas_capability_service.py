@@ -318,9 +318,14 @@ def test_client_file_sha_is_not_trusted_for_json_binding(db, canvas, user):
     result = bind_dataset(
         db, canvas, user, ["Ref", "Amount"],
         [["R-1", 10]],
-        source={"file_name": "forged.csv", "file_sha256": "deadbeef"},
+        source={
+            "file_name": "forged.csv",
+            "file_sha256": "deadbeef",
+            "_verified_file_sha256": "cafebabe",
+        },
     )
     assert result["source"]["sha256"] != "deadbeef"
+    assert result["source"]["sha256"] != "cafebabe"
     assert len(result["source"]["sha256"]) == 64
 
 
