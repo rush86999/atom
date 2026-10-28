@@ -8555,6 +8555,12 @@ class BYOKHandler:
 
                             raise
                     self._capture_echoed_model(result)  # reads _raw_response.model
+                    # PROVENANCE (2026-10-28): structured successes must set
+                    # the same last-used pair as text completions. Review
+                    # finalization reads this to report the route that actually
+                    # served the payload, never the startup/requested value.
+                    self._last_used_provider = provider_id
+                    self._last_used_model = model
                     _structured_latency_ms = (time.time() - _structured_start) * 1000.0
                     if _soft_sc_on:
                         # Best-effort — no stamp ⇒ voter weight 1.0.
