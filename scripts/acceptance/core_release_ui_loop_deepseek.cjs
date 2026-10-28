@@ -22,6 +22,7 @@ const GRANT_ASK = 'Assess each Submitted application in grants_loop.csv under th
 const VENDOR_ASK = 'Assess each Open invoice in vendor_loop.csv under the taught threshold rule. Give a table with vendor reference, amount and decision.';
 const CALC_ASK = 'What is the total Invoice Amount for Open invoices in vendor_loop.csv? Use a sum and cite the rows.';
 const EXPECTED_TOTAL = '22200';
+const EXPECTED_MODEL = process.env.UI_EXPECTED_MODEL || 'deepseek-v4-pro';
 let AGENT = null;
 const checks = [];
 const record = (name, ok, detail) => {
@@ -89,7 +90,7 @@ function decisions(json) {
   return {review: r, decisions: out, contract: json?.metadata?.review_contract || json?.review_contract};
 }
 function routeOk(turn) {
-  return turn?.json?.model === 'deepseek-v4-pro' && turn?.json?.provider === 'deepseek';
+  return turn?.json?.model === EXPECTED_MODEL && turn?.json?.provider === 'deepseek';
 }
 
 (async () => {
@@ -208,6 +209,7 @@ function routeOk(turn) {
     status: checks.every(c => c.ok) ? 'passed' : 'failed',
     base: BASE, backend: API, agent_id: AGENT, canvas1, canvas2,
     source_materials: {grants: GRANTS, vendor: VENDOR},
+    expected_model: EXPECTED_MODEL,
     checks,
     grant: {status: grantTurn.status, model: grantTurn.json?.model, provider: grantTurn.json?.provider, review: grant.review, contract: grant.contract, decisions: grant.decisions},
     correction: {status: patch.status(), before, after: CORRECTED, pointText},
