@@ -4,7 +4,7 @@
  "generated_at": "2026-10-28T17:30:00Z",
  "candidate": {
   "branch": "whole-app/successor-f5f",
-  "app_code_commit": "a077efa77",
+  "app_code_commit": "b4060236b",
   "transport_repair_commits": [
    "f547a0dd1",
    "f028ab2ab",
@@ -118,9 +118,9 @@
  "recommended_launch_configuration": "deepseek-flash",
  "release_package": {
   "status": "ready",
-  "identity": "tag expanded-core-2026-10-28 (single release commit)",
+  "identity": "tag expanded-core-2026-10-28-r2 (single release commit)",
   "path": "docs/acceptance/release_package_20261028_expanded/",
-  "external_path": "/Users/rushiparikh/projects/atom-releases/expanded-core-2026-10-28/",
+  "external_path": "/Users/rushiparikh/projects/atom-releases/expanded-core-2026-10-28-r2/",
   "decision": "deployment_decision_pending",
   "deployed": false,
   "source_archive_scrubbed": true,
@@ -163,7 +163,7 @@
     "evidence": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/employee_job.json",
     "after_restart": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/employee_job_after_restart.json",
     "artifact_checks": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/artifact_checks_after_restart.json",
-    "checks": "16/16 pre-restart; 17/17 post-restart; 17/17 artifacts"
+    "checks": "16/16 pre-restart; 17/17 post-restart; 19/19 artifact checks"
    },
    {
     "id": "user_created_canvases",
@@ -172,12 +172,19 @@
     "checks": "two differently-shaped canvases; 33/33 UI checks; task-defined decisions; edit/readback; export; reload persistence"
    }
   ],
-  "acceptance_rule": "Each slice has its own UI/public-boundary and artifact evidence. No format is certified from another format pass."
+  "acceptance_rule": "Each slice has its own UI/public-boundary and artifact evidence. No format is certified from another format pass.",
+  "review_remediation": "Read-only review found release blockers; fixed in b4060236b and evidence regenerated on world expanded_core_final_20261028."
  },
  "expanded_core_ready": true,
  "frozen_csv_package": {
   "tag": "core-release-2026-10-28",
   "commit": "ab4506f1d4a4b87391d9be3d112d6acf748840ad",
   "claim": "CSV workflow verified; superseded in scope by the expanded package but preserved unchanged."
- }
+ },
+ "superseded_candidates": [
+  {
+   "tag": "expanded-core-2026-10-28",
+   "status": "superseded after read-only review found release blockers; do not use"
+  }
+ ]
 }

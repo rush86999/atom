@@ -11,8 +11,8 @@ PASS authorized cell edit propagated dependent formula "62.5"
 PASS dependent grand total recalculated "135"
 PASS formula source preserved separately from computed value "=SUM(E2:E5)"
 PASS unrelated sheet preserved "Unrelated sheet must survive"
-PASS XLSX download produced a file 5660
-PASS EML uploaded and bound as email canvas {"status":200,"canvas":"2b5e99e9-8ee5-4039-834a-4910506e1965"}
+PASS XLSX download produced a file 5659
+PASS EML uploaded and bound as email canvas {"status":200,"canvas":"36e81f09-8d40-4615-a351-fa1b39259199"}
 PASS sender/recipients/thread visible at UI boundary "Imported message from maya.chen@example.com to pilot@atom.test, cc ops@example.com — thread reference preserved. This is an editable reply draft; nothing is sent without the Send action."
 PASS editable reply draft prefilled with reply recipient "maya.chen@example.com"
 PASS reply subject preserved "Re: Approve ORD-1001 and send summary"

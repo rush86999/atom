@@ -75,14 +75,14 @@
   {
    "name": "XLSX download produced a file",
    "ok": true,
-   "detail": 5660
+   "detail": 5659
   },
   {
    "name": "EML uploaded and bound as email canvas",
    "ok": true,
    "detail": {
     "status": 200,
-    "canvas": "2b5e99e9-8ee5-4039-834a-4910506e1965"
+    "canvas": "36e81f09-8d40-4615-a351-fa1b39259199"
    }
   },
   {
@@ -218,15 +218,21 @@
    "detail": []
   }
  ],
- "workbook_canvas_id": "3173bf99-b944-473f-9414-1a51bb2bd066",
- "email_canvas_id": "2b5e99e9-8ee5-4039-834a-4910506e1965",
- "doc_canvas_id": "1e7a1ca6-8185-4e7b-8f63-31797f2ef14d",
- "pptx_canvas_id": "270cc22b-ac03-4465-9b66-136393d2bc9b",
+ "workbook_canvas_id": "85bfeb9a-a957-4794-9ebf-5d612bc86c81",
+ "email_canvas_id": "36e81f09-8d40-4615-a351-fa1b39259199",
+ "doc_canvas_id": "035c0c56-e2b8-4e05-94b4-f79c97b9b5f3",
+ "pptx_canvas_id": "eaabcb38-b6cf-4cdf-852e-aae2a373e4a3",
  "downloads": [
   "brief-corrected.docx",
   "brief-corrected.pptx",
   "capability-a-export.xlsx",
   "capability-b-export.xlsx",
+  "employee-job-deck-after-restart.pptx",
+  "employee-job-deck.pptx",
+  "employee-job-memo-after-restart.docx",
+  "employee-job-memo-corrected.docx",
+  "employee-job-workbook-after-restart.xlsx",
+  "employee-job-workbook.xlsx",
   "generated-order-deck.pptx",
   "generated-order-memo.docx",
   "orders-after-edit.xlsx"

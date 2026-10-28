@@ -1,34 +1,39 @@
 {
- "schema": "atom-expanded-core-source-build-identity-1",
- "release_tag": "expanded-core-2026-10-28",
- "tested_app_code_commit": "a077efa77",
+ "schema": "atom-expanded-core-source-build-identity-2",
+ "release_tag": "expanded-core-2026-10-28-r2",
+ "tested_app_code_commit": "b4060236b",
+ "supersedes": {
+  "tag": "expanded-core-2026-10-28",
+  "status": "withdrawn after read-only review found release blockers"
+ },
  "source_files": {
-  "backend/api/office_routes.py": "7f779e1888a4b0225aea9102d5b0ca826186c8df0a10f10bb0d1b1944a278dc3",
+  "backend/api/office_routes.py": "23f1dfe3758fd545d281b180d7afe063ab6c966397987d996808f32ac97078e2",
   "backend/api/canvas_routes.py": "d18dd0673587da6b174224bc2e9b3422780323e7e80ec31e19a33cae99318d2b",
-  "backend/api/canvas_email_routes.py": "d043c68dd3c0157ffe38890447863039f1ee8710002627f83dbecae43c0c6840",
-  "backend/api/canvas_capability_routes.py": "c2d302a8429ebdd2bce256ba7ab0633f8671976a3e2694bb76242e4134ad039d",
-  "backend/core/office_service.py": "0c869485abfa052bd9df03e419d39cb9239ff31ef7320ea78bdf0d3498caacc3",
-  "backend/core/office_sync_service.py": "7df7462d1b31ca5c8c6c09b359d809a6aa1b4b093c593ec404cc7fcdf563aa12",
-  "backend/core/canvas_email_service.py": "2997c1477073792f7b1dce267f13fad076fc2e69e4beb08d856e43fbb5c8fdad",
+  "backend/api/canvas_email_routes.py": "b46200939f9447387e43bbf419a4c55ba78ff1d9fcd1db31baa6f2762e098bc4",
+  "backend/api/canvas_capability_routes.py": "ac2af9199ab6aa49b242d79282da838c804653bef6d5b87d3929a06068fbe7b0",
+  "backend/core/office_service.py": "a571656aed661697938eda0b636bded3a6300f26a60b0bac39bb88b43bbd9797",
+  "backend/core/office_sync_service.py": "027d227797e53e9814ff70917d617d9a86a57da0a4232aa3a42111df2ee10b66",
+  "backend/core/canvas_email_service.py": "68746e84028856a50e3ee35e9151d46808ba159de2de5b577b193c2c8aab133e",
   "backend/core/email_eml_import.py": "201d89ba6e5d220cd58bce93141d786d29e1c654230e6013e752fb2862186bbf",
-  "backend/core/canvas_capability_service.py": "d037d4422d84d74d05a20d44b3973e91cd25dcfdcdbfb885d8584b7675859fde",
+  "backend/core/canvas_capability_service.py": "0f39768c40c15657a7e67286b635d8cc4d2dc1c86a5b919e64a6d4f809d8a40d",
   "backend/core/canvas_app_schema.py": "41a29633bf9b9f4c3fa7a7d303e98e5d64154763961d9748fd727c20d379b3d1",
   "backend/core/chat_canvas_editor.py": "2b113258f28a509ee2252ac722ec50fe3c4f8e772b585b33d6a380e2bebb23d1",
   "backend/core/chat_draft_classifier.py": "a529128002dff8c2836a153c7f0eb6ed6a0a8c72415083b07b7daa14b5d0953f",
+  "backend/tools/canvas_crud_tool.py": "2d3c99a86918abb739a622b79df31465020124f42f88c65cc068a63beca03601",
   "backend/integrations/chat_routes.py": "c5e33d1d703440f0a7679bec91f6aba1913cd0c4b54b56456588d524d7b393c4",
-  "frontend-nextjs/components/canvas/OfficeFileCanvas.tsx": "94ddab88dd54959afea16adfab017a66f3c747a550ff8c344a549edb4125e9bd",
-  "frontend-nextjs/components/canvas/CanvasCapabilityPanel.tsx": "10ba93de02ad75b647db8d429ab30b3d8c6784e39948e6007e538a21cba018f5",
+  "frontend-nextjs/components/canvas/OfficeFileCanvas.tsx": "8a9f15d17cd9939af269b11cccc7c1a9935e54bb68214f4e6ef5b994525ed3a6",
+  "frontend-nextjs/components/canvas/CanvasCapabilityPanel.tsx": "fb2e09240bc531b89bb277d16a6fb3034fe98b877008f0b6904fee811774be00",
   "frontend-nextjs/components/canvas/CanvasDataSection.tsx": "cfb45f2d5509e3561203908a71b6d48acf9e02b569edccc4a4bbea60715b7e7a",
-  "frontend-nextjs/components/canvas/CanvasPanel.tsx": "9eae7a5718e355af4eb02fb0087fca01a12d52e20e8ed03299b9880a6151e921",
+  "frontend-nextjs/components/canvas/CanvasPanel.tsx": "5e9d5eba8333014d7034abeb93f1cc51629afade45a0f08afbaeb09417c0384d",
   "frontend-nextjs/pages/canvas/[id].tsx": "f152da2eb299485c839d46db1c92444a3bf6655d294bea90f2caf18fb85fd08a",
-  "scripts/acceptance/expanded_core_slices.cjs": "2eb1c3ded79a60929536e64d88e5c06f7a6fd1a0faecd8501d04b267a4c1655e",
-  "scripts/acceptance/canvas_capability_ui.cjs": "b5e04e64ff914c865f24fdfd766805500d6c00425ed1ac4b21a72f9a3b9e66c8",
-  "scripts/acceptance/employee_job.cjs": "f1467ab994a45cc2eb90783f14a7e3ebdf56960a576183c0bd986df0aae6fa5f",
-  "scripts/acceptance/employee_job_after_restart.cjs": "fc59006a9e7486922c849de7af3bcd8e00d2b9d66a7ab221d85c7ee27b1e25f6"
+  "scripts/acceptance/expanded_core_slices.cjs": "c1d1307368329daeff378c206f0f5fcd2be53887ef6c5d2e62fb8940f9def726",
+  "scripts/acceptance/canvas_capability_ui.cjs": "7c8c83e4cbd7f8768080b33ed7215764b869dbc3edf29a5c9a9bd43666c3d749",
+  "scripts/acceptance/employee_job.cjs": "00162344e290aa99ea49063918e935d0d9d68fb294c1da26fcb0731b3714c393",
+  "scripts/acceptance/employee_job_after_restart.cjs": "7882ae0f07cd50302a30439c0cfc9ce5fbd665d55af67058ec6cf614369bbb88"
  },
  "frontend_build": {
-  "build_id": "scZ2KyhFFCkRFMrK1EuoX",
-  "build_id_sha256": "38ed540828cca405805879b386fc2f5b7af7cd9d705c63253a86503f52a249ed"
+  "build_id": "joTY4vIIkf5wRUwecgRb-",
+  "build_id_sha256": "70b792fe5014e4b8534adca53b3a5b851f84e866a4bf70fb1a7902a99a4490ba"
  },
  "config": "config.env.template",
  "evidence": {
@@ -39,5 +44,6 @@
   "employee_job_after_restart": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/employee_job_after_restart.json",
   "artifacts_after_restart": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/artifact_checks_after_restart.json"
  },
+ "world": "expanded_core_final_20261028 (run-0236669fffc7)",
  "note": "The distributed source archive is built from the tagged release commit; its hash is in the external RELEASE_MANIFEST.json."
 }

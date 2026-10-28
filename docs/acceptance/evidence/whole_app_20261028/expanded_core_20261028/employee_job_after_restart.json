@@ -11,7 +11,7 @@
    "ok": true,
    "detail": {
     "topic": "pipeline approval policy",
-    "id": "93c9cfe974344b10a559c96f0b4f146e"
+    "id": "a4de12793292401bbe30df22adfcdd58"
    }
   },
   {
@@ -51,8 +51,6 @@
    "detail": [
     "update",
     "update",
-    "update",
-    "update",
     "data_loaded",
     "import_eml",
     "agent_attached",
@@ -63,7 +61,7 @@
    "name": "first capability manifest survives restart",
    "ok": true,
    "detail": {
-    "revision": 6,
+    "revision": 3,
     "policy": "5e4229d01f237ea7"
    }
   },
@@ -141,6 +139,6 @@
   "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/downloads/employee-job-memo-after-restart.docx",
   "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/downloads/employee-job-deck-after-restart.pptx"
  ],
- "teaching_point_id": "93c9cfe974344b10a559c96f0b4f146e",
+ "teaching_point_id": "a4de12793292401bbe30df22adfcdd58",
  "page_errors": []
 }

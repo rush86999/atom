@@ -14,7 +14,7 @@
   {
    "name": "first user-created canvas created through UI",
    "ok": true,
-   "detail": "http://127.0.0.1:3120/canvas/c28858f7-41e3-468d-b330-c2e100169fc3"
+   "detail": "http://127.0.0.1:3122/canvas/59a735ba-c8a9-443d-b3a8-26db06fb4935"
   },
   {
    "name": "manifest installed and effective operations rendered",
@@ -32,7 +32,7 @@
   {
    "name": "result rendered for select",
    "ok": true,
-   "detail": "operation: select\nstatus: complete\nsource: 96a4f412b09efdd1\nmanifest: 934b8934539c6961\nRow\tRef\n2\tA-101\n3\tA-102\n5\tA-104"
+   "detail": "operation: select\nstatus: complete\nsource: 96a4f412b09efdd1\nmanifest: 86f57266c9699547\nRow\tRef\n2\tA-101\n3\tA-102\n5\tA-104"
   },
   {
    "name": "selection receipt carries source identity",
@@ -45,7 +45,7 @@
   {
    "name": "result rendered for calculate",
    "ok": true,
-   "detail": "operation: sum\nstatus: complete\nmeasure: Amount\nsource: 96a4f412b09efdd1\nmanifest: 934b8934539c6961\ntotal: 290.00"
+   "detail": "operation: sum\nstatus: complete\nmeasure: Amount\nsource: 96a4f412b09efdd1\nmanifest: 86f57266c9699547\ntotal: 290.00"
   },
   {
    "name": "deterministic calculation over full dataset",
@@ -60,7 +60,7 @@
   {
    "name": "result rendered for assess",
    "ok": true,
-   "detail": "operation: assess\nstatus: completed\nsource: 96a4f412b09efdd1\nmanifest: 934b8934539c6961\npolicy: 5e4229d01f237ea7\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\t\nA-102\tREVIEW\t\nA-104\tREVIEW\t"
+   "detail": "operation: assess\nstatus: completed\nsource: 96a4f412b09efdd1\nmanifest: 86f57266c9699547\npolicy: 5e4229d01f237ea7\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\tev:A-101:2\nA-102\tREVIEW\tev:A-102:3\nA-104\tREVIEW\tev:A-104:5"
   },
   {
    "name": "assessment certified with task-defined decisions",
@@ -98,7 +98,7 @@
   {
    "name": "result rendered for calculate",
    "ok": true,
-   "detail": "operation: sum\nstatus: complete\nmeasure: Amount\nsource: f85a7f9ee09db46c\nmanifest: 934b8934539c6961\ntotal: 325.00"
+   "detail": "operation: sum\nstatus: complete\nmeasure: Amount\nsource: f85a7f9ee09db46c\nmanifest: 86f57266c9699547\ntotal: 325.00"
   },
   {
    "name": "edit changed the deterministic total",
@@ -110,7 +110,7 @@
   {
    "name": "result rendered for assess",
    "ok": true,
-   "detail": "operation: assess\nstatus: completed\nsource: f85a7f9ee09db46c\nmanifest: 934b8934539c6961\npolicy: 5e4229d01f237ea7\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\t\nA-102\tAPPROVE\t\nA-104\tREVIEW\t"
+   "detail": "operation: assess\nstatus: completed\nsource: f85a7f9ee09db46c\nmanifest: 86f57266c9699547\npolicy: 5e4229d01f237ea7\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\tev:A-101:2\nA-102\tAPPROVE\tev:A-102:3\nA-104\tREVIEW\tev:A-104:5"
   },
   {
    "name": "re-assessment uses the corrected state",
@@ -124,7 +124,7 @@
   {
    "name": "export produced a real downloadable XLSX",
    "ok": true,
-   "detail": 5670
+   "detail": 5680
   },
   {
    "name": "manifest, binding and revision persist across reload",
@@ -134,7 +134,7 @@
   {
    "name": "second user-created canvas created through UI",
    "ok": true,
-   "detail": "http://127.0.0.1:3120/canvas/f3af2287-a7c1-44ca-901c-4e27cdc9471c"
+   "detail": "http://127.0.0.1:3122/canvas/1d33f1fc-ee97-4b23-a332-0f30213b9e8a"
   },
   {
    "name": "second manifest uses different vocabulary",
@@ -152,7 +152,7 @@
   {
    "name": "result rendered for calculate",
    "ok": true,
-   "detail": "operation: sum\nstatus: complete\nmeasure: Hours\nsource: 6995813f016ca749\nmanifest: 70b0115891a43e50\ntotal: 12.50"
+   "detail": "operation: sum\nstatus: complete\nmeasure: Hours\nsource: 6995813f016ca749\nmanifest: 53a41d56d0a1418b\ntotal: 12.50"
   },
   {
    "name": "second calculation uses its own measure",
@@ -164,7 +164,7 @@
   {
    "name": "result rendered for assess",
    "ok": true,
-   "detail": "operation: assess\nstatus: completed\nsource: 6995813f016ca749\nmanifest: 70b0115891a43e50\npolicy: ca1f37f55c3f149e\nSubject\tDecision\tEvidence\nT-900\tACCEPT\t\nT-901\tREVIEW\t\nT-903\tREVIEW\t"
+   "detail": "operation: assess\nstatus: completed\nsource: 6995813f016ca749\nmanifest: 53a41d56d0a1418b\npolicy: ca1f37f55c3f149e\nSubject\tDecision\tEvidence\nT-900\tACCEPT\tev:T-900:2\nT-901\tREVIEW\tev:T-901:3\nT-903\tREVIEW\tev:T-903:5"
   },
   {
    "name": "second assessment uses different decision labels",
@@ -201,7 +201,7 @@
   {
    "name": "result rendered for assess",
    "ok": true,
-   "detail": "operation: assess\nstatus: completed\nsource: 6a6227a55157162c\nmanifest: 70b0115891a43e50\npolicy: ca1f37f55c3f149e\nSubject\tDecision\tEvidence\nT-900\tACCEPT\t\nT-901\tESCALATE\t\nT-903\tREVIEW\t"
+   "detail": "operation: assess\nstatus: completed\nsource: 6a6227a55157162c\nmanifest: 53a41d56d0a1418b\npolicy: ca1f37f55c3f149e\nSubject\tDecision\tEvidence\nT-900\tACCEPT\tev:T-900:2\nT-901\tESCALATE\tev:T-901:3\nT-903\tREVIEW\tev:T-903:5"
   },
   {
    "name": "corrected second canvas escalates the edited row",
@@ -215,7 +215,7 @@
   {
    "name": "second export produced a real XLSX",
    "ok": true,
-   "detail": 5668
+   "detail": 5679
   },
   {
    "name": "second canvas state persists across reload",
@@ -229,7 +229,7 @@
   }
  ],
  "canvas_a": {
-  "url": "http://127.0.0.1:3120/canvas/c28858f7-41e3-468d-b330-c2e100169fc3",
+  "url": "http://127.0.0.1:3122/canvas/59a735ba-c8a9-443d-b3a8-26db06fb4935",
   "decisions_initial": {
    "A-101": "APPROVE",
    "A-102": "REVIEW",
@@ -243,7 +243,7 @@
   "export": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/downloads/capability-a-export.xlsx"
  },
  "canvas_b": {
-  "url": "http://127.0.0.1:3120/canvas/f3af2287-a7c1-44ca-901c-4e27cdc9471c",
+  "url": "http://127.0.0.1:3122/canvas/1d33f1fc-ee97-4b23-a332-0f30213b9e8a",
   "decisions_initial": {
    "T-900": "ACCEPT",
    "T-901": "REVIEW",

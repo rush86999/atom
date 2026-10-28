@@ -19,4 +19,8 @@
   transport. Auxiliary planning may use another DeepSeek-served model; the
   certified review payload is pinned fail-closed. A review fallback to
   Pro/local/another provider is refused.
+- The office-directory API still models files as a shared workspace namespace
+  for direct file-path read/write calls; canvas binding, present/sync and
+  download are owner-checked. Do not expose the office directory as a
+  cross-tenant file service without an additional per-file ACL.
 - No deployment, credential rotation or live-data operation was performed.

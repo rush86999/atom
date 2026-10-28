@@ -91,7 +91,18 @@
   {
    "name": "corrected PPTX keeps table",
    "ok": true,
-   "detail": null
+   "detail": [
+    [
+     [
+      "Order",
+      "Qty"
+     ],
+     [
+      "ORD-1001",
+      "4"
+     ]
+    ]
+   ]
   },
   {
    "name": "corrected PPTX keeps notes",
@@ -117,7 +128,25 @@
   {
    "name": "generated PPTX real table",
    "ok": true,
-   "detail": null
+   "detail": [
+    [
+     [
+      "Order",
+      "Qty",
+      "Line total"
+     ],
+     [
+      "ORD-1001",
+      "4",
+      "50.00"
+     ],
+     [
+      "ORD-1002",
+      "2",
+      "60.00"
+     ]
+    ]
+   ]
   },
   {
    "name": "generated PPTX source notes",

@@ -9,13 +9,13 @@
   {
    "name": "employee attached to job canvas",
    "ok": true,
-   "detail": "7fe2908c-a409-4849-afe7-1f48064b4018"
+   "detail": "4cfc0557-adf9-4e67-972c-c840e3b3e1ad"
   },
   {
    "name": "task policy taught through training UI",
    "ok": true,
    "detail": {
-    "count": 2,
+    "count": 1,
     "topic": "pipeline approval policy"
    }
   },
@@ -41,7 +41,7 @@
    "detail": {
     "A-101": "APPROVE",
     "A-102": "APPROVE",
-    "A-104": "APPROVE"
+    "A-104": "REVIEW"
    }
   },
   {
@@ -123,21 +123,21 @@
    "name": "job receipts carry source and artifact identity",
    "ok": true,
    "detail": {
-    "workbook": "36820e32ced940885a91f9a0bf8bd8aa21b1611336370649df9b110e69c4337e",
+    "workbook": "5cc4e71a6bfbb6f66742911cc7b0316bf2bee5ac5793f855b576e1bb0f9f281c",
     "email": "247306d3621d4960fab8476e6861b36410ffe3852c3063a6a0a0ccfed5fb8c62"
    }
   }
  ],
  "ids": {
-  "agent_id": "7fe2908c-a409-4849-afe7-1f48064b4018",
-  "workbook_canvas_id": "3173bf99-b944-473f-9414-1a51bb2bd066",
-  "email_canvas_id": "2b5e99e9-8ee5-4039-834a-4910506e1965",
-  "doc_canvas_id": "1e7a1ca6-8185-4e7b-8f63-31797f2ef14d",
-  "pptx_canvas_id": "270cc22b-ac03-4465-9b66-136393d2bc9b",
-  "capability_a_canvas_id": "c28858f7-41e3-468d-b330-c2e100169fc3",
-  "capability_b_canvas_id": "f3af2287-a7c1-44ca-901c-4e27cdc9471c",
-  "generated_doc_canvas_id": "2cd34f09-418b-4d45-8c73-c6e7e39c48c4",
-  "generated_pptx_canvas_id": "4149f475-b975-4d03-bf41-759cb4bf1183"
+  "agent_id": "4cfc0557-adf9-4e67-972c-c840e3b3e1ad",
+  "workbook_canvas_id": "85bfeb9a-a957-4794-9ebf-5d612bc86c81",
+  "email_canvas_id": "36e81f09-8d40-4615-a351-fa1b39259199",
+  "doc_canvas_id": "035c0c56-e2b8-4e05-94b4-f79c97b9b5f3",
+  "pptx_canvas_id": "eaabcb38-b6cf-4cdf-852e-aae2a373e4a3",
+  "capability_a_canvas_id": "59a735ba-c8a9-443d-b3a8-26db06fb4935",
+  "capability_b_canvas_id": "1d33f1fc-ee97-4b23-a332-0f30213b9e8a",
+  "generated_doc_canvas_id": "66c0b2c8-6af9-4fa8-9c85-a7335bc0c5d2",
+  "generated_pptx_canvas_id": "275c233d-fcaa-429f-a108-c1413cfcdc3a"
  },
  "expected": {
   "workbook_c2": "6",
