@@ -1,0 +1,129 @@
+{
+ "schema_version": "connected-core-ledger-1",
+ "title": "Atom connected-data core ledger — 2026-10-28",
+ "functional_release": {
+  "tag": "expanded-core-2026-10-28-r3",
+  "release_commit": "68b949409b5af0d024a6e036f8eede9f788d1ef0",
+  "tested_app_code": "c04591909",
+  "status": "preserved; upload-based workflows only"
+ },
+ "configuration": {
+  "provider": "deepseek",
+  "recommended_model": "deepseek-flash",
+  "verified_alternative": "deepseek-v4-pro",
+  "review_structured": true,
+  "streaming": false,
+  "turn_budget_seconds": 180,
+  "request_deadline_seconds": 180
+ },
+ "connected_sources": [
+  {
+   "provider": "microsoft_graph",
+   "services": ["outlook", "onedrive"],
+   "status": "active",
+   "evidence": "Graph /me and /me/drive/root/children returned 200 with the configured Microsoft token"
+  },
+  {
+   "provider": "zoho_workdrive",
+   "status": "blocked",
+   "reason": "refresh failed invalid_client; owner reauthorization required",
+   "bypassed": false
+  }
+ ],
+ "boundaries": {
+  "connected_file_ingestion": {
+   "status": "pass",
+   "file": "Consolidated Price List 2019.xlsx",
+   "onedrive_item_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+   "source_version": "2abb1bf40ec3",
+   "bytes": 11463449,
+   "sheets": 45,
+   "chars_ingested": 3222905,
+   "ingestion_seconds": 159,
+   "dataset_entries": 45,
+   "coverage": "complete; truncated=false"
+  },
+  "workbook_materialization": {
+   "status": "pass",
+   "sheet": "US$ SCOTCH PARTS",
+   "source_rows": 11219,
+   "materialized_rows": 11219,
+   "formula_cells_loaded": 733,
+   "direct_materialization_seconds": 3.5,
+   "peak_rss_mb": 898.3
+  },
+  "formula_evaluation": {
+   "status": "pass",
+   "same_sheet": {"cell": "#40 TOOLING!M5", "formula": "=SUM(1-K5/L5)", "value": "0.4", "dependencies": ["#40 TOOLING!K5", "#40 TOOLING!L5"]},
+   "cross_sheet": {"cell": "#40 TOOLING!N5", "value": "2.710353125000000497312500000000024", "dependencies": ["MULT SCOTCH TOOLING!D4", "Exchange-Index!H4", "MULT SCOTCH TOOLING!B5"]}
+  },
+  "agent_retrieval": {
+   "status": "pass",
+   "natural_language_ask": "In workbook Consolidated Price List 2019.xlsx only, on sheet US$ SCOTCH PARTS, what is the sum of Unit Price?",
+   "rows_used": 11219,
+   "total": "9958743.62",
+   "source_version": "2abb1bf40ec3",
+   "model": "deterministic",
+   "provider": "structured",
+   "manual_rows_supplied": false
+  },
+  "connected_email": {
+   "status": "pass",
+   "message_id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEJAADEtbYrrPLwTae3iXb78LoOAAAAAFX1AAA=",
+   "mime_bytes": 15617075,
+   "subject": "consolidated price lists",
+   "attachments": 1,
+   "canvas_id": "9c44465a-232d-440b-b66e-63d255c5ac76",
+   "draft_subject": "Re: consolidated price lists",
+   "draft_saved": true,
+   "send_performed": false
+  },
+  "deliverables": {
+   "status": "pass",
+   "docx_canvas_id": "2eac4ef5-883c-421a-951a-767971d64b34",
+   "docx_tables": 1,
+   "pptx_canvas_id": "adff17bf-735f-4824-98e8-7855b58fa5db",
+   "pptx_slides": 2,
+   "pptx_table_present": true,
+   "pptx_notes_present": true,
+   "reopen_download": "verified through office read/download endpoints"
+  },
+  "repeat_sync": {
+   "status": "pass",
+   "result": "completed unchanged=True skipped",
+   "duplicate_logical_records": "none observed for the selected file"
+  },
+  "restart_retrieval": {
+   "status": "pass",
+   "same_total": "9958743.62",
+   "same_source_version": "2abb1bf40ec3"
+  },
+  "taught_assessment": {
+   "status": "not_run",
+   "reason": "connected rows are not yet bindable to the capability assessment adapter without manual row injection"
+  },
+  "connected_employee_job": {
+   "status": "not_run",
+   "reason": "requires taught connected assessment, correction, unfamiliar variation and full UI evidence; not claimed"
+  },
+  "data_settings_ui": {
+   "status": "not_verified",
+   "reason": "connection/sync/coverage/retry states were exercised through APIs, not the Data/Settings browser surface"
+  },
+  "authorization": {
+   "status": "partial",
+   "existing": "R3 canvas/office owner checks and single-user deployment guard",
+   "missing": "connected-source wrong-workspace/permission-loss negative controls and per-file office access for multi-user"
+  }
+ },
+ "exit_condition_met": false,
+ "release_package_prepared": false,
+ "deployment_authorized": false,
+ "email_send_authorized": false,
+ "credential_rotation_performed": false,
+ "known_failures": [
+  "Zoho WorkDrive refresh invalid_client",
+  "Chat required a workbook-only clarification when the ask named multiple source classes",
+  "Messy sheet headers require explicit sheet/column clarification rather than guessing"
+ ]
+}
