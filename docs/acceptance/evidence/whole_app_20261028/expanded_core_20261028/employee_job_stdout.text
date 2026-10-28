@@ -1,5 +1,5 @@
 PASS admin login API 200
-PASS employee attached to job canvas "4cfc0557-adf9-4e67-972c-c840e3b3e1ad"
+PASS employee attached to job canvas "e45de0de-b97c-4822-963d-edd2c01cfc0c"
 PASS task policy taught through training UI {"count":1,"topic":"pipeline approval policy"}
 PASS workbook evidence visible before job edit {"c2":"4","e6":"122.5"}
 PASS employee calculation updated the workbook total {"e2":"75","e6":"147.5"}
@@ -13,5 +13,5 @@ PASS employee produced a real DOCX through product boundary 200
 PASS generated DOCX carries grounded facts and table {"table":"TABLES (READ-ONLY)\nSubject\tDecision\tEvidence\nA-101\tAPPROVE\tpipeline_a.csv row 2\nA-102\tAPPROVE\tpipeline_a.csv row 3\nA-104\tAPPROVE\tpipeline_a.csv row 5"}
 PASS employee produced a real PPTX through product boundary 200
 PASS generated PPTX has grounded slides, table and sources {"deckTitle1":"Order decision","deckTitle2":"Recommendation","deckTable":"Subject\tDecision\nA-101\tAPPROVE\nA-102\tAPPROVE\nA-104\tAPPROVE","deckNotes":"SPEAKER NOTESSources orders.xlsx, order-detail.csv, pipeline_a.csv."}
-PASS job receipts carry source and artifact identity {"workbook":"5cc4e71a6bfbb6f66742911cc7b0316bf2bee5ac5793f855b576e1bb0f9f281c","email":"247306d3621d4960fab8476e6861b36410ffe3852c3063a6a0a0ccfed5fb8c62"}
+PASS job receipts carry source and artifact identity {"workbook":"9731dfd088fbb8ee07327d8fc92ed1764930333c0e7e11da7364d21df2d32ffd","email":"247306d3621d4960fab8476e6861b36410ffe3852c3063a6a0a0ccfed5fb8c62"}
 STATUS PRE_RESTART_PASSED 16/16

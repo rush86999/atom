@@ -4,7 +4,7 @@
  "generated_at": "2026-10-28T17:30:00Z",
  "candidate": {
   "branch": "whole-app/successor-f5f",
-  "app_code_commit": "b4060236b",
+  "app_code_commit": "65fe6e575",
   "transport_repair_commits": [
    "f547a0dd1",
    "f028ab2ab",
@@ -118,9 +118,9 @@
  "recommended_launch_configuration": "deepseek-flash",
  "release_package": {
   "status": "ready",
-  "identity": "tag expanded-core-2026-10-28-r2 (single release commit)",
+  "identity": "tag expanded-core-2026-10-28-r3 (single release commit)",
   "path": "docs/acceptance/release_package_20261028_expanded/",
-  "external_path": "/Users/rushiparikh/projects/atom-releases/expanded-core-2026-10-28-r2/",
+  "external_path": "/Users/rushiparikh/projects/atom-releases/expanded-core-2026-10-28-r3/",
   "decision": "deployment_decision_pending",
   "deployed": false,
   "source_archive_scrubbed": true,
@@ -135,7 +135,7 @@
     "status": "pass",
     "evidence": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/ui_slices.json",
     "artifact_checks": "docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/artifact_checks.json",
-    "checks": "37/37 UI; 17/17 artifacts"
+    "checks": "40/40 UI; 17/17 artifacts"
    },
    {
     "id": "email",
@@ -173,7 +173,7 @@
    }
   ],
   "acceptance_rule": "Each slice has its own UI/public-boundary and artifact evidence. No format is certified from another format pass.",
-  "review_remediation": "Read-only review found release blockers; fixed in b4060236b and evidence regenerated on world expanded_core_final_20261028."
+  "review_remediation": "Two read-only reviews found release blockers and follow-on defects; fixed in b4060236b and 65fe6e575; evidence regenerated on world expanded_core_final_20261028 run-ca4d4d520140."
  },
  "expanded_core_ready": true,
  "frozen_csv_package": {
@@ -184,7 +184,11 @@
  "superseded_candidates": [
   {
    "tag": "expanded-core-2026-10-28",
-   "status": "superseded after read-only review found release blockers; do not use"
+   "status": "superseded after read-only review found release blockers"
+  },
+  {
+   "tag": "expanded-core-2026-10-28-r2",
+   "status": "superseded after focused re-review found follow-on office/recalc/hash defects"
   }
  ]
 }

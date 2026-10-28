@@ -29,10 +29,10 @@ base component.
 
 ## Release identity
 
-- Release tag: `expanded-core-2026-10-28-r2`
+- Release tag: `expanded-core-2026-10-28-r3`
 - Tested application code commit: recorded in `SOURCE_BUILD_IDENTITY.json`
-- Supersedes `expanded-core-2026-10-28`, which was withdrawn after a read-only
-  review found release blockers.
+- Supersedes `expanded-core-2026-10-28` and `expanded-core-2026-10-28-r2`,
+  withdrawn after read-only reviews found release blockers/follow-on defects.
 - Frontend build ID: recorded in `SOURCE_BUILD_IDENTITY.json`
 - Evidence: `docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/`
 

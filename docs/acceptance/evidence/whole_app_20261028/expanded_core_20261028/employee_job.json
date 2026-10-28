@@ -9,7 +9,7 @@
   {
    "name": "employee attached to job canvas",
    "ok": true,
-   "detail": "4cfc0557-adf9-4e67-972c-c840e3b3e1ad"
+   "detail": "e45de0de-b97c-4822-963d-edd2c01cfc0c"
   },
   {
    "name": "task policy taught through training UI",
@@ -123,21 +123,21 @@
    "name": "job receipts carry source and artifact identity",
    "ok": true,
    "detail": {
-    "workbook": "5cc4e71a6bfbb6f66742911cc7b0316bf2bee5ac5793f855b576e1bb0f9f281c",
+    "workbook": "9731dfd088fbb8ee07327d8fc92ed1764930333c0e7e11da7364d21df2d32ffd",
     "email": "247306d3621d4960fab8476e6861b36410ffe3852c3063a6a0a0ccfed5fb8c62"
    }
   }
  ],
  "ids": {
-  "agent_id": "4cfc0557-adf9-4e67-972c-c840e3b3e1ad",
-  "workbook_canvas_id": "85bfeb9a-a957-4794-9ebf-5d612bc86c81",
-  "email_canvas_id": "36e81f09-8d40-4615-a351-fa1b39259199",
-  "doc_canvas_id": "035c0c56-e2b8-4e05-94b4-f79c97b9b5f3",
-  "pptx_canvas_id": "eaabcb38-b6cf-4cdf-852e-aae2a373e4a3",
-  "capability_a_canvas_id": "59a735ba-c8a9-443d-b3a8-26db06fb4935",
-  "capability_b_canvas_id": "1d33f1fc-ee97-4b23-a332-0f30213b9e8a",
-  "generated_doc_canvas_id": "66c0b2c8-6af9-4fa8-9c85-a7335bc0c5d2",
-  "generated_pptx_canvas_id": "275c233d-fcaa-429f-a108-c1413cfcdc3a"
+  "agent_id": "e45de0de-b97c-4822-963d-edd2c01cfc0c",
+  "workbook_canvas_id": "42449c2f-9918-4b65-b47b-f187fbb6f9ef",
+  "email_canvas_id": "06ef78a9-fc77-4e44-95b1-d54f01412605",
+  "doc_canvas_id": "dba2594d-f197-436d-b507-2644bac29d54",
+  "pptx_canvas_id": "715cd3ee-ff36-4a2f-b5cd-528521f64c12",
+  "capability_a_canvas_id": "19548040-046d-4cb0-a4a9-d8e28b3f1079",
+  "capability_b_canvas_id": "9d7d2b71-3892-473a-833f-4b2517d75498",
+  "generated_doc_canvas_id": "b8dd8106-3721-4fdb-9ce6-3a44e2588ceb",
+  "generated_pptx_canvas_id": "cbafa23a-dddb-407f-be26-89462ec13bfa"
  },
  "expected": {
   "workbook_c2": "6",

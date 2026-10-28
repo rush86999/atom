@@ -18,7 +18,7 @@ Model selection is not reopened by the expanded scope.
 |---|---|---|
 | CSV workflow verified | The demonstrated CSV assessment/calculation/correction/restart loop passed | **Yes — 28/28 checks** |
 | Expanded core verified | Email, documents, PowerPoint, Excel-like canvas and the cross-material employee job each have UI/public-boundary evidence | **Yes — all required slices passed** |
-| Package ready | A frozen durable package exists for the verified scope | **Yes — expanded package r2 prepared** |
+| Package ready | A frozen durable package exists for the verified scope | **Yes — expanded package r3 prepared** |
 | Deployed | Installed on a live environment | **No — deployment decision pending** |
 
 **Support statement:** The frozen CSV package retains its CSV-only claim. The
@@ -27,7 +27,7 @@ PPTX and one bounded cross-material employee job. Neither package is deployed.
 
 ## Evidence
 
-- Expanded core: `docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/` — office slices 37/37 UI + 17/17 artifact checks; two user-created capability canvases 33/33; employee job 16/16 before restart, 17/17 after restart, 19/19 artifact checks. Re-run after the read-only review remediation; tested code `b4060236b`.
+- Expanded core: `docs/acceptance/evidence/whole_app_20261028/expanded_core_20261028/` — office slices 40/40 UI + 17/17 artifact checks; two user-created capability canvases 33/33; employee job 16/16 before restart, 17/17 after restart, 19/19 artifact checks. Re-run after two read-only reviews and remediation; tested code `65fe6e575`.
 - Flash screening: `docs/acceptance/evidence/whole_app_20261028/deepseek_flash_judgment_comparison_20261028/` — 7/7 substantive and certified, avg 2.3 s, est. $0.0057.
 - Flash core loop: `docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_flash_20261028_fixed2/` — 28/28 checks, calculation 22200.00, correction, fresh post-restart judgment, zero unauthorized writes.
 - Pro core loop (verified alternative): `docs/acceptance/evidence/whole_app_20261028/core_release_ui_loop_deepseek_20261028_final2/`.

@@ -53,6 +53,11 @@
    "detail": "3 of 6 rows shown"
   },
   {
+   "name": "workbook edit save accepted by sync endpoint",
+   "ok": true,
+   "detail": 200
+  },
+  {
    "name": "authorized cell edit propagated dependent formula",
    "ok": true,
    "detail": "62.5"
@@ -75,14 +80,14 @@
   {
    "name": "XLSX download produced a file",
    "ok": true,
-   "detail": 5659
+   "detail": 5661
   },
   {
    "name": "EML uploaded and bound as email canvas",
    "ok": true,
    "detail": {
     "status": 200,
-    "canvas": "36e81f09-8d40-4615-a351-fa1b39259199"
+    "canvas": "06ef78a9-fc77-4e44-95b1-d54f01412605"
    }
   },
   {
@@ -140,6 +145,11 @@
    "detail": "TABLES (READ-ONLY)\nOrder\tQty\nORD-1001\t4\nORD-1002\t2"
   },
   {
+   "name": "DOCX correction save accepted by sync endpoint",
+   "ok": true,
+   "detail": 200
+  },
+  {
    "name": "DOCX corrected artifact downloaded",
    "ok": true,
    "detail": 36864
@@ -180,6 +190,11 @@
    "detail": "SPEAKER NOTESSource: orders.xlsx Orders rows 2-3."
   },
   {
+   "name": "PPTX correction save accepted by sync endpoint",
+   "ok": true,
+   "detail": 200
+  },
+  {
    "name": "PPTX corrected artifact downloaded",
    "ok": true,
    "detail": 34113
@@ -218,10 +233,10 @@
    "detail": []
   }
  ],
- "workbook_canvas_id": "85bfeb9a-a957-4794-9ebf-5d612bc86c81",
- "email_canvas_id": "36e81f09-8d40-4615-a351-fa1b39259199",
- "doc_canvas_id": "035c0c56-e2b8-4e05-94b4-f79c97b9b5f3",
- "pptx_canvas_id": "eaabcb38-b6cf-4cdf-852e-aae2a373e4a3",
+ "workbook_canvas_id": "42449c2f-9918-4b65-b47b-f187fbb6f9ef",
+ "email_canvas_id": "06ef78a9-fc77-4e44-95b1-d54f01412605",
+ "doc_canvas_id": "dba2594d-f197-436d-b507-2644bac29d54",
+ "pptx_canvas_id": "715cd3ee-ff36-4a2f-b5cd-528521f64c12",
  "downloads": [
   "brief-corrected.docx",
   "brief-corrected.pptx",

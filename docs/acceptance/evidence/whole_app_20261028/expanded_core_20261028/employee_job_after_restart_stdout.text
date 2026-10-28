@@ -1,5 +1,5 @@
 PASS admin login after restart 200
-PASS teaching survives restart {"topic":"pipeline approval policy","id":"a4de12793292401bbe30df22adfcdd58"}
+PASS teaching survives restart {"topic":"pipeline approval policy","id":"95900f6febdb46a480dc15507bd485bf"}
 PASS workbook values survive restart {"c2":"6","e6":"147.5"}
 PASS workbook formulas survive restart "=SUM(E2:E5)"
 PASS unrelated workbook sheet survives restart "Unrelated sheet must survive"

@@ -1,16 +1,17 @@
 # Expanded core acceptance — 2026-10-28
 
 Status: **PASS** for the demonstrated workflows below on world
-`expanded_core_final_20261028`. This is a bounded acceptance campaign, not
-whole-app certification. The first frozen candidate was reviewed read-only;
-the release-blocking findings were fixed and this evidence was regenerated on
-the repaired candidate (tested code `b4060236b`).
+`expanded_core_final_20261028` (run `run-ca4d4d520140`). This is a bounded
+acceptance campaign, not whole-app certification. Two frozen candidates were
+reviewed read-only; their release-blocking findings were fixed and this
+evidence was regenerated on the final repaired candidate (tested code
+`65fe6e575`).
 
 ## Evidence sets
 
 | Slice | Result | Evidence |
 |---|---|---|
-| Office slices (workbook, email, DOCX, PPTX) | 37/37 UI checks total (about 14 workbook-specific); 17/17 artifact checks | `ui_slices.json`, `artifact_checks.json`, `run_stdout.text`, `downloads/` |
+| Office slices (workbook, email, DOCX, PPTX) | 40/40 UI checks total; 17/17 artifact checks | `ui_slices.json`, `artifact_checks.json`, `run_stdout.text`, `downloads/` |
 | Email with attachment + reply draft | Included in the 37 UI checks; envelope, attachment association, draft persistence and no-send verified | `ui_slices.json`, `downloads/` (email audit is in the world DB) |
 | DOCX read / generate / correct / download | Included in the 37 UI checks; generated document has real headings, a real table and source references | `ui_slices.json`, `artifact_checks.json`, `downloads/` |
 | PPTX read / generate / correct / download | Included in the 37 UI checks; slide order, table, speaker notes and sources verified | `ui_slices.json`, `artifact_checks.json`, `downloads/` |
