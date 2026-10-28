@@ -725,6 +725,10 @@ def normalize_execution_facts(raw: Any) -> Dict[str, Any]:
              if str(k).strip()} if isinstance(items_raw, dict) else {}
     stage = raw.get("failure_stage")
     freshness = raw.get("freshness_status")
+    # A snapshot read is not automatically a freshness obligation. The
+    # caller records whether THIS turn actually asked for current/live
+    # verification; an uploaded snapshot assessed as-is stays settled.
+    freshness_requested = bool(raw.get("freshness_requested"))
     # PLANNING PROVENANCE passthrough (2026-10-04 reviewer correction 2):
     # how the plan came to be — a failure the fallback machinery recovered
     # (repair pass, deterministic rung) is ATTEMPT HISTORY on a successful
@@ -837,6 +841,7 @@ def normalize_execution_facts(raw: Any) -> Dict[str, Any]:
         "served_basis": basis,
         "failure_stage": str(stage)[:80] if stage else None,
         "freshness_status": str(freshness)[:40] if freshness else None,
+        "freshness_requested": freshness_requested,
         # SOURCE VERSION (owner work order 2026-10-10): the workbook
         # revision (content_hash / evidence_revision) this read served
         # from — the identity finding_reuse_status compares at reuse.
@@ -3267,14 +3272,19 @@ def record_read_outcome(
                         "detail": _detail,
                     },
                 })
-            if _basis == "saved_copy":
-                # FRESHNESS IS AN OBLIGATION, NOT WORDING (round 48): the
-                # saved-copy read resolves the READ question and OPENLY
-                # spawns its successor — current-source freshness remains
-                # unverified and stays on the queue as a distinct,
-                # selectable obligation (blocked until a live refresh is
-                # authorized/possible). DEFERRED past the resolution loop
-                # so the item-scoped resolution cannot consume it.
+            # FRESHNESS IS AN OBLIGATION ONLY WHEN THE USER ASKED FOR
+            # CURRENT/LIVE STATE. A saved-copy read of an uploaded snapshot
+            # assessed AS THAT VERSION is a complete read of the requested
+            # version; inventing "re-verify against the live source" work
+            # for it turns every snapshot assessment into an unrequested
+            # live job. Genuine refresh/compare asks still carry an explicit
+            # freshness verdict (or freshness_requested), so their successor
+            # stays open. DEFERRED past the resolution loop so the
+            # item-scoped resolution cannot consume it.
+            _freshness_was_requested = bool(
+                (execution or {}).get("freshness_requested")
+                or (execution or {}).get("freshness_status"))
+            if _basis == "saved_copy" and _freshness_was_requested:
                 _freshness_questions.extend({
                     "item": _it,
                     "kind": "verification",

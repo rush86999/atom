@@ -1,0 +1,95 @@
+{
+  "run": "review_boundary_20261027",
+  "status": "passed",
+  "boundary": "public chat API + persisted history after a real backend restart",
+  "source_binding": {
+    "manifest": "source_manifest_20261027.json",
+    "source_state_patch": "source_state_at_run.patch",
+    "note": "Generated on a dirty working tree at HEAD f8792bf42bf0, before the freeze commit. The manifest and patch preserve the exact source state; this evidence is not silently bound to the later commit."
+  },
+  "config": {
+    "mode": "isolated scratch world",
+    "ATOM_LOCAL_ONLY": "true",
+    "OLLAMA_MODEL": "llama3.1:8b",
+    "ATOM_CHAT_STREAMING": "false",
+    "ATOM_REVIEW_STRUCTURED": "0",
+    "model": "llama3.1:8b",
+    "provider": "registered local Ollama route"
+  },
+  "policy": {
+    "policy_id": "671fdcb0f0ae41f0a5f7d0eb7db6d93c",
+    "subject": "case amount rule",
+    "original_revision": "bc9da77a95d75976601e46e2",
+    "corrected_revision": "524680c3f16764a8a33fd0a8",
+    "correction": "the same policy row was rewritten in place; 10000+ changed from APPROVE to REVIEW"
+  },
+  "steps": {
+    "baseline": {
+      "evidence": "green_model_outputs/baseline_output.json",
+      "source_revision": "8d54f69bfe1faad936555636f9b3ffca29569809",
+      "decisions": {
+        "CX-9101": "REJECT",
+        "CX-9102": "REVIEW",
+        "CX-9103": "APPROVE"
+      },
+      "review_ok": true,
+      "review_errors": [],
+      "success": true,
+      "outcome": "completed",
+      "raw_api_body": "overwritten by the later diagnostic probe; see source_manifest_20261027.json"
+    },
+    "unfamiliar_after_correction": {
+      "evidence": "green_model_outputs/unfamiliar_output.json",
+      "source_revision": "2f194e53d7936120a5d57821612c016f3688b28e",
+      "decisions": {
+        "CX-9201": "REJECT",
+        "CX-9202": "REVIEW",
+        "CX-9203": "REVIEW"
+      },
+      "review_ok": true,
+      "review_errors": [],
+      "success": true,
+      "outcome": "completed",
+      "raw_api_body": "overwritten by the later diagnostic probe; see source_manifest_20261027.json"
+    },
+    "after_real_restart": {
+      "evidence": "green_model_outputs/after_restart_output.json",
+      "source_revision": "2f194e53d7936120a5d57821612c016f3688b28e",
+      "decisions": {
+        "CX-9201": "REJECT",
+        "CX-9202": "REVIEW",
+        "CX-9203": "REVIEW"
+      },
+      "review_ok": true,
+      "review_errors": [],
+      "success": true,
+      "outcome": "completed",
+      "raw_api_body": "overwritten by the later diagnostic probe; see source_manifest_20261027.json"
+    }
+  },
+  "verification": {
+    "correction_applied_in_unfamiliar_case": true,
+    "corrected_policy_persisted_after_restart": true,
+    "response_and_fresh_history_agree": true,
+    "evidence_refs": [
+      "ev:CX-9201:case_unfamiliar!R2",
+      "ev:CX-9202:case_unfamiliar!R3",
+      "ev:CX-9203:case_unfamiliar!R4"
+    ],
+    "policy_refs": [
+      "671fdcb0f0ae41f0a5f7d0eb7db6d93c"
+    ]
+  },
+  "root_cause_of_prior_54_char_failure": {
+    "symptom": "A non-streaming review/retry call returned the 54-character sentinel 'No eligible LLM providers found for your current plan.' while the same turn's streaming leg served Ollama.",
+    "cause": "The registered local route declared the product-default quality 0.5, below the BPC planning floor. The stream leg used get_optimal_provider's absolute dispatchable fallback; generate_response stopped before that fallback. The retry therefore never reached the model.",
+    "repair": "generate_response now uses the same absolute dispatchable fallback under ATOM_LOCAL_ONLY when the ranked pool is empty; the route still passes the existing catalog, cooldown, local-only, policy and capability gates."
+  },
+  "notes": [
+    "This run did not need the one contract-only block-recovery retry: each reply included a schema-valid assessment block on the first generation (review_result fence for baseline and after restart; a JSON fence carrying the same schema for the unfamiliar case).",
+    "The run proves post-correction behavior and restart persistence for this fixture. It does not by itself upgrade the broader cross-domain judgment item (CR-009) or the renamed-schema restart item (CR-019).",
+    "The provider fallback is covered by TestNonStreamingAbsoluteFallback in backend/tests/test_f5_local_planning_eligibility.py.",
+    "A separate false-positive quota bench was observed during the first (failed) run: an instructor Mode.TOOLS retry dump contained a numeric 402 in its token logprobs, and the substring check benched the healthy Ollama route. The quota bench now requires a structured HTTP status or an explicit provider quota code, and refuses schema/protocol retry dumps; bare 'quota'/'more credits' prose is not evidence. Covered by the quota controls in tests/test_turn_budget_rca_fixes.py.",
+    "The green raw API bodies were overwritten by the later diagnostic probe (probe_20261027/). The surviving generation captures are in green_model_outputs/; probe_20261027 is explicitly not a pass."
+  ]
+}

@@ -35,6 +35,13 @@ import json
 import re
 from typing import Any, Dict, List, Optional, Sequence
 
+try:  # The repository already carries Pydantic; keep this module importable
+    # in a minimal extraction that does not.
+    from pydantic import BaseModel, Field
+except Exception:  # pragma: no cover - only for stripped environments
+    BaseModel = None  # type: ignore[assignment]
+    Field = None  # type: ignore[assignment]
+
 _IDENTITY_KEYS = ("file_name", "resource_id", "content_hash")
 REVIEW_BLOCK_LANGUAGE = "review_result"
 _REVIEW_BLOCK_RE = re.compile(
@@ -42,6 +49,125 @@ _REVIEW_BLOCK_RE = re.compile(
     r"(\{.*\})\s*```",
     re.DOTALL | re.IGNORECASE,
 )
+
+if BaseModel is not None:
+    class ReviewAssessmentModel(BaseModel):  # type: ignore[misc,valid-type]
+        """Transport-level shape for ONE assessment.
+
+        Fields are REQUIRED and arrays that identify evidence/policy are
+        non-empty. This constrains generation where the provider supports a
+        schema; ``build_review_result`` still validates every reference
+        against the authoritative evidence/policy indexes afterwards.
+        """
+
+        subject_id: str = Field(..., min_length=1)
+        decision: str = Field(..., min_length=1)
+        evidence_ids: List[str] = Field(..., min_length=1)
+        policy_ids: List[str] = Field(..., min_length=1)
+        basis: List[str] = Field(..., min_length=1)
+        unresolved_requirements: List[str] = Field(...)
+
+    class ReviewPayloadModel(BaseModel):  # type: ignore[misc,valid-type]
+        """The structured review call's complete output.
+
+        ``explanation`` is the user-facing prose; ``assessments`` is the
+        machine block that the validator certifies.
+        """
+
+        explanation: str = ""
+        assessments: List[ReviewAssessmentModel] = Field(..., min_length=1)
+else:  # pragma: no cover - stripped environments only
+    ReviewAssessmentModel = None  # type: ignore[assignment]
+    ReviewPayloadModel = None  # type: ignore[assignment]
+
+
+def review_output_schema() -> Dict[str, Any]:
+    """JSON schema for the existing structured-output facility.
+
+    Callers that can constrain transport output pass this schema/model to the
+    SAME generation call. It is additive: content validation never trusts the
+    transport and still runs through ``build_review_result``.
+    """
+    if ReviewPayloadModel is None:
+        return {}
+    if hasattr(ReviewPayloadModel, "model_json_schema"):
+        return ReviewPayloadModel.model_json_schema()
+    return ReviewPayloadModel.schema()  # type: ignore[no-any-return]
+
+
+def serialize_review_payload(payload: Any) -> str:
+    """Turn a structured review payload into the fenced contract answer.
+
+    The model's explanation stays user-facing prose; only ``assessments`` is
+    placed in the machine block. ``build_review_result`` still validates every
+    subject/evidence/policy reference, so a transport-valid object is never
+    automatically certified.
+    """
+    if hasattr(payload, "model_dump"):
+        payload = payload.model_dump()
+    elif hasattr(payload, "dict"):
+        payload = payload.dict()
+    if not isinstance(payload, dict):
+        return ""
+    assessments = payload.get("assessments")
+    if not isinstance(assessments, list) or not assessments:
+        return ""
+    explanation = str(payload.get("explanation") or "").strip()
+    block = json.dumps(
+        {"assessments": assessments}, ensure_ascii=False, default=str)
+    return (f"{explanation}\n\n" if explanation else "") + (
+        f"```review_result\n{block}\n```")
+
+
+async def generate_structured_review(
+    llm_service: Any,
+    *,
+    messages: Sequence[Dict[str, Any]],
+    model: Any = "auto",
+    llm_scope: Optional[Dict[str, Any]] = None,
+    max_tokens: Optional[int] = None,
+) -> Optional[str]:
+    """Use the existing structured-output facility for ONE review call.
+
+    Returns the same fenced answer shape the validator already accepts, or
+    ``None`` when the transport cannot produce a schema-valid payload. The
+    caller may fall back to the ordinary completion path; a payload that was
+    produced but fails reference validation is NEVER re-rolled here.
+    """
+    if ReviewPayloadModel is None:
+        return None
+    system_parts = [
+        str(msg.get("content") or "")
+        for msg in messages or []
+        if isinstance(msg, dict) and msg.get("role") == "system"
+        and str(msg.get("content") or "").strip()
+    ]
+    user_prompt = ""
+    for msg in reversed(list(messages or [])):
+        if isinstance(msg, dict) and msg.get("role") == "user":
+            user_prompt = str(msg.get("content") or "")
+            break
+    if not system_parts or not user_prompt:
+        return None
+    scope = dict(llm_scope or {})
+    kwargs: Dict[str, Any] = {
+        "prompt": user_prompt,
+        "response_model": ReviewPayloadModel,
+        "system_instruction": "\n\n".join(system_parts),
+        "model": model,
+        "allow_moa": False,
+        "cascade": False,
+    }
+    for key in ("workspace_id", "tenant_id", "agent_id", "temperature"):
+        if scope.get(key) is not None:
+            kwargs[key] = scope[key]
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+    try:
+        payload = await llm_service.generate_structured_response(**kwargs)
+    except Exception:  # noqa: BLE001 — transport capability, not judgment
+        return None
+    return serialize_review_payload(payload) or None
 
 
 def _clean(value: Any) -> str:
@@ -450,7 +576,12 @@ def review_output_instruction(
         "IDs listed here, and do not add subjects. Every assessment MUST set "
         "`decision` to exactly one allowed label below — not null, not an "
         "empty string, and not a request to confirm; produce the final "
-        "decisions now.\n"
+        "decisions now. Every assessment MUST also include `evidence_ids`, "
+        "`basis`, `unresolved_requirements`, and a NON-EMPTY `policy_ids` "
+        "array. Copy at least one policy ID from the Policy IDs list below; "
+        "never omit policy_ids, guess an ID, or attach a policy whose text "
+        "does not support the decision. An assessment with a missing or "
+        "empty policy_ids array is rejected.\n"
         "`decision` must be the label ONLY (for example HOLD), with no "
         "amount, parentheses or explanation; put the reasoning in `basis`. "
         "`basis` is WHY you made the decision: the policy, a business "
@@ -470,8 +601,20 @@ def review_output_instruction(
             + ", ".join(required_actions) + "\n"
             if required_actions else ""
         )
-        + "Policy entries are NEWEST FIRST. If two entries conflict, the "
-          "first is the current teaching and later entries are superseded. "
+        + "Policy entries are INDEPENDENT standing instructions, not an "
+          "ordered revision log. Do not infer that an entry supersedes "
+          "another from its position. A correction is authoritative only "
+          "when it rewrites the same policy ID in place; use that entry's "
+          "current text. A newer unrelated lesson never invalidates an "
+          "older applicable rule. Apply every entry that is applicable, "
+          "and keep genuinely conflicting applicable rules explicit in "
+          "`basis` and/or `unresolved_requirements` instead of silently "
+          "choosing one.\n"
+          "Only the entries listed under Policy IDs are authorized to "
+          "govern this assessment. Other workspace/memory lessons — "
+          "including ones taught to a different agent — are background "
+          "context only; they must not change the allowed decisions, "
+          "subjects, evidence IDs, or policy IDs for this task.\n"
           "Use the applicable instruction text below, not just its topic. "
           "For every assessment, `basis` must explain the decision using "
           "the cited row values and the applicable policy text.\n"
@@ -487,8 +630,9 @@ def parse_review_payload(answer: str) -> Optional[Dict[str, Any]]:
     (`assessments`); unrelated JSON blocks are ignored. Content validation
     stays in build_review_result.
     """
+    text = str(answer or "")
     candidates: List[Dict[str, Any]] = []
-    for match in _REVIEW_BLOCK_RE.finditer(str(answer or "")):
+    for match in _REVIEW_BLOCK_RE.finditer(text):
         try:
             payload = json.loads(match.group(1))
         except Exception:
@@ -496,6 +640,19 @@ def parse_review_payload(answer: str) -> Optional[Dict[str, Any]]:
         if isinstance(payload, dict) and isinstance(
                 payload.get("assessments"), list):
             candidates.append(payload)
+    if not candidates:
+        # Structured-output transports may return the object itself rather
+        # than a fenced block. Accept it only when it carries the review
+        # schema; arbitrary JSON prose is still ignored.
+        bare = text.strip()
+        if bare.startswith("{") and bare.endswith("}"):
+            try:
+                payload = json.loads(bare)
+            except Exception:
+                payload = None
+            if isinstance(payload, dict) and isinstance(
+                    payload.get("assessments"), list):
+                candidates.append(payload)
     return candidates[0] if len(candidates) == 1 else None
 
 

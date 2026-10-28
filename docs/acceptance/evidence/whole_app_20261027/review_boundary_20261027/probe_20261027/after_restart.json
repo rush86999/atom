@@ -1,0 +1,1686 @@
+{
+  "started_at": 1793151068.3058538,
+  "env_flag": "0",
+  "server_up": {
+    "booted": true,
+    "seconds": 5.3,
+    "status": "healthy",
+    "pid": 83899,
+    "git_commit": "f8792bf42bf0"
+  },
+  "base": "http://127.0.0.1:63084",
+  "user": {
+    "registered": true,
+    "http": 200,
+    "email": "jprobe_f7f051bbe3@example.com",
+    "password": "dhusgVO85ybCkVYaA1",
+    "id": "d206b5df-7c8b-448e-91a1-742b289c9325",
+    "workspace_id": "524d33e3-ec44-4e79-9972-beb253bdfeb7",
+    "register_http": 200
+  },
+  "provider_register": {
+    "status": 200,
+    "body": {
+      "id": "92f2072f-7f61-4456-8db2-ee7cfc9cef1b",
+      "name": "Scratch Ollama",
+      "registered": true
+    }
+  },
+  "capabilities": {
+    "status": 200,
+    "body": {
+      "model_id": "llama3.1:8b",
+      "set": true
+    }
+  },
+  "agent_id": "d89a6973-372b-4344-9c9a-0ddfbc180cb8",
+  "agent_create": {
+    "custom": {
+      "status": 403,
+      "body": {
+        "detail": "Operation requires permission: agent:manage"
+      }
+    },
+    "guided": {
+      "status": 201,
+      "body": {
+        "success": true,
+        "data": {
+          "agent_id": "d89a6973-372b-4344-9c9a-0ddfbc180cb8",
+          "name": "PolicyEvaluator",
+          "category": "Operations",
+          "template": "custom",
+          "maturity": "student",
+          "created_by": "employee"
+        },
+        "timestamp": "2026-10-28T01:31:20.868785+00:00",
+        "message": "Agent 'PolicyEvaluator' created — it starts as a STUDENT and learns with guidance"
+      }
+    }
+  },
+  "teach_original": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "status": "ok",
+        "source": "teacher",
+        "confidence": 0.15000000000000002,
+        "confidence_boost": 0.05,
+        "at_learning_ceiling": false,
+        "note": null,
+        "teaching_point_id": "0f69a68d1c5249eb9ca007c3feefc402",
+        "scope": "global",
+        "goal_id": null
+      },
+      "timestamp": "2026-10-28T01:31:20.891970+00:00",
+      "message": "Lesson recorded — the student's confidence grew"
+    }
+  },
+  "policy_point_id": "0f69a68d1c5249eb9ca007c3feefc402",
+  "upload_baseline": {
+    "status": 200,
+    "body": {
+      "id": "doc_4d2b6b260cd36a23960e3c50",
+      "title": "case_boundaries.csv",
+      "type": "text/csv",
+      "metadata": {
+        "source": "upload",
+        "size": 102,
+        "title": "case_boundaries.csv",
+        "filename": "case_boundaries.csv",
+        "file_type": "csv",
+        "ingested_at": "2026-10-27T21:31:21.132975",
+        "doc_id": "doc_4d2b6b260cd36a23960e3c50",
+        "pg_document_id": "doc_4d2b6b260cd36a23960e3c50",
+        "source_type": "upload",
+        "integration_id": "manual_upload",
+        "author": "jprobe_f7f051bbe3@example.com"
+      },
+      "ingested_at": "2026-10-27T21:31:21.132975",
+      "chunk_count": 1
+    }
+  },
+  "baseline": {
+    "status": 200,
+    "elapsed_s": 75.83,
+    "body": {
+      "success": true,
+      "message": "| Case Ref | Ask Amount | Decision |\n| --- | ---: | --- |\n| CX-9101 | 3200 | REVIEW |\n| CX-9102 | 7000 | APPROVE |\n| CX-9103 | 12000 | APPROVE |\n\nSource: case_boundaries.csv · rows from the bound selection\n\nBased on the evidence provided, I will create an assessment for each Open case in `case_boundaries.csv`. Here is the assessment table:\n\n| Case Ref | Ask Amount | Decision |\n| ---: | ---: | :--- |\n| CX-9101  | 3200    | REVIEW   |\n| CX-9102  | 7000    | APPROVE  |\n| CX-9103  | 12000   | APPROVE  |\n\nThe decisions are based on the `case amount rule` policy, which states:\n\n* Ask Amount at or above 10000 is APPROVE\n* 5000 to 9999 is REVIEW\n* Below 5000 is REJECT\n\nThe evidence for each case reference can be found in `case_boundaries.csv`:\n\n| Case Ref | Ask Amount |\n| ---: | ---: |\n| CX-9101 | 3200    |\n| CX-9102 | 7000    |\n| CX-9103 | 12000   |\n\nHere is the certified assessment output:\n\nVALIDATED REVIEW (request-bound):\n- CX-9101: Decision: REVIEW\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R2\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 3200 falls between 5000 and 9999.\n- CX-9102: Decision: APPROVE\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R3\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 7000 is at or above 10000.\n- CX-9103: Decision: APPROVE\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R4\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 12000 is at or above 10000.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+      "session_id": "rb-baseline-73a8c055",
+      "intent": "agent_request",
+      "confidence": 0.2,
+      "suggested_actions": [],
+      "requires_confirmation": false,
+      "next_steps": [
+        "read case_boundaries.csv for CX-9101",
+        "read case_boundaries.csv for CX-9102",
+        "read case_boundaries.csv for CX-9103"
+      ],
+      "timestamp": "2026-10-27T21:32:37.400866",
+      "metadata": {
+        "review_result": {
+          "schema_version": "review-result-2",
+          "execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+          "requested_subjects": [
+            "CX-9101",
+            "CX-9102",
+            "CX-9103"
+          ],
+          "allowed_decisions": [
+            "APPROVE",
+            "REVIEW",
+            "REJECT"
+          ],
+          "source_execution_ids": [
+            "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+          ],
+          "assessments": [
+            {
+              "subject_id": "CX-9101",
+              "decision": "REVIEW",
+              "basis": [
+                "According to the case amount rule, Ask Amount of 3200 falls between 5000 and 9999."
+              ],
+              "evidence_refs": [
+                {
+                  "evidence_id": "ev:CX-9101:case_boundaries!R2",
+                  "subject_id": "CX-9101",
+                  "row_ref": "case_boundaries!R2",
+                  "source_identity": {
+                    "file_name": "case_boundaries.csv",
+                    "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+                    "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+                  },
+                  "retrieval_operation": "select:8d54f69bfe1f:2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+                  "retrieval_execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+                  "values": [
+                    {
+                      "field": "Ask Amount",
+                      "value": 3200
+                    }
+                  ]
+                }
+              ],
+              "policy_refs": [
+                {
+                  "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+                  "topic": "case amount rule",
+                  "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+                }
+              ],
+              "unresolved_requirements": [],
+              "reported_unresolved_requirements": [],
+              "accepted_unresolved_requirements": [],
+              "basis_supported_requirements": [],
+              "unclassified_requirements": [],
+              "source_execution_ids": [
+                "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+              ],
+              "resumed_read": false
+            },
+            {
+              "subject_id": "CX-9102",
+              "decision": "APPROVE",
+              "basis": [
+                "According to the case amount rule, Ask Amount of 7000 is at or above 10000."
+              ],
+              "evidence_refs": [
+                {
+                  "evidence_id": "ev:CX-9102:case_boundaries!R3",
+                  "subject_id": "CX-9102",
+                  "row_ref": "case_boundaries!R3",
+                  "source_identity": {
+                    "file_name": "case_boundaries.csv",
+                    "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+                    "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+                  },
+                  "retrieval_operation": "select:8d54f69bfe1f:2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+                  "retrieval_execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+                  "values": [
+                    {
+                      "field": "Ask Amount",
+                      "value": 7000
+                    }
+                  ]
+                }
+              ],
+              "policy_refs": [
+                {
+                  "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+                  "topic": "case amount rule",
+                  "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+                }
+              ],
+              "unresolved_requirements": [],
+              "reported_unresolved_requirements": [],
+              "accepted_unresolved_requirements": [],
+              "basis_supported_requirements": [],
+              "unclassified_requirements": [],
+              "source_execution_ids": [
+                "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+              ],
+              "resumed_read": false
+            },
+            {
+              "subject_id": "CX-9103",
+              "decision": "APPROVE",
+              "basis": [
+                "According to the case amount rule, Ask Amount of 12000 is at or above 10000."
+              ],
+              "evidence_refs": [
+                {
+                  "evidence_id": "ev:CX-9103:case_boundaries!R4",
+                  "subject_id": "CX-9103",
+                  "row_ref": "case_boundaries!R4",
+                  "source_identity": {
+                    "file_name": "case_boundaries.csv",
+                    "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+                    "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+                  },
+                  "retrieval_operation": "select:8d54f69bfe1f:2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+                  "retrieval_execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+                  "values": [
+                    {
+                      "field": "Ask Amount",
+                      "value": 12000
+                    }
+                  ]
+                }
+              ],
+              "policy_refs": [
+                {
+                  "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+                  "topic": "case amount rule",
+                  "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+                }
+              ],
+              "unresolved_requirements": [],
+              "reported_unresolved_requirements": [],
+              "accepted_unresolved_requirements": [],
+              "basis_supported_requirements": [],
+              "unclassified_requirements": [],
+              "source_execution_ids": [
+                "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+              ],
+              "resumed_read": false
+            }
+          ],
+          "candidate_assessments": [],
+          "errors": [],
+          "ok": true,
+          "required_actions": [],
+          "action_receipts": [],
+          "completion": "completed",
+          "reviewed_at_elapsed_s": 45.65
+        },
+        "review_contract": {
+          "subjects": [
+            "CX-9101",
+            "CX-9102",
+            "CX-9103"
+          ],
+          "accepted_inputs": {
+            "subjects": [
+              "CX-9101",
+              "CX-9102",
+              "CX-9103"
+            ],
+            "requested_fields": [
+              "Ask Amount"
+            ],
+            "source_version": "8d54f69bfe1faad936555636f9b3ffca29569809",
+            "teaching_revision": "ec8578fc768ed26a6d2838c6",
+            "decision_schema": [
+              "APPROVE",
+              "REVIEW",
+              "REJECT"
+            ],
+            "required_actions": []
+          },
+          "policy_revision": "ec8578fc768ed26a6d2838c6",
+          "source_revision": "8d54f69bfe1faad936555636f9b3ffca29569809",
+          "required_evidence": [
+            {
+              "file_name": "case_boundaries.csv",
+              "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+              "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+            },
+            {
+              "file_name": "case_boundaries.csv",
+              "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+              "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+            },
+            {
+              "file_name": "case_boundaries.csv",
+              "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+              "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+            }
+          ],
+          "allowed_decisions": [
+            "APPROVE",
+            "REVIEW",
+            "REJECT"
+          ],
+          "evidence_ids": [
+            "ev:CX-9101:case_boundaries!R2",
+            "ev:CX-9102:case_boundaries!R3",
+            "ev:CX-9103:case_boundaries!R4"
+          ],
+          "policy_ids": [
+            "0f69a68d1c5249eb9ca007c3feefc402"
+          ]
+        },
+        "review_summary": "VALIDATED REVIEW (request-bound):\n- CX-9101: Decision: REVIEW\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R2\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 3200 falls between 5000 and 9999.\n- CX-9102: Decision: APPROVE\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R3\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 7000 is at or above 10000.\n- CX-9103: Decision: APPROVE\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R4\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 12000 is at or above 10000.",
+        "open_work": {
+          "actions": [
+            {
+              "question_id": "08301532-26cd-4633-825d-fbe6a7024b23",
+              "item": "CX-9101",
+              "question": "CX-9101 is carried by case_boundaries.csv — the cell/figure is not yet read",
+              "kind": "verification",
+              "next_action": "read case_boundaries.csv for CX-9101",
+              "decision_owner": null,
+              "inputs": {
+                "item": "CX-9101",
+                "file": "case_boundaries.csv",
+                "service": "datasets",
+                "intent": "find_all",
+                "requested_fields": [
+                  "price"
+                ]
+              },
+              "attempts": 0
+            },
+            {
+              "question_id": "2cf0a705-b275-48d8-a304-64f41ba812b9",
+              "item": "CX-9102",
+              "question": "CX-9102 is carried by case_boundaries.csv — the cell/figure is not yet read",
+              "kind": "verification",
+              "next_action": "read case_boundaries.csv for CX-9102",
+              "decision_owner": null,
+              "inputs": {
+                "item": "CX-9102",
+                "file": "case_boundaries.csv",
+                "service": "datasets",
+                "intent": "find_all",
+                "requested_fields": [
+                  "price"
+                ]
+              },
+              "attempts": 0
+            },
+            {
+              "question_id": "d62abb37-4612-4941-a8b6-47bba508887f",
+              "item": "CX-9103",
+              "question": "CX-9103 is carried by case_boundaries.csv — the cell/figure is not yet read",
+              "kind": "verification",
+              "next_action": "read case_boundaries.csv for CX-9103",
+              "decision_owner": null,
+              "inputs": {
+                "item": "CX-9103",
+                "file": "case_boundaries.csv",
+                "service": "datasets",
+                "intent": "find_all",
+                "requested_fields": [
+                  "price"
+                ]
+              },
+              "attempts": 0
+            }
+          ],
+          "owner_decisions": [],
+          "exhausted": []
+        },
+        "task_run_id": "5f20a690-9159-46f5-a03c-4b40ae16722a",
+        "delivery": {
+          "status": "recorded",
+          "delivery_id": "3a9e7718-5568-4c4b-94ad-7b8cc63e35bf",
+          "message_id": "67d1e861-1e85-40b7-bed7-ae4574ea27d6"
+        },
+        "persistence": {
+          "status": "persisted"
+        }
+      },
+      "memory_context": "TRAINING LESSONS — PERMANENT INSTRUCTIONS you were taught by your supervisor/mentor. This is standing guidance for ALL your work (it does not expire): apply it to the current task, match the preferences it describes, and never contradict it unless the user explicitly overrides it in this conversation:\n1. [case amount rule] Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row.",
+      "model": "llama3.1:8b",
+      "provider": "local_92f2072f",
+      "reasoning": null,
+      "execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+      "error_code": null,
+      "failure_reason": null,
+      "recovery_url": null,
+      "outcome": "completed"
+    },
+    "review": {
+      "schema_version": "review-result-2",
+      "execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+      "requested_subjects": [
+        "CX-9101",
+        "CX-9102",
+        "CX-9103"
+      ],
+      "allowed_decisions": [
+        "APPROVE",
+        "REVIEW",
+        "REJECT"
+      ],
+      "source_execution_ids": [
+        "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+      ],
+      "assessments": [
+        {
+          "subject_id": "CX-9101",
+          "decision": "REVIEW",
+          "basis": [
+            "According to the case amount rule, Ask Amount of 3200 falls between 5000 and 9999."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:CX-9101:case_boundaries!R2",
+              "subject_id": "CX-9101",
+              "row_ref": "case_boundaries!R2",
+              "source_identity": {
+                "file_name": "case_boundaries.csv",
+                "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+                "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+              },
+              "retrieval_operation": "select:8d54f69bfe1f:2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+              "retrieval_execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+              "values": [
+                {
+                  "field": "Ask Amount",
+                  "value": 3200
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+              "topic": "case amount rule",
+              "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+          ],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "CX-9102",
+          "decision": "APPROVE",
+          "basis": [
+            "According to the case amount rule, Ask Amount of 7000 is at or above 10000."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:CX-9102:case_boundaries!R3",
+              "subject_id": "CX-9102",
+              "row_ref": "case_boundaries!R3",
+              "source_identity": {
+                "file_name": "case_boundaries.csv",
+                "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+                "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+              },
+              "retrieval_operation": "select:8d54f69bfe1f:2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+              "retrieval_execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+              "values": [
+                {
+                  "field": "Ask Amount",
+                  "value": 7000
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+              "topic": "case amount rule",
+              "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+          ],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "CX-9103",
+          "decision": "APPROVE",
+          "basis": [
+            "According to the case amount rule, Ask Amount of 12000 is at or above 10000."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:CX-9103:case_boundaries!R4",
+              "subject_id": "CX-9103",
+              "row_ref": "case_boundaries!R4",
+              "source_identity": {
+                "file_name": "case_boundaries.csv",
+                "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+                "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+              },
+              "retrieval_operation": "select:8d54f69bfe1f:2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+              "retrieval_execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6",
+              "values": [
+                {
+                  "field": "Ask Amount",
+                  "value": 12000
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+              "topic": "case amount rule",
+              "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is APPROVE. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+          ],
+          "resumed_read": false
+        }
+      ],
+      "candidate_assessments": [],
+      "errors": [],
+      "ok": true,
+      "required_actions": [],
+      "action_receipts": [],
+      "completion": "completed",
+      "reviewed_at_elapsed_s": 45.65
+    },
+    "contract": {
+      "subjects": [
+        "CX-9101",
+        "CX-9102",
+        "CX-9103"
+      ],
+      "accepted_inputs": {
+        "subjects": [
+          "CX-9101",
+          "CX-9102",
+          "CX-9103"
+        ],
+        "requested_fields": [
+          "Ask Amount"
+        ],
+        "source_version": "8d54f69bfe1faad936555636f9b3ffca29569809",
+        "teaching_revision": "ec8578fc768ed26a6d2838c6",
+        "decision_schema": [
+          "APPROVE",
+          "REVIEW",
+          "REJECT"
+        ],
+        "required_actions": []
+      },
+      "policy_revision": "ec8578fc768ed26a6d2838c6",
+      "source_revision": "8d54f69bfe1faad936555636f9b3ffca29569809",
+      "required_evidence": [
+        {
+          "file_name": "case_boundaries.csv",
+          "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+          "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+        },
+        {
+          "file_name": "case_boundaries.csv",
+          "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+          "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+        },
+        {
+          "file_name": "case_boundaries.csv",
+          "resource_id": "8d54f69bfe1faad936555636f9b3ffca29569809",
+          "content_hash": "8d54f69bfe1faad936555636f9b3ffca29569809"
+        }
+      ],
+      "allowed_decisions": [
+        "APPROVE",
+        "REVIEW",
+        "REJECT"
+      ],
+      "evidence_ids": [
+        "ev:CX-9101:case_boundaries!R2",
+        "ev:CX-9102:case_boundaries!R3",
+        "ev:CX-9103:case_boundaries!R4"
+      ],
+      "policy_ids": [
+        "0f69a68d1c5249eb9ca007c3feefc402"
+      ]
+    },
+    "history": {
+      "status": 200,
+      "body": {
+        "session_id": "rb-baseline-73a8c055",
+        "messages": [
+          {
+            "id": "0a069e7f-e496-403f-8feb-b36d145f2d5e",
+            "role": "user",
+            "message": "Assess each Open case in case_boundaries.csv using Ask Amount. Give a table with Case Ref, Ask Amount and decision.",
+            "response": null,
+            "timestamp": "2026-10-28T01:32:37.408863"
+          },
+          {
+            "id": "67d1e861-1e85-40b7-bed7-ae4574ea27d6",
+            "role": "assistant",
+            "message": null,
+            "response": {
+              "message": "| Case Ref | Ask Amount | Decision |\n| --- | ---: | --- |\n| CX-9101 | 3200 | REVIEW |\n| CX-9102 | 7000 | APPROVE |\n| CX-9103 | 12000 | APPROVE |\n\nSource: case_boundaries.csv · rows from the bound selection\n\nBased on the evidence provided, I will create an assessment for each Open case in `case_boundaries.csv`. Here is the assessment table:\n\n| Case Ref | Ask Amount | Decision |\n| ---: | ---: | :--- |\n| CX-9101  | 3200    | REVIEW   |\n| CX-9102  | 7000    | APPROVE  |\n| CX-9103  | 12000   | APPROVE  |\n\nThe decisions are based on the `case amount rule` policy, which states:\n\n* Ask Amount at or above 10000 is APPROVE\n* 5000 to 9999 is REVIEW\n* Below 5000 is REJECT\n\nThe evidence for each case reference can be found in `case_boundaries.csv`:\n\n| Case Ref | Ask Amount |\n| ---: | ---: |\n| CX-9101 | 3200    |\n| CX-9102 | 7000    |\n| CX-9103 | 12000   |\n\nHere is the certified assessment output:\n\nVALIDATED REVIEW (request-bound):\n- CX-9101: Decision: REVIEW\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R2\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 3200 falls between 5000 and 9999.\n- CX-9102: Decision: APPROVE\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R3\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 7000 is at or above 10000.\n- CX-9103: Decision: APPROVE\n  Evidence: case_boundaries.csv 8d54f69bfe1faad936555636f9b3ffca29569809 8d54f69bfe1faad936555636f9b3ffca29569809 case_boundaries!R4\n  Policy: case amount rule\n  Basis: According to the case amount rule, Ask Amount of 12000 is at or above 10000.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+              "success": true,
+              "outcome": "completed"
+            },
+            "timestamp": "2026-10-28T01:32:37.409006",
+            "workbook_result": {
+              "schema": "workbook-result-1",
+              "file": "case_boundaries.csv",
+              "source_note": "saved copy · 2026-10-28",
+              "coverage": null,
+              "items": [
+                {
+                  "item": "CX-9101",
+                  "status": "found",
+                  "value": null,
+                  "basis": null,
+                  "ref": "case_boundaries!R2",
+                  "identity_cells": [],
+                  "other_bases": []
+                },
+                {
+                  "item": "CX-9102",
+                  "status": "found",
+                  "value": null,
+                  "basis": null,
+                  "ref": "case_boundaries!R3",
+                  "identity_cells": [],
+                  "other_bases": []
+                },
+                {
+                  "item": "CX-9103",
+                  "status": "found",
+                  "value": null,
+                  "basis": null,
+                  "ref": "case_boundaries!R4",
+                  "identity_cells": [],
+                  "other_bases": []
+                }
+              ]
+            },
+            "execution_id": "2b2bd037-fb7f-4636-91e4-095efbf23ef6"
+          }
+        ],
+        "timestamp": ""
+      }
+    }
+  },
+  "correction": {
+    "status": 200,
+    "body": {
+      "status": "ok",
+      "teaching_point": {
+        "id": "0f69a68d1c5249eb9ca007c3feefc402",
+        "source": "teacher",
+        "teacher_agent_id": "human_supervisor",
+        "topic": "case amount rule",
+        "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row.",
+        "learned_at": "2026-10-28T01:31:20.888895+00:00",
+        "scope": "global",
+        "decision_options": [
+          "APPROVE",
+          "REVIEW",
+          "REJECT"
+        ],
+        "edited_at": "2026-10-28T01:32:37.448835+00:00"
+      }
+    }
+  },
+  "upload_unfamiliar": {
+    "status": 200,
+    "body": {
+      "id": "doc_d8c2d8eaee635cb8fc551a8b",
+      "title": "case_unfamiliar.csv",
+      "type": "text/csv",
+      "metadata": {
+        "source": "upload",
+        "size": 102,
+        "title": "case_unfamiliar.csv",
+        "filename": "case_unfamiliar.csv",
+        "file_type": "csv",
+        "ingested_at": "2026-10-27T21:32:37.462162",
+        "doc_id": "doc_d8c2d8eaee635cb8fc551a8b",
+        "pg_document_id": "doc_d8c2d8eaee635cb8fc551a8b",
+        "source_type": "upload",
+        "integration_id": "manual_upload",
+        "author": "jprobe_f7f051bbe3@example.com"
+      },
+      "ingested_at": "2026-10-27T21:32:37.462162",
+      "chunk_count": 1
+    }
+  },
+  "unfamiliar": {
+    "status": 200,
+    "elapsed_s": 41.44,
+    "body": {
+      "success": true,
+      "message": "| Case Ref | Ask Amount | Decision |\n| --- | ---: | --- |\n| CX-9201 | 3200 | REJECT |\n| CX-9202 | 7000 | REVIEW |\n| CX-9203 | 12000 | REVIEW |\n\nSource: case_unfamiliar.csv · rows from the bound selection\n\nBased on the Policy IDs provided, I will assess each Open case in case_unfamiliar.csv using Ask Amount.\n\nTo determine the decision for each case, I will apply the rule from policy ID \"0f69a68d1c5249eb9ca007c3feefc402\": Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT.\n\nHere's the assessment:\n\n| Case Ref | Ask Amount | Decision |\n| ---: | ---:| :-: |\n| CX-9201 | 3200 | REJECT |\n| CX-9202 | 7000 | REVIEW |\n| CX-9203 | 12000 | REVIEW |\n\nVALIDATED REVIEW (request-bound):\n- CX-9201: Decision: REJECT\n  Evidence: case_unfamiliar.csv 2f194e53d7936120a5d57821612c016f3688b28e 2f194e53d7936120a5d57821612c016f3688b28e case_unfamiliar!R2\n  Policy: case amount rule\n  Basis: The ask amount of 3200 is below 5000.\n- CX-9202: Decision: REVIEW\n  Evidence: case_unfamiliar.csv 2f194e53d7936120a5d57821612c016f3688b28e 2f194e53d7936120a5d57821612c016f3688b28e case_unfamiliar!R3\n  Policy: case amount rule\n  Basis: The ask amount of 7000 is between 5000 and 9999.\n- CX-9203: Decision: REVIEW\n  Evidence: case_unfamiliar.csv 2f194e53d7936120a5d57821612c016f3688b28e 2f194e53d7936120a5d57821612c016f3688b28e case_unfamiliar!R4\n  Policy: case amount rule\n  Basis: The ask amount of 12000 is at or above 10000.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+      "session_id": "rb-unfamiliar-78cdb6e1",
+      "intent": "agent_request",
+      "confidence": 0.2,
+      "suggested_actions": [],
+      "requires_confirmation": false,
+      "next_steps": [
+        "read case_unfamiliar.csv for CX-9201",
+        "read case_unfamiliar.csv for CX-9202",
+        "read case_unfamiliar.csv for CX-9203"
+      ],
+      "timestamp": "2026-10-27T21:33:18.906907",
+      "metadata": {
+        "review_result": {
+          "schema_version": "review-result-2",
+          "execution_id": "83253249-5ed4-4194-90d7-42579944bccd",
+          "requested_subjects": [
+            "CX-9201",
+            "CX-9202",
+            "CX-9203"
+          ],
+          "allowed_decisions": [
+            "APPROVE",
+            "REVIEW",
+            "REJECT"
+          ],
+          "source_execution_ids": [
+            "83253249-5ed4-4194-90d7-42579944bccd"
+          ],
+          "assessments": [
+            {
+              "subject_id": "CX-9201",
+              "decision": "REJECT",
+              "basis": [
+                "The ask amount of 3200 is below 5000."
+              ],
+              "evidence_refs": [
+                {
+                  "evidence_id": "ev:CX-9201:case_unfamiliar!R2",
+                  "subject_id": "CX-9201",
+                  "row_ref": "case_unfamiliar!R2",
+                  "source_identity": {
+                    "file_name": "case_unfamiliar.csv",
+                    "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+                    "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+                  },
+                  "retrieval_operation": "select:2f194e53d793:83253249-5ed4-4194-90d7-42579944bccd",
+                  "retrieval_execution_id": "83253249-5ed4-4194-90d7-42579944bccd",
+                  "values": [
+                    {
+                      "field": "Ask Amount",
+                      "value": 3200
+                    }
+                  ]
+                }
+              ],
+              "policy_refs": [
+                {
+                  "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+                  "topic": "case amount rule",
+                  "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+                }
+              ],
+              "unresolved_requirements": [],
+              "reported_unresolved_requirements": [],
+              "accepted_unresolved_requirements": [],
+              "basis_supported_requirements": [],
+              "unclassified_requirements": [],
+              "source_execution_ids": [
+                "83253249-5ed4-4194-90d7-42579944bccd"
+              ],
+              "resumed_read": false
+            },
+            {
+              "subject_id": "CX-9202",
+              "decision": "REVIEW",
+              "basis": [
+                "The ask amount of 7000 is between 5000 and 9999."
+              ],
+              "evidence_refs": [
+                {
+                  "evidence_id": "ev:CX-9202:case_unfamiliar!R3",
+                  "subject_id": "CX-9202",
+                  "row_ref": "case_unfamiliar!R3",
+                  "source_identity": {
+                    "file_name": "case_unfamiliar.csv",
+                    "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+                    "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+                  },
+                  "retrieval_operation": "select:2f194e53d793:83253249-5ed4-4194-90d7-42579944bccd",
+                  "retrieval_execution_id": "83253249-5ed4-4194-90d7-42579944bccd",
+                  "values": [
+                    {
+                      "field": "Ask Amount",
+                      "value": 7000
+                    }
+                  ]
+                }
+              ],
+              "policy_refs": [
+                {
+                  "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+                  "topic": "case amount rule",
+                  "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+                }
+              ],
+              "unresolved_requirements": [],
+              "reported_unresolved_requirements": [],
+              "accepted_unresolved_requirements": [],
+              "basis_supported_requirements": [],
+              "unclassified_requirements": [],
+              "source_execution_ids": [
+                "83253249-5ed4-4194-90d7-42579944bccd"
+              ],
+              "resumed_read": false
+            },
+            {
+              "subject_id": "CX-9203",
+              "decision": "REVIEW",
+              "basis": [
+                "The ask amount of 12000 is at or above 10000."
+              ],
+              "evidence_refs": [
+                {
+                  "evidence_id": "ev:CX-9203:case_unfamiliar!R4",
+                  "subject_id": "CX-9203",
+                  "row_ref": "case_unfamiliar!R4",
+                  "source_identity": {
+                    "file_name": "case_unfamiliar.csv",
+                    "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+                    "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+                  },
+                  "retrieval_operation": "select:2f194e53d793:83253249-5ed4-4194-90d7-42579944bccd",
+                  "retrieval_execution_id": "83253249-5ed4-4194-90d7-42579944bccd",
+                  "values": [
+                    {
+                      "field": "Ask Amount",
+                      "value": 12000
+                    }
+                  ]
+                }
+              ],
+              "policy_refs": [
+                {
+                  "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+                  "topic": "case amount rule",
+                  "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+                }
+              ],
+              "unresolved_requirements": [],
+              "reported_unresolved_requirements": [],
+              "accepted_unresolved_requirements": [],
+              "basis_supported_requirements": [],
+              "unclassified_requirements": [],
+              "source_execution_ids": [
+                "83253249-5ed4-4194-90d7-42579944bccd"
+              ],
+              "resumed_read": false
+            }
+          ],
+          "candidate_assessments": [],
+          "errors": [],
+          "ok": true,
+          "required_actions": [],
+          "action_receipts": [],
+          "completion": "completed",
+          "reviewed_at_elapsed_s": 41.28
+        },
+        "review_contract": {
+          "subjects": [
+            "CX-9201",
+            "CX-9202",
+            "CX-9203"
+          ],
+          "accepted_inputs": {
+            "subjects": [
+              "CX-9201",
+              "CX-9202",
+              "CX-9203"
+            ],
+            "requested_fields": [
+              "Ask Amount"
+            ],
+            "source_version": "2f194e53d7936120a5d57821612c016f3688b28e",
+            "teaching_revision": "54bcd38b64b3b721599fdcd7",
+            "decision_schema": [
+              "APPROVE",
+              "REVIEW",
+              "REJECT"
+            ],
+            "required_actions": []
+          },
+          "policy_revision": "54bcd38b64b3b721599fdcd7",
+          "source_revision": "2f194e53d7936120a5d57821612c016f3688b28e",
+          "required_evidence": [
+            {
+              "file_name": "case_unfamiliar.csv",
+              "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+              "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+            },
+            {
+              "file_name": "case_unfamiliar.csv",
+              "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+              "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+            },
+            {
+              "file_name": "case_unfamiliar.csv",
+              "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+              "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+            }
+          ],
+          "allowed_decisions": [
+            "APPROVE",
+            "REVIEW",
+            "REJECT"
+          ],
+          "evidence_ids": [
+            "ev:CX-9201:case_unfamiliar!R2",
+            "ev:CX-9202:case_unfamiliar!R3",
+            "ev:CX-9203:case_unfamiliar!R4"
+          ],
+          "policy_ids": [
+            "0f69a68d1c5249eb9ca007c3feefc402"
+          ]
+        },
+        "review_summary": "VALIDATED REVIEW (request-bound):\n- CX-9201: Decision: REJECT\n  Evidence: case_unfamiliar.csv 2f194e53d7936120a5d57821612c016f3688b28e 2f194e53d7936120a5d57821612c016f3688b28e case_unfamiliar!R2\n  Policy: case amount rule\n  Basis: The ask amount of 3200 is below 5000.\n- CX-9202: Decision: REVIEW\n  Evidence: case_unfamiliar.csv 2f194e53d7936120a5d57821612c016f3688b28e 2f194e53d7936120a5d57821612c016f3688b28e case_unfamiliar!R3\n  Policy: case amount rule\n  Basis: The ask amount of 7000 is between 5000 and 9999.\n- CX-9203: Decision: REVIEW\n  Evidence: case_unfamiliar.csv 2f194e53d7936120a5d57821612c016f3688b28e 2f194e53d7936120a5d57821612c016f3688b28e case_unfamiliar!R4\n  Policy: case amount rule\n  Basis: The ask amount of 12000 is at or above 10000.",
+        "open_work": {
+          "actions": [
+            {
+              "question_id": "99a125de-83e8-4511-87a6-4e0e810af6ea",
+              "item": "CX-9201",
+              "question": "CX-9201 is carried by case_unfamiliar.csv — the cell/figure is not yet read",
+              "kind": "verification",
+              "next_action": "read case_unfamiliar.csv for CX-9201",
+              "decision_owner": null,
+              "inputs": {
+                "item": "CX-9201",
+                "file": "case_unfamiliar.csv",
+                "service": "datasets",
+                "intent": "find_all",
+                "requested_fields": [
+                  "price"
+                ]
+              },
+              "attempts": 0
+            },
+            {
+              "question_id": "ee7b444b-f22d-46c8-b231-9c2fb83f35eb",
+              "item": "CX-9202",
+              "question": "CX-9202 is carried by case_unfamiliar.csv — the cell/figure is not yet read",
+              "kind": "verification",
+              "next_action": "read case_unfamiliar.csv for CX-9202",
+              "decision_owner": null,
+              "inputs": {
+                "item": "CX-9202",
+                "file": "case_unfamiliar.csv",
+                "service": "datasets",
+                "intent": "find_all",
+                "requested_fields": [
+                  "price"
+                ]
+              },
+              "attempts": 0
+            },
+            {
+              "question_id": "e59a213a-6d86-4fdc-9353-d885edcf9753",
+              "item": "CX-9203",
+              "question": "CX-9203 is carried by case_unfamiliar.csv — the cell/figure is not yet read",
+              "kind": "verification",
+              "next_action": "read case_unfamiliar.csv for CX-9203",
+              "decision_owner": null,
+              "inputs": {
+                "item": "CX-9203",
+                "file": "case_unfamiliar.csv",
+                "service": "datasets",
+                "intent": "find_all",
+                "requested_fields": [
+                  "price"
+                ]
+              },
+              "attempts": 0
+            }
+          ],
+          "owner_decisions": [],
+          "exhausted": []
+        },
+        "task_run_id": "57fe922e-0b0f-4460-a992-863f2a126b3c",
+        "delivery": {
+          "status": "recorded",
+          "delivery_id": "755b8ad2-a396-44a0-afb0-1619dd17d8c8",
+          "message_id": "f841b3de-3cf9-4c1e-aa4b-92b141a28f1f"
+        },
+        "persistence": {
+          "status": "persisted"
+        }
+      },
+      "memory_context": "TRAINING LESSONS — PERMANENT INSTRUCTIONS you were taught by your supervisor/mentor. This is standing guidance for ALL your work (it does not expire): apply it to the current task, match the preferences it describes, and never contradict it unless the user explicitly overrides it in this conversation:\n1. [case amount rule] Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row.",
+      "model": "llama3.1:8b",
+      "provider": "local_92f2072f",
+      "reasoning": null,
+      "execution_id": "83253249-5ed4-4194-90d7-42579944bccd",
+      "error_code": null,
+      "failure_reason": null,
+      "recovery_url": null,
+      "outcome": "completed"
+    },
+    "review": {
+      "schema_version": "review-result-2",
+      "execution_id": "83253249-5ed4-4194-90d7-42579944bccd",
+      "requested_subjects": [
+        "CX-9201",
+        "CX-9202",
+        "CX-9203"
+      ],
+      "allowed_decisions": [
+        "APPROVE",
+        "REVIEW",
+        "REJECT"
+      ],
+      "source_execution_ids": [
+        "83253249-5ed4-4194-90d7-42579944bccd"
+      ],
+      "assessments": [
+        {
+          "subject_id": "CX-9201",
+          "decision": "REJECT",
+          "basis": [
+            "The ask amount of 3200 is below 5000."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:CX-9201:case_unfamiliar!R2",
+              "subject_id": "CX-9201",
+              "row_ref": "case_unfamiliar!R2",
+              "source_identity": {
+                "file_name": "case_unfamiliar.csv",
+                "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+                "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+              },
+              "retrieval_operation": "select:2f194e53d793:83253249-5ed4-4194-90d7-42579944bccd",
+              "retrieval_execution_id": "83253249-5ed4-4194-90d7-42579944bccd",
+              "values": [
+                {
+                  "field": "Ask Amount",
+                  "value": 3200
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+              "topic": "case amount rule",
+              "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "83253249-5ed4-4194-90d7-42579944bccd"
+          ],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "CX-9202",
+          "decision": "REVIEW",
+          "basis": [
+            "The ask amount of 7000 is between 5000 and 9999."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:CX-9202:case_unfamiliar!R3",
+              "subject_id": "CX-9202",
+              "row_ref": "case_unfamiliar!R3",
+              "source_identity": {
+                "file_name": "case_unfamiliar.csv",
+                "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+                "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+              },
+              "retrieval_operation": "select:2f194e53d793:83253249-5ed4-4194-90d7-42579944bccd",
+              "retrieval_execution_id": "83253249-5ed4-4194-90d7-42579944bccd",
+              "values": [
+                {
+                  "field": "Ask Amount",
+                  "value": 7000
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+              "topic": "case amount rule",
+              "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "83253249-5ed4-4194-90d7-42579944bccd"
+          ],
+          "resumed_read": false
+        },
+        {
+          "subject_id": "CX-9203",
+          "decision": "REVIEW",
+          "basis": [
+            "The ask amount of 12000 is at or above 10000."
+          ],
+          "evidence_refs": [
+            {
+              "evidence_id": "ev:CX-9203:case_unfamiliar!R4",
+              "subject_id": "CX-9203",
+              "row_ref": "case_unfamiliar!R4",
+              "source_identity": {
+                "file_name": "case_unfamiliar.csv",
+                "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+                "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+              },
+              "retrieval_operation": "select:2f194e53d793:83253249-5ed4-4194-90d7-42579944bccd",
+              "retrieval_execution_id": "83253249-5ed4-4194-90d7-42579944bccd",
+              "values": [
+                {
+                  "field": "Ask Amount",
+                  "value": 12000
+                }
+              ]
+            }
+          ],
+          "policy_refs": [
+            {
+              "policy_id": "0f69a68d1c5249eb9ca007c3feefc402",
+              "topic": "case amount rule",
+              "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+            }
+          ],
+          "unresolved_requirements": [],
+          "reported_unresolved_requirements": [],
+          "accepted_unresolved_requirements": [],
+          "basis_supported_requirements": [],
+          "unclassified_requirements": [],
+          "source_execution_ids": [
+            "83253249-5ed4-4194-90d7-42579944bccd"
+          ],
+          "resumed_read": false
+        }
+      ],
+      "candidate_assessments": [],
+      "errors": [],
+      "ok": true,
+      "required_actions": [],
+      "action_receipts": [],
+      "completion": "completed",
+      "reviewed_at_elapsed_s": 41.28
+    },
+    "contract": {
+      "subjects": [
+        "CX-9201",
+        "CX-9202",
+        "CX-9203"
+      ],
+      "accepted_inputs": {
+        "subjects": [
+          "CX-9201",
+          "CX-9202",
+          "CX-9203"
+        ],
+        "requested_fields": [
+          "Ask Amount"
+        ],
+        "source_version": "2f194e53d7936120a5d57821612c016f3688b28e",
+        "teaching_revision": "54bcd38b64b3b721599fdcd7",
+        "decision_schema": [
+          "APPROVE",
+          "REVIEW",
+          "REJECT"
+        ],
+        "required_actions": []
+      },
+      "policy_revision": "54bcd38b64b3b721599fdcd7",
+      "source_revision": "2f194e53d7936120a5d57821612c016f3688b28e",
+      "required_evidence": [
+        {
+          "file_name": "case_unfamiliar.csv",
+          "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+          "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+        },
+        {
+          "file_name": "case_unfamiliar.csv",
+          "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+          "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+        },
+        {
+          "file_name": "case_unfamiliar.csv",
+          "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+          "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+        }
+      ],
+      "allowed_decisions": [
+        "APPROVE",
+        "REVIEW",
+        "REJECT"
+      ],
+      "evidence_ids": [
+        "ev:CX-9201:case_unfamiliar!R2",
+        "ev:CX-9202:case_unfamiliar!R3",
+        "ev:CX-9203:case_unfamiliar!R4"
+      ],
+      "policy_ids": [
+        "0f69a68d1c5249eb9ca007c3feefc402"
+      ]
+    },
+    "history": {
+      "status": 200,
+      "body": {
+        "session_id": "rb-unfamiliar-78cdb6e1",
+        "messages": [
+          {
+            "id": "1cfef68f-937e-4f75-b95b-aa537fc82888",
+            "role": "user",
+            "message": "Assess each Open case in case_unfamiliar.csv using Ask Amount. Give a table with Case Ref, Ask Amount and decision.",
+            "response": null,
+            "timestamp": "2026-10-28T01:33:18.913049"
+          },
+          {
+            "id": "f841b3de-3cf9-4c1e-aa4b-92b141a28f1f",
+            "role": "assistant",
+            "message": null,
+            "response": {
+              "message": "| Case Ref | Ask Amount | Decision |\n| --- | ---: | --- |\n| CX-9201 | 3200 | REJECT |\n| CX-9202 | 7000 | REVIEW |\n| CX-9203 | 12000 | REVIEW |\n\nSource: case_unfamiliar.csv · rows from the bound selection\n\nBased on the Policy IDs provided, I will assess each Open case in case_unfamiliar.csv using Ask Amount.\n\nTo determine the decision for each case, I will apply the rule from policy ID \"0f69a68d1c5249eb9ca007c3feefc402\": Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT.\n\nHere's the assessment:\n\n| Case Ref | Ask Amount | Decision |\n| ---: | ---:| :-: |\n| CX-9201 | 3200 | REJECT |\n| CX-9202 | 7000 | REVIEW |\n| CX-9203 | 12000 | REVIEW |\n\nVALIDATED REVIEW (request-bound):\n- CX-9201: Decision: REJECT\n  Evidence: case_unfamiliar.csv 2f194e53d7936120a5d57821612c016f3688b28e 2f194e53d7936120a5d57821612c016f3688b28e case_unfamiliar!R2\n  Policy: case amount rule\n  Basis: The ask amount of 3200 is below 5000.\n- CX-9202: Decision: REVIEW\n  Evidence: case_unfamiliar.csv 2f194e53d7936120a5d57821612c016f3688b28e 2f194e53d7936120a5d57821612c016f3688b28e case_unfamiliar!R3\n  Policy: case amount rule\n  Basis: The ask amount of 7000 is between 5000 and 9999.\n- CX-9203: Decision: REVIEW\n  Evidence: case_unfamiliar.csv 2f194e53d7936120a5d57821612c016f3688b28e 2f194e53d7936120a5d57821612c016f3688b28e case_unfamiliar!R4\n  Policy: case amount rule\n  Basis: The ask amount of 12000 is at or above 10000.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+              "success": true,
+              "outcome": "completed"
+            },
+            "timestamp": "2026-10-28T01:33:18.913174",
+            "workbook_result": {
+              "schema": "workbook-result-1",
+              "file": "case_unfamiliar.csv",
+              "source_note": "saved copy · 2026-10-28",
+              "coverage": null,
+              "items": [
+                {
+                  "item": "CX-9201",
+                  "status": "found",
+                  "value": null,
+                  "basis": null,
+                  "ref": "case_unfamiliar!R2",
+                  "identity_cells": [],
+                  "other_bases": []
+                },
+                {
+                  "item": "CX-9202",
+                  "status": "found",
+                  "value": null,
+                  "basis": null,
+                  "ref": "case_unfamiliar!R3",
+                  "identity_cells": [],
+                  "other_bases": []
+                },
+                {
+                  "item": "CX-9203",
+                  "status": "found",
+                  "value": null,
+                  "basis": null,
+                  "ref": "case_unfamiliar!R4",
+                  "identity_cells": [],
+                  "other_bases": []
+                }
+              ]
+            },
+            "execution_id": "83253249-5ed4-4194-90d7-42579944bccd"
+          }
+        ],
+        "timestamp": ""
+      }
+    }
+  },
+  "restart": {
+    "booted": true,
+    "seconds": 5.3,
+    "status": "healthy",
+    "pid": 84119,
+    "git_commit": "f8792bf42bf0",
+    "restart_number": 1
+  },
+  "after_restart": {
+    "status": 200,
+    "elapsed_s": 3.61,
+    "body": {
+      "success": false,
+      "message": "Selection: `case_unfamiliar` in `case_unfamiliar.csv`\nRows: 3 selected; 1 outside the filter\n\n| Ask Amount | Case Ref |\n| ---: | --- |\n| 3200 | CX-9201 |\n| 7000 | CX-9202 |\n| 12000 | CX-9203 |\n\nFilter: State = Open\n\nAssessment not delivered: the proposed decision table was not validated against the selected subjects and evidence, so no decision was accepted.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+      "session_id": "rb-after-restart-9f7b59d4",
+      "intent": "agent_request",
+      "confidence": 0.2,
+      "suggested_actions": [],
+      "requires_confirmation": false,
+      "next_steps": [
+        "read case_unfamiliar.csv for CX-9201",
+        "read case_unfamiliar.csv for CX-9202",
+        "read case_unfamiliar.csv for CX-9203"
+      ],
+      "timestamp": "2026-10-27T21:33:28.108790",
+      "metadata": {
+        "review_result": {
+          "schema_version": "review-result-2",
+          "execution_id": "8ff7ef57-3b63-494c-afda-4dee7cb88bcb",
+          "requested_subjects": [
+            "CX-9201",
+            "CX-9202",
+            "CX-9203"
+          ],
+          "allowed_decisions": [
+            "APPROVE",
+            "REVIEW",
+            "REJECT"
+          ],
+          "source_execution_ids": [],
+          "assessments": [],
+          "candidate_assessments": [],
+          "errors": [
+            {
+              "code": "missing_structured_review"
+            },
+            {
+              "code": "missing_decision",
+              "subject_id": "CX-9201"
+            },
+            {
+              "code": "missing_decision",
+              "subject_id": "CX-9202"
+            },
+            {
+              "code": "missing_decision",
+              "subject_id": "CX-9203"
+            }
+          ],
+          "ok": false,
+          "required_actions": [],
+          "action_receipts": [],
+          "completion": "incomplete",
+          "reviewed_at_elapsed_s": 2.55
+        },
+        "review_contract": {
+          "subjects": [
+            "CX-9201",
+            "CX-9202",
+            "CX-9203"
+          ],
+          "accepted_inputs": {
+            "subjects": [
+              "CX-9201",
+              "CX-9202",
+              "CX-9203"
+            ],
+            "requested_fields": [
+              "Ask Amount"
+            ],
+            "source_version": "2f194e53d7936120a5d57821612c016f3688b28e",
+            "teaching_revision": "54bcd38b64b3b721599fdcd7",
+            "decision_schema": [
+              "APPROVE",
+              "REVIEW",
+              "REJECT"
+            ],
+            "required_actions": []
+          },
+          "policy_revision": "54bcd38b64b3b721599fdcd7",
+          "source_revision": "2f194e53d7936120a5d57821612c016f3688b28e",
+          "required_evidence": [
+            {
+              "file_name": "case_unfamiliar.csv",
+              "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+              "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+            },
+            {
+              "file_name": "case_unfamiliar.csv",
+              "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+              "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+            },
+            {
+              "file_name": "case_unfamiliar.csv",
+              "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+              "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+            }
+          ],
+          "allowed_decisions": [
+            "APPROVE",
+            "REVIEW",
+            "REJECT"
+          ],
+          "evidence_ids": [
+            "ev:CX-9201:case_unfamiliar!R2",
+            "ev:CX-9202:case_unfamiliar!R3",
+            "ev:CX-9203:case_unfamiliar!R4"
+          ],
+          "policy_ids": [
+            "0f69a68d1c5249eb9ca007c3feefc402"
+          ]
+        },
+        "open_work": {
+          "actions": [
+            {
+              "question_id": "3329464e-19c5-4021-85f7-a51e721d5fa4",
+              "item": "CX-9201",
+              "question": "CX-9201 is carried by case_unfamiliar.csv — the cell/figure is not yet read",
+              "kind": "verification",
+              "next_action": "read case_unfamiliar.csv for CX-9201",
+              "decision_owner": null,
+              "inputs": {
+                "item": "CX-9201",
+                "file": "case_unfamiliar.csv",
+                "service": "datasets",
+                "intent": "find_all",
+                "requested_fields": [
+                  "price"
+                ]
+              },
+              "attempts": 0
+            },
+            {
+              "question_id": "283176c3-c618-4c34-9812-ea945a0fe557",
+              "item": "CX-9202",
+              "question": "CX-9202 is carried by case_unfamiliar.csv — the cell/figure is not yet read",
+              "kind": "verification",
+              "next_action": "read case_unfamiliar.csv for CX-9202",
+              "decision_owner": null,
+              "inputs": {
+                "item": "CX-9202",
+                "file": "case_unfamiliar.csv",
+                "service": "datasets",
+                "intent": "find_all",
+                "requested_fields": [
+                  "price"
+                ]
+              },
+              "attempts": 0
+            },
+            {
+              "question_id": "e45fea67-7628-478a-a4c9-323aee9ec61e",
+              "item": "CX-9203",
+              "question": "CX-9203 is carried by case_unfamiliar.csv — the cell/figure is not yet read",
+              "kind": "verification",
+              "next_action": "read case_unfamiliar.csv for CX-9203",
+              "decision_owner": null,
+              "inputs": {
+                "item": "CX-9203",
+                "file": "case_unfamiliar.csv",
+                "service": "datasets",
+                "intent": "find_all",
+                "requested_fields": [
+                  "price"
+                ]
+              },
+              "attempts": 0
+            }
+          ],
+          "owner_decisions": [],
+          "exhausted": []
+        },
+        "task_run_id": "f13c6222-359d-4fb9-99f0-0644af8d7d7c",
+        "delivery": {
+          "status": "recorded",
+          "delivery_id": "5de26eb3-3641-4ef1-90ed-698298cf6888",
+          "message_id": "7866e5db-ac5c-4b1f-aba2-8cd93b04a376"
+        },
+        "persistence": {
+          "status": "persisted"
+        }
+      },
+      "memory_context": "TRAINING LESSONS — PERMANENT INSTRUCTIONS you were taught by your supervisor/mentor. This is standing guidance for ALL your work (it does not expire): apply it to the current task, match the preferences it describes, and never contradict it unless the user explicitly overrides it in this conversation:\n1. [case amount rule] Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row.",
+      "model": "llama3.1:8b",
+      "provider": "ollama",
+      "reasoning": null,
+      "execution_id": "8ff7ef57-3b63-494c-afda-4dee7cb88bcb",
+      "error_code": "turn_objective_not_met",
+      "failure_reason": null,
+      "recovery_url": null,
+      "outcome": "failed"
+    },
+    "review": {
+      "schema_version": "review-result-2",
+      "execution_id": "8ff7ef57-3b63-494c-afda-4dee7cb88bcb",
+      "requested_subjects": [
+        "CX-9201",
+        "CX-9202",
+        "CX-9203"
+      ],
+      "allowed_decisions": [
+        "APPROVE",
+        "REVIEW",
+        "REJECT"
+      ],
+      "source_execution_ids": [],
+      "assessments": [],
+      "candidate_assessments": [],
+      "errors": [
+        {
+          "code": "missing_structured_review"
+        },
+        {
+          "code": "missing_decision",
+          "subject_id": "CX-9201"
+        },
+        {
+          "code": "missing_decision",
+          "subject_id": "CX-9202"
+        },
+        {
+          "code": "missing_decision",
+          "subject_id": "CX-9203"
+        }
+      ],
+      "ok": false,
+      "required_actions": [],
+      "action_receipts": [],
+      "completion": "incomplete",
+      "reviewed_at_elapsed_s": 2.55
+    },
+    "contract": {
+      "subjects": [
+        "CX-9201",
+        "CX-9202",
+        "CX-9203"
+      ],
+      "accepted_inputs": {
+        "subjects": [
+          "CX-9201",
+          "CX-9202",
+          "CX-9203"
+        ],
+        "requested_fields": [
+          "Ask Amount"
+        ],
+        "source_version": "2f194e53d7936120a5d57821612c016f3688b28e",
+        "teaching_revision": "54bcd38b64b3b721599fdcd7",
+        "decision_schema": [
+          "APPROVE",
+          "REVIEW",
+          "REJECT"
+        ],
+        "required_actions": []
+      },
+      "policy_revision": "54bcd38b64b3b721599fdcd7",
+      "source_revision": "2f194e53d7936120a5d57821612c016f3688b28e",
+      "required_evidence": [
+        {
+          "file_name": "case_unfamiliar.csv",
+          "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+          "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+        },
+        {
+          "file_name": "case_unfamiliar.csv",
+          "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+          "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+        },
+        {
+          "file_name": "case_unfamiliar.csv",
+          "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+          "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+        }
+      ],
+      "allowed_decisions": [
+        "APPROVE",
+        "REVIEW",
+        "REJECT"
+      ],
+      "evidence_ids": [
+        "ev:CX-9201:case_unfamiliar!R2",
+        "ev:CX-9202:case_unfamiliar!R3",
+        "ev:CX-9203:case_unfamiliar!R4"
+      ],
+      "policy_ids": [
+        "0f69a68d1c5249eb9ca007c3feefc402"
+      ]
+    },
+    "history": {
+      "status": 200,
+      "body": {
+        "session_id": "rb-after-restart-9f7b59d4",
+        "messages": [
+          {
+            "id": "d8f5884d-c246-4d57-be6c-c312df47166e",
+            "role": "user",
+            "message": "Assess each Open case in case_unfamiliar.csv using Ask Amount. Give a table with Case Ref, Ask Amount and decision.",
+            "response": null,
+            "timestamp": "2026-10-28T01:33:28.117874"
+          },
+          {
+            "id": "7866e5db-ac5c-4b1f-aba2-8cd93b04a376",
+            "role": "assistant",
+            "message": null,
+            "response": {
+              "message": "Selection: `case_unfamiliar` in `case_unfamiliar.csv`\nRows: 3 selected; 1 outside the filter\n\n| Ask Amount | Case Ref |\n| ---: | --- |\n| 3200 | CX-9201 |\n| 7000 | CX-9202 |\n| 12000 | CX-9203 |\n\nFilter: State = Open\n\nAssessment not delivered: the proposed decision table was not validated against the selected subjects and evidence, so no decision was accepted.\n\n(I verified the file identity, but this read has no structured workbook artifact, so I did not create an independent preview.)",
+              "success": false,
+              "error_code": "turn_objective_not_met",
+              "outcome": "failed"
+            },
+            "timestamp": "2026-10-28T01:33:28.118017",
+            "workbook_result": {
+              "schema": "workbook-result-1",
+              "file": "case_unfamiliar.csv",
+              "source_note": "saved copy · 2026-10-28",
+              "coverage": null,
+              "items": [
+                {
+                  "item": "CX-9201",
+                  "status": "found",
+                  "value": null,
+                  "basis": null,
+                  "ref": "case_unfamiliar!R2",
+                  "identity_cells": [],
+                  "other_bases": []
+                },
+                {
+                  "item": "CX-9202",
+                  "status": "found",
+                  "value": null,
+                  "basis": null,
+                  "ref": "case_unfamiliar!R3",
+                  "identity_cells": [],
+                  "other_bases": []
+                },
+                {
+                  "item": "CX-9203",
+                  "status": "found",
+                  "value": null,
+                  "basis": null,
+                  "ref": "case_unfamiliar!R4",
+                  "identity_cells": [],
+                  "other_bases": []
+                }
+              ]
+            },
+            "execution_id": "8ff7ef57-3b63-494c-afda-4dee7cb88bcb"
+          }
+        ],
+        "timestamp": ""
+      }
+    }
+  },
+  "log_tail": "INFO:main_api_app:================================================================================\nINFO:main_api_app:ATOM PLATFORM API STARTUP\nINFO:main_api_app:================================================================================\nINFO:main_api_app:Python version: 3.14.7 (main, Sep  1 2026, 14:05:28) [Clang 22.1.3 ]\nINFO:main_api_app:Working directory: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend\nINFO:main_api_app:Python path: ['', '/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend', '/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python314.zip']...\nINFO:main_api_app:✓ uvicorn imported\nINFO:main_api_app:✓ Standard library imports successful\nINFO:main_api_app:✓ dotenv imported\nINFO:main_api_app:✓ sqlalchemy.orm and exceptions imported\nINFO:core.database:Async database support enabled\nINFO:main_api_app:✓ core.models imported\nINFO:main_api_app:✓ core.models_registration imported\nINFO:core.cache:ℹ️ No distributed cache configured. Using Local Memory Cache only.\nINFO:main_api_app:✓ core.cache.RedisCacheService imported\nINFO:main_api_app:✓ core.database imported\nWARNING:main_api_app:Failed to import quota_manager: No module named 'core.quota_manager'\nINFO:main_api_app:✓ FastAPI imports successful\nINFO:core.llm_call_tracker:Created LLM call tracker singleton (maxlen=5000)\nINFO:core.config:Configuration loaded from environment variables\nINFO:core.llm.byok_handler:pair-constraint memos loaded: 0 temperature, 0 toolchoice, 0 reasoning, 0 logprobs, 0 auth, 2 latency\nINFO:core.lancedb_handler:Creating isolated LanceDBHandler for workspace: default_shared at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom_journey_review_boundary_2w5ekvv2/data/atom_memory/default_shared\nINFO:core.dynamic_pricing_fetcher:Loaded 4805 model prices from cache\nINFO:core.byok_endpoints:Updated costs for 16 providers from dynamic pricing\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:core.provider_health_monitor:Created ProviderHealthMonitor singleton instance\nINFO:core.llm.rate_usage_persistence:Created RateUsagePersistence singleton instance\nINFO:core.llm.provider_rate_limits:Created ProviderRateTracker singleton instance\nINFO:core.embedding_service:Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default\nINFO:core.lancedb_handler:LanceDBHandler initialized. ID: 4600277248. LANCEDB_AVAILABLE: True\nWARNING:core.lancedb_handler:LanceDB not initialized, chat history disabled\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:core.embedding_service:Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default\nINFO:integrations.mcp_service:MCP Service initialized\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:enhanced_ai_workflow_endpoints:RealAIWorkflowService modernized with unified LLMService.\nINFO:enhanced_ai_workflow_endpoints:RealAIWorkflowService modernized with unified LLMService.\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:integrations.atom_communication_ingestion_pipeline:Webhook processor initialized and callback registered\nWARNING:core.token_storage:Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.\nINFO:core.token_storage:No token storage file found, starting empty\nWARNING:core.workflow_notifier:WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'\nWARNING:root:Discord integration services not available: No module named 'atom_ingestion_pipeline'\nINFO:integrations.atom_discord_integration:ATOM Discord Integration initialized\nWARNING:root:Enterprise services not available: No module named 'ai_enhanced_service'. Using stubs/None.\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:core.embedding_service:Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default\nINFO:core.lancedb_handler:LanceDBHandler initialized. ID: 4750906128. LANCEDB_AVAILABLE: True\nINFO:integrations.atom_telegram_integration:LanceDB handler initialized for Telegram integration\nINFO:integrations.atom_telegram_integration:Telegram Integration initialized\nWARNING:root:AI integration services not available: No module named 'atom_discord_integration'\nINFO:integrations.atom_ai_integration:ATOM AI Integration initialized\nWARNING:root:Enterprise security services not available: No module named 'ai_enhanced_service'\nINFO:integrations.atom_enterprise_security_service:Enterprise Security Service initialized\nWARNING:root:Enterprise unified services not available: No module named 'ai_enhanced_service'\nINFO:integrations.atom_enterprise_unified_service:Enterprise Unified Service initialized\nWARNING:root:Google Chat integration services not available: No module named 'atom_ingestion_pipeline'\nINFO:integrations.google_chat_enhanced_service:Google Chat Enhanced Service initialized\nINFO:integrations.atom_google_chat_integration:ATOM Google Chat Integration initialized\nINFO:integrations.teams_enhanced_service:Teams Enhanced Service initialized\nINFO:integrations.atom_teams_integration:ATOM Teams Integration initialized\nINFO:integrations.atom_workflow_automation_service:Workflow Automation Service initialized\nINFO:integrations.atom_whatsapp_integration:WhatsApp Integration initialized\nWARNING:root:AI enhanced service not available for Document Logic Service\nWARNING:core.agent_integration_gateway:Enterprise document_logic_service not available, using stub\nINFO:integrations.google_chat_enhanced_service:Google Chat Enhanced Service initialized\nWARNING:core.agent_integration_gateway:Marketing service not available\nWARNING:core.agent_integration_gateway:Meta Business service not available\nWARNING:core.agent_integration_gateway:OpenClaw service not available\nINFO:integrations.slack_enhanced_service:Slack Enhanced Service initialized\nINFO:integrations.teams_enhanced_service:Teams Enhanced Service initialized\n[1793151199.793121] Starting imports in main_api_app.py...\n[1793151199.7931268] FastAPI imported\n{\"level\": \"WARNING\", \"message\": \"Redis unavailable - webhook ingestion will process synchronously\", \"timestamp\": \"2026-10-28T01:33:21.805346+00:00\", \"logger\": \"core.webhook_ingestion_triggers\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118}\nWARNING:core.webhook_ingestion_triggers:Redis unavailable - webhook ingestion will process synchronously\nINFO:integrations.outlook_service_enhanced:OutlookEnhancedService initialized\nINFO:main_api_app:Configuration loaded\nINFO:main_api_app:Startup API key check\nINFO:main_api_app:CORS Allowed Origins: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']\nINFO:main_api_app:Creating FastAPI application...\nINFO:main_api_app:✓ FastAPI app instance created\nWARNING:main_api_app:Connection leak detector not available: No module named 'core.connection_leak_detector'\nINFO:main_api_app:✓ Outlook integration routes registered at /api/integrations/outlook and /api/v1/integrations/outlook\nINFO:main_api_app:🚀 Eagerly loading 4 essential API plugins...\nINFO:core.lazy_integration_registry:Loading integration: auth (core.auth_endpoints)\nINFO:core.lazy_integration_registry:✓ Loaded auth\nINFO:main_api_app:  ✓ auth (prefix: root)\nINFO:core.lazy_integration_registry:Loading integration: oauth (api.oauth_routes)\nINFO:core.lazy_integration_registry:✓ Loaded oauth\nINFO:main_api_app:  ✓ oauth (prefix: root)\nINFO:core.lazy_integration_registry:Loading integration: system_status (core.system_status)\nINFO:core.lazy_integration_registry:✓ Loaded system_status\nINFO:main_api_app:  ✓ system_status (prefix: root)\nINFO:core.lazy_integration_registry:Loading integration: service_health (service_health_endpoints)\nINFO:core.lazy_integration_registry:✓ Loaded service_health\nINFO:main_api_app:  ✓ service_health (prefix: root)\nINFO:core.lazy_integration_registry:Loading integration: zoho_workdrive (api.zoho_workdrive_routes)\nINFO:core.lazy_integration_registry:✓ Loaded zoho_workdrive\nINFO:main_api_app:  ✓ zoho_workdrive (router-prefixed bare mount at /api/zoho-workdrive)\nWARNING:core.lazy_integration_registry:Unknown integration: zoho_crm\nWARNING:core.lazy_integration_registry:Unknown integration: zoho_books\nWARNING:core.lazy_integration_registry:Unknown integration: zoho_inventory\nINFO:core.lazy_integration_registry:Loading integration: outlook (integrations.outlook_routes)\nINFO:core.lazy_integration_registry:✓ Loaded outlook\nINFO:main_api_app:  ✓ outlook (Forced registration at /api/integrations/outlook)\nINFO:core.lazy_integration_registry:Loading integration: dropbox (integrations.dropbox_routes)\nINFO:core.lazy_integration_registry:✓ Loaded dropbox\nINFO:main_api_app:  ✓ dropbox (journey root mount)\nINFO:core.lazy_integration_registry:Loading integration: gitlab (integrations.gitlab_routes)\nINFO:core.lazy_integration_registry:✓ Loaded gitlab\nINFO:main_api_app:  ✓ gitlab (journey root mount)\nINFO:core.lazy_integration_registry:Loading integration: monday (integrations.monday_routes)\nINFO:core.lazy_integration_registry:✓ Loaded monday\nINFO:main_api_app:  ✓ monday (journey root mount)\nINFO:core.lazy_integration_registry:Loading integration: telegram (integrations.telegram_routes)\nINFO:core.lazy_integration_registry:✓ Loaded telegram\nINFO:main_api_app:  ✓ telegram (journey root mount)\nINFO:core.lazy_integration_registry:Loading integration: whatsapp (integrations.whatsapp_fastapi_routes)\nINFO:core.lazy_integration_registry:✓ Loaded whatsapp\nINFO:main_api_app:  ✓ whatsapp (journey root mount)\nINFO:core.lazy_integration_registry:Loading integration: xero (integrations.xero_routes)\nINFO:core.lazy_integration_registry:✓ Loaded xero\nINFO:main_api_app:  ✓ xero (journey root mount)\nINFO:main_api_app:  ✓ onedrive-journey (/api/onedrive/*, /api/auth/onedrive/*)\nINFO:main_api_app:  ✓ gdrive-journey (/api/gdrive/*, /api/ingest-gdrive-document, /api/auth/gdrive/*)\nINFO:main_api_app:✓ Agent audit trail mounted at /api/audit\n/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/api/episode_routes.py:386: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead\n  canvas_context_detail: str = Query(\"summary\", regex=\"^(summary|standard|full)$\"),\nINFO:main_api_app:✓ Live Workflow Endpoints mounted at /api/v1/workflows (incl. /conductor/execute)\nINFO:main_api_app:✓ Unified RPC surface mounted at /api/rpc/{action_name} (P1)\nINFO:main_api_app:✓ Gatekeeper config surface mounted at /api/gatekeeper (P3)\nINFO:main_api_app:✓ External MCP client config mounted at /api/mcp/servers (P6)\nINFO:main_api_app:✓ Mini-apps router mounted at /api/mini-apps\nINFO:main_api_app:✓ Automation Settings mounted at /api/v1/settings/automations\nINFO:main_api_app:✓ Finance Live API mounted at /api/atom/finance/live\nINFO:integrations.asana_service:AsanaService initialized for tenant default... without access token\nINFO:main_api_app:✓ Projects Live API mounted at /api/atom/projects/live\nINFO:main_api_app:✓ Sales Live API mounted at /api/atom/sales/live\nINFO:main_api_app:✓ Arbor HTR endpoints mounted at /api/v1/hypothesis-tree\nINFO:main_api_app:Loading Core API Routes...\nINFO:main_api_app:✓ OAuth Status and Authorization Routes Loaded\nINFO:main_api_app:✓ Telegram Chat Routes Loaded\nINFO:integrations.slack_service_unified:Slack unified service initialized with base URL: https://slack.com/api\nINFO:main_api_app:✓ Slack Chat Routes Loaded\nINFO:main_api_app:✓ Mobile Workflows Routes Loaded at /api/mobile/workflows\nINFO:main_api_app:✓ Operations Routes Loaded at /api/operations\nINFO:main_api_app:✓ Tools Routes Loaded at /api/tools\nWARNING:integrations.adapters.line_adapter:LINE adapter not configured or httpx not available\nINFO:main_api_app:✓ LINE Routes Loaded at /api/line (auth-gated)\nINFO:main_api_app:✅ Desktop authentication routes enabled (secure API keys)\nINFO:main_api_app:✅ Deep linking system enabled\nINFO:main_api_app:✅ Debug tenant check system enabled\nINFO:main_api_app:✓ Analytics Engine Routes Loaded\nINFO:main_api_app:✓ Workflow Import/Export Routes Loaded\nWARNING:main_api_app:Failed to load Governance Verification routes: No module named 'api.routes.admin'\nINFO:main_api_app:✓ JIT Verification & Admin Governance Routes Loaded\nINFO:main_api_app:✓ Workspace Context Routes Loaded\nINFO:main_api_app:✓ Governance Manual Fact Entry Routes Loaded\nINFO:main_api_app:✓ Queue Monitoring Routes Loaded\nINFO:main_api_app:✓ Auto-Dev Review Routes Loaded\nINFO:main_api_app:✓ Canvas Skill Integration Routes Loaded\nINFO:main_api_app:✓ Business Facts Routes Loaded\nWARNING:main_api_app:Failed to load Paused Tasks routes: No module named 'api.routes.admin'\nINFO:main_api_app:✓ Migration Routes Loaded\nINFO:main_api_app:✓ Embedding Routes Loaded\nINFO:main_api_app:✓ Tenant Management Routes Loaded\nINFO:main_api_app:✓ Federation Routes Loaded\nINFO:main_api_app:✓ Local Model Routes Loaded (/api/local-models)\nWARNING:main_api_app:Failed to load business intelligence routes: No module named 'sales.deal_ingestion_routes'\nINFO:main_api_app:✓ Skill Management & Execution Routes Loaded\nINFO:main_api_app:✓ Learn Routes Loaded (workflow→skill distillation)\nINFO:main_api_app:✓ Admin Skill & Evolution Routes Loaded\nINFO:main_api_app:✓ Workflow UI Endpoints Loaded\nINFO:main_api_app:✓ Time-Travel Endpoints Loaded\nWARNING:main_api_app:Test deployed routes not found: No module named 'api.routes.test_deployed_routes'\nINFO:main_api_app:✓ Messaging OAuth (BYOK) Routes Loaded\nINFO:main_api_app:✓ Explicit Outlook Integration Routes Loaded at /api/integrations/outlook\nINFO:main_api_app:✓ Shopify REST routes loaded\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for whatsapp\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for slack\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for email\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for telegram\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for discord\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for sms\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for calls\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for microsoft_teams\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for zoom\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for notion\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for linear\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for outlook\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for gmail\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for salesforce\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for asana\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for dropbox\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for box\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for tableau\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for zoho\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for xero\nINFO:integrations.atom_communication_ingestion_pipeline:Configured ingestion for quickbooks\nWARNING:main_api_app:Razorpay routes not found, skipping: No module named 'api.routes.integrations'\nWARNING:integrations.trello_service:TrelloService for tenant default...: credentials not found. Service will be disabled.\nWARNING:root:Enterprise services not available: No module named 'ai_enhanced_service'\nINFO:integrations.atom_hubspot_integration_service:HubSpot Integration Service initialized\nWARNING:main_api_app:SageHR routes not found, skipping: No module named 'api.routes.integrations'\nINFO:main_api_app:Loading Slack webhooks...\nINFO:main_api_app:✓ Slack webhooks loaded\nINFO:main_api_app:Loading Shopify webhooks...\nINFO:main_api_app:✓ Shopify webhooks loaded\nINFO:main_api_app:Loading Twilio webhooks...\nINFO:main_api_app:✓ Twilio webhooks loaded\nINFO:main_api_app:✓ Standardized Webhook Endpoints Loaded\nINFO:main_api_app:✓ Admin Routes Loaded\nINFO:main_api_app:✓ 2FA Routes Loaded\nINFO:main_api_app:✓ Board WebSocket channel mounted at /ws/boards/{id}\nINFO:main_api_app:✓ ACP bridge mounted at /acp/ws\nINFO:main_api_app:✓ A2A endpoint mounted at /api/a2 (+ /.well-known/agent-card.json)\nINFO:main_api_app:✓ OIDC SSO mounted at /api/auth/sso/oidc\nINFO:main_api_app:✓ SCIM v2 mounted at /api/scim/v2\nINFO:main_api_app:✓ Observability mounted at /api/observability\nINFO:main_api_app:✓ BambooHR integration mounted at /api/bamboohr\nINFO:main_api_app:✓ Twitter/X integration mounted at /api/twitter\nINFO:main_api_app:✓ MCP Routes Loaded\nINFO:main_api_app:✓ Availability Routes Loaded\nINFO:main_api_app:✓ Proposal Routes Loaded\nINFO:main_api_app:✓ Supervision-Learning Routes Loaded\nINFO:main_api_app:✓ Integrations Catalog Routes Loaded\nINFO:main_api_app:✓ Dynamic Options Routes Loaded\nINFO:main_api_app:✓ Webhook Routes Loaded\nINFO:main_api_app:✓ Universal Auth Routes Loaded\nINFO:main_api_app:✓ Meta Compliance Routes Loaded\nINFO:main_api_app:✓ Consolidated Hardened WhatsApp Routes Loaded\nINFO:main_api_app:✓ External Integration Routes Loaded\nINFO:main_api_app:✓ Connection Management Routes Loaded\nINFO:main_api_app:✓ Integration Status Routes Loaded\nINFO:services.agent_service:ComputerUseAgent initialized for tenant default\nINFO:ai.workflow_scheduler:WorkflowScheduler using SQLAlchemyJobStore\nWARNING:integrations.chat_orchestrator:Accounting service modules not importable — finance chat handlers degraded\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:integrations.chat_orchestrator:ChatOrchestrator initialized with LLMService for tenant: default\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:ai.nlp_engine:NaturalLanguageEngine initialized with LLMService for tenant: default\nINFO:integrations.slack_enhanced_service:Slack Enhanced Service initialized\nINFO:integrations.chat_orchestrator:Loaded 0 persisted sessions from file.\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:integrations.chat_orchestrator:ChatOrchestrator initialized with LLMService for tenant: default\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:ai.nlp_engine:NaturalLanguageEngine initialized with LLMService for tenant: default\nINFO:integrations.slack_enhanced_service:Slack Enhanced Service initialized\nINFO:integrations.chat_orchestrator:Loaded 0 persisted sessions from file.\nINFO:main_api_app:✓ Chat Routes Loaded (incl. /api/chat/feedback, /api/chat/routing-stats)\nINFO:main_api_app:✓ Agent Governance Routes Loaded\nINFO:main_api_app:✓ HITL Approvals Alias Routes Loaded (/api/agents/approvals)\nINFO:main_api_app:✓ Enterprise User Management Routes Loaded (/api/enterprise/users|roles|teams|workspaces)\nWARNING:core.atom_saas_client:ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail\nINFO:main_api_app:✓ Workflow Marketplace Routes Loaded (/api/marketplace/*)\nINFO:main_api_app:✓ Agent Maturity Journey Routes Loaded (/api/maturity)\nINFO:main_api_app:✓ Protection API Routes Loaded (Skill Scanner)\nINFO:main_api_app:✓ User Preference Routes Loaded\nINFO:main_api_app:✓ Canvas Terminal Routes Loaded\nINFO:main_api_app:✓ Browser Automation Routes Loaded\n{\"level\": \"INFO\", \"message\": \"Device WebSocket module loaded - real device communication enabled\", \"timestamp\": \"2026-10-28T01:33:23.054063+00:00\", \"logger\": \"tools.device_tool\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118}\nINFO:tools.device_tool:Device WebSocket module loaded - real device communication enabled\nINFO:main_api_app:✓ Device Capabilities Routes Loaded\nINFO:main_api_app:✓ Canvas Recording Routes Loaded\nINFO:main_api_app:✓ Autonomy Routes Loaded (action HITL policy)\nINFO:main_api_app:✓ Meeting Routes Loaded (attendance tracking)\nINFO:main_api_app:✓ Custom Components Routes Loaded\nINFO:main_api_app:✓ Canvas Email Routes Loaded (/api/canvas/email)\nINFO:main_api_app:✓ Canvas PDF Routes Loaded (/api/canvas/pdf)\nINFO:main_api_app:✓ Installation Profile Routes Loaded (/api/installation)\nINFO:main_api_app:✓ Playbook Routes Loaded (/api/playbooks)\nINFO:main_api_app:✓ Goal Run Routes Loaded (/api/goal-runs)\nINFO:main_api_app:✓ Goal Routes Loaded (/api/goals)\nINFO:main_api_app:✓ Usage Analytics Routes Loaded\nINFO:main_api_app:✓ Health Monitoring Routes Loaded\nINFO:main_api_app:✓ System Status aggregate mounted at /api/status\nINFO:main_api_app:✓ Product profile mounted at /api/product/profile\nINFO:main_api_app:✓ Service registry mounted at /api/services/registry\nINFO:main_api_app:✓ Ported Features (Canvas/Agent) Processing Complete\nINFO:main_api_app:✓ Governance Analytics & Remediation Routes Loaded\nINFO:main_api_app:✓ Memory Routes Loaded\nINFO:main_api_app:✓ Memory Management Routes Loaded (Consolidation, Archival, Recovery)\nINFO:main_api_app:✓ Memory Add-on Routes Loaded (Stripe Billing)\nINFO:main_api_app:✓ Document & Data Ingestion Routes Loaded\nINFO:main_api_app:✓ Document Hub Routes Loaded\nINFO:main_api_app:✓ Experience Marketplace Routes Loaded\nINFO:main_api_app:✓ Agent Marketplace Routes Loaded\nINFO:main_api_app:✓ Test Routes Loaded\nINFO:main_api_app:✓ AI Workflows Routes Loaded\nINFO:main_api_app:✓ Background Agent Routes Loaded\nWARNING:main_api_app:Integration Data routes not found, skipping: No module named 'api.routes.integrations'\nINFO:main_api_app:✓ Integration Data Routes Loaded\nINFO:main_api_app:✓ Integration & Service Health Routes Loaded\nINFO:main_api_app:✓ Historical Sync Routes Loaded\nINFO:main_api_app:✓ Worker Routes Loaded\nINFO:main_api_app:✓ Component Marketplace Routes Loaded\nINFO:main_api_app:✓ Agent Coordination Routes Loaded\nINFO:main_api_app:✓ OpenClaw Skill Integration Routes Loaded\nINFO:main_api_app:✓ OpenClaw Scan Integration Routes Loaded\nINFO:main_api_app:✓ OpenClaw Governance Integration Routes Loaded\nINFO:main_api_app:✓ Skill Composition Routes Loaded\nINFO:main_api_app:✓ Live Command Center APIs Loaded (Comm, Sales, Projects, Finance)\nINFO:main_api_app:✓ Scheduler Routes Loaded (QStash Ready)\nINFO:main_api_app:✓ Desktop Bridge Routes Loaded\nINFO:main_api_app:✓ Satellite Routes Loaded\nINFO:main_api_app:✓ Mobile Routes Loaded\nINFO:main_api_app:✓ Invitation Routes Loaded\nINFO:main_api_app:✓ Support Ticketing Routes Loaded\nINFO:main_api_app:✓ Bug Triage Routes Loaded\nINFO:main_api_app:✓ Communication Hub Routes Loaded\nINFO:main_api_app:✓ Universal Communication Routes Loaded\nINFO:main_api_app:✓ Document Hub Routes Loaded\nINFO:main_api_app:✓ Admin Retention Routes Loaded\nINFO:main_api_app:✓ Billing Routes Loaded\nINFO:main_api_app:✓ Public Pricing Routes Loaded\nINFO:main_api_app:✓ Social Media Routes Loaded\nINFO:main_api_app:✓ Audit Log Routes Loaded\nINFO:main_api_app:✓ Shell Security Routes Loaded\nWARNING:api.marketing_routes:Enterprise services not available: ai_enhanced_service module not found. Using stub.\nINFO:main_api_app:✓ Consolidated Core Routes Loaded (Intelligence, Marketing, Skills, Memory)\nINFO:main_api_app:✓ BYOK API Routes Loaded\nINFO:main_api_app:✓ LLM Gateway Routes Loaded\nINFO:main_api_app:✓ MCP Server Routes Loaded\nINFO:main_api_app:✓ SSO API Routes Loaded\nINFO:main_api_app:✓ Feature Flag Routes Loaded\nINFO:main_api_app:✓ Sandbox Execution Routes Loaded\nINFO:main_api_app:✓ External API Routes Loaded\nINFO:main_api_app:✓ Entity Type Routes Loaded\nINFO:main_api_app:✓ Entity Query Routes Loaded\nINFO:main_api_app:✓ Entity Linking Routes Loaded\nINFO:main_api_app:✓ Ingestion CRUD Routes Loaded\nINFO:main_api_app:✓ Entity Skill Routes Loaded\nINFO:main_api_app:✓ Agent Integration Routes Loaded\nINFO:main_api_app:✓ Meta Agent Routes Loaded\nINFO:main_api_app:✓ Admin Integration Catalog Routes Loaded\nINFO:main_api_app:✓ Domain Marketplace Routes Loaded\nINFO:main_api_app:✓ Agent-Domain Routes Loaded\nINFO:main_api_app:✓ Agent Marketplace Routes Loaded\nINFO:main_api_app:✓ Domain-Aware Graduation Routes Loaded\nINFO:main_api_app:✓ Capability Matrix Routes Loaded\nINFO:main_api_app:✓ Learning & Adaptation Routes Loaded\nINFO:main_api_app:✓ Stage Router Management Routes Loaded\nINFO:main_api_app:✓ Learning Router Management Routes Loaded\nINFO:main_api_app:✓ Admin Runtime Settings Routes Loaded\nINFO:main_api_app:✓ BPE Workspace Admin Routes Loaded\nINFO:main_api_app:✓ Fleet Router Management Routes Loaded\nINFO:main_api_app:✓ Decision Plane Management Routes Loaded\nINFO:main_api_app:✓ Decision Automation Loop Scheduled (mode=approve)\nINFO:main_api_app:✓ Org-Politics Management Routes Loaded\nINFO:main_api_app:✓ Org-Politics Automation Loop Scheduled (mode=auto)\nINFO:main_api_app:✓ Trust Calibration Routes Loaded (shadow, flag-gated)\nINFO:main_api_app:✓ Ontology Draft Automation Routes Loaded\nINFO:main_api_app:✓ Core Routes Loaded Successfully\nINFO:main_api_app:✓ Microsoft 365 Routes Loaded (isolated)\nINFO:main_api_app:✅ Debug endpoints enabled\nINFO:main_api_app:============================================================\nINFO:main_api_app:ATOM Platform Starting (Hybrid Mode)\nINFO:main_api_app:============================================================\nINFO:main_api_app:faulthandler: SIGUSR1 dumps thread stacks to stderr\nINFO:main_api_app:Initializing database tables...\nINFO:main_api_app:✓ Database tables initialized\nINFO:main_api_app:✓ documents.search FTS index ready\nINFO:main_api_app:Bootstrapping essential data (admin, tenants)...\nINFO:ATOM_BOOTSTRAP:BOOTSTRAP: User admin@example.com found. Resetting password (ADMIN_PASSWORD set)...\nINFO:ATOM_BOOTSTRAP:BOOTSTRAP: Password for admin@example.com has been reset\nINFO:ATOM_BOOTSTRAP:BOOTSTRAP: Default tenant and workspace ensured.\nINFO:main_api_app:✓ Bootstrap complete\nINFO:main_api_app:Loaded integrations so far: ['service_health', 'zoho_workdrive', 'telegram', 'monday', 'system_status', 'gitlab', 'auth', 'outlook', 'xero', 'oauth', 'dropbox', 'whatsapp']\nINFO:core.execution_recovery:Crash recovery: no orphaned executions found\nINFO:main_api_app:Terminal-delivery recovery task started (outside the scheduler gate)\nINFO:main_api_app:Research continuation worker started (outside the scheduler gate)\nINFO:core.agent_event_bus:ℹ️ Initializing AgentEventBus in Postgres mode (Fallback)\nINFO:main_api_app:✓ Postgres Event Bus listener running\nINFO:main_api_app:✓ AI Workflow Service initialized\nINFO:main_api_app:⏩ Skipping redundant QStash schedule cleanup\nINFO:core.auto_dev.reflection_engine:ReflectionEngine registered on event bus\nINFO:main_api_app:✓ Auto-Dev ReflectionEngine registered on event bus\nINFO:main_api_app:✓ POMDP Memory Consolidation background task started (6h interval)\nINFO:main_api_app:✓ Exchange memory maintenance background task started\nINFO:main_api_app:============================================================\nINFO:main_api_app:✓ Server Ready\nINFO:core.async_turn_continuation:[async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)\nINFO:core.async_turn_continuation:[async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}\nINFO:core.research_continuation:[research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)\nWARNING:core.agent_event_bus:PostgresEventBus requires PostgreSQL. Events will be local-only.\nINFO:core.memory.memory_consolidation_service:POMDP Memory Consolidation initialized\nINFO:core.memory.memory_consolidation_service:Full-system consolidation not yet implemented\nINFO:core.memory.memory_consolidation_service:Consolidation cycle completed: {'consolidated': 0, 'patterns_extracted': 0, 'associations_strengthened': 0, 'expired': 0, 'duration_seconds': 5.3e-05}\nINFO:main_api_app:✓ POMDP memory consolidation cycle complete\nINFO:main_api_app:🚀 [ULTRA LOUD] GET /api/health\nINFO:core.lancedb_handler:Lazy loading LanceDB connection...\nINFO:core.lancedb_handler:Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom_journey_review_boundary_2w5ekvv2/data/atom_memory/default_shared with storage_options=None\nINFO:core.lancedb_handler:LanceDB connected successfully\nINFO:core.runtime_identity:runtime identity: source_id=f8792bf42bf0-dirty.0f7211dc3179 revision=f8792bf42bf0 dirty=True (14 modified, 5 untracked)\nINFO:main_api_app:🏁 [ULTRA LOUD] GET /api/health -> 200\nINFO:main_api_app:🔄 Auto-loading integration on-demand: chat\nINFO:core.lazy_integration_registry:Loading integration: chat (integrations.chat_routes)\nINFO:core.lazy_integration_registry:✓ Loaded chat\nINFO:main_api_app:✓ Auto-loaded: chat\nINFO:main_api_app:🚀 [ULTRA LOUD] POST /api/chat/message\nINFO:integrations.chat_routes:Processing chat message from user d206b5df-7c8b-448e-91a1-742b289c9325: len=115 fp=bfb537e4f443\nINFO:integrations.chat_routes:[CHATCTX] request.agent_id=None context=shape shape={\"agent_id\": \"str(len=36)\"}\nINFO:core.chat_session_manager:Created DB session: rb-after-restart-9f7b59d4\nINFO:integrations.chat_orchestrator:[DBG4] continuation-detection reached; bare=False\nWARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: 524d33e3-ec44-4e79-9972-beb253bdfeb7\nINFO:integrations.chat_orchestrator:[turn-interpretation] bounded wait=59.9s (remaining=94.9s reserve=35.0s)\n{\"level\": \"INFO\", \"message\": \"LocalOnlyGuard initialized\", \"timestamp\": \"2026-10-28T01:33:24.900131+00:00\", \"logger\": \"core.privsec.local_only_guard\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118, \"extra\": {\"local_only_enabled\": true, \"blocked_services\": 23, \"local_allowed_services\": 18}}\nINFO:core.privsec.local_only_guard:LocalOnlyGuard initialized\nWARNING:core.llm.pinned_planning:LOCAL-ONLY: pin opencode-go/qwen3.8-flash refused — cloud dispatch is blocked; the call routes locally instead\nINFO:core.dynamic_pricing_fetcher:Auto-populating pricing cache synchronously...\nINFO:core.dynamic_pricing_fetcher:Using cached pricing data\nINFO:core.dynamic_pricing_fetcher:Pricing cache populated with 4806 models\nINFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1\nINFO:httpx:HTTP Request: GET http://localhost:11434/api/tags \"HTTP/1.1 200 OK\"\nINFO:core.llm.opencode_model_limits:Created OpencodeModelLimits singleton instance\nINFO:core.llm.byok_handler:BPC cost-priority active (task_type=planning): cheapest capable model local_92f2072f/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)\nINFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 8100000.00)\nINFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1\nINFO:core.llm.byok_handler:BPC cost-priority active (task_type=planning): cheapest capable model local_92f2072f/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nINFO:core.turn_decision:[turn-interpretation] empty reason=missing_scope\nINFO:integrations.chat_orchestrator:[named-document] branch not taken reader='datasets' state='resolved' mentions=['case_unfamiliar.csv']\nINFO:integrations.chat_orchestrator:[pending-file-task] direct read block=True table_selection=True storage_completed=True identity=True reason=''\nINFO:integrations.chat_orchestrator:[table-select] review artifact built (subjects=3, evidence=3)\nINFO:core.task_lifecycle:[job-work-ledger] settled run=f13c6222 op=4478d8d7 added=0 resolved_total=0 open(actions=0 owner=0 exhausted=0)\nINFO:integrations.chat_orchestrator:[source-requirements] required=['datasets'] evidence=[{'kind': 'message', 'source': 'datasets', 'lesson_id': None, 'scope': None, 'topic': None}] candidates=[]\nINFO:integrations.chat_orchestrator:[file-ask] review ask — 3 validated rows staged for structured review (subjects=3)\nINFO:integrations.chat_orchestrator:[named-document] branch not taken reader='datasets' state='resolved' mentions=['case_unfamiliar.csv']\nINFO:integrations.chat_orchestrator:[pending-file-task] direct read block=True table_selection=True storage_completed=True identity=True reason=''\nINFO:integrations.chat_orchestrator:[table-select] review artifact built (subjects=3, evidence=3)\nINFO:integrations.chat_orchestrator:[source-requirements] required=['datasets'] evidence=[{'kind': 'message', 'source': 'datasets', 'lesson_id': None, 'scope': None, 'topic': None}] candidates=[]\nINFO:integrations.chat_orchestrator:[pending-file-task] review ask — read retrieved; narration required\nINFO:integrations.chat_orchestrator:[pending-file-task] confirmation resumes the stored file ask (file='case_unfamiliar.csv', ask='Assess each Open case in case_unfamiliar.csv using Ask Amount. Give a table with Case Ref, Ask Amount and decision.', planner wait 55s)\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: 524d33e3-ec44-4e79-9972-beb253bdfeb7\nINFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1\nINFO:core.llm.byok_handler:BPC cost-priority active (task_type=planning): cheapest capable model local_92f2072f/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)\nINFO:core.llm.byok_handler:BPC Ranking Successful for advanced: Top model llama3.1:8b (Value: 8100000.00)\nINFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1\nINFO:core.llm.byok_handler:BPC cost-priority active (task_type=planning): cheapest capable model local_92f2072f/llama3.1:8b (eff.cost=0.000e+00, quality=90, default score would have picked llama3.1:8b)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nINFO:integrations.chat_orchestrator:[timeline] chat planner finished: 0.1s after the turn's canvas-edit clock started\nINFO:integrations.chat_orchestrator:[MEMCTX] agent_id='d89a6973-372b-4344-9c9a-0ddfbc180cb8'\nINFO:integrations.chat_orchestrator:[pending-file-task] resume turn: planner wait raised to 55s (deadline-bounded)\nINFO:integrations.chat_orchestrator:[deadline] chat-request stage=reply-leg-START dur=0.0s turn_offset=0.3s elapsed=0.3s remaining=94.7s budget=95.0s\nINFO:core.task_lifecycle:[job-work-ledger] settled run=f13c6222 op=b4d6daba added=0 resolved_total=0 open(actions=0 owner=0 exhausted=0)\nINFO:integrations.chat_orchestrator:[stage-timing] tool exec: reused canvas-edit leg block (singleflight) — no second plan/execute\nINFO:integrations.chat_orchestrator:[derivation] workbook lane: no dataset block for this ask\nINFO:integrations.chat_orchestrator:[source-requirements] required=['datasets'] evidence=[{'kind': 'message', 'source': 'datasets', 'lesson_id': None, 'scope': None, 'topic': None}] candidates=[]\nINFO:integrations.chat_orchestrator:[planner-boundary] research turn recovery state: research=True required=['datasets'] consulted=[] planned=False block=True turn_left=95s\nINFO:core.chat_tool_planner:[etp-provenance] service=datasets intent=value_trace caller=chat_orchestrator.py:25812 _chain_attempt exec_id=True conv=rb-after-restart-9f7b59d4\nINFO:integrations.chat_orchestrator:[planner-boundary] chained read persisted to the findings carrier (file='case_unfamiliar.csv', structured=False)\nINFO:integrations.chat_orchestrator:[planner-boundary] value-trace chained a confirmed-file read (file='case_unfamiliar.csv' item='CX-9201', block=1898 chars)\nINFO:integrations.chat_orchestrator:[planner-boundary] chained read persisted to the findings carrier (file='case_unfamiliar.csv', structured=False)\nINFO:integrations.chat_orchestrator:[planner-boundary] value-trace chained a confirmed-file read (file='case_unfamiliar.csv' item='CX-9202', block=1898 chars)\nINFO:integrations.chat_orchestrator:[planner-boundary] chained source datasets: NO usable receipt — obligation open (receipt={'structured_keys': [], 'searched_threads': 0, 'source_observations': 0, 'read_outcomes': 0, 'datasets_search': {}, 'value_trace_coverage': {'CX-9201': ['case_unfamiliar.csv'], 'CX-9202': ['case_unfamiliar.csv'], 'CX-9203': ['case_unfamiliar.csv']}, 'value_trace_items': 3, 'coverage_items': [], 'documents_read': {}, 'zoho_inventory': {}, 'zoho_inventory_error': None})\nINFO:core.task_lifecycle:[job-work-ledger] settled run=f13c6222 op=9c725a00 added=3 resolved_total=0 open(actions=3 owner=0 exhausted=0)\nINFO:integrations.chat_orchestrator:[source-requirements] required=['datasets'] evidence=[{'kind': 'message', 'source': 'datasets', 'lesson_id': None, 'scope': None, 'topic': None}, {'kind': 'accepted_task', 'source': 'datasets', 'lesson_id': None, 'scope': None, 'topic': None}] candidates=[]\nINFO:integrations.chat_orchestrator:[derivation] ask=False matched-row-evidence=False tool_block=4473 chars named_file=False\nWARNING:integrations.atom_communication_ingestion_pipeline:sentence_transformers not available (error: No module named 'sentence_transformers'), embeddings will be disabled\nWARNING:integrations.atom_communication_ingestion_pipeline:sentence-transformers unavailable — trying FastEmbed\nINFO:integrations.atom_communication_ingestion_pipeline:Using FastEmbed (bge-small, 384-dim) for communication embeddings\nINFO:integrations.atom_communication_ingestion_pipeline:Opened existing atom_communications table\nINFO:integrations.atom_communication_ingestion_pipeline:FTS index enabled on 'content' column\nINFO:integrations.atom_communication_ingestion_pipeline:Opened existing ingestion_metadata table\nINFO:integrations.atom_communication_ingestion_pipeline:LanceDB memory manager initialized successfully\nINFO:integrations.chat_orchestrator:[review-result] gate review_ask=True subjects=3 allowed=['APPROVE', 'REVIEW', 'REJECT'] evidence=3 policy=1 structured=True\nINFO:integrations.chat_orchestrator:[review-diag] generation_started subjects=3 evidence_ids=['ev:CX-9201:case_unfamiliar!R2', 'ev:CX-9202:case_unfamiliar!R3', 'ev:CX-9203:case_unfamiliar!R4'] policy_ids=['0f69a68d1c5249eb9ca007c3feefc402']\nINFO:integrations.chat_orchestrator:[review-timing] contract_prompt_ms=20 elapsed_s=0.6 contract=True\nINFO:integrations.chat_orchestrator:tool plan executed: None\nINFO:integrations.chat_orchestrator:[prompt-budget] routing-default model=auto: input=2903 tokens (window=32000, output reservation=6000, fits=True, window estimated)\nINFO:httpx:HTTP Request: GET http://localhost:11434/api/tags \"HTTP/1.1 200 OK\"\nINFO:core.llm.byok_handler:LOCAL-ONLY: admitted healthy local runtime route ollama/llama3.1:8b (probe UP; declared quality 0.90; served: atom-preview, atom-preview:latest, llama3, llama3.1, llama3.1:8b, llama3:8b)\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: 524d33e3-ec44-4e79-9972-beb253bdfeb7\nINFO:httpx:HTTP Request: GET http://localhost:11434/api/tags \"HTTP/1.1 200 OK\"\nINFO:core.llm.learning_router_registry:[LearningRouter] auto-mode readiness: 4 verdict row(s) in the last 7d, 0 model(s) with >= 8 observations -> re-ranking not yet (static BPC ordering) (thresholds: >=30 rows, >=2 models)\nINFO:core.llm.byok_handler:Attempting stream with provider: ollama (requested: ollama) model=llama3.1:8b\nINFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions \"HTTP/1.1 200 OK\"\nINFO:core.llm.byok_handler:[inflight] ollama/llama3.1:8b released by 'structured:chat' after 0.5s\nWARNING:core.llm.byok_handler:[stream-empty] ollama/llama3.1:8b streamed no visible content (chunks=0, finish_reason=stop)\nWARNING:core.llm.byok_handler:Streaming failed for ollama/llama3.1:8b: ollama/llama3.1:8b streamed no visible content (chunks=0, finish_reason=stop)\nWARNING:core.llm.byok_handler:attempt ollama/llama3.1:8b failed: cause=unknown status=None detail=ollama/llama3.1:8b streamed no visible content (chunks=0, finish_reason=stop)\nINFO:core.learning_llm_router:Initialized router with 30 models\nINFO:core.learning_llm_router:Loaded 4 routing feedback rows from DB\nINFO:core.llm.learning_router_registry:Learning router hydrated 4 feedback rows from DB\nINFO:core.llm.learning_router_registry:Learning router singleton initialized\nINFO:core.llm.byok_handler:Falling back to next provider...\nINFO:core.llm.byok_handler:Attempting stream with provider: local_92f2072f (requested: ollama) model=llama3.1:8b\nINFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions \"HTTP/1.1 200 OK\"\nINFO:core.llm.byok_handler:[inflight] local_92f2072f/llama3.1:8b released by 'structured:chat' after 0.2s\nWARNING:core.llm.byok_handler:[stream-empty] local_92f2072f/llama3.1:8b streamed no visible content (chunks=0, finish_reason=stop)\nWARNING:core.llm.byok_handler:Streaming failed for local_92f2072f/llama3.1:8b: local_92f2072f/llama3.1:8b streamed no visible content (chunks=0, finish_reason=stop)\nWARNING:core.llm.byok_handler:attempt local_92f2072f/llama3.1:8b failed: cause=unknown status=None detail=local_92f2072f/llama3.1:8b streamed no visible content (chunks=0, finish_reason=stop)\nERROR:core.llm.byok_handler:All 2 providers failed for llama3.1:8b. Last error: local_92f2072f/llama3.1:8b streamed no visible content (chunks=0, finish_reason=stop)\nWARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:d206b5df-7c8b-448e-91a1-742b289c9325'. type='chat_token'\nWARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:d206b5df-7c8b-448e-91a1-742b289c9325'. type='chat_token_done'\nINFO:integrations.chat_orchestrator:[stage-timing] reply STREAMED: 1.8s to full text (ollama/llama3.1:8b, 1 chunks)\nINFO:integrations.chat_orchestrator:[stage-timing] reply generation: 2.2s (incl. tool plan + exec above)\nINFO:integrations.chat_orchestrator:[deadline] chat-request stage=reply-leg dur=2.2s turn_offset=0.3s elapsed=2.5s remaining=92.5s budget=95.0s\nINFO:integrations.chat_orchestrator:[verify-panel] state: mode=shadow tool_block=True content=True mission=False\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nINFO:core.llm.self_consistency_voter:SC fan-out: 0 candidate(s) available; running all samples unpinned\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.llm.byok_handler:Failed to get tenant plan: No dispatchable LLM route: every configured provider's default model is either not served by its discovered catalogue or on cooldown. You need an AI provider to continue. Add an API key in Settings or enable local Ollama to continue.\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nINFO:core.llm.self_consistency_voter:SC fan-out: 0 candidate(s) available; running all samples unpinned\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.llm.byok_handler:Failed to get tenant plan: No dispatchable LLM route: every configured provider's default model is either not served by its discovered catalogue or on cooldown. You need an AI provider to continue. Add an API key in Settings or enable local Ollama to continue.\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.llm.byok_handler:Failed to get tenant plan: No dispatchable LLM route: every configured provider's default model is either not served by its discovered catalogue or on cooldown. You need an AI provider to continue. Add an API key in Settings or enable local Ollama to continue.\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.llm.byok_handler:Failed to get tenant plan: No dispatchable LLM route: every configured provider's default model is either not served by its discovered catalogue or on cooldown. You need an AI provider to continue. Add an API key in Settings or enable local Ollama to continue.\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_step_update'\nINFO:integrations.chat_orchestrator:[review-diag] generation_completed content_len=89 review_ask=True\nINFO:integrations.chat_orchestrator:[review-result] validation state subjects=3 pending_keys=['accepted_contract', 'chained_read', 'coverage_complete', 'execution_id', 'identity', 'rendered', 'retrieved_at', 'source_execution_id', 'status', 'structured_result', 'target_extraction_version', 'workbook_read'] struct_targets=3\nINFO:integrations.chat_orchestrator:[review-result] validating allowed=['APPROVE', 'REVIEW', 'REJECT'] subjects=3 evidence=3 policy=1 pending=True\nINFO:integrations.chat_orchestrator:[review-diag] block_recovery generation_started subjects=3 evidence_ids=['ev:CX-9201:case_unfamiliar!R2', 'ev:CX-9202:case_unfamiliar!R3', 'ev:CX-9203:case_unfamiliar!R4'] policy_ids=['0f69a68d1c5249eb9ca007c3feefc402']\nINFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1\nINFO:core.llm.byok_handler:BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 4050000.00)\nINFO:core.llm.byok_handler:Loaded local provider 'Scratch Ollama' (ollama) at http://localhost:11434/v1\nINFO:core.llm.byok_handler:BPC Ranking Successful for moderate: Top model llama3.1:8b (Value: 4050000.00)\nINFO:core.llm.byok_handler:Skipping local_92f2072f/llama3.1:8b: model cooldown active\nERROR:core.llm.byok_handler:All providers failed. Last error: None\nINFO:integrations.chat_orchestrator:[review-diag] block_recovery generation_completed content_len=165\nINFO:integrations.chat_orchestrator:[review-diag] block_recovery provider_error_content — treating as failed generation\nINFO:integrations.chat_orchestrator:[review-timing] validation_ms=23 reviewed_at_s=2.5 ok=False subjects=['CX-9201', 'CX-9202', 'CX-9203']\nINFO:integrations.chat_orchestrator:[review-result] delivery not certified: [{'code': 'missing_structured_review'}, {'code': 'missing_decision', 'subject_id': 'CX-9201'}, {'code': 'missing_decision', 'subject_id': 'CX-9202'}, {'code': 'missing_decision', 'subject_id': 'CX-9203'}]\nINFO:ai.nlp_engine:Parsing command: Assess each Open case in case_unfamiliar.csv using Ask Amount. Give a table with Case Ref, Ask Amount and decision.\nINFO:httpx:HTTP Request: GET http://localhost:11434/api/tags \"HTTP/1.1 200 OK\"\nINFO:core.llm.byok_handler:LOCAL-ONLY: admitted healthy local runtime route ollama/llama3.1:8b (probe UP; declared quality 0.90; served: atom-preview, atom-preview:latest, llama3, llama3.1, llama3.1:8b, llama3:8b)\nINFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)\nINFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)\nWARNING:core.llm.byok_handler:[structured-pool] depth=0 candidates=[('ollama', 'llama3.1:8b')] attempted=False credit_failed=[]\nWARNING:core.llm.byok_handler:structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers\nINFO:core.llm.byok_handler:[route-exclusions] {\"classification\": {\"prior_attempt_failed\": 1}, \"dispatched\": false, \"event\": \"structured_cascade_exhausted\", \"exclusions\": [{\"reason\": \"model_cooldown\", \"route\": \"ollama/llama3.1:8b\"}], \"interactive\": true, \"pool\": {\"families\": {\"ollama\": 1}, \"size\": 1}, \"pre_pool_skips\": [], \"providers_on_cooldown\": {}, \"refresh\": \"not_eligible\", \"refresh_providers\": [], \"trace_id\": \"structured-e3a1904ca6af\"}\nINFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)\nINFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)\nWARNING:core.llm.byok_handler:[structured-pool] depth=1 candidates=[('ollama', 'llama3.1:8b')] attempted=False credit_failed=[]\nERROR:core.llm.byok_handler:All structured candidates SKIPPED before dispatch (gate/budget/rate exclusions; 1 of 1 examined) — no request was made\nERROR:core.llm.byok_handler:All structured candidates SKIPPED before dispatch (gate/budget/rate exclusions; 1 of 1 examined) — no request was made\nINFO:integrations.chat_orchestrator:Routing to features: [<FeatureType.AGENT: 'agent'>]\nINFO:integrations.chat_orchestrator:Executing handler for FeatureType.AGENT\nINFO:core.lancedb_handler:Creating isolated LanceDBHandler for workspace: default at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom_journey_review_boundary_2w5ekvv2/data/atom_memory/default\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:core.embedding_service:Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default\nINFO:core.lancedb_handler:LanceDBHandler initialized. ID: 5232862352. LANCEDB_AVAILABLE: True\nINFO:core.workflow_template_system:Template manager initialized with 28 templates\nINFO:enhanced_ai_workflow_endpoints:RealAIWorkflowService modernized with unified LLMService.\nWARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'\nINFO:core.atom_meta_agent:Atom executing request: Assess each Open case in case_unfamiliar.csv using... (mode: manual)\nINFO:core.lancedb_handler:Lazy loading LanceDB connection...\nINFO:core.lancedb_handler:Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom_journey_review_boundary_2w5ekvv2/data/atom_memory/default with storage_options=None\nINFO:core.lancedb_handler:LanceDB connected successfully\nWARNING:core.lancedb_handler:embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.\nINFO:core.embedding_service:Loading FastEmbed model: BAAI/bge-small-en-v1.5\nINFO:core.graphrag_engine:Hybrid search: vector leg found 0 nodes\nINFO:core.graphrag_engine:Hybrid search: keyword leg found 0 nodes\nWARNING:core.lancedb_handler:embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.\nINFO:core.agent_world_model:Found 0 relevant formulas for agent task\nINFO:core.agent_world_model:Retrieved 4 recent conversation messages\nWARNING:core.agent_governance_service:can_perform_action() called from a running event loop (agent=atom_main action=read_memory); budget not checked synchronously — use can_perform_action_async() to enforce the budget\nWARNING:core.agent_governance_service:can_perform_action() called from a running event loop (agent=atom_main action=semantic_search); budget not checked synchronously — use can_perform_action_async() to enforce the budget\nINFO:tools.registry:Initializing tool registry...\nINFO:tools.registry:Discovering tools from modules: ['tools.dataset_tool', 'tools.device_tool', 'tools.canvas_crud_tool', 'tools.productivity_tool', 'tools.drive_tool', 'tools.data_analysis_tool', 'tools.agent_radio_tool', 'tools.media_tool', 'tools.canvas_docs_tool', 'tools.creative_tool', 'tools.memory_tool', 'tools.canvas_orchestration_tool', 'tools.platform_management_tool', 'tools.canvas_sheets_tool', 'tools.browser_tool', 'tools.canvas_terminal_tool', 'tools.canvas_email_tool', 'tools.pdf_canvas_tool', 'tools.email_attachment_tool', 'tools.agent_guidance_canvas_tool', 'tools.calendar_tool', 'tools.canvas_coding_tool', 'tools.mini_app_tool', 'tools.canvas_tool', 'tools.smarthome_tool', 'tools.email_ingest_tool', 'tools.office_tool']\nINFO:tools.registry:Registered tool: find_datasets v1.0.0 (dataset)\nINFO:tools.registry:Registered tool: load_registered_dataset v1.0.0 (dataset)\nINFO:tools.registry:Registered tool: device_camera_snap v1.0.0 (device)\nINFO:tools.registry:Registered tool: device_execute_command v1.0.0 (device)\nINFO:tools.registry:Registered tool: device_get_location v1.0.0 (device)\nINFO:tools.registry:Registered tool: device_screen_record_start v1.0.0 (device)\nINFO:tools.registry:Registered tool: device_screen_record_stop v1.0.0 (device)\nINFO:tools.registry:Registered tool: device_send_notification v1.0.0 (device)\nINFO:tools.registry:Registered tool: execute_device_command v1.0.0 (device)\nINFO:tools.registry:Registered tool: get_device_info v1.0.0 (device)\nINFO:tools.registry:Registered tool: list_devices v1.0.0 (device)\nINFO:tools.registry:Registered tool: send_device_command v1.0.0 (device)\nINFO:tools.registry:Registered tool: delete_canvas v1.0.0 (canvas_crud)\nINFO:tools.registry:Registered tool: list_canvas_versions v1.0.0 (canvas_crud)\nINFO:tools.registry:Registered tool: list_canvases v1.0.0 (canvas_crud)\nINFO:tools.registry:Registered tool: read_canvas v1.0.0 (canvas_crud)\nINFO:tools.registry:Registered tool: restore_canvas_version v1.0.0 (canvas_crud)\nINFO:tools.registry:Registered tool: restore_deleted_canvas v1.0.0 (canvas_crud)\nINFO:tools.registry:Registered tool: update_canvas_content v1.0.0 (canvas_crud)\nINFO:tools.registry:Registered tool: integration_ingest_item v1.0.0 (drive)\nINFO:tools.registry:Registered tool: integration_search_index v1.0.0 (drive)\nINFO:tools.registry:Registered tool: analyze_data v1.0.0 (data_analysis)\nINFO:tools.registry:Registered tool: describe_data v1.0.0 (data_analysis)\nINFO:tools.registry:Registered tool: list_datasets v1.0.0 (data_analysis)\nINFO:tools.registry:Registered tool: load_dataset v1.0.0 (data_analysis)\nINFO:tools.registry:Registered tool: query_data v1.0.0 (data_analysis)\nINFO:tools.registry:Registered tool: radio_create_thread v1.0.0 (agent_radio)\nINFO:tools.registry:Registered tool: radio_read_inbox v1.0.0 (agent_radio)\nINFO:tools.registry:Registered tool: radio_send_message v1.0.0 (agent_radio)\nINFO:tools.registry:Registered tool: radio_wait_for_mention v1.0.0 (agent_radio)\nWARNING:core.media.sonos_service:SoCo library not installed - Sonos functions will fail\nINFO:tools.registry:Registered tool: spotify_current v1.0.0 (media)\nINFO:tools.registry:Registered tool: spotify_play v1.0.0 (media)\nINFO:tools.registry:Registered tool: spotify_pause v1.0.0 (media)\nINFO:tools.registry:Registered tool: spotify_next v1.0.0 (media)\nINFO:tools.registry:Registered tool: spotify_previous v1.0.0 (media)\nINFO:tools.registry:Registered tool: spotify_volume v1.0.0 (media)\nINFO:tools.registry:Registered tool: spotify_devices v1.0.0 (media)\nINFO:tools.registry:Registered tool: sonos_discover v1.0.0 (media)\nINFO:tools.registry:Registered tool: sonos_play v1.0.0 (media)\nINFO:tools.registry:Registered tool: sonos_pause v1.0.0 (media)\nINFO:tools.registry:Registered tool: sonos_volume v1.0.0 (media)\nINFO:tools.registry:Registered tool: sonos_groups v1.0.0 (media)\n{\"level\": \"INFO\", \"message\": \"Media control tools registered with tool registry\", \"timestamp\": \"2026-10-28T01:33:27.509977+00:00\", \"logger\": \"tools.media_tool\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118}\nINFO:tools.media_tool:Media control tools registered with tool registry\nINFO:tools.registry:Registered tool: present_docs_canvas v1.0.0 (canvas_docs)\nINFO:tools.registry:Registered tool: present_specialized_canvas v1.0.0 (canvas_docs)\nINFO:tools.registry:Registered tool: update_docs_canvas v1.0.0 (canvas_docs)\n{\"level\": \"INFO\", \"message\": \"FFmpeg Python library loaded successfully\", \"timestamp\": \"2026-10-28T01:33:27.515902+00:00\", \"logger\": \"core.creative.ffmpeg_service\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118}\nINFO:core.creative.ffmpeg_service:FFmpeg Python library loaded successfully\n{\"level\": \"INFO\", \"message\": \"FFmpegService initialized\", \"timestamp\": \"2026-10-28T01:33:27.516180+00:00\", \"logger\": \"core.creative.ffmpeg_service\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118, \"allowed_dirs\": [\"./data/media\", \"./data/exports\", \"/app/data/media\", \"/app/data/exports\"], \"job_timeout\": 300}\nINFO:core.creative.ffmpeg_service:FFmpegService initialized\n{\"level\": \"INFO\", \"message\": \"FFmpegTool initialized\", \"timestamp\": \"2026-10-28T01:33:27.516207+00:00\", \"logger\": \"tools.creative_tool\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118, \"service_available\": true}\nINFO:tools.creative_tool:FFmpegTool initialized\nINFO:tools.registry:Registered tool: ffmpeg_edit v1.0.0 (creative)\n{\"level\": \"INFO\", \"message\": \"FFmpeg creative tool registered\", \"timestamp\": \"2026-10-28T01:33:27.516249+00:00\", \"logger\": \"tools.creative_tool\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118, \"category\": \"creative\"}\nINFO:tools.creative_tool:FFmpeg creative tool registered\nINFO:tools.registry:Registered tool: memory_forget v1.0.0 (memory)\nINFO:tools.registry:Registered tool: memory_remember v1.0.0 (memory)\nINFO:tools.registry:Registered tool: present_orchestration_canvas v1.0.0 (canvas_orchestration)\nINFO:tools.registry:Registered tool: add_member_to_team v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: add_member_to_workspace v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: create_team v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: create_tenant v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: create_workspace v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: delete_team v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: delete_tenant v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: delete_workspace v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: get_platform_settings v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: list_tenant_members v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: manage_team v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: manage_tenant_member v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: manage_workspace v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: remove_member_from_team v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: remove_member_from_workspace v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: set_byok_api_key v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: update_platform_setting v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: update_team v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: update_tenant v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: update_tenant_profile v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: update_workspace v1.0.0 (platform_management)\nINFO:tools.registry:Registered tool: present_sheets_canvas v1.0.0 (canvas_sheets)\nINFO:tools.registry:Registered tool: attach_tiebreak v1.0.0 (browser)\nINFO:tools.registry:Registered tool: browser_click v1.0.0 (browser)\nINFO:tools.registry:Registered tool: browser_close_session v1.0.0 (browser)\nINFO:tools.registry:Registered tool: browser_create_session v1.0.0 (browser)\nINFO:tools.registry:Registered tool: browser_execute_script v1.0.0 (browser)\nINFO:tools.registry:Registered tool: browser_extract_text v1.0.0 (browser)\nINFO:tools.registry:Registered tool: browser_fill_form v1.0.0 (browser)\nINFO:tools.registry:Registered tool: browser_get_page_info v1.0.0 (browser)\nINFO:tools.registry:Registered tool: browser_navigate v1.0.0 (browser)\nINFO:tools.registry:Registered tool: browser_screenshot v1.0.0 (browser)\nINFO:tools.registry:Registered tool: present_terminal_canvas v1.0.0 (canvas_terminal)\nINFO:tools.registry:Registered tool: present_email_canvas v1.0.0 (canvas_email)\nINFO:tools.registry:Registered tool: pdf_canvas_annotate v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_apply_page_ops v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_approve v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_attach_to_email v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_flatten v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_generate_from_data v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_get_form_fields v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_get_state v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_list_versions v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_merge_canvas v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_read_text v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_redact v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_send_to_docusign v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_set_form_fields v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_stamp_signature v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: pdf_canvas_submit_for_review v1.0.0 (pdf_canvas)\nINFO:tools.registry:Registered tool: email_attachment_attach v1.0.0 (email_attachment)\nINFO:tools.registry:Registered tool: email_attachment_get_text v1.0.0 (email_attachment)\nINFO:tools.registry:Registered tool: email_attachment_ingest v1.0.0 (email_attachment)\nINFO:tools.registry:Registered tool: email_attachment_list v1.0.0 (email_attachment)\nINFO:tools.registry:Registered tool: email_attachment_remove v1.0.0 (email_attachment)\nINFO:tools.registry:Registered tool: email_attachment_stage_file v1.0.0 (email_attachment)\nINFO:tools.registry:Registered tool: present_coding_canvas v1.0.0 (canvas_coding)\nINFO:tools.registry:Registered tool: mini_app_db_query v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_db_write v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_dev_run v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_get_state v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_install v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_list v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_logic_history v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_publish v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_revert_logic v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_run v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_run_tests v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_scaffold v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_set_tests v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_status v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: mini_app_write_logic v1.0.0 (mini_app)\nINFO:tools.registry:Registered tool: canvas_execute_javascript v1.0.0 (canvas)\nINFO:tools.registry:Registered tool: close_canvas v1.0.0 (canvas)\nINFO:tools.registry:Registered tool: present_chart v1.0.0 (canvas)\nINFO:tools.registry:Registered tool: present_form v1.0.0 (canvas)\nINFO:tools.registry:Registered tool: present_markdown v1.0.0 (canvas)\nINFO:tools.registry:Registered tool: present_status_panel v1.0.0 (canvas)\nINFO:tools.registry:Registered tool: present_to_canvas v1.0.0 (canvas)\nINFO:tools.registry:Registered tool: update_canvas v1.0.0 (canvas)\n{\"level\": \"INFO\", \"message\": \"python-hue-v2 library loaded - Hue integration enabled\", \"timestamp\": \"2026-10-28T01:33:27.648154+00:00\", \"logger\": \"core.smarthome.hue_service\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118}\nINFO:core.smarthome.hue_service:python-hue-v2 library loaded - Hue integration enabled\nINFO:tools.registry:Registered tool: hue_discover_bridges v1.0.0 (smarthome)\nINFO:tools.registry:Registered tool: hue_get_lights v1.0.0 (smarthome)\nINFO:tools.registry:Registered tool: hue_set_light_state v1.0.0 (smarthome)\nINFO:tools.registry:Registered tool: home_assistant_get_states v1.0.0 (smarthome)\nINFO:tools.registry:Registered tool: home_assistant_call_service v1.0.0 (smarthome)\nINFO:tools.registry:Registered tool: home_assistant_get_lights v1.0.0 (smarthome)\n{\"level\": \"INFO\", \"message\": \"Smart home tools registered with ToolRegistry\", \"timestamp\": \"2026-10-28T01:33:27.648861+00:00\", \"logger\": \"tools.smarthome_tool\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118}\nINFO:tools.smarthome_tool:Smart home tools registered with ToolRegistry\nINFO:tools.registry:Registered tool: email_ingest_message v1.0.0 (email_ingest)\nINFO:tools.registry:Registered tool: add_excel_pivot_table v1.0.0 (office)\nINFO:tools.registry:Registered tool: get_excel_formula_result v1.0.0 (office)\nINFO:tools.registry:Registered tool: insert_excel_columns v1.0.0 (office)\nINFO:tools.registry:Registered tool: insert_excel_rows v1.0.0 (office)\nINFO:tools.registry:Registered tool: modify_pptx_slides v1.0.0 (office)\nINFO:tools.registry:Registered tool: modify_word_document v1.0.0 (office)\nINFO:tools.registry:Registered tool: present_coedit_canvas v1.0.0 (office)\nINFO:tools.registry:Registered tool: read_excel_cell v1.0.0 (office)\nINFO:tools.registry:Registered tool: read_pptx_slides v1.0.0 (office)\nINFO:tools.registry:Registered tool: read_word_document v1.0.0 (office)\nINFO:tools.registry:Registered tool: recalculate_excel v1.0.0 (office)\nINFO:tools.registry:Registered tool: run_excel_macro v1.0.0 (office)\nINFO:tools.registry:Registered tool: write_excel_cell v1.0.0 (office)\nINFO:tools.registry:Tool discovery complete. Discovered 131 new tools. Total tools: 149\nWARNING:tools.registry:Tool 'present_chart' already registered, updating...\nINFO:tools.registry:Registered tool: present_chart v1.2.0 (canvas)\nWARNING:tools.registry:Tool 'present_markdown' already registered, updating...\nINFO:tools.registry:Registered tool: present_markdown v1.2.0 (canvas)\nWARNING:tools.registry:Tool 'present_form' already registered, updating...\nINFO:tools.registry:Registered tool: present_form v1.2.0 (canvas)\nWARNING:tools.registry:Tool 'update_canvas' already registered, updating...\nINFO:tools.registry:Registered tool: update_canvas v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'read_canvas' already registered, updating...\nINFO:tools.registry:Registered tool: read_canvas v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'update_canvas_content' already registered, updating...\nINFO:tools.registry:Registered tool: update_canvas_content v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'delete_canvas' already registered, updating...\nINFO:tools.registry:Registered tool: delete_canvas v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'list_canvases' already registered, updating...\nINFO:tools.registry:Registered tool: list_canvases v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'browser_create_session' already registered, updating...\nINFO:tools.registry:Registered tool: browser_create_session v1.0.0 (browser)\nWARNING:tools.registry:Tool 'browser_navigate' already registered, updating...\nINFO:tools.registry:Registered tool: browser_navigate v1.0.0 (browser)\nWARNING:tools.registry:Tool 'browser_screenshot' already registered, updating...\nINFO:tools.registry:Registered tool: browser_screenshot v1.0.0 (browser)\nWARNING:tools.registry:Tool 'browser_fill_form' already registered, updating...\nINFO:tools.registry:Registered tool: browser_fill_form v1.0.0 (browser)\nWARNING:tools.registry:Tool 'browser_click' already registered, updating...\nINFO:tools.registry:Registered tool: browser_click v1.0.0 (browser)\nWARNING:tools.registry:Tool 'browser_extract_text' already registered, updating...\nINFO:tools.registry:Registered tool: browser_extract_text v1.0.0 (browser)\nWARNING:tools.registry:Tool 'browser_execute_script' already registered, updating...\nINFO:tools.registry:Registered tool: browser_execute_script v1.0.0 (browser)\nWARNING:tools.registry:Tool 'browser_close_session' already registered, updating...\nINFO:tools.registry:Registered tool: browser_close_session v1.0.0 (browser)\nWARNING:tools.registry:Tool 'browser_get_page_info' already registered, updating...\nINFO:tools.registry:Registered tool: browser_get_page_info v1.0.0 (browser)\nINFO:tools.registry:Registered tool: operator_start_task v1.0.0 (browser)\nINFO:tools.registry:Registered tool: operator_get_status v1.0.0 (browser)\nINFO:tools.registry:Registered tool: operator_get_screenshot v1.0.0 (browser)\nINFO:tools.registry:Registered tool: operator_stop_task v1.0.0 (browser)\nWARNING:tools.registry:Tool 'device_camera_snap' already registered, updating...\nINFO:tools.registry:Registered tool: device_camera_snap v1.0.0 (device)\nWARNING:tools.registry:Tool 'device_screen_record_start' already registered, updating...\nINFO:tools.registry:Registered tool: device_screen_record_start v1.0.0 (device)\nWARNING:tools.registry:Tool 'device_screen_record_stop' already registered, updating...\nINFO:tools.registry:Registered tool: device_screen_record_stop v1.0.0 (device)\nWARNING:tools.registry:Tool 'device_get_location' already registered, updating...\nINFO:tools.registry:Registered tool: device_get_location v1.0.0 (device)\nWARNING:tools.registry:Tool 'device_send_notification' already registered, updating...\nINFO:tools.registry:Registered tool: device_send_notification v1.0.0 (device)\nWARNING:tools.registry:Tool 'device_execute_command' already registered, updating...\nINFO:tools.registry:Registered tool: device_execute_command v1.0.0 (device)\nERROR:integrations.google_calendar_service:No Google Calendar credentials provided\n{\"level\": \"INFO\", \"message\": \"CalendarTool initialized\", \"timestamp\": \"2026-10-28T01:33:27.651258+00:00\", \"logger\": \"tools.calendar_tool\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118, \"tool_available\": true, \"authenticated\": false}\nINFO:tools.calendar_tool:CalendarTool initialized\nINFO:tools.registry:Registered tool: calendar_tool v1.0.0 (productivity)\n{\"level\": \"INFO\", \"message\": \"CalendarTool registered with ToolRegistry\", \"timestamp\": \"2026-10-28T01:33:27.651290+00:00\", \"logger\": \"tools.calendar_tool\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118}\nINFO:tools.calendar_tool:CalendarTool registered with ToolRegistry\n{\"level\": \"INFO\", \"message\": \"NotionTool initialized\", \"timestamp\": \"2026-10-28T01:33:27.651320+00:00\", \"logger\": \"tools.productivity_tool\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118, \"tool_available\": true}\nINFO:tools.productivity_tool:NotionTool initialized\nINFO:tools.registry:Registered tool: notion_tool v1.0.0 (productivity)\n{\"level\": \"INFO\", \"message\": \"NotionTool registered with ToolRegistry\", \"timestamp\": \"2026-10-28T01:33:27.651348+00:00\", \"logger\": \"tools.productivity_tool\", \"module\": \"structured_logger\", \"function\": \"_log\", \"line\": 118}\nINFO:tools.productivity_tool:NotionTool registered with ToolRegistry\nWARNING:tools.registry:Tool 'memory_remember' already registered, updating...\nINFO:tools.registry:Registered tool: memory_remember v1.0.0 (memory)\nWARNING:tools.registry:Tool 'memory_forget' already registered, updating...\nINFO:tools.registry:Registered tool: memory_forget v1.0.0 (memory)\nINFO:tools.memory_tool:memory_remember + memory_forget registered with ToolRegistry\nWARNING:tools.registry:Tool 'integration_search_index' already registered, updating...\nINFO:tools.registry:Registered tool: integration_search_index v1.0.0 (integrations)\nWARNING:tools.registry:Tool 'integration_ingest_item' already registered, updating...\nINFO:tools.registry:Registered tool: integration_ingest_item v1.0.0 (integrations)\nWARNING:tools.registry:Tool 'load_dataset' already registered, updating...\nINFO:tools.registry:Registered tool: load_dataset v1.0.0 (data)\nWARNING:tools.registry:Tool 'analyze_data' already registered, updating...\nINFO:tools.registry:Registered tool: analyze_data v1.0.0 (data)\nWARNING:tools.registry:Tool 'query_data' already registered, updating...\nINFO:tools.registry:Registered tool: query_data v1.0.0 (data)\nWARNING:tools.registry:Tool 'describe_data' already registered, updating...\nINFO:tools.registry:Registered tool: describe_data v1.0.0 (data)\nWARNING:tools.registry:Tool 'list_datasets' already registered, updating...\nINFO:tools.registry:Registered tool: list_datasets v1.0.0 (data)\nINFO:tools.data_analysis_tool:Data analysis tools registered with ToolRegistry\nWARNING:tools.registry:Tool 'find_datasets' already registered, updating...\nINFO:tools.registry:Registered tool: find_datasets v1.0.0 (data)\nWARNING:tools.registry:Tool 'load_registered_dataset' already registered, updating...\nINFO:tools.registry:Registered tool: load_registered_dataset v1.0.0 (data)\nINFO:tools.dataset_tool:Dataset catalog tools registered with ToolRegistry\nINFO:tools.registry:Registered tool: forecast v1.0.0 (data)\nINFO:tools.registry:Registered tool: run_model v1.0.0 (data)\nINFO:tools.predictive_tools:Predictive modeling tools registered with ToolRegistry\nINFO:tools.registry:Registered tool: radio.create_thread v1.0.0 (coordination)\nINFO:tools.registry:Registered tool: radio.send_message v1.0.0 (coordination)\nINFO:tools.registry:Registered tool: radio.wait_for_mention v1.0.0 (coordination)\nINFO:tools.registry:Registered tool: radio.read_inbox v1.0.0 (coordination)\nINFO:tools.agent_radio_tool:radio.* tools registered with ToolRegistry\nWARNING:tools.registry:Tool 'email_attachment_list' already registered, updating...\nINFO:tools.registry:Registered tool: email_attachment_list v1.0.0 (email)\nWARNING:tools.registry:Tool 'email_attachment_get_text' already registered, updating...\nINFO:tools.registry:Registered tool: email_attachment_get_text v1.0.0 (email)\nWARNING:tools.registry:Tool 'email_attachment_stage_file' already registered, updating...\nINFO:tools.registry:Registered tool: email_attachment_stage_file v1.0.0 (email)\nWARNING:tools.registry:Tool 'email_attachment_attach' already registered, updating...\nINFO:tools.registry:Registered tool: email_attachment_attach v1.0.0 (email)\nWARNING:tools.registry:Tool 'email_attachment_remove' already registered, updating...\nINFO:tools.registry:Registered tool: email_attachment_remove v1.0.0 (email)\nWARNING:tools.registry:Tool 'email_attachment_ingest' already registered, updating...\nINFO:tools.registry:Registered tool: email_attachment_ingest v1.0.0 (email)\nWARNING:tools.registry:Tool 'email_ingest_message' already registered, updating...\nINFO:tools.registry:Registered tool: email_ingest_message v1.0.0 (email)\nWARNING:tools.registry:Tool 'pdf_canvas_get_state' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_get_state v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_read_text' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_read_text v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_list_versions' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_list_versions v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_get_form_fields' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_get_form_fields v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_apply_page_ops' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_apply_page_ops v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_merge_canvas' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_merge_canvas v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_submit_for_review' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_submit_for_review v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_set_form_fields' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_set_form_fields v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_flatten' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_flatten v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_annotate' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_annotate v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_generate_from_data' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_generate_from_data v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_approve' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_approve v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_attach_to_email' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_attach_to_email v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_redact' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_redact v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_stamp_signature' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_stamp_signature v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_archive_to_onedrive' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (canvas)\nWARNING:tools.registry:Tool 'pdf_canvas_send_to_docusign' already registered, updating...\nINFO:tools.registry:Registered tool: pdf_canvas_send_to_docusign v1.0.0 (canvas)\nINFO:tools.registry:Tool registry initialized with 161 tools\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:ai.nlp_engine:NaturalLanguageEngine initialized with LLMService for tenant: default\nINFO:httpx:HTTP Request: GET http://localhost:11434/api/tags \"HTTP/1.1 200 OK\"\nINFO:core.llm.byok_handler:LOCAL-ONLY: admitted healthy local runtime route ollama/llama3.1:8b (probe UP; declared quality 0.90; served: atom-preview, atom-preview:latest, llama3, llama3.1, llama3.1:8b, llama3:8b)\nINFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)\nINFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)\nWARNING:core.llm.byok_handler:[structured-pool] depth=0 candidates=[('ollama', 'llama3.1:8b')] attempted=False credit_failed=[]\nWARNING:core.llm.byok_handler:structured cascade exhausted on cost-priority rungs — one value-ranked sweep over untried healthy providers\nINFO:core.llm.byok_handler:[route-exclusions] {\"classification\": {\"prior_attempt_failed\": 1}, \"dispatched\": false, \"event\": \"structured_cascade_exhausted\", \"exclusions\": [{\"reason\": \"model_cooldown\", \"route\": \"ollama/llama3.1:8b\"}], \"interactive\": true, \"pool\": {\"families\": {\"ollama\": 1}, \"size\": 1}, \"pre_pool_skips\": [], \"providers_on_cooldown\": {}, \"refresh\": \"not_eligible\", \"refresh_providers\": [], \"trace_id\": \"structured-8de744ac95bb\"}\nINFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)\nINFO:core.llm.byok_handler:BPC Ranking Successful for simple: Top model llama3.1:8b (Value: 4050000.00)\nWARNING:core.llm.byok_handler:[structured-pool] depth=1 candidates=[('ollama', 'llama3.1:8b')] attempted=False credit_failed=[]\nERROR:core.llm.byok_handler:All structured candidates SKIPPED before dispatch (gate/budget/rate exclusions; 1 of 1 examined) — no request was made\nERROR:core.llm.byok_handler:All structured candidates SKIPPED before dispatch (gate/budget/rate exclusions; 1 of 1 examined) — no request was made\nWARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_step_update'\nWARNING:core.atom_meta_agent:Fleet routing failed, falling back to Queen→ReAct: 'AgentGovernanceService' object has no attribute 'canPerformAction'\nWARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_step_update'\nINFO:core.agents.queen_agent:Queen: Designing architecture for goal: Assess each Open case in case_unfamiliar.csv using Ask Amount. Give a table with Case Ref, Ask Amount and decision. (Mode: one_off)\nERROR:core.agents.queen_agent:Queen: Failed to generate blueprint: BYOKHandler.generate_response() got an unexpected keyword argument 'user_id'\nWARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_step_update'\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:core.llm.byok_handler:Initialized Ollama (local) client at http://localhost:11434/v1\nINFO:core.llm.escalation_manager:EscalationManager initialized\nINFO:core.llm.cognitive_tier_service:CognitiveTierService initialized for workspace: default\nINFO:core.skill_registry_service:Listed 0 skills (status=Active, type=None)\nINFO:httpx:HTTP Request: GET http://localhost:11434/api/tags \"HTTP/1.1 200 OK\"\nINFO:core.llm.byok_handler:LOCAL-ONLY: admitted healthy local runtime route ollama/llama3.1:8b (probe UP; declared quality 0.90; served: atom-preview, atom-preview:latest, llama3, llama3.1, llama3.1:8b, llama3:8b)\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.llm.byok_handler:Failed to get tenant plan: No dispatchable LLM route: every configured provider's default model is either not served by its discovered catalogue or on cooldown. You need an AI provider to continue. Add an API key in Settings or enable local Ollama to continue.\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.llm.byok_handler:Failed to fetch tenant plan: No dispatchable LLM route: every configured provider's default model is either not served by its discovered catalogue or on cooldown. You need an AI provider to continue. Add an API key in Settings or enable local Ollama to continue.\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.llm.byok_handler:BPC latency gate excluded EVERY candidate — re-ranking once without it (a slow answer inside the deadline beats no answer)\nWARNING:core.llm.byok_handler:[provider-policy] static fallback has no allowed provider (allowed=[] revision=)\nWARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_step_update'\nWARNING:core.decision_service:[DecisionService] fallback (URLError: <urlopen error [Errno 61] Connection refused>)\nWARNING:core.decision_service:[DecisionService] fallback (URLError: <urlopen error [Errno 61] Connection refused>)\nINFO:core.lancedb_handler:Document added to 'agent_experience': 2b9eb97b-97da-4942-aeee-5c1493bb76ed\nINFO:core.agent_governance_service:Recorded outcome for atom_main: success\nWARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'\nINFO:integrations.chat_orchestrator:Handler FeatureType.AGENT succeeded\nINFO:integrations.chat_orchestrator:Feature handling complete. Handled: True, Intent: ChatIntent.AGENT_REQUEST\nINFO:integrations.chat_orchestrator:[deadline] chat-request stage=legacy-features dur=0.7s turn_offset=2.6s elapsed=3.3s remaining=91.7s budget=95.0s\nINFO:integrations.chat_orchestrator:[stage-timing] turn finalization: elapsed_s=3.3 review_at_s=2.55 success=False outcome=failed review_required=True\nWARNING:integrations.chat_orchestrator:[review-result] precomputed result rejected (execution/subjects/schema mismatch): execution=8ff7ef57-3b63-494c-afda-4dee7cb88bcb subjects=['CX-9201', 'CX-9202', 'CX-9203'] allowed=['APPROVE', 'REVIEW', 'REJECT']\nINFO:integrations.chat_orchestrator:[review-result] not certified: [{'code': 'missing_structured_review'}, {'code': 'missing_decision', 'subject_id': 'CX-9201'}, {'code': 'missing_decision', 'subject_id': 'CX-9202'}, {'code': 'missing_decision', 'subject_id': 'CX-9203'}]\nWARNING:core.websockets:[WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'\nWARNING:core.finalization:[apply-dbg] state=failed work_turn=True noop=None success_in=False\nINFO:main_api_app:🏁 [ULTRA LOUD] POST /api/chat/message -> 200\nINFO:main_api_app:🚀 [ULTRA LOUD] GET /api/chat/history/rb-after-restart-9f7b59d4\nINFO:integrations.chat_routes:Retrieving history for session rb-after-restart-9f7b59d4 and user d206b5df-7c8b-448e-91a1-742b289c9325\nINFO:integrations.chat_routes:Loaded 2 messages from DB for session rb-after-restart-9f7b59d4\nINFO:main_api_app:🏁 [ULTRA LOUD] GET /api/chat/history/rb-after-restart-9f7b59d4 -> 200"
+}

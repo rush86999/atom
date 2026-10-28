@@ -222,6 +222,91 @@ def test_missing_or_unknown_evidence_and_policy_ids_fail():
     assert review["ok"] is False
 
 
+def test_captured_missing_policy_ids_response_stays_rejected():
+    """Permanent regression for the captured post-restart assessment.
+
+    The model parsed correctly, named the right subjects, evidence and
+    decisions, but omitted policy_ids. Certification must remain rejected
+    with the precise reason — the single available policy ID is NOT attached
+    on the model's behalf (that would manufacture attribution).
+    """
+    captured_answer = (
+        "Based on the provided policy, I will assess each open case in "
+        "`case_boundaries.csv` using the \"Ask Amount\" column.\n\n"
+        "```json\n"
+        "{\n"
+        "  \"assessments\": [\n"
+        "    {\"subject_id\": \"CX-9101\", \"decision\": \"REJECT\", "
+        "\"basis\": [\"below 5000\"], "
+        "\"evidence_ids\": [\"ev:CX-9101:case_boundaries!R2\"]},\n"
+        "    {\"subject_id\": \"CX-9102\", \"decision\": \"REVIEW\", "
+        "\"basis\": [\"between 5000 and 9999\"], "
+        "\"evidence_ids\": [\"ev:CX-9102:case_boundaries!R3\"]},\n"
+        "    {\"subject_id\": \"CX-9103\", \"decision\": \"REVIEW\", "
+        "\"basis\": [\"at or above 10000\"], "
+        "\"evidence_ids\": [\"ev:CX-9103:case_boundaries!R4\"]}\n"
+        "  ]\n"
+        "}\n"
+        "```"
+    )
+    source = {
+        "file_name": "case_boundaries.csv",
+        "resource_id": "4495bb9b9b46e28f7b7a69fcdf5373bb334b1c83",
+        "content_hash": "4495bb9b9b46e28f7b7a69fcdf5373bb334b1c83",
+    }
+    evidence = [{
+        "evidence_id": f"ev:{subject}:case_boundaries!R{row}",
+        "subject_id": subject,
+        "source_identity": dict(source),
+        "retrieval_operation": (
+            "select:4495bb9b9b46:3cd807fa-e03b-43cc-ac21-9df045629920"),
+        "retrieval_execution_id":
+            "3cd807fa-e03b-43cc-ac21-9df045629920",
+        "row_ref": f"case_boundaries!R{row}",
+        "values": [],
+    } for subject, row in (
+        ("CX-9101", 2), ("CX-9102", 3), ("CX-9103", 4))]
+    policy = [{
+        "policy_id": "08444fd977d44c06b226047b7f4b23ed",
+        "topic": "case amount rule",
+        "lesson": (
+            "Use exactly these decision labels: APPROVE, REVIEW, REJECT. "
+            "Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is "
+            "REVIEW. Below 5000 is REJECT."),
+    }]
+    review = build_review_result(
+        execution_id="3cd807fa-e03b-43cc-ac21-9df045629920",
+        expected_execution_id="3cd807fa-e03b-43cc-ac21-9df045629920",
+        requested_records=["CX-9101", "CX-9102", "CX-9103"],
+        answer=captured_answer,
+        allowed_decisions=["APPROVE", "REVIEW", "REJECT"],
+        evidence_index=evidence,
+        policy_index=policy,
+    )
+    assert review["ok"] is False
+    assert review["assessments"] == []
+    assert review["completion"] == "incomplete"
+    assert [item["subject_id"] for item in review["candidate_assessments"]] == [
+        "CX-9101", "CX-9102", "CX-9103"]
+    assert [item["decision"] for item in review["candidate_assessments"]] == [
+        "REJECT", "REVIEW", "REVIEW"]
+    assert [
+        item["evidence_refs"][0]["row_ref"]
+        for item in review["candidate_assessments"]
+    ] == ["case_boundaries!R2", "case_boundaries!R3",
+          "case_boundaries!R4"]
+    assert all(
+        item["policy_refs"] == []
+        for item in review["candidate_assessments"]), (
+        "the validator must never attach the only policy ID on the model's "
+        "behalf")
+    assert review["errors"] == [
+        {"code": "missing_policy_ids", "subject_id": "CX-9101"},
+        {"code": "missing_policy_ids", "subject_id": "CX-9102"},
+        {"code": "missing_policy_ids", "subject_id": "CX-9103"},
+    ]
+
+
 def test_missing_second_subject_fails():
     review = _build(
         _block([{
@@ -435,17 +520,184 @@ def test_review_instruction_carries_policy_text_and_row_values():
           "row_ref": "S!R2"}],
         [{"policy_id": "p-current", "topic": "current rule",
           "lesson": "A measured value below 500 must be REVIEW."},
-         {"policy_id": "p-older", "topic": "older rule",
+         {"policy_id": "p-other", "topic": "unrelated rule",
           "lesson": "A measured value above 900 must be PASS."}],
     )
     assert "p-current" in instruction
     assert "A measured value below 500 must be REVIEW." in instruction
-    assert "p-older" in instruction
+    assert "p-other" in instruction
     assert "A measured value above 900 must be PASS." in instruction
     assert "row values" in instruction.lower()
-    assert "newest first" in instruction.lower()
+    assert "non-empty `policy_ids`" in instruction.lower()
+    assert "independent" in instruction.lower()
+    assert "newest first" not in instruction.lower()
+    assert "superseded" not in instruction.lower()
+    assert "only the entries listed under policy ids" in instruction.lower()
     assert "ev:A-1:R2" in instruction
     assert "PASS, REVIEW" in instruction
+
+
+def test_newer_unrelated_lesson_does_not_invalidate_older_applicable_rule():
+    """Ordering is not supersession.
+
+    A correction is authoritative through an in-place PATCH of the same
+    policy ID. Retrieval order alone must never make a newer unrelated entry
+    override an older applicable rule, and both remain usable policy refs.
+    """
+    from core.review_result import review_output_instruction
+
+    older = {
+        "policy_id": "p-old-applicable",
+        "topic": "amount rule",
+        "lesson": "Below 500 is REJECT.",
+    }
+    newer_unrelated = {
+        "policy_id": "p-new-unrelated",
+        "topic": "freight instructions",
+        "lesson": "Email Mill Creek for freight costs.",
+    }
+    instruction = review_output_instruction(
+        {"subjects": ["A-1"], "allowed_decisions": ["APPROVE", "REJECT"]},
+        [{"evidence_id": "ev:A-1:R2", "subject_id": "A-1",
+          "row_ref": "S!R2"}],
+        [older, newer_unrelated],
+    )
+    assert "p-old-applicable" in instruction
+    assert "Below 500 is REJECT." in instruction
+    assert "p-new-unrelated" in instruction
+    assert "newer unrelated lesson never invalidates" in instruction
+    review = _build(
+        _block([{
+            "subject_id": "O-1010",
+            "decision": "Process",
+            "evidence_ids": ["ev:O-1010:Orders!R11"],
+            "policy_ids": ["p-old-applicable"],
+        }]),
+        policy=[older, newer_unrelated],
+    )
+    # The older applicable policy still certifies; the newer entry is not a
+    # global override. (The fixture subject's schema is separate from the
+    # illustrative policy text; only reference resolution is exercised here.)
+    assert review["ok"] is True
+    assert review["assessments"][0]["policy_refs"][0]["policy_id"] == (
+        "p-old-applicable")
+
+
+def test_unrelated_sibling_decision_vocabulary_cannot_enter_policy_index():
+    """Workspace knowledge is shared; it does not become this task's policy.
+
+    The captured review memory carried another agent's FUND/HOLD/DECLINE
+    rule, a price-list lesson and freight instructions. Only lessons whose
+    decision vocabulary exactly matches this task may supply policy IDs.
+    """
+    from core.review_result import (
+        build_policy_index,
+        review_output_instruction,
+    )
+
+    own = {
+        "id": "own-case-rule",
+        "topic": "case amount rule",
+        "decision_options": ["APPROVE", "REVIEW", "REJECT"],
+        "lesson": "Below 5000 is REJECT.",
+    }
+    sibling_decision = {
+        "id": "sibling-fund-rule",
+        "topic": "threshold rule (corrected)",
+        "decision_options": ["FUND", "HOLD", "DECLINE"],
+        "lesson": "Below 5000 is DECLINE.",
+        "_source_agent_id": "other-agent",
+    }
+    sibling_general = {
+        "id": "sibling-freight",
+        "topic": "freight costs",
+        "lesson": "Email Mill Creek for freight costs.",
+        "_source_agent_id": "other-agent",
+    }
+    index = build_policy_index(
+        [sibling_decision, sibling_general, own],
+        ["APPROVE", "REVIEW", "REJECT"],
+    )
+    assert [entry["policy_id"] for entry in index] == ["own-case-rule"]
+    instruction = review_output_instruction(
+        {"subjects": ["CX-1"], "allowed_decisions": ["APPROVE", "REJECT"]},
+        [{"evidence_id": "ev:CX-1:R2", "subject_id": "CX-1",
+          "row_ref": "S!R2"}],
+        index,
+    )
+    assert "own-case-rule" in instruction
+    assert "sibling-fund-rule" not in instruction
+    assert "sibling-freight" not in instruction
+    assert "must not change the allowed decisions" in instruction
+
+
+def test_review_payload_schema_requires_policy_and_unresolved_fields():
+    """The transport schema requires every field the validator relies on."""
+    from core.review_result import review_output_schema
+
+    schema = review_output_schema()
+    assessment = schema["$defs"]["ReviewAssessmentModel"]
+    assert set(assessment["required"]) >= {
+        "subject_id", "decision", "evidence_ids", "policy_ids", "basis",
+        "unresolved_requirements",
+    }
+    assert assessment["properties"]["policy_ids"]["minItems"] == 1
+    assert assessment["properties"]["evidence_ids"]["minItems"] == 1
+
+
+async def test_structured_review_call_uses_same_contract_and_schema():
+    """Mocked transport: the outgoing review call carries the schema and the
+    exact evidence/policy message; a schema-valid payload still goes through
+    the unchanged validator."""
+    from core.review_result import (
+        ReviewPayloadModel,
+        generate_structured_review,
+    )
+
+    captured = {}
+
+    class _StructuredLLM:
+        async def generate_structured_response(self, **kwargs):
+            captured.update(kwargs)
+            return ReviewPayloadModel(
+                explanation="O-1010 is complete.",
+                assessments=[{
+                    "subject_id": "O-1010",
+                    "decision": "Process",
+                    "evidence_ids": ["ev:O-1010:Orders!R11"],
+                    "policy_ids": ["lesson-1"],
+                    "basis": ["record is complete"],
+                    "unresolved_requirements": [],
+                }],
+            )
+
+    messages = [
+        {"role": "system", "content": (
+            "REVIEW OUTPUT CONTRACT. Every assessment MUST include a "
+            "NON-EMPTY `policy_ids` array using IDs from the supplied index.\n"
+            "Policy IDs:\n- lesson-1 | Order policy\n"
+            "Evidence IDs:\n- ev:O-1010:Orders!R11 | subject=O-1010")},
+        {"role": "user", "content": "Assess O-1010."},
+    ]
+    answer = await generate_structured_review(
+        _StructuredLLM(), messages=messages, model="auto",
+        llm_scope={"workspace_id": "ws-1"}, max_tokens=800)
+    assert captured["response_model"] is ReviewPayloadModel
+    assert captured["allow_moa"] is False and captured["cascade"] is False
+    assert captured["workspace_id"] == "ws-1"
+    assert captured["max_tokens"] == 800
+    assert "policy_ids" in captured["system_instruction"]
+    assert "lesson-1" in captured["system_instruction"]
+    assert "```review_result" in (answer or "")
+    review = build_review_result(
+        execution_id=EXECUTION_ID,
+        requested_records=["O-1010"],
+        answer=answer,
+        allowed_decisions=ORDER_DECISIONS,
+        evidence_index=[dict(EVIDENCE_INDEX[0])],
+        policy_index=[dict(POLICY_INDEX[0])],
+    )
+    assert review["ok"] is True
 
 
 def test_missing_block_only_distinguishes_format_from_refusal():

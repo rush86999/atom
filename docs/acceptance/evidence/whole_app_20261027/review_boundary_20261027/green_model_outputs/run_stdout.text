@@ -1,0 +1,5 @@
+[server] {'booted': True, 'seconds': 4.3, 'status': 'healthy', 'pid': 83326, 'git_commit': 'f8792bf42bf0'} http://127.0.0.1:62623
+[baseline] ok= True errors= [] decisions= [('CX-9101', 'REJECT'), ('CX-9102', 'REVIEW'), ('CX-9103', 'APPROVE')]
+[unfamiliar] ok= True errors= [] decisions= [('CX-9201', 'REJECT'), ('CX-9202', 'REVIEW'), ('CX-9203', 'REVIEW')]
+[restart] {'booted': True, 'seconds': 6.3, 'status': 'healthy', 'pid': 83599, 'git_commit': 'f8792bf42bf0', 'restart_number': 1}
+[after_restart] ok= True errors= [] decisions= [('CX-9201', 'REJECT'), ('CX-9202', 'REVIEW'), ('CX-9203', 'REVIEW')]

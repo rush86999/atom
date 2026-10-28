@@ -8077,6 +8077,49 @@ def _settle_review_read_obligations(session: Any, subjects: List[str],
             "[review-result] read-obligation settlement skipped: %r", exc)
         return 0
 
+def _review_source_revision(
+    structured: Any,
+    evidence_index: Any = None,
+) -> str:
+    """The exact source revision this review's evidence came from.
+
+    The accepted contract's source_version was empty in the captured
+    assessments even though every evidence ref carried a content hash. Read
+    the binding the validator will use (evidence refs first, then the
+    structured record's source identity) so response, persistence and history
+    all record the effective version.
+    """
+    for entry in (evidence_index or []):
+        if not isinstance(entry, dict):
+            continue
+        source = entry.get("source_identity")
+        if isinstance(source, dict):
+            version = str(
+                source.get("content_hash")
+                or source.get("resource_id")
+                or source.get("version")
+                or "").strip()
+            if version:
+                return version[:120]
+    if isinstance(structured, dict):
+        source = structured.get("source_identity")
+        if isinstance(source, dict):
+            version = str(
+                source.get("content_hash")
+                or source.get("resource_id")
+                or source.get("version")
+                or "").strip()
+            if version:
+                return version[:120]
+        version = str(
+            structured.get("source_version")
+            or structured.get("evidence_revision")
+            or "").strip()
+        if version:
+            return version[:120]
+    return ""
+
+
 def _task_lifecycle_for(tenant_id: Any,
                         workspace_id: Any) -> Optional[Any]:
     """Flag-gated TaskLifecycle bound to the turn's scope (Step 1 wiring).
@@ -8706,7 +8749,8 @@ class ChatOrchestrator:
 
                     _review_lessons = (
                         self._agent_lessons(
-                            agent_id, objective, limit=10) or [])
+                            agent_id, objective, limit=10,
+                            include_workspace=False) or [])
                     _review_allowed_decisions = (
                         decision_options_from_lessons(_review_lessons))
                 except Exception:  # noqa: BLE001 — teaching is additive
@@ -9480,11 +9524,22 @@ class ChatOrchestrator:
                         _review_evidence_index = build_evidence_index(
                             _review_struct,
                             subjects=_review_requested_records)
+                        _review_source_version = _review_source_revision(
+                            _review_struct, _review_evidence_index)
+                        if (_review_source_version
+                                and not _review_accepted_contract.get(
+                                    "source_version")):
+                            _review_accepted_contract["source_version"] = (
+                                _review_source_version)
                         _review_policy_index = build_policy_index(
                             _review_lessons, _review_allowed_decisions)
                         _review_contract = {
                             "subjects": list(_review_requested_records),
                             "accepted_inputs": _review_accepted_contract,
+                            "policy_revision": _review_accepted_contract.get(
+                                "teaching_revision"),
+                            "source_revision": _review_accepted_contract.get(
+                                "source_version"),
                             "required_evidence": [
                                 dict(entry.get("source_identity") or {})
                                 for entry in _review_evidence_index
@@ -12966,7 +13021,8 @@ class ChatOrchestrator:
                         if review_requested(_ask_task, _ask_review_text):
                             _ask_review_lessons = self._agent_lessons(
                                 (context or {}).get("agent_id"),
-                                _ask_review_text, limit=10)
+                                _ask_review_text, limit=10,
+                                include_workspace=False)
                             _ask_review_ask = bool(
                                 decision_options_from_lessons(
                                     _ask_review_lessons))
@@ -13067,6 +13123,7 @@ class ChatOrchestrator:
                                 "failure_stage": _tl_fresh_out.get("stage"),
                                 "freshness_status": _ask_freshness.get(
                                     "status"),
+                                "freshness_requested": bool(_ask_freshness),
                                 "items": {
                                     str((t or {}).get("item") or ""):
                                         str(((t or {}).get("identity")
@@ -14579,6 +14636,7 @@ class ChatOrchestrator:
                                     else "none"),
                                 "failure_stage": _tl_fresh_out.get("stage"),
                                 "freshness_status": _freshness.get("status"),
+                                "freshness_requested": bool(_freshness),
                                 "items": {
                                     str((t or {}).get("item") or ""):
                                         str(((t or {}).get("identity")
@@ -22350,6 +22408,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     "saved_copy"
                                     if _pf_invoked else "none"),
                                 "failure_stage": None,
+                                "freshness_requested": False,
                                 "planning": dict(
                                     (_prefetch_result_meta.get(
                                         "planning") or {})),
@@ -26925,7 +26984,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _review_lessons = (
                         self._agent_lessons(
                             agent_id, _review_objective_text,
-                            limit=10) or [])
+                            limit=10,
+                            include_workspace=False) or [])
                     _allowed = decision_options_from_lessons(
                         _review_lessons)
                     _review_pending = (
@@ -27093,6 +27153,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         logger.info(
                             "[review-result] no read evidence supplied for "
                             "the review prompt")
+                    _review_source_version = _review_source_revision(
+                        _review_struct, _evidence_index)
+                    if (_review_source_version
+                            and not _review_accepted.get("source_version")):
+                        _review_accepted["source_version"] = (
+                            _review_source_version)
                     _policy_index = build_policy_index(
                         _review_lessons, _allowed)
                     logger.info(
@@ -27269,6 +27335,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 logger.debug(f"prompt accounting skipped: {_acct_err}")
 
             messages.append({"role": "user", "content": message})
+            if _review_contract_active:
+                # The full contract is above; repeat ONLY the final shape at
+                # the generation boundary. Local models were observed writing
+                # the correct table but dropping the machine block when the
+                # long contract sat far from the user turn.
+                messages.append({"role": "system", "content": (
+                    "FINAL OUTPUT REQUIREMENT for this assessment: end your "
+                    "reply with exactly one fenced ```review_result block "
+                    "containing {\"assessments\": [...]}. Every assessment "
+                    "must include subject_id, decision, evidence_ids, basis, "
+                    "unresolved_requirements, and a NON-EMPTY policy_ids "
+                    "array copied from the Policy IDs above. The block is the "
+                    "only certified output; a table or prose without it is "
+                    "not an assessment.")})
 
             # Unpack routing overrides. ``model`` overrides the auto default;
             # ``tier``/``intent`` are forwarded as kwargs to the BYOK handler.
@@ -27309,6 +27389,45 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # can offer the same bounded cross-route retry instead of raising
             # (or, worse, silently retrying the route that just failed).
             _fb_routes: List[tuple] = []
+            # STRUCTURED REVIEW GENERATION (2026-10-27): when the turn carries
+            # the review contract, use the existing structured-output
+            # facility on ONE generation so every assessment is required to
+            # carry subject/decision/evidence/policy/basis/unresolved fields.
+            # A transport that cannot honour the schema falls through to the
+            # ordinary completion path below; a produced-but-invalid payload
+            # is still refused by build_review_result (never re-rolled).
+            if (
+                _review_contract_active
+                and os.getenv("ATOM_REVIEW_STRUCTURED", "0").lower()
+                in ("1", "true", "on", "yes")
+            ):
+                try:
+                    from core.review_result import generate_structured_review
+
+                    _structured_review_answer = (
+                        await generate_structured_review(
+                            self.llm_service,
+                            messages=messages,
+                            model=forced_model,
+                            llm_scope=_llm_scope,
+                            max_tokens=extra_kwargs.get("max_tokens"),
+                        ))
+                    if _structured_review_answer:
+                        _streamed = _structured_review_answer
+                        _stream_route = (
+                            getattr(self.llm_service.handler,
+                                    "_last_used_provider", None) or "structured",
+                            getattr(self.llm_service.handler,
+                                    "_last_used_model", None) or "structured",
+                        )
+                        logger.info(
+                            "[review-diag] structured generation_completed "
+                            "content_len=%d",
+                            len(_structured_review_answer))
+                except Exception as _structured_review_err:  # noqa: BLE001
+                    logger.warning(
+                        "[review-diag] structured generation skipped: %r",
+                        _structured_review_err)
             # One completeness regeneration per turn, whichever leg runs the
             # guard chain (streaming first; the common chain only when the reply
             # did not stream).
@@ -29557,7 +29676,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         _review_lessons = (
                             self._agent_lessons(
                                 agent_id, _review_objective_text,
-                                limit=10) or [])
+                                limit=10,
+                                include_workspace=False) or [])
                         _allowed = decision_options_from_lessons(
                             _review_lessons)
                         _review_pending = (
@@ -29732,6 +29852,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             logger.warning(
                                 "[review-result] no read evidence supplied "
                                 "for the assessment")
+                        _review_source_version = _review_source_revision(
+                            _review_struct, _evidence_index)
+                        if (_review_source_version
+                                and not _review_accepted.get(
+                                    "source_version")):
+                            _review_accepted["source_version"] = (
+                                _review_source_version)
                         _policy_index = build_policy_index(
                             _review_lessons, _allowed)
                         logger.info(
@@ -29816,6 +29943,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             response_data["review_contract"] = {
                                 "subjects": list(_subjects),
                                 "accepted_inputs": _review_accepted,
+                                "policy_revision": _review_accepted.get(
+                                    "teaching_revision"),
+                                "source_revision": _review_accepted.get(
+                                    "source_version"),
                                 "required_evidence": [
                                     dict(entry.get("source_identity") or {})
                                     for entry in _evidence_index
@@ -29871,8 +30002,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 response_data["review_summary"] = (
                                     _review_block)
                                 _settle_review_read_obligations(
-                                    session, list(_subjects),
-                                    (context or {}).get("workspace_id"))
+                                    session, list(_subjects), workspace_id)
                                 response_data["structured_result"] = (
                                     _review_struct if isinstance(
                                         _review_struct, dict) else None)
@@ -31379,19 +31509,36 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
             if not review_requested(None, text):
                 return False
-            lessons = self._agent_lessons(agent_id, text, limit=10)
+            lessons = self._agent_lessons(
+                agent_id, text, limit=10, include_workspace=False)
             return bool(decision_options_from_lessons(lessons))
         except Exception:  # noqa: BLE001 — additive
             return False
 
-    def _agent_lessons(self, agent_id: Optional[str], query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    def _agent_lessons(
+        self,
+        agent_id: Optional[str],
+        query: str,
+        limit: int = 5,
+        *,
+        include_workspace: bool = True,
+    ) -> List[Dict[str, Any]]:
         """The operating hire's PERMANENT taught lessons (TrainingPanel /teach,
         mentor lessons, observed human corrections) for the edit plan. Teaching
         stored the lesson but nothing fed it back at work time — this is the
         retrieval half, applied to the canvas co-editor for every agent and
         every canvas app. Fault-isolated like the corrections lookup: [] on
-        any failure, never blocks the edit."""
+        any failure, never blocks the edit.
+
+        ``include_workspace`` defaults to True because ordinary work benefits
+        from relevant sibling knowledge. A REVIEW passes False: only the
+        operating hire's own teaching is authorized to define that task's
+        decision policy. Shared knowledge still reaches prompts through the
+        general memory block; it must not become a review policy ID.
+        """
         if not agent_id:
+            if not include_workspace:
+                return []
             # TEACHING FALLBACK FOR AGENT-LESS TURNS (2026-10-09 value
             # trial): a plain chat request carries no agent_id, so the
             # lessons lookup returned [] — and with it the required-
@@ -31417,7 +31564,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             from core.student_learning_service import get_agent_lessons
 
             with get_db_session() as db:
-                return get_agent_lessons(db, agent_id, query=query, limit=limit)
+                return get_agent_lessons(
+                    db, agent_id, query=query, limit=limit,
+                    include_workspace=include_workspace)
         except Exception as e:
             logger.debug(f"agent lessons lookup skipped: {e}")
             return []

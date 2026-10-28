@@ -751,6 +751,73 @@ class TestQuotaFailover:
         assert got is False
         bench.assert_not_called()
 
+    def test_instructor_retry_dump_with_402_does_not_bench(self):
+        """A schema/protocol retry dump is not an account-balance fact.
+
+        Live 2026-10-27: instructor's Mode.TOOLS retry text embedded token
+        logprobs and a numeric 402, and the substring check benched a healthy
+        local route for 30 minutes. The dump must not infer quota exhaustion.
+        """
+        from core.llm import byok_handler as bh
+
+        h = bh.BYOKHandler(workspace_id="default")
+        dump = (
+            "Max retries exceeded. Total attempts: 4, Last error: No tool "
+            "calls or function call found in response (mode: TOOLS)\n"
+            "<failed_attempts><generation number=\"1\">"
+            "ChatCompletionTokenLogprob(token='f', logprob=-0.000402) "
+            "message=ChatCompletionMessage(content='{\"name\": \"recall\"}')"
+            "</generation></failed_attempts>")
+        with patch.object(h, "_bench_provider") as bench:
+            got = h._bench_provider_on_quota_error("ollama", dump)
+        assert got is False
+        bench.assert_not_called()
+
+    def test_bare_quota_words_without_status_do_not_bench(self):
+        """Model prose is not evidence of an account balance."""
+        from core.llm import byok_handler as bh
+
+        h = bh.BYOKHandler(workspace_id="default")
+        with patch.object(h, "_bench_provider") as bench:
+            for text in (
+                    "The policy says quota is not specified",
+                    "Please add more credits to continue",
+                    "quota exhausted is a possible business state"):
+                assert h._bench_provider_on_quota_error("ollama", text) is False
+        bench.assert_not_called()
+
+    def test_structured_status_402_benches_without_prose(self):
+        from types import SimpleNamespace
+
+        from core.llm import byok_handler as bh
+
+        h = bh.BYOKHandler(workspace_id="default")
+        exc = SimpleNamespace(status_code=402)
+        with patch.object(h, "_bench_provider") as bench:
+            assert h._bench_provider_on_quota_error(
+                "openrouter", "provider rejected request", exc=exc) is True
+        bench.assert_called_once()
+
+    def test_insufficient_quota_code_benches(self):
+        from core.llm import byok_handler as bh
+
+        h = bh.BYOKHandler(workspace_id="default")
+        with patch.object(h, "_bench_provider") as bench:
+            assert h._bench_provider_on_quota_error(
+                "openai", "Error code: 429 - insufficient_quota") is True
+        bench.assert_called_once()
+
+    def test_generic_429_with_quota_word_does_not_bench(self):
+        from core.llm import byok_handler as bh
+
+        h = bh.BYOKHandler(workspace_id="default")
+        with patch.object(h, "_bench_provider") as bench:
+            assert h._bench_provider_on_quota_error(
+                "openai",
+                "Error code: 429 - rate limit exceeded for this quota window",
+            ) is False
+        bench.assert_not_called()
+
     def test_benched_pin_yields_via_cooldown(self):
         """A pinned (provider, model) whose provider is on cooldown is
         unpinned — the pin bypasses the ranking gate, so holding it is a

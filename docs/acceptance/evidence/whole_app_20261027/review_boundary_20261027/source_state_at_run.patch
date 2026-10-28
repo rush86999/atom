@@ -1,0 +1,730 @@
+--- a/backend/core/review_contract.py
++++ b/backend/core/review_contract.py
+@@ -22,7 +22,7 @@
+ 
+ from core.review_result import decision_options_from_lessons
+ from core.target_set_resolution import extract_items_from_text
+-from core.workbook_read_artifact import extract_field_requests
++from core.workbook_read_artifact import extract_field_labels
+ 
+ 
+ def _unique(values: Iterable[Any]) -> List[str]:
+@@ -76,8 +76,14 @@
+ 
+ 
+ def requested_fields(objective: str) -> List[str]:
+-    """Field names the objective asks for; never review subjects."""
+-    return _unique(extract_field_requests([str(objective or "")]))[:20]
++    """Field labels the objective itself names; never review subjects.
++
++    The accepted contract records the user's own wording ("Ask Amount",
++    "Unit Price"), not the read layer's canonical alias ("price"). The
++    canonical form is useful for column matching, but using it here made an
++    Ask Amount task claim the user requested a price field.
++    """
++    return _unique(extract_field_labels([str(objective or "")]))[:20]
+ 
+ 
+ def required_actions(objective: str) -> List[str]:
+--- a/backend/core/review_result.py
++++ b/backend/core/review_result.py
+@@ -35,6 +35,13 @@
+ import re
+ from typing import Any, Dict, List, Optional, Sequence
+ 
++try:  # The repository already carries Pydantic; keep this module importable
++    # in a minimal extraction that does not.
++    from pydantic import BaseModel, Field
++except Exception:  # pragma: no cover - only for stripped environments
++    BaseModel = None  # type: ignore[assignment]
++    Field = None  # type: ignore[assignment]
++
+ _IDENTITY_KEYS = ("file_name", "resource_id", "content_hash")
+ REVIEW_BLOCK_LANGUAGE = "review_result"
+ _REVIEW_BLOCK_RE = re.compile(
+@@ -42,6 +49,125 @@
+     r"(\{.*\})\s*```",
+     re.DOTALL | re.IGNORECASE,
+ )
++
++if BaseModel is not None:
++    class ReviewAssessmentModel(BaseModel):  # type: ignore[misc,valid-type]
++        """Transport-level shape for ONE assessment.
++
++        Fields are REQUIRED and arrays that identify evidence/policy are
++        non-empty. This constrains generation where the provider supports a
++        schema; ``build_review_result`` still validates every reference
++        against the authoritative evidence/policy indexes afterwards.
++        """
++
++        subject_id: str = Field(..., min_length=1)
++        decision: str = Field(..., min_length=1)
++        evidence_ids: List[str] = Field(..., min_length=1)
++        policy_ids: List[str] = Field(..., min_length=1)
++        basis: List[str] = Field(..., min_length=1)
++        unresolved_requirements: List[str] = Field(...)
++
++    class ReviewPayloadModel(BaseModel):  # type: ignore[misc,valid-type]
++        """The structured review call's complete output.
++
++        ``explanation`` is the user-facing prose; ``assessments`` is the
++        machine block that the validator certifies.
++        """
++
++        explanation: str = ""
++        assessments: List[ReviewAssessmentModel] = Field(..., min_length=1)
++else:  # pragma: no cover - stripped environments only
++    ReviewAssessmentModel = None  # type: ignore[assignment]
++    ReviewPayloadModel = None  # type: ignore[assignment]
++
++
++def review_output_schema() -> Dict[str, Any]:
++    """JSON schema for the existing structured-output facility.
++
++    Callers that can constrain transport output pass this schema/model to the
++    SAME generation call. It is additive: content validation never trusts the
++    transport and still runs through ``build_review_result``.
++    """
++    if ReviewPayloadModel is None:
++        return {}
++    if hasattr(ReviewPayloadModel, "model_json_schema"):
++        return ReviewPayloadModel.model_json_schema()
++    return ReviewPayloadModel.schema()  # type: ignore[no-any-return]
++
++
++def serialize_review_payload(payload: Any) -> str:
++    """Turn a structured review payload into the fenced contract answer.
++
++    The model's explanation stays user-facing prose; only ``assessments`` is
++    placed in the machine block. ``build_review_result`` still validates every
++    subject/evidence/policy reference, so a transport-valid object is never
++    automatically certified.
++    """
++    if hasattr(payload, "model_dump"):
++        payload = payload.model_dump()
++    elif hasattr(payload, "dict"):
++        payload = payload.dict()
++    if not isinstance(payload, dict):
++        return ""
++    assessments = payload.get("assessments")
++    if not isinstance(assessments, list) or not assessments:
++        return ""
++    explanation = str(payload.get("explanation") or "").strip()
++    block = json.dumps(
++        {"assessments": assessments}, ensure_ascii=False, default=str)
++    return (f"{explanation}\n\n" if explanation else "") + (
++        f"```review_result\n{block}\n```")
++
++
++async def generate_structured_review(
++    llm_service: Any,
++    *,
++    messages: Sequence[Dict[str, Any]],
++    model: Any = "auto",
++    llm_scope: Optional[Dict[str, Any]] = None,
++    max_tokens: Optional[int] = None,
++) -> Optional[str]:
++    """Use the existing structured-output facility for ONE review call.
++
++    Returns the same fenced answer shape the validator already accepts, or
++    ``None`` when the transport cannot produce a schema-valid payload. The
++    caller may fall back to the ordinary completion path; a payload that was
++    produced but fails reference validation is NEVER re-rolled here.
++    """
++    if ReviewPayloadModel is None:
++        return None
++    system_parts = [
++        str(msg.get("content") or "")
++        for msg in messages or []
++        if isinstance(msg, dict) and msg.get("role") == "system"
++        and str(msg.get("content") or "").strip()
++    ]
++    user_prompt = ""
++    for msg in reversed(list(messages or [])):
++        if isinstance(msg, dict) and msg.get("role") == "user":
++            user_prompt = str(msg.get("content") or "")
++            break
++    if not system_parts or not user_prompt:
++        return None
++    scope = dict(llm_scope or {})
++    kwargs: Dict[str, Any] = {
++        "prompt": user_prompt,
++        "response_model": ReviewPayloadModel,
++        "system_instruction": "\n\n".join(system_parts),
++        "model": model,
++        "allow_moa": False,
++        "cascade": False,
++    }
++    for key in ("workspace_id", "tenant_id", "agent_id", "temperature"):
++        if scope.get(key) is not None:
++            kwargs[key] = scope[key]
++    if max_tokens is not None:
++        kwargs["max_tokens"] = max_tokens
++    try:
++        payload = await llm_service.generate_structured_response(**kwargs)
++    except Exception:  # noqa: BLE001 — transport capability, not judgment
++        return None
++    return serialize_review_payload(payload) or None
+ 
+ 
+ def _clean(value: Any) -> str:
+@@ -450,7 +576,12 @@
+         "IDs listed here, and do not add subjects. Every assessment MUST set "
+         "`decision` to exactly one allowed label below — not null, not an "
+         "empty string, and not a request to confirm; produce the final "
+-        "decisions now.\n"
++        "decisions now. Every assessment MUST also include `evidence_ids`, "
++        "`basis`, `unresolved_requirements`, and a NON-EMPTY `policy_ids` "
++        "array. Copy at least one policy ID from the Policy IDs list below; "
++        "never omit policy_ids, guess an ID, or attach a policy whose text "
++        "does not support the decision. An assessment with a missing or "
++        "empty policy_ids array is rejected.\n"
+         "`decision` must be the label ONLY (for example HOLD), with no "
+         "amount, parentheses or explanation; put the reasoning in `basis`. "
+         "`basis` is WHY you made the decision: the policy, a business "
+@@ -470,8 +601,20 @@
+             + ", ".join(required_actions) + "\n"
+             if required_actions else ""
+         )
+-        + "Policy entries are NEWEST FIRST. If two entries conflict, the "
+-          "first is the current teaching and later entries are superseded. "
++        + "Policy entries are INDEPENDENT standing instructions, not an "
++          "ordered revision log. Do not infer that an entry supersedes "
++          "another from its position. A correction is authoritative only "
++          "when it rewrites the same policy ID in place; use that entry's "
++          "current text. A newer unrelated lesson never invalidates an "
++          "older applicable rule. Apply every entry that is applicable, "
++          "and keep genuinely conflicting applicable rules explicit in "
++          "`basis` and/or `unresolved_requirements` instead of silently "
++          "choosing one.\n"
++          "Only the entries listed under Policy IDs are authorized to "
++          "govern this assessment. Other workspace/memory lessons — "
++          "including ones taught to a different agent — are background "
++          "context only; they must not change the allowed decisions, "
++          "subjects, evidence IDs, or policy IDs for this task.\n"
+           "Use the applicable instruction text below, not just its topic. "
+           "For every assessment, `basis` must explain the decision using "
+           "the cited row values and the applicable policy text.\n"
+@@ -487,8 +630,9 @@
+     (`assessments`); unrelated JSON blocks are ignored. Content validation
+     stays in build_review_result.
+     """
++    text = str(answer or "")
+     candidates: List[Dict[str, Any]] = []
+-    for match in _REVIEW_BLOCK_RE.finditer(str(answer or "")):
++    for match in _REVIEW_BLOCK_RE.finditer(text):
+         try:
+             payload = json.loads(match.group(1))
+         except Exception:
+@@ -496,6 +640,19 @@
+         if isinstance(payload, dict) and isinstance(
+                 payload.get("assessments"), list):
+             candidates.append(payload)
++    if not candidates:
++        # Structured-output transports may return the object itself rather
++        # than a fenced block. Accept it only when it carries the review
++        # schema; arbitrary JSON prose is still ignored.
++        bare = text.strip()
++        if bare.startswith("{") and bare.endswith("}"):
++            try:
++                payload = json.loads(bare)
++            except Exception:
++                payload = None
++            if isinstance(payload, dict) and isinstance(
++                    payload.get("assessments"), list):
++                candidates.append(payload)
+     return candidates[0] if len(candidates) == 1 else None
+ 
+ 
+--- a/backend/core/student_learning_service.py
++++ b/backend/core/student_learning_service.py
+@@ -702,7 +702,9 @@
+         # operator happened to address. Labelled so the model can attribute it
+         # instead of presenting another hire's instruction as its own.
+         if entry.get("_source_agent_id"):
+-            line += " — taught to a DIFFERENT agent in this workspace; applies here too"
++            line += (
++                " — taught to a DIFFERENT agent in this workspace; "
++                "workspace background only, not authority for this task")
+         if used + len(line) + 1 > _LESSON_BLOCK_CHARS:
+             break
+         lines.append(line)
+--- a/backend/core/task_lifecycle.py
++++ b/backend/core/task_lifecycle.py
+@@ -725,6 +725,10 @@
+              if str(k).strip()} if isinstance(items_raw, dict) else {}
+     stage = raw.get("failure_stage")
+     freshness = raw.get("freshness_status")
++    # A snapshot read is not automatically a freshness obligation. The
++    # caller records whether THIS turn actually asked for current/live
++    # verification; an uploaded snapshot assessed as-is stays settled.
++    freshness_requested = bool(raw.get("freshness_requested"))
+     # PLANNING PROVENANCE passthrough (2026-10-04 reviewer correction 2):
+     # how the plan came to be — a failure the fallback machinery recovered
+     # (repair pass, deterministic rung) is ATTEMPT HISTORY on a successful
+@@ -837,6 +841,7 @@
+         "served_basis": basis,
+         "failure_stage": str(stage)[:80] if stage else None,
+         "freshness_status": str(freshness)[:40] if freshness else None,
++        "freshness_requested": freshness_requested,
+         # SOURCE VERSION (owner work order 2026-10-10): the workbook
+         # revision (content_hash / evidence_revision) this read served
+         # from — the identity finding_reuse_status compares at reuse.
+@@ -3267,14 +3272,19 @@
+                         "detail": _detail,
+                     },
+                 })
+-            if _basis == "saved_copy":
+-                # FRESHNESS IS AN OBLIGATION, NOT WORDING (round 48): the
+-                # saved-copy read resolves the READ question and OPENLY
+-                # spawns its successor — current-source freshness remains
+-                # unverified and stays on the queue as a distinct,
+-                # selectable obligation (blocked until a live refresh is
+-                # authorized/possible). DEFERRED past the resolution loop
+-                # so the item-scoped resolution cannot consume it.
++            # FRESHNESS IS AN OBLIGATION ONLY WHEN THE USER ASKED FOR
++            # CURRENT/LIVE STATE. A saved-copy read of an uploaded snapshot
++            # assessed AS THAT VERSION is a complete read of the requested
++            # version; inventing "re-verify against the live source" work
++            # for it turns every snapshot assessment into an unrequested
++            # live job. Genuine refresh/compare asks still carry an explicit
++            # freshness verdict (or freshness_requested), so their successor
++            # stays open. DEFERRED past the resolution loop so the
++            # item-scoped resolution cannot consume it.
++            _freshness_was_requested = bool(
++                (execution or {}).get("freshness_requested")
++                or (execution or {}).get("freshness_status"))
++            if _basis == "saved_copy" and _freshness_was_requested:
+                 _freshness_questions.extend({
+                     "item": _it,
+                     "kind": "verification",
+--- a/backend/core/workbook_read_artifact.py
++++ b/backend/core/workbook_read_artifact.py
+@@ -250,6 +250,90 @@
+             for other in values
+         )
+     ]
++
++
++#: Words that qualify a field label without being the field itself. A
++#: preceding word is kept ONLY when it is one of these; otherwise the label
++#: is the alias alone. This avoids sentence words ("policy cite order id")
++#: leaking into a contract while preserving "Ask Amount" / "Unit Price".
++_FIELD_LABEL_QUALIFIERS = frozenset({
++    "ask", "requested", "request", "unit", "list", "quoted", "quote",
++    "selling", "dealer", "factory", "retail", "wholesale", "gross", "net",
++    "first", "second", "manager", "approval", "minimum", "maximum",
++    "invoice", "line", "item", "order", "case", "employee", "customer",
++    "supplier", "vendor", "required", "current", "original", "revised",
++})
++
++
++def extract_field_labels(texts: Sequence[str]) -> List[str]:
++    """The request's OWN field labels, not canonical aliases.
++
++    ``extract_field_requests`` canonicalises business vocabulary for column
++    selection ("Ask Amount" -> "price"). That is correct for a read, but an
++    accepted contract must not claim the user asked for a field they did not
++    name. This preserves the literal phrase from the request (for example
++    "Ask Amount") while still requiring it to match a known field alias.
++
++    Only aliases that participate in field requests are considered, and ONE
++    known qualifier is kept so column labels such as "Ask Amount",
++    "Requested Amount" and "Unit Price" survive intact.
++    """
++    labels: List[str] = []
++    for text in texts or []:
++        original = str(text or "")
++        if not original.strip():
++            continue
++        for canonical in _FIELD_ALIAS_ORDER:
++            if canonical not in _FIELD_REQUEST_GROUPS:
++                continue
++            best: Optional[str] = None
++            for alias in _field_aliases(canonical):
++                if not alias:
++                    continue
++                match = re.search(
++                    r"(?<![A-Za-z0-9])" + re.escape(alias)
++                    + r"(?![A-Za-z0-9])",
++                    original,
++                    re.IGNORECASE,
++                )
++                if not match:
++                    continue
++                prefix = original[max(0, match.start() - 48):match.start()]
++                # Only the clause immediately before the alias can qualify
++                # it; punctuation ends the label.
++                prefix = re.split(
++                    r"[.;:,!?()\[\]\n]", prefix)[-1]
++                words = re.findall(r"[A-Za-z][A-Za-z0-9_-]*", prefix)
++                kept: List[str] = []
++                if words and words[-1].casefold() in (
++                        _FIELD_LABEL_QUALIFIERS - set(alias.split())):
++                    kept = [words[-1]]
++                label = " ".join(
++                    kept + [original[match.start():match.end()]]).strip()
++                label = re.sub(r"\s+", " ", label)
++                if label and (best is None or len(label) > len(best)):
++                    best = label
++            if best:
++                labels.append(best)
++    out: List[str] = []
++    seen = set()
++    for label in labels:
++        key = label.casefold()
++        if not key or key in seen:
++            continue
++        # A longer label already contains the shorter alias ("Unit Price"
++        # over "Price"); keep the specific one only.
++        if any(
++            label != other
++            and re.search(
++                r"(?<![a-z0-9])" + re.escape(label.casefold())
++                + r"(?![a-z0-9])", other.casefold())
++            for other in labels
++        ):
++            continue
++        seen.add(key)
++        out.append(label)
++    return out[:20]
+ 
+ 
+ # Aliases whose +"s" plural is commonly a VERB ("lists the rows",
+--- a/backend/integrations/chat_orchestrator.py
++++ b/backend/integrations/chat_orchestrator.py
+@@ -8077,6 +8077,49 @@
+             "[review-result] read-obligation settlement skipped: %r", exc)
+         return 0
+ 
++def _review_source_revision(
++    structured: Any,
++    evidence_index: Any = None,
++) -> str:
++    """The exact source revision this review's evidence came from.
++
++    The accepted contract's source_version was empty in the captured
++    assessments even though every evidence ref carried a content hash. Read
++    the binding the validator will use (evidence refs first, then the
++    structured record's source identity) so response, persistence and history
++    all record the effective version.
++    """
++    for entry in (evidence_index or []):
++        if not isinstance(entry, dict):
++            continue
++        source = entry.get("source_identity")
++        if isinstance(source, dict):
++            version = str(
++                source.get("content_hash")
++                or source.get("resource_id")
++                or source.get("version")
++                or "").strip()
++            if version:
++                return version[:120]
++    if isinstance(structured, dict):
++        source = structured.get("source_identity")
++        if isinstance(source, dict):
++            version = str(
++                source.get("content_hash")
++                or source.get("resource_id")
++                or source.get("version")
++                or "").strip()
++            if version:
++                return version[:120]
++        version = str(
++            structured.get("source_version")
++            or structured.get("evidence_revision")
++            or "").strip()
++        if version:
++            return version[:120]
++    return ""
++
++
+ def _task_lifecycle_for(tenant_id: Any,
+                         workspace_id: Any) -> Optional[Any]:
+     """Flag-gated TaskLifecycle bound to the turn's scope (Step 1 wiring).
+@@ -8706,7 +8749,8 @@
+ 
+                     _review_lessons = (
+                         self._agent_lessons(
+-                            agent_id, objective, limit=10) or [])
++                            agent_id, objective, limit=10,
++                            include_workspace=False) or [])
+                     _review_allowed_decisions = (
+                         decision_options_from_lessons(_review_lessons))
+                 except Exception:  # noqa: BLE001 — teaching is additive
+@@ -9480,11 +9524,22 @@
+                         _review_evidence_index = build_evidence_index(
+                             _review_struct,
+                             subjects=_review_requested_records)
++                        _review_source_version = _review_source_revision(
++                            _review_struct, _review_evidence_index)
++                        if (_review_source_version
++                                and not _review_accepted_contract.get(
++                                    "source_version")):
++                            _review_accepted_contract["source_version"] = (
++                                _review_source_version)
+                         _review_policy_index = build_policy_index(
+                             _review_lessons, _review_allowed_decisions)
+                         _review_contract = {
+                             "subjects": list(_review_requested_records),
+                             "accepted_inputs": _review_accepted_contract,
++                            "policy_revision": _review_accepted_contract.get(
++                                "teaching_revision"),
++                            "source_revision": _review_accepted_contract.get(
++                                "source_version"),
+                             "required_evidence": [
+                                 dict(entry.get("source_identity") or {})
+                                 for entry in _review_evidence_index
+@@ -12966,7 +13021,8 @@
+                         if review_requested(_ask_task, _ask_review_text):
+                             _ask_review_lessons = self._agent_lessons(
+                                 (context or {}).get("agent_id"),
+-                                _ask_review_text, limit=10)
++                                _ask_review_text, limit=10,
++                                include_workspace=False)
+                             _ask_review_ask = bool(
+                                 decision_options_from_lessons(
+                                     _ask_review_lessons))
+@@ -13067,6 +13123,7 @@
+                                 "failure_stage": _tl_fresh_out.get("stage"),
+                                 "freshness_status": _ask_freshness.get(
+                                     "status"),
++                                "freshness_requested": bool(_ask_freshness),
+                                 "items": {
+                                     str((t or {}).get("item") or ""):
+                                         str(((t or {}).get("identity")
+@@ -14579,6 +14636,7 @@
+                                     else "none"),
+                                 "failure_stage": _tl_fresh_out.get("stage"),
+                                 "freshness_status": _freshness.get("status"),
++                                "freshness_requested": bool(_freshness),
+                                 "items": {
+                                     str((t or {}).get("item") or ""):
+                                         str(((t or {}).get("identity")
+@@ -22350,6 +22408,7 @@
+                                     "saved_copy"
+                                     if _pf_invoked else "none"),
+                                 "failure_stage": None,
++                                "freshness_requested": False,
+                                 "planning": dict(
+                                     (_prefetch_result_meta.get(
+                                         "planning") or {})),
+@@ -26925,7 +26984,8 @@
+                     _review_lessons = (
+                         self._agent_lessons(
+                             agent_id, _review_objective_text,
+-                            limit=10) or [])
++                            limit=10,
++                            include_workspace=False) or [])
+                     _allowed = decision_options_from_lessons(
+                         _review_lessons)
+                     _review_pending = (
+@@ -27093,6 +27153,12 @@
+                         logger.info(
+                             "[review-result] no read evidence supplied for "
+                             "the review prompt")
++                    _review_source_version = _review_source_revision(
++                        _review_struct, _evidence_index)
++                    if (_review_source_version
++                            and not _review_accepted.get("source_version")):
++                        _review_accepted["source_version"] = (
++                            _review_source_version)
+                     _policy_index = build_policy_index(
+                         _review_lessons, _allowed)
+                     logger.info(
+@@ -27269,6 +27335,20 @@
+                 logger.debug(f"prompt accounting skipped: {_acct_err}")
+ 
+             messages.append({"role": "user", "content": message})
++            if _review_contract_active:
++                # The full contract is above; repeat ONLY the final shape at
++                # the generation boundary. Local models were observed writing
++                # the correct table but dropping the machine block when the
++                # long contract sat far from the user turn.
++                messages.append({"role": "system", "content": (
++                    "FINAL OUTPUT REQUIREMENT for this assessment: end your "
++                    "reply with exactly one fenced ```review_result block "
++                    "containing {\"assessments\": [...]}. Every assessment "
++                    "must include subject_id, decision, evidence_ids, basis, "
++                    "unresolved_requirements, and a NON-EMPTY policy_ids "
++                    "array copied from the Policy IDs above. The block is the "
++                    "only certified output; a table or prose without it is "
++                    "not an assessment.")})
+ 
+             # Unpack routing overrides. ``model`` overrides the auto default;
+             # ``tier``/``intent`` are forwarded as kwargs to the BYOK handler.
+@@ -27309,6 +27389,45 @@
+             # can offer the same bounded cross-route retry instead of raising
+             # (or, worse, silently retrying the route that just failed).
+             _fb_routes: List[tuple] = []
++            # STRUCTURED REVIEW GENERATION (2026-10-27): when the turn carries
++            # the review contract, use the existing structured-output
++            # facility on ONE generation so every assessment is required to
++            # carry subject/decision/evidence/policy/basis/unresolved fields.
++            # A transport that cannot honour the schema falls through to the
++            # ordinary completion path below; a produced-but-invalid payload
++            # is still refused by build_review_result (never re-rolled).
++            if (
++                _review_contract_active
++                and os.getenv("ATOM_REVIEW_STRUCTURED", "0").lower()
++                in ("1", "true", "on", "yes")
++            ):
++                try:
++                    from core.review_result import generate_structured_review
++
++                    _structured_review_answer = (
++                        await generate_structured_review(
++                            self.llm_service,
++                            messages=messages,
++                            model=forced_model,
++                            llm_scope=_llm_scope,
++                            max_tokens=extra_kwargs.get("max_tokens"),
++                        ))
++                    if _structured_review_answer:
++                        _streamed = _structured_review_answer
++                        _stream_route = (
++                            getattr(self.llm_service.handler,
++                                    "_last_used_provider", None) or "structured",
++                            getattr(self.llm_service.handler,
++                                    "_last_used_model", None) or "structured",
++                        )
++                        logger.info(
++                            "[review-diag] structured generation_completed "
++                            "content_len=%d",
++                            len(_structured_review_answer))
++                except Exception as _structured_review_err:  # noqa: BLE001
++                    logger.warning(
++                        "[review-diag] structured generation skipped: %r",
++                        _structured_review_err)
+             # One completeness regeneration per turn, whichever leg runs the
+             # guard chain (streaming first; the common chain only when the reply
+             # did not stream).
+@@ -29557,7 +29676,8 @@
+                         _review_lessons = (
+                             self._agent_lessons(
+                                 agent_id, _review_objective_text,
+-                                limit=10) or [])
++                                limit=10,
++                                include_workspace=False) or [])
+                         _allowed = decision_options_from_lessons(
+                             _review_lessons)
+                         _review_pending = (
+@@ -29732,6 +29852,13 @@
+                             logger.warning(
+                                 "[review-result] no read evidence supplied "
+                                 "for the assessment")
++                        _review_source_version = _review_source_revision(
++                            _review_struct, _evidence_index)
++                        if (_review_source_version
++                                and not _review_accepted.get(
++                                    "source_version")):
++                            _review_accepted["source_version"] = (
++                                _review_source_version)
+                         _policy_index = build_policy_index(
+                             _review_lessons, _allowed)
+                         logger.info(
+@@ -29816,6 +29943,10 @@
+                             response_data["review_contract"] = {
+                                 "subjects": list(_subjects),
+                                 "accepted_inputs": _review_accepted,
++                                "policy_revision": _review_accepted.get(
++                                    "teaching_revision"),
++                                "source_revision": _review_accepted.get(
++                                    "source_version"),
+                                 "required_evidence": [
+                                     dict(entry.get("source_identity") or {})
+                                     for entry in _evidence_index
+@@ -31379,19 +31510,36 @@
+ 
+             if not review_requested(None, text):
+                 return False
+-            lessons = self._agent_lessons(agent_id, text, limit=10)
++            lessons = self._agent_lessons(
++                agent_id, text, limit=10, include_workspace=False)
+             return bool(decision_options_from_lessons(lessons))
+         except Exception:  # noqa: BLE001 — additive
+             return False
+ 
+-    def _agent_lessons(self, agent_id: Optional[str], query: str, limit: int = 5) -> List[Dict[str, Any]]:
++    def _agent_lessons(
++        self,
++        agent_id: Optional[str],
++        query: str,
++        limit: int = 5,
++        *,
++        include_workspace: bool = True,
++    ) -> List[Dict[str, Any]]:
+         """The operating hire's PERMANENT taught lessons (TrainingPanel /teach,
+         mentor lessons, observed human corrections) for the edit plan. Teaching
+         stored the lesson but nothing fed it back at work time — this is the
+         retrieval half, applied to the canvas co-editor for every agent and
+         every canvas app. Fault-isolated like the corrections lookup: [] on
+-        any failure, never blocks the edit."""
++        any failure, never blocks the edit.
++
++        ``include_workspace`` defaults to True because ordinary work benefits
++        from relevant sibling knowledge. A REVIEW passes False: only the
++        operating hire's own teaching is authorized to define that task's
++        decision policy. Shared knowledge still reaches prompts through the
++        general memory block; it must not become a review policy ID.
++        """
+         if not agent_id:
++            if not include_workspace:
++                return []
+             # TEACHING FALLBACK FOR AGENT-LESS TURNS (2026-10-09 value
+             # trial): a plain chat request carries no agent_id, so the
+             # lessons lookup returned [] — and with it the required-
+@@ -31417,7 +31565,9 @@
+             from core.student_learning_service import get_agent_lessons
+ 
+             with get_db_session() as db:
+-                return get_agent_lessons(db, agent_id, query=query, limit=limit)
++                return get_agent_lessons(
++                    db, agent_id, query=query, limit=limit,
++                    include_workspace=include_workspace)
+         except Exception as e:
+             logger.debug(f"agent lessons lookup skipped: {e}")
+             return []
+--- a/backend/core/llm/byok_handler.py
++++ b/backend/core/llm/byok_handler.py
+@@ -5975,6 +5975,39 @@
+             
+             if not options:
+                 return "No eligible LLM providers found for your current plan."
++
++            if not options and self._local_only_active():
++                # MIRROR THE STREAMING PATH'S ABSOLUTE FALLBACK (2026-10-27):
++                # stream_completion gets its route from get_optimal_provider,
++                # which walks the same configured providers after an empty
++                # ranking. The non-streaming reply/review retry called
++                # generate_response directly and stopped here, so a healthy
++                # local-only runtime returned the 54-char "No eligible LLM
++                # providers" sentinel while the SAME turn's stream leg served
++                # from ollama. The fallback is not a ranking bypass: it walks
++                # configured providers through the existing catalog, cooldown,
++                # local-only, policy and capability checks, and only supplies
++                # one route when the ranked pool is truly empty.
++                try:
++                    _fb_provider, _fb_model = await self.get_optimal_provider(
++                        complexity,
++                        task_type,
++                        prefer_cost,
++                        tenant_plan,
++                        is_managed,
++                        requires_tools=requires_tools,
++                        requires_structured=False,
++                        turn_index=turn_index,
++                    )
++                except NoProvidersConfiguredError:
++                    return (
++                        "No eligible LLM providers found for your current "
++                        "plan.")
++                options = [(_fb_provider, _fb_model)]
++                logger.warning(
++                    "[routing] ranked pool empty — using the absolute "
++                    "dispatchable fallback %s/%s",
++                    _fb_provider, _fb_model)
+ 
+             # P4 prompt-taint gate (single check — the prompt text is
+             # identical for every candidate provider).

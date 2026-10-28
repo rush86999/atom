@@ -71,7 +71,9 @@ BACKEND = Path(__file__).resolve().parents[2]
 REPO = BACKEND.parent
 FRONTEND = REPO / "frontend-nextjs"
 PREVIEW_FE = FRONTEND / ".preview-instance"
-VENV_PY = BACKEND / "venv314" / "bin" / "python"
+VENV_PY = Path(os.environ.get(
+    "ATOM_PREVIEW_PYTHON",
+    str(BACKEND / "venv314" / "bin" / "python")))
 APP_PY = BACKEND / "scripts" / "orchestration_acceptance" / "_app.py"
 
 sys.path.insert(0, str(BACKEND))
@@ -323,7 +325,11 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
         "ATOM_DATA_DIR": str(run_dir / "data"),
         "LANCEDB_URI": str(run_dir / "data" / "atom_memory"),
         "ATOM_SHEET_DATASETS": "1",
-        "ATOM_CHAT_STREAMING": "1",
+        # CORE RELEASE CONFIGURATION (2026-10-27): streaming is outside the
+        # verified claim. The orchestrator only enables the streaming leg for
+        # the literal "true"; this launcher states the release value explicitly
+        # so a descriptor cannot read "1" as on when the code treats it off.
+        "ATOM_CHAT_STREAMING": "false",
         "ENABLE_SCHEDULER": "false",
         "ENABLE_INGESTION_SYNC": "false",
         "ACC_PORT": str(backend_port),
@@ -785,10 +791,43 @@ def cmd_verify(args: argparse.Namespace) -> int:
     check("real model credentials were forwarded",
           bool(st.get("effective_flags", {}).get("credential_names_present")),
           ",".join(st.get("effective_flags", {}).get("credential_names_present", [])) or "NONE")
+    # CORE RELEASE CONFIGURATION (2026-10-27): streaming is outside the
+    # verified claim. Check BOTH the descriptor we intended to launch with and
+    # the running process's own environment — a requested flag is not evidence
+    # that the child received it.
+    check("release declares streaming off",
+          st.get("effective_flags", {}).get("ATOM_CHAT_STREAMING") == "false",
+          st.get("effective_flags", {}).get("ATOM_CHAT_STREAMING"))
+    live_env = _process_env(st["backend_pid"])
+    check("running backend has streaming off",
+          live_env.get("ATOM_CHAT_STREAMING") == "false",
+          live_env.get("ATOM_CHAT_STREAMING") or f"unreadable ({live_env.get('error', '')})")
 
     bad = [f for f in findings if not f["ok"]]
     print(f"\n{len(findings)-len(bad)}/{len(findings)} checks passed")
     return 0 if not bad else 1
+
+
+def _process_env(pid: int) -> Dict[str, str]:
+    """Environment the RUNNING child actually received (macOS: ps eww).
+
+    ``server_env`` is the launch intent; this is the observable process state.
+    Keep the value set narrow and never print credentials.
+    """
+    try:
+        out = subprocess.run(["ps", "eww", "-p", str(pid)],
+                             capture_output=True, text=True, timeout=15).stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+        return {"error": type(exc).__name__}
+    got: Dict[str, str] = {}
+    for token in out.split():
+        if "=" not in token:
+            continue
+        key, _, value = token.partition("=")
+        if key in ("ATOM_CHAT_STREAMING", "ATOM_TASK_LIFECYCLE_ENABLED",
+                   "CHAT_FINALIZATION_M1", "CHAT_FINALIZATION_M2"):
+            got[key] = value
+    return got
 
 
 def _opened_sqlite(pid: int) -> List[str]:

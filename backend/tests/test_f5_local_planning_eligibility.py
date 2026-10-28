@@ -20,12 +20,13 @@ Repair contract pinned here THROUGH the real ranking/dispatch path:
 * mixed mode (local-only off) → ranking unchanged (no silent admission);
 * the LOCAL-ONLY boundary still blocks cloud providers on the fallback path.
 """
+import asyncio
 import os
 
 os.environ.setdefault("TESTING", "1")
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -269,3 +270,129 @@ class TestMixedModeUnchanged:
         assert (LOCAL_PROVIDER, "llama-3.3-70b-versatile") in pairs, (
             "the free-plan allowlist must not hide the workspace's own "
             f"local hardware; got {pairs}")
+
+
+def _registered_route_handler(monkeypatch, *, supports_tools=False):
+    """A registered local route whose declared quality is below the floor."""
+    _set_local_only(True)
+    handler = _handler()
+    _freeze_pool(handler, monkeypatch)
+    provider_key = "local_abc12345"
+    client = MagicMock()
+    client.chat.completions.create.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content="PONG"),
+            finish_reason="stop")],
+        usage=SimpleNamespace(
+            prompt_tokens=4, completion_tokens=1, total_tokens=5),
+        model=LOCAL_MODEL,
+    )
+    handler.clients = {provider_key: client}
+    handler.async_clients = {}
+    handler._local_routes = {LOCAL_MODEL: {
+        "provider_key": provider_key,
+        "workspace_id": "ws-f5",
+        "provider_id": "registered-local",
+        "provider_type": "ollama",
+        "supports_tools": supports_tools,
+        "supports_vision": False,
+        "supports_reasoning": False,
+        "quality_score": 0.5,
+        "context_window": 131072,
+    }}
+    monkeypatch.setattr(handler, "_load_local_providers", lambda: None)
+    return handler, provider_key, client
+
+
+def _run_generate(handler, *, task_type="chat"):
+    db = MagicMock()
+    db.__enter__.return_value = db
+    db.query.return_value.filter.return_value.first.return_value = None
+    with patch.object(handler, "_is_trial_restricted",
+                      return_value=False), \
+         patch("core.llm.byok_handler.llm_usage_tracker") as tracker, \
+         patch("core.llm.byok_handler.get_db_session", return_value=db):
+        tracker.is_budget_exceeded.return_value = False
+        return asyncio.run(handler.generate_response(
+            "hello", task_type=task_type))
+
+
+class TestNonStreamingAbsoluteFallback:
+    def test_registered_local_route_below_floor_is_dispatchable(
+            self, monkeypatch):
+        """Non-streaming calls must use the same absolute fallback as the
+        stream leg.
+
+        The acceptance review retry (2026-10-27) called generate_response
+        while the primary stream leg served Ollama. The workspace had
+        registered llama3.1:8b at the product-default quality 0.5, below the
+        planning floor, so BPC ranked zero candidates; the static fallback
+        was cloud-only and local-only removed it, and generate_response
+        returned the 54-char "No eligible LLM providers" sentinel without
+        ever reaching the healthy route. The stream leg worked because
+        get_optimal_provider already carries this absolute fallback.
+        """
+        handler, provider_key, client = _registered_route_handler(monkeypatch)
+
+        out = _run_generate(handler)
+
+        assert out == "PONG", (
+            "a healthy registered local route must be used by the "
+            f"non-streaming fallback; got {out!r}")
+        assert handler._last_used_provider == provider_key
+        client.chat.completions.create.assert_called_once()
+
+    def test_policy_denied_local_route_is_not_used(self, monkeypatch):
+        from core.llm.provider_policy import ProviderPolicy
+
+        handler, _provider, client = _registered_route_handler(monkeypatch)
+        handler.provider_policy = ProviderPolicy(
+            mode="selected", allowed_providers=frozenset({"openai"}))
+
+        out = _run_generate(handler)
+
+        assert "No eligible LLM providers" in out
+        client.chat.completions.create.assert_not_called()
+
+    def test_cooling_down_local_route_is_not_used(self, monkeypatch):
+        handler, provider_key, client = _registered_route_handler(monkeypatch)
+        handler._bench_provider(
+            provider_key, cause="quota_exhausted", seconds=60)
+
+        out = _run_generate(handler)
+
+        assert "No eligible LLM providers" in out
+        client.chat.completions.create.assert_not_called()
+
+    def test_unavailable_local_route_is_not_used(self, monkeypatch):
+        handler, _provider, client = _registered_route_handler(monkeypatch)
+        monkeypatch.setattr(handler, "_provider_serves_model",
+                            lambda p, m: False)
+        monkeypatch.setattr(handler, "_ranked_model_is_known_unserved",
+                            lambda p, m: True)
+
+        out = _run_generate(handler)
+
+        assert "No eligible LLM providers" in out
+        client.chat.completions.create.assert_not_called()
+
+    def test_capability_incompatible_local_route_is_not_used(
+            self, monkeypatch):
+        handler, _provider, client = _registered_route_handler(
+            monkeypatch, supports_tools=False)
+
+        out = _run_generate(handler, task_type="agentic")
+
+        assert "No eligible LLM providers" in out
+        client.chat.completions.create.assert_not_called()
+
+    def test_no_surviving_route_is_an_explicit_failure(self, monkeypatch):
+        handler, _provider, client = _registered_route_handler(monkeypatch)
+        # A configured local client with no registered route cannot be
+        # invented as a fallback target.
+        handler._local_routes = {}
+
+        out = _run_generate(handler)
+
+        assert "No eligible LLM providers" in out
+        client.chat.completions.create.assert_not_called()

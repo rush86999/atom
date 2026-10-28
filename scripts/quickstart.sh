@@ -112,6 +112,11 @@ CHAT_FINALIZATION_M1=1
 CHAT_FINALIZATION_M2=1
 ATOM_TASK_LIFECYCLE_ENABLED=1
 
+# Core release configuration. The verified release serves the non-streaming
+# reply path; streaming remains outside the current release claim. The
+# orchestrator enables the stream leg only for the literal "true".
+ATOM_CHAT_STREAMING=false
+
 # Add your LLM API key here (at least one required for AI features):
 # OPENAI_API_KEY=sk-your-key-here
 # ANTHROPIC_API_KEY=sk-ant-your-key-here

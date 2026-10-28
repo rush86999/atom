@@ -22,7 +22,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from core.review_result import decision_options_from_lessons
 from core.target_set_resolution import extract_items_from_text
-from core.workbook_read_artifact import extract_field_requests
+from core.workbook_read_artifact import extract_field_labels
 
 
 def _unique(values: Iterable[Any]) -> List[str]:
@@ -76,8 +76,14 @@ def accepted_subjects(
 
 
 def requested_fields(objective: str) -> List[str]:
-    """Field names the objective asks for; never review subjects."""
-    return _unique(extract_field_requests([str(objective or "")]))[:20]
+    """Field labels the objective itself names; never review subjects.
+
+    The accepted contract records the user's own wording ("Ask Amount",
+    "Unit Price"), not the read layer's canonical alias ("price"). The
+    canonical form is useful for column matching, but using it here made an
+    Ask Amount task claim the user requested a price field.
+    """
+    return _unique(extract_field_labels([str(objective or "")]))[:20]
 
 
 def required_actions(objective: str) -> List[str]:

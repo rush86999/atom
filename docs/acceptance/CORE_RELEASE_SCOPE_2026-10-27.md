@@ -52,6 +52,14 @@ In the core profile the backend applies worker defaults **before** services
 start: `ENABLE_SCHEDULER=false`, `ENABLE_INGESTION_SYNC=false`,
 `ATOM_AGENT_EVOLUTION_ENABLED=false`. Explicit operator settings still win.
 
+The verified core release serves the **non-streaming** reply path:
+`ATOM_CHAT_STREAMING=false`. The orchestrator only enables the streaming leg
+for the literal `true`; `1`/`yes` are off. Streaming remains outside this
+release claim until it has its own served-boundary evidence. The quickstart
+environment, `.env.example`, and the isolated preview launcher state this
+value explicitly; `preview_stack.py verify` reads it back from the running
+child process, not just from the launch descriptor.
+
 ## Core materials
 
 | Material | Implemented path | State |

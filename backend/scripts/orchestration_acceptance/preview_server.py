@@ -77,7 +77,8 @@ env.update({
     "ATOM_DATA_DIR": str(world / "runs" / "preview" / "data"),
     "LANCEDB_URI": str(world / "data" / "atom_memory"),
     "ATOM_SHEET_DATASETS": "1",
-    "ATOM_CHAT_STREAMING": "1",
+    # Core release configuration: streaming is outside the verified claim.
+    "ATOM_CHAT_STREAMING": "false",
     "ATOM_TASK_LIFECYCLE_ENABLED": "1",
     "CHAT_FINALIZATION_M2": "1",
     "ENABLE_SCHEDULER": "false",

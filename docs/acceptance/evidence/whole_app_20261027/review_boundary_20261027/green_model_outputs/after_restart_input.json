@@ -1,0 +1,114 @@
+{
+  "execution_id": "bfd45765-6265-4469-aa98-7230b147a6ac",
+  "review_contract": true,
+  "subjects": [
+    "CX-9201",
+    "CX-9202",
+    "CX-9203"
+  ],
+  "evidence_index": [
+    {
+      "evidence_id": "ev:CX-9201:case_unfamiliar!R2",
+      "subject_id": "CX-9201",
+      "source_identity": {
+        "file_name": "case_unfamiliar.csv",
+        "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+        "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+      },
+      "retrieval_operation": "select:2f194e53d793:bfd45765-6265-4469-aa98-7230b147a6ac",
+      "retrieval_execution_id": "bfd45765-6265-4469-aa98-7230b147a6ac",
+      "row_ref": "case_unfamiliar!R2",
+      "target_status": "matched",
+      "values": [
+        {
+          "field": "Ask Amount",
+          "value": 3200
+        }
+      ]
+    },
+    {
+      "evidence_id": "ev:CX-9202:case_unfamiliar!R3",
+      "subject_id": "CX-9202",
+      "source_identity": {
+        "file_name": "case_unfamiliar.csv",
+        "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+        "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+      },
+      "retrieval_operation": "select:2f194e53d793:bfd45765-6265-4469-aa98-7230b147a6ac",
+      "retrieval_execution_id": "bfd45765-6265-4469-aa98-7230b147a6ac",
+      "row_ref": "case_unfamiliar!R3",
+      "target_status": "matched",
+      "values": [
+        {
+          "field": "Ask Amount",
+          "value": 7000
+        }
+      ]
+    },
+    {
+      "evidence_id": "ev:CX-9203:case_unfamiliar!R4",
+      "subject_id": "CX-9203",
+      "source_identity": {
+        "file_name": "case_unfamiliar.csv",
+        "resource_id": "2f194e53d7936120a5d57821612c016f3688b28e",
+        "content_hash": "2f194e53d7936120a5d57821612c016f3688b28e"
+      },
+      "retrieval_operation": "select:2f194e53d793:bfd45765-6265-4469-aa98-7230b147a6ac",
+      "retrieval_execution_id": "bfd45765-6265-4469-aa98-7230b147a6ac",
+      "row_ref": "case_unfamiliar!R4",
+      "target_status": "matched",
+      "values": [
+        {
+          "field": "Ask Amount",
+          "value": 12000
+        }
+      ]
+    }
+  ],
+  "policy_index": [
+    {
+      "policy_id": "671fdcb0f0ae41f0a5f7d0eb7db6d93c",
+      "topic": "case amount rule",
+      "lesson": "Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+    }
+  ],
+  "allowed_decisions": [
+    "APPROVE",
+    "REVIEW",
+    "REJECT"
+  ],
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are HR Assistant, a HR employee hired on the ATOM platform. Your role: Handles onboarding, policy queries, leave management Always speak in first person as this employee \u2014 never as 'Atom' or as an AI assistant. Maturity tier: student. You are still learning: be honest about what you don't know yet, propose drafts rather than final actions, and flag anything that needs supervisor approval. Connected integrations: none yet. When a question needs fresh data from one of them, the harness runs the search/read automatically and matched results arrive to you as system context. Never claim you cannot access a connected service. Be helpful, specific, and actionable. Keep responses concise (2-4 sentences) unless detail is needed. APPROVAL MEANS EXECUTE: when the user says \"go ahead\", \"proceed\", \"yes\", \"do it\", or otherwise approves something you proposed or announced \u2014 execute THAT resolved action and deliver its result in this reply. If the approved action is a file or data lookup, the result is what the lookup returned: report the values with their source, or state precisely why the lookup did not produce them. NEVER answer an approved lookup with an unrelated artifact (an email draft, a message, a summary from another task or from the open canvas). If the approved action is a deliverable, deliver the COMPLETE artifact in this reply: the full email draft (To/Subject/Body), the complete text, or the concrete result. Do NOT ask \"should I proceed?\", do NOT restate that you will do it, and do NOT request another confirmation \u2014 the user's approval was the confirmation. The concise-response limit does not apply to user-requested artifacts.\n\nEVIDENCE GROUNDING \u2014 conversation is not evidence:\n- State a fact as true ONLY when it is supported by evidence present in THIS\n  context: live tool results, ingested documents or memory blocks, or the\n  user's own statements. What an earlier conversation (even this transcript)\n  asserted is NOT evidence \u2014 it may itself have been unverified.\n- If you cannot ground a factual claim in the evidence present, choose ONE:\n  * Negative path \u2014 say so plainly: \"I can't confirm X from the data\n    available.\"\n  * Middle path \u2014 make no claim in either direction. Either word it as\n    confirmation-in-progress (\"We are confirming X and will follow up\n    with details\"), or ask for the missing information (\"Could you share\n    the machine spec sheets so we can confirm the voltage options?\") \u2014\n    a question asserts nothing.\n- Never upgrade an instruction to verify or confirm something (\"confirm X\",\n  \"check X\") into an assertion that X is true.\n\nOUTBOUND IDENTITY \u2014 you send as a real, specific person (hard rule):\n- You work on behalf of Journey Probe <jprobe_48ef8e6364@example.com>. Every email or message you draft is FROM them: sign it with their name, never anyone else's.\n- NEVER sign, \"From:\", or attribute an outbound message to anyone who is not on this business's team \u2014 not a lead, dealer, customer, or contact \u2014 no matter how prominently they appear in the conversation (observed failure: a draft to one lead was signed with a DIFFERENT lead's name).\n\nANSWER SCOPE: answer only the requested subject(s) case ref and field(s) price. Include the supporting source. Do not volunteer facts about other subjects, including explanations that distinguish unrelated examples or decoys. If the requested value is absent, say it is not supported; do not list alternatives."
+    },
+    {
+      "role": "system",
+      "content": "FILE SOURCE ISOLATION: for this file-scoped request, use only the verified storage/workbook artifact and its sheet/cell evidence for FILE VALUES. Do not use email, chat, or other memory values as substitutes for the requested file. Your TRAINING LESSONS are standing policy, not a source substitute: apply them to the review or recommendation."
+    },
+    {
+      "role": "system",
+      "content": "TRAINING LESSONS \u2014 PERMANENT INSTRUCTIONS you were taught by your supervisor/mentor. This is standing guidance for ALL your work (it does not expire): apply it to the current task, match the preferences it describes, and never contradict it unless the user explicitly overrides it in this conversation:\n1. [case amount rule] Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+    },
+    {
+      "role": "system",
+      "content": "The evidence retrieved this turn could not be confirmed to address the current request and was WITHHELD from this reply. It is NOT established whether the lookup succeeded or failed \u2014 do NOT characterize it either way, and do NOT answer from the withheld content. Say the retrieved results could not be matched to this request and offer to refine the search."
+    },
+    {
+      "role": "system",
+      "content": "TOOL EXECUTION RESULT \u2014 the harness ran this JUST NOW, successfully, on your behalf. Any earlier statement about lacking access or tools is OUTDATED: ignore it. Do NOT emit tool-call, XML, or protocol syntax, and do not attempt to call tools yourself \u2014 the harness handles tools. Answer the user's current message in plain language using this fresh result:\nSelection: `case_unfamiliar` in `case_unfamiliar.csv`\nRows: 3 selected; 1 outside the filter\n\n| Ask Amount | Case Ref |\n| ---: | --- |\n| 3200 | CX-9201 |\n| 7000 | CX-9202 |\n| 12000 | CX-9203 |\n\nFilter: State = Open\n\nCONFIRMED-FILE READ (case_unfamiliar.csv, item=CX-9201):\nLIVE TOOL RESULTS (datasets.select \u2014 deterministic; the model did not choose these rows):\nSelection: `case_unfamiliar` in `case_unfamiliar.csv`\nRows: 3 selected; 1 outside the filter\n\n| Ask Amount | Case Ref |\n| ---: | --- |\n| 3200 | CX-9201 |\n| 7000 | CX-9202 |\n| 12000 | CX-9203 |\n\nFilter: State = Open\n\nGROUNDING RULE: specific facts (names, figures, prices, dates, quotations) must come from the evidence above. If the exact value the user asks about is not visible in this evidence, say what was found and that the source itself must be opened for the exact value \u2014 do not fill the gap from memory and do not present recalled values as if read from the source. BEFORE concluding anything is missing: mailbox/document lines are EXCERPTS and long quoted threads run to tens of thousands of chars. Every [ingested mailbox] line carries 'full: knowledge/conversations/<id>' \u2014 the COMPLETE line-numbered message. Open it with documents.cat(path + '/content.lines') (skim with documents.head / documents.tail); to search EVERY stored message use documents.grep with path_prefix 'knowledge/conversations'. Only after that may you say a value is not in the mailbox. An absence claim may only be as wide as the search performed: an 'emails we sent' question includes internal forwards, and one match never shows there were no others. If the evidence shows a source the user asked for was NOT found: state what was searched (which store, which query) and what came back \u2014 scoped, not global. NEVER promise an action in this reply ('I will open it now') \u2014 the lookups above already ran; you cannot run more mid-reply. And do not ask permission for something the user's current message already authorized: if they told you to open or check a source and it was not retrieved, say exactly that and offer the NEXT concrete search (a different store or query), not a repeat of their instruction as a question.\n\nCONFIRMED-FILE READ (case_unfamiliar.csv, item=CX-9202):\nLIVE TOOL RESULTS (datasets.select \u2014 deterministic; the model did not choose these rows):\nSelection: `case_unfamiliar` in `case_unfamiliar.csv`\nRows: 3 selected; 1 outside the filter\n\n| Ask Amount | Case Ref |\n| ---: | --- |\n| 3200 | CX-9201 |\n| 7000 | CX-9202 |\n| 12000 | CX-9203 |\n\nFilter: State = Open\n\nGROUNDING RULE: specific facts (names, figures, prices, dates, quotations) must come from the evidence above. If the exact value the user asks about is not visible in this evidence, say what was found and that the source itself must be opened for the exact value \u2014 do not fill the gap from memory and do not present recalled values as if read from the source. BEFORE concluding anything is missing: mailbox/document lines are EXCERPTS and long quoted threads run to tens of thousands of chars. Every [ingested mailbox] line carries 'full: knowledge/conversations/<id>' \u2014 the COMPLETE line-numbered message. Open it with documents.cat(path + '/content.lines') (skim with documents.head / documents.tail); to search EVERY stored message use documents.grep with path_prefix 'knowledge/conversations'. Only after that may you say a value is not in the mailbox. An absence claim may only be as wide as the search performed: an 'emails we sent' question includes internal forwards, and one match never shows there were no others. If the evidence shows a source the user asked for was NOT found: state what was searched (which store, which query) and what came back \u2014 scoped, not global. NEVER promise an action in this reply ('I will open it now') \u2014 the lookups above already ran; you cannot run more mid-reply. And do not ask permission for something the user's current message already authorized: if they told you to open or check a source and it was not retrieved, say exactly that and offer the NEXT concrete search (a different store or query), not a repeat of their instruction as a question.\n\nPENDING FILE TASK: the lookup for 'case_unfamiliar.csv' RAN this turn but did NOT complete \u2014 it found no usable content for the file. The task is saved with the attempt recorded, and the user's confirmation on their next message will retry it. Tell the user plainly what did not complete; do not answer this file's contents from other sources."
+    },
+    {
+      "role": "system",
+      "content": "REVIEW OUTPUT CONTRACT. Return ONLY one fenced block with valid JSON; no prose before or after it. The outer JSON object MUST have its closing brace.\n```review_result\n{\"assessments\":[{\"subject_id\":\"<subject>\",\"decision\":\"<allowed decision>\",\"basis\":[\"<why this decision was made>\"],\"evidence_ids\":[\"<evidence id>\"],\"policy_ids\":[\"<policy id>\"],\"unresolved_requirements\":[]}]}\n```\nOnly the structured block is certified; the prose is explanatory. Use exactly one assessment object for every requested subject and no other object; every object MUST include subject_id. Use only the IDs listed here, and do not add subjects. Every assessment MUST set `decision` to exactly one allowed label below \u2014 not null, not an empty string, and not a request to confirm; produce the final decisions now. Every assessment MUST also include `evidence_ids`, `basis`, `unresolved_requirements`, and a NON-EMPTY `policy_ids` array. Copy at least one policy ID from the Policy IDs list below; never omit policy_ids, guess an ID, or attach a policy whose text does not support the decision. An assessment with a missing or empty policy_ids array is rejected.\n`decision` must be the label ONLY (for example HOLD), with no amount, parentheses or explanation; put the reasoning in `basis`. `basis` is WHY you made the decision: the policy, a business restriction, a negative finding, or an action required of another person. `unresolved_requirements` is ONLY accepted review work still unfinished (requested subjects/fields not assessed, or an action/send the user asked Atom to perform that was not performed). A negative recommendation, escalation recommendation, business restriction or required action by another person is not automatically an unfinished review. Report what remains necessary to fulfil the user's assigned task separately from the reasons supporting your decision.\nAllowed decisions: APPROVE, REVIEW, REJECT\nSubjects: CX-9201, CX-9202, CX-9203\nPolicy entries are INDEPENDENT standing instructions, not an ordered revision log. Do not infer that an entry supersedes another from its position. A correction is authoritative only when it rewrites the same policy ID in place; use that entry's current text. A newer unrelated lesson never invalidates an older applicable rule. Apply every entry that is applicable, and keep genuinely conflicting applicable rules explicit in `basis` and/or `unresolved_requirements` instead of silently choosing one.\nOnly the entries listed under Policy IDs are authorized to govern this assessment. Other workspace/memory lessons \u2014 including ones taught to a different agent \u2014 are background context only; they must not change the allowed decisions, subjects, evidence IDs, or policy IDs for this task.\nUse the applicable instruction text below, not just its topic. For every assessment, `basis` must explain the decision using the cited row values and the applicable policy text.\nEvidence IDs:\n- ev:CX-9201:case_unfamiliar!R2 | subject=CX-9201 | row=case_unfamiliar!R2\n- ev:CX-9202:case_unfamiliar!R3 | subject=CX-9202 | row=case_unfamiliar!R3\n- ev:CX-9203:case_unfamiliar!R4 | subject=CX-9203 | row=case_unfamiliar!R4\nPolicy IDs:\n- 671fdcb0f0ae41f0a5f7d0eb7db6d93c | case amount rule\n  Use exactly these decision labels: APPROVE, REVIEW, REJECT. Ask Amount at or above 10000 is REVIEW. 5000 to 9999 is REVIEW. Below 5000 is REJECT. Cite the case reference and ask amount from the row."
+    },
+    {
+      "role": "user",
+      "content": "Assess each Open case in case_unfamiliar.csv using Ask Amount. Give a table with Case Ref, Ask Amount and decision."
+    },
+    {
+      "role": "system",
+      "content": "FINAL OUTPUT REQUIREMENT for this assessment: end your reply with exactly one fenced ```review_result block containing {\"assessments\": [...]}. Every assessment must include subject_id, decision, evidence_ids, basis, unresolved_requirements, and a NON-EMPTY policy_ids array copied from the Policy IDs above. The block is the only certified output; a table or prose without it is not an assessment."
+    }
+  ]
+}
