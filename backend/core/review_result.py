@@ -385,6 +385,54 @@ def review_completion(
     return "completed"
 
 
+_DECISION_LABEL_PATTERNS = (
+    re.compile(
+        r"(?:use\s+exactly\s+these\s+)?decision\s+labels?\s*:\s*"
+        r"([A-Za-z][A-Za-z0-9 _-]*(?:\s*[,/;|]\s*[A-Za-z][A-Za-z0-9 _-]*)+)",
+        re.IGNORECASE),
+    re.compile(
+        r"(?:allowed|permitted)\s+decisions?\s*:\s*"
+        r"([A-Za-z][A-Za-z0-9 _-]*(?:\s*[,/;|]\s*[A-Za-z][A-Za-z0-9 _-]*)+)",
+        re.IGNORECASE),
+)
+
+
+def decision_options_from_text(text: str) -> List[str]:
+    """The decision labels a teacher explicitly names in a lesson.
+
+    The canvas/chat teaching surfaces do not expose a separate decision-option
+    form; the lesson itself is the contract. Parse ONLY an explicit
+    ``decision labels:`` / ``allowed decisions:`` list so ordinary prose
+    cannot manufacture a review schema. Returns [] when no list is declared.
+    """
+    source = str(text or "")
+    if not source:
+        return []
+    for pattern in _DECISION_LABEL_PATTERNS:
+        match = pattern.search(source)
+        if not match:
+            continue
+        raw = match.group(1)
+        options: List[str] = []
+        for part in re.split(r"\s*[,/;|]\s*", raw):
+            label = _clean(part)
+            if not label:
+                continue
+            label = re.sub(
+                r"\s+(?:and|or)$", "", label, flags=re.IGNORECASE).strip()
+            if not label or len(label) > 40:
+                continue
+            if re.fullmatch(
+                    r"(?:please|use|exactly|these|labels?|decisions?|the|and|or)",
+                    label, re.IGNORECASE):
+                continue
+            options.append(label)
+        options = _unique(options)
+        if len(options) >= 2:
+            return options[:20]
+    return []
+
+
 def decision_options_from_lessons(lessons: Sequence[Any]) -> List[str]:
     """The task policy's decision choices, from the first schema lesson."""
     for lesson in lessons or []:
@@ -394,6 +442,14 @@ def decision_options_from_lessons(lessons: Sequence[Any]) -> List[str]:
             option for option in (lesson.get("decision_options") or [])
             if _clean(option)
         ])
+        if options:
+            return options[:20]
+        # Teaching surfaces (canvas Training tab, /teach chat command) have
+        # no separate decision-option control: the lesson text IS the schema.
+        # Parse an explicit label list so those lessons can participate in
+        # the review path without an API-only argument.
+        options = decision_options_from_text(
+            str(lesson.get("lesson") or lesson.get("text") or ""))
         if options:
             return options[:20]
     return []
@@ -521,6 +577,13 @@ def build_policy_index(
             for option in (lesson.get("decision_options") or [])
             if _clean(option)
         }
+        if not options:
+            options = {
+                _decision_key(option)
+                for option in decision_options_from_text(
+                    str(lesson.get("lesson") or lesson.get("text") or ""))
+                if _clean(option)
+            }
         if options != allowed_keys:
             continue
         policy_id = _clean(lesson.get("id") or lesson.get("lesson_id"))

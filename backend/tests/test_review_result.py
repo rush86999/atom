@@ -390,6 +390,33 @@ def test_policy_index_only_includes_schema_lessons():
     assert [entry["policy_id"] for entry in index] == ["order-policy"]
 
 
+def test_policy_index_parses_the_teachers_label_list():
+    """Canvas /teach surfaces have no separate decision-option control.
+    The lesson itself declares the labels; the policy index must honor it."""
+    from core.review_result import decision_options_from_text
+
+    lesson = (
+        "Use exactly these decision labels: FUND, HOLD, DECLINE. "
+        "Requested amount at or above 10000 is HOLD."
+    )
+    assert decision_options_from_text(lesson) == ["FUND", "HOLD", "DECLINE"]
+    index = build_policy_index(
+        [{"id": "threshold-rule", "topic": "grant thresholds",
+          "lesson": lesson}],
+        ["FUND", "HOLD", "DECLINE"],
+    )
+    assert [entry["policy_id"] for entry in index] == ["threshold-rule"]
+
+
+def test_decision_options_are_not_inferred_from_ordinary_prose():
+    from core.review_result import decision_options_from_text
+
+    assert decision_options_from_text(
+        "Use good judgment and explain the reasoning.") == []
+    assert decision_options_from_text(
+        "The decision labels are not specified in this policy.") == []
+
+
 def test_instruction_and_block_stripping():
     instruction = review_output_instruction(
         {"subjects": ["O-1010"],
