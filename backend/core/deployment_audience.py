@@ -15,7 +15,9 @@ from __future__ import annotations
 import os
 from typing import Any, Optional
 
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
+
+from core.auth import get_current_user
 
 
 def deployment_audience() -> str:
@@ -47,7 +49,7 @@ def validate_audience_config() -> None:
         )
 
 
-def require_pilot_user(user: Any) -> Any:
+def require_pilot_user(user: Any = Depends(get_current_user)) -> Any:
     """FastAPI dependency: in a single-user pilot, only the declared account."""
     if not is_single_user():
         return user
