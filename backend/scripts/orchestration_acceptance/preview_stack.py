@@ -325,7 +325,9 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
     # the same local Ollama route the release candidate is verified on.
     for name in ("ATOM_LOCAL_ONLY", "OLLAMA_BASE_URL", "OLLAMA_HOST",
                  "OLLAMA_MODEL", "OLLAMA_QUALITY_SCORE",
-                 "ATOM_REVIEW_STRUCTURED", "ATOM_REVIEW_CAPTURE"):
+                 "ATOM_REVIEW_STRUCTURED", "ATOM_REVIEW_CAPTURE",
+                 "ATOM_CHAT_TURN_BUDGET_SECONDS",
+                 "ATOM_TURN_INTERPRET_TIMEOUT_S"):
         if os.environ.get(name):
             env[name] = os.environ[name]
     env.update({
@@ -362,6 +364,10 @@ def server_env(run_dir: Path, world: Path, backend_port: int,
         "CHAT_FINALIZATION_M2": env["CHAT_FINALIZATION_M2"],
         "ATOM_CHAT_STREAMING": env["ATOM_CHAT_STREAMING"],
         "ATOM_LOCAL_ONLY": env.get("ATOM_LOCAL_ONLY", "false"),
+        "ATOM_CHAT_TURN_BUDGET_SECONDS": env.get(
+            "ATOM_CHAT_TURN_BUDGET_SECONDS", "95"),
+        "ATOM_TURN_INTERPRET_TIMEOUT_S": env.get(
+            "ATOM_TURN_INTERPRET_TIMEOUT_S", "65"),
         "ATOM_SHEET_DATASETS": env["ATOM_SHEET_DATASETS"],
         "ENABLE_SCHEDULER": env["ENABLE_SCHEDULER"],
         "ENABLE_INGESTION_SYNC": env["ENABLE_INGESTION_SYNC"],
