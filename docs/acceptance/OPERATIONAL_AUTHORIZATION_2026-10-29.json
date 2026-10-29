@@ -1,0 +1,67 @@
+{
+  "schema": "atom-operational-authorization-1",
+  "candidate_commit": "9a89471cc0f307130c733bd4485d689e6e83b35c",
+  "requested_at": "2026-10-29",
+  "authorization_status": "requested",
+  "scope": {
+    "restore_microsoft_client_config": true,
+    "normal_oauth_renewal": true,
+    "live_connected_guided_start": true,
+    "create_disposable_test_workbook": true,
+    "modify_disposable_test_workbook": true,
+    "changed_source_sync_and_restart": true,
+    "controlled_outbox_only": true
+  },
+  "configuration": {
+    "source": "/Users/rushiparikh/projects/atom/backend/.env",
+    "destination": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/.env",
+    "keys_presence_only": ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET", "MICROSOFT_TENANT_ID"],
+    "secret_values_included": false,
+    "backup_required": true,
+    "user_reconnect": false,
+    "credential_rotation": false
+  },
+  "live_guided_gate": {
+    "workbook": "Consolidated Price List 2019.xlsx",
+    "sheet": "US$ SCOTCH PARTS",
+    "objective": "In workbook Consolidated Price List 2019.xlsx only, on sheet US$ SCOTCH PARTS, what is the sum of Unit Price?",
+    "scope": "US$ SCOTCH PARTS",
+    "expected_full_set_total": "9958743.62",
+    "expected_rows": 11219,
+    "deliverable": "document",
+    "controlled_recipient": "live-acceptance@example.invalid",
+    "seed_replacement_catalog_or_grant": false,
+    "auth_override": false,
+    "evidence_dir": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/guided/"
+  },
+  "changed_source_gate": {
+    "folder": "AtomAcceptance/connected-refresh-20261029-0120Z",
+    "file": "refresh_probe_f5f_20261029.xlsx",
+    "baseline_fixture": "docs/acceptance/evidence/connected_core_20261028/disposable_source/refresh_probe_f5f_baseline.xlsx",
+    "changed_fixture": "docs/acceptance/evidence/connected_core_20261028/disposable_source/refresh_probe_f5f_changed_expected.xlsx",
+    "baseline_total": "50.00",
+    "changed_total": "60.00",
+    "baseline_decisions": ["APPROVE", "REVIEW"],
+    "changed_decisions": ["REVIEW", "REVIEW"],
+    "only_input_change": "Inputs!B2 2 -> 3",
+    "production_price_list_modification": false,
+    "evidence_dir": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/changed-source/"
+  },
+  "exclusions": {
+    "production_file_change": false,
+    "real_email_send": false,
+    "credential_rotation_or_creation": false,
+    "deployment": false,
+    "replacement_catalog_or_grant": false
+  },
+  "stop_conditions": [
+    "client configuration missing or placeholder after restore",
+    "invalid_client or invalid_grant on renewal",
+    "requires_reconnect",
+    "ambiguous or unintended sheet selection",
+    "stale or incomplete source version/coverage",
+    "result disagrees with the full-sheet reference",
+    "artifact lacks result/source or cannot be reopened",
+    "approval payload or outbox disagrees with artifact"
+  ]
+}

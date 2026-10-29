@@ -3,6 +3,10 @@
 Status: **blocked by owner configuration/authorization.** No live Connected
 browser start, changed-byte refresh, source writeback or send was attempted.
 
+Integrated candidate: `9a89471cc0f307130c733bd4485d689e6e83b35c`.
+The exact combined authorization request and procedures are in
+`docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.md`.
+
 ## Current preflight
 
 Presence-only check (`core.oauth_config_preflight.microsoft_client_config_state`)

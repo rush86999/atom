@@ -6,6 +6,11 @@
  "evidence_refresh_commit": "c02f523ac",
  "review_fix_commit": "294fdf0ec",
  "bounded_job_commit": "de25c5148",
+ "integrated_candidate_commit": "9a89471cc0f307130c733bd4485d689e6e83b35c",
+ "source_manifest": "docs/acceptance/assignment-successor-package-2026-10-29/source_manifest.json",
+ "clean_source_verification": "clean-source/verification.json",
+ "operational_authorization": "docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.md",
+ "authorization_status": "requested",
  "branch": "whole-app/successor-f5f",
  "preserved_commit": "efc4bc9d5",
  "start_route": "POST /api/assignments",
@@ -32,6 +37,7 @@
   "explicit_outbox": "browser-explicit/outbox.jsonl",
   "bounded_taught_job": "bounded-taught-job/bounded_taught_job.json",
   "bounded_taught_artifact": "bounded-taught-job/bounded-review.docx",
+  "clean_source": "clean-source/verification.json",
   "review": "docs/acceptance/ASSIGNMENT_REVIEW_2026-10-29.md",
   "live_connected_gate": "docs/acceptance/LIVE_CONNECTED_GATE_2026-10-29.md",
   "live_connected_preflight": "live-connected/preflight.json"
@@ -76,11 +82,12 @@
  },
  "live_connected": false,
  "changed_source_refresh": false,
+ "live_outbound": false,
+ "deployment": false,
  "remaining_blocks": [
   "MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET are absent from the runtime",
   "live OneDrive guided start not run",
-  "disposable changed-byte refresh authorization not granted",
-  "owner teaching working-tree files remain outside scoped commits"
+  "disposable changed-byte refresh authorization not granted"
  ],
  "transport": "environment-gated controlled outbox only",
  "live_send": false,

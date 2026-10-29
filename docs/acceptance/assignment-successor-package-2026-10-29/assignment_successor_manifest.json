@@ -7,15 +7,23 @@
   "live_preflight_commit": "90ff58421",
   "candidate": {
     "branch": "whole-app/successor-f5f",
-    "source_commit": "de25c5148",
+    "source_commit": "9a89471cc0f307130c733bd4485d689e6e83b35c",
+    "integrated_commit": "1d5e8d780",
     "review_fix_commit": "294fdf0ec",
+    "bounded_job_commit": "de25c5148",
     "preserved_connected_guided_commit": "40b3367d9",
     "preserved_start_boundary": "44b62a6bb",
     "preserved_correction_pass": "322981bcc",
     "preserved_executor_freeze": "efc4bc9d5"
   },
+  "source_manifest": "docs/acceptance/assignment-successor-package-2026-10-29/source_manifest.json",
+  "clean_source_verification": "docs/acceptance/evidence/durable_assignment_20261029/clean-source/verification.json",
+  "operational_authorization": "docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.md",
+  "authorization_status": "requested",
   "owner_teaching_delta": {
-    "note": "Required by the candidate but intentionally not collected into the scoped commits. Bind by working-tree SHA256 and have the owner commit/merge before a clean release checkout.",
+    "status": "integrated",
+    "commit": "1d5e8d780",
+    "note": "The formerly uncommitted artifact-teaching store, lesson fields/routes, renderer support, OAuth preflight and UI callers are now part of the candidate.",
     "files": {
       "backend/core/artifact_teaching.py": "d3be1f0f767e306d94ec64b4048fd9a257f6ee07d89a39f7099a10f65445e4af",
       "backend/core/student_learning_service.py": "2972936a89b342c30e1329c8a072b911e346cd4eaa26bb8acfc4096be9862e90",
@@ -34,7 +42,10 @@
     "bounded_taught_artifact_sha256": "f9fe7da4a37c5f85d9a3f53b3dd8852a1e6429a4cc751ab5c4d2897a4034bc7f",
     "guided_browser": "docs/acceptance/evidence/durable_assignment_20261029/browser-guided/",
     "explicit_browser": "docs/acceptance/evidence/durable_assignment_20261029/browser-explicit/",
-    "preserved_40b3367d9": "docs/acceptance/evidence/durable_assignment_20261029/preserved-40b3367d9/"
+    "preserved_40b3367d9": "docs/acceptance/evidence/durable_assignment_20261029/preserved-40b3367d9/",
+    "clean_source_verification": "docs/acceptance/evidence/durable_assignment_20261029/clean-source/verification.json",
+    "operational_authorization": "docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.md",
+    "operational_authorization_json": "docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.json"
   },
   "supported_claims": {
     "explicit_form_advanced_setup": true,
@@ -79,26 +90,33 @@
     "explicit_browser_restart": "1 passed",
     "connected_scratch_acceptance": "passed: 85.00, 3, reopened",
     "bounded_taught_job": "passed: 24.00 USD, two sources, draft, reopened",
+    "clean_source_focused": "134 passed",
+    "clean_source_bounded": "1 passed",
+    "clean_source_connected": "85.00, 3, both reopened",
     "typescript": "clean"
   },
   "rollout": {
     "deployed": false,
     "steps": [
-      "Owner commits/merges the bound teaching working-tree delta.",
-      "Run the focused backend suite and AssignmentPanel tests.",
+      "Deploy from clean source commit 9a89471cc; do not copy local working-tree files.",
+      "Run the focused backend suite and AssignmentPanel tests on the release source.",
       "Run guided and explicit Playwright specs in isolated scratch worlds.",
       "Run the connected scratch acceptance and bounded taught job evidence.",
       "Keep live connected and changed-source gates closed until owner configuration and authorization are supplied."
     ]
   },
   "rollback": {
+    "code_target": "294fdf0ec",
+    "code_target_note": "Preserves the reviewed security/resource repairs but drops the bounded taught-method/integration delta. Do not roll back below 294fdf0ec without re-accepting the reproduced findings.",
+    "disabling_assignments": "Deny /api/assignments* at the edge and hide the Assignments tab; preserve GoalRun/task_lifecycle rows and artifacts for later resume.",
+    "database_artifact_compatibility": "No schema migration was added. Assignment state is additive JSON in GoalRun task_lifecycle; artifacts are files under owned output storage. Older code must not delete durable rows or artifacts.",
+    "data_restore": "Use the db_safety snapshot only after demonstrated corruption; restore to a copy, verify row counts and assignment/evidence identity, then require owner approval before replacing the live database. Never overwrite newer user work automatically.",
     "preserved_candidate": "40b3367d9",
-    "note": "Rolling back the review fixes reintroduces the reproduced findings in ASSIGNMENT_REVIEW_2026-10-29.md. Prefer rolling back the bounded taught-job commit (de25c5148) only."
+    "note": "Rolling back the review fixes reintroduces the reproduced findings in ASSIGNMENT_REVIEW_2026-10-29.md."
   },
   "blockers": [
     "MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET absent from the runtime",
     "live OneDrive guided start not run",
-    "disposable changed-source authorization not granted",
-    "owner teaching working-tree delta not yet committed to the release branch"
+    "disposable changed-source authorization not granted"
   ]
 }

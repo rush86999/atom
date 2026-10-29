@@ -1,0 +1,53 @@
+{
+  "slice": "clean-source-reproduction",
+  "candidate_commit": "9a89471cc0f307130c733bd4485d689e6e83b35c",
+  "clean_worktree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-clean-9a89471cc",
+  "clean_status": "clean",
+  "source_manifest": {
+    "path": "docs/acceptance/evidence/durable_assignment_20261029/START_BOUNDARY_MANIFEST.json",
+    "sha256": "27655f4e2136ef37eaa87beba20482e67ec4eaf1627bf3ec928464f89e002d69"
+  },
+  "package_manifest": {
+    "path": "docs/acceptance/assignment-successor-package-2026-10-29/assignment_successor_manifest.json",
+    "sha256": "2f949f33ccb7ea89fc732d13d94753e4be3abdf3fb14844e0d172a87aa550037"
+  },
+  "integrated_runtime_hashes": {
+    "backend/core/artifact_teaching.py": "d3be1f0f767e306d94ec64b4048fd9a257f6ee07d89a39f7099a10f65445e4af",
+    "backend/core/student_learning_service.py": "2972936a89b342c30e1329c8a072b911e346cd4eaa26bb8acfc4096be9862e90",
+    "backend/core/office_service.py": "d01be9f1d9076bc4cc83386a39ec4964d6715cea145f3213dcfe4f5fa554eae6"
+  },
+  "runtime_import": {
+    "main_api_app": "ATOM API",
+    "artifact_teaching": true,
+    "microsoft_config": {
+      "configured": false,
+      "missing": ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"]
+    }
+  },
+  "self_containment": {
+    "absolute_symlinks": [],
+    "relative_internal_symlinks": [
+      "frontend-nextjs/src-tauri/src-types/api-generated.ts -> ../../src/types/api-generated.ts",
+      "frontend-nextjs/src-tauri/tests/shared_fixtures -> ../../shared/test-utils/fixtures",
+      "mobile/src/shared -> ../../frontend-nextjs/shared",
+      "mobile/src/types/api-generated.ts -> ../../../frontend-nextjs/src/types/api-generated.ts"
+    ],
+    "env_files": [],
+    "database_files": [],
+    "node_modules": "absent from clean worktree",
+    "removed_non_self_contained": "frontend-nextjs/.preview-instance (67 absolute symlinks)",
+    "credential_values_found_in_candidate_diff": false
+  },
+  "verification": {
+    "focused_backend": "134 passed",
+    "owner_delta_tests": "25 passed",
+    "bounded_taught_job": "1 passed",
+    "connected_scratch_acceptance": "85.00 and 3, both reopened",
+    "frontend_source_equivalence": "byte-identical to the previously tested 9a89471cc working tree; no separate clean node_modules install was performed"
+  },
+  "live_gates": {
+    "live_connected_guided_start": "blocked",
+    "live_changed_source_refresh": "blocked",
+    "reason": "Microsoft client configuration missing and disposable-source authorization not granted"
+  }
+}
