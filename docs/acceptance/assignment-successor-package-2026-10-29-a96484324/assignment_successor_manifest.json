@@ -1,0 +1,295 @@
+{
+  "schema": "atom-assignment-successor-package-2",
+  "created": "2026-10-29",
+  "package_doc": "docs/acceptance/assignment-successor-package-2026-10-29-a96484324/ASSIGNMENT_SUCCESSOR_PACKAGE_2026-10-29-a96484324.md",
+  "package_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+  "release_tag": "assignment-successor-2026-10-29-a96484324",
+  "candidate": {
+    "branch": "whole-app/successor-f5f",
+    "source_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tested_runtime_commit": "a96484324",
+    "previous_release": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "previous_release_tag": "assignment-successor-2026-10-29",
+    "release_tag": "assignment-successor-2026-10-29-a96484324"
+  },
+  "source_manifest": "docs/acceptance/assignment-successor-package-2026-10-29-a96484324/source_manifest.json",
+  "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+  "release_identity": {
+    "schema": "atom-assignment-successor-release-1",
+    "release_tag": "assignment-successor-2026-10-29-a96484324",
+    "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tested_runtime_commit": "a96484324",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+    "product_tree_matches_tested": true,
+    "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+    "deployment_kit_tree_sha256": "ec1a5c15a29cb2a91e30e124867b9419d106e4621ba88018ac51f5eacda69aca",
+    "frontend_build_id": "wYD-ZstCdGkCCoI5bPvmW",
+    "frontend_api_origin": "http://127.0.0.1:8071",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "prepared_at": "2026-10-29T23:32:19.533261+00:00",
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+    "seeded_rehearsal_data": true
+  },
+  "authorization_status": "deployment requested; not granted",
+  "goal_3_status": "Demonstrated for tested mapping/confirmation/correction/restart workflows",
+  "browser_runs": {
+    "workbook_b": {
+      "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+      "assignment_id": "asg-787c5e9954dc46cc",
+      "result": "35.00",
+      "currency": "USD",
+      "mapping_revision": 2,
+      "result_file": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/attempts/c78b9a0c-4d4b-4ef6-97e5-4be56fa31449/result.json",
+        "sha256": "bc9cac1ba9ebb1a9ff67ba754892e7975754a23d5b430d69282b02cc49ec22e0",
+        "bytes": 4566
+      }
+    },
+    "workbook_c": {
+      "run_id": "a228e80a-1980-4d9c-8489-6295ca38abce",
+      "assignment_id": "asg-0fd041a25a0a4f78",
+      "result": "75.00",
+      "currency": "USD",
+      "mapping_revision": 2,
+      "unit_authority": "user_confirmed",
+      "result_file": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/a228e80a-1980-4d9c-8489-6295ca38abce/result.json",
+        "sha256": "9832bf41d821c9cb83d897af698fb79a39201c7aea6a1ee42f009c43f6142a65",
+        "bytes": 3176
+      }
+    },
+    "correction": {
+      "run_id": "0f8db7bb-f3d2-4d5f-8ec5-768dd677843e",
+      "assignment_id": "asg-43178542de424137",
+      "initial_result": "100.00",
+      "corrected_result": "80.00",
+      "mapping_revision": 3,
+      "result_file": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/0f8db7bb-f3d2-4d5f-8ec5-768dd677843e/result.json",
+        "sha256": "e80c016478b7a22569e39d2f2fe5ac3572f477ed3eac6037b8f2c63055c8106f",
+        "bytes": 12042
+      }
+    },
+    "waiting_restart": {
+      "run_id": "a8b27ce5-ead8-4a9f-8b21-8069e088486e",
+      "assignment_id": "asg-a32409c8c11642a7",
+      "question_id": "a395e83e-c09d-45d8-b2fc-f90b7b903d91",
+      "source_version": "1a94f6f0d652ecf5e0da1ca060074802d53a2bc7",
+      "teaching_revision": "7df0cdfdd13a009d",
+      "result": "35.00",
+      "mapping_revision": 2,
+      "rejection": {
+        "same_question_id": true,
+        "same_candidates": true,
+        "durable_unchanged": true,
+        "teaching_unchanged": true,
+        "no_result": true
+      },
+      "restart": {
+        "same_assignment_id": true,
+        "same_question_id": true,
+        "same_candidates": true,
+        "same_source_version": true,
+        "same_teaching_revision": true,
+        "durable_unchanged": true
+      },
+      "reload": {
+        "status": "completed",
+        "mapping": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "Amount",
+          "unit": "USD",
+          "unit_authority": "source_evidence",
+          "required_unit": "USD",
+          "source_unit": "USD",
+          "source_unit_column": "Currency",
+          "source_version": "1a94f6f0d652ecf5e0da1ca060074802d53a2bc7",
+          "revision": 2,
+          "lesson_id": "e79e9664e8be448493a3268d0efe76f5"
+        },
+        "result": "35.00",
+        "artifact_sha256": "732de22ef7c8e833013817f7884f1fdc4877228581c78f20482304392d1e0c1f",
+        "mapping_history": [],
+        "durable_unchanged": true
+      },
+      "result_file": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-waiting-restart/attempts/a8b27ce5-ead8-4a9f-8b21-8069e088486e/result.json",
+        "sha256": "30e1a250de038e00770b1ceebd14f4810aa998b73913024f0946bcfe59ff46a9",
+        "bytes": 3556
+      }
+    }
+  },
+  "regression": {
+    "affected_suites": "98 passed",
+    "authority_controls": "5 passed",
+    "workbook_b": "passed",
+    "workbook_c": "passed",
+    "correction_browser": "passed",
+    "waiting_restart_browser": "passed",
+    "logs": {
+      "affected": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/regression-a96484324/affected-suites.log",
+        "sha256": "0b4bc887779c6d4817f49bdd6ddf9236745326cf7126a82f72d034a7997682fb",
+        "bytes": 29369
+      },
+      "authority": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/regression-a96484324/authority-controls.log",
+        "sha256": "0821a5c851f2d20d5120f2bab4af5aeba581685791b6815607d51588aed66192",
+        "bytes": 8837
+      },
+      "deployment_kit": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/kit-tests.log",
+        "sha256": "4e0e2cfb24d24b9258e345a215a2deec9fe5e5f9ca06ef421f7678995291a69a",
+        "bytes": 1189
+      }
+    },
+    "deployment_kit_controls": "19 passed"
+  },
+  "packaged_smoke": {
+    "status": "passed",
+    "release_identity": {
+      "schema": "atom-assignment-successor-release-1",
+      "release_tag": "assignment-successor-2026-10-29-a96484324",
+      "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+      "tested_runtime_commit": "a96484324",
+      "product_paths": [
+        "backend",
+        "frontend-nextjs"
+      ],
+      "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+      "product_tree_matches_tested": true,
+      "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+      "deployment_kit_tree_sha256": "ec1a5c15a29cb2a91e30e124867b9419d106e4621ba88018ac51f5eacda69aca",
+      "frontend_build_id": "wYD-ZstCdGkCCoI5bPvmW",
+      "frontend_api_origin": "http://127.0.0.1:8071",
+      "api_port": 8071,
+      "frontend_port": 3130,
+      "audience": "single_user",
+      "pilot_email": "admin@example.com",
+      "outbound_scope": "draft_and_approval_only",
+      "send_authorized": false,
+      "topology": "one_worker_process_per_assignment",
+      "prepared_at": "2026-10-29T23:32:19.533261+00:00",
+      "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+      "seeded_rehearsal_data": true
+    },
+    "evidence_manifest": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/evidence-manifest.json",
+      "sha256": "ff126b33e08e6518a77bb3b85aef93ded49457839d61a5175d39e2ff0f1e9d78",
+      "bytes": 13242
+    },
+    "before_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/mapping-taught-smoke.json",
+      "sha256": "d0620609086737971d5a15d7d3131ca0487fd976bd2be27055cd879430c1d926",
+      "bytes": 3569
+    },
+    "after_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/mapping-taught-smoke-after-restart.json",
+      "sha256": "391e5be339e157df86e087ef9076ea38939cf4dbdebf30bd55eb061a14bd236d",
+      "bytes": 3123
+    },
+    "existing_taught_assignment": {
+      "assignment_id": "asg-787c5e9954dc46cc",
+      "status": "completed",
+      "plan_revision": 1,
+      "teaching_revision": "3dce63cc9aa4ef14+map",
+      "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+      "artifact_sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
+      "artifact_contains_expected_sum": true,
+      "deliverable_status": "applied",
+      "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+      "objective": "Mapping B sum Price"
+    },
+    "mapping_result": "35.00",
+    "mapping_revision": 3,
+    "provider_policy": {
+      "mode": "selected",
+      "allowed_providers": [
+        "deepseek"
+      ],
+      "preferred": {
+        "provider": "deepseek",
+        "model": "deepseek-flash"
+      },
+      "ok": true
+    },
+    "send_denial": {
+      "http_status": 422,
+      "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter",
+      "runs_before": 1,
+      "runs_after": 1,
+      "run_created": false,
+      "send_allowed": false
+    },
+    "restart_agreement": {
+      "ok": true,
+      "mismatches": {}
+    },
+    "backup_manifest": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/backup-manifest.json",
+      "sha256": "26ae91cdb9c23fe09a0169a472ffaf785a3effc43637cafcb33d0efd137ea2f3",
+      "bytes": 2127
+    },
+    "preflight": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/preflight.json",
+      "sha256": "bde97e8b72998db1a39940e12affe7975381b0a97309fe3473b32c3472b0d56f",
+      "bytes": 6128
+    },
+    "startup_receipt": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/startup-receipt.json",
+      "sha256": "1e34c3aeb2f70e56b259e68a508bf78ebea40fba22cfef7edf1197e347043c9a",
+      "bytes": 1510
+    },
+    "deploy_plan": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/deploy-plan.json",
+      "sha256": "1aabb9631f5620c073674e66d0454c25c2023e7bd86a302b426b694245b999a6",
+      "bytes": 2864
+    }
+  },
+  "supported_claims": {
+    "mapping_confirmation": true,
+    "explicit_unit_authority": true,
+    "mapping_correction": true,
+    "mapping_rejection_same_request_after_restart": true,
+    "authority_controls": true,
+    "packaged_mapping_plus_taught_assignment_smoke": true,
+    "artifact_reopen_after_packaged_restart": true,
+    "provider_policy_deepseek_selected": true,
+    "draft_only_send_denial": true,
+    "deployment_package_prepared": true,
+    "deployment_authorized": false,
+    "production_email_send": false,
+    "arbitrary_schema_understanding": false
+  },
+  "blockers": [
+    "Deployment authorization is not granted; the prepared approval record is in the deployment docs and config/APPROVED is intentionally absent.",
+    "Real-provider email sending remains open and unauthorized; the release refuses it before transport.",
+    "Automatic understanding of arbitrary schemas and every possible authority surface are not claimed."
+  ],
+  "evidence": {
+    "release_integration": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/evidence-manifest.json",
+      "sha256": "05566f8c26c7a0a6a4c5240022b247658b412123ab227ff4fa6e55fd0927115e",
+      "bytes": 13105
+    },
+    "goal_ledger": "docs/acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md",
+    "deployment_runbook": "docs/deployment/assignment_successor_2026-10-29_a96484324/DEPLOYMENT_RUNBOOK.md",
+    "approval_request": "docs/deployment/assignment_successor_2026-10-29_a96484324/APPROVAL_REQUEST.md",
+    "deployment_kit": "scripts/deployment/assignment_successor_2026-10-29_a96484324"
+  },
+  "no_deployment": true,
+  "no_real_sending": true,
+  "no_credential_change": true,
+  "no_source_writeback": true
+}

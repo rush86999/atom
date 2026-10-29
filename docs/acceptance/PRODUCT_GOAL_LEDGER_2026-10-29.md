@@ -2,9 +2,12 @@
 
 This ledger is the durable reference for the bounded single-user AI-employee
 pilot. Historical evidence stays bound to the source that produced it. The
-current packaged product identity is `901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0`
+previous packaged product identity remains `901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0`
 (tag `assignment-successor-2026-10-29`, product tree
-`92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c`).
+`92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c`). The frozen
+successor candidate is `a9648432495f4f75f59bf4667cac3cb997d7f229` (tag
+`assignment-successor-2026-10-29-a96484324`, product tree
+`937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6`), not deployed.
 
 Statuses: **Demonstrated**, **Partial**, **Deferred**, **Blocked**.
 
@@ -21,7 +24,7 @@ Statuses: **Demonstrated**, **Partial**, **Deferred**, **Blocked**.
 | 9 | User-created canvases inherit capabilities | Partial — supported table adapter | Versioned capability manifests, adapter registry, canvas routes | Historical capability evidence; C10 no change | Capability acceptance evidence | Only the supported table adapter is claimed; every future canvas component is not. |
 | 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
 | 11 | Approval and eventual sending | **Partial / Blocked** | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; server-side denial tested | C10 `send-denial.json`: HTTP 422 before run creation; draft smoke saved/reopened; no provider/outbox effect | Draft and approval preparation work; production send is refused before transport. **Remaining action:** separately authorized real-provider test with exact payload, provider receipt, reconciliation and restart/no-duplicate checks. |
-| 12 | Everyday usability, security and operational readiness | Pilot candidate; deployment unverified | Normal auth, Assignments/Activity, durable storage, deployment kit and recovery guards | C10 packaged source, isolated single-user rehearsal | C10 auth smoke, fresh assignment, restart agreement, deployment receipt, 19 kit controls, 41 product controls | Normal sign-in/logout/relogin and fresh packaged execution pass in isolation. Deployment authorization is still required; mapping waiting-restart recovery is demonstrated for the controlled workbook flow. |
+| 12 | Everyday usability, security and operational readiness | Pilot candidate; deployment unverified | Normal auth, Assignments/Activity, durable storage, deployment kit and recovery guards | C10 packaged source plus successor packaged smoke on `a96484324` | C10 auth smoke, fresh assignment, restart agreement, deployment receipt, 19 kit controls, 41 product controls; successor packaged smoke, backup and restart receipts | Normal sign-in/logout/relogin and fresh packaged execution pass in isolation. The successor packaged smoke reopened an existing taught assignment, exercised the mapping flow and survived restart. Deployment authorization is requested but not granted. |
 
 Mapping campaign identities: the canonical B baseline stays bound to harness
 `7399fe41e`; new B/C/correction/waiting-restart attempts are written under
@@ -33,6 +36,33 @@ product `ae53e7e41` (tree `a7f627fdf7705a26b361c0d1b1e7e17abadc13d3`). Frozen
 release `901e5d773` is unchanged. The final manifest and file hashes are
 `docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/manifest-a96484324.json`;
 the prior manifests and attempt directories are preserved unchanged.
+
+## Release integration — a96484324
+
+The successor candidate is frozen at `a96484324` under tag
+`assignment-successor-2026-10-29-a96484324`; the previous release tag and all
+prior evidence are unchanged. Package manifest:
+`docs/acceptance/assignment-successor-package-2026-10-29-a96484324/assignment_successor_manifest.json`.
+
+The four browser flows pass on that product: workbook B `35.00`, workbook C
+`75.00` with an explicit unit, correction `100.00 -> 80.00` at mapping revision
+3, and reject -> backend restart -> confirm `35.00` at mapping revision 2.
+Authority controls: 5 focused route tests; affected regressions: 98 passed.
+
+The isolated packaged smoke reopened an existing taught assignment and artifact,
+created and completed a new mapping assignment at `35.00 USD`, confirmed the
+selected DeepSeek policy (`deepseek` / `deepseek-flash`), proved an outbound
+assignment is refused with HTTP 422 before run creation, and reopened both
+results after a packaged backend restart with no disagreement. Receipts:
+`docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/`.
+
+Deployment kit:
+`scripts/deployment/assignment_successor_2026-10-29_a96484324/`; runbook:
+`docs/deployment/assignment_successor_2026-10-29_a96484324/DEPLOYMENT_RUNBOOK.md`;
+approval request:
+`docs/deployment/assignment_successor_2026-10-29_a96484324/APPROVAL_REQUEST.md`.
+Deployment is **not authorized**. Real-provider sending remains explicitly open
+and is refused before transport by this release.
 
 ## Explicit exclusions
 

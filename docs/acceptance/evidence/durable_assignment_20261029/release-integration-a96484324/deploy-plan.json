@@ -1,0 +1,63 @@
+{
+  "mode": "rehearsal",
+  "rehearsal_args": [
+    "--rehearsal"
+  ],
+  "approval": [
+    "/Users/rushiparikh/projects/atom/backend/venv/bin/python",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/scripts/release_tool.py",
+    "--root",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+    "approval-check",
+    "--mode",
+    "rehearsal"
+  ],
+  "preflight_before_stop": [
+    "/Users/rushiparikh/projects/atom/backend/venv/bin/python",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/scripts/release_tool.py",
+    "--root",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+    "preflight",
+    "--rehearsal",
+    "--ignore-running-ports"
+  ],
+  "backup": [
+    "/Users/rushiparikh/projects/atom/backend/venv/bin/python",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/scripts/release_tool.py",
+    "--root",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+    "backup",
+    "--label",
+    "predeploy-rehearsal"
+  ],
+  "stop": [
+    "/Users/rushiparikh/projects/atom/backend/venv/bin/python",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/scripts/release_tool.py",
+    "--root",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+    "stop"
+  ],
+  "preflight_after_stop": [
+    "/Users/rushiparikh/projects/atom/backend/venv/bin/python",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/scripts/release_tool.py",
+    "--root",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+    "preflight",
+    "--rehearsal"
+  ],
+  "start": [
+    "/Users/rushiparikh/projects/atom/backend/venv/bin/python",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/scripts/release_tool.py",
+    "--root",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+    "start",
+    "--rehearsal"
+  ],
+  "rollback": [
+    "/Users/rushiparikh/projects/atom/backend/venv/bin/python",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/scripts/release_tool.py",
+    "--root",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+    "rollback"
+  ]
+}
