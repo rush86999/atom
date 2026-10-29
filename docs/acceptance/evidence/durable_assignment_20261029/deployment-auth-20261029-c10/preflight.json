@@ -1,7 +1,7 @@
 {
   "schema": "atom-assignment-release-preflight-1",
   "ok": true,
-  "checked_at": "2026-10-29T17:11:18.121158+00:00",
+  "checked_at": "2026-10-29T17:13:42.454222+00:00",
   "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29",
   "checks": [
     {
@@ -171,16 +171,6 @@
       }
     },
     {
-      "name": "ports.api_free",
-      "ok": true,
-      "detail": 8071
-    },
-    {
-      "name": "ports.frontend_free",
-      "ok": true,
-      "detail": 3130
-    },
-    {
       "name": "frontend.server_present",
       "ok": true,
       "detail": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/current/frontend/server.js"
@@ -198,7 +188,7 @@
     "product_tree_sha256": "92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c",
     "product_tree_matches_tested": true,
     "source_manifest_sha256": "d62d34537079e6f63d1efffc8165d3c4f6fe552304157ff5acf934574e4e97c2",
-    "deployment_kit_tree_sha256": "9de2c279dee2b12e0d4e2fc16840751b848d0ce8a439c700ca8b084016a246cf",
+    "deployment_kit_tree_sha256": "8e98d96551ccff59a0f4187f895a368fe3af54ba2a4858f41760cc3b6aa828f4",
     "frontend_build_id": "QqBNj-ytvaFAwwCWX2M5F",
     "frontend_api_origin": "http://127.0.0.1:8071",
     "api_port": 8071,

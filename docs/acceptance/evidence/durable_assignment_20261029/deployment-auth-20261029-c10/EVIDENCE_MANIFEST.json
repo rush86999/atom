@@ -3,7 +3,7 @@
   "created_at": "2026-10-29",
   "release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
   "product_tree_sha256": "92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c",
-  "deployment_kit_tree_sha256": "9de2c279dee2b12e0d4e2fc16840751b848d0ce8a439c700ca8b084016a246cf",
+  "deployment_kit_tree_sha256": "8e98d96551ccff59a0f4187f895a368fe3af54ba2a4858f41760cc3b6aa828f4",
   "files": {
     "assignment-after-restart.json": {
       "sha256": "43179a70676caf1b6fa2ceeb690c12debb2ca0ccf0520624934c08efdd4dd931",
@@ -70,11 +70,11 @@
       "bytes": 451
     },
     "preflight.json": {
-      "sha256": "0701bb77f87926a82fef1c648f61bb7b997d98100a40ba2082251156cb76c97e",
-      "bytes": 5848
+      "sha256": "7dacb0befbbf5132dabe2b4140bdfd52c3a5dec27f1c88c3eee76968db7acb9f",
+      "bytes": 5675
     },
     "release-identity.json": {
-      "sha256": "29909dfc82e5ce451a4506b20d908b516ef8388e902c46d87f2f7c2c8e4c30f3",
+      "sha256": "945ac34c867e4dd00e6d5e015cad2e3e8edd75fc41dab2b9f59f886c32657ae5",
       "bytes": 1122
     },
     "send-denial.json": {

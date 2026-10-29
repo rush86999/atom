@@ -158,7 +158,7 @@
     "deployable_product_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
     "tested_live_runtime_commit": "001f93472",
     "product_tree_sha256": "92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c",
-    "deployment_kit_tree_sha256": "9de2c279dee2b12e0d4e2fc16840751b848d0ce8a439c700ca8b084016a246cf",
+    "deployment_kit_tree_sha256": "8e98d96551ccff59a0f4187f895a368fe3af54ba2a4858f41760cc3b6aa828f4",
     "outbound_scope": "draft_and_approval_only",
     "send_authorized": false,
     "topology": "one_worker_process_per_assignment",
