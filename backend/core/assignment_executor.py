@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
 
 from core.assignment_plan import (
     ASSIGNMENT_STATES,
@@ -1714,13 +1714,47 @@ class AssignmentExecutor:
                     and current_version != str(mapping.get("source_version"))):
                 raise AssignmentError(
                     "the source version changed; reconfirm the mapping against the current schema")
-            expected_unit = str(
-                ((mapping.get("mapping_source") or {}).get("unit") or "")).strip()
-            if expected_unit and selected_unit and (
-                    expected_unit.lower() != selected_unit.lower()):
+            required_unit = str(mapping.get("required_unit") or "").strip()
+            source_unit = str(mapping.get("source_unit") or "").strip()
+            # Three separate authorities: taught requirement, source evidence,
+            # and the user's explicit confirmation. A taught unit is never
+            # substituted for missing source information, and a source unit is
+            # not silently certified when the source does not establish one.
+            unit_authority = ""
+            if selected_unit:
+                unit_authority = (
+                    "source_evidence" if source_unit else "user_confirmed")
+            elif source_unit:
+                selected_unit = source_unit
+                unit_authority = "source_evidence"
+            elif required_unit:
+                raise AssignmentError(
+                    "the taught method requires an explicit unit confirmation")
+            if source_unit and selected_unit and (
+                    source_unit.lower() != selected_unit.lower()):
+                raise AssignmentError(
+                    f"the confirmed unit '{selected_unit}' conflicts with "
+                    f"the source evidence unit '{source_unit}'")
+            if required_unit and selected_unit and (
+                    required_unit.lower() != selected_unit.lower()):
                 raise AssignmentError(
                     f"the confirmed unit '{selected_unit}' does not match "
-                    f"the taught unit '{expected_unit}'")
+                    f"the taught unit '{required_unit}'; no conversion is authorized")
+            source_mapping = dict(mapping.get("mapping_source") or {})
+            confirmed_mapping = {
+                "concept": str(
+                    mapping.get("concept")
+                    or mapping.get("missing_column") or ""),
+                "sheet": str(mapping.get("sheet") or ""),
+                "column": selected_column,
+                "unit": selected_unit or str(source_mapping.get("unit") or ""),
+                "source_version": str(mapping.get("source_version") or ""),
+                "revision": int(source_mapping.get("revision") or 1) + 1,
+            }
+            if unit_authority:
+                confirmed_mapping["unit_authority"] = unit_authority
+            if source_mapping.get("lesson_id"):
+                confirmed_mapping["lesson_id"] = source_mapping["lesson_id"]
             mapping_applied = True
         self.lifecycle.apply_transition(run_id, {
             "kind": "record_unresolved",
@@ -1764,7 +1798,6 @@ class AssignmentExecutor:
                     dict(item) for item in (snapshot.get("field_mappings") or [])
                     if isinstance(item, dict)
                 ]
-                source_mapping = dict(mapping.get("mapping_source") or {})
                 concept = str(mapping.get("concept") or missing)
                 mappings = [
                     item for item in mappings
@@ -1773,15 +1806,7 @@ class AssignmentExecutor:
                             and str(item.get("sheet") or "")
                             == str(mapping.get("sheet") or ""))
                 ]
-                mappings.append({
-                    "concept": concept,
-                    "sheet": str(mapping.get("sheet") or ""),
-                    "column": selected_column,
-                    "unit": selected_unit or str(source_mapping.get("unit") or ""),
-                    "source_version": str(mapping.get("source_version") or ""),
-                    "revision": int(source_mapping.get("revision") or 1) + 1,
-                    "lesson_id": source_mapping.get("lesson_id"),
-                })
+                mappings.append(dict(confirmed_mapping))
                 snapshot = new_teaching_snapshot(
                     revision=(
                         str(snapshot.get("revision") or "untrained")
@@ -1850,19 +1875,8 @@ class AssignmentExecutor:
                     with get_db_session() as db:
                         update_teaching_point(
                             db, agent_id, lesson_id,
-                            context={"field_mappings": [{
-                                "concept": str(
-                                    mapping.get("concept")
-                                    or mapping.get("missing_column") or ""),
-                                "sheet": str(mapping.get("sheet") or ""),
-                                "column": selected_column,
-                                "unit": selected_unit or str(
-                                    source_mapping.get("unit") or ""),
-                                "source_version": str(
-                                    mapping.get("source_version") or ""),
-                                "revision": int(
-                                    source_mapping.get("revision") or 1) + 1,
-                            }]},
+                            context={"field_mappings": [
+                                dict(confirmed_mapping)]},
                         )
                 except Exception as exc:  # noqa: BLE001
                     logger.warning(
@@ -3266,6 +3280,37 @@ async def _action_registry_adapter(
     }
 
 
+def _established_source_unit(
+    records: Sequence[Dict[str, Any]],
+) -> Tuple[str, str]:
+    """Return the single unit the SOURCE establishes, and its column.
+
+    Only unit/currency-named columns count. Numeric values are quantities
+    (for example a ``Units`` count), not unit labels, so they never establish
+    a unit. The first unit-like column with values is authoritative: mixed
+    values there mean no single unit is established, and the confirmation
+    must ask rather than fall through to another column.
+    """
+    for column in ("Currency", "Unit", "Units", "UOM"):
+        values = set()
+        for record in records:
+            raw = str(record.get(column) or "").strip()
+            if not raw:
+                continue
+            try:
+                float(raw.replace(",", ""))
+                continue
+            except ValueError:
+                pass
+            values.add(raw.upper()[:40])
+        if not values:
+            continue
+        if len(values) == 1:
+            return next(iter(values)), column
+        return "", column
+    return "", ""
+
+
 def _mapping_proposal(
     *,
     binding: Dict[str, Any],
@@ -3312,8 +3357,12 @@ def _mapping_proposal(
             "inferred_type": "number" if samples and numeric == len(samples)
             else "text",
         })
+    source_unit, source_unit_column = _established_source_unit(records)
     return {
         "concept": concept,
+        "required_unit": str((source_mapping or {}).get("unit") or ""),
+        "source_unit": source_unit,
+        "source_unit_column": source_unit_column,
         "missing_column": str(missing or ""),
         "source": str(binding.get("source") or ""),
         "external_id": str(binding.get("external_id") or ""),

@@ -495,16 +495,48 @@ export function AssignmentPanel({
                         {String(mapping.sheet || "")} · Version:{" "}
                         {String(mapping.source_version || "")}
                         {mapping.mapping_source?.unit
-                          ? ` · Unit: ${mapping.mapping_source.unit}`
+                          ? ` · Taught unit: ${mapping.mapping_source.unit}`
                           : ""}
+                        {mapping.source_unit
+                          ? ` · Source unit: ${mapping.source_unit}${
+                              mapping.source_unit_column
+                                ? ` (${mapping.source_unit_column})`
+                                : ""
+                            }`
+                          : " · Source unit: not established"}
                       </p>
+                      {mapping.required_unit && !mapping.source_unit ? (
+                        <div className="space-y-1">
+                          <p
+                            data-testid="mapping-unit-unresolved"
+                            className="text-[10px] text-amber-700"
+                          >
+                            Unit is unresolved. Required:{" "}
+                            {mapping.required_unit}. Confirm the unit
+                            explicitly; no conversion is applied.
+                          </p>
+                          <input
+                            data-testid="mapping-unit-input"
+                            value={gapDrafts[`${gap.question_id}:unit`] || ""}
+                            onChange={(e) =>
+                              setGapDrafts((d) => ({
+                                ...d,
+                                [`${gap.question_id}:unit`]: e.target.value,
+                              }))
+                            }
+                            placeholder={`Confirm unit (required: ${mapping.required_unit})`}
+                            className="w-full rounded border px-2 py-1 text-xs"
+                            aria-label="Mapping unit"
+                          />
+                        </div>
+                      ) : null}
                       {candidates.map((candidate: any) => (
                         <button
                           key={candidate.column}
                           type="button"
                           data-testid={`mapping-candidate-${candidate.column}`}
                           className="block w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted"
-                          disabled={busy}
+                          disabled={busy || (Boolean(mapping.required_unit) && !mapping.source_unit && !gapDrafts[`${gap.question_id}:unit`]?.trim())}
                           onClick={() =>
                             act(
                               () =>
@@ -515,7 +547,7 @@ export function AssignmentPanel({
                                     request_id: gap.question_id,
                                     assignment_id: detail.assignment?.assignment_id,
                                     column: candidate.column,
-                                    unit: mapping.mapping_source?.unit || "",
+                                    unit: mapping.source_unit || gapDrafts[`${gap.question_id}:unit`] || "",
                                   })
                                 ),
                               detail.run_id

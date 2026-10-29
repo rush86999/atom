@@ -609,12 +609,19 @@ async def resolve_assignment_gap(
         raise HTTPException(
             status_code=409,
             detail="The assignment is cancelled; a gap cannot revive it")
-    executor.resolve_gap(
-        run_id, question_id,
-        resolution=body.resolution,
-        resolved_by=str(current_user.id),
-        evidence=body.evidence,
-    )
+    from core.assignment_executor import AssignmentError
+
+    try:
+        executor.resolve_gap(
+            run_id, question_id,
+            resolution=body.resolution,
+            resolved_by=str(current_user.id),
+            evidence=body.evidence,
+        )
+    except AssignmentError as exc:
+        # A refused confirmation is a conflict with durable state, not a
+        # server failure. resolve_gap validates before any lifecycle write.
+        raise HTTPException(status_code=409, detail=str(exc))
     return await executor.resume(run_id)
 
 

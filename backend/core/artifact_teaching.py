@@ -200,7 +200,7 @@ def normalize_lesson_context(raw: Any) -> Dict[str, Any]:
                 column = str(item.get("column") or "").strip()[:120]
                 if not concept or not column:
                     continue
-                rows.append({
+                row = {
                     "concept": concept,
                     "sheet": str(item.get("sheet") or "").strip()[:120],
                     "column": column,
@@ -208,7 +208,12 @@ def normalize_lesson_context(raw: Any) -> Dict[str, Any]:
                     "source_version": str(
                         item.get("source_version") or "").strip()[:80],
                     "revision": int(item.get("revision") or 1),
-                })
+                }
+                unit_authority = str(
+                    item.get("unit_authority") or "").strip()[:40]
+                if unit_authority:
+                    row["unit_authority"] = unit_authority
+                rows.append(row)
             if rows:
                 out[name] = rows
             continue
