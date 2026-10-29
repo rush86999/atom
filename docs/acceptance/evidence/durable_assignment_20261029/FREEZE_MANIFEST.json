@@ -1,0 +1,44 @@
+{
+ "slice": "durable-assignment-boundary-hardening",
+ "frozen_commit": "efc4bc9d5",
+ "branch": "whole-app/successor-f5f",
+ "source_harness": "backend/tests/test_assignment_executor.py; backend/tests/test_assignment_routes.py; backend/tests/test_operation_binding.py; backend/tests/test_fingerprint_identity.py",
+ "browser_harness": "frontend-nextjs/e2e/assignment-durable.spec.ts; backend/scripts/assignment_browser_acceptance_server.py",
+ "configuration": {
+  "controlled_transport": "ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT=1",
+  "outbox": "local JSONL file (ATOM_ASSIGNMENT_OUTBOX)",
+  "live_provider": false,
+  "deployment": false
+ },
+ "adapters": {
+  "mocked": ["assignment.controlled_wait", "assignment.controlled_outbox", "test.* harness adapters"],
+  "real": ["workbook.read", "document.read", "formula.calculate", "artifact.document", "email.draft", "action.registry", "OfficeService renderers", "GoalRun/TaskLifecycle persistence"],
+  "live_provider": "not invoked"
+ },
+ "worker_topology": {
+  "verified": "one worker process per assignment",
+  "concurrent_resume": "operation claim/CAS permits one execution",
+  "multi_worker_campaign": false
+ },
+ "recovery": {
+  "ordinary_resume": "no worker-loss assertion",
+  "restart_recovery": "explicit lost_worker or liveness probe; uncertain until reconciled",
+  "wake_replay": "run decision log replay after crash between wake and successor"
+ },
+ "controls": {
+  "backend_final_run": "115 passed",
+  "frontend_component": "3 passed",
+  "browser": "both domains completed; reload preserved completed state; one outbox record per approved effect",
+  "fingerprint_identity": "v2 strict; legacy v1 readable for stored values"
+ },
+ "evidence": {
+  "backend": ["commercial_evidence.json", "eligibility_evidence.json", "commercial.docx", "eligibility/eligibility.docx", "outbox.jsonl", "eligibility/outbox-eligibility.jsonl"],
+  "browser": ["browser/playwright.txt", "browser/browser-A-completed.png", "browser/browser-B-completed.png", "browser/outbox.jsonl", "browser/backend.log"]
+ },
+ "preserved_release": "expanded-core-2026-10-28-r3 -> 68b949409",
+ "limitations": [
+  "controlled outbox is not live-provider acceptance or recipient delivery",
+  "single-worker topology verified",
+  "no live send, credential restoration, source writeback or deployment"
+ ]
+}
