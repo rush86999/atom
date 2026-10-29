@@ -1,7 +1,12 @@
 import Head from "next/head";
+import { useRouter } from "next/router";
 import { AssignmentPanel } from "@/components/assignments/AssignmentPanel";
 
 export default function AssignmentsPage() {
+  const router = useRouter();
+  const agentId = typeof router.query.agent === "string"
+    ? router.query.agent
+    : null;
   return (
     <>
       <Head>
@@ -13,7 +18,7 @@ export default function AssignmentsPage() {
           This view reads the durable assignment projection. It does not infer
           progress from chat text and does not run restart recovery on load.
         </p>
-        <AssignmentPanel />
+        <AssignmentPanel agentId={agentId} />
       </main>
     </>
   );

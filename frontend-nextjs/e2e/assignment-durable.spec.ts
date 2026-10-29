@@ -1,51 +1,83 @@
 import { expect, test } from "@playwright/test";
 
 const DOMAINS = [
-  { objective: "Browser commercial response", correlation: "browser-A" },
-  { objective: "Browser eligibility package", correlation: "browser-B" },
+  {
+    objective: "Browser commercial response",
+    sourceKey: "workbook",
+    outputKey: "commercial_output",
+    kind: "document",
+    expression: "2*10 + 3*20",
+    recipient: "test-recipient@example.invalid",
+    correlation: "browser-A",
+  },
+  {
+    objective: "Browser eligibility package",
+    sourceKey: "document",
+    outputKey: "eligibility_output",
+    kind: "presentation",
+    expression: "",
+    recipient: "",
+    correlation: "",
+  },
 ];
 
-test("durable assignment UI completes both domains and survives reload", async ({ page, context }) => {
+test("user starts both domains from the product and reload keeps durable state", async ({ page, context, request }) => {
   await context.addCookies([{
     name: "auth_token",
     value: "browser-acceptance-token",
     domain: "127.0.0.1",
     path: "/",
   }]);
-  await page.goto("/assignments");
+  const health = await (await request.get(
+    "http://127.0.0.1:8090/api/health",
+  )).json();
+  await page.goto(`/assignments?agent=${encodeURIComponent(health.agent_id)}`);
+
   for (const domain of DOMAINS) {
-    await expect(page.getByText(domain.objective).first()).toBeVisible();
-    await page
-      .getByRole("button")
-      .filter({ hasText: domain.objective })
-      .first()
-      .click();
+    await page.getByLabel("Assignment objective").fill(domain.objective);
+    await page.getByLabel("Authorized source path").fill(health[domain.sourceKey]);
+    await page.getByLabel("Deliverable output path").fill(health[domain.outputKey]);
+    await page.getByLabel("Deliverable kind").selectOption(domain.kind);
+    if (domain.expression) {
+      await page.getByLabel("Calculation expression").fill(domain.expression);
+    }
+    if (domain.recipient) {
+      await page.getByLabel("Test recipient").fill(domain.recipient);
+    }
+    if (domain.correlation) {
+      await page.getByLabel("Correlation id").fill(domain.correlation);
+    }
+    await page.getByRole("button", { name: /Start assignment/ }).click();
 
     const detail = page.getByTestId("assignment-detail");
-    await expect(detail).toBeVisible();
-    await expect(detail.getByText(/Correlated response/)).toBeVisible();
-    await detail.getByLabel("Correlated response").fill(
-      `authorized reply for ${domain.correlation}`,
-    );
-    await detail.getByRole("button", { name: /Deliver/ }).click();
+    await expect(detail).toBeVisible({ timeout: 15_000 });
+    await expect(detail.getByText(domain.objective).first()).toBeVisible();
 
-    await expect(detail.getByText(/Approval required/)).toBeVisible();
-    await expect(detail.getByText(/Payload/)).toBeVisible();
-    await detail.getByRole("button", { name: /Approve this payload/ }).click();
-
+    if (domain.correlation) {
+      await expect(detail.getByText(/Correlated response/)).toBeVisible();
+      await detail.getByLabel("Correlated response").fill(
+        "authorized external fact",
+      );
+      await detail.getByRole("button", { name: /Deliver/ }).click();
+    }
+    if (domain.recipient) {
+      await expect(detail.getByText(/Approval required/)).toBeVisible();
+      await expect(detail.getByText(/Payload/)).toBeVisible();
+      await detail.getByRole("button", { name: /Approve this payload/ }).click();
+    }
     await expect(detail.getByText("completed", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(detail.getByText(domain.objective)).toBeVisible();
     if (process.env.ATOM_BROWSER_EVIDENCE_DIR) {
       await page.screenshot({
-        path: `${process.env.ATOM_BROWSER_EVIDENCE_DIR}/${domain.correlation}-completed.png`,
+        path: `${process.env.ATOM_BROWSER_EVIDENCE_DIR}/${domain.kind}-completed.png`,
         fullPage: true,
       });
     }
+  }
 
-    // Reopen: the same durable state is read, not reconstructed.
-    await page.reload();
+  await page.reload();
+  for (const domain of DOMAINS) {
     await page
       .getByRole("button")
       .filter({ hasText: domain.objective })

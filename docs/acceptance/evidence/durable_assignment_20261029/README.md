@@ -18,6 +18,9 @@ transport is a controlled outbox file, never a live provider.
   completed state survived a page reload. `browser/outbox.jsonl` has one
   record per approved effect; screenshots are `browser-A-completed.png` and
   `browser-B-completed.png`.
+- `browser-start/` — the starting-boundary run: both objectives were entered
+  through the product form, the correlated reply and approval were completed,
+  and the assignments remained completed after a backend restart.
 
 No credentials, tokens, live recipients or production source changes are
 present. No live send was performed.

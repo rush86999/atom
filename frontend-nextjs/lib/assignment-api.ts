@@ -73,6 +73,21 @@ export async function listAssignments(): Promise<AssignmentSummary[]> {
   return data;
 }
 
+export async function createAssignment(payload: {
+  objective: string;
+  conversation_id?: string;
+  agent_id?: string;
+  sources: Record<string, unknown>[];
+  deliverables: Record<string, unknown>[];
+  calculation?: Record<string, unknown>;
+  outbound?: Record<string, unknown>;
+  task_context?: Record<string, unknown>;
+  transport?: string;
+}): Promise<Record<string, any>> {
+  const { data } = await apiClient.post("/api/assignments", payload);
+  return data;
+}
+
 export async function getAssignment(runId: string): Promise<AssignmentDetail> {
   const { data } = await apiClient.get<AssignmentDetail>(
     `/api/assignments/${encodeURIComponent(runId)}`

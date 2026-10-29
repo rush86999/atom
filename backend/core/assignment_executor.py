@@ -370,6 +370,7 @@ class AssignmentExecutor:
         the run row from claiming active work while the assignment is asleep
         or finished.
         """
+        state = {"completed": "achieved"}.get(state, state)
         if state not in ("achieved", "failed", "cancelled", "waiting"):
             return
         try:

@@ -912,7 +912,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                 </TabsContent>
 
                 <TabsContent value="assignments" className="flex-1 min-h-0 p-4 overflow-y-auto">
-                    <AssignmentPanel />
+                    <AssignmentPanel agentId={activeAgentId} />
                 </TabsContent>
 
                 <TabsContent value="artifacts" className="flex-1 min-h-0 p-0 overflow-hidden relative">

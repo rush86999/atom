@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ✓  1 e2e/assignment-durable.spec.ts:24:5 › user starts both domains from the product and reload keeps durable state (1.5s)
+
+  1 passed (2.2s)

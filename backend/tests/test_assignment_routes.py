@@ -23,6 +23,7 @@ from core.assignment_plan import new_assignment, new_step, new_teaching_snapshot
 from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+import core.assignment_controlled_transport  # noqa: F401,E402
 from core.goals.goal_run_service import GoalRunService
 from core.goals.goal_service import GoalService
 from core.models import Base, HITLAction, HITLActionStatus, User
@@ -35,6 +36,9 @@ def _run(coro):
 
 @pytest.fixture()
 def route_env(tmp_path, monkeypatch):
+    monkeypatch.setenv(
+        "ATOM_ASSIGNMENT_OUTBOX", str(tmp_path / "controlled-outbox.jsonl"))
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
     engine = create_engine(f"sqlite:///{tmp_path}/routes.db")
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
@@ -229,3 +233,184 @@ def test_cancelled_assignment_cannot_be_approved(route_env):
         f"/api/assignments/{run_id}/approve/send", json={})
     assert response.status_code == 409
     assert route_env["calls"]["send"] == 0
+
+
+def _teaching_agent(route_env, name: str, font: str, audience: str) -> str:
+    from core.models import AgentRegistry
+    from core.student_learning_service import deliver_teacher_lesson
+
+    db = route_env["db"]
+    agent = AgentRegistry(
+        id=f"agent-{uuid.uuid4().hex[:8]}", name=name,
+        category="operations", description="planner test",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        status="intern", confidence_score=0.5, configuration={},
+        capabilities=[], workspace_id="ws-1", tenant_id="tenant-1",
+    )
+    db.add(agent)
+    db.commit()
+    deliver_teacher_lesson(
+        db, agent.id, "Use the approved document standard",
+        topic="document standard", applies_to=["document"],
+        format_spec={"font_name": font, "font_size": 11},
+        context={"audience": audience},
+        workspace_id="ws-1",
+    )
+    deliver_teacher_lesson(
+        db, agent.id, "Use the approved presentation standard",
+        topic="presentation standard", applies_to=["presentation"],
+        format_spec={"font_name": font, "font_size": 18},
+        context={"audience": audience},
+        workspace_id="ws-1",
+    )
+    return agent.id
+
+
+def test_start_from_chat_objective_uses_registered_plan_and_teaching(
+        route_env, tmp_path):
+    import openpyxl
+
+    source = tmp_path / "connected-records.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Records"
+    sheet.append(["Item", "Quantity", "Unit Price"])
+    sheet.append(["A-1", 2, 10])
+    sheet.append(["B-2", 3, 20])
+    workbook.save(source)
+
+    agent_id = _teaching_agent(
+        route_env, "Document employee", "Times New Roman", "customer")
+    from core.student_learning_service import list_agent_lessons
+
+    lessons = list_agent_lessons(route_env["db"], agent_id)
+    assert lessons and lessons[0].get("format_spec"), lessons[0]
+    from core.artifact_teaching import resolve_artifact_teaching
+
+    resolved = resolve_artifact_teaching(
+        route_env["db"], agent_id, "document",
+        task_context={"audience": "customer"}, workspace_id="ws-1")
+    assert resolved["status"] == "applicable", resolved
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare a commercial response from the connected records",
+        "agent_id": agent_id,
+        "sources": [{
+            "kind": "workbook", "path": str(source), "sheet": "Records",
+            "columns": ["Item", "Quantity", "Unit Price"],
+        }],
+        "deliverables": [{
+            "kind": "document",
+            "description": "Commercial response",
+            "path": str(tmp_path / "commercial.docx"),
+            "content": (
+                "## Summary\n\nTotal ${calculate.value}\n\n"
+                "## Sources\n\n- Connected records"),
+        }],
+        "calculation": {"expression": "2*10 + 3*20", "output_unit": "USD"},
+        "wait": {"correlation_id": "corr-A",
+                 "party": "external source"},
+        "outbound": {
+            "to": ["test-recipient@example.invalid"],
+            "subject": "Commercial response",
+            "body": "Please see the prepared result.",
+        },
+        "task_context": {"audience": "customer"},
+        "transport": "controlled",
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["assignment"]["assignment"]["status"] == "waiting", body
+    assert body["teaching_revision"].startswith("")
+    assignment = body["assignment"]["assignment"]
+    assert assignment["plan_revision"] == 1
+    assert any(step["adapter"] == "workbook.read"
+               for step in assignment["steps"])
+    assert any(step["adapter"] == "formula.calculate"
+               for step in assignment["steps"])
+    assert any(step["adapter"] == "artifact.document"
+               for step in assignment["steps"])
+
+    responded = route_env["client"].post(
+        "/api/assignments/" + body["run_id"] + "/responses/corr-A",
+        json={"response": "REF-9", "source": "controlled reply",
+              "evidence": "authorized message"},
+    )
+    assert responded.status_code == 200, responded.text
+    assert responded.json()["assignment"]["status"] == "waiting"
+    assignment = responded.json()["assignment"]
+
+    # The teaching format reaches the saved document.
+    doc_step = next(step for step in assignment["steps"]
+                    if step["step_id"] == "deliverable-1")
+    assert doc_step["status"] == "applied"
+    import docx
+
+    document = docx.Document(str(tmp_path / "commercial.docx"))
+    assert document.styles["Normal"].font.name == "Times New Roman"
+
+    run_id = body["run_id"]
+    action = route_env["db"].query(HITLAction).filter(
+        HITLAction.action_type == "assignment_approval"
+    ).order_by(HITLAction.created_at.desc()).first()
+    assert action is not None
+    assert action.params.get("run_id") == run_id
+    approved = route_env["client"].post(
+        f"/api/assignments/{run_id}/approve/send", json={"note": "ok"})
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["assignment"]["assignment"]["status"] == "completed"
+
+
+def test_start_rejects_unregistered_proposed_adapter(route_env, tmp_path):
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Unsafe plan",
+        "sources": [{"kind": "document", "path": str(tmp_path / "a.txt")}],
+        "deliverables": [{
+            "kind": "document", "path": str(tmp_path / "out.docx"),
+            "content": "body",
+        }],
+        "proposed_steps": [{
+            "step_id": "bad", "title": "Bad", "operation_type": "retrieve",
+            "adapter": "invented.adapter", "depends_on": [],
+            "inputs": {}, "instruction": "", "required": True,
+            "effect": "read_only",
+            "approval": {"required": False, "purpose": ""},
+            "standing_authorization": None, "max_attempts": 3,
+            "invalidate_on_revision_change": True, "status": "pending",
+            "operation_id": None, "attempts": 0, "result": None,
+            "evidence_refs": [], "gap_ids": [], "artifact_revision": None,
+            "prior_results": [], "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+        }],
+    })
+    assert response.status_code == 422
+    assert "unregistered adapter" in response.text
+
+
+def test_start_second_domain_presentation_completes(route_env, tmp_path):
+    source = tmp_path / "qualification.txt"
+    source.write_text("Subject: record-2\nStatus: active\n")
+    agent_id = _teaching_agent(
+        route_env, "Presentation employee", "Georgia", "reviewer")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare an eligibility presentation for the reviewer",
+        "agent_id": agent_id,
+        "sources": [{"kind": "document", "path": str(source)}],
+        "deliverables": [{
+            "kind": "presentation",
+            "description": "Eligibility deck",
+            "path": str(tmp_path / "eligibility.pptx"),
+            "content": (
+                "Slide 1: Overview\n- Prepared from the authorized record\n\n"
+                "Slide 2: Sources\n- Qualification record"),
+        }],
+        "task_context": {"audience": "reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["assignment"]["assignment"]["status"] == "completed", body
+    import pptx
+
+    presentation = pptx.Presentation(str(tmp_path / "eligibility.pptx"))
+    assert presentation.slides[0].shapes.title.text == "Overview"
+
+

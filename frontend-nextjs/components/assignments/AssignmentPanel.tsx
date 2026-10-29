@@ -19,6 +19,7 @@ import {
   AssignmentStep,
   AssignmentSummary,
   cancelAssignment,
+  createAssignment,
   getAssignment,
   listAssignments,
   recordAssignmentResponse,
@@ -47,12 +48,27 @@ function currentStep(detail: AssignmentDetail): AssignmentStep | undefined {
   );
 }
 
-export function AssignmentPanel({ className = "" }: { className?: string }) {
+export function AssignmentPanel({
+  className = "",
+  agentId = null,
+}: {
+  className?: string;
+  agentId?: string | null;
+}) {
   const [summaries, setSummaries] = useState<AssignmentSummary[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<AssignmentDetail | null>(null);
   const [gapDrafts, setGapDrafts] = useState<Record<string, string>>({});
   const [responseDraft, setResponseDraft] = useState("");
+  const [startDraft, setStartDraft] = useState({
+    objective: "",
+    sourcePath: "",
+    deliverableKind: "document",
+    outputPath: "",
+    recipient: "",
+    expression: "",
+    correlation: "",
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +112,72 @@ export function AssignmentPanel({ className = "" }: { className?: string }) {
     }
   };
 
+  const start = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const sourceKind = /\.xlsx?$/i.test(startDraft.sourcePath)
+        ? "workbook"
+        : "document";
+      const payload: Record<string, any> = {
+        objective: startDraft.objective,
+        agent_id: agentId || undefined,
+        sources: [{ kind: sourceKind, path: startDraft.sourcePath }],
+        deliverables: [{
+          kind: startDraft.deliverableKind,
+          description: startDraft.objective,
+          path: startDraft.outputPath,
+          content: startDraft.deliverableKind === "presentation"
+            ? "Slide 1: Overview\n- Prepared from the authorized source\n\nSlide 2: Sources\n- Authorized source"
+            : startDraft.expression
+              ? "## Summary\n\n${calculate.value}\n\n## Sources\n\n- Authorized source"
+              : `## Summary\n\n${startDraft.objective}\n\n## Sources\n\n- Authorized source`,
+        }],
+      };
+      if (startDraft.expression.trim()) {
+        payload.calculation = {
+          expression: startDraft.expression.trim(),
+          bindings: {},
+        };
+      }
+      if (startDraft.correlation.trim()) {
+        payload.wait = {
+          correlation_id: startDraft.correlation.trim(),
+          party: "external responder",
+          detail: "authorized external reply",
+        };
+      }
+      if (startDraft.recipient.trim()) {
+        payload.outbound = {
+          to: [startDraft.recipient.trim()],
+          subject: startDraft.objective,
+          body: "Please see the prepared result.",
+          deliverable_id: "del-send",
+        };
+      }
+      if (process.env.NEXT_PUBLIC_ASSIGNMENT_TRANSPORT) {
+        payload.transport = process.env.NEXT_PUBLIC_ASSIGNMENT_TRANSPORT;
+      }
+      const result = await createAssignment(payload);
+      setStartDraft({
+        objective: "",
+        sourcePath: "",
+        deliverableKind: "document",
+        outputPath: "",
+        recipient: "",
+        expression: "",
+        correlation: "",
+      });
+      setSelected(result.run_id);
+      await refreshList();
+      await refreshDetail(result.run_id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start assignment");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const step = detail ? currentStep(detail) : undefined;
   const openGaps = detail?.open_gaps ?? [];
   const waitingParty = (step?.waiting?.party as string) || "";
@@ -125,6 +207,94 @@ export function AssignmentPanel({ className = "" }: { className?: string }) {
           {error}
         </div>
       ) : null}
+
+      <div className="space-y-1 rounded border bg-slate-50 p-2" data-testid="assignment-start">
+        <p className="font-medium">Start durable work</p>
+        <textarea
+          value={startDraft.objective}
+          onChange={(e) =>
+            setStartDraft((d) => ({ ...d, objective: e.target.value }))
+          }
+          placeholder="Objective"
+          rows={2}
+          className="w-full rounded border px-1.5 py-1"
+          aria-label="Assignment objective"
+        />
+        <input
+          value={startDraft.sourcePath}
+          onChange={(e) =>
+            setStartDraft((d) => ({ ...d, sourcePath: e.target.value }))
+          }
+          placeholder="Authorized source path (.xlsx/.docx)"
+          className="w-full rounded border px-1.5 py-1"
+          aria-label="Authorized source path"
+        />
+        <input
+          value={startDraft.outputPath}
+          onChange={(e) =>
+            setStartDraft((d) => ({ ...d, outputPath: e.target.value }))
+          }
+          placeholder="Deliverable output path (.docx/.xlsx/.pptx)"
+          className="w-full rounded border px-1.5 py-1"
+          aria-label="Deliverable output path"
+        />
+        <div className="flex gap-1">
+          <select
+            value={startDraft.deliverableKind}
+            onChange={(e) =>
+              setStartDraft((d) => ({
+                ...d,
+                deliverableKind: e.target.value,
+              }))
+            }
+            className="rounded border px-1.5 py-1"
+            aria-label="Deliverable kind"
+          >
+            <option value="document">Document</option>
+            <option value="presentation">Presentation</option>
+            <option value="email_draft">Email draft</option>
+          </select>
+          <input
+            value={startDraft.expression}
+            onChange={(e) =>
+              setStartDraft((d) => ({ ...d, expression: e.target.value }))
+            }
+            placeholder="Calculation expression (optional)"
+            className="min-w-0 flex-1 rounded border px-1.5 py-1"
+            aria-label="Calculation expression"
+          />
+        </div>
+        <input
+          value={startDraft.recipient}
+          onChange={(e) =>
+            setStartDraft((d) => ({ ...d, recipient: e.target.value }))
+          }
+          placeholder="Test recipient (optional, controlled transport)"
+          className="w-full rounded border px-1.5 py-1"
+          aria-label="Test recipient"
+        />
+        <input
+          value={startDraft.correlation}
+          onChange={(e) =>
+            setStartDraft((d) => ({ ...d, correlation: e.target.value }))
+          }
+          placeholder="Correlation id (optional external-fact wait)"
+          className="w-full rounded border px-1.5 py-1"
+          aria-label="Correlation id"
+        />
+        <Button
+          size="sm"
+          disabled={
+            busy ||
+            !startDraft.objective.trim() ||
+            !startDraft.sourcePath.trim() ||
+            !startDraft.outputPath.trim()
+          }
+          onClick={start}
+        >
+          <Play className="h-3 w-3" /> Start assignment
+        </Button>
+      </div>
 
       {summaries.length === 0 ? (
         <p className="text-muted-foreground">No durable assignments yet.</p>

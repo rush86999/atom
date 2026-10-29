@@ -6,6 +6,7 @@ run's own workspace binding.
 """
 from __future__ import annotations
 
+import uuid
 from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, HTTPException
@@ -13,11 +14,18 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.auth import User, get_current_user
+from core.assignment_planner import (
+    AssignmentPlanError,
+    plan_assignment,
+    validate_proposed_plan,
+)
+from core.assignment_plan import new_teaching_snapshot
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.goals.goal_run_service import GoalRunService
+from core.goals.goal_service import GoalService
 from core.intervention_service import intervention_service
-from core.models import HITLAction, HITLActionStatus, UserRole
+from core.models import AgentRegistry, HITLAction, HITLActionStatus, UserRole
 from core.security.rbac import user_meets_role
 from core.task_lifecycle import TaskLifecycle
 
@@ -43,6 +51,21 @@ class AssignmentExternalResponse(BaseModel):
     evidence: str = ""
 
 
+class AssignmentStart(BaseModel):
+    objective: str
+    conversation_id: Optional[str] = None
+    agent_id: Optional[str] = None
+    employee_id: Optional[str] = None
+    sources: List[Dict[str, Any]] = []
+    deliverables: List[Dict[str, Any]] = []
+    calculation: Optional[Dict[str, Any]] = None
+    outbound: Optional[Dict[str, Any]] = None
+    wait: Optional[Dict[str, Any]] = None
+    task_context: Dict[str, Any] = {}
+    transport: Optional[str] = None
+    proposed_steps: Optional[List[Dict[str, Any]]] = None
+
+
 def _scoped_run(run_id: str, current_user: User) -> Dict[str, Any]:
     run = GoalRunService(
         workspace_id=current_user.workspace_id or "default",
@@ -60,7 +83,189 @@ def _executor(run: Dict[str, Any]):
         workspace_id=run.get("workspace_id") or "default",
         tenant_id=run.get("tenant_id") or "default",
     )
-    return AssignmentExecutor(TaskLifecycle(svc))
+    goals = GoalService(
+        workspace_id=run.get("workspace_id") or "default",
+        tenant_id=run.get("tenant_id") or "default",
+    )
+    return AssignmentExecutor(TaskLifecycle(svc, goals))
+
+
+def _teaching_snapshot_for_start(
+    db,
+    *,
+    agent_id: Optional[str],
+    workspace_id: str,
+    output_types: List[str],
+    task_context: Dict[str, Any],
+) -> Dict[str, Any]:
+    from core.artifact_teaching import resolve_artifact_teaching
+
+    merged: Dict[str, Any] = {}
+    sources: List[Dict[str, Any]] = []
+    revisions: List[str] = []
+    unresolved: List[Dict[str, Any]] = []
+    conflicts: List[Dict[str, Any]] = []
+    for output_type in sorted(set(output_types)):
+        resolution = resolve_artifact_teaching(
+            db, agent_id, output_type,
+            task_context=task_context or {},
+            workspace_id=workspace_id or "default",
+        )
+        status = str(resolution.get("status") or "")
+        if status in ("needs_context", "conflict"):
+            unresolved.extend(resolution.get("clarifications") or [])
+            conflicts.extend(resolution.get("conflicts") or [])
+            continue
+        merged.update(resolution.get("spec") or {})
+        sources.extend(resolution.get("sources") or [])
+        if resolution.get("revision"):
+            revisions.append(str(resolution["revision"]))
+    if unresolved or conflicts:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "teaching_context_unresolved",
+                "message": (
+                    "Teaching cannot govern this assignment until the "
+                    "missing context is confirmed."),
+                "clarifications": unresolved[:20],
+                "conflicts": conflicts[:20],
+            },
+        )
+    return new_teaching_snapshot(
+        revision="+".join(sorted(set(revisions))) or "untrained",
+        effective_lesson_ids=[
+            {"id": item.get("id"), "revision": item.get("revision")}
+            for item in sources if item.get("id")
+        ][:40],
+        matched_context=dict(task_context or {}),
+        output_requirements=merged,
+        source_versions={
+            str(item.get("id")): item.get("revision")
+            for item in sources if item.get("id")
+        },
+    )
+
+
+@router.post("")
+async def start_assignment(
+    body: AssignmentStart,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Create a validated assignment from an accepted Chat objective."""
+    if not str(body.objective or "").strip():
+        raise HTTPException(status_code=422, detail="objective is required")
+    if not body.sources:
+        raise HTTPException(
+            status_code=422,
+            detail="at least one authorized source is required")
+    if not body.deliverables and not body.outbound:
+        raise HTTPException(
+            status_code=422,
+            detail="at least one deliverable or outbound action is required")
+    employee = current_user
+    if body.employee_id and body.employee_id != current_user.id:
+        employee = db.query(User).filter(
+            User.id == body.employee_id,
+            User.workspace_id == current_user.workspace_id,
+            User.tenant_id == current_user.tenant_id,
+        ).first()
+        if employee is None:
+            raise HTTPException(status_code=404, detail="Employee not found")
+        if not user_meets_role(current_user, UserRole.TEAM_LEAD):
+            raise HTTPException(
+                status_code=403,
+                detail="Only a supervisor may assign work to another employee")
+    if body.agent_id:
+        agent = db.query(AgentRegistry).filter(
+            AgentRegistry.id == body.agent_id,
+            AgentRegistry.workspace_id == current_user.workspace_id,
+            AgentRegistry.tenant_id == current_user.tenant_id,
+        ).first()
+        if agent is None:
+            raise HTTPException(status_code=404, detail="Employee agent not found")
+
+    output_types = []
+    for deliverable in body.deliverables:
+        kind = str(deliverable.get("kind") or "").lower()
+        output_types.append({
+            "document": "document",
+            "spreadsheet": "spreadsheet",
+            "presentation": "presentation",
+            "email_draft": "email",
+        }.get(kind, ""))
+    if body.outbound:
+        output_types.append("email")
+    teaching = _teaching_snapshot_for_start(
+        db,
+        agent_id=body.agent_id,
+        workspace_id=current_user.workspace_id or "default",
+        output_types=[item for item in output_types if item],
+        task_context=body.task_context,
+    )
+
+    transport_adapter = None
+    if body.transport == "controlled":
+        from core.assignment_executor import default_adapter_registry
+
+        if default_adapter_registry.get("assignment.controlled_outbox"):
+            transport_adapter = "assignment.controlled_outbox"
+        else:
+            raise HTTPException(
+                status_code=409,
+                detail="controlled transport is not enabled in this runtime")
+
+    try:
+        plan = plan_assignment(
+            objective=body.objective,
+            sources=body.sources,
+            deliverables=body.deliverables,
+            calculation=body.calculation,
+            outbound=body.outbound,
+            wait=body.wait,
+            teaching_snapshot=teaching,
+            authorized_actions=["retrieve", "calculate", "present",
+                                "outbound"],
+            employee_id=employee.id,
+            workspace_id=current_user.workspace_id or "default",
+            tenant_id=current_user.tenant_id or "default",
+            agent_id=body.agent_id,
+            transport_adapter=transport_adapter,
+            provenance={
+                "conversation_id": body.conversation_id,
+                "started_from": "chat",
+                "requester_id": current_user.id,
+            },
+            proposed_steps=body.proposed_steps,
+        )
+        if body.proposed_steps is not None:
+            validate_proposed_plan(plan)
+    except AssignmentPlanError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    executor = _executor({
+        "workspace_id": current_user.workspace_id or "default",
+        "tenant_id": current_user.tenant_id or "default",
+    })
+    record = executor.create_assignment(
+        body.conversation_id or f"chat-assignment-{uuid.uuid4().hex[:12]}",
+        body.objective,
+        assignment=plan,
+        employee_id=employee.id,
+        workspace_id=current_user.workspace_id or "default",
+        tenant_id=current_user.tenant_id or "default",
+        entities=[],
+        requested_fields=[],
+    )
+    status = await executor.execute(record["run_id"], max_steps=12)
+    return {
+        "run_id": record["run_id"],
+        "assignment": status,
+        "plan_revision": plan.get("plan_revision"),
+        "teaching_revision": (
+            plan.get("teaching_snapshot") or {}).get("revision"),
+    }
 
 
 @router.get("")
