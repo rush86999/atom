@@ -52,6 +52,8 @@ The frozen `40b3367d9` delta was reviewed in
 reproduced and repaired in `294fdf0ec`; affected controls pass. The bounded
 taught-method job is `de25c5148` and its controlled evidence is in
 `docs/acceptance/evidence/durable_assignment_20261029/bounded-taught-job/`.
+The prepared package is `13a7f82a2` under
+`docs/acceptance/assignment-successor-package-2026-10-29/`.
 
 Live OneDrive guided start and live changed-byte refresh remain blocked by
 missing `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET` and the disposable-source

@@ -2,6 +2,7 @@
   "schema": "atom-assignment-successor-package-1",
   "created": "2026-10-29",
   "package_doc": "docs/acceptance/assignment-successor-package-2026-10-29/ASSIGNMENT_SUCCESSOR_PACKAGE_2026-10-29.md",
+  "package_commit": "13a7f82a2",
   "candidate": {
     "branch": "whole-app/successor-f5f",
     "source_commit": "de25c5148",
