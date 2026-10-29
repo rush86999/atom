@@ -1,0 +1,122 @@
+{
+  "schema": "atom-mapping-browser-b-1",
+  "status": "passed",
+  "run_id": "c64baa81-40ff-4886-af95-96a753937930",
+  "assignment_id": "asg-b333fffc9eb246e1",
+  "result": "35.00",
+  "currency": "USD",
+  "source_version": "60462cfb265c71404084679f73146ce34e40cc99",
+  "mapping_revision": 2,
+  "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_b_acceptance/office/assignments/default/map-user/draft-9a918d50fc9c/mapping-b-total-8a807f06.docx",
+  "artifact_sha256": "a46f826ab2808356fca6d113a534a9c92b9ba75bbd54cf11a3dbdec9c21cfb55",
+  "first_gap": {
+    "question_id": "bba93cbe-e58b-4560-be87-06ff86f7e737",
+    "item": "Aggregate workbook source",
+    "question": "Which column should be summed?",
+    "kind": "missing_evidence",
+    "evidence": "",
+    "next_action": "select the matching column from the current schema and confirm",
+    "decision_owner": null,
+    "inputs": {
+      "mapping": {
+        "concept": "Price",
+        "missing_column": "Price",
+        "source": "outlook",
+        "external_id": "fixture-b",
+        "dataset_name": "outlook_workbook_b__sheet1",
+        "resource_id": "72fe3236-5727-42a5-ac19-72777abcd03d",
+        "sheet": "Sheet1",
+        "source_version": "60462cfb265c71404084679f73146ce34e40cc99",
+        "teaching_revision": "eba71291735cd1b7",
+        "mapping_source": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "Unit Price",
+          "unit": "USD",
+          "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revision": 1,
+          "lesson_id": "89aad5c3e26543548b3717d312318a07",
+          "lesson_revision": 1
+        },
+        "candidates": [
+          {
+            "column": "SKU",
+            "sample_values": [
+              "B-1",
+              "B-2"
+            ],
+            "inferred_type": "text"
+          },
+          {
+            "column": "Quantity",
+            "sample_values": [
+              "2",
+              "3"
+            ],
+            "inferred_type": "number"
+          },
+          {
+            "column": "Amount",
+            "sample_values": [
+              "15",
+              "20"
+            ],
+            "inferred_type": "number"
+          },
+          {
+            "column": "Discount",
+            "sample_values": [
+              "1",
+              "2"
+            ],
+            "inferred_type": "number"
+          },
+          {
+            "column": "Currency",
+            "sample_values": [
+              "USD",
+              "USD"
+            ],
+            "inferred_type": "text"
+          },
+          {
+            "column": "Note",
+            "sample_values": [
+              "renamed"
+            ],
+            "inferred_type": "text"
+          }
+        ]
+      }
+    },
+    "concept": "value_column",
+    "reason": "the named measure 'Price' is not in the frame",
+    "affected_subjects": [],
+    "checked_evidence": [
+      "columns=['SKU', 'Quantity', 'Amount', 'Discount', 'Currency', 'Note', '__sheet_row']"
+    ],
+    "next_retrieval": "select the matching column from the current schema and confirm",
+    "resolver": null,
+    "step_id": "source-1",
+    "waiting": {
+      "state": "waiting_for_person",
+      "party": "owner",
+      "correlation_id": null,
+      "resume_on": "answer",
+      "deadline": null,
+      "since": "2026-10-29T18:24:29.625978+00:00",
+      "detail": null
+    },
+    "status": "open",
+    "attempts": 0,
+    "opened_at": "2026-10-29T18:24:29.626613+00:00",
+    "resolved_at": null,
+    "resolution": null,
+    "source_operation": "51ebc45e-eeb0-4f9a-a3a5-0cf6599a422a"
+  },
+  "screenshots": [
+    "mapping-candidates.png",
+    "mapping-completed.png"
+  ],
+  "fixture": "controlled acceptance workbook_b (not live-connected)"
+}
