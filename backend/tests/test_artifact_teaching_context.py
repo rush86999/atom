@@ -21,6 +21,7 @@ from core.student_learning_service import (
     deliver_teacher_lesson,
     format_lessons_block,
     get_agent_lessons,
+    journal_standing_lesson_entry,
     list_agent_lessons,
     update_teaching_point,
 )
@@ -320,3 +321,36 @@ def test_update_revision_preserves_unrelated_agent(db_session):
     b_lessons = get_agent_lessons(db_session, agent_b.id)
     assert [item.get("lesson") for item in b_lessons] == ["Decision rule for B"]
     assert b_lessons[0].get("format_spec") is None
+
+
+def test_mapping_only_lesson_resolves_and_confirmation_updates_it(db_session):
+    agent = _agent(db_session)
+    entry = journal_standing_lesson_entry(
+        db_session, agent.id,
+        "Price means the monetary value per unit.",
+        source="teacher", topic="price mapping",
+        applies_to=["document"],
+        context={"field_mappings": [{
+            "concept": "Price", "sheet": "Sheet1", "column": "Price",
+            "unit": "USD", "source_version": "v1", "revision": 1,
+        }]},
+        workspace_id="ws-a",
+    )
+    assert entry is not None
+    resolved = resolve_artifact_teaching(
+        db_session, agent.id, "document", workspace_id="ws-a")
+    assert resolved["status"] == "applicable"
+    assert resolved["field_mappings"][0]["concept"] == "Price"
+    assert resolved["field_mappings"][0]["lesson_id"] == entry["id"]
+
+    updated = update_teaching_point(
+        db_session, agent.id, entry["id"],
+        context={"field_mappings": [{
+            "concept": "Price", "sheet": "Sheet1", "column": "Amount",
+            "unit": "USD", "source_version": "v2", "revision": 2,
+        }]})
+    assert updated["status"] == "ok"
+    assert updated["entry"]["revision"] == 2
+    resolved = resolve_artifact_teaching(
+        db_session, agent.id, "document", workspace_id="ws-a")
+    assert resolved["field_mappings"][0]["column"] == "Amount"

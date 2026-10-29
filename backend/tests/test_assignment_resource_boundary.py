@@ -607,6 +607,83 @@ def test_artifact_with_missing_required_result_is_rejected(tmp_path):
 
 
 
+def test_mapping_gap_confirmation_resumes_same_assignment(
+        tmp_path, monkeypatch):
+    from core.assignment_executor import AssignmentExecutor
+    from core.goals.goal_run_service import GoalRunService
+    from core.goals.goal_service import GoalService
+    from core.task_lifecycle import TaskLifecycle
+
+    db, user, _token, factory = _real_connected_catalog(tmp_path, monkeypatch)
+    resolved = resolve_assignment_source(
+        db, user, {"dataset_name": "scotch_parts_price_list",
+                   "sheet": "US$ SCOTCH PARTS"})
+    binding = resource_binding(resolved)
+    plan = new_assignment(
+        objective="Sum the taught price concept",
+        employee_id="u1",
+        workspace_id="ws-a",
+        tenant_id="t1",
+        teaching_snapshot=new_teaching_snapshot(
+            revision="map-r1",
+            field_mappings=[{
+                "concept": "Price", "sheet": "US$ SCOTCH PARTS",
+                "column": "Price", "unit": "USD",
+                "source_version": "a" * 40, "revision": 1,
+                "lesson_id": "lesson-map-1",
+            }],
+        ),
+        steps=[new_step(
+            step_id="source-1", title="Aggregate the taught source",
+            operation_type="calculate", adapter="dataset.aggregate",
+            inputs={"resource_binding": binding, "operation": "sum",
+                    "value_column": "Price"},
+            effect="local")],
+        sources=[{"kind": "workbook", "binding": binding}],
+        authorized_actions=["retrieve", "calculate"],
+        completion_criteria=[{"kind": "required_work_complete"}],
+    )
+    runs = GoalRunService(
+        workspace_id="ws-a", tenant_id="t1", session_factory=factory)
+    goals = GoalService(
+        workspace_id="ws-a", tenant_id="t1", session_factory=factory)
+    executor = AssignmentExecutor(TaskLifecycle(runs, goals))
+    record = executor.create_assignment(
+        "conv-map", "Sum the taught price concept", assignment=plan,
+        employee_id="u1", workspace_id="ws-a", tenant_id="t1")
+    asyncio.run(executor.execute(record["run_id"]))
+    status = executor.status(record["run_id"])
+    gap = next(g for g in status["open_gaps"]
+               if g.get("inputs", {}).get("mapping"))
+    mapping = gap["inputs"]["mapping"]
+    assert mapping["source_version"] == "a" * 40
+    assert "Total" in [item["column"] for item in mapping["candidates"]]
+    assert mapping["mapping_source"]["lesson_id"] == "lesson-map-1"
+
+    with pytest.raises(Exception):
+        executor.resolve_gap(
+            record["run_id"], gap["question_id"],
+            resolution=json.dumps({"column": "Forged"}))
+    with pytest.raises(Exception):
+        executor.resolve_gap(
+            record["run_id"], gap["question_id"],
+            resolution=json.dumps({"column": "Total", "unit": "kg"}))
+
+    executor.resolve_gap(
+        record["run_id"], gap["question_id"],
+        resolution=json.dumps({"column": "Total", "unit": "USD"}))
+    asyncio.run(executor.resume(record["run_id"]))
+    final = executor.status(record["run_id"])
+    assert final["assignment"]["status"] == "completed", final
+    durable = executor.lifecycle.get_task(record["run_id"]) or {}
+    source_step = next(
+        step for step in (durable.get("assignment") or {}).get("steps", [])
+        if step["step_id"] == "source-1")
+    assert source_step["result"]["value"] == "85.00"
+    assert (durable.get("assignment") or {}).get(
+        "teaching_snapshot", {}).get("field_mappings", [])[0]["column"] == "Total"
+
+
 def test_revoked_grant_between_start_and_resumed_executor_read(
         tmp_path, monkeypatch):
     import core.assignment_controlled_transport  # noqa: F401

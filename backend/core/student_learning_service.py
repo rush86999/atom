@@ -496,6 +496,7 @@ def update_teaching_point(
     if (
         new_text is None and new_topic is None
         and applies_to is None and format_spec is None and conditions is None
+        and context is None
     ):
         return {"status": "error", "reason": "nothing_to_update"}
     # observation_type classifies the entry (human_correction IS standing
@@ -540,6 +541,16 @@ def update_teaching_point(
             updated.pop(key, None)
         updated.update(normalized)
         updated["revision"] = next_revision
+    elif context is not None:
+        from core.artifact_teaching import normalize_lesson_context
+
+        normalized_context = normalize_lesson_context(context)
+        if not normalized_context:
+            return {"status": "error", "reason": "empty_context"}
+        merged_context = dict(updated.get("context") or {})
+        merged_context.update(normalized_context)
+        updated["context"] = merged_context
+        updated["revision"] = int(entry.get("revision") or 1) + 1
     updated["id"] = updated.get("id") or _new_entry_id()
     updated["edited_at"] = datetime.now(timezone.utc).isoformat()
 

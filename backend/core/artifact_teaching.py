@@ -505,8 +505,12 @@ def resolve_artifact_teaching(
     errors: List[str] = []
     for entry in lessons:
         raw_spec = entry.get("format_spec")
-        if not isinstance(raw_spec, dict) or not raw_spec:
+        mappings_for_entry = (
+            (entry.get("context") or {}).get("field_mappings") or []
+        )
+        if (not isinstance(raw_spec, dict) or not raw_spec) and not mappings_for_entry:
             continue
+        raw_spec = raw_spec if isinstance(raw_spec, dict) else {}
         applies = [str(item).lower() for item in (entry.get("applies_to") or [])]
         if applies and output_type not in applies:
             continue
@@ -563,6 +567,7 @@ def resolve_artifact_teaching(
     # to silently choose one.
     spec: Dict[str, Any] = {}
     selected: List[Dict[str, Any]] = []
+    field_mappings: List[Dict[str, Any]] = []
     by_key: Dict[str, List[Tuple[int, Any, Dict[str, Any]]]] = {}
     for specificity, entry, raw_spec, applies in applicable:
         for key, value in raw_spec.items():
@@ -576,6 +581,14 @@ def resolve_artifact_teaching(
             "context": dict(entry.get("context") or {}),
             "specificity": specificity,
         })
+        for mapping in ((entry.get("context") or {}).get("field_mappings") or []):
+            if not isinstance(mapping, dict):
+                continue
+            field_mappings.append({
+                **dict(mapping),
+                "lesson_id": entry.get("id"),
+                "lesson_revision": entry.get("revision") or 1,
+            })
         unsupported.extend(entry.get("unsupported_format_keys") or [])
         errors.extend(entry.get("format_errors") or [])
     for key, candidates in by_key.items():
@@ -607,7 +620,7 @@ def resolve_artifact_teaching(
         status = "conflict"
     elif clarifications:
         status = "needs_context"
-    elif spec:
+    elif spec or field_mappings:
         status = "applicable"
     else:
         status = "not_applicable"
@@ -617,6 +630,7 @@ def resolve_artifact_teaching(
             [item.get("id"), item.get("revision"), item.get("context")]
             for item in selected
         ],
+        "field_mappings": field_mappings,
         "matched_context": [
             item.get("matched") for item in applicability
             if item.get("status") == "applicable"
@@ -625,7 +639,7 @@ def resolve_artifact_teaching(
     }
     revision = hashlib.sha256(
         json.dumps(revision_payload, sort_keys=True, default=str).encode()
-    ).hexdigest()[:16] if spec else ""
+    ).hexdigest()[:16] if (spec or field_mappings) else ""
     if status == "applicable":
         matched = sorted({
             f"{key}={value}"
@@ -656,6 +670,7 @@ def resolve_artifact_teaching(
     return {
         "spec": spec,
         "sources": selected,
+        "field_mappings": field_mappings,
         "revision": revision,
         "unsupported": sorted(set(unsupported)),
         "errors": sorted(set(errors)),

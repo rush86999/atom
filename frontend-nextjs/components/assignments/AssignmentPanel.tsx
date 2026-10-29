@@ -473,7 +473,12 @@ export function AssignmentPanel({
           {openGaps.length ? (
             <div className="space-y-2" data-testid="assignment-gaps">
               <p className="font-medium">Missing information</p>
-              {openGaps.map((gap) => (
+              {openGaps.map((gap) => {
+                const mapping = gap?.inputs?.mapping;
+                const candidates = Array.isArray(mapping?.candidates)
+                  ? mapping.candidates
+                  : [];
+                return (
                 <div key={gap.question_id} className="rounded border p-2">
                   <p>{gap.question}</p>
                   <p className="text-[10px] text-muted-foreground">
@@ -483,40 +488,105 @@ export function AssignmentPanel({
                       : ""}
                     {gap.resolver ? ` · Resolver: ${gap.resolver}` : ""}
                   </p>
-                  <div className="mt-1 flex gap-1">
-                    <input
-                      value={gapDrafts[gap.question_id] || ""}
-                      onChange={(e) =>
-                        setGapDrafts((d) => ({
-                          ...d,
-                          [gap.question_id]: e.target.value,
-                        }))
-                      }
-                      placeholder="Answer"
-                      className="min-w-0 flex-1 rounded border px-1.5 py-1"
-                      aria-label="Gap answer"
-                    />
-                    <Button
-                      size="sm"
-                      aria-label={`Resolve gap: ${gap.question}`}
-                      disabled={busy || !gapDrafts[gap.question_id]?.trim()}
-                      onClick={() =>
-                        act(
-                          () =>
-                            resolveAssignmentGap(
-                              detail.run_id,
-                              gap.question_id,
-                              gapDrafts[gap.question_id]
-                            ),
-                          detail.run_id
-                        )
-                      }
-                    >
-                      <Send className="h-3 w-3" />
-                    </Button>
-                  </div>
+                  {mapping && candidates.length ? (
+                    <div className="mt-2 space-y-1" data-testid="mapping-candidates">
+                      <p className="text-[10px] text-muted-foreground">
+                        Concept: {String(mapping.concept || "")} · Sheet:{" "}
+                        {String(mapping.sheet || "")} · Version:{" "}
+                        {String(mapping.source_version || "")}
+                        {mapping.mapping_source?.unit
+                          ? ` · Unit: ${mapping.mapping_source.unit}`
+                          : ""}
+                      </p>
+                      {candidates.map((candidate: any) => (
+                        <button
+                          key={candidate.column}
+                          type="button"
+                          data-testid={`mapping-candidate-${candidate.column}`}
+                          className="block w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted"
+                          disabled={busy}
+                          onClick={() =>
+                            act(
+                              () =>
+                                resolveAssignmentGap(
+                                  detail.run_id,
+                                  gap.question_id,
+                                  JSON.stringify({
+                                    column: candidate.column,
+                                    unit: mapping.mapping_source?.unit || "",
+                                  })
+                                ),
+                              detail.run_id
+                            )
+                          }
+                        >
+                          <span className="font-medium">{candidate.column}</span>
+                          <span className="ml-2 text-muted-foreground">
+                            {candidate.inferred_type || "value"}
+                            {Array.isArray(candidate.sample_values) &&
+                            candidate.sample_values.length
+                              ? ` · ${candidate.sample_values.join(", ")}`
+                              : ""}
+                          </span>
+                        </button>
+                      ))}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        data-testid="mapping-reject"
+                        onClick={() =>
+                          act(
+                            () =>
+                              resolveAssignmentGap(
+                                detail.run_id,
+                                gap.question_id,
+                                JSON.stringify({ rejected: true })
+                              ),
+                            detail.run_id
+                          )
+                        }
+                      >
+                        None of these
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mt-1 flex gap-1">
+                      <input
+                        value={gapDrafts[gap.question_id] || ""}
+                        onChange={(e) =>
+                          setGapDrafts((d) => ({
+                            ...d,
+                            [gap.question_id]: e.target.value,
+                          }))
+                        }
+                        placeholder="Answer"
+                        className="min-w-0 flex-1 rounded border px-1.5 py-1"
+                        aria-label="Gap answer"
+                      />
+                      <Button
+                        size="sm"
+                        aria-label={`Resolve gap: ${gap.question}`}
+                        disabled={busy || !gapDrafts[gap.question_id]?.trim()}
+                        onClick={() =>
+                          act(
+                            () =>
+                              resolveAssignmentGap(
+                                detail.run_id,
+                                gap.question_id,
+                                gapDrafts[gap.question_id]
+                              ),
+                            detail.run_id
+                          )
+                        }
+                      >
+                        <Send className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : null}
 

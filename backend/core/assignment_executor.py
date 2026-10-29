@@ -40,6 +40,7 @@ from core.assignment_plan import (
     derive_state,
     downstream_step_ids,
     new_assignment,
+    new_teaching_snapshot,
     ready_steps,
     step_by_id,
     validate_assignment,
@@ -1659,12 +1660,59 @@ class AssignmentExecutor:
         if not str(resolution or "").strip():
             raise AssignmentError("a gap resolution requires a value")
         record = self.lifecycle.get_task(run_id) or {}
+        question = {}
         waiting = {}
-        for question in (record.get("task_revision") or {}).get(
+        for item in (record.get("task_revision") or {}).get(
                 "unresolved") or []:
-            if question.get("question_id") == question_id:
-                waiting = dict(question.get("waiting") or {})
+            if item.get("question_id") == question_id:
+                question = dict(item)
+                waiting = dict(item.get("waiting") or {})
                 break
+        mapping = dict((question.get("inputs") or {}).get("mapping") or {})
+        selected_column = ""
+        selected_unit = ""
+        mapping_applied = False
+        if mapping:
+            try:
+                parsed = json.loads(str(resolution))
+            except (TypeError, ValueError):
+                parsed = {"column": str(resolution or "").strip()}
+            if not isinstance(parsed, dict):
+                raise AssignmentError("a mapping resolution must be an object")
+            if parsed.get("rejected") is True:
+                raise AssignmentError(
+                    "the candidate mapping was rejected; select or correct a field")
+            selected_column = str(parsed.get("column") or "").strip()
+            selected_unit = str(parsed.get("unit") or "").strip()
+            candidates = [
+                str(item.get("column") or "")
+                for item in (mapping.get("candidates") or [])
+                if isinstance(item, dict)
+            ]
+            if not selected_column or selected_column not in candidates:
+                raise AssignmentError(
+                    "the confirmed mapping is not one of the current schema candidates")
+            source = next((
+                item for item in (record.get("assignment") or {}).get("sources") or []
+                if str((item.get("binding") or {}).get("external_id") or "")
+                == str(mapping.get("external_id") or "")
+                and str((item.get("binding") or {}).get("sheet") or "")
+                == str(mapping.get("sheet") or "")
+            ), None)
+            current_version = str(
+                ((source or {}).get("binding") or {}).get("source_version") or "")
+            if (str(mapping.get("source_version") or "")
+                    and current_version != str(mapping.get("source_version"))):
+                raise AssignmentError(
+                    "the source version changed; reconfirm the mapping against the current schema")
+            expected_unit = str(
+                ((mapping.get("mapping_source") or {}).get("unit") or "")).strip()
+            if expected_unit and selected_unit and (
+                    expected_unit.lower() != selected_unit.lower()):
+                raise AssignmentError(
+                    f"the confirmed unit '{selected_unit}' does not match "
+                    f"the taught unit '{expected_unit}'")
+            mapping_applied = True
         self.lifecycle.apply_transition(run_id, {
             "kind": "record_unresolved",
             "requested_change": f"resolved {question_id}",
@@ -1697,6 +1745,50 @@ class AssignmentExecutor:
         def compute(record, assignment):
             new_plan = copy.deepcopy(assignment)
             reopened: List[str] = []
+            if mapping_applied:
+                missing = str(mapping.get("missing_column") or "")
+                for step in new_plan.get("steps") or []:
+                    step["inputs"] = _replace_mapping_value(
+                        step.get("inputs") or {}, missing, selected_column)
+                snapshot = dict(new_plan.get("teaching_snapshot") or {})
+                mappings = [
+                    dict(item) for item in (snapshot.get("field_mappings") or [])
+                    if isinstance(item, dict)
+                ]
+                source_mapping = dict(mapping.get("mapping_source") or {})
+                concept = str(mapping.get("concept") or missing)
+                mappings = [
+                    item for item in mappings
+                    if not (str(item.get("concept") or "").lower()
+                            == concept.lower()
+                            and str(item.get("sheet") or "")
+                            == str(mapping.get("sheet") or ""))
+                ]
+                mappings.append({
+                    "concept": concept,
+                    "sheet": str(mapping.get("sheet") or ""),
+                    "column": selected_column,
+                    "unit": selected_unit or str(source_mapping.get("unit") or ""),
+                    "source_version": str(mapping.get("source_version") or ""),
+                    "revision": int(source_mapping.get("revision") or 1) + 1,
+                    "lesson_id": source_mapping.get("lesson_id"),
+                })
+                snapshot = new_teaching_snapshot(
+                    revision=(
+                        str(snapshot.get("revision") or "untrained")
+                        + "+map"),
+                    effective_lesson_ids=snapshot.get("effective_lesson_ids") or [],
+                    applicable_conditions=snapshot.get("applicable_conditions") or {},
+                    matched_context=snapshot.get("matched_context") or {},
+                    unresolved_conditions=snapshot.get("unresolved_conditions") or [],
+                    conflicting_conditions=snapshot.get("conflicting_conditions") or [],
+                    field_mappings=mappings,
+                    source_versions=snapshot.get("source_versions") or {},
+                    output_requirements=snapshot.get("output_requirements") or {},
+                    decision_schema=snapshot.get("decision_schema") or [],
+                    artifact_requirements=snapshot.get("artifact_requirements") or {},
+                )
+                new_plan["teaching_snapshot"] = snapshot
             for step in new_plan.get("steps") or []:
                 if question_id not in (step.get("gap_ids") or []):
                     continue
@@ -1708,12 +1800,56 @@ class AssignmentExecutor:
                 step["waiting"] = None
                 step["updated_at"] = _utc_now_iso()
                 reopened.append(step["step_id"])
+            # A confirmed mapping changes evidence/calculation identity:
+            # dependent unapplied work must rerun, never reuse a prior result.
+            if mapping_applied:
+                for step in new_plan.get("steps") or []:
+                    if step.get("status") in ("pending", "failed", "waiting"):
+                        if step.get("operation_id"):
+                            step["operation_id"] = None
+                        step["status"] = "pending"
+                        step["updated_at"] = _utc_now_iso()
+                        if step["step_id"] not in reopened:
+                            reopened.append(step["step_id"])
             new_plan["status"] = "planned"
             new_plan["updated_at"] = _utc_now_iso()
             return new_plan, {"reopened_steps": reopened}
 
         result = self.lifecycle.mutate_assignment(
             run_id, compute, rationale=f"gap {question_id} resolved")
+        if mapping_applied:
+            lesson_id = str(
+                (mapping.get("mapping_source") or {}).get("lesson_id") or "")
+            agent_id = str(
+                ((record.get("assignment") or {}).get("provenance") or {}
+                 ).get("agent_id") or "")
+            if lesson_id and agent_id:
+                try:
+                    from core.database import get_db_session
+                    from core.student_learning_service import update_teaching_point
+
+                    source_mapping = dict(mapping.get("mapping_source") or {})
+                    with get_db_session() as db:
+                        update_teaching_point(
+                            db, agent_id, lesson_id,
+                            context={"field_mappings": [{
+                                "concept": str(
+                                    mapping.get("concept")
+                                    or mapping.get("missing_column") or ""),
+                                "sheet": str(mapping.get("sheet") or ""),
+                                "column": selected_column,
+                                "unit": selected_unit or str(
+                                    source_mapping.get("unit") or ""),
+                                "source_version": str(
+                                    mapping.get("source_version") or ""),
+                                "revision": int(
+                                    source_mapping.get("revision") or 1) + 1,
+                            }]},
+                        )
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "mapping lesson update skipped for %s: %s",
+                        lesson_id, exc)
         self._wake_run(run_id, {
             "event": str(waiting.get("event") or "human_input"),
             "correlation_id": waiting.get("correlation_id"),
@@ -3112,6 +3248,79 @@ async def _action_registry_adapter(
     }
 
 
+def _mapping_proposal(
+    *,
+    binding: Dict[str, Any],
+    missing: str,
+    columns: Sequence[str],
+    records: Sequence[Dict[str, Any]],
+    teaching: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Schema candidates for a missing concept. Candidates are proposals only."""
+    mappings = [
+        dict(item) for item in (teaching.get("field_mappings") or [])
+        if isinstance(item, dict)
+    ]
+    source_mapping = next((
+        item for item in mappings
+        if str(item.get("concept") or "").strip().lower()
+        == str(missing or "").strip().lower()
+    ), None)
+    concept = str((source_mapping or {}).get("concept") or missing or "").strip()
+    candidate_columns = [
+        str(column) for column in columns
+        if str(column).strip() and str(column) != "__sheet_row"
+    ][:24]
+    candidates = []
+    for column in candidate_columns:
+        samples = []
+        for record in records:
+            value = record.get(column)
+            if value is None or str(value).strip() == "":
+                continue
+            samples.append(str(value)[:80])
+            if len(samples) >= 3:
+                break
+        numeric = 0
+        for sample in samples:
+            try:
+                float(str(sample).replace(",", ""))
+                numeric += 1
+            except ValueError:
+                pass
+        candidates.append({
+            "column": column,
+            "sample_values": samples,
+            "inferred_type": "number" if samples and numeric == len(samples)
+            else "text",
+        })
+    return {
+        "concept": concept,
+        "missing_column": str(missing or ""),
+        "source": str(binding.get("source") or ""),
+        "external_id": str(binding.get("external_id") or ""),
+        "dataset_name": str(binding.get("dataset_name") or ""),
+        "resource_id": str(binding.get("resource_id") or ""),
+        "sheet": str(binding.get("sheet") or ""),
+        "source_version": str(binding.get("source_version") or ""),
+        "teaching_revision": str(teaching.get("revision") or ""),
+        "mapping_source": source_mapping,
+        "candidates": candidates,
+    }
+
+
+def _replace_mapping_value(value: Any, old: str, new: str) -> Any:
+    """Replace an exact physical column/concept string in plan inputs."""
+    if isinstance(value, str):
+        return new if value.strip() == str(old).strip() else value
+    if isinstance(value, list):
+        return [_replace_mapping_value(item, old, new) for item in value]
+    if isinstance(value, dict):
+        return {key: _replace_mapping_value(item, old, new)
+                for key, item in value.items()}
+    return value
+
+
 @register_assignment_adapter(
     "dataset.read", description="Read rows from a materialized Parquet dataset",
     metadata={"effect": "read_only", "required_actions": ["retrieve"],
@@ -3162,6 +3371,16 @@ async def _dataset_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
               if str(column).strip()]
     missing = [column for column in wanted if column not in physical]
     if missing:
+        proposal = _mapping_proposal(
+            binding=binding,
+            missing=missing[0],
+            columns=physical,
+            records=[
+                {str(key): value for key, value in row.items()}
+                for row in frame.head(20).to_dict(orient="records")
+            ],
+            teaching=context.get("teaching") or {},
+        )
         raise NeedsContext({
             "concept": "column",
             "reason": f"required column(s) not found: {missing}",
@@ -3169,6 +3388,7 @@ async def _dataset_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
             "checked_evidence": [f"columns={physical[:40]}"],
             "next_retrieval": "read the materialized schema and confirm the mapping",
             "kind": "missing_evidence",
+            "inputs": {"mapping": proposal},
         })
     records = [
         {str(key): value for key, value in row.items()}
@@ -3300,12 +3520,22 @@ async def _dataset_aggregate(
                 "kind": "missing_evidence",
             })
     if operation == "sum" and value_column not in columns:
+        proposal = _mapping_proposal(
+            binding=binding,
+            missing=value_column,
+            columns=columns,
+            records=records,
+            teaching=context.get("teaching") or {},
+        )
         raise NeedsContext({
             "concept": "value_column",
             "reason": f"the named measure '{value_column}' is not in the frame",
             "question": "Which column should be summed?",
             "checked_evidence": [f"columns={columns[:40]}"],
+            "next_retrieval": (
+                "select the matching column from the current schema and confirm"),
             "kind": "missing_evidence",
+            "inputs": {"mapping": proposal},
         })
     roles = _infer_roles({"value_column": value_column}, columns)
     source = _connected_source_block(resolved, binding)

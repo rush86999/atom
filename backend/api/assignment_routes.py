@@ -119,6 +119,7 @@ def _teaching_snapshot_for_start(
     merged: Dict[str, Any] = {}
     sources: List[Dict[str, Any]] = []
     revisions: List[str] = []
+    field_mappings: List[Dict[str, Any]] = []
     unresolved: List[Dict[str, Any]] = []
     conflicts: List[Dict[str, Any]] = []
     for output_type in sorted(set(output_types)):
@@ -133,6 +134,7 @@ def _teaching_snapshot_for_start(
             conflicts.extend(resolution.get("conflicts") or [])
             continue
         merged.update(resolution.get("spec") or {})
+        field_mappings.extend(resolution.get("field_mappings") or [])
         sources.extend(resolution.get("sources") or [])
         if resolution.get("revision"):
             revisions.append(str(resolution["revision"]))
@@ -155,6 +157,7 @@ def _teaching_snapshot_for_start(
             for item in sources if item.get("id")
         ][:40],
         matched_context=dict(task_context or {}),
+        field_mappings=field_mappings,
         output_requirements=merged,
         source_versions={
             str(item.get("id")): item.get("revision")
