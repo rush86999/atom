@@ -5,6 +5,7 @@ import asyncio
 import json
 import os
 import uuid
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -129,6 +130,18 @@ def test_stale_version_is_refused(monkeypatch, tmp_path):
             None, _user(), {"dataset_name": "owned-dataset",
                             "source_version": "v1"})
     assert exc.value.code == "stale_source_version"
+
+
+def test_expired_access_token_is_not_current_source_access(
+        tmp_path, monkeypatch):
+    db, user, token, _factory = _real_connected_catalog(tmp_path, monkeypatch)
+    token.expires_at = datetime.utcnow() - timedelta(days=1)
+    db.commit()
+    with pytest.raises(AssignmentResourceError) as exc:
+        resolve_assignment_source(
+            db, user, {"dataset_name": "scotch_parts_price_list",
+                       "sheet": "US$ SCOTCH PARTS"})
+    assert exc.value.code == "source_access_expired"
 
 
 def test_output_is_allocated_under_owned_storage(monkeypatch, tmp_path):

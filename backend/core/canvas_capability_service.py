@@ -614,17 +614,35 @@ def _assert_connected_source_access(
         .order_by(IntegrationToken.updated_at.desc())
         .all()
     )
-    active = [
-        row for row in rows
-        if str(row.status or "").lower() == "active" and row.access_token
-    ]
+    active = []
+    expired = []
+    now = _now()
+    for row in rows:
+        if str(row.status or "").lower() != "active" or not row.access_token:
+            continue
+        expires = getattr(row, "expires_at", None)
+        if expires is not None:
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+            if expires <= now:
+                expired.append(row)
+                continue
+        active.append(row)
     if active:
         return {
             "status": "active",
             "provider": source,
             "token_provider": active[0].provider,
-            "checked_at": _now().isoformat(),
+            "checked_at": now.isoformat(),
         }
+    if expired:
+        raise CapabilityError(
+            "source_access_expired",
+            "The connected source access token is expired. Refresh or "
+            "reconnect the source; the cached snapshot is not treated as "
+            "current access.",
+            409,
+        )
     if rows:
         raise CapabilityError(
             "source_permission_revoked",
