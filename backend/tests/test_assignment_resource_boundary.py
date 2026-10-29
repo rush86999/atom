@@ -144,6 +144,27 @@ def test_expired_access_token_is_not_current_source_access(
     assert exc.value.code == "source_access_expired"
 
 
+def test_default_workspace_user_resolves_connected_source(
+        tmp_path, monkeypatch):
+    db, user, token, _factory = _real_connected_catalog(tmp_path, monkeypatch)
+    from core.models import DatasetEntry
+
+    entry = db.query(DatasetEntry).filter(DatasetEntry.id == "entry-1").first()
+    entry.workspace_id = "default"
+    entry.tenant_id = "default"
+    token.workspace_id = "default"
+    token.tenant_id = "default"
+    user.workspace_id = None
+    user.tenant_id = None
+    db.commit()
+    resolved = resolve_assignment_source(
+        db, user, {"dataset_name": "scotch_parts_price_list",
+                   "sheet": "US$ SCOTCH PARTS"})
+    assert resolved["access_scope"]["workspace_id"] == "default"
+    assert resolved["access_scope"]["tenant_id"] == "default"
+    assert resolved["workspace_id"] == "default"
+
+
 def test_output_is_allocated_under_owned_storage(monkeypatch, tmp_path):
     monkeypatch.setenv("ATOM_ASSIGNMENT_OUTPUT_DIR", str(tmp_path / "artifacts"))
     path = allocate_output_path(

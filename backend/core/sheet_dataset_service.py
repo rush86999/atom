@@ -1152,11 +1152,16 @@ def materialize_sheet_bytes_sync(
         older = (
             db.query(DatasetEntry).filter(*_version_filters).all()
         )
-        new_ids = {r["id"] for r in registered}
+        # Link each superseded row to the new row for the SAME sheet. Picking
+        # an arbitrary id from the batch mislinked multi-sheet workbooks (the
+        # old Calc row pointed at the new Inputs row).
+        new_id_by_entity = {
+            str(r.get("entity_name")): r["id"] for r in registered
+        }
         stale_paths: List[str] = []
         for old in older:
             old.status = "superseded"
-            old.superseded_by = next(iter(new_ids))
+            old.superseded_by = new_id_by_entity.get(str(old.entity_name))
         db.commit()
 
         stale_paths = [

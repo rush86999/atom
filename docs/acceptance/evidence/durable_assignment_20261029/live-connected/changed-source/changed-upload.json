@@ -1,0 +1,18 @@
+{
+  "provider": "onedrive",
+  "account_user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+  "folder": "AtomAcceptance/connected-refresh-20261029-0120Z",
+  "file": "refresh_probe_f5f_20261029.xlsx",
+  "item_id": "01P3INOW3LZH7VV3BVJNEI5VCSUGOJCZ5U",
+  "eTag": "\"{5AFFC96B-35EC-484B-8ED4-52A19C9167B4},2\"",
+  "cTag": "\"c:{5AFFC96B-35EC-484B-8ED4-52A19C9167B4},2\"",
+  "size": 6234,
+  "file_hashes": {
+    "quickXorHash": "M+v+zhrKVZN4yoempZTrCEzpMKA="
+  },
+  "local_sha256": "cb764122e1a2a6c5e6c501ae28f064f70d0c4230f35ad93d2fae363b8ef103bc",
+  "expected_total": "60.00",
+  "changed_fixture": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/connected_core_20261028/disposable_source/refresh_probe_f5f_changed_expected.xlsx",
+  "token_state": "valid",
+  "token_available": true
+}

@@ -32,12 +32,12 @@
     {
       "path": "backend/core/assignment_resources.py",
       "category": "backend_runtime",
-      "sha256": "6c5e6e7cb81459bc43e87de1126de431c90e9b850812dbdbbbe0b7837d3fcd3b"
+      "sha256": "00bb2bfa2f47e7ed871d97ec9a0d020d6429394669feeca541e4c15aa437943a"
     },
     {
       "path": "backend/core/assignment_executor.py",
       "category": "backend_runtime",
-      "sha256": "9cbc1323a79dee2dd637e48d30d54175e006bf8729c28cce11a170ee87826afe"
+      "sha256": "be4f5458f7cc87d35d5f73f9f28e42e38456c4ad5feead5f6f65e72a2147cb18"
     },
     {
       "path": "backend/core/assignment_controlled_transport.py",
@@ -82,7 +82,7 @@
     {
       "path": "backend/core/sheet_dataset_service.py",
       "category": "backend_runtime",
-      "sha256": "62e352aefd139c63a93d4c2e2454a674641dd81e21cda1a6cc0133460c3555d4"
+      "sha256": "2bc67fdc4f2a3aa6be36e2229cfaee22725d0178bb4ed2efdf801bbeb6cb50ba"
     },
     {
       "path": "backend/core/dataset_aggregation.py",
@@ -132,7 +132,7 @@
     {
       "path": "backend/tests/test_assignment_resource_boundary.py",
       "category": "tests_and_harnesses",
-      "sha256": "cd609c4a1cd47f026d77e1b7afcfd1d39cfe1105a66237a813828971c0b42b1c"
+      "sha256": "4206ba69ff211f30d3ee0be7415bec3e18730257f323876855dea1add003c0f8"
     },
     {
       "path": "backend/tests/test_assignment_executor.py",
@@ -243,6 +243,11 @@
       "path": ".env.oauth.template",
       "category": "configuration_template",
       "sha256": "7bc25919fc1287d3cf70e91757f2aea45d089825d900c8f0b1933cb779dbab9f"
+    },
+    {
+      "path": "backend/tests/unit/test_sheet_dataset_service.py",
+      "category": "tests_and_harnesses",
+      "sha256": "99500fbfb6af9c046997d081ff9aa4427014c20869cac7db42cf84afaf94dcc3"
     }
   ],
   "migrations": [],
@@ -252,5 +257,6 @@
     "Artifacts are rendered by the existing OfficeService; no checked-in artifact template files.",
     "Evidence is packaged separately under docs/acceptance/evidence/.",
     "Runtime .env, databases, caches, node_modules and generated test worlds are excluded."
-  ]
+  ],
+  "live_fix_commit_note": "Hashes updated for default-workspace normalization, per-sheet supersede linkage, and their regression tests; commit recorded in the package manifest."
 }

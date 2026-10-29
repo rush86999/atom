@@ -1,0 +1,20 @@
+{
+  "run_id": "1670cbca-da5a-4275-8af7-cd71d0f82da1",
+  "status": "completed",
+  "artifact_path": "/Users/rushiparikh/projects/atom/backend/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-713db064c84c/sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+  "artifact_exists": true,
+  "outbox_count": 2,
+  "outbox_tail": {
+    "operation_id": "729ceb66-bb5d-42d7-afea-5613618e3b61",
+    "to": [
+      "live-acceptance@example.invalid"
+    ],
+    "subject": "Sum the price of the HARSLE press brake stock price list",
+    "body": "Result:\n- sum of Price: 216700.00\nFindings:\n- HARSLE press brake stock price list.xlsx / 库存产品\n  - row 2 | sheet_row | 2 | 24000.00 |  | G2\n  - row 3 | sheet_row | 3 | 27500.00 |  | G3\n  - row 4 | sheet_row | 4 | 24000.00 |  | G4\n  - row 5 | sheet_row | 5 | 27500.00 |  | G5\n  - row 6 | sheet_row | 6 | 25000.00 |  | G6\n  - row 7 | sheet_row | 7 | 31800.00 |  | G7\n  - row 8 | sheet_row | 8 | 27900.00 |  | G8\n  - row 9 | sheet_row | 9 | 29000.00 |  | G9\nSources:\n- outlook_harsle_press_brake_stock_price_list\n- HARSLE press brake stock price list.xlsx\n- 库存产品\n- 00399616-42f7-4f7d-8867-822752b15a46\n- HARSLE press brake stock price list.xlsx / 库存产品"
+  },
+  "screenshots": [
+    "browser-started.png",
+    "browser-approval.png",
+    "browser-completed.png"
+  ]
+}

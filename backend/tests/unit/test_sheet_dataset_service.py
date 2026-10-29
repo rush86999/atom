@@ -130,6 +130,23 @@ def test_new_hash_supersedes_and_gc_keeps_two_versions():
     assert active.status == "active" and all(r.superseded_by for r in rows if r.status != "active")
 
 
+def test_multi_sheet_supersede_links_same_sheet_successor():
+    content = _xlsx_bytes({"A": _price_df(), "B": _price_df()})
+    first = _materialize(content=content)
+    assert first["status"] == "materialized"
+    changed = _xlsx_bytes({"A": _price_df(price=15000.0), "B": _price_df(price=16000.0)})
+    second = _materialize(content=changed)
+    assert second["status"] == "materialized"
+
+    rows = _entries()
+    active = {r.entity_name: r for r in rows if r.status == "active"}
+    superseded = [r for r in rows if r.status == "superseded"]
+    assert set(active) == {"A", "B"}
+    assert len(superseded) == 2
+    for old in superseded:
+        assert old.superseded_by == active[old.entity_name].id
+
+
 def test_per_sheet_idempotency_after_partial_failure():
     content = _xlsx_bytes({"A": _price_df(), "B": _price_df()})
     first = _materialize(content=content)

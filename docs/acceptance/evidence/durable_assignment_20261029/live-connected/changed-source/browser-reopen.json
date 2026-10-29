@@ -1,0 +1,15 @@
+{
+  "run_id": "166064df-515e-4194-8136-a0e423e3da4f",
+  "objective": "Sum the Line Total in the refreshed disposable probe",
+  "status": "completed",
+  "plan_revision": 1,
+  "artifact_path": "/Users/rushiparikh/projects/atom/backend/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-96bc85a3783d/changed-refresh-probe-total-80d3d33d.docx",
+  "artifact_sha256": "ca1dbdc2b3e89b5bc4109aeb0a291248aed900c04b7bdd78e4ff38ee76dc3994",
+  "artifact_exists": true,
+  "step_summaries": [
+    "sum of Line Total = 60.00  across 2 row(s) from refresh_probe_f5f_20261029.xlsx / Calc",
+    "rendered changed-refresh-probe-total-80d3d33d.docx"
+  ],
+  "detail_text": "Sum the Line Total in the refreshed disposable probe\n\ncompleted\n\nPlan revision 1 · teaching untrained\n\nCompleted work\n\nAggregate workbook source\nRender Changed refresh probe total\n\nArtifacts\n\nChanged refresh probe total\napplied\nResume\nCancel",
+  "screenshot": "browser-reopened.png"
+}

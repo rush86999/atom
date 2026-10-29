@@ -421,10 +421,10 @@ def _recheck_binding(
             })
         requested_workspace = str(context.get("workspace_id") or "")
         requested_tenant = str(context.get("tenant_id") or "")
-        if ((requested_workspace and str(user.workspace_id or "")
-             != requested_workspace)
-                or (requested_tenant and str(user.tenant_id or "")
-                    != requested_tenant)):
+        reader_workspace = str(user.workspace_id or "default")
+        reader_tenant = str(user.tenant_id or "default")
+        if ((requested_workspace and reader_workspace != requested_workspace)
+                or (requested_tenant and reader_tenant != requested_tenant)):
             raise NeedsContext({
                 "concept": "source_access",
                 "reason": (

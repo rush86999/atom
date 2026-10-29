@@ -49,11 +49,19 @@ def _fixture_root() -> Path:
                 or tempfile.gettempdir()).resolve()
 
 
+def _effective_workspace(user: Any) -> str:
+    return str(getattr(user, "workspace_id", "") or "default").strip()
+
+
+def _effective_tenant(user: Any) -> str:
+    return str(getattr(user, "tenant_id", "") or "default").strip()
+
+
 def _access_scope(user: Any) -> Dict[str, Any]:
     return {
         "user_id": str(getattr(user, "id", "") or ""),
-        "workspace_id": str(getattr(user, "workspace_id", "") or ""),
-        "tenant_id": str(getattr(user, "tenant_id", "") or ""),
+        "workspace_id": _effective_workspace(user),
+        "tenant_id": _effective_tenant(user),
     }
 
 
@@ -125,8 +133,8 @@ def _internal_source(reference: Dict[str, Any], user: Any) -> Dict[str, Any]:
         "coverage": {"known": True, "truncated": False,
                      "controlled_fixture": True},
         "access_scope": _access_scope(user),
-        "workspace_id": str(getattr(user, "workspace_id", "") or ""),
-        "tenant_id": str(getattr(user, "tenant_id", "") or ""),
+        "workspace_id": _effective_workspace(user),
+        "tenant_id": _effective_tenant(user),
         "internal_fixture": True,
     }
 
@@ -162,7 +170,7 @@ def resolve_assignment_source(
             "A source must name a dataset_name or (source, external_id).",
             status=422,
         )
-    workspace_id = str(getattr(user, "workspace_id", "") or "").strip()
+    workspace_id = _effective_workspace(user)
     if not workspace_id:
         raise AssignmentResourceError(
             "workspace_scope_required",
@@ -264,7 +272,7 @@ def resolve_assignment_source(
         "coverage": coverage,
         "access_scope": _access_scope(user),
         "workspace_id": workspace_id,
-        "tenant_id": str(getattr(user, "tenant_id", "") or ""),
+        "tenant_id": _effective_tenant(user),
         "internal_fixture": False,
     }
 
@@ -321,7 +329,10 @@ def recheck_resource_access(
             "principal.", status=403)
     for key in ("workspace_id", "tenant_id"):
         expected = str(scope.get(key) or binding.get(key) or "")
-        actual = str(getattr(user, key, "") or "")
+        actual = (
+            _effective_workspace(user) if key == "workspace_id"
+            else _effective_tenant(user)
+        )
         if expected and expected != actual:
             raise AssignmentResourceError(
                 "resource_workspace_mismatch",

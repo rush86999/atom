@@ -1,0 +1,144 @@
+{
+  "slice": "changed-byte-onedrive-refresh",
+  "status": "passed",
+  "disposable_workbook": {
+    "provider": "onedrive",
+    "account_user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+    "folder": "AtomAcceptance/connected-refresh-20261029-0120Z",
+    "file": "refresh_probe_f5f_20261029.xlsx",
+    "item_id": "01P3INOW3LZH7VV3BVJNEI5VCSUGOJCZ5U",
+    "baseline": {
+      "eTag": "\"{5AFFC96B-35EC-484B-8ED4-52A19C9167B4},1\"",
+      "cTag": "\"c:{5AFFC96B-35EC-484B-8ED4-52A19C9167B4},1\"",
+      "size": 6236,
+      "quickXorHash": "SDn9jMx9TLClJd0CP4Xz7H6FWVA=",
+      "local_sha256": "78e40428a13ea91315b1c09e1b69345a4090e389eb94a28df7da2d3dfcac331e",
+      "total": "50.00"
+    },
+    "changed": {
+      "eTag": "\"{5AFFC96B-35EC-484B-8ED4-52A19C9167B4},2\"",
+      "cTag": "\"c:{5AFFC96B-35EC-484B-8ED4-52A19C9167B4},2\"",
+      "size": 6234,
+      "quickXorHash": "M+v+zhrKVZN4yoempZTrCEzpMKA=",
+      "local_sha256": "cb764122e1a2a6c5e6c501ae28f064f70d0c4230f35ad93d2fae363b8ef103bc",
+      "expected_total": "60.00"
+    },
+    "etag_incremented": true,
+    "same_item_id": true
+  },
+  "ingest": {
+    "baseline_job": {
+      "job_id": "b0cac9cd9fae",
+      "status": "completed",
+      "file_id": "01P3INOW3LZH7VV3BVJNEI5VCSUGOJCZ5U",
+      "text_preview": "WORKBOOK INDEX: 2 sheets\n- Inputs: 2 data rows, 3 cols | headers: Item, Qty, Unit Price\n- Calc: 2 data rows, 4 cols | headers: Item, Qty, Unit Price, Line Total\n--- Sheet: Inputs ---\nCOLS: A=Item | B=Qty | C=Unit Price\nROWS: sheet rows 2..3\nR2 | PROBE-001 | 2 | 10\nR3 | PROBE-002 | 3 | 10\n--- Sheet: Calc ---\nCOLS: A=Item | B=Qty | C=Unit Price | D=Line Total\nROWS: sheet rows 2..3\nR2 | PROBE-001 | 2 | 10 | 20\nR3 | PROBE-002 | 3 | 10 | 30"
+    },
+    "changed_job": {
+      "job_id": "6ffca2af6a54",
+      "status": "completed",
+      "file_id": "01P3INOW3LZH7VV3BVJNEI5VCSUGOJCZ5U",
+      "text_preview": "WORKBOOK INDEX: 2 sheets\n- Inputs: 2 data rows, 3 cols | headers: Item, Qty, Unit Price\n- Calc: 2 data rows, 4 cols | headers: Item, Qty, Unit Price, Line Total\n--- Sheet: Inputs ---\nCOLS: A=Item | B=Qty | C=Unit Price\nROWS: sheet rows 2..3\nR2 | PROBE-001 | 3 | 10\nR3 | PROBE-002 | 3 | 10\n--- Sheet: Calc ---\nCOLS: A=Item | B=Qty | C=Unit Price | D=Line Total\nROWS: sheet rows 2..3\nR2 | PROBE-001 | 3 | 10 | 30\nR3 | PROBE-002 | 3 | 10 | 30"
+    }
+  },
+  "catalog": {
+    "active": [
+      {
+        "id": "848e7e63-d71d-4e70-b585-e84e5c533602",
+        "sheet": "Calc",
+        "dataset_name": "onedrive_refresh_probe_f5f_20261029__calc",
+        "content_hash": "54342175548dc1f4272d2a50a7c302a6b2a990a4",
+        "row_count": 2
+      },
+      {
+        "id": "372c0f1f-c19f-4286-856f-2836322bb7b7",
+        "sheet": "Inputs",
+        "dataset_name": "onedrive_refresh_probe_f5f_20261029__inputs",
+        "content_hash": "54342175548dc1f4272d2a50a7c302a6b2a990a4",
+        "row_count": 2
+      }
+    ],
+    "superseded": [
+      {
+        "id": "739a5951-7375-4176-8354-44e744531a60",
+        "sheet": "Calc",
+        "content_hash": "5cea326f797f9d4c7a9f6600cd65f042b803b150",
+        "superseded_by": "848e7e63-d71d-4e70-b585-e84e5c533602"
+      },
+      {
+        "id": "7db7f221-3230-4885-a860-70fea5b38191",
+        "sheet": "Inputs",
+        "content_hash": "5cea326f797f9d4c7a9f6600cd65f042b803b150",
+        "superseded_by": "372c0f1f-c19f-4286-856f-2836322bb7b7"
+      }
+    ],
+    "active_count": 2,
+    "coverage_2_of_2": true,
+    "supersede_links_same_sheet": true,
+    "formula_sidecar": {
+      "path": "/Users/rushiparikh/projects/atom/backend/data/sheet_datasets/default/54342175548d/onedrive_refresh_probe_f5f_20261029__calc.parquet.formulas.json",
+      "sheet": "Calc",
+      "formulas": {
+        "A2": "=Inputs!A2",
+        "B2": "=Inputs!B2",
+        "C2": "=Inputs!C2",
+        "D2": "=Inputs!B2*Inputs!C2",
+        "A3": "=Inputs!A3",
+        "B3": "=Inputs!B3",
+        "C3": "=Inputs!C3",
+        "D3": "=Inputs!B3*Inputs!C3"
+      }
+    }
+  },
+  "stale_binding": {
+    "http_status": 409,
+    "error": "stale_source_version",
+    "active_version_prefix": "",
+    "runs_created": 0,
+    "outbox_unchanged": true
+  },
+  "calculation": {
+    "run_id": "166064df-515e-4194-8136-a0e423e3da4f",
+    "status": "completed",
+    "operation": "sum",
+    "measure": "Line Total",
+    "value": "60.00",
+    "rows": 2,
+    "values": [
+      "30.00",
+      "30.00"
+    ],
+    "value_cells": [
+      "D2",
+      "D3"
+    ],
+    "source_version": "54342175548dc1f4272d2a50a7c302a6b2a990a4",
+    "source_resource_id": "848e7e63-d71d-4e70-b585-e84e5c533602",
+    "artifact_path": "/Users/rushiparikh/projects/atom/backend/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-96bc85a3783d/changed-refresh-probe-total-80d3d33d.docx",
+    "artifact_sha256": "ca1dbdc2b3e89b5bc4109aeb0a291248aed900c04b7bdd78e4ff38ee76dc3994",
+    "artifact_api_sha256": "ca1dbdc2b3e89b5bc4109aeb0a291248aed900c04b7bdd78e4ff38ee76dc3994"
+  },
+  "restart": {
+    "status": "completed",
+    "plan_revision": 1,
+    "step_summaries": [
+      "sum of Line Total = 60.00  across 2 row(s) from refresh_probe_f5f_20261029.xlsx / Calc",
+      "rendered changed-refresh-probe-total-80d3d33d.docx"
+    ],
+    "artifact_exists": true,
+    "browser_reopened": {
+      "status": "completed",
+      "screenshot": "browser-reopened.png",
+      "detail_text": "Sum the Line Total in the refreshed disposable probe\n\ncompleted\n\nPlan revision 1 \u00b7 teaching untrained\n\nCompleted work\n\nAggregate workbook source\nRender Changed refresh probe total\n\nArtifacts\n\nChanged refresh probe total\napplied\nResume\nCancel"
+    }
+  },
+  "token": {
+    "resolver": "OneDriveService.get_access_token_resolution",
+    "state_before_upload": "valid",
+    "state_before_changed_upload": "valid",
+    "refresh_attempted": false,
+    "requires_reconnect": false,
+    "expiry_relabelled_revoked": false
+  },
+  "no_live_send": true,
+  "outbox_count": 2
+}

@@ -1,0 +1,19 @@
+{
+  "provider": "onedrive",
+  "account_user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+  "folder": "AtomAcceptance/connected-refresh-20261029-0120Z",
+  "file": "refresh_probe_f5f_20261029.xlsx",
+  "item_id": "01P3INOW3LZH7VV3BVJNEI5VCSUGOJCZ5U",
+  "web_url": "https://brennanca-my.sharepoint.com/personal/rish_brennan_ca/_layouts/15/Doc.aspx?sourcedoc=%7B5AFFC96B-35EC-484B-8ED4-52A19C9167B4%7D&file=refresh_probe_f5f_20261029.xlsx&action=default&mobileredirect=true",
+  "eTag": "\"{5AFFC96B-35EC-484B-8ED4-52A19C9167B4},1\"",
+  "cTag": "\"c:{5AFFC96B-35EC-484B-8ED4-52A19C9167B4},1\"",
+  "size": 6236,
+  "file_hashes": {
+    "quickXorHash": "SDn9jMx9TLClJd0CP4Xz7H6FWVA="
+  },
+  "local_sha256": "78e40428a13ea91315b1c09e1b69345a4090e389eb94a28df7da2d3dfcac331e",
+  "baseline_total": "50.00",
+  "baseline_fixture": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/connected_core_20261028/disposable_source/refresh_probe_f5f_baseline.xlsx",
+  "token_state": "valid",
+  "token_available": true
+}
