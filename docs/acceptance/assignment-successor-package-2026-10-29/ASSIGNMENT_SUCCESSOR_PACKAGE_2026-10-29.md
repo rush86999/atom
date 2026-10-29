@@ -1,19 +1,22 @@
 # Assignment successor release package — 2026-10-29
 
-Status: **integrated, clean-source verified, live gates passed, not deployed.**
-The approved Microsoft configuration was restored and token resolution is
-valid. The named Zoho WorkDrive workbook remains inaccessible and its failed
-gate is preserved unchanged; the live gates use an explicitly predeclared
-Microsoft Outlook attachment and a separate disposable OneDrive workbook.
-Live connected retrieval, controlled approval/outbox, restart/reopen and a
-changed-byte refresh all passed. Nothing was sent and nothing was deployed.
+Status: **integrated, clean-source verified, live gates passed, isolated deployment
+rehearsal passed, not deployed.** The approved Microsoft configuration was
+restored and token resolution is valid. The named Zoho WorkDrive workbook
+remains inaccessible and its failed gate is preserved unchanged; the live gates
+use an explicitly predeclared Microsoft Outlook attachment and a separate
+disposable OneDrive workbook. Normal login/logout and a reversible deployment
+package were verified on an isolated copy of the exact packaged source. Nothing
+was sent and nothing was deployed.
 
 ## Exact source
 
 | Item | Commit |
 |---|---|
-| Candidate source (live-fix) | `001f93472` |
-| Live gate and evidence | `001f93472` |
+| Deployable product source | `ef95ceb31` |
+| Release tag | `assignment-successor-2026-10-29` |
+| Isolated deployment rehearsal | `ef95ceb31` |
+| Candidate source (live gates) | `001f93472` |
 | Clean-source base | `058e38ddb` |
 | Runtime-tested source | `e4c11c354` |
 | Integrated teaching/OAuth runtime | `1d5e8d780` |
@@ -44,9 +47,12 @@ Clean worktree from `058e38ddb`:
 
 The runtime-tested commit is `e4c11c354`; `058e38ddb` is that runtime plus
 live-boundary evidence/docs. The live-gate fixes (effective-default workspace
-scope, per-sheet supersession linkage, regression tests) and all live evidence
-are in `001f93472`. Clean-source focused, bounded and connected-scratch tests
-pass.
+scope, per-sheet supersession linkage, regression tests), the core-surface
+`/assignments` mapping and normal-sign-out token revocation are in
+`ef95ceb31`. Clean-source focused, bounded and connected-scratch tests pass;
+the isolated deployment rehearsal also passes. The deployable product tree
+checksum and deployment kit checksum are recorded in
+`assignment_successor_manifest.json` and rechecked by preflight.
 
 Verified:
 
@@ -89,16 +95,24 @@ Evidence:
   rows, produced a fresh artifact, and reopened after restart.
 - **Controlled approval/outbox:** exercised with a local JSONL outbox; no
   production email transport was enabled.
+- **Normal authentication:** on an isolated copy of the exact packaged source, a
+  fresh browser used the real `/login` form, reached workspace/assignment
+  surfaces, opened a completed assignment and artifact, signed out through the
+  application control, saw the old token refused (401), and signed in again.
+- **Reversible deployment package:** preflight, verified SQLite backup, scoped
+  start/stop, one-command deployment, restart agreement and code rollback
+  (`C6 → C4 → C6`) passed; the database was never restored or overwritten.
 
 ## Not claimed
 
 - Live guided start against the originally named Zoho
   `Consolidated Price List 2019.xlsx`; that workbook remains inaccessible.
-- Normal login-form acceptance. The browser used a real signed user session;
-  the login form itself was not exercised.
+- Production email sending. This release is draft-and-approval only; no
+  real-provider send test was authorized or run.
 - Arbitrary taught methods, arbitrary multi-row calculations or arbitrary
   multi-source assignments.
-- Live email send, deployment, credential change or source writeback.
+- Deployment, credential change or source writeback. Deployment authorization
+  is still pending.
 
 ## Claim boundaries
 
@@ -109,7 +123,9 @@ Evidence:
 | Live connected acceptance | Verified: Outlook attachment, direct Graph hash match, `216700.00`, browser approved/reopened |
 | Changed-source freshness | Verified: disposable OneDrive workbook `50.00` → `60.00`, stale old version refused |
 | Live outbound acceptance | Controlled outbox only; no production send |
-| Deployment | Not performed |
+| Normal authentication | Verified on isolated packaged source: login, workspace, assignment/artifact, logout revocation, second login |
+| Reversible deployment | Verified in isolation: preflight, backup, start/stop, auth smoke, assignment reopen, restart, code rollback |
+| Deployment | Not performed; owner authorization pending |
 | Named Zoho workbook | Not revalidated; failed gate preserved unchanged |
 
 Operational authorization:
@@ -172,6 +188,7 @@ npx playwright test e2e/assignment-durable-reopen.spec.ts --workers=1
 
 - Clean-source focused backend: 135 passed (historical clean-source commit)
 - Current live-fix focused backend: 88 passed
+- Product-profile route tests: 41 passed
 - Clean-source bounded taught job: 1 passed
 - Clean-source connected scratch: `85.00`, `3`, both reopened
 - Assignment component: 3 passed
@@ -179,9 +196,28 @@ npx playwright test e2e/assignment-durable-reopen.spec.ts --workers=1
 - Guided browser after restart: 1 passed
 - Explicit browser start/reload: 1 passed
 - Explicit browser after restart: 1 passed
+- Isolated normal-auth smoke: passed (11 checks, no injected session)
+- Isolated deployment transaction: passed
+- Isolated code rollback `C6 → C4 → C6`: passed; database untouched
 - TypeScript: clean
 - Frontend source: byte-identical to the previously tested working tree; no
   separate clean `node_modules` install was performed
+
+## Deployment package
+
+The deployable product commit is `ef95ceb31` under tag
+`assignment-successor-2026-10-29`. Product tree checksum:
+`12060bee…`. The deployment kit and runbook are under
+`docs/deployment/assignment_successor_2026-10-29/` and
+`scripts/deployment/assignment_successor_2026-10-29/`.
+
+Isolated evidence:
+`docs/acceptance/evidence/durable_assignment_20261029/deployment-auth-20261029/`.
+
+The release remains blocked only on owner authorization. To authorize, create
+the deployment root's `config/APPROVED` with approver, date, release tag and
+product commit after reviewing the runbook and receipts. Production email
+sending requires a separate authorization and real-provider test.
 
 ## Live execution record
 
@@ -214,23 +250,31 @@ npx playwright test e2e/assignment-durable-reopen.spec.ts --workers=1
 
 ## Rollout
 
-1. Deploy only from clean source commit `058e38ddb`; do not copy local
-   working-tree files.
+1. Deploy only the exact product source at commit
+   `ef95ceb3194ec92c51e64941d7bb364c0b8b0e75` (tag
+   `assignment-successor-2026-10-29`); do not copy local working-tree files and
+   do not use the stale `9a89471cc` instruction.
 2. Run the focused suite and AssignmentPanel tests on the release source.
 3. Run the four Playwright specs in isolated scratch worlds.
 4. Run the connected scratch acceptance and bounded taught job.
 5. The live gates have passed for the predeclared Microsoft Outlook attachment and
-   the separately authorized disposable OneDrive workbook. Do not extend those
-   claims to the named Zoho workbook or to normal login-form acceptance.
+   the separately authorized disposable OneDrive workbook. Normal login/logout
+   was verified on the isolated packaged source. Do not extend those claims to
+   the named Zoho workbook or to production email sending.
 6. Do not enable controlled transport or internal paths in production.
 
 ## Rollback
 
 ### Code rollback
 
-Reviewed target: `294fdf0ec`. It preserves the security/resource repairs but
-drops the bounded taught-method/integration delta. Do not roll back below
-`294fdf0ec` without re-accepting the findings in
+The deployment package's reversible target is the previous release directory:
+`release_tool.py rollback` flips `current` back, starts the previous packaged
+source, and verifies its health identity. It never restores the database. The
+isolated rehearsal exercised `C6 → C4 → C6` successfully.
+
+The older reviewed rollback target is `294fdf0ec`. It preserves the
+security/resource repairs but drops the bounded taught-method/integration
+delta. Do not roll back below `294fdf0ec` without re-accepting the findings in
 `ASSIGNMENT_REVIEW_2026-10-29.md`.
 
 ### Disabling assignments
@@ -258,13 +302,18 @@ database.
 
 ## Remaining blockers and limits
 
+- Deployment authorization is not granted. The owner must create the prepared
+  runtime's `config/APPROVED` with approver, date, tag
+  `assignment-successor-2026-10-29` and product commit
+  `ef95ceb3194ec92c51e64941d7bb364c0b8b0e75` after reviewing the runbook and
+  receipts, then supply the pilot password file and run the deployment
+  transaction without `--rehearsal`.
 - The originally named Zoho WorkDrive price list remains inaccessible; its
   expired token was not repaired and its failed gate is preserved. The passing
   live gate uses the predeclared Microsoft replacement, not the Zoho workbook.
-- Normal login-form acceptance was not exercised. The browser qualification used
-  a real signed user session.
-- No production email send, deployment, credential change or source writeback
-  was performed.
+- Production email sending is not authorized. This release is
+  draft-and-approval only; a real-provider send test would be a separate gate.
+- No production deployment, credential change or source writeback was performed.
 
 The operational authorization and execution record is
 `docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.md`. Historical OneDrive

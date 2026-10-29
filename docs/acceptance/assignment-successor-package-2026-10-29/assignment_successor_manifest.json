@@ -2,12 +2,12 @@
   "schema": "atom-assignment-successor-package-1",
   "created": "2026-10-29",
   "package_doc": "docs/acceptance/assignment-successor-package-2026-10-29/ASSIGNMENT_SUCCESSOR_PACKAGE_2026-10-29.md",
-  "package_commit": "001f93472",
+  "package_commit": "ef95ceb31",
   "evidence_refresh_commit": "46e0b91a0",
   "live_preflight_commit": "90ff58421",
   "candidate": {
     "branch": "whole-app/successor-f5f",
-    "source_commit": "001f93472",
+    "source_commit": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
     "runtime_tested_commit": "e4c11c354",
     "integrated_commit": "1d5e8d780",
     "review_fix_commit": "294fdf0ec",
@@ -17,7 +17,8 @@
     "preserved_correction_pass": "322981bcc",
     "preserved_executor_freeze": "efc4bc9d5",
     "live_gate_commit": "001f93472",
-    "live_fixes": "001f93472"
+    "live_fixes": "001f93472",
+    "release_tag": "assignment-successor-2026-10-29"
   },
   "source_manifest": "docs/acceptance/assignment-successor-package-2026-10-29/source_manifest.json",
   "clean_source_verification": "docs/acceptance/evidence/durable_assignment_20261029/clean-source/verification.json",
@@ -66,12 +67,15 @@
     "grounded_multi_source_artifact": true,
     "bounded_taught_scalar_method_with_wait": true,
     "controlled_outbox_only": true,
-    "live_changed_source_refresh": false,
     "live_send_or_deployment": false,
     "live_connected_guided_start_microsoft_attachment": true,
     "live_source_hash_matches_active_catalog": true,
     "live_changed_source_refresh_onedrive": true,
-    "stale_source_version_refused": true
+    "stale_source_version_refused": true,
+    "normal_login_form_and_logout_revocation": true,
+    "deployment_package_prepared": true,
+    "deployment_authorized": false,
+    "production_email_send": false
   },
   "runtime_configuration": {
     "required_production": {
@@ -93,7 +97,10 @@
       "token_state": "valid",
       "requires_reconnect": false,
       "token_available": true
-    }
+    },
+    "deployment_audience": "single_user",
+    "outbound_scope": "draft_and_approval_only",
+    "worker_topology": "one_worker_process_per_assignment"
   },
   "verification": {
     "focused_backend": "135 passed",
@@ -112,12 +119,16 @@
     "live_fix_focused_backend": "88 passed on live-fix worktree",
     "live_connected_guided": "passed: Graph SHA-1 match, 216700.00, browser approved, reopened",
     "live_changed_source": "passed: 50.00 -> 60.00, stale 5cea... refused, fresh artifact, reopened",
-    "live_source_fetch": "SHA-1 e0a7fb8a1b4757b7f6bef882b19cc4588d66246e matched active catalog"
+    "live_source_fetch": "SHA-1 e0a7fb8a1b4757b7f6bef882b19cc4588d66246e matched active catalog",
+    "normal_auth_smoke": "passed: fresh form login, workspace, completed assignment + artifact, logout revokes token (401), second login",
+    "production_config_preflight": "passed: single_user, internal paths 0, controlled transport unset, provider policy selected, Microsoft config present",
+    "deployment_transaction_rehearsal": "passed: preflight, verified backup, scoped stop/start, auth smoke, assignment reopen, restart agreement",
+    "rollback_rehearsal": "passed: C6 -> C4 -> C6 code rollback; database untouched"
   },
   "rollout": {
     "deployed": false,
     "steps": [
-      "Deploy from clean source commit 9a89471cc; do not copy local working-tree files.",
+      "Deploy the exact product source at commit ef95ceb3194ec92c51e64941d7bb364c0b8b0e75 (tag assignment-successor-2026-10-29); do not copy local working-tree files and do not deploy the stale 9a89471cc instruction.",
       "Run the focused backend suite and AssignmentPanel tests on the release source.",
       "Run guided and explicit Playwright specs in isolated scratch worlds.",
       "Run the connected scratch acceptance and bounded taught job evidence.",
@@ -134,9 +145,9 @@
     "note": "Rolling back the review fixes reintroduces the reproduced findings in ASSIGNMENT_REVIEW_2026-10-29.md."
   },
   "blockers": [
-    "Named Zoho WorkDrive price list remains inaccessible; its failed gate is preserved and Zoho repair is not authorized in this freeze",
-    "Normal login-form acceptance was not exercised; the live browser qualification used a real signed user session",
-    "No production email send, deployment, credential change or source writeback was performed"
+    "Deployment authorization is not granted: create config/APPROVED with approver, date, tag assignment-successor-2026-10-29 and product commit ef95ceb3194ec92c51e64941d7bb364c0b8b0e75 after reviewing the runbook and receipts.",
+    "The originally named Zoho WorkDrive workbook remains inaccessible and out of scope for this release; its failed gate is preserved.",
+    "Production email sending is not authorized; this release is draft-and-approval only and no real-provider send test was run."
   ],
   "live_state": {
     "microsoft_config_restored": true,
@@ -149,7 +160,10 @@
     "first_broken_boundary": "none for the two predeclared gates; named Zoho workbook remains inaccessible",
     "cached_rows_used": false,
     "replacement_catalog_or_grant_seeded": false,
-    "production_price_list_modified": false
+    "production_price_list_modified": false,
+    "deployment_performed": false,
+    "deployment_authorized": false,
+    "normal_login_form_verified": true
   },
   "live_gate_commit": "001f93472",
   "live_gates": {
@@ -180,5 +194,26 @@
       "run_id": "166064df-515e-4194-8136-a0e423e3da4f",
       "reopened": "completed"
     }
+  },
+  "release_identity": {
+    "release_tag": "assignment-successor-2026-10-29",
+    "deployable_product_commit": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
+    "tested_live_runtime_commit": "001f93472",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "12060bee618e7a58a98324f682d39077c144c19a6fb7d22d77de8179237dbb9e",
+    "source_manifest_sha256": "959f2dba94d47647966bc80a90f47a7bff194ca5db063aa15d2db4f835368915",
+    "deployment_kit_tree_sha256": "261c8472be8411516925b0bbaf2e093553cc3112e12f002f501aa4f1817e70b5",
+    "frontend_build_id": "i_Co6JD6WAcOXWZyMudPw",
+    "api_origin": "http://127.0.0.1:8071",
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "runbook": "docs/deployment/assignment_successor_2026-10-29/DEPLOYMENT_RUNBOOK.md",
+    "launch_tool": "scripts/deployment/assignment_successor_2026-10-29/release_tool.py"
   }
 }

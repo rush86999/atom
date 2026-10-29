@@ -183,9 +183,34 @@ def main() -> None:
     env_path.write_text("\n".join(lines) + "\n")
 
     if args.seed_data_from:
-        src = Path(args.seed_data_from)
+        src = Path(args.seed_data_from).resolve()
         run([sys.executable, str(kit_src / "seed_rehearsal.py"),
              "--source", str(src), "--data-dir", str(data)])
+        # The rehearsal copy must never retain live absolute paths. Enforce it
+        # here as a package-build invariant, independent of the seed helper.
+        import sqlite3
+        con = sqlite3.connect(data / "atom.db")
+        try:
+            for table, column in (
+                ("goal_runs", "parameters"),
+                ("dataset_entries", "parquet_path"),
+            ):
+                try:
+                    con.execute(
+                        f"update {table} set {column}=replace({column}, ?, ?) "
+                        f"where {column} like ?",
+                        (str(src), str(data), f"%{src}%"))
+                    con.commit()
+                except sqlite3.Error:
+                    con.rollback()
+            remaining = con.execute(
+                "select count(*) from goal_runs where parameters like ?",
+                (f"%{src}%",)).fetchone()[0]
+            if remaining:
+                raise SystemExit(
+                    f"REFUSED: rehearsal seed still references {remaining} live rows")
+        finally:
+            con.close()
 
     source_manifest = app / "docs" / "acceptance" / "assignment-successor-package-2026-10-29" / "source_manifest.json"
     identity = {
@@ -212,6 +237,7 @@ def main() -> None:
         "seeded_rehearsal_data": bool(args.seed_data_from),
     }
     atomic_write_json(root / "RELEASE_IDENTITY.json", identity)
+    atomic_write_json(release / "RELEASE_IDENTITY.json", identity)
 
     current = root / "current"
     if current.is_symlink() or current.exists():

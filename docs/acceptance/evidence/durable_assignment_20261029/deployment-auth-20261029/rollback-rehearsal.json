@@ -1,0 +1,22 @@
+{
+  "schema": "atom-assignment-rollback-rehearsal-1",
+  "database_restored": false,
+  "user_data_preserved": true,
+  "directions": [
+    {
+      "from": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
+      "to": "ea16ac5236a4895c32770a433f5dc44d121e5d9a",
+      "start_rc": 0,
+      "log": "rollback-c6-to-c4.log",
+      "health_identity_matched": true
+    },
+    {
+      "from": "ea16ac5236a4895c32770a433f5dc44d121e5d9a",
+      "to": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
+      "start_rc": 0,
+      "log": "rollback-c4-to-c6.log",
+      "health_identity_matched": true
+    }
+  ],
+  "note": "Code symlink rollback only. The database and user artifacts were never replaced; the final current release is ef95ceb31."
+}

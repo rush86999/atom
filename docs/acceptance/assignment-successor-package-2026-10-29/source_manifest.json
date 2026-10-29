@@ -1,6 +1,6 @@
 {
   "schema": "atom-assignment-source-manifest-1",
-  "candidate_commit": "001f93472",
+  "candidate_commit": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
   "package_commit": "058e38ddb",
   "created": "2026-10-29",
   "files": [
@@ -273,7 +273,10 @@
     "Evidence is packaged separately under docs/acceptance/evidence/.",
     "Runtime .env, databases, caches, node_modules and generated test worlds are excluded."
   ],
-  "live_fix_commit_note": "001f93472 carries the default-workspace normalization, per-sheet supersede linkage, regression tests, live gate evidence and docs.",
+  "live_fix_commit_note": "ef95ceb31 is the freeze plus /assignments release-profile mapping and backend token revocation on sign-out; deployment kit is an overlay and is not part of this product tree.",
   "clean_source_base_commit": "e4c11c354",
-  "live_gate_commit": "001f93472"
+  "live_gate_commit": "001f93472",
+  "release_tag": "assignment-successor-2026-10-29",
+  "tested_live_runtime_commit": "001f93472",
+  "product_tree_sha256": "12060bee618e7a58a98324f682d39077c144c19a6fb7d22d77de8179237dbb9e"
 }

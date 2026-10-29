@@ -83,12 +83,16 @@ def http_json(url: str, timeout: float = 10.0) -> dict:
 
 
 def port_busy(port: int) -> bool:
+    return bool(listener_pids(port))
+
+
+def listener_pids(port: int) -> list[int]:
     try:
         out = subprocess.run(
             ["lsof", "-ti", f"tcp:{port}"], capture_output=True, text=True)
-        return bool(out.stdout.strip())
+        return sorted({int(x) for x in out.stdout.split() if x.strip().isdigit()})
     except Exception:
-        return False
+        return []
 
 
 def check_source_manifest(app: Path) -> dict:
@@ -110,6 +114,9 @@ def check_source_manifest(app: Path) -> dict:
 def release_checks(root: Path, *, require_approval: bool, allow_rehearsal: bool,
                    check_ports: bool = True) -> dict:
     identity = load_identity(root)
+    current_identity = root / "current" / "RELEASE_IDENTITY.json"
+    if current_identity.is_file():
+        identity = json.loads(current_identity.read_text())
     app = root / "current" / "app"
     checks: list[dict] = []
 
@@ -223,17 +230,32 @@ def release_checks(root: Path, *, require_approval: bool, allow_rehearsal: bool,
             "identity": identity}
 
 
+def pid_cwd(pid: int) -> str:
+    try:
+        out = subprocess.run(
+            ["lsof", "-a", "-p", str(pid), "-d", "cwd", "-Fn"],
+            capture_output=True, text=True, timeout=10)
+        for line in out.stdout.splitlines():
+            if line.startswith("n"):
+                return line[1:].strip()
+    except Exception:
+        pass
+    return ""
+
+
 def stop_pid(pid: int, expected: str, label: str) -> dict:
     result = {"label": label, "pid": pid, "stopped": False}
     try:
         command = subprocess.check_output(
             ["ps", "-p", str(pid), "-o", "command="], text=True).strip()
+        cwd = pid_cwd(pid)
     except subprocess.CalledProcessError:
         result["detail"] = "not_running"
         return result
-    if expected and expected not in command:
-        result["detail"] = "refused_pid_command_mismatch"
+    if expected and expected not in cwd and expected not in command:
+        result["detail"] = "refused_pid_scope_mismatch"
         result["command"] = command[:300]
+        result["cwd"] = cwd
         return result
     try:
         os.kill(pid, signal.SIGTERM)
@@ -408,6 +430,18 @@ def cmd_start(args) -> int:
     (run / "frontend.pid").write_text(str(frontend_proc.pid) + "\n")
     try:
         health = wait_health(f"http://127.0.0.1:{api_port}", identity["release_commit"])
+        # Bind the pid files to the processes ACTUALLY listening, not to a
+        # parent that may have forked or exited during startup.
+        api_listeners = listener_pids(api_port)
+        fe_listeners = listener_pids(fe_port)
+        if backend_proc.pid not in api_listeners:
+            raise RuntimeError(
+                f"backend pid {backend_proc.pid} is not listening on {api_port}; "
+                f"listeners={api_listeners}")
+        if not fe_listeners:
+            raise RuntimeError(f"no frontend listener on {fe_port}")
+        (run / "backend.pid").write_text(str(api_listeners[0]) + "\n")
+        (run / "frontend.pid").write_text(str(fe_listeners[0]) + "\n")
         deadline = time.time() + 60
         while time.time() < deadline:
             try:
@@ -447,6 +481,7 @@ def cmd_stop(args) -> int:
     root = Path(args.root).resolve()
     env = runtime_env(root)
     results = []
+    expected = str((root / "current").resolve())
     for name, port_key in (("backend", "API_PORT"), ("frontend", "FE_PORT")):
         pidfile = root / "run" / f"{name}.pid"
         if not pidfile.is_file():
@@ -458,14 +493,22 @@ def cmd_stop(args) -> int:
             pidfile.unlink(missing_ok=True)
             results.append({"label": name, "stopped": True, "detail": "invalid_pidfile"})
             continue
-        expected = "main_api_app:app" if name == "backend" else "server.js"
         results.append(stop_pid(pid, expected, name))
         pidfile.unlink(missing_ok=True)
+    # Reap any stale listener under this release root (a forked child or a
+    # previous start whose parent pid was recorded). Never touch other roots.
+    extra = []
+    for name, port_key in (("backend", "API_PORT"), ("frontend", "FE_PORT")):
+        port = int(env.get(port_key, 0) or 0)
+        for pid in listener_pids(port):
+            cwd = pid_cwd(pid)
+            if cwd and str(root) in cwd:
+                extra.append(stop_pid(pid, str(root), f"{name}-listener"))
     report = {"schema": "atom-assignment-release-stop-1", "stopped_at": now(),
-              "results": results}
+              "results": results, "reaped_release_listeners": extra}
     atomic_write_json(root / "run" / "stop_receipt.json", report)
     print(json.dumps(report, indent=2))
-    return 0 if all(r["stopped"] for r in results) else 1
+    return 0 if all(r["stopped"] for r in results + extra) else 1
 
 
 def cmd_status(args) -> int:
@@ -497,8 +540,17 @@ def cmd_rollback(args) -> int:
     current.symlink_to(target)
     previous.unlink()
     previous.symlink_to(old)
-    start_args = argparse.Namespace(root=str(root), rehearsal=True)
-    rc = cmd_start(start_args)
+    atomic_write_json(root / "RELEASE_IDENTITY.json", previous_identity)
+    # Run the TARGET release's kit so validation uses that release's commit
+    # and product-tree checksum. The current kit belongs to the newer release.
+    target_tool = target / "scripts" / "release_tool.py"
+    start_env = dict(os.environ)
+    start_env["RELEASE_PYTHON"] = sys.executable
+    proc = subprocess.run(
+        [sys.executable, str(target_tool), "--root", str(root),
+         "start", "--rehearsal"],
+        capture_output=True, text=True, env=start_env)
+    rc = proc.returncode
     receipt = {
         "schema": "atom-assignment-release-rollback-1",
         "at": now(),
@@ -506,6 +558,8 @@ def cmd_rollback(args) -> int:
         "to_release": str(target),
         "to_release_commit": previous_identity.get("release_commit"),
         "start_rc": rc,
+        "start_stdout_tail": proc.stdout[-4000:],
+        "start_stderr_tail": proc.stderr[-4000:],
         "database_restored": False,
         "user_data_preserved": True,
     }

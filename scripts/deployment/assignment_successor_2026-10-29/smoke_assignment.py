@@ -121,7 +121,8 @@ def main() -> None:
     snapshot = collect(client, args.objective, args.expected_sum)
     report = {"ok": True, "snapshot": snapshot}
     if args.compare_to:
-        before = json.loads(Path(args.compare_to).read_text())
+        before_doc = json.loads(Path(args.compare_to).read_text())
+        before = before_doc.get("snapshot", before_doc)
         fields = ("run_id", "assignment_id", "status", "plan_revision",
                   "teaching_revision", "artifact_path", "artifact_sha256",
                   "source_versions")
