@@ -324,3 +324,6 @@ passes (30) after the criteria additions.
 
 R3 is untouched. This successor is additive and local. Deployment remains
 separate and unauthorized.
+
+Frozen code commit: `efc4bc9d5` on `whole-app/successor-f5f`. Evidence
+manifest: `docs/acceptance/evidence/durable_assignment_20261029/FREEZE_MANIFEST.json`.
