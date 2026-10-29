@@ -1,6 +1,7 @@
 {
  "slice": "assignment-start-boundary",
  "frozen_commit": "44b62a6bb",
+ "correction_commit": "322981bcc",
  "branch": "whole-app/successor-f5f",
  "preserved_commit": "efc4bc9d5",
  "start_route": "POST /api/assignments",

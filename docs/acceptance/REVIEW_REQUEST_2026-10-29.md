@@ -1,7 +1,12 @@
 # Independent review request — assignment start boundary
 
-Frozen candidate: `44b62a6bb` on `whole-app/successor-f5f`
+Frozen candidate: `322981bcc` on `whole-app/successor-f5f`
+Preserved start boundary: `44b62a6bb`.
 Preserved executor evidence: `efc4bc9d5`.
+
+The correction pass addresses the review findings: server-resolved catalog
+resources and owned output allocation, authority independent of the proposal,
+adapter/action effect metadata, and corrected deliverable validation.
 
 Please review read-only; do not restart the owner's runtime or run a live
 send.
