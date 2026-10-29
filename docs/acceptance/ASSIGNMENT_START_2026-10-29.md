@@ -251,7 +251,7 @@ reports both assignments completed.
 
 ## Verification
 
-- Focused backend suite: **125 passed**.
+- Focused backend suite: **126 passed**.
 - Assignment component: **3 passed**.
 - Guided Playwright start/reload: **1 passed**.
 - Guided Playwright after backend restart: **1 passed**.

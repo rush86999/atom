@@ -1,6 +1,6 @@
 # Independent review request — connected guided assignment start
 
-Frozen candidate: `pending-freeze` on `whole-app/successor-f5f`
+Frozen candidate: `40b3367d9` on `whole-app/successor-f5f`
 Preserved start boundary: `44b62a6bb`.
 Preserved correction pass: `322981bcc`.
 Preserved executor evidence: `efc4bc9d5`.

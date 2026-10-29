@@ -2,7 +2,7 @@
  "slice": "assignment-start-boundary",
  "frozen_commit": "44b62a6bb",
  "correction_commit": "322981bcc",
- "connected_guided_commit": "pending-freeze",
+ "connected_guided_commit": "40b3367d9",
  "branch": "whole-app/successor-f5f",
  "preserved_commit": "efc4bc9d5",
  "start_route": "POST /api/assignments",
@@ -45,7 +45,7 @@
   "reopened": "both completed"
  },
  "controls": {
-  "backend": "125 passed",
+  "backend": "126 passed",
   "frontend_component": "3 passed",
   "guided_browser_start": "1 passed",
   "guided_browser_after_restart": "1 passed",
