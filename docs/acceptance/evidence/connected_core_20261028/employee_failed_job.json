@@ -1,0 +1,18 @@
+{
+ "success": true,
+ "data": {
+  "job_id": "46aaee69535d",
+  "status": "failed",
+  "integration": "onedrive",
+  "kind": "file",
+  "folder_ids": null,
+  "file_id": "invalid-connected-item-id",
+  "started_at": "2026-10-29T00:08:36.834271+00:00",
+  "finished_at": "2026-10-29T00:08:37.008831+00:00",
+  "result": {
+   "success": false,
+   "error": "Failed to download file"
+  },
+  "error": null
+ }
+}

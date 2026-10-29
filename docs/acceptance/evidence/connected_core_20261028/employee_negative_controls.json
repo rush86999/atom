@@ -1,0 +1,72 @@
+{
+ "guessed_dataset": {
+  "http": 404,
+  "error": {
+   "code": "source_not_found",
+   "message": "No active dataset matches that catalog reference in this workspace. A guessed name or a deleted source cannot be bound."
+  }
+ },
+ "stale_version": {
+  "http": 409,
+  "error": {
+   "code": "stale_source_version",
+   "message": "Requested source version 'deadbeef' is not the active version '2abb1bf40ec3'. Refresh or bind the active version explicitly.",
+   "active_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+  }
+ },
+ "client_path": {
+  "http": 422,
+  "error": [
+   {
+    "type": "extra_forbidden",
+    "loc": [
+     "body",
+     "file_path"
+    ],
+    "msg": "Extra inputs are not permitted",
+    "input": "/etc/passwd"
+   }
+  ]
+ },
+ "client_hash": {
+  "http": 422,
+  "error": [
+   {
+    "type": "extra_forbidden",
+    "loc": [
+     "body",
+     "sha256"
+    ],
+    "msg": "Extra inputs are not permitted",
+    "input": "deadbeef"
+   }
+  ]
+ },
+ "client_rows": {
+  "http": 422,
+  "error": [
+   {
+    "type": "extra_forbidden",
+    "loc": [
+     "body",
+     "rows"
+    ],
+    "msg": "Extra inputs are not permitted",
+    "input": [
+     [
+      1,
+      2,
+      3
+     ]
+    ]
+   }
+  ]
+ },
+ "revoked_grant": {
+  "http": 403,
+  "error": {
+   "code": "source_permission_revoked",
+   "message": "The connected source grant is revoked or inactive. Reconnect the source; the cached snapshot is not treated as authorised."
+  }
+ }
+}

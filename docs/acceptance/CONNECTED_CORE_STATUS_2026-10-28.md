@@ -1,63 +1,73 @@
 # Connected-data core status — 2026-10-28
 
-Status: **partial connected acceptance.** R3 remains the frozen functional
-release; nothing here is a successor release or a deployment.
+Status: **connected assessment slice accepted; overall successor release remains
+open on one live-source refresh boundary.** R3 remains the frozen functional
+release. Nothing here is a deployment or a successor tag.
 
-## What passed
+## What now passes
 
 | Boundary | Result |
 |---|---|
-| Real connected source | Microsoft Graph Outlook/OneDrive token is active; OneDrive workbook downloaded from source version |
-| Connected file ingestion | `Consolidated Price List 2019.xlsx` ingested through `/api/onedrive/ingest-document`; 11,463,449 bytes, 45 sheets, 3,222,905 chars, 159 s end-to-end |
-| Workbook materialization | 45 dataset entries; 11,219-row `US$ SCOTCH PARTS` sheet; complete coverage (`truncated=false`) |
-| Formula ingestion | 733 formula cells on `#40 TOOLING`; same-sheet `M5 = SUM(1-K5/L5)` evaluates to `0.4`; cross-sheet `N5` resolves `MULT SCOTCH TOOLING` and `Exchange-Index` dependencies |
-| Agent retrieval without supplied rows | Chat retrieved the workbook and sheet from natural language and returned `9,958,743.62` over 11,219 rows with source/sheet/version citations |
-| Connected email | Outlook MIME message imported through the email canvas; `consolidated price lists` + one workbook attachment; editable reply draft saved |
-| Deliverables | Real DOCX with table and source references; real PPTX with 2 slides, table and notes; both reopen/download |
-| Repeat sync | Second OneDrive ingest completed `unchanged=True` / `skipped` |
-| Restart | Same workbook total `9,958,743.62`, version and sheet after backend restart |
-| Direct materialization performance | 3.5 s, peak RSS ~898 MB on this machine for the 11.4 MB workbook |
+| Real connected source | Microsoft Graph Outlook/OneDrive grant active; Zoho WorkDrive remains expired and unused |
+| Connected file ingestion | `Consolidated Price List 2019.xlsx`; 11,463,449 bytes; 45 sheets; 3,222,905 chars; 159 s |
+| Workbook materialization | 45 dataset entries; `US$ SCOTCH PARTS` complete at 11,219 rows; `truncated=false` |
+| Formula ingestion/evaluation | 733 formula cells; same-sheet `#40 TOOLING!M5 = 0.4`; cross-sheet `N5` resolves two dependencies |
+| Server-resolved connected binding | Catalog reference + active version resolved in the canvas workspace; authoritative Parquet read; no rows/paths/hashes accepted from the client |
+| Two identities | Canvas snapshot `b92aaf07eb1d219b` and OneDrive content hash `2abb1bf40ec31d131e5ae96abb173ac463426ef7` retained separately; snapshot labelled local; no writeback |
+| Taught assessment v1 | 18/18 rows assessed, completed/certified, 16 APPROVE + 2 REVIEW, served `deepseek-flash`, 12.81 s |
+| Correction + unfamiliar records | CNC changed REVIEW→HOLD; 22/22 rows assessed, completed/certified, 20 APPROVE + 2 HOLD, four unfamiliar subjects included, 12.03 s |
+| Full-set calculation | 11,219 rows, total `9,958,743.62`, not the displayed page |
+| XLSX export | 11,219 rows; reopened total matches; download bytes match |
+| DOCX | Real 38,200-byte document with two tables (19 and 23 rows), correction section, sources; reopened and downloaded |
+| PPTX | Real 36,017-byte deck with 3 slides and native tables; reopened and downloaded |
+| Connected email | Outlook MIME with one workbook attachment; editable reply draft saved and reopened; no send |
+| Repeat sync | Completed `unchanged=True skipped`; no duplicate logical records observed |
+| Restart | Same retrieval total/version; fresh 5/5 certified assessment; drafts and artifacts reopened |
+| Data/Settings browser | Connected state, scope, last success, coverage, failure, retry, disconnected/stale and restored states all exercised at `localhost:3003/settings` |
+| Negative controls | Wrong workspace, guessed id, stale version, inactive source, revoked grant, disconnected source, client path/hash/rows, incomplete materialization, blank/duplicate subject, snapshot-writeback claim |
 
-## What is still missing
+Evidence: `docs/acceptance/evidence/connected_core_20261028/`
+Detailed run: `docs/acceptance/EMPLOYEE_JOB_2026-10-28.md`
+Ledger: `docs/acceptance/CONNECTED_CORE_LEDGER_2026-10-28.json`
 
-- Taught assessment over connected workbook rows, with decision vocabulary,
-  correction, and an unfamiliar variation.
-- The full connected employee job (email + workbook + document/deck,
-  correction, refresh, restart, artifact reopen) as one accepted run.
-- Data/Settings UI evidence for connection state, last sync, coverage,
-  failures, unsupported files and retry.
-- Zoho WorkDrive refresh is currently `invalid_client`; that connection needs
-  owner reauthorization. OneDrive is the working file source for this run.
-- Connected-source permission-loss and wrong-workspace negative controls on
-  retrieval, beyond the existing R3 canvas/office controls.
-- The connected run used API/public boundaries for source ingestion/chat and
-  deliverable generation; browser-level Data status was not exercised.
+## Real defects found and fixed
 
-## First broken transitions observed
+1. **Natural-language ordering predicate.** “Unit Price is greater than 10000.”
+   was parsed as equality against the word “greater”, and a sentence-final
+   period made the numeric literal a string. Fixed in
+   `core/table_selection.py`; controls added.
+2. **Assessment projection.** A predicated assessment selected only the
+   predicate column, so the subject column never reached the evidence index.
+   Assessment now requires all physical columns while other select operations
+   keep their existing projection.
+3. **DOCX core-property limit.** Multi-source provenance exceeded Word’s
+   255-character core-property cap and aborted document creation. Truncated in
+   `core/office_service.py`; regression test added.
+4. **Browser ingest retry.** The shared `startIngestJob` helper omitted
+   `Content-Type: application/json`, causing a 422 before job creation. Fixed
+   in `frontend-nextjs/lib/ingest-jobs.ts`; the browser retry now creates and
+   completes a job.
 
-1. Zoho WorkDrive access token expired and refresh failed with
-   `invalid_client` — owner reconnection required; not bypassed.
-2. The existing chat path initially treated “document(s) and workbook(s)” as
-   ambiguous. A workbook-only ask resolved correctly. This is a clarification
-   behavior, not a fabricated answer.
-3. `US$ SCOTCH PARTS` headers are messy; deterministic sum/count worked only
-   after the sheet was named. Ambiguous price columns correctly returned a
-   clarification rather than guessing.
+## Still open
 
-## Source identity
-
-- OneDrive item: `01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG`
-- Content version: `2abb1bf40ec3`
-- Outlook message: `AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEJAADEtbYrrPLwTae3iXb78LoOAAAAAFX1AAA=`
-- Email canvas: `9c44465a-232d-440b-b66e-63d255c5ac76`
-- Generated document canvas: `2eac4ef5-883c-421a-951a-767971d64b34`
-- Generated deck canvas: see connected ledger/evidence
+- **Live changed-byte refresh.** The only remaining job-protocol step is
+  modifying the OneDrive source, syncing, and verifying updated retrieval.
+  That requires source writeback, which the work order forbids. Verified
+  instead: real unchanged repeat sync, explicit rebind with assessment-reuse
+  invalidation and retained prior provenance, plus a changed-version control
+  at the catalog/materialization boundary in unit tests.
+- **Multi-user Office authorization.** Per-file Office path authorization is
+  still unsupported; single-user restrictions remain.
+- **Cost.** The structured review route does not persist token usage; latency
+  and memory are recorded, but no cost figure is claimed.
+- **Zoho WorkDrive.** Refresh still returns `invalid_client`; owner
+  reauthorization is required and was not bypassed.
 
 ## Release position
 
 - R3 tag unchanged: `expanded-core-2026-10-28-r3` → `68b949409`.
-- No successor package is claimed.
-- No deployment, email send, external write, or credential rotation was
-  performed.
-- Multi-user source use remains unauthorized until direct Office file-path
-  authorization and source-permission negative controls are closed.
+- No successor tag, release package, deployment, email send, source writeback
+  or credential rotation was performed.
+- The connected assessment slice is accepted for its demonstrated scope; the
+  overall exit condition for a successor release is not claimed because the
+  live changed-byte refresh was not executed.

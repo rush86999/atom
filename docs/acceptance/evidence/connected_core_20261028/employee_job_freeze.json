@@ -1,0 +1,69 @@
+{
+  "campaign": "connected-employee-2026-10-28",
+  "frozen_at": "2026-10-29T00:05:00Z",
+  "note": "The threshold-based pilot (employee_assessment_threshold_pilot.json) ran first and returned 24/24 correct decisions with explicit 261-row unassessed coverage. It was a coverage pilot, not the accepted task. The final task below uses a description-based policy so a fully covered subset has mixed decisions.",
+  "source": {
+    "provider": "onedrive",
+    "item_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+    "file_name": "Consolidated Price List 2019.xlsx",
+    "sheet_name": "US$ SCOTCH PARTS ",
+    "source_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+  },
+  "binding": {
+    "dataset_name": "onedrive_consolidated_price_list_2019__us_scotch_parts",
+    "subject_field": "No.",
+    "measure_field": "Unit Price"
+  },
+  "assessment_v1": {
+    "policy": "For this price review, use REVIEW when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision.",
+    "decision_options": ["APPROVE", "REVIEW", "HOLD"],
+    "ask": "Assess rows where Unit Price is greater than 50000.",
+    "max_subjects": 18,
+    "selection": "Unit Price > 50000, source order",
+    "expected_selected_count": 18,
+    "expected_assessed_count": 18,
+    "expected_decisions": {"APPROVE": 16, "REVIEW": 2, "HOLD": 0},
+    "expected_subjects": {
+      "REVIEW": ["1105", "1106"],
+      "APPROVE": [
+        "046005", "046010", "046026", "046040", "046060", "046100",
+        "046310", "046326", "046340", "046360", "046370", "046410",
+        "046426", "046440", "046460", "046470"
+      ]
+    }
+  },
+  "assessment_v2_correction": {
+    "policy": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision.",
+    "change": "CNC rows move from REVIEW to HOLD.",
+    "ask": "Assess rows where Unit Price is greater than 40000.",
+    "max_subjects": 22,
+    "expected_selected_count": 22,
+    "expected_assessed_count": 22,
+    "expected_decisions": {"APPROVE": 20, "REVIEW": 0, "HOLD": 2},
+    "expected_subjects": {
+      "HOLD": ["1105", "1106"],
+      "APPROVE": [
+        "046005", "046010", "046026", "046040", "046060", "046100",
+        "046310", "046326", "046340", "046360", "046370", "046410",
+        "046426", "046440", "046460", "046470", "089126", "089130",
+        "1103", "1104"
+      ]
+    },
+    "unfamiliar_subjects": ["089126", "089130", "1103", "1104"]
+  },
+  "model": {
+    "provider": "deepseek",
+    "model": "deepseek-flash",
+    "structured": true,
+    "streaming": false,
+    "deadline_seconds": 180
+  },
+  "rules": {
+    "no_prompt_rows": true,
+    "no_fixture_routing": true,
+    "no_source_writeback": true,
+    "no_email_send": true,
+    "preserve_r3": true,
+    "one_attempt_per_substantive_assessment": true
+  }
+}

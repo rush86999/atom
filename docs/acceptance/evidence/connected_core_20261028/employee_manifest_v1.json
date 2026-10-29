@@ -1,0 +1,70 @@
+{
+ "success": true,
+ "manifest": {
+  "schema_version": 1,
+  "base_component": "table",
+  "operations": [
+   "read",
+   "select",
+   "calculate",
+   "assess",
+   "edit",
+   "export",
+   "bind"
+  ],
+  "data_binding": {
+   "subject_field": "No.",
+   "measure_field": "Unit Price",
+   "status_field": ""
+  },
+  "editable_fields": [
+   "Unit Price"
+  ],
+  "teaching_binding": {
+   "agent_id": "",
+   "scope_id": "connected-price-review"
+  },
+  "decision_options": [
+   "APPROVE",
+   "REVIEW",
+   "HOLD"
+  ],
+  "task_policy": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision.",
+  "outputs": [
+   "xlsx"
+  ],
+  "required_approvals": [],
+  "manifest_revision": "d3d52bdb7e62942b"
+ },
+ "operations": {
+  "declared": [
+   "assess",
+   "bind",
+   "calculate",
+   "edit",
+   "export",
+   "read",
+   "select"
+  ],
+  "adapter": [
+   "assess",
+   "bind",
+   "calculate",
+   "edit",
+   "export",
+   "read",
+   "select"
+  ],
+  "resource": [
+   "bind",
+   "read"
+  ],
+  "effective": [
+   "bind",
+   "read"
+  ],
+  "manifest_revision": "d3d52bdb7e62942b"
+ },
+ "policy_revision": "8d20d247a8f137c0",
+ "revision": 0
+}

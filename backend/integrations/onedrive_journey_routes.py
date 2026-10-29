@@ -120,13 +120,45 @@ def _normalize_item(item: Dict[str, Any]) -> Dict[str, Any]:
 
 @router.get("/connection-status")
 async def connection_status(current_user: User = Depends(get_current_user)):
-    """Report whether a usable OneDrive connection exists for the user."""
+    """Report whether a usable OneDrive connection exists for the user.
+
+    ``scope`` is the OAuth grant actually present in the token store, not a
+    client-declared scope. It is display metadata only; every read still
+    resolves and checks the token server-side.
+    """
     token = await _service.get_access_token(str(current_user.id))
+    scope = None
+    token_provider = None
+    if token:
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationToken
+
+            with SessionLocal() as db:
+                row = (
+                    db.query(IntegrationToken)
+                    .filter(
+                        IntegrationToken.user_id == str(current_user.id),
+                        IntegrationToken.provider.in_(
+                            ["onedrive", "microsoft", "outlook", "microsoft365"]
+                        ),
+                        IntegrationToken.status == "active",
+                    )
+                    .order_by(IntegrationToken.updated_at.desc())
+                    .first()
+                )
+                if row is not None:
+                    scope = row.scope
+                    token_provider = row.provider
+        except Exception:  # noqa: BLE001 — status must not fail the page
+            scope = None
     return {
         "is_connected": bool(token),
         "reason": None if token else "No OneDrive/Microsoft connection found. Connect the integration first.",
         "user_id": str(current_user.id),
         "email": current_user.email if token else None,
+        "scope": scope,
+        "token_provider": token_provider,
     }
 
 

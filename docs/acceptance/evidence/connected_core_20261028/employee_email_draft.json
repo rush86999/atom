@@ -1,0 +1,10 @@
+{
+ "success": true,
+ "write_outcome": "committed",
+ "canvas_id": "9c44465a-232d-440b-b66e-63d255c5ac76",
+ "canvas_type": "email",
+ "audit_id": "50c1038f-b9ac-4221-8d29-cb474b8f9342",
+ "operation_id": null,
+ "review_status": "accepted",
+ "message": "Canvas updated successfully"
+}

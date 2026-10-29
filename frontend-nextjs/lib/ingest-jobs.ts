@@ -40,6 +40,7 @@ export async function startIngestJob(
 ): Promise<{ jobId: string | null; started: any }> {
   const response = await fetchFn(postPath, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
   if (!response.ok) {

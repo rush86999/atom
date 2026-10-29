@@ -1,0 +1,16 @@
+{
+ "success": true,
+ "canvas_id": "e7e878cb-db5c-4aab-bff8-6640b8fe2a82",
+ "canvas_type": "docs",
+ "content": {
+  "office_file": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/connected_world/office/chat-Connected-price-review-certified-assessm-4b1d05a2.docx",
+  "file_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/connected_world/office/chat-Connected-price-review-certified-assessm-4b1d05a2.docx",
+  "format": "docx"
+ },
+ "title": "Connected price review \u2014 certified assessment",
+ "action_type": "create",
+ "audit_id": "3aa01fdd-ca91-4662-b914-8e946d73b2b6",
+ "operation_id": null,
+ "review_status": "unknown",
+ "created_at": "2026-10-29T00:02:57.527992"
+}

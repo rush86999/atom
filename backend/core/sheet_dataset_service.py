@@ -897,6 +897,9 @@ def _entry_to_dict(row) -> Dict[str, Any]:
     }
     return {
         "id": row.id,
+        "workspace_id": row.workspace_id,
+        "tenant_id": row.tenant_id,
+        "created_by": row.created_by,
         "dataset_name": row.dataset_name,
         "entity_name": row.entity_name,
         "file_name": row.file_name,
@@ -1253,6 +1256,119 @@ def entries_for_file_sync(source: str, external_id: str) -> List[Dict[str, Any]]
             .all()
         )
         return [_entry_to_dict(r) for r in rows]
+
+
+class DatasetScopeError(ValueError):
+    """A catalog lookup was attempted without an authenticated workspace."""
+
+
+def _required_workspace(workspace_id: Optional[str]) -> str:
+    ws = str(workspace_id or "").strip()
+    if not ws:
+        raise DatasetScopeError(
+            "workspace_id is required for a connected catalog lookup"
+        )
+    return ws
+
+
+def resolve_dataset_entry_scoped_sync(
+    dataset_name: Optional[str] = None,
+    *,
+    workspace_id: Optional[str],
+    source: Optional[str] = None,
+    external_id: Optional[str] = None,
+    sheet_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Resolve ONE active catalog entry inside an authenticated workspace.
+
+    This is the connected-binding lookup. Unlike ``find_entries_sync`` it
+    never falls back to an unscoped query: a missing workspace is an error,
+    not "all workspaces". The returned ``state`` keeps the negative cases
+    distinguishable (missing, inactive/superseded, wrong workspace,
+    ambiguous) so callers can refuse honestly instead of treating every
+    miss as "no data".
+
+    Existing unscoped helpers stay unchanged for their current callers.
+    """
+    from core.models import DatasetEntry
+
+    ws = _required_workspace(workspace_id)
+    name = str(dataset_name or "").strip()
+    src = str(source or "").strip()
+    ext = str(external_id or "").strip()
+    sheet = str(sheet_name or "").strip()
+
+    with _catalog_session() as db:
+        q = db.query(DatasetEntry)
+        if name:
+            q = q.filter(DatasetEntry.dataset_name == name)
+        elif src and ext:
+            q = q.filter(
+                DatasetEntry.source_kind == "file",
+                DatasetEntry.source == src,
+                DatasetEntry.external_id == ext,
+            )
+        else:
+            raise DatasetScopeError(
+                "dataset_name or (source, external_id) is required"
+            )
+        rows = q.order_by(DatasetEntry.ingested_at.desc()).limit(500).all()
+
+        # Normalize sheet names the same way catalog names are built.
+        if sheet:
+            wanted = " ".join(sheet.lower().split())
+            rows = [
+                r for r in rows
+                if " ".join(str(r.entity_name or "").lower().split()) == wanted
+            ]
+
+        scoped = [r for r in rows if str(r.workspace_id or "") == ws]
+        active = [r for r in scoped if str(r.status or "") == "active"]
+
+        if len(active) > 1:
+            # More than one active version means the catalog cannot name a
+            # single authoritative frame. Never pick the newest silently.
+            return {
+                "state": "ambiguous",
+                "entry": None,
+                "candidates": [_entry_to_dict(r) for r in active[:10]],
+            }
+        if active:
+            return {
+                "state": "active",
+                "entry": _entry_to_dict(active[0]),
+                "candidates": [],
+            }
+        if scoped:
+            return {
+                "state": "inactive",
+                "entry": _entry_to_dict(scoped[0]),
+                "candidates": [],
+            }
+        if rows:
+            return {
+                "state": "workspace_mismatch",
+                "entry": None,
+                "candidates": [],
+            }
+        return {"state": "not_found", "entry": None, "candidates": []}
+
+
+def connected_parquet_path(entry: Dict[str, Any]) -> Optional[Path]:
+    """Return the entry's parquet path only when it is under this deployment's
+    dataset root. A catalog row can never point the connected binding at an
+    arbitrary filesystem path."""
+    raw = str((entry or {}).get("parquet_path") or "").strip()
+    if not raw:
+        return None
+    root = datasets_root().resolve()
+    try:
+        candidate = Path(raw).resolve()
+    except OSError:
+        return None
+    if candidate != root and root not in candidate.parents:
+        return None
+    return candidate
 
 
 def catalog_has_entries_sync() -> bool:

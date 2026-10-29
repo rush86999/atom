@@ -14,14 +14,19 @@
   "review_structured": true,
   "streaming": false,
   "turn_budget_seconds": 180,
-  "request_deadline_seconds": 180
+  "request_deadline_seconds": 180,
+  "served_routes": [
+   {"provider": "deepseek", "model": "deepseek-flash", "assessment": "v1"},
+   {"provider": "deepseek", "model": "deepseek-flash", "assessment": "v2-corrected"},
+   {"provider": "deepseek", "model": "deepseek-flash", "assessment": "post-restart"}
+  ]
  },
  "connected_sources": [
   {
    "provider": "microsoft_graph",
    "services": ["outlook", "onedrive"],
    "status": "active",
-   "evidence": "Graph /me and /me/drive/root/children returned 200 with the configured Microsoft token"
+   "evidence": "Graph /me and /me/drive/root/children returned 200; real OneDrive ingestion and Outlook MIME import completed"
   },
   {
    "provider": "zoho_workdrive",
@@ -35,7 +40,7 @@
    "status": "pass",
    "file": "Consolidated Price List 2019.xlsx",
    "onedrive_item_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
-   "source_version": "2abb1bf40ec3",
+   "source_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
    "bytes": 11463449,
    "sheets": 45,
    "chars_ingested": 3222905,
@@ -65,7 +70,8 @@
    "source_version": "2abb1bf40ec3",
    "model": "deterministic",
    "provider": "structured",
-   "manual_rows_supplied": false
+   "manual_rows_supplied": false,
+   "latency_seconds": 43.59
   },
   "connected_email": {
    "status": "pass",
@@ -76,54 +82,172 @@
    "canvas_id": "9c44465a-232d-440b-b66e-63d255c5ac76",
    "draft_subject": "Re: consolidated price lists",
    "draft_saved": true,
+   "draft_reopened": true,
    "send_performed": false
+  },
+  "connected_binding": {
+   "status": "pass",
+   "canvas_id": "96b165e2-750b-45b5-ae00-b90968af9d97",
+   "dataset_name": "onedrive_consolidated_price_list_2019__us_scotch_parts",
+   "subject_field": "No.",
+   "measure_field": "Unit Price",
+   "canvas_snapshot_version": "b92aaf07eb1d219b",
+   "upstream_content_hash": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "rows": 11219,
+   "source_identity_separated": true,
+   "writeback_supported": false,
+   "evidence": "employee_bind_connected.json"
+  },
+  "taught_assessment": {
+   "status": "pass",
+   "v1": {
+    "status": "completed",
+    "certified": true,
+    "policy_revision": "2fb749d9c7309426",
+    "ask": "Assess rows where Unit Price is greater than 50000.",
+    "selected": 18,
+    "assessed": 18,
+    "unassessed": 0,
+    "decisions": {"APPROVE": 16, "REVIEW": 2, "HOLD": 0},
+    "latency_seconds": 12.81
+   },
+   "v2_corrected": {
+    "status": "completed",
+    "certified": true,
+    "policy_revision": "a54191685f9813e6",
+    "change": "CNC rows move from REVIEW to HOLD",
+    "ask": "Assess rows where Unit Price is greater than 40000.",
+    "selected": 22,
+    "assessed": 22,
+    "unassessed": 0,
+    "decisions": {"APPROVE": 20, "REVIEW": 0, "HOLD": 2},
+    "unfamiliar_subjects": ["089126", "089130", "1103", "1104"],
+    "latency_seconds": 12.03
+   },
+   "coverage_pilot": {
+    "status": "partial",
+    "selected": 285,
+    "assessed": 24,
+    "unassessed_named": 261,
+    "decisions": {"APPROVE": 8, "REVIEW": 16},
+    "note": "explicit bounded coverage, not the accepted task"
+   }
+  },
+  "calculation_and_export": {
+   "status": "pass",
+   "full_set_total": "9958743.62",
+   "rows": 11219,
+   "xlsx_rows": 11219,
+   "reopened_total": "9958743.62",
+   "download_hash_matches": true,
+   "evidence": ["employee_calculation.json", "employee_export.json"]
   },
   "deliverables": {
    "status": "pass",
-   "docx_canvas_id": "2eac4ef5-883c-421a-951a-767971d64b34",
-   "docx_tables": 1,
-   "pptx_canvas_id": "adff17bf-735f-4824-98e8-7855b58fa5db",
-   "pptx_slides": 2,
+   "docx_canvas_id": "e7e878cb-db5c-4aab-bff8-6640b8fe2a82",
+   "docx_bytes": 38200,
+   "docx_tables": 2,
+   "docx_table_rows": [19, 23],
+   "pptx_canvas_id": "10ac491a-7bc7-4c86-824b-7fc2805e0a34",
+   "pptx_bytes": 36017,
+   "pptx_slides": 3,
    "pptx_table_present": true,
    "pptx_notes_present": true,
-   "reopen_download": "verified through office read/download endpoints"
+   "reopen_download": "python-docx/python-pptx plus office read/download; downloaded bytes match saved files"
   },
   "repeat_sync": {
    "status": "pass",
    "result": "completed unchanged=True skipped",
-   "duplicate_logical_records": "none observed for the selected file"
+   "duplicate_logical_records": "none observed for the selected file",
+   "evidence": "employee_repeat_sync_job.json"
   },
   "restart_retrieval": {
    "status": "pass",
    "same_total": "9958743.62",
-   "same_source_version": "2abb1bf40ec3"
-  },
-  "taught_assessment": {
-   "status": "not_run",
-   "reason": "connected rows are not yet bindable to the capability assessment adapter without manual row injection"
-  },
-  "connected_employee_job": {
-   "status": "not_run",
-   "reason": "requires taught connected assessment, correction, unfamiliar variation and full UI evidence; not claimed"
+   "same_source_version": "2abb1bf40ec3",
+   "fresh_assessment": {
+    "ask": "Assess rows where Unit Price is greater than 55000.",
+    "selected": 5,
+    "assessed": 5,
+    "certified": true,
+    "decisions": {"APPROVE": 5},
+    "model": "deepseek-flash"
+   },
+   "artifacts_reopened": true,
+   "email_reopened": true
   },
   "data_settings_ui": {
-   "status": "not_verified",
-   "reason": "connection/sync/coverage/retry states were exercised through APIs, not the Data/Settings browser surface"
+   "status": "pass",
+   "browser": "http://localhost:3003/settings -> Data Pipelines",
+   "connected": true,
+   "last_success": "Consolidated Price List 2019.xlsx",
+   "failure_shown": "Failed to download file",
+   "retry_created_new_job": true,
+   "unchanged_retry": true,
+   "disconnected_state": "Disconnected / stale",
+   "restored_state": "Connected",
+   "screenshots": [
+    "browser/data_settings_connected.png",
+    "browser/data_settings_retry.png",
+    "browser/data_settings_disconnected.png",
+    "browser/data_settings_restored.png"
+   ]
+  },
+  "negative_controls": {
+   "status": "pass",
+   "api": {
+    "guessed_dataset": "source_not_found (404)",
+    "stale_version": "stale_source_version (409)",
+    "client_file_path": "422 extra_forbidden",
+    "client_sha256": "422 extra_forbidden",
+    "client_rows": "422 extra_forbidden",
+    "revoked_grant": "source_permission_revoked (403)"
+   },
+   "unit": [
+    "missing workspace scope",
+    "wrong workspace",
+    "inactive/superseded source",
+    "disconnected source",
+    "incomplete/truncated materialization",
+    "blank subject",
+    "duplicate subject",
+    "snapshot edit does not write upstream"
+   ],
+   "evidence": "employee_negative_controls.json; backend/tests/test_canvas_connected_binding.py"
+  },
+  "refresh": {
+   "status": "partial",
+   "explicit_rebind": {
+    "status": "pass",
+    "replaced": true,
+    "prior_snapshot_version": "b92aaf07eb1d219b",
+    "prior_upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+    "new_upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+    "assessment_reuse_invalidated": true,
+    "previous_bindings_retained": true
+   },
+   "live_changed_source": {
+    "status": "not_run",
+    "reason": "modifying the OneDrive item would be source writeback, which this work order forbids",
+    "local_changed_version_control": "unit test materializes changed bytes under the same source identity, supersedes the old version, rebinds, and records prior provenance"
+   }
   },
   "authorization": {
    "status": "partial",
-   "existing": "R3 canvas/office owner checks and single-user deployment guard",
-   "missing": "connected-source wrong-workspace/permission-loss negative controls and per-file office access for multi-user"
+   "existing": "R3 canvas/office owner checks, server-side capability intersection and single-user deployment guard",
+   "missing": "per-file multi-user Office authorization and a live revoked-provider negative control across users"
   }
  },
  "exit_condition_met": false,
+ "exit_condition_detail": "Connected ingestion, binding, full-set calculation, certified taught assessment, correction, unfamiliar records, restart, artifacts, browser status and negative controls passed. A live changed-byte refresh was not performed because source writeback is prohibited; the rebind/invalidation path and a local changed-version control pass.",
  "release_package_prepared": false,
  "deployment_authorized": false,
  "email_send_authorized": false,
  "credential_rotation_performed": false,
  "known_failures": [
   "Zoho WorkDrive refresh invalid_client",
-  "Chat required a workbook-only clarification when the ask named multiple source classes",
-  "Messy sheet headers require explicit sheet/column clarification rather than guessing"
+  "Live changed-byte OneDrive refresh not exercised under the no-writeback constraint",
+  "Structured review route does not persist token cost; no cost figure is claimed",
+  "Multi-user per-file Office authorization remains unsupported"
  ]
 }

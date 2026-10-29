@@ -1,0 +1,77 @@
+{
+ "success": true,
+ "operation": "sum",
+ "canvas_id": "96b165e2-750b-45b5-ae00-b90968af9d97",
+ "ask": "sum Unit Price",
+ "source": {
+  "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+  "file_name": "Consolidated Price List 2019.xlsx",
+  "source_version": "b92aaf07eb1d219b",
+  "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+  "snapshot": {
+   "kind": "canvas_dataset_snapshot",
+   "label": "Connected price assessment",
+   "note": "Local snapshot. Edits do not write back to the connected source.",
+   "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+   "version": "b92aaf07eb1d219b",
+   "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+   "rows": 11219,
+   "columns": 3
+  },
+  "upstream": {
+   "provider": "onedrive",
+   "dataset_name": "onedrive_consolidated_price_list_2019__us_scotch_parts",
+   "file_name": "Consolidated Price List 2019.xlsx",
+   "external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+   "sheet_name": "US$ SCOTCH PARTS ",
+   "content_hash": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "source_modified_at": null,
+   "ingested_at": "2026-10-28T23:31:53.332728",
+   "workspace_id": "default",
+   "coverage": {
+    "known": true,
+    "source_row_count": 11219,
+    "materialized_row_count": 11219,
+    "truncated": false,
+    "row_cap": 500000
+   }
+  },
+  "writeback": {
+   "supported": false,
+   "upstream_mutated": false,
+   "performed": false
+  }
+ },
+ "manifest_revision": "f227db493c722298",
+ "revision": 1,
+ "measure": "Unit Price",
+ "selected_count": 11219,
+ "source_row_count": 11219,
+ "not_selected_count": 0,
+ "subtotals": {
+  "(unstated)": {
+   "rows": 11219,
+   "value": "9958743.62"
+  }
+ },
+ "total_values": {
+  "(unstated)": "9958743.62"
+ },
+ "gaps": [],
+ "coverage": {
+  "complete_dataset": true,
+  "selected_count": 11219,
+  "source_row_count": 11219,
+  "snapshot_version": "b92aaf07eb1d219b",
+  "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+  "upstream_provider": "onedrive",
+  "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG"
+ },
+ "block": "Canvas snapshot: `b92aaf07eb1d` (local; edits do not write back). Upstream: `onedrive` `01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG` version `2abb1bf40ec3`.\nLIVE TOOL RESULTS (datasets.aggregate \u2014 deterministic; the model did not compute this):\nWorkbook: `Consolidated Price List 2019.xlsx`; Sheet: `Consolidated Price List 2019.xlsx`; Version: `2abb1bf40ec3`\nOperation: sum; measure: Unit Price\nSelected rows: 11219; computable: 11219; gaps: 0\nSheet rows: 11219; selected by the predicate: 11219; not selected: 0\n| Currency | Rows | Value |\n|---|---:|---:|\n| (unstated) | 11219 | 9958743.62 |\nCompleteness: complete. All selected rows had required inputs.\nContributing rows:\n- row 3 (000019): 0.00  [C3]\n- row 4 (000060): 0.00  [C4]\n- row 5 (000068): 0.00  [C5]\n- row 6 (000082): 0.00  [C6]\n- row 7 (000094): 0.00  [C7]\n- row 8 (000097): 190.00  [C8]\n- row 9 (000100): 290.00  [C9]\n- row 10 (000103): 303.00  [C10]\n- row 11 (000105): 0.00  [C11]\n- row 12 (000106): 0.00  [C12]\n- row 13 (000111): 0.00  [C13]\n- row 14 (000112): 0.00  [C14]\n- row 15 (000133): 55.00  [C15]\n- row 16 (000139): 72.70  [C16]\n- row 17 (000151): 45.60  [C17]\n- row 18 (000154): 137.00  [C18]\n- row 19 (000156): 0.00  [C19]\n- row 20 (000157): 36.70  [C20]\n- row 21 (000160): 317.00  [C21]\n- row 22 (000163): 0.00  [C22]\n- row 23 (000169): 0.00  [C23]\n- row 24 (000172): 60.60  [C24]\n- row 25 (000191): 0.00  [C25]\n- row 26 (000202): 2.50  [C26]\n- row 27 (000203): 0.00  [C27]\n- row 28 (000204): 0.00  [C28]\n- row 29 (000206): 2.50  [C29]\n- row 30 (000211): 0.00  [C30]\n- row 31 (000214): 2.50  [C31]\n- row 32 (000220): 17.00  [C32]\n- row 33 (000235): 0.00  [C33]\n- row 34 (000244): 0.00  [C34]\n- row 35 (000245): 0.00  [C35]\n- row 36 (000247): 0.00  [C36]\n- row 37 (000259): 3.90  [C37]\n- row 38 (000262): 0.00  [C38]\n- row 39 (000277): 0.00  [C39]\n- row 40 (000278): 0.00  [C40]\n- row 41 (000280): 792.00  [C41]\n- row 42 (000283): 643.00  [C42]\n- row 43 (000284): 4.50  [C43]\n- row 44 (000290): 0.00  [C44]\n- row 45 (000302): 0.00  [C45]\n- row 46 (000319): 0.00  [C46]\n- row 47 (000320): 217.00  [C47]\n- row 48 (000321): 0.00  [C48]\n- row 49 (000322): 0.00  [C49]\n- row 50 (000324): 0.00  [C50]\n- row 51 (000331): 414.00  [C51]\n- row 52 (000342): 0.00  [C52]\n- \u2026 11169 more contributing row(s) not displayed; the totals above include the full selected scope.",
+ "answer": "Canvas snapshot: `b92aaf07eb1d` (local; edits do not write back). Upstream: `onedrive` `01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG` version `2abb1bf40ec3`.\nWorkbook: `Consolidated Price List 2019.xlsx`; Sheet: `Consolidated Price List 2019.xlsx`; Version: `2abb1bf40ec3`\nOperation: sum; measure: Unit Price\nSelected rows: 11219; computable: 11219; gaps: 0\nSheet rows: 11219; selected by the predicate: 11219; not selected: 0\n| Currency | Rows | Value |\n|---|---:|---:|\n| (unstated) | 11219 | 9958743.62 |\nCompleteness: complete. All selected rows had required inputs.\nContributing rows:\n- row 3 (000019): 0.00  [C3]\n- row 4 (000060): 0.00  [C4]\n- row 5 (000068): 0.00  [C5]\n- row 6 (000082): 0.00  [C6]\n- row 7 (000094): 0.00  [C7]\n- row 8 (000097): 190.00  [C8]\n- row 9 (000100): 290.00  [C9]\n- row 10 (000103): 303.00  [C10]\n- row 11 (000105): 0.00  [C11]\n- row 12 (000106): 0.00  [C12]\n- row 13 (000111): 0.00  [C13]\n- row 14 (000112): 0.00  [C14]\n- row 15 (000133): 55.00  [C15]\n- row 16 (000139): 72.70  [C16]\n- row 17 (000151): 45.60  [C17]\n- row 18 (000154): 137.00  [C18]\n- row 19 (000156): 0.00  [C19]\n- row 20 (000157): 36.70  [C20]\n- row 21 (000160): 317.00  [C21]\n- row 22 (000163): 0.00  [C22]\n- row 23 (000169): 0.00  [C23]\n- row 24 (000172): 60.60  [C24]\n- row 25 (000191): 0.00  [C25]\n- row 26 (000202): 2.50  [C26]\n- row 27 (000203): 0.00  [C27]\n- row 28 (000204): 0.00  [C28]\n- row 29 (000206): 2.50  [C29]\n- row 30 (000211): 0.00  [C30]\n- row 31 (000214): 2.50  [C31]\n- row 32 (000220): 17.00  [C32]\n- row 33 (000235): 0.00  [C33]\n- row 34 (000244): 0.00  [C34]\n- row 35 (000245): 0.00  [C35]\n- row 36 (000247): 0.00  [C36]\n- row 37 (000259): 3.90  [C37]\n- row 38 (000262): 0.00  [C38]\n- row 39 (000277): 0.00  [C39]\n- row 40 (000278): 0.00  [C40]\n- row 41 (000280): 792.00  [C41]\n- row 42 (000283): 643.00  [C42]\n- row 43 (000284): 4.50  [C43]\n- row 44 (000290): 0.00  [C44]\n- row 45 (000302): 0.00  [C45]\n- row 46 (000319): 0.00  [C46]\n- row 47 (000320): 217.00  [C47]\n- row 48 (000321): 0.00  [C48]\n- row 49 (000322): 0.00  [C49]\n- row 50 (000324): 0.00  [C50]\n- row 51 (000331): 414.00  [C51]\n- row 52 (000342): 0.00  [C52]\n- \u2026 11169 more contributing row(s) not displayed; the totals above include the full selected scope.",
+ "status": "complete",
+ "contributing_rows_count": 11219,
+ "contributing_rows_sha256": "ac4400c976ed2812925ce0cbb1bf47f93b86badc2f5d3c81ca1bdbba575cfcd2",
+ "committed_evidence_note": "Full contributing_rows list omitted from the committed receipt (11,219 rows); count and hash retained."
+}

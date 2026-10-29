@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, Activity, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import ConnectedDataStatus from "@/components/Settings/ConnectedDataStatus";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const USER_ID = "system";
@@ -192,6 +193,10 @@ export function DataPipelinesTab() {
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Save & Apply Changes
                 </Button>
+            </div>
+
+            <div className="pt-6 border-t">
+                <ConnectedDataStatus />
             </div>
         </div>
     );

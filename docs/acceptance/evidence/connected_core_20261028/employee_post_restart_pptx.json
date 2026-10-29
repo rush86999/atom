@@ -1,0 +1,16 @@
+{
+ "success": true,
+ "canvas_id": "10ac491a-7bc7-4c86-824b-7fc2805e0a34",
+ "canvas_type": "presentation",
+ "content": {
+  "office_file": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/connected_world/office/chat-Connected-price-review-deck-2447a5f2.pptx",
+  "file_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/connected_world/office/chat-Connected-price-review-deck-2447a5f2.pptx",
+  "format": "pptx"
+ },
+ "title": "Connected price review deck",
+ "action_type": "create",
+ "audit_id": "14df2e3a-6c72-440e-99f3-6c069ed8650e",
+ "operation_id": null,
+ "review_status": "unknown",
+ "created_at": "2026-10-28T23:58:24.359773"
+}

@@ -177,8 +177,12 @@ def _comparison_predicate(
                     continue
                 return {"column": column, "operator": op, "value": value}
         for word_re, op in _COMPARISON_WORDS:
+            # "Unit Price is greater than 10000" is an ordering predicate,
+            # not an equality against the word "greater". Equality keeps its
+            # own is/are wording; ordering words may be preceded by is/are.
+            bridge = r"(?:is|are)\s+" if op != "=" else ""
             m = re.search(
-                rf"(?<![A-Za-z0-9]){quoted}\s+(?:{word_re})\s+"
+                rf"(?<![A-Za-z0-9]){quoted}\s+(?:{bridge})?(?:{word_re})\s+"
                 rf"(['\"]?)([^'\"\s,;]+)\1",
                 text, re.IGNORECASE,
             )
@@ -196,6 +200,9 @@ def _comparison_predicate(
 
 def _coerce_value(raw: str) -> Any:
     text = str(raw).strip()
+    # Sentence punctuation is not part of the literal: "Unit Price is greater
+    # than 10000." must coerce to the number 10000, not the string "10000.".
+    text = text.rstrip(".,;:!?")
     cleaned = text.replace(",", "").replace("$", "").replace("%", "")
     try:
         if re.fullmatch(r"-?\d+", cleaned):

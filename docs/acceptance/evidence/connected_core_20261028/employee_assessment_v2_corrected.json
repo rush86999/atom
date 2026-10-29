@@ -1,0 +1,2250 @@
+{
+ "success": true,
+ "operation": "assess",
+ "canvas_id": "96b165e2-750b-45b5-ae00-b90968af9d97",
+ "execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+ "status": "completed",
+ "certified": true,
+ "assessments": [
+  {
+   "subject_id": "046005",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046005:6514",
+     "subject_id": "046005",
+     "row_ref": "row 6514",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046005'",
+      "Description='60\" 315 RFA 208V SAW'",
+      "Unit Price=50250.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046010",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046010:6517",
+     "subject_id": "046010",
+     "row_ref": "row 6517",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046010'",
+      "Description='60\" 315 RFA 230V SAW'",
+      "Unit Price=50250.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046026",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046026:6526",
+     "subject_id": "046026",
+     "row_ref": "row 6526",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046026'",
+      "Description='60\" 315 RFA 460V SAW'",
+      "Unit Price=50250.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046040",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046040:6531",
+     "subject_id": "046040",
+     "row_ref": "row 6531",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046040'",
+      "Description='60\" 315 RFA/ST 575V SAW'",
+      "Unit Price=50250.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046060",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046060:6537",
+     "subject_id": "046060",
+     "row_ref": "row 6537",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046060'",
+      "Description='60\" 315 RFA/NF 230V SAW'",
+      "Unit Price=50250.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046100",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046100:6544",
+     "subject_id": "046100",
+     "row_ref": "row 6544",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046100'",
+      "Description='60\" 315 RFA/NF 460V SAW'",
+      "Unit Price=50250.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046310",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046310:6560",
+     "subject_id": "046310",
+     "row_ref": "row 6560",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046310'",
+      "Description='90\" 315 RFA 230V SAW'",
+      "Unit Price=52950.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046326",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046326:6563",
+     "subject_id": "046326",
+     "row_ref": "row 6563",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046326'",
+      "Description='90\" 315 RFA 460V SAW'",
+      "Unit Price=52950.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046340",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046340:6564",
+     "subject_id": "046340",
+     "row_ref": "row 6564",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046340'",
+      "Description='90\" 315 RFA/ST 575V SAW'",
+      "Unit Price=52950.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046360",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046360:6569",
+     "subject_id": "046360",
+     "row_ref": "row 6569",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046360'",
+      "Description='90\" 315 RFA/NF 230V SAW'",
+      "Unit Price=52950.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046370",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046370:6570",
+     "subject_id": "046370",
+     "row_ref": "row 6570",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046370'",
+      "Description='90\" 315 RFA/NF 460V SAW'",
+      "Unit Price=52950.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046410",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046410:6571",
+     "subject_id": "046410",
+     "row_ref": "row 6571",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046410'",
+      "Description='120\" 315 RFA 230V SAW'",
+      "Unit Price=55750.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046426",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046426:6574",
+     "subject_id": "046426",
+     "row_ref": "row 6574",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046426'",
+      "Description='120\" 315 RFA 460V SAW'",
+      "Unit Price=55750.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046440",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046440:6575",
+     "subject_id": "046440",
+     "row_ref": "row 6575",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046440'",
+      "Description='120\" 315 RFA/ST 575V SAW'",
+      "Unit Price=55750.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046460",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046460:6576",
+     "subject_id": "046460",
+     "row_ref": "row 6576",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046460'",
+      "Description='120\" 315 RFA/NF 230V SAW'",
+      "Unit Price=55750.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "046470",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:046470:6577",
+     "subject_id": "046470",
+     "row_ref": "row 6577",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='046470'",
+      "Description='120\" 315 RFA/NF 460V SAW'",
+      "Unit Price=55750.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "089126",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 40620.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:089126:8739",
+     "subject_id": "089126",
+     "row_ref": "row 8739",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='089126'",
+      "Description=\"26' RG ANGLEMASTER STOP SYSTEM\"",
+      "Unit Price=40620.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "089130",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 43020.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:089130:8740",
+     "subject_id": "089130",
+     "row_ref": "row 8740",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='089130'",
+      "Description=\"30' RG ANGLEMASTER STOP SYSTEM\"",
+      "Unit Price=43020.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "1103",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 40245.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:1103:8894",
+     "subject_id": "1103",
+     "row_ref": "row 8894",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='1103'",
+      "Description='GAA-500-90 DT20 230V/3PH SAW'",
+      "Unit Price=40245.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "1104",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 40245.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:1104:8895",
+     "subject_id": "1104",
+     "row_ref": "row 8895",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='1104'",
+      "Description='GAA-500-90 DT20 460/3PH SAW'",
+      "Unit Price=40245.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "1105",
+   "decision": "HOLD",
+   "basis": [
+    "Unit Price 54245.0 is greater than 40000; Description contains CNC, so the policy requires HOLD."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:1105:8896",
+     "subject_id": "1105",
+     "row_ref": "row 8896",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='1105'",
+      "Description='GAA-500-90 CNC DT20 230V/3 SAW'",
+      "Unit Price=54245.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "1106",
+   "decision": "HOLD",
+   "basis": [
+    "Unit Price 54245.0 is greater than 40000; Description contains CNC, so the policy requires HOLD."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:1106:8897",
+     "subject_id": "1106",
+     "row_ref": "row 8897",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+     "values": [
+      "No.='1106'",
+      "Description='GAA-500-90 CNC DT20 460V/3 SAW'",
+      "Unit Price=54245.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:a54191685f9813e6",
+     "topic": "task policy",
+     "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [],
+   "reported_unresolved_requirements": [],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+   ],
+   "resumed_read": false
+  }
+ ],
+ "errors": [],
+ "review": {
+  "schema_version": "review-result-2",
+  "execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+  "requested_subjects": [
+   "046005",
+   "046010",
+   "046026",
+   "046040",
+   "046060",
+   "046100",
+   "046310",
+   "046326",
+   "046340",
+   "046360",
+   "046370",
+   "046410",
+   "046426",
+   "046440",
+   "046460",
+   "046470",
+   "089126",
+   "089130",
+   "1103",
+   "1104",
+   "1105",
+   "1106"
+  ],
+  "allowed_decisions": [
+   "APPROVE",
+   "REVIEW",
+   "HOLD"
+  ],
+  "source_execution_ids": [
+   "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+  ],
+  "assessments": [
+   {
+    "subject_id": "046005",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046005:6514",
+      "subject_id": "046005",
+      "row_ref": "row 6514",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046005'",
+       "Description='60\" 315 RFA 208V SAW'",
+       "Unit Price=50250.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046010",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046010:6517",
+      "subject_id": "046010",
+      "row_ref": "row 6517",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046010'",
+       "Description='60\" 315 RFA 230V SAW'",
+       "Unit Price=50250.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046026",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046026:6526",
+      "subject_id": "046026",
+      "row_ref": "row 6526",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046026'",
+       "Description='60\" 315 RFA 460V SAW'",
+       "Unit Price=50250.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046040",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046040:6531",
+      "subject_id": "046040",
+      "row_ref": "row 6531",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046040'",
+       "Description='60\" 315 RFA/ST 575V SAW'",
+       "Unit Price=50250.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046060",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046060:6537",
+      "subject_id": "046060",
+      "row_ref": "row 6537",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046060'",
+       "Description='60\" 315 RFA/NF 230V SAW'",
+       "Unit Price=50250.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046100",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046100:6544",
+      "subject_id": "046100",
+      "row_ref": "row 6544",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046100'",
+       "Description='60\" 315 RFA/NF 460V SAW'",
+       "Unit Price=50250.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046310",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046310:6560",
+      "subject_id": "046310",
+      "row_ref": "row 6560",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046310'",
+       "Description='90\" 315 RFA 230V SAW'",
+       "Unit Price=52950.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046326",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046326:6563",
+      "subject_id": "046326",
+      "row_ref": "row 6563",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046326'",
+       "Description='90\" 315 RFA 460V SAW'",
+       "Unit Price=52950.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046340",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046340:6564",
+      "subject_id": "046340",
+      "row_ref": "row 6564",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046340'",
+       "Description='90\" 315 RFA/ST 575V SAW'",
+       "Unit Price=52950.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046360",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046360:6569",
+      "subject_id": "046360",
+      "row_ref": "row 6569",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046360'",
+       "Description='90\" 315 RFA/NF 230V SAW'",
+       "Unit Price=52950.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046370",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046370:6570",
+      "subject_id": "046370",
+      "row_ref": "row 6570",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046370'",
+       "Description='90\" 315 RFA/NF 460V SAW'",
+       "Unit Price=52950.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046410",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046410:6571",
+      "subject_id": "046410",
+      "row_ref": "row 6571",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046410'",
+       "Description='120\" 315 RFA 230V SAW'",
+       "Unit Price=55750.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046426",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046426:6574",
+      "subject_id": "046426",
+      "row_ref": "row 6574",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046426'",
+       "Description='120\" 315 RFA 460V SAW'",
+       "Unit Price=55750.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046440",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046440:6575",
+      "subject_id": "046440",
+      "row_ref": "row 6575",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046440'",
+       "Description='120\" 315 RFA/ST 575V SAW'",
+       "Unit Price=55750.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046460",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046460:6576",
+      "subject_id": "046460",
+      "row_ref": "row 6576",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046460'",
+       "Description='120\" 315 RFA/NF 230V SAW'",
+       "Unit Price=55750.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "046470",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:046470:6577",
+      "subject_id": "046470",
+      "row_ref": "row 6577",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='046470'",
+       "Description='120\" 315 RFA/NF 460V SAW'",
+       "Unit Price=55750.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "089126",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 40620.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:089126:8739",
+      "subject_id": "089126",
+      "row_ref": "row 8739",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='089126'",
+       "Description=\"26' RG ANGLEMASTER STOP SYSTEM\"",
+       "Unit Price=40620.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "089130",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 43020.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:089130:8740",
+      "subject_id": "089130",
+      "row_ref": "row 8740",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='089130'",
+       "Description=\"30' RG ANGLEMASTER STOP SYSTEM\"",
+       "Unit Price=43020.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "1103",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 40245.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:1103:8894",
+      "subject_id": "1103",
+      "row_ref": "row 8894",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='1103'",
+       "Description='GAA-500-90 DT20 230V/3PH SAW'",
+       "Unit Price=40245.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "1104",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 40245.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:1104:8895",
+      "subject_id": "1104",
+      "row_ref": "row 8895",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='1104'",
+       "Description='GAA-500-90 DT20 460/3PH SAW'",
+       "Unit Price=40245.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "1105",
+    "decision": "HOLD",
+    "basis": [
+     "Unit Price 54245.0 is greater than 40000; Description contains CNC, so the policy requires HOLD."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:1105:8896",
+      "subject_id": "1105",
+      "row_ref": "row 8896",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='1105'",
+       "Description='GAA-500-90 CNC DT20 230V/3 SAW'",
+       "Unit Price=54245.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "1106",
+    "decision": "HOLD",
+    "basis": [
+     "Unit Price 54245.0 is greater than 40000; Description contains CNC, so the policy requires HOLD."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:1106:8897",
+      "subject_id": "1106",
+      "row_ref": "row 8897",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352",
+      "values": [
+       "No.='1106'",
+       "Description='GAA-500-90 CNC DT20 460V/3 SAW'",
+       "Unit Price=54245.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:a54191685f9813e6",
+      "topic": "task policy",
+      "lesson": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [],
+    "reported_unresolved_requirements": [],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-bba9dc766352"
+    ],
+    "resumed_read": false
+   }
+  ],
+  "candidate_assessments": [],
+  "errors": [],
+  "ok": true,
+  "required_actions": [],
+  "action_receipts": [],
+  "completion": "completed"
+ },
+ "rendered": "VALIDATED REVIEW (request-bound):\n- 046005: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6514\n  Policy: task policy\n  Basis: Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046010: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6517\n  Policy: task policy\n  Basis: Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046026: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6526\n  Policy: task policy\n  Basis: Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046040: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6531\n  Policy: task policy\n  Basis: Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046060: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6537\n  Policy: task policy\n  Basis: Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046100: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6544\n  Policy: task policy\n  Basis: Unit Price 50250.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046310: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6560\n  Policy: task policy\n  Basis: Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046326: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6563\n  Policy: task policy\n  Basis: Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046340: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6564\n  Policy: task policy\n  Basis: Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046360: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6569\n  Policy: task policy\n  Basis: Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046370: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6570\n  Policy: task policy\n  Basis: Unit Price 52950.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046410: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6571\n  Policy: task policy\n  Basis: Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046426: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6574\n  Policy: task policy\n  Basis: Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046440: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6575\n  Policy: task policy\n  Basis: Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046460: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6576\n  Policy: task policy\n  Basis: Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 046470: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 6577\n  Policy: task policy\n  Basis: Unit Price 55750.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 089126: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 8739\n  Policy: task policy\n  Basis: Unit Price 40620.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 089130: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 8740\n  Policy: task policy\n  Basis: Unit Price 43020.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 1103: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 8894\n  Policy: task policy\n  Basis: Unit Price 40245.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 1104: Decision: APPROVE\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 8895\n  Policy: task policy\n  Basis: Unit Price 40245.0 is greater than 40000; Description contains neither CNC nor SEE and is not blank, so the policy requires APPROVE.\n- 1105: Decision: HOLD\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 8896\n  Policy: task policy\n  Basis: Unit Price 54245.0 is greater than 40000; Description contains CNC, so the policy requires HOLD.\n- 1106: Decision: HOLD\n  Evidence: Consolidated Price List 2019.xlsx canvas:96b165e2-750b-45b5-ae00-b90968af9d97 row 8897\n  Policy: task policy\n  Basis: Unit Price 54245.0 is greater than 40000; Description contains CNC, so the policy requires HOLD.",
+ "route": {
+  "ok": true,
+  "request_sha256": "42a2106fcbfb79d018508c421a2630f4e93da35e2ffd8b9c88226ad00d0a6864",
+  "message_count": 2,
+  "failure_kind": null,
+  "failure_stage": null,
+  "dispatched": true,
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "output_mode": "json",
+  "pin": {
+   "provider_model": [
+    "deepseek",
+    "deepseek-flash"
+   ]
+  },
+  "served_provider": "deepseek",
+  "served_model": "deepseek-flash",
+  "payload_type": "ReviewPayloadModel"
+ },
+ "source": {
+  "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+  "file_name": "Consolidated Price List 2019.xlsx",
+  "source_version": "b92aaf07eb1d219b",
+  "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+  "snapshot": {
+   "kind": "canvas_dataset_snapshot",
+   "label": "Connected price assessment",
+   "note": "Local snapshot. Edits do not write back to the connected source.",
+   "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+   "version": "b92aaf07eb1d219b",
+   "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+   "rows": 11219,
+   "columns": 3
+  },
+  "upstream": {
+   "provider": "onedrive",
+   "dataset_name": "onedrive_consolidated_price_list_2019__us_scotch_parts",
+   "file_name": "Consolidated Price List 2019.xlsx",
+   "external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+   "sheet_name": "US$ SCOTCH PARTS ",
+   "content_hash": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "source_modified_at": null,
+   "ingested_at": "2026-10-28T23:31:53.332728",
+   "workspace_id": "default",
+   "coverage": {
+    "known": true,
+    "source_row_count": 11219,
+    "materialized_row_count": 11219,
+    "truncated": false,
+    "row_cap": 500000
+   }
+  },
+  "writeback": {
+   "supported": false,
+   "upstream_mutated": false,
+   "performed": false
+  }
+ },
+ "source_revision": "b92aaf07eb1d219b",
+ "upstream_revision": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+ "manifest_revision": "3916e8b2fd7e541c",
+ "policy_revision": "a54191685f9813e6",
+ "subjects": [
+  "046005",
+  "046010",
+  "046026",
+  "046040",
+  "046060",
+  "046100",
+  "046310",
+  "046326",
+  "046340",
+  "046360",
+  "046370",
+  "046410",
+  "046426",
+  "046440",
+  "046460",
+  "046470",
+  "089126",
+  "089130",
+  "1103",
+  "1104",
+  "1105",
+  "1106"
+ ],
+ "unassessed_subjects": [],
+ "coverage": {
+  "selected_count": 22,
+  "assessed_count": 22,
+  "unassessed_count": 0,
+  "assessment_truncated": false,
+  "max_subjects": 22,
+  "limit_source": "request",
+  "assessed_subjects": [
+   "046005",
+   "046010",
+   "046026",
+   "046040",
+   "046060",
+   "046100",
+   "046310",
+   "046326",
+   "046340",
+   "046360",
+   "046370",
+   "046410",
+   "046426",
+   "046440",
+   "046460",
+   "046470",
+   "089126",
+   "089130",
+   "1103",
+   "1104",
+   "1105",
+   "1106"
+  ],
+  "unassessed_subjects": [],
+  "selection_source_row_count": 11219
+ },
+ "evidence_count": 22,
+ "_http_status": 200,
+ "_elapsed_seconds": 12.03
+}

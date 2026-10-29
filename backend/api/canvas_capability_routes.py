@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core.auth import User, get_current_user
@@ -21,6 +21,7 @@ from core.canvas_capability_service import (
     CapabilityError,
     assess_operation,
     authorize_canvas,
+    bind_connected_dataset,
     bind_dataset,
     calculate_operation,
     current_revision,
@@ -52,8 +53,28 @@ class BindJsonRequest(BaseModel):
     title: Optional[str] = None
 
 
+class BindConnectedRequest(BaseModel):
+    """Catalog reference only.
+
+    Rows, Parquet paths, hashes and permissions are deliberately absent. The
+    server resolves all of them from the authenticated workspace catalog.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    dataset_name: Optional[str] = None
+    source: Optional[str] = None
+    external_id: Optional[str] = None
+    sheet_name: Optional[str] = None
+    source_version: Optional[str] = None
+    subject_field: Optional[str] = None
+    measure_field: Optional[str] = None
+    title: Optional[str] = None
+
+
 class AskRequest(BaseModel):
     ask: str = ""
+    max_subjects: Optional[int] = None
 
 
 class EditRequest(BaseModel):
@@ -185,6 +206,30 @@ async def bind_capability_json(
         return _error(exc)
 
 
+@router.post("/{canvas_id}/capability/bind-connected")
+async def bind_capability_connected(
+    canvas_id: str,
+    request: BindConnectedRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return bind_connected_dataset(
+            db, canvas, current_user,
+            dataset_name=request.dataset_name,
+            source=request.source,
+            external_id=request.external_id,
+            sheet_name=request.sheet_name,
+            expected_version=request.source_version,
+            subject_field=request.subject_field,
+            measure_field=request.measure_field,
+            title=request.title,
+        )
+    except CapabilityError as exc:
+        return _error(exc)
+
+
 @router.post("/{canvas_id}/capability/select")
 async def capability_select(
     canvas_id: str,
@@ -222,7 +267,10 @@ async def capability_assess(
 ):
     try:
         canvas = _canvas(db, canvas_id, current_user)
-        return await assess_operation(db, canvas, current_user, request.ask)
+        return await assess_operation(
+            db, canvas, current_user, request.ask,
+            max_subjects=request.max_subjects,
+        )
     except CapabilityError as exc:
         return _error(exc)
 
