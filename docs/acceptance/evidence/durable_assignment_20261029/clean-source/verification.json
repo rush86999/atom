@@ -1,15 +1,21 @@
 {
   "slice": "clean-source-reproduction",
-  "candidate_commit": "9a89471cc0f307130c733bd4485d689e6e83b35c",
-  "clean_worktree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-clean-9a89471cc",
+  "candidate_commit": "02822343d",
+  "runtime_tested_commit": "9a89471cc0f307130c733bd4485d689e6e83b35c",
+  "runtime_delta": "docs-only between 9a89471cc and 02822343d; backend/frontend runtime bytes are identical",
+  "clean_worktree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-clean-02822343d",
   "clean_status": "clean",
   "source_manifest": {
-    "path": "docs/acceptance/evidence/durable_assignment_20261029/START_BOUNDARY_MANIFEST.json",
-    "sha256": "27655f4e2136ef37eaa87beba20482e67ec4eaf1627bf3ec928464f89e002d69"
+    "path": "docs/acceptance/assignment-successor-package-2026-10-29/source_manifest.json",
+    "sha256": "c098961b0121c69c56f33eb7e1712abbdf675592d32c98a96e4bac37251eec53"
   },
   "package_manifest": {
     "path": "docs/acceptance/assignment-successor-package-2026-10-29/assignment_successor_manifest.json",
-    "sha256": "2f949f33ccb7ea89fc732d13d94753e4be3abdf3fb14844e0d172a87aa550037"
+    "sha256": "d366d020cccb42544543cbd96ff704f08fff6eff0bb78cc0cad4d83f2665a503"
+  },
+  "runtime_start_boundary_manifest": {
+    "path": "docs/acceptance/evidence/durable_assignment_20261029/START_BOUNDARY_MANIFEST.json",
+    "sha256": "eadb254e0b41ea33e88cb32a5d6cab228ae709f75638caa69b46c38fd91644bb"
   },
   "integrated_runtime_hashes": {
     "backend/core/artifact_teaching.py": "d3be1f0f767e306d94ec64b4048fd9a257f6ee07d89a39f7099a10f65445e4af",
@@ -19,6 +25,7 @@
   "runtime_import": {
     "main_api_app": "ATOM API",
     "artifact_teaching": true,
+    "taught_calculation_schema": true,
     "microsoft_config": {
       "configured": false,
       "missing": ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"]
@@ -39,11 +46,12 @@
     "credential_values_found_in_candidate_diff": false
   },
   "verification": {
-    "focused_backend": "134 passed",
-    "owner_delta_tests": "25 passed",
-    "bounded_taught_job": "1 passed",
-    "connected_scratch_acceptance": "85.00 and 3, both reopened",
-    "frontend_source_equivalence": "byte-identical to the previously tested 9a89471cc working tree; no separate clean node_modules install was performed"
+    "runtime_focused_backend": "134 passed on 9a89471cc",
+    "runtime_owner_delta_tests": "25 passed on 9a89471cc",
+    "runtime_bounded_taught_job": "1 passed on 9a89471cc",
+    "runtime_connected_scratch_acceptance": "85.00 and 3, both reopened on 9a89471cc",
+    "final_clean_import": "ATOM API and taught-calculation schema passed on 02822343d",
+    "equivalence": "backend/frontend runtime bytes identical between the tested 9a89471cc and final 02822343d; no expanded test campaign"
   },
   "live_gates": {
     "live_connected_guided_start": "blocked",

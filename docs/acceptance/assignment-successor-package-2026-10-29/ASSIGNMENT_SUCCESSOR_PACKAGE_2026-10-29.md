@@ -9,7 +9,8 @@ exit condition is closed.
 
 | Item | Commit |
 |---|---|
-| Candidate source | `9a89471cc0f307130c733bd4485d689e6e83b35c` |
+| Candidate source | `02822343d` |
+| Runtime-tested source | `9a89471cc0f307130c733bd4485d689e6e83b35c` |
 | Integrated teaching/OAuth runtime | `1d5e8d780` |
 | Review repairs | `294fdf0ec` |
 | Bounded taught job | `de25c5148` |
@@ -33,8 +34,11 @@ schema migrations and no checked-in artifact templates for this slice.
 
 ## Clean-source verification
 
-Clean worktree from `9a89471cc`:
-`/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-clean-9a89471cc`
+Clean worktree from `02822343d`:
+`/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-clean-02822343d`
+
+The runtime-tested commit is `9a89471cc`; `9a89471cc..02822343d` is docs-only, so
+the backend/frontend runtime bytes are identical.
 
 Verified:
 
