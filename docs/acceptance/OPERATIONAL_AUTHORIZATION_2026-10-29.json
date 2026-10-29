@@ -1,9 +1,9 @@
 {
   "schema": "atom-operational-authorization-1",
-  "candidate_commit": "9a89471cc0f307130c733bd4485d689e6e83b35c",
+  "candidate_commit": "001f93472",
   "requested_at": "2026-10-29",
   "authorization_status": "granted",
-  "execution_status": "configuration_restored; live_guided_gate_blocked_at_resource_authority",
+  "execution_status": "both_predeclared_live_gates_passed; named_zoho_workbook_remains_inaccessible",
   "scope": {
     "restore_microsoft_client_config": true,
     "normal_oauth_renewal": true,
@@ -16,24 +16,15 @@
   "configuration": {
     "source": "/Users/rushiparikh/projects/atom/backend/.env",
     "destination": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/.env",
-    "keys_presence_only": ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET", "MICROSOFT_TENANT_ID"],
+    "keys_presence_only": [
+      "MICROSOFT_CLIENT_ID",
+      "MICROSOFT_CLIENT_SECRET",
+      "MICROSOFT_TENANT_ID"
+    ],
     "secret_values_included": false,
     "backup_required": true,
     "user_reconnect": false,
     "credential_rotation": false
-  },
-  "live_guided_gate": {
-    "workbook": "Consolidated Price List 2019.xlsx",
-    "sheet": "US$ SCOTCH PARTS",
-    "objective": "In workbook Consolidated Price List 2019.xlsx only, on sheet US$ SCOTCH PARTS, what is the sum of Unit Price?",
-    "scope": "US$ SCOTCH PARTS",
-    "expected_full_set_total": "9958743.62",
-    "expected_rows": 11219,
-    "deliverable": "document",
-    "controlled_recipient": "live-acceptance@example.invalid",
-    "seed_replacement_catalog_or_grant": false,
-    "auth_override": false,
-    "evidence_dir": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/guided/"
   },
   "changed_source_gate": {
     "folder": "AtomAcceptance/connected-refresh-20261029-0120Z",
@@ -42,8 +33,14 @@
     "changed_fixture": "docs/acceptance/evidence/connected_core_20261028/disposable_source/refresh_probe_f5f_changed_expected.xlsx",
     "baseline_total": "50.00",
     "changed_total": "60.00",
-    "baseline_decisions": ["APPROVE", "REVIEW"],
-    "changed_decisions": ["REVIEW", "REVIEW"],
+    "baseline_decisions": [
+      "APPROVE",
+      "REVIEW"
+    ],
+    "changed_decisions": [
+      "REVIEW",
+      "REVIEW"
+    ],
     "only_input_change": "Inputs!B2 2 -> 3",
     "production_price_list_modification": false,
     "evidence_dir": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/changed-source/"
@@ -54,13 +51,18 @@
     "oauth_state": "valid",
     "token_available": true,
     "requires_reconnect": false,
-    "live_guided_start_run": false,
-    "changed_source_refresh_run": false,
-    "first_broken_boundary": "resource/source authority",
-    "observed": "Named price-list rows are zoho_workdrive with expired access; no Microsoft/OneDrive catalog entry exists.",
+    "live_guided_start_run": true,
+    "changed_source_refresh_run": true,
+    "first_broken_boundary": "none for the two predeclared gates; named Zoho workbook remains inaccessible",
+    "observed": "Microsoft Outlook attachment fetched live and SHA-1 matched the active catalog; disposable OneDrive workbook changed 50.00 -> 60.00 and stale old binding was refused.",
     "cached_rows_used": false,
     "replacement_catalog_or_grant_seeded": false,
-    "disposable_workbook_created": false
+    "disposable_workbook_created": true,
+    "microsoft_attachment_run_id": "1670cbca-da5a-4275-8af7-cd71d0f82da1",
+    "changed_source_run_id": "166064df-515e-4194-8136-a0e423e3da4f",
+    "changed_source_item_id": "01P3INOW3LZH7VV3BVJNEI5VCSUGOJCZ5U",
+    "changed_source_old_version": "5cea326f797f9d4c7a9f6600cd65f042b803b150",
+    "changed_source_new_version": "54342175548dc1f4272d2a50a7c302a6b2a990a4"
   },
   "exclusions": {
     "production_file_change": false,
@@ -78,5 +80,38 @@
     "result disagrees with the full-sheet reference",
     "artifact lacks result/source or cannot be reopened",
     "approval payload or outbox disagrees with artifact"
-  ]
+  ],
+  "named_workbook_gate": {
+    "workbook": "Consolidated Price List 2019.xlsx",
+    "sheet": "US$ SCOTCH PARTS",
+    "objective": "In workbook Consolidated Price List 2019.xlsx only, on sheet US$ SCOTCH PARTS, what is the sum of Unit Price?",
+    "scope": "US$ SCOTCH PARTS",
+    "expected_full_set_total": "9958743.62",
+    "expected_rows": 11219,
+    "deliverable": "document",
+    "controlled_recipient": "live-acceptance@example.invalid",
+    "seed_replacement_catalog_or_grant": false,
+    "auth_override": false,
+    "evidence_dir": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/guided/"
+  },
+  "replacement_live_gate": {
+    "provider": "outlook",
+    "resource_kind": "outlook_attachment",
+    "catalog_entry_id": "00399616-42f7-4f7d-8867-822752b15a46",
+    "file_name": "HARSLE press brake stock price list.xlsx",
+    "sheet": "\u5e93\u5b58\u4ea7\u54c1",
+    "price_column": "Price",
+    "rows": 8,
+    "expected_sum": "216700",
+    "content_hash_algorithm": "sha1",
+    "content_hash": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+    "live_graph_fetch_matched": true,
+    "objective": "Sum the price of the HARSLE press brake stock price list",
+    "scope": "HARSLE press brake stock price list",
+    "deliverable": "document",
+    "controlled_recipient": "live-acceptance@example.invalid",
+    "seed_replacement_catalog_or_grant_for_zoho": false,
+    "auth_override": false,
+    "evidence_dir": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/guided/"
+  }
 }

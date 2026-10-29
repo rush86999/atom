@@ -12,7 +12,9 @@ changed-byte refresh all passed. Nothing was sent and nothing was deployed.
 
 | Item | Commit |
 |---|---|
-| Candidate source | `058e38ddb` |
+| Candidate source (live-fix) | `001f93472` |
+| Live gate and evidence | `001f93472` |
+| Clean-source base | `058e38ddb` |
 | Runtime-tested source | `e4c11c354` |
 | Integrated teaching/OAuth runtime | `1d5e8d780` |
 | Review repairs | `294fdf0ec` |
@@ -41,8 +43,10 @@ Clean worktree from `058e38ddb`:
 `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-clean-058e38ddb`
 
 The runtime-tested commit is `e4c11c354`; `058e38ddb` is that runtime plus
-live-boundary evidence/docs. Clean-source focused, bounded and connected-scratch
-tests pass.
+live-boundary evidence/docs. The live-gate fixes (effective-default workspace
+scope, per-sheet supersession linkage, regression tests) and all live evidence
+are in `001f93472`. Clean-source focused, bounded and connected-scratch tests
+pass.
 
 Verified:
 
@@ -88,7 +92,7 @@ Evidence:
 
 ## Not claimed
 
-- Live OneDrive guided start against the originally named Zoho
+- Live guided start against the originally named Zoho
   `Consolidated Price List 2019.xlsx`; that workbook remains inaccessible.
 - Normal login-form acceptance. The browser used a real signed user session;
   the login form itself was not exercised.
@@ -148,7 +152,8 @@ TESTING=1 ATOM_DATA_DIR=<scratch> pytest \
   tests/test_goal_run_events.py \
   tests/test_hitl_approvals_journey.py \
   tests/test_hitl_resume.py \
-  tests/test_artifact_teaching_context.py -q
+  tests/test_artifact_teaching_context.py \
+  tests/unit/test_sheet_dataset_service.py -q
 
 python scripts/assignment_connected_acceptance.py
 ```

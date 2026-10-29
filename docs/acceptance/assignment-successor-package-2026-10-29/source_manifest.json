@@ -1,6 +1,6 @@
 {
   "schema": "atom-assignment-source-manifest-1",
-  "candidate_commit": "e4c11c354",
+  "candidate_commit": "001f93472",
   "package_commit": "058e38ddb",
   "created": "2026-10-29",
   "files": [
@@ -258,5 +258,7 @@
     "Evidence is packaged separately under docs/acceptance/evidence/.",
     "Runtime .env, databases, caches, node_modules and generated test worlds are excluded."
   ],
-  "live_fix_commit_note": "Hashes updated for default-workspace normalization, per-sheet supersede linkage, and their regression tests; commit recorded in the package manifest."
+  "live_fix_commit_note": "001f93472 carries the default-workspace normalization, per-sheet supersede linkage, regression tests, live gate evidence and docs.",
+  "clean_source_base_commit": "e4c11c354",
+  "live_gate_commit": "001f93472"
 }

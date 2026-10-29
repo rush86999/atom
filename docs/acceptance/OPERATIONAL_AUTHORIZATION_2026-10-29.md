@@ -1,9 +1,9 @@
 # Operational authorization request — connected assignment live gates
 
-Status: **authorization granted; configuration restored; live guided gate
-stopped at the resource/source authority boundary.** No secret values are
-included here. No live send, source modification or deployment has been
-performed.
+Status: **authorization granted; configuration restored; both predeclared live
+gates passed; named Zoho workbook remains inaccessible and preserved as
+blocked.** No secret values are included here. No live send, source
+modification or deployment has been performed.
 
 Candidate: `9a89471cc0f307130c733bd4485d689e6e83b35c`.
 Clean-source verification:
@@ -25,16 +25,30 @@ credential rotation/creation, deployment or general source writeback.
 ## Execution record
 
 - Approved Microsoft client settings restored; preflight `configured=true`.
-- Token resolution: `state=valid`, token available, no reconnect required.
-- Live guided gate stopped before retrieval: the named price-list catalog rows
-  are `zoho_workdrive` with an expired access token; no Microsoft/OneDrive
-  catalog entry for that workbook exists.
-- Cached Parquet rows were not used; no replacement catalog/grant was seeded.
+- Token resolution: `state=valid`, token available, no reconnect required,
+  checked before each live operation.
+- The named Zoho price-list workbook remained inaccessible (expired access).
+  Its failed gate is preserved at
+  `evidence/durable_assignment_20261029/live-connected/gate-result.json`;
+  Zoho was not repaired.
+- A predeclared Microsoft Outlook attachment replaced it for the live gate:
+  catalog `00399616-42f7-4f7d-8867-822752b15a46`, sheet `库存产品`, `Price`,
+  8 rows, sum `216700`. A direct Graph fetch with the normal resolver matched
+  the active SHA-1 `e0a7fb8a1b4757b7f6bef882b19cc4588d66246e`.
+- Guided browser run: `216700.00`, grounded document, controlled approval/outbox,
+  backend restart, reopened completed.
+- Separately authorized disposable OneDrive workbook
+  `01P3INOW3LZH7VV3BVJNEI5VCSUGOJCZ5U` changed `50.00` → `60.00`; the old
+  `5cea…` binding was refused as `stale_source_version`; the new `543421…`
+  version calculated `60.00` across two rows, rendered a fresh artifact and
+  reopened after restart.
+- Cached Parquet rows were not substituted for the named Zoho workbook; no
+  replacement catalog/grant was seeded for it. The production price list was
+  not modified.
 - Reproduced defect fixed: expired access tokens are refused with
   `source_access_expired`.
-- No disposable workbook was created or modified because Part A did not pass.
-- Next permitted action: authorize Zoho renewal/reconnect for the named
-  workbook, or name an accessible genuine Microsoft/OneDrive workbook.
+- No production email send or deployment was performed; outbound remained a
+  local controlled outbox.
 
 ## 1. Configuration restoration
 

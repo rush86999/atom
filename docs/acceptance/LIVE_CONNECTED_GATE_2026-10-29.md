@@ -1,7 +1,18 @@
 # Live connected assignment gate — 2026-10-29
 
-Status: **blocked by owner configuration/authorization.** No live Connected
-browser start, changed-byte refresh, source writeback or send was attempted.
+Status (historical pre-execution record): **initially blocked by owner
+configuration/authorization; later resolved by the predeclared replacement
+gates.** This file records the state before execution. The named Zoho WorkDrive
+workbook remains inaccessible and its failed gate is preserved unchanged, but
+the Microsoft Outlook attachment gate and the disposable OneDrive changed-byte
+gate both passed on 2026-10-29.
+
+Final results:
+`docs/acceptance/evidence/durable_assignment_20261029/live-connected/guided/gate-result.json`
+and
+`docs/acceptance/evidence/durable_assignment_20261029/live-connected/changed-source/gate-result.json`.
+The “not run” statements below describe the pre-execution state, not the final
+outcome.
 
 Integrated candidate: `02822343d` (runtime `9a89471cc`).
 The exact combined authorization request and procedures are in
@@ -31,7 +42,7 @@ A reproduced access-control defect was fixed: an `active` token row with an
 expired `expires_at` was previously treated as current access. It now raises
 `source_access_expired`. See `gate-result.json` and the live-connected README.
 
-## What remains blocked
+## What was blocked before execution
 
 ### Guided browser start against the real OneDrive workbook
 
@@ -46,7 +57,9 @@ Required after the configuration is restored:
 - pass controlled outbound approval;
 - restart and fresh-read the same result.
 
-Not run. No substitute was created.
+Not run at the time this pre-execution record was written. No substitute was
+created; the later Microsoft replacement and changed-byte refresh are recorded
+in the final gate results linked above.
 
 ### Live changed-byte refresh
 
@@ -59,7 +72,9 @@ It requires one combined authorization covering:
 - product sync, changed-version materialization, stale-reuse invalidation,
   fresh calculation/assessment, restart and download.
 
-Not run. The production price list was not modified.
+Not run at the time this pre-execution record was written. The later
+changed-byte refresh passed on the separately authorized disposable workbook;
+the production price list was not modified.
 
 ## What is verified instead
 

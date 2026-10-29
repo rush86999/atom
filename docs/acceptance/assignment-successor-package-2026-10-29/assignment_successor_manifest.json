@@ -2,12 +2,12 @@
   "schema": "atom-assignment-successor-package-1",
   "created": "2026-10-29",
   "package_doc": "docs/acceptance/assignment-successor-package-2026-10-29/ASSIGNMENT_SUCCESSOR_PACKAGE_2026-10-29.md",
-  "package_commit": "058e38ddb",
+  "package_commit": "001f93472",
   "evidence_refresh_commit": "46e0b91a0",
   "live_preflight_commit": "90ff58421",
   "candidate": {
     "branch": "whole-app/successor-f5f",
-    "source_commit": "058e38ddb",
+    "source_commit": "001f93472",
     "runtime_tested_commit": "e4c11c354",
     "integrated_commit": "1d5e8d780",
     "review_fix_commit": "294fdf0ec",
@@ -15,12 +15,14 @@
     "preserved_connected_guided_commit": "40b3367d9",
     "preserved_start_boundary": "44b62a6bb",
     "preserved_correction_pass": "322981bcc",
-    "preserved_executor_freeze": "efc4bc9d5"
+    "preserved_executor_freeze": "efc4bc9d5",
+    "live_gate_commit": "001f93472",
+    "live_fixes": "001f93472"
   },
   "source_manifest": "docs/acceptance/assignment-successor-package-2026-10-29/source_manifest.json",
   "clean_source_verification": "docs/acceptance/evidence/durable_assignment_20261029/clean-source/verification.json",
   "operational_authorization": "docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.md",
-  "authorization_status": "granted; configuration restored; live guided gate stopped at resource/source authority",
+  "authorization_status": "granted; clean-source verified; both predeclared live gates passed; named Zoho workbook remains inaccessible and preserved as blocked",
   "owner_teaching_delta": {
     "status": "integrated",
     "commit": "1d5e8d780",
@@ -46,7 +48,14 @@
     "preserved_40b3367d9": "docs/acceptance/evidence/durable_assignment_20261029/preserved-40b3367d9/",
     "clean_source_verification": "docs/acceptance/evidence/durable_assignment_20261029/clean-source/verification.json",
     "operational_authorization": "docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.md",
-    "operational_authorization_json": "docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.json"
+    "operational_authorization_json": "docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.json",
+    "live_connected_guided": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/guided/gate-result.json",
+    "live_connected_source_fetch": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/guided/live-source-fetch.json",
+    "live_connected_artifact": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/guided/harsle-artifact.docx",
+    "live_changed_source": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/changed-source/gate-result.json",
+    "live_changed_artifact": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/changed-source/changed-artifact.docx",
+    "failed_zoho_gate": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/gate-result.json",
+    "provenance_reconciliation": "docs/acceptance/LIVE_PROVENANCE_RECONCILIATION_2026-10-29.md"
   },
   "supported_claims": {
     "explicit_form_advanced_setup": true,
@@ -57,9 +66,12 @@
     "grounded_multi_source_artifact": true,
     "bounded_taught_scalar_method_with_wait": true,
     "controlled_outbox_only": true,
-    "live_onedrive_guided_start": false,
     "live_changed_source_refresh": false,
-    "live_send_or_deployment": false
+    "live_send_or_deployment": false,
+    "live_connected_guided_start_microsoft_attachment": true,
+    "live_source_hash_matches_active_catalog": true,
+    "live_changed_source_refresh_onedrive": true,
+    "stale_source_version_refused": true
   },
   "runtime_configuration": {
     "required_production": {
@@ -76,13 +88,11 @@
       "ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT": "1 only for controlled outbox acceptance"
     },
     "current_live_preflight": {
-      "configured": false,
-      "missing": [
-        "MICROSOFT_CLIENT_ID",
-        "MICROSOFT_CLIENT_SECRET"
-      ],
-      "token_state": "invalid_client",
-      "requires_reconnect": false
+      "configured": true,
+      "missing": [],
+      "token_state": "valid",
+      "requires_reconnect": false,
+      "token_available": true
     }
   },
   "verification": {
@@ -98,7 +108,11 @@
     "clean_source_bounded": "1 passed on 058e38ddb",
     "clean_source_connected": "85.00, 3, both reopened on 058e38ddb",
     "typescript": "clean",
-    "owner_delta_tests": "25 passed"
+    "owner_delta_tests": "25 passed",
+    "live_fix_focused_backend": "88 passed on live-fix worktree",
+    "live_connected_guided": "passed: Graph SHA-1 match, 216700.00, browser approved, reopened",
+    "live_changed_source": "passed: 50.00 -> 60.00, stale 5cea... refused, fresh artifact, reopened",
+    "live_source_fetch": "SHA-1 e0a7fb8a1b4757b7f6bef882b19cc4588d66246e matched active catalog"
   },
   "rollout": {
     "deployed": false,
@@ -107,7 +121,7 @@
       "Run the focused backend suite and AssignmentPanel tests on the release source.",
       "Run guided and explicit Playwright specs in isolated scratch worlds.",
       "Run the connected scratch acceptance and bounded taught job evidence.",
-      "Keep live connected and changed-source gates closed until owner configuration and authorization are supplied."
+      "The predeclared Microsoft attachment and disposable OneDrive workbook live gates have passed; do not extend those claims to the named Zoho workbook or normal login-form acceptance."
     ]
   },
   "rollback": {
@@ -120,10 +134,9 @@
     "note": "Rolling back the review fixes reintroduces the reproduced findings in ASSIGNMENT_REVIEW_2026-10-29.md."
   },
   "blockers": [
-    "Named price-list rows are zoho_workdrive; Zoho access expired 2026-10-24 and Zoho repair is not authorized",
-    "No Microsoft/OneDrive catalog entry exists for the named price list",
-    "Live guided browser gate not run; normal end-user auth session not available to the agent",
-    "Changed-source refresh not run because Part A did not pass"
+    "Named Zoho WorkDrive price list remains inaccessible; its failed gate is preserved and Zoho repair is not authorized in this freeze",
+    "Normal login-form acceptance was not exercised; the live browser qualification used a real signed user session",
+    "No production email send, deployment, credential change or source writeback was performed"
   ],
   "live_state": {
     "microsoft_config_restored": true,
@@ -131,11 +144,41 @@
     "oauth_state": "valid",
     "token_available": true,
     "requires_reconnect": false,
-    "live_guided_start_run": false,
-    "changed_source_refresh_run": false,
-    "first_broken_boundary": "resource/source authority",
+    "live_guided_start_run": true,
+    "changed_source_refresh_run": true,
+    "first_broken_boundary": "none for the two predeclared gates; named Zoho workbook remains inaccessible",
     "cached_rows_used": false,
     "replacement_catalog_or_grant_seeded": false,
     "production_price_list_modified": false
+  },
+  "live_gate_commit": "001f93472",
+  "live_gates": {
+    "microsoft_attachment": {
+      "catalog_entry_id": "00399616-42f7-4f7d-8867-822752b15a46",
+      "source": "outlook",
+      "resource_kind": "outlook_attachment",
+      "file_name": "HARSLE press brake stock price list.xlsx",
+      "sheet": "\u5e93\u5b58\u4ea7\u54c1",
+      "price_column": "Price",
+      "rows": 8,
+      "sum": "216700.00",
+      "content_hash_algorithm": "sha1",
+      "content_hash": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+      "live_fetch_matches_catalog": true,
+      "guided_run_id": "1670cbca-da5a-4275-8af7-cd71d0f82da1",
+      "reopened": "completed"
+    },
+    "changed_source": {
+      "provider": "onedrive",
+      "item_id": "01P3INOW3LZH7VV3BVJNEI5VCSUGOJCZ5U",
+      "file_name": "refresh_probe_f5f_20261029.xlsx",
+      "baseline_total": "50.00",
+      "changed_total": "60.00",
+      "old_version": "5cea326f797f9d4c7a9f6600cd65f042b803b150",
+      "new_version": "54342175548dc1f4272d2a50a7c302a6b2a990a4",
+      "stale_refusal": "stale_source_version",
+      "run_id": "166064df-515e-4194-8136-a0e423e3da4f",
+      "reopened": "completed"
+    }
   }
 }

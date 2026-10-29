@@ -1,134 +1,144 @@
 {
- "slice": "assignment-start-boundary",
- "frozen_commit": "44b62a6bb",
- "correction_commit": "322981bcc",
- "connected_guided_commit": "40b3367d9",
- "evidence_refresh_commit": "c02f523ac",
- "review_fix_commit": "294fdf0ec",
- "bounded_job_commit": "de25c5148",
- "integrated_candidate_commit": "058e38ddb",
- "runtime_tested_commit": "e4c11c354",
- "source_manifest": "docs/acceptance/assignment-successor-package-2026-10-29/source_manifest.json",
- "clean_source_verification": "clean-source/verification.json",
- "operational_authorization": "docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.md",
- "authorization_status": "requested",
- "branch": "whole-app/successor-f5f",
- "preserved_commit": "efc4bc9d5",
- "start_route": "POST /api/assignments",
- "planner": "core/assignment_planner.py",
- "validator": "core/assignment_planner.validate_proposed_plan",
- "resource_resolver": "core/assignment_resources.py",
- "readers": [
-  "dataset.read",
-  "dataset.aggregate",
-  "workbook.read",
-  "document.read"
- ],
- "launcher_guard": "core/assignment_launcher_guard.py",
- "evidence": {
-  "start_and_reload": "browser-start/playwright.txt",
-  "backend_restart": "browser-start/playwright-restart.txt",
-  "restart_status": "browser-start/status-after-restart.json",
-  "controlled_outbox": "browser-start/outbox.jsonl",
-  "screenshots": [
-   "browser-start/document-completed.png",
-   "browser-start/presentation-completed.png"
+  "slice": "assignment-start-boundary",
+  "frozen_commit": "44b62a6bb",
+  "correction_commit": "322981bcc",
+  "connected_guided_commit": "40b3367d9",
+  "evidence_refresh_commit": "c02f523ac",
+  "review_fix_commit": "294fdf0ec",
+  "bounded_job_commit": "de25c5148",
+  "integrated_candidate_commit": "001f93472",
+  "runtime_tested_commit": "e4c11c354",
+  "source_manifest": "docs/acceptance/assignment-successor-package-2026-10-29/source_manifest.json",
+  "clean_source_verification": "clean-source/verification.json",
+  "operational_authorization": "docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.md",
+  "authorization_status": "granted; both predeclared live gates passed; named Zoho workbook remains blocked and preserved",
+  "branch": "whole-app/successor-f5f",
+  "preserved_commit": "efc4bc9d5",
+  "start_route": "POST /api/assignments",
+  "planner": "core/assignment_planner.py",
+  "validator": "core/assignment_planner.validate_proposed_plan",
+  "resource_resolver": "core/assignment_resources.py",
+  "readers": [
+    "dataset.read",
+    "dataset.aggregate",
+    "workbook.read",
+    "document.read"
   ],
-  "connected_guided_acceptance": "connected-guided/connected_acceptance.json",
-  "connected_guided_artifacts": [
-   "connected-guided/sum-artifact.docx",
-   "connected-guided/count-artifact.pptx"
+  "launcher_guard": "core/assignment_launcher_guard.py",
+  "evidence": {
+    "start_and_reload": "browser-start/playwright.txt",
+    "backend_restart": "browser-start/playwright-restart.txt",
+    "restart_status": "browser-start/status-after-restart.json",
+    "controlled_outbox": "browser-start/outbox.jsonl",
+    "screenshots": [
+      "browser-start/document-completed.png",
+      "browser-start/presentation-completed.png"
+    ],
+    "connected_guided_acceptance": "connected-guided/connected_acceptance.json",
+    "connected_guided_artifacts": [
+      "connected-guided/sum-artifact.docx",
+      "connected-guided/count-artifact.pptx"
+    ],
+    "guided_browser": "browser-guided/playwright.txt",
+    "guided_browser_after_restart": "browser-guided/playwright-restart.txt",
+    "guided_restart_status": "browser-guided/status-after-restart.json",
+    "guided_outbox": "browser-guided/outbox.jsonl",
+    "guided_screenshots": [
+      "browser-guided/guided-document-completed.png",
+      "browser-guided/guided-presentation-completed.png"
+    ],
+    "explicit_browser": "browser-explicit/playwright.txt",
+    "explicit_browser_after_restart": "browser-explicit/playwright-restart.txt",
+    "explicit_outbox": "browser-explicit/outbox.jsonl",
+    "bounded_taught_job": "bounded-taught-job/bounded_taught_job.json",
+    "bounded_taught_artifact": "bounded-taught-job/bounded-review.docx",
+    "clean_source": "clean-source/verification.json",
+    "review": "docs/acceptance/ASSIGNMENT_REVIEW_2026-10-29.md",
+    "live_connected_gate": "docs/acceptance/LIVE_CONNECTED_GATE_2026-10-29.md",
+    "live_connected_preflight": "live-connected/preflight.json",
+    "live_connected_guided": "live-connected/guided/gate-result.json",
+    "live_connected_source_fetch": "live-connected/guided/live-source-fetch.json",
+    "live_connected_artifact": "live-connected/guided/harsle-artifact.docx",
+    "live_changed_source": "live-connected/changed-source/gate-result.json",
+    "live_changed_artifact": "live-connected/changed-source/changed-artifact.docx",
+    "failed_zoho_gate": "live-connected/gate-result.json",
+    "provenance_reconciliation": "docs/acceptance/LIVE_PROVENANCE_RECONCILIATION_2026-10-29.md"
+  },
+  "connected_guided": {
+    "source": "real scoped DatasetEntry -> real Parquet -> real resolver/reader",
+    "internal_fixture_paths": false,
+    "catalog_stub": false,
+    "prompt_supplied_rows": false,
+    "objectives": [
+      "Sum the total for the scotch parts price list",
+      "Count the records in the scotch parts price list"
+    ],
+    "sum_value": "85.00",
+    "count_value": "3",
+    "provenance_rows": [
+      2,
+      3,
+      4
+    ],
+    "approval": "controlled",
+    "outbox": "environment-gated local outbox",
+    "reopened": "both completed"
+  },
+  "controls": {
+    "backend": "135 passed",
+    "frontend_component": "3 passed",
+    "guided_browser_start": "1 passed",
+    "guided_browser_after_restart": "1 passed",
+    "explicit_browser_start": "1 passed",
+    "explicit_browser_after_restart": "1 passed",
+    "connected_acceptance": "passed",
+    "bounded_taught_job": "passed",
+    "typescript": "clean",
+    "clean_source": "135 passed",
+    "live_guided_start": "passed on predeclared Microsoft Outlook attachment",
+    "changed_source_refresh": "passed on disposable OneDrive workbook 50.00 -> 60.00",
+    "live_source_fetch": "Graph SHA-1 matched active catalog",
+    "live_fix_focused_backend": "88 passed"
+  },
+  "bounded_taught_job": {
+    "controlled": true,
+    "live_connected": false,
+    "sources": [
+      "connected scratch Parquet workbook",
+      "controlled document/email evidence"
+    ],
+    "taught_expression": "line_total * correction_factor",
+    "wait_response": "1.2",
+    "value": "24.00",
+    "artifact": "bounded-taught-job/bounded-review.docx",
+    "draft": "formatted email draft",
+    "reopened": "completed"
+  },
+  "live_connected": true,
+  "changed_source_refresh": true,
+  "live_outbound": false,
+  "deployment": false,
+  "remaining_blocks": [
+    "Named Zoho WorkDrive price list remains inaccessible; failed gate preserved and Zoho repair not authorized in this freeze",
+    "Normal login-form acceptance was not exercised; a real signed user session was used",
+    "No production email send, deployment, credential change or source writeback was performed"
   ],
-  "guided_browser": "browser-guided/playwright.txt",
-  "guided_browser_after_restart": "browser-guided/playwright-restart.txt",
-  "guided_restart_status": "browser-guided/status-after-restart.json",
-  "guided_outbox": "browser-guided/outbox.jsonl",
-  "guided_screenshots": [
-   "browser-guided/guided-document-completed.png",
-   "browser-guided/guided-presentation-completed.png"
-  ],
-  "explicit_browser": "browser-explicit/playwright.txt",
-  "explicit_browser_after_restart": "browser-explicit/playwright-restart.txt",
-  "explicit_outbox": "browser-explicit/outbox.jsonl",
-  "bounded_taught_job": "bounded-taught-job/bounded_taught_job.json",
-  "bounded_taught_artifact": "bounded-taught-job/bounded-review.docx",
-  "clean_source": "clean-source/verification.json",
-  "review": "docs/acceptance/ASSIGNMENT_REVIEW_2026-10-29.md",
-  "live_connected_gate": "docs/acceptance/LIVE_CONNECTED_GATE_2026-10-29.md",
-  "live_connected_preflight": "live-connected/preflight.json"
- },
- "connected_guided": {
-  "source": "real scoped DatasetEntry -> real Parquet -> real resolver/reader",
-  "internal_fixture_paths": false,
-  "catalog_stub": false,
-  "prompt_supplied_rows": false,
-  "objectives": [
-   "Sum the total for the scotch parts price list",
-   "Count the records in the scotch parts price list"
-  ],
-  "sum_value": "85.00",
-  "count_value": "3",
-  "provenance_rows": [
-   2,
-   3,
-   4
-  ],
-  "approval": "controlled",
-  "outbox": "environment-gated local outbox",
-  "reopened": "both completed"
- },
- "controls": {
-  "backend": "135 passed",
-  "frontend_component": "3 passed",
-  "guided_browser_start": "1 passed",
-  "guided_browser_after_restart": "1 passed",
-  "explicit_browser_start": "1 passed",
-  "explicit_browser_after_restart": "1 passed",
-  "connected_acceptance": "passed",
-  "bounded_taught_job": "passed",
-  "typescript": "clean",
-  "clean_source": "135 passed",
-  "live_guided_start": "blocked at resource/source authority",
-  "changed_source_refresh": "not run"
- },
- "bounded_taught_job": {
-  "controlled": true,
-  "live_connected": false,
-  "sources": [
-   "connected scratch Parquet workbook",
-   "controlled document/email evidence"
-  ],
-  "taught_expression": "line_total * correction_factor",
-  "wait_response": "1.2",
-  "value": "24.00",
-  "artifact": "bounded-taught-job/bounded-review.docx",
-  "draft": "formatted email draft",
-  "reopened": "completed"
- },
- "live_connected": false,
- "changed_source_refresh": false,
- "live_outbound": false,
- "deployment": false,
- "remaining_blocks": [
-  "Named price-list catalog is zoho_workdrive with expired access; Zoho repair not authorized",
-  "No Microsoft/OneDrive catalog entry exists for the named price list",
-  "Live guided browser gate not run; normal end-user auth session unavailable to the agent",
-  "Changed-source refresh not run because Part A did not pass"
- ],
- "transport": "environment-gated controlled outbox only",
- "live_send": false,
- "live_state": {
-  "microsoft_config_restored": true,
-  "preflight_configured": true,
-  "oauth_state": "valid",
-  "token_available": true,
-  "requires_reconnect": false,
-  "live_guided_start_run": false,
-  "changed_source_refresh_run": false,
-  "first_broken_boundary": "resource/source authority",
-  "observed": "Named price-list rows are zoho_workdrive with an expired token; no Microsoft/OneDrive catalog entry exists",
-  "cached_rows_used": false,
-  "replacement_catalog_or_grant_seeded": false,
-  "production_price_list_modified": false
- }
+  "transport": "environment-gated controlled outbox only",
+  "live_send": false,
+  "live_state": {
+    "microsoft_config_restored": true,
+    "preflight_configured": true,
+    "oauth_state": "valid",
+    "token_available": true,
+    "requires_reconnect": false,
+    "live_guided_start_run": true,
+    "changed_source_refresh_run": true,
+    "first_broken_boundary": "none for the two predeclared gates; named Zoho workbook remains inaccessible",
+    "observed": "Microsoft Outlook attachment fetched live and hash-matched; disposable OneDrive workbook changed 50.00 -> 60.00 and stale old binding was refused",
+    "cached_rows_used": false,
+    "replacement_catalog_or_grant_seeded": false,
+    "production_price_list_modified": false
+  },
+  "live_gate_commit": "001f93472",
+  "live_outbound_controlled": true
 }
