@@ -1,10 +1,24 @@
 # Live-connected assignment gate
 
-`preflight.json` is the presence-only Microsoft configuration check taken
-before this slice. It records `configured=false` and the two missing client
-keys. No live guided start, changed-source refresh, replacement catalog row or
-replacement grant was run.
+2026-10-29: the approved Microsoft client configuration was restored to the
+qualification worktree. Presence-only preflight now reports `configured=true`,
+and normal token resolution reports `state=valid`, `token_available=true`,
+`requires_reconnect=false`. Secret values were not printed or stored.
 
-The stored grant is not treated as revoked. The blocker is an administrator
-configuration repair plus the exact disposable-source authorization described
-in `docs/acceptance/CHANGED_SOURCE_REFRESH_PROTOCOL.md`.
+The live guided gate stopped at the **resource/source authority boundary**:
+
+- The named `Consolidated Price List 2019.xlsx` / `US$ SCOTCH PARTS` catalog
+  rows are `zoho_workdrive`, not Microsoft/OneDrive.
+- The Zoho WorkDrive access token expired on `2026-10-24T01:41:37Z`.
+- No genuine Microsoft/OneDrive catalog entry for that workbook exists.
+- Cached Parquet rows were not used as a substitute.
+- No replacement catalog row or grant was seeded.
+- The production price list was not modified.
+
+A reproduced defect was fixed: an `active` token row with an `expires_at` in
+the past was treated as current access. It now raises `source_access_expired`;
+the real-catalog control is `test_expired_access_token_is_not_current_source_access`.
+
+No live guided start or changed-source refresh was run after this boundary.
+`gate-result.json` records the exact observed state and the two permitted next
+actions.

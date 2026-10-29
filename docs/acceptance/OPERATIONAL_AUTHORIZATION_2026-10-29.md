@@ -1,8 +1,9 @@
 # Operational authorization request — connected assignment live gates
 
-Status: **one combined authorization requested; not granted.** No secret values
-are included here. No live provider call, source modification or deployment has
-been performed.
+Status: **authorization granted; configuration restored; live guided gate
+stopped at the resource/source authority boundary.** No secret values are
+included here. No live send, source modification or deployment has been
+performed.
 
 Candidate: `9a89471cc0f307130c733bd4485d689e6e83b35c`.
 Clean-source verification:
@@ -20,6 +21,20 @@ This single authorization covers the remaining operational work only:
 
 It does **not** authorize production price-list changes, real email send,
 credential rotation/creation, deployment or general source writeback.
+
+## Execution record
+
+- Approved Microsoft client settings restored; preflight `configured=true`.
+- Token resolution: `state=valid`, token available, no reconnect required.
+- Live guided gate stopped before retrieval: the named price-list catalog rows
+  are `zoho_workdrive` with an expired access token; no Microsoft/OneDrive
+  catalog entry for that workbook exists.
+- Cached Parquet rows were not used; no replacement catalog/grant was seeded.
+- Reproduced defect fixed: expired access tokens are refused with
+  `source_access_expired`.
+- No disposable workbook was created or modified because Part A did not pass.
+- Next permitted action: authorize Zoho renewal/reconnect for the named
+  workbook, or name an accessible genuine Microsoft/OneDrive workbook.
 
 ## 1. Configuration restoration
 

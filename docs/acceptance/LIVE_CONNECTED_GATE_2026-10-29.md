@@ -9,19 +9,27 @@ The exact combined authorization request and procedures are in
 
 ## Current preflight
 
-Presence-only check (`core.oauth_config_preflight.microsoft_client_config_state`)
-reports:
+The approved Microsoft client configuration was restored to the qualification
+worktree on 2026-10-29. Presence-only check now reports:
 
 ```
-configured: false
-missing: MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET
+configured: true
+missing: []
 placeholders: []
 source: process_environment_after_dotenv
 ```
 
-The stored Microsoft grant is not treated as revoked. The runtime cannot renew
-it because the approved client configuration is absent. This is an
-administrator configuration repair, not a user reconnect.
+Normal token resolution reports `state=valid`, `token_available=true`,
+`requires_reconnect=false`. Secret values were not printed or stored.
+
+The live guided gate still cannot use the named workbook: its catalog rows are
+`zoho_workdrive`, and the Zoho access token expired on 2026-10-24. No genuine
+Microsoft/OneDrive catalog entry for that workbook exists. Cached rows were not
+used; no replacement catalog/grant was seeded.
+
+A reproduced access-control defect was fixed: an `active` token row with an
+expired `expires_at` was previously treated as current access. It now raises
+`source_access_expired`. See `gate-result.json` and the live-connected README.
 
 ## What remains blocked
 

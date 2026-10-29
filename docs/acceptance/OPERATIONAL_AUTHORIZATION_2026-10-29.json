@@ -2,7 +2,8 @@
   "schema": "atom-operational-authorization-1",
   "candidate_commit": "9a89471cc0f307130c733bd4485d689e6e83b35c",
   "requested_at": "2026-10-29",
-  "authorization_status": "requested",
+  "authorization_status": "granted",
+  "execution_status": "configuration_restored; live_guided_gate_blocked_at_resource_authority",
   "scope": {
     "restore_microsoft_client_config": true,
     "normal_oauth_renewal": true,
@@ -46,6 +47,20 @@
     "only_input_change": "Inputs!B2 2 -> 3",
     "production_price_list_modification": false,
     "evidence_dir": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/changed-source/"
+  },
+  "execution": {
+    "microsoft_config_restored": true,
+    "preflight_configured": true,
+    "oauth_state": "valid",
+    "token_available": true,
+    "requires_reconnect": false,
+    "live_guided_start_run": false,
+    "changed_source_refresh_run": false,
+    "first_broken_boundary": "resource/source authority",
+    "observed": "Named price-list rows are zoho_workdrive with expired access; no Microsoft/OneDrive catalog entry exists.",
+    "cached_rows_used": false,
+    "replacement_catalog_or_grant_seeded": false,
+    "disposable_workbook_created": false
   },
   "exclusions": {
     "production_file_change": false,
