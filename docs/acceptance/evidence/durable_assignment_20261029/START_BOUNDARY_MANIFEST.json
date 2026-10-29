@@ -1,0 +1,27 @@
+{
+ "slice": "assignment-start-boundary",
+ "frozen_commit": "44b62a6bb",
+ "branch": "whole-app/successor-f5f",
+ "preserved_commit": "efc4bc9d5",
+ "start_route": "POST /api/assignments",
+ "planner": "core/assignment_planner.py",
+ "validator": "core/assignment_planner.validate_proposed_plan",
+ "launcher_guard": "core/assignment_launcher_guard.py",
+ "evidence": {
+  "start_and_reload": "browser-start/playwright.txt",
+  "backend_restart": "browser-start/playwright-restart.txt",
+  "restart_status": "browser-start/status-after-restart.json",
+  "controlled_outbox": "browser-start/outbox.jsonl",
+  "screenshots": ["browser-start/document-completed.png", "browser-start/presentation-completed.png"]
+ },
+ "controls": {
+  "backend": "97 passed",
+  "frontend_component": "3 passed",
+  "browser_start": "1 passed",
+  "browser_after_restart": "1 passed",
+  "typescript": "clean"
+ },
+ "transport": "environment-gated controlled outbox only",
+ "live_send": false,
+ "deployment": false
+}
