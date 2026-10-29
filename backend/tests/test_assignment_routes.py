@@ -659,6 +659,30 @@ def test_guided_connected_count_presentation(route_env, tmp_path, monkeypatch):
     assert "scotch-parts.xlsx" in text
 
 
+def test_supervisor_assignment_rechecks_requester_source_grant(
+        route_env, tmp_path, monkeypatch):
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Sum the total for the scotch parts price list",
+        "employee_id": "member-1",
+        "discover": True,
+        "source_scope": {"query": "scotch parts price list"},
+        "deliverables": [{"kind": "document", "description": "Total"}],
+    })
+    assert response.status_code == 200, response.text
+    assignment = response.json()["assignment"]["assignment"]
+    assert assignment["employee_id"] == "member-1", assignment
+    assert assignment["status"] == "completed", assignment
+    internal = route_env["lifecycle"].get_assignment(
+        response.json()["run_id"])
+    source_step = next(
+        step for step in internal["steps"]
+        if step["step_id"] == "source-1")
+    assert source_step["status"] == "applied", source_step
+    assert source_step["inputs"]["resource_binding"]["access_scope"][
+        "user_id"] == "lead-1"
+
+
 def test_guided_no_match_is_explicit_pending_work(
         route_env, tmp_path, monkeypatch):
     _scotch_catalog(route_env, tmp_path, monkeypatch)

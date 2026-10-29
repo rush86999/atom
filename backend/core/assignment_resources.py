@@ -224,10 +224,7 @@ def resolve_assignment_source(
         raise AssignmentResourceError(
             exc.code, str(exc), status=exc.status_code)
     actual_version = str(entry.get("content_hash") or "")
-    if expected_version and not (
-        actual_version == expected_version
-        or actual_version.startswith(expected_version)
-    ):
+    if expected_version and actual_version != expected_version:
         raise AssignmentResourceError(
             "stale_source_version",
             f"Requested version '{expected_version}' is not the active "

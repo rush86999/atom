@@ -384,7 +384,12 @@ def _recheck_binding(
             "kind": "missing_evidence",
         })
     employee_id = str(context.get("employee_id") or "")
-    if not employee_id:
+    scope = dict(binding.get("access_scope") or {})
+    # The binding was created from the authenticated requester's source grant.
+    # A supervisor may assign the work to another employee, so the read must
+    # recheck the requester's still-active grant, not the assignee's identity.
+    reader_id = str(scope.get("user_id") or employee_id)
+    if not reader_id:
         raise NeedsContext({
             "concept": "authenticated_principal",
             "reason": "the step has no authenticated employee identity",
@@ -399,11 +404,11 @@ def _recheck_binding(
     from core.models import User
 
     with get_db_session() as db:
-        user = db.query(User).filter(User.id == employee_id).first()
-        if user is None:
+        user = db.query(User).filter(User.id == reader_id).first()
+        if user is None or not bool(getattr(user, "is_active", True)):
             raise NeedsContext({
                 "concept": "authenticated_principal",
-                "reason": "the employee identity no longer exists",
+                "reason": "the authorized reader identity is missing or inactive",
                 "question": "Re-authenticate before reading this resource.",
                 "kind": "missing_evidence",
                 "waiting": {
@@ -411,7 +416,30 @@ def _recheck_binding(
                     "party": "source owner",
                     "resume_on": "authentication",
                     "since": _utc_now_iso(),
-                    "detail": employee_id,
+                    "detail": reader_id,
+                },
+            })
+        requested_workspace = str(context.get("workspace_id") or "")
+        requested_tenant = str(context.get("tenant_id") or "")
+        if ((requested_workspace and str(user.workspace_id or "")
+             != requested_workspace)
+                or (requested_tenant and str(user.tenant_id or "")
+                    != requested_tenant)):
+            raise NeedsContext({
+                "concept": "source_access",
+                "reason": (
+                    "the authorized reader's scope does not match this "
+                    "assignment workspace/tenant"),
+                "question": (
+                    "The source authorization is outside this assignment's "
+                    "scope. Which authorized grant should be used?"),
+                "kind": "missing_evidence",
+                "waiting": {
+                    "state": "source_access_required",
+                    "party": "source owner",
+                    "resume_on": "source_reauthorized",
+                    "since": _utc_now_iso(),
+                    "detail": reader_id,
                 },
             })
         try:
@@ -488,6 +516,7 @@ def _collect_evidence(context: Dict[str, Any]) -> Dict[str, Any]:
                     f" {result.get('unit') or ''}".strip()),
                 "value": result.get("value"),
                 "unit": result.get("unit") or "",
+                "required": True,
             })
         elif result.get("operation") and result.get("subtotals"):
             for currency, item in (result.get("subtotals") or {}).items():
@@ -500,6 +529,7 @@ def _collect_evidence(context: Dict[str, Any]) -> Dict[str, Any]:
                         f"{item.get('value')} {unit}".strip()),
                     "value": item.get("value"),
                     "unit": unit,
+                    "required": True,
                 })
         elif result.get("operation") and result.get("value") is not None:
             facts.append({
@@ -510,6 +540,7 @@ def _collect_evidence(context: Dict[str, Any]) -> Dict[str, Any]:
                     f"{result.get('value')} {result.get('unit') or ''}".strip()),
                 "value": result.get("value"),
                 "unit": result.get("unit") or "",
+                "required": True,
             })
         elif result.get("value") is not None and not result.get("text"):
             facts.append({
@@ -519,6 +550,7 @@ def _collect_evidence(context: Dict[str, Any]) -> Dict[str, Any]:
                     f"{result.get('value')} {result.get('unit') or ''}".strip()),
                 "value": result.get("value"),
                 "unit": result.get("unit") or "",
+                "required": False,
             })
         rows = _evidence_rows(result)
         if not rows:
@@ -762,8 +794,16 @@ def _verify_artifact_substance(
         "teaching_applied": True,
     }
     if facts:
-        checks["result_present"] = any(
-            _artifact_has_number(text, fact.get("value")) for fact in facts)
+        required = [fact for fact in facts
+                    if bool(fact.get("required", True))]
+        if required:
+            checks["result_present"] = all(
+                _artifact_has_number(text, fact.get("value"))
+                for fact in required)
+        else:
+            checks["result_present"] = any(
+                _artifact_has_number(text, fact.get("value"))
+                for fact in facts)
         checks["subjects_covered"] = checks["result_present"]
     if row_sets:
         values = []
@@ -3269,6 +3309,22 @@ async def _dataset_aggregate(
             "kind": "missing_evidence",
         })
     subtotals = dict(result.get("subtotals") or {})
+    if operation == "sum" and not records:
+        raise NeedsContext({
+            "concept": "records",
+            "reason": (
+                "the accepted filters selected no eligible source rows, so "
+                "the requested sum has no evidence"),
+            "question": (
+                "Which eligible rows should the calculation cover? The bound "
+                "source has no rows matching the accepted scope."),
+            "checked_evidence": [
+                f"operation={operation}", f"measure={value_column or 'rows'}",
+                "selected_rows=0",
+                f"source_rows={coverage.get('source_row_count')}",
+            ],
+            "kind": "missing_evidence",
+        })
     values = [
         {
             "currency": currency,

@@ -186,6 +186,26 @@ def test_action_registry_write_declared_retrieval_is_rejected():
         validate_proposed_plan(assignment)
 
 
+def test_action_registry_read_requires_accepted_retrieval():
+    from core.action_registry import action_registry
+
+    async def handler(args, context):
+        return {"ok": True}
+
+    action_registry.register(
+        "test.read.scoped.action", handler, effects=[{"effect": "read"}])
+    step = new_step(
+        step_id="act", title="Act", operation_type="retrieve",
+        adapter="action.registry",
+        inputs={"action": "test.read.scoped.action", "arguments": {}},
+        effect="read_only")
+    assignment = _base_assignment([step], [], ["calculate"])
+    with pytest.raises(AssignmentPlanError):
+        validate_proposed_plan(assignment)
+    accepted = _base_assignment([step], [], ["retrieve"])
+    validate_proposed_plan(accepted)
+
+
 def test_invented_standing_authorization_is_rejected():
     step = new_step(
         step_id="send", title="Send", operation_type="outbound",
@@ -491,6 +511,66 @@ def test_derived_aggregate_uses_actual_numeric_schema(tmp_path, monkeypatch):
     count = derive_aggregate_spec(
         "Count the records in the scotch parts price list", [resolved])
     assert count == {"aggregate": {"operation": "count"}}
+
+
+def test_short_version_prefix_cannot_satisfy_active_version(
+        tmp_path, monkeypatch):
+    db, user, _token, _factory = _real_connected_catalog(tmp_path, monkeypatch)
+    with pytest.raises(AssignmentResourceError) as exc:
+        resolve_assignment_source(
+            db, user, {"dataset_name": "scotch_parts_price_list",
+                       "sheet": "US$ SCOTCH PARTS",
+                       "source_version": "a"})
+    assert exc.value.code == "stale_source_version"
+
+
+def test_sum_over_zero_eligible_rows_is_a_clarification(
+        tmp_path, monkeypatch):
+    db, user, _token, _factory = _real_connected_catalog(tmp_path, monkeypatch)
+    resolved = resolve_assignment_source(
+        db, user, {"dataset_name": "scotch_parts_price_list",
+                   "sheet": "US$ SCOTCH PARTS"})
+    from core.assignment_executor import NeedsContext, _dataset_aggregate
+
+    with pytest.raises(NeedsContext) as exc:
+        asyncio.run(_dataset_aggregate(
+            {
+                "resource_binding": resource_binding(resolved),
+                "operation": "sum",
+                "value_column": "Total",
+                "filters": [{"column": "Total", "operator": "gt",
+                             "value": 999}],
+            },
+            {"employee_id": "u1", "workspace_id": "ws-a",
+             "tenant_id": "t1"}))
+    assert exc.value.gap["concept"] == "records"
+
+
+def test_artifact_with_missing_required_result_is_rejected(tmp_path):
+    import docx
+    from core.assignment_executor import (
+        NeedsContext, _verify_artifact_substance,
+    )
+
+    artifact = tmp_path / "partial.docx"
+    document = docx.Document()
+    document.add_paragraph("Result: 10")
+    document.save(artifact)
+    context = {
+        "employee_id": "u1",
+        "objective": "Report both totals",
+        "teaching": {},
+        "sources": [],
+        "previous_results": {
+            "first": {"expression": "1+9", "value": "10"},
+            "second": {"expression": "2+18", "value": "20"},
+        },
+    }
+    with pytest.raises(NeedsContext) as exc:
+        _verify_artifact_substance(
+            "document", str(artifact), {}, context)
+    assert exc.value.gap["concept"] == "artifact_substance"
+
 
 
 def test_revoked_grant_between_start_and_resumed_executor_read(

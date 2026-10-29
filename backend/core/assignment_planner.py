@@ -525,6 +525,14 @@ def validate_proposed_plan(
                     f"step {step['step_id']} declares "
                     f"'{step.get('effect')}' but registered action "
                     f"'{action_name}' is '{action_effect}'")
+            required_action = (
+                "retrieve" if action_effect == "read_only" else "outbound")
+            if required_action not in accepted_actions:
+                raise AssignmentPlanError(
+                    f"step {step['step_id']} invokes registered action "
+                    f"'{action_name}' which requires accepted action "
+                    f"'{required_action}' outside the accepted authority "
+                    f"{sorted(accepted_actions)}")
         if step.get("effect") == "external" and not (
                 (step.get("approval") or {}).get("required")):
             raise AssignmentPlanError(
