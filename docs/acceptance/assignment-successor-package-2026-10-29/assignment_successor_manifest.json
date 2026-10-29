@@ -32,7 +32,8 @@
     "bounded_taught_artifact": "docs/acceptance/evidence/durable_assignment_20261029/bounded-taught-job/bounded-review.docx",
     "bounded_taught_artifact_sha256": "f9fe7da4a37c5f85d9a3f53b3dd8852a1e6429a4cc751ab5c4d2897a4034bc7f",
     "guided_browser": "docs/acceptance/evidence/durable_assignment_20261029/browser-guided/",
-    "explicit_browser": "docs/acceptance/evidence/durable_assignment_20261029/browser-explicit/"
+    "explicit_browser": "docs/acceptance/evidence/durable_assignment_20261029/browser-explicit/",
+    "preserved_40b3367d9": "docs/acceptance/evidence/durable_assignment_20261029/preserved-40b3367d9/"
   },
   "supported_claims": {
     "explicit_form_advanced_setup": true,
