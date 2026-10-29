@@ -25,13 +25,25 @@ def _outbox_path() -> Path:
 
 
 async def _controlled_send(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    body = inputs.get("body")
+    if not str(body or "").strip() and inputs.get("compose_from_results"):
+        from core.assignment_executor import _compose_evidence_text
+
+        body = _compose_evidence_text(inputs, context)
+    if not str(body or "").strip():
+        raise NeedsContext({
+            "concept": "outbound_content",
+            "reason": "the outbound effect has no grounded body",
+            "question": "What grounded result should the outbound message carry?",
+            "kind": "missing_evidence",
+        })
     outbox = _outbox_path()
     outbox.parent.mkdir(parents=True, exist_ok=True)
     record = {
         "operation_id": (context.get("step") or {}).get("operation_id"),
         "to": inputs.get("to"),
         "subject": inputs.get("subject"),
-        "body": inputs.get("body"),
+        "body": body,
     }
     existing = []
     if outbox.exists():
@@ -57,10 +69,22 @@ async def _controlled_send(inputs: Dict[str, Any], context: Dict[str, Any]) -> D
 
 
 def _controlled_prepare(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    body = inputs.get("body")
+    if not str(body or "").strip() and inputs.get("compose_from_results"):
+        from core.assignment_executor import _compose_evidence_text
+
+        body = _compose_evidence_text(inputs, context)
+    if not str(body or "").strip():
+        raise NeedsContext({
+            "concept": "outbound_content",
+            "reason": "the outbound effect has no grounded body",
+            "question": "What grounded result should the outbound message carry?",
+            "kind": "missing_evidence",
+        })
     payload = {
         "to": inputs.get("to"),
         "subject": inputs.get("subject"),
-        "body": inputs.get("body"),
+        "body": body,
         "attachment": inputs.get("attachment"),
     }
     return {

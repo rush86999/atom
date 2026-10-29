@@ -1,48 +1,58 @@
-# Independent review request — assignment start boundary
+# Independent review request — connected guided assignment start
 
-Frozen candidate: `322981bcc` on `whole-app/successor-f5f`
+Frozen candidate: `pending-freeze` on `whole-app/successor-f5f`
 Preserved start boundary: `44b62a6bb`.
+Preserved correction pass: `322981bcc`.
 Preserved executor evidence: `efc4bc9d5`.
 
-The correction pass addresses the review findings: server-resolved catalog
-resources and owned output allocation, authority independent of the proposal,
-adapter/action effect metadata, and corrected deliverable validation.
+This pass addresses the connected guided-start review findings: typed
+resource-to-reader binding, real Parquet reads with provenance, rechecks before
+resumed reads, bounded candidate selection, removal of generic-content
+completion, substantive artifact checks, and a real scoped catalog → Parquet →
+artifact → approval/outbox acceptance.
 
-Please review read-only; do not restart the owner's runtime or run a live
-send.
+Please review read-only; do not restart the owner's runtime or run a live send.
 
 ## Scope
 
-1. `POST /api/assignments` and `core/assignment_planner.py`:
-   accepted objective, employee/agent scope, teaching resolution, explicit
-   sources/deliverables, capability planning and pre-execution validation.
-2. The Start durable work form and Assignments tab / page wiring.
-3. `core/assignment_launcher_guard.py` and the browser acceptance server:
-   disposable-path proof, forbidden live/release/source paths, marker-gated
-   reset, no unconditional deletion on import.
-4. The two-domain start acceptance:
-   `docs/acceptance/ASSIGNMENT_START_2026-10-29.md` and
-   `docs/acceptance/evidence/durable_assignment_20261029/browser-start/`.
+1. `POST /api/assignments`, `core/assignment_planner.py` and
+   `core/assignment_resources.py`: accepted objective, permitted scope,
+   teaching, discovered catalog resources, typed binding, derivation of
+   deterministic `sum`/`count`, strict validation and owned output allocation.
+2. `core/assignment_executor.py`: `dataset.read` / `dataset.aggregate`, typed
+   binding recheck at every read, `__sheet_row` preservation, formula sidecars,
+   grounded artifact composition and substantive checks.
+3. Guided and explicit browser surfaces: discovery without server paths or
+   output paths; advanced explicit form kept separate.
+4. Evidence: `docs/acceptance/ASSIGNMENT_START_2026-10-29.md`,
+   `docs/acceptance/evidence/durable_assignment_20261029/connected-guided/`,
+   `browser-guided/`, and `browser-explicit/`.
 
 ## Questions for the reviewer
 
-- Can a model-proposed or caller-proposed step reach an unregistered adapter,
-  a missing prerequisite, an external effect without approval, or a different
-  workspace?
-- Does the planning boundary accidentally grant permissions from the
-  objective, teaching, source locator or deliverable declaration?
-- Is the accepted objective and teaching revision preserved through
-  validation and execution?
-- Does the start form/route genuinely re-enter the same executor and durable
-  state, rather than create a parallel path?
-- Does the launcher guard actually refuse live/release/source directories and
-  avoid deletion without the marker plus explicit reset?
-- Do the browser-start and restart evidence demonstrate the same state the
-  backend ledger records?
+- Can a public proposal still supply a filesystem path, choose an output
+  location, or make a plan step consume a path as resource identity?
+- Does every connected read recheck the active grant, workspace, resource
+  identity and source version immediately before reading, including a resumed
+  read?
+- Can discovery adopt the first result or the first sheet by recency/order, or
+  collapse several plausible candidates into one?
+- Can an artifact complete with only the objective and a generic “authorized
+  source” label, or with content that disagrees with the accepted result?
+- Is the accepted result, source provenance and teaching actually present in
+  the saved artifact and grounded outbox body?
+- Does the connected acceptance prove real catalog → real Parquet → correct
+  rows/provenance without a mocked reader/catalog or prompt-supplied rows?
+- Do guided and explicit evidence remain clearly separated?
 
 ## Known boundaries
 
 - Controlled outbox only; no live provider acceptance or delivery.
+- The connected acceptance uses an isolated scratch database, a generated
+  scoped catalog row, a real Parquet file and a real active grant row. It does
+  not fetch a live OneDrive file; live OAuth is outside this slice.
+- Guided deterministic calculation covers explicit `sum`/`count` objectives
+  against one materialized source; compound/unstated calculations clarify.
 - One worker process per assignment is the verified topology.
 - Production Outlook send still requires a prepared canvas and the existing
   approval path.

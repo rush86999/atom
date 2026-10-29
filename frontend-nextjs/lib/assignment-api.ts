@@ -85,6 +85,7 @@ export async function createAssignment(payload: {
   deliverables: Record<string, unknown>[];
   calculation?: Record<string, unknown>;
   outbound?: Record<string, unknown>;
+  wait?: Record<string, unknown>;
   task_context?: Record<string, unknown>;
   transport?: string;
 }): Promise<Record<string, any>> {

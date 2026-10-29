@@ -64,7 +64,7 @@ export function AssignmentPanel({
     objective: "",
     sourcePath: "",
     deliverableKind: "document",
-    outputPath: "",
+    content: "",
     recipient: "",
     expression: "",
     correlation: "",
@@ -134,12 +134,7 @@ export function AssignmentPanel({
         deliverables: [{
           kind: startDraft.deliverableKind,
           description: startDraft.objective,
-          path: startDraft.discover ? undefined : startDraft.outputPath,
-          content: startDraft.deliverableKind === "presentation"
-            ? "Slide 1: Overview\n- Prepared from the authorized source\n\nSlide 2: Sources\n- Authorized source"
-            : startDraft.expression
-              ? "## Summary\n\n${calculate.value}\n\n## Sources\n\n- Authorized source"
-              : `## Summary\n\n${startDraft.objective}\n\n## Sources\n\n- Authorized source`,
+          content: startDraft.content.trim() || undefined,
         }],
       };
       if (startDraft.expression.trim()) {
@@ -159,8 +154,6 @@ export function AssignmentPanel({
         payload.outbound = {
           to: [startDraft.recipient.trim()],
           subject: startDraft.objective,
-          body: "Please see the prepared result.",
-          deliverable_id: "del-send",
         };
       }
       if (process.env.NEXT_PUBLIC_ASSIGNMENT_TRANSPORT) {
@@ -171,7 +164,7 @@ export function AssignmentPanel({
         objective: "",
         sourcePath: "",
         deliverableKind: "document",
-        outputPath: "",
+        content: "",
         recipient: "",
         expression: "",
         correlation: "",
@@ -262,15 +255,18 @@ export function AssignmentPanel({
             aria-label="Authorized source path"
           />
         )}
-        <input
-          value={startDraft.outputPath}
-          onChange={(e) =>
-            setStartDraft((d) => ({ ...d, outputPath: e.target.value }))
-          }
-          placeholder="Deliverable output path (.docx/.xlsx/.pptx)"
-          className="w-full rounded border px-1.5 py-1"
-          aria-label="Deliverable output path"
-        />
+        {!startDraft.discover ? (
+          <textarea
+            value={startDraft.content}
+            onChange={(e) =>
+              setStartDraft((d) => ({ ...d, content: e.target.value }))
+            }
+            placeholder="Artifact content (optional when a calculation supplies the result)"
+            rows={2}
+            className="w-full rounded border px-1.5 py-1"
+            aria-label="Artifact content"
+          />
+        ) : null}
         <div className="flex gap-1">
           <select
             value={startDraft.deliverableKind}
@@ -321,7 +317,6 @@ export function AssignmentPanel({
             busy ||
             !startDraft.objective.trim() ||
             (!startDraft.discover && !startDraft.sourcePath.trim()) ||
-            (!startDraft.discover && !startDraft.outputPath.trim()) ||
             (startDraft.discover && !startDraft.scopeQuery.trim())
           }
           onClick={start}

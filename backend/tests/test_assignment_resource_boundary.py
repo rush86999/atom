@@ -1,17 +1,23 @@
 """Correction controls: server-resolved resources, authority and deliverables."""
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 import uuid
+from pathlib import Path
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from core.assignment_plan import (
     new_assignment, new_deliverable, new_step, new_teaching_snapshot,
 )
 from core.assignment_planner import AssignmentPlanError, validate_proposed_plan
 from core.assignment_resources import (
-    AssignmentResourceError, allocate_output_path, resolve_assignment_source,
+    AssignmentResourceError, allocate_output_path, derive_aggregate_spec,
+    resolve_assignment_source, resource_binding, select_resource_candidates,
 )
 from core.assignment_executor import default_adapter_registry
 
@@ -254,3 +260,304 @@ def test_matching_artifact_step_is_valid():
     assignment = _base_assignment([step], [deliverable],
                                   ["retrieve", "present"])
     validate_proposed_plan(assignment)
+
+
+def _candidate(name, file_name, sheet, columns, *, status="active"):
+    return {
+        "id": f"id-{name}-{sheet}",
+        "dataset_name": name,
+        "file_name": file_name,
+        "entity_name": sheet,
+        "columns": columns,
+        "status": status,
+        "coverage": {"known": True, "truncated": False},
+    }
+
+
+def test_distractor_ranked_first_is_not_adopted():
+    distractor = _candidate(
+        "unrelated_notes", "unrelated-notes.xlsx", "Notes",
+        ["Label", "Price"])
+    target = _candidate(
+        "scotch_parts_price_list", "scotch-parts.xlsx",
+        "US$ SCOTCH PARTS", ["Total", "Quantity", "Unit Price", "Currency"])
+    selected = select_resource_candidates(
+        [distractor, target],
+        objective="Sum the total for the scotch parts price list",
+        scope_query="scotch parts price list",
+    )
+    assert len(selected) == 1
+    assert selected[0]["dataset_name"] == "scotch_parts_price_list"
+
+
+def test_same_workbook_several_plausible_sheets_is_a_clarification():
+    first = _candidate(
+        "scotch_parts", "scotch-parts.xlsx", "US$ SCOTCH PARTS",
+        ["Total"])
+    second = _candidate(
+        "scotch_parts", "scotch-parts.xlsx", "EUR SCOTCH PARTS",
+        ["Total"])
+    with pytest.raises(AssignmentResourceError) as exc:
+        select_resource_candidates(
+            [first, second],
+            objective="Sum the total for the scotch parts price list",
+            scope_query="scotch parts price list",
+        )
+    assert exc.value.code == "ambiguous_resource"
+    assert len(exc.value.candidates) == 2
+
+
+def test_explicit_sheet_selects_that_sheet():
+    first = _candidate(
+        "scotch_parts", "scotch-parts.xlsx", "US$ SCOTCH PARTS",
+        ["Total"])
+    second = _candidate(
+        "scotch_parts", "scotch-parts.xlsx", "EUR SCOTCH PARTS",
+        ["Total"])
+    selected = select_resource_candidates(
+        [first, second],
+        objective="Sum the total for the scotch parts price list",
+        scope_query="scotch parts price list",
+        explicit_sheet="EUR SCOTCH PARTS",
+    )
+    assert len(selected) == 1
+    assert selected[0]["entity_name"] == "EUR SCOTCH PARTS"
+
+
+def test_required_two_sources_are_preserved():
+    first = _candidate(
+        "scotch_parts", "scotch-parts.xlsx", "US$ SCOTCH PARTS",
+        ["Total"])
+    second = _candidate(
+        "open_orders", "open-orders.xlsx", "Orders", ["Total"])
+    selected = select_resource_candidates(
+        [first, second],
+        objective="Compare the scotch parts and open orders totals",
+        scope_query="scotch parts open orders totals",
+        required_count=2,
+    )
+    assert {item["dataset_name"] for item in selected} == {
+        "scotch_parts", "open_orders"}
+
+
+def test_no_justified_candidate_is_pending_work():
+    target = _candidate(
+        "scotch_parts_price_list", "scotch-parts.xlsx",
+        "US$ SCOTCH PARTS", ["Total"])
+    assert select_resource_candidates(
+        [target],
+        objective="Summarize the quarterly tax filings",
+        scope_query="quarterly tax filings",
+    ) == []
+
+
+def _real_connected_catalog(tmp_path, monkeypatch):
+    import pandas as pd
+
+    engine = create_engine(f"sqlite:///{tmp_path}/connected.db")
+    from core.models import (
+        Base, DatasetEntry, IntegrationToken, User,
+    )
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    monkeypatch.setattr("core.database.get_db_session", factory)
+    monkeypatch.setenv("ATOM_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path / "office"))
+    monkeypatch.setenv("ATOM_ASSIGNMENT_OUTPUT_DIR", str(tmp_path / "out"))
+    db = factory()
+    user = User(
+        id="u1", email="u1@example.com", hashed_password="x",
+        first_name="U", last_name="One", role="member", status="active",
+        workspace_id="ws-a", tenant_id="t1", is_active=True)
+    db.add(user)
+    db.commit()
+    root = tmp_path / "sheet_datasets"
+    root.mkdir(parents=True, exist_ok=True)
+    parquet = root / "scotch.parquet"
+    frame = pd.DataFrame({
+        "Item Number": ["SC-1", "SC-2", "SC-3"],
+        "Total": [20.0, 60.0, 5.0],
+        "Currency": ["USD", "USD", "USD"],
+        "__sheet_row": [2, 3, 4],
+    })
+    frame.to_parquet(parquet, index=False)
+    entry = DatasetEntry(
+        id="entry-1", workspace_id="ws-a", tenant_id="t1",
+        created_by="u1", source_kind="file", source="onedrive",
+        external_id="drive-1", file_name="scotch-parts.xlsx",
+        content_hash="a" * 40, entity_name="US$ SCOTCH PARTS",
+        dataset_name="scotch_parts_price_list", parquet_path=str(parquet),
+        row_count=3, column_count=4,
+        columns_json={
+            "columns": [{"name": column} for column in frame.columns],
+            "coverage": {"known": True, "source_row_count": 3,
+                         "materialized_row_count": 3, "truncated": False},
+        },
+        status="active",
+    )
+    db.add(entry)
+    token = IntegrationToken(
+        id="tok-1", tenant_id="t1", user_id="u1", workspace_id="ws-a",
+        provider="onedrive", access_token="not-a-secret",
+        status="active")
+    db.add(token)
+    db.commit()
+    return db, user, token, factory
+
+
+def test_real_parquet_read_returns_rows_and_provenance(tmp_path, monkeypatch):
+    db, user, _token, _factory = _real_connected_catalog(tmp_path, monkeypatch)
+    resolved = resolve_assignment_source(
+        db, user, {"dataset_name": "scotch_parts_price_list",
+                   "sheet": "US$ SCOTCH PARTS"})
+    assert resolved["representation"] == "parquet_frame"
+    assert resolved["columns"] == ["Item Number", "Total", "Currency",
+                                   "__sheet_row"]
+    binding = resource_binding(resolved)
+    assert "path" not in binding
+    from core.assignment_executor import _dataset_read
+
+    result = asyncio.run(_dataset_read(
+        {"resource_binding": binding, "columns": ["Total"], "max_rows": 10},
+        {"employee_id": "u1", "workspace_id": "ws-a", "tenant_id": "t1"}))
+    assert result["matched_count"] == 3
+    assert [row["__sheet_row"] for row in result["rows"]] == [2, 3, 4]
+    assert result["source"]["dataset_name"] == "scotch_parts_price_list"
+    assert result["source"]["sheet"] == "US$ SCOTCH PARTS"
+    assert result["source_version"] == "a" * 40
+    assert result["evidence"][0]["sheet_rows"] == [2, 3, 4]
+
+
+def test_real_parquet_read_preserves_formula_sidecar_for_matched_rows(
+        tmp_path, monkeypatch):
+    db, user, _token, _factory = _real_connected_catalog(tmp_path, monkeypatch)
+    parquet = tmp_path / "sheet_datasets" / "scotch.parquet"
+    sidecar = parquet.with_name(parquet.name + ".formulas.json")
+    sidecar.write_text(json.dumps({
+        "sheet": "US$ SCOTCH PARTS",
+        "formulas": {
+            "B2": "=B2*C2",
+            "B3": "=B3*C3",
+            "B99": "=NOT-A-MATCHED-ROW",
+        },
+    }))
+    resolved = resolve_assignment_source(
+        db, user, {"dataset_name": "scotch_parts_price_list",
+                   "sheet": "US$ SCOTCH PARTS"})
+    from core.assignment_executor import _dataset_read
+
+    result = asyncio.run(_dataset_read(
+        {"resource_binding": resource_binding(resolved), "max_rows": 10},
+        {"employee_id": "u1", "workspace_id": "ws-a", "tenant_id": "t1"}))
+    assert result["formulas"] == {"B2": "=B2*C2", "B3": "=B3*C3"}
+
+
+def test_revoked_access_between_start_and_resumed_read_is_refused(
+        tmp_path, monkeypatch):
+    db, user, token, _factory = _real_connected_catalog(tmp_path, monkeypatch)
+    resolved = resolve_assignment_source(
+        db, user, {"dataset_name": "scotch_parts_price_list",
+                   "sheet": "US$ SCOTCH PARTS"})
+    binding = resource_binding(resolved)
+    from core.assignment_executor import NeedsContext, _dataset_read
+
+    context = {"employee_id": "u1", "workspace_id": "ws-a",
+               "tenant_id": "t1"}
+    first = asyncio.run(_dataset_read(
+        {"resource_binding": binding}, context))
+    assert first["matched_count"] == 3
+
+    # Between the start resolution and the resumed read, the owner revokes
+    # the grant. The earlier path is not continuing access.
+    token.status = "revoked"
+    db.commit()
+    with pytest.raises(NeedsContext) as exc:
+        asyncio.run(_dataset_read({"resource_binding": binding}, context))
+    waiting = exc.value.gap["waiting"]
+    assert waiting["state"] == "source_access_revoked"
+    assert waiting["code"] == "source_permission_revoked"
+    assert "source_access" == exc.value.gap["concept"]
+
+
+def test_derived_aggregate_uses_actual_numeric_schema(tmp_path, monkeypatch):
+    db, user, _token, _factory = _real_connected_catalog(tmp_path, monkeypatch)
+    resolved = resolve_assignment_source(
+        db, user, {"dataset_name": "scotch_parts_price_list",
+                   "sheet": "US$ SCOTCH PARTS"})
+    spec = derive_aggregate_spec(
+        "Sum the total for the scotch parts price list", [resolved])
+    assert spec == {"aggregate": {"operation": "sum",
+                                  "value_column": "Total"}}
+    count = derive_aggregate_spec(
+        "Count the records in the scotch parts price list", [resolved])
+    assert count == {"aggregate": {"operation": "count"}}
+
+
+def test_revoked_grant_between_start_and_resumed_executor_read(
+        tmp_path, monkeypatch):
+    import core.assignment_controlled_transport  # noqa: F401
+    from core.assignment_executor import AssignmentExecutor
+    from core.goals.goal_run_service import GoalRunService
+    from core.goals.goal_service import GoalService
+    from core.task_lifecycle import TaskLifecycle
+
+    db, user, token, factory = _real_connected_catalog(tmp_path, monkeypatch)
+    resolved = resolve_assignment_source(
+        db, user, {"dataset_name": "scotch_parts_price_list",
+                   "sheet": "US$ SCOTCH PARTS"})
+    binding = resource_binding(resolved)
+    plan = new_assignment(
+        objective="Read after the external wait",
+        employee_id="u1",
+        workspace_id="ws-a",
+        tenant_id="t1",
+        teaching_snapshot=new_teaching_snapshot(revision="t"),
+        steps=[
+            new_step(
+                step_id="wait", title="Wait for the trigger",
+                operation_type="retrieve",
+                adapter="assignment.controlled_wait",
+                inputs={"correlation_id": "revoke-A"},
+                effect="read_only"),
+            new_step(
+                step_id="read", title="Read the connected source",
+                operation_type="retrieve", adapter="dataset.read",
+                depends_on=["wait"],
+                inputs={"resource_binding": binding},
+                effect="read_only"),
+        ],
+        sources=[{"kind": "workbook", "binding": binding}],
+        authorized_actions=["retrieve"],
+        completion_criteria=[{"kind": "required_work_complete"}],
+    )
+    runs = GoalRunService(
+        workspace_id="ws-a", tenant_id="t1", session_factory=factory)
+    goals = GoalService(
+        workspace_id="ws-a", tenant_id="t1", session_factory=factory)
+    executor = AssignmentExecutor(TaskLifecycle(runs, goals))
+    record = executor.create_assignment(
+        "conv-revoke", "Read after the external wait", assignment=plan,
+        employee_id="u1", workspace_id="ws-a", tenant_id="t1")
+    asyncio.run(executor.execute(record["run_id"]))
+    waiting = executor.status(record["run_id"])["assignment"]
+    assert waiting["status"] == "waiting", waiting
+
+    # The grant is revoked after start, before the read is resumed.
+    token.status = "revoked"
+    db.commit()
+    executor.record_external_response(
+        record["run_id"], "revoke-A", response="triggered")
+    asyncio.run(executor.resume(record["run_id"]))
+    status = executor.status(record["run_id"])
+    assert status["assignment"]["status"] == "waiting", status
+    gaps = status["open_gaps"]
+    assert any(gap.get("concept") == "source_access" for gap in gaps), gaps
+    assert any(
+        "source_permission_revoked" in str(gap.get("reason") or "")
+        for gap in gaps), gaps
+    read_step = next(
+        step for step in status["assignment"]["steps"]
+        if step["step_id"] == "read")
+    assert read_step["status"] == "waiting"
+    assert (read_step.get("waiting") or {}).get("state") == (
+        "source_access_revoked")

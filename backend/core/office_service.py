@@ -79,13 +79,18 @@ def _validate_office_path(file_path: str) -> str:
     """
     if not file_path:
         raise ValueError("file_path is required")
-    base = Path(os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))).resolve()
+    bases = [
+        Path(os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))).resolve(),
+        Path(os.getenv("ATOM_ASSIGNMENT_OUTPUT_DIR", os.path.join(
+            "data", "office", "assignments"))).resolve(),
+    ]
     try:
         resolved = Path(file_path).resolve()
     except (OSError, ValueError) as e:
         raise ValueError("Invalid file path")
-    # Resolve symlinks/relative escapes: the resolved path must be under base.
-    if base not in resolved.parents and resolved != base:
+    # Resolve symlinks/relative escapes: the resolved path must be under one
+    # of the configured owned storage roots.
+    if not any(base == resolved or base in resolved.parents for base in bases):
         raise ValueError(
             f"Access denied: path '{file_path}' is outside the allowed office directory"
         )

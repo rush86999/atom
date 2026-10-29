@@ -43,8 +43,8 @@ from core.database import get_db  # noqa: E402
 from core.goals.goal_run_service import GoalRunService  # noqa: E402
 from core.goals.goal_service import GoalService  # noqa: E402
 from core.models import (  # noqa: E402
-    AgentRegistry, Base, GoalObjective, GoalRun, HITLAction,
-    TaskOperationRecord, User,
+    AgentRegistry, Base, DatasetEntry, GoalObjective, GoalRun, HITLAction,
+    IntegrationToken, TaskOperationRecord, Tenant, User, Workspace,
 )
 from core.student_learning_service import deliver_teacher_lesson  # noqa: E402
 from core.task_lifecycle import TaskLifecycle  # noqa: E402
@@ -60,7 +60,9 @@ os.environ["ATOM_ASSIGNMENT_OUTBOX"] = str(SCRATCH / "outbox.jsonl")
 engine = create_engine(f"sqlite:///{SCRATCH}/atom.db")
 for table in (User.__table__, AgentRegistry.__table__,
               GoalObjective.__table__, GoalRun.__table__,
-              TaskOperationRecord.__table__, HITLAction.__table__):
+              TaskOperationRecord.__table__, HITLAction.__table__,
+              Tenant.__table__, Workspace.__table__,
+              DatasetEntry.__table__, IntegrationToken.__table__):
     table.create(engine, checkfirst=True)
 factory = sessionmaker(bind=engine, expire_on_commit=False)
 db = factory()
@@ -102,6 +104,62 @@ workbook.save(source_workbook)
 source_document = SCRATCH / "qualification.txt"
 source_document.write_text(
     "Subject: record-2\nStatus: active\nQualification: Q-2\n")
+
+# A real scoped connected catalog entry backed by a real materialized Parquet
+# frame. This is the guided-discovery path; it is not an internal fixture path.
+import pandas as pd  # noqa: E402
+
+datasets_dir = SCRATCH / "sheet_datasets"
+datasets_dir.mkdir(parents=True, exist_ok=True)
+scotch_parquet = datasets_dir / "scotch-parts.parquet"
+scotch_frame = pd.DataFrame({
+    "Item Number": ["SC-1", "SC-2", "SC-3"],
+    "Description": ["Scotch A", "Scotch B", "Scotch C"],
+    "Quantity": [2, 3, 1],
+    "Unit Price": [10.0, 20.0, 5.0],
+    "Total": [20.0, 60.0, 5.0],
+    "Currency": ["USD", "USD", "USD"],
+    "__sheet_row": [2, 3, 4],
+})
+scotch_frame.to_parquet(scotch_parquet, index=False)
+scotch_entry = db.query(DatasetEntry).filter(
+    DatasetEntry.dataset_name == "scotch_parts_price_list").first()
+if scotch_entry is None:
+    scotch_entry = DatasetEntry(
+        id="browser-scotch-entry",
+        workspace_id="default", tenant_id="default",
+        created_by=admin.id, source_kind="file", source="onedrive",
+        external_id="browser-scotch-drive-1",
+        file_name="scotch-parts.xlsx", content_hash="a" * 40,
+        entity_name="US$ SCOTCH PARTS",
+        dataset_name="scotch_parts_price_list",
+        parquet_path=str(scotch_parquet), row_count=len(scotch_frame),
+        column_count=len(scotch_frame.columns),
+        columns_json={
+            "columns": [
+                {"name": column,
+                 "samples": [value.item() if hasattr(value, "item") else value
+                             for value in scotch_frame[column].head(2).tolist()]}
+                for column in scotch_frame.columns
+            ],
+            "coverage": {
+                "known": True, "source_row_count": len(scotch_frame),
+                "materialized_row_count": len(scotch_frame),
+                "truncated": False,
+            },
+        },
+        status="active",
+    )
+    db.add(scotch_entry)
+    db.commit()
+if db.query(IntegrationToken).filter(
+        IntegrationToken.user_id == admin.id,
+        IntegrationToken.provider == "onedrive").first() is None:
+    db.add(IntegrationToken(
+        id="browser-scotch-token", tenant_id="default",
+        user_id=admin.id, workspace_id="default", provider="onedrive",
+        access_token="browser-acceptance-not-a-secret", status="active"))
+    db.commit()
 
 agent = db.query(AgentRegistry).filter(
     AgentRegistry.name == "Browser Employee",
@@ -153,6 +211,25 @@ def health():
         "document": str(source_document),
         "commercial_output": str(SCRATCH / "commercial.docx"),
         "eligibility_output": str(SCRATCH / "eligibility.pptx"),
+        "outbox": str(SCRATCH / "outbox.jsonl"),
+        "guided": [
+            {
+                "objective": "Sum the total for the scotch parts price list",
+                "scope": "scotch parts price list",
+                "kind": "document",
+                "recipient": "browser-guided@example.invalid",
+                "expected": "85.00",
+                "source": "scotch-parts.xlsx",
+            },
+            {
+                "objective": "Count the records in the scotch parts price list",
+                "scope": "scotch parts price list",
+                "kind": "presentation",
+                "recipient": "",
+                "expected": "3",
+                "source": "scotch-parts.xlsx",
+            },
+        ],
     }
 
 

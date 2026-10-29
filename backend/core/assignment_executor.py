@@ -28,6 +28,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence
 
@@ -251,6 +252,579 @@ def _json_safe(value: Any, *, depth: int = 0) -> Any:
     if value is None or isinstance(value, (int, float, bool)):
         return value
     return str(value)[:2000]
+
+
+def _filter_records(
+    records: List[Dict[str, Any]],
+    filters: Any,
+) -> List[Dict[str, Any]]:
+    """Apply the same bounded predicates to in-memory records."""
+    for predicate in filters or []:
+        if not isinstance(predicate, dict):
+            continue
+        field = str(predicate.get("column") or "")
+        operator = str(predicate.get("operator") or "eq")
+        expected = predicate.get("value")
+
+        def _matches(actual: Any) -> bool:
+            if operator == "eq":
+                return str(actual) == str(expected)
+            if operator == "neq":
+                return str(actual) != str(expected)
+            if operator == "contains":
+                return str(expected).lower() in str(actual).lower()
+            if operator == "in":
+                return actual in (expected or [])
+            try:
+                left = float(actual)
+                right = float(expected)
+            except (TypeError, ValueError):
+                return False
+            if operator == "gt":
+                return left > right
+            if operator == "gte":
+                return left >= right
+            if operator == "lt":
+                return left < right
+            if operator == "lte":
+                return left <= right
+            return False
+
+        records = [record for record in records
+                   if _matches(record.get(field))]
+    return records
+
+
+def _sheet_row(value: Any) -> Optional[int]:
+    try:
+        row = int(value)
+    except (TypeError, ValueError):
+        return None
+    return row if row >= 2 else None
+
+
+def _formula_rows(formulas: Dict[str, str], rows: set) -> Dict[str, str]:
+    selected: Dict[str, str] = {}
+    for cell, formula in (formulas or {}).items():
+        match = re.match(r"^[A-Za-z]+(\d+)$", str(cell))
+        if not match:
+            continue
+        if int(match.group(1)) in rows:
+            selected[str(cell)] = str(formula)
+        if len(selected) >= 500:
+            break
+    return selected
+
+
+def _resource_gap(exc: Any, binding: Dict[str, Any]) -> "NeedsContext":
+    code = str(getattr(exc, "code", "") or "resource_unavailable")
+    message = str(exc)
+    access_codes = {
+        "source_permission_revoked", "source_disconnected", "unauthenticated",
+        "workspace_scope_required", "resource_workspace_mismatch",
+        "filesystem_path_not_allowed",
+    }
+    version_codes = {
+        "stale_source_version", "inactive", "ambiguous_resource",
+        "materialization_incomplete",
+    }
+    if code in access_codes:
+        state = ("source_access_revoked" if "revoked" in code
+                 else "source_access_required")
+        question = (
+            "The authorized source is no longer accessible. Reconnect or "
+            "restore the grant, then retry.")
+        resume_on = "source_reauthorized"
+        party = "source owner"
+    elif code in version_codes:
+        state = "source_version_changed"
+        question = (
+            "The active source version changed or is incomplete. Confirm the "
+            "current authorized version, then retry.")
+        resume_on = "source_refreshed"
+        party = "source owner"
+    else:
+        state = "source_unavailable"
+        question = "The authorized source is unavailable. Restore it, then retry."
+        resume_on = "resource_restored"
+        party = "source owner"
+    return NeedsContext({
+        "concept": "source_access",
+        "reason": f"{code}: {message}",
+        "question": question,
+        "checked_evidence": [
+            f"resource={binding.get('dataset_name') or binding.get('resource_id')}",
+            f"sheet={binding.get('sheet')}",
+            f"version={str(binding.get('source_version') or '')[:12]}",
+            code,
+        ],
+        "next_retrieval": "recheck source access and active version",
+        "kind": "missing_evidence",
+        "waiting": {
+            "state": state,
+            "party": party,
+            "resume_on": resume_on,
+            "since": _utc_now_iso(),
+            "detail": message[:500],
+            "code": code,
+        },
+    })
+
+
+def _recheck_binding(
+    binding: Dict[str, Any],
+    context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Resolve the typed binding again inside the authenticated scope."""
+    if not isinstance(binding, dict) or not binding:
+        raise NeedsContext({
+            "concept": "resource_binding",
+            "reason": "the assignment step has no typed resource binding",
+            "question": "Which authorized resource should I read?",
+            "kind": "missing_evidence",
+        })
+    employee_id = str(context.get("employee_id") or "")
+    if not employee_id:
+        raise NeedsContext({
+            "concept": "authenticated_principal",
+            "reason": "the step has no authenticated employee identity",
+            "question": "Who is authorized to read this resource?",
+            "kind": "business_decision",
+        })
+    from core.assignment_resources import (
+        AssignmentResourceError,
+        recheck_resource_access,
+    )
+    from core.database import get_db_session
+    from core.models import User
+
+    with get_db_session() as db:
+        user = db.query(User).filter(User.id == employee_id).first()
+        if user is None:
+            raise NeedsContext({
+                "concept": "authenticated_principal",
+                "reason": "the employee identity no longer exists",
+                "question": "Re-authenticate before reading this resource.",
+                "kind": "missing_evidence",
+                "waiting": {
+                    "state": "source_access_required",
+                    "party": "source owner",
+                    "resume_on": "authentication",
+                    "since": _utc_now_iso(),
+                    "detail": employee_id,
+                },
+            })
+        try:
+            return recheck_resource_access(db, user, binding)
+        except AssignmentResourceError as exc:
+            raise _resource_gap(exc, binding)
+
+
+def _connected_source_block(
+    resolved: Dict[str, Any],
+    binding: Dict[str, Any],
+) -> Dict[str, Any]:
+    return {
+        "resource_id": resolved.get("resource_id")
+        or binding.get("resource_id"),
+        "dataset_name": resolved.get("dataset_name")
+        or binding.get("dataset_name"),
+        "file_name": resolved.get("original_file_name")
+        or binding.get("original_file_name"),
+        "sheet": resolved.get("sheet") or binding.get("sheet"),
+        "source_version": resolved.get("source_version")
+        or binding.get("source_version"),
+        "representation": resolved.get("representation")
+        or binding.get("representation"),
+        "coverage": dict(resolved.get("coverage")
+                         or binding.get("coverage") or {}),
+        "workspace_id": resolved.get("workspace_id"),
+        "tenant_id": resolved.get("tenant_id"),
+    }
+
+
+def _source_label(source: Dict[str, Any]) -> str:
+    file_name = str(source.get("file_name")
+                    or source.get("dataset_name")
+                    or source.get("resource_id") or "authorized source")
+    sheet = str(source.get("sheet") or "").strip()
+    return f"{file_name} / {sheet}" if sheet else file_name
+
+
+def _evidence_rows(result: Dict[str, Any]) -> List[Dict[str, Any]]:
+    rows = result.get("rows")
+    return [row for row in rows if isinstance(row, dict)] if isinstance(
+        rows, list) else []
+
+
+def _collect_evidence(context: Dict[str, Any]) -> Dict[str, Any]:
+    facts: List[Dict[str, Any]] = []
+    row_sets: List[Dict[str, Any]] = []
+    labels: List[str] = []
+
+    def add_label(value: Any) -> None:
+        text = str(value or "").strip()
+        if text and text not in labels:
+            labels.append(text)
+
+    for source in context.get("sources") or []:
+        if not isinstance(source, dict):
+            continue
+        binding = source.get("binding") if isinstance(
+            source.get("binding"), dict) else source
+        add_label(binding.get("dataset_name"))
+        add_label(binding.get("original_file_name"))
+        add_label(binding.get("sheet"))
+        add_label(binding.get("resource_id"))
+
+    for step_id, result in (context.get("previous_results") or {}).items():
+        if not isinstance(result, dict):
+            continue
+        if result.get("expression") and result.get("value") is not None:
+            facts.append({
+                "step_id": step_id,
+                "label": (
+                    f"{result.get('expression')} = {result.get('value')}"
+                    f" {result.get('unit') or ''}".strip()),
+                "value": result.get("value"),
+                "unit": result.get("unit") or "",
+            })
+        elif result.get("operation") and result.get("subtotals"):
+            for currency, item in (result.get("subtotals") or {}).items():
+                unit = "" if currency == "(unstated)" else str(currency)
+                facts.append({
+                    "step_id": step_id,
+                    "label": (
+                        f"{result.get('operation')} of "
+                        f"{result.get('measure') or 'rows'}: "
+                        f"{item.get('value')} {unit}".strip()),
+                    "value": item.get("value"),
+                    "unit": unit,
+                })
+        elif result.get("operation") and result.get("value") is not None:
+            facts.append({
+                "step_id": step_id,
+                "label": (
+                    f"{result.get('operation')} of "
+                    f"{result.get('measure') or 'rows'}: "
+                    f"{result.get('value')} {result.get('unit') or ''}".strip()),
+                "value": result.get("value"),
+                "unit": result.get("unit") or "",
+            })
+        elif result.get("value") is not None and not result.get("text"):
+            facts.append({
+                "step_id": step_id,
+                "label": (
+                    f"{result.get('summary') or 'result'}: "
+                    f"{result.get('value')} {result.get('unit') or ''}".strip()),
+                "value": result.get("value"),
+                "unit": result.get("unit") or "",
+            })
+        rows = _evidence_rows(result)
+        if not rows:
+            text = str(result.get("text") or "")
+            if text.strip():
+                rows = [
+                    {"excerpt": line.strip()}
+                    for line in text.splitlines() if line.strip()
+                ][:40]
+        if rows:
+            row_sets.append({
+                "step_id": step_id,
+                "rows": rows,
+                "schema": list(result.get("schema") or []),
+                "source_label": result.get("source_label") or "",
+                "source": result.get("source") or {},
+            })
+        for evidence in result.get("evidence") or []:
+            if not isinstance(evidence, dict):
+                continue
+            add_label(evidence.get("dataset_name"))
+            add_label(evidence.get("file_name"))
+            add_label(evidence.get("sheet"))
+            path = str(evidence.get("path") or "").strip()
+            if path and evidence.get("kind") not in (
+                    "connected_dataset", "connected_aggregate"):
+                add_label(Path(path).name)
+        source = result.get("source") if isinstance(
+            result.get("source"), dict) else {}
+        add_label(source.get("dataset_name"))
+        add_label(source.get("file_name"))
+        add_label(source.get("sheet"))
+        add_label(result.get("source_label"))
+
+    return {"facts": facts, "row_sets": row_sets, "labels": labels}
+
+
+def _row_columns(rows: List[Dict[str, Any]]) -> List[str]:
+    columns: List[str] = []
+    for row in rows[:1]:
+        for key in row:
+            if str(key) == "__sheet_row":
+                continue
+            columns.append(str(key))
+    return columns[:8]
+
+
+def _compose_evidence_content(
+    kind: str,
+    inputs: Dict[str, Any],
+    context: Dict[str, Any],
+) -> str:
+    evidence = _collect_evidence(context)
+    facts = evidence["facts"]
+    row_sets = evidence["row_sets"]
+    labels = evidence["labels"]
+    if not facts and not row_sets:
+        return ""
+    title = str(inputs.get("title") or context.get("objective")
+                or "Assignment result")[:200]
+    objective = str(context.get("objective") or "").strip()
+    if kind == "presentation":
+        lines = [f"Slide 1: Overview", f"- {objective or title}"]
+        slide = 2
+        if facts:
+            lines += ["", f"Slide {slide}: Result"]
+            lines += [f"- {fact['label']}" for fact in facts[:5]]
+            slide += 1
+        if row_sets:
+            lines += ["", f"Slide {slide}: Findings"]
+            entry = row_sets[0]
+            columns = _row_columns(entry["rows"])
+            for row in entry["rows"][:8]:
+                cells = " | ".join(
+                    str(row.get(column, "") or "") for column in columns)
+                row_number = row.get("__sheet_row")
+                prefix = f"row {row_number}: " if row_number else ""
+                lines.append(f"- {prefix}{cells}")
+            slide += 1
+        lines += ["", f"Slide {slide}: Sources"]
+        lines += [f"- {label}" for label in (labels[:8] or ["authorized source"])]
+        return "\n".join(lines)
+
+    lines = [f"# {title}", "", "## Objective", objective or title, "",
+             "## Summary"]
+    if facts:
+        lines += [f"- {fact['label']}" for fact in facts]
+    else:
+        lines += ["- See the retrieved records below."]
+    if row_sets:
+        entry = row_sets[0]
+        rows = entry["rows"]
+        columns = _row_columns(rows)
+        lines += ["", "## Findings"]
+        if columns:
+            lines.append("| Row | " + " | ".join(columns) + " |")
+            lines.append("|" + "---|" * (len(columns) + 1))
+            for row in rows[:20]:
+                values = [
+                    str(row.get(column, "") or "").replace("|", "/")
+                    for column in columns
+                ]
+                lines.append("| " + str(row.get("__sheet_row") or "") + " | "
+                             + " | ".join(values) + " |")
+        else:
+            lines += [f"- {row}" for row in rows[:20]]
+    lines += ["", "## Sources"]
+    lines += [f"- {label}" for label in (labels[:12] or ["authorized source"])]
+    return "\n".join(lines)
+
+
+def _compose_evidence_text(
+    inputs: Dict[str, Any],
+    context: Dict[str, Any],
+) -> str:
+    evidence = _collect_evidence(context)
+    if not evidence["facts"] and not evidence["row_sets"]:
+        return ""
+    lines: List[str] = []
+    if evidence["facts"]:
+        lines.append("Result:")
+        lines += [f"- {fact['label']}" for fact in evidence["facts"]]
+    if evidence["row_sets"]:
+        rows = evidence["row_sets"][0]["rows"]
+        columns = _row_columns(rows)
+        lines.append("Findings:")
+        for row in rows[:10]:
+            cells = " | ".join(str(row.get(column, "") or "")
+                               for column in columns)
+            row_number = row.get("__sheet_row")
+            lines.append(f"- row {row_number}: {cells}" if row_number
+                         else f"- {cells}")
+    lines.append("Sources:")
+    lines += [f"- {label}" for label in
+              (evidence["labels"][:8] or ["authorized source"])]
+    return "\n".join(lines)
+
+
+def _compose_evidence_rows(
+    context: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    evidence = _collect_evidence(context)
+    if not evidence["row_sets"]:
+        return []
+    return list(evidence["row_sets"][0]["rows"])
+
+
+def _artifact_text(kind: str, path: str) -> str:
+    if kind == "document":
+        import docx
+
+        document = docx.Document(path)
+        parts = [paragraph.text for paragraph in document.paragraphs]
+        for table in document.tables:
+            for row in table.rows:
+                parts.append(" | ".join(cell.text for cell in row.cells))
+        return "\n".join(part for part in parts if part.strip())
+    if kind == "presentation":
+        import pptx
+
+        presentation = pptx.Presentation(path)
+        parts: List[str] = []
+        for slide in presentation.slides:
+            for shape in slide.shapes:
+                text = getattr(shape, "text", "")
+                if text:
+                    parts.append(str(text))
+        return "\n".join(parts)
+    if kind == "spreadsheet":
+        import openpyxl
+
+        workbook = openpyxl.load_workbook(path, data_only=True, read_only=True)
+        parts = []
+        for sheet in workbook.worksheets:
+            for row in sheet.iter_rows(values_only=True):
+                values = [str(value) for value in row if value not in (None, "")]
+                if values:
+                    parts.append(" | ".join(values))
+        return "\n".join(parts)
+    return Path(path).read_text(errors="replace")
+
+
+def _decimal_value(value: Any) -> Optional[Decimal]:
+    try:
+        return Decimal(str(value).replace(",", "").strip())
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+
+
+def _artifact_has_number(text: str, value: Any) -> bool:
+    expected = _decimal_value(value)
+    if expected is None:
+        return str(value).lower() in text.lower()
+    for match in re.finditer(r"-?\d+(?:,\d{3})*(?:\.\d+)?", text):
+        found = _decimal_value(match.group(0))
+        if found is None:
+            continue
+        if found == expected:
+            return True
+        try:
+            if abs(found - expected) < Decimal("0.000001"):
+                return True
+        except InvalidOperation:
+            continue
+    return False
+
+
+def _label_in_text(label: str, text: str) -> bool:
+    normalized = " ".join(re.sub(r"[^a-z0-9]+", " ", str(label).lower()).split())
+    tokens = [token for token in normalized.split()
+              if len(token) >= 3 and token not in {
+                  "the", "and", "file", "data", "sheet", "source"}]
+    if not tokens:
+        return False
+    lowered = text.lower()
+    return any(token in lowered for token in tokens)
+
+
+def _verify_artifact_substance(
+    kind: str,
+    path: str,
+    inputs: Dict[str, Any],
+    context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """A file opening is rendering, not task completion.
+
+    The saved artifact must contain the accepted calculation/record facts and
+    an actual source reference. Teaching is considered applied when the
+    renderer accepted the resolved format spec (and, for DOCX, the named font
+    is present in the saved file).
+    """
+    text = _artifact_text(kind, path)
+    evidence = _collect_evidence(context)
+    facts = evidence["facts"]
+    row_sets = evidence["row_sets"]
+    labels = evidence["labels"]
+    checks: Dict[str, Any] = {
+        "result_present": False,
+        "source_reference_present": not labels,
+        "subjects_covered": False,
+        "teaching_applied": True,
+    }
+    if facts:
+        checks["result_present"] = any(
+            _artifact_has_number(text, fact.get("value")) for fact in facts)
+        checks["subjects_covered"] = checks["result_present"]
+    if row_sets:
+        values = []
+        for row in row_sets[0]["rows"][:50]:
+            for key, value in row.items():
+                if str(key) == "__sheet_row" or value in (None, ""):
+                    continue
+                cell = str(value).strip()
+                if len(cell) >= 2:
+                    values.append(cell)
+        found = [value for value in values
+                 if value.lower() in text.lower()]
+        if not facts:
+            checks["subjects_covered"] = len(set(found)) >= min(
+                2, len(set(values)))
+            checks["result_present"] = bool(found)
+        else:
+            checks["subjects_covered"] = checks["result_present"]
+    if labels:
+        checks["source_reference_present"] = any(
+            _label_in_text(label, text) for label in labels)
+    format_spec = _office_format_spec(inputs, context)
+    if format_spec:
+        checks["teaching_spec_applied"] = True
+        font_name = str(format_spec.get("font_name") or "")
+        if kind == "document" and font_name:
+            try:
+                import docx
+
+                document = docx.Document(path)
+                checks["teaching_applied"] = (
+                    str(document.styles["Normal"].font.name or "")
+                    == font_name)
+            except Exception:  # noqa: BLE001 — unreadable artifact is a gap
+                checks["teaching_applied"] = False
+    checks["teaching_revision"] = str(
+        (context.get("teaching") or {}).get("revision") or "")
+    checks["ok"] = all(bool(checks[key]) for key in (
+        "result_present", "source_reference_present", "subjects_covered",
+        "teaching_applied"))
+    condense = (
+        f"result={checks['result_present']} "
+        f"source={checks['source_reference_present']} "
+        f"subjects={checks['subjects_covered']} "
+        f"teaching={checks['teaching_applied']}"
+    )
+    checks["summary"] = condense
+    if not checks["ok"]:
+        raise NeedsContext({
+            "concept": "artifact_substance",
+            "reason": (
+                "the saved artifact does not contain the accepted result, "
+                "the actual source reference, or a covered subject"),
+            "question": (
+                "The prepared artifact is not grounded in the accepted "
+                "result. Which facts or result should it contain?"),
+            "checked_evidence": [condense],
+            "next_retrieval": "read the accepted result and regenerate",
+            "kind": "missing_evidence",
+        })
+    return checks
 
 
 class AssignmentExecutor:
@@ -2186,6 +2760,18 @@ class AssignmentExecutor:
                 if isinstance(result.get("artifact"), dict) else None),
             "value": result.get("value"),
             "unit": result.get("unit"),
+            "expression": result.get("expression"),
+            "operation": result.get("operation"),
+            "measure": result.get("measure"),
+            "values": result.get("values"),
+            "subtotals": result.get("subtotals"),
+            "source": result.get("source"),
+            "source_label": result.get("source_label"),
+            "formulas": result.get("formulas"),
+            "matched_count": result.get("matched_count"),
+            "selected_count": result.get("selected_count"),
+            "truncated": result.get("truncated"),
+            "substantive": result.get("substantive"),
             "source_version": result.get("source_version"),
             "provider_ref": result.get("provider_ref"),
             "rows": result.get("rows"),
@@ -2447,6 +3033,301 @@ async def _action_registry_adapter(
         "summary": f"registered action {name} completed",
         "data": _json_safe(result),
         "evidence": [{"kind": "action_registry", "action": name}],
+    }
+
+
+@register_assignment_adapter(
+    "dataset.read", description="Read rows from a materialized Parquet dataset",
+    metadata={"effect": "read_only", "required_actions": ["retrieve"],
+              "requires_resource": True})
+async def _dataset_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    binding = dict(inputs.get("resource_binding") or {})
+    resolved = await asyncio.to_thread(_recheck_binding, binding, context)
+    path = str(resolved.get("path") or "").strip()
+    if not path or not os.path.isfile(path):
+        raise NeedsContext({
+            "concept": "dataset_resource",
+            "reason": "the materialized dataset is not available",
+            "question": "The authorized dataset copy is unavailable.",
+            "next_retrieval": "refresh the connected source, then retry",
+            "kind": "missing_evidence",
+            "waiting": {
+                "state": "source_unavailable",
+                "party": "source owner",
+                "resume_on": "resource_restored",
+                "since": _utc_now_iso(),
+                "detail": path,
+            },
+        })
+    import pandas as pd
+
+    try:
+        frame = await asyncio.to_thread(pd.read_parquet, path)
+    except Exception as exc:  # noqa: BLE001 — corrupt copy is a refusal
+        raise NeedsContext({
+            "concept": "dataset_resource",
+            "reason": f"the materialized copy could not be read: {type(exc).__name__}",
+            "question": "The authorized dataset copy is unreadable.",
+            "next_retrieval": "rematerialize the source, then retry",
+            "kind": "missing_evidence",
+        })
+    physical = [str(column) for column in frame.columns]
+    if "__sheet_row" not in physical:
+        raise NeedsContext({
+            "concept": "row_provenance",
+            "reason": (
+                "the materialized frame has no __sheet_row; positional row "
+                "numbers are forbidden because they cite the wrong cell"),
+            "question": "Which original sheet rows should the result cite?",
+            "checked_evidence": [f"columns={physical[:40]}"],
+            "kind": "missing_evidence",
+        })
+    wanted = [str(column).strip() for column in inputs.get("columns") or []
+              if str(column).strip()]
+    missing = [column for column in wanted if column not in physical]
+    if missing:
+        raise NeedsContext({
+            "concept": "column",
+            "reason": f"required column(s) not found: {missing}",
+            "question": "Which column should supply " + ", ".join(missing) + "?",
+            "checked_evidence": [f"columns={physical[:40]}"],
+            "next_retrieval": "read the materialized schema and confirm the mapping",
+            "kind": "missing_evidence",
+        })
+    records = [
+        {str(key): value for key, value in row.items()}
+        for row in frame.to_dict(orient="records")
+    ]
+    records = _filter_records(records, inputs.get("filters") or [])
+    for record in records:
+        row_number = _sheet_row(record.get("__sheet_row"))
+        if row_number is None:
+            raise NeedsContext({
+                "concept": "row_provenance",
+                "reason": (
+                    "a selected row has no usable original sheet-row number; "
+                    "no positional fallback is used"),
+                "question": "Which original sheet rows should be cited?",
+                "kind": "missing_evidence",
+            })
+        record["__sheet_row"] = row_number
+    records.sort(key=lambda item: int(item["__sheet_row"]))
+    matched = len(records)
+    limit = max(1, min(int(inputs.get("max_rows") or 500), 5000))
+    rows = records[:limit]
+    if wanted:
+        projection = list(dict.fromkeys(wanted + ["__sheet_row"]))
+        rows = [{column: row.get(column) for column in projection}
+                for row in rows]
+    from core.sheet_dataset_service import load_formulas_for_parquet
+
+    row_numbers = {int(row["__sheet_row"]) for row in rows}
+    formulas = _formula_rows(
+        load_formulas_for_parquet(path), row_numbers)
+    source = _connected_source_block(resolved, binding)
+    source_label = _source_label(source)
+    return {
+        "status": "applied",
+        "summary": (
+            f"read {len(rows)} of {matched} matching row(s) from "
+            f"{source_label}"),
+        "rows": _json_safe(rows),
+        "schema": [{"column": column} for column in physical if column],
+        "formulas": formulas,
+        "matched_count": matched,
+        "truncated": matched > limit,
+        "source_version": source["source_version"],
+        "source": source,
+        "source_label": source_label,
+        "evidence": [{
+            "kind": "connected_dataset",
+            **source,
+            "path": path,
+            "sheet_rows": sorted(row_numbers)[:2000],
+            "row_count": len(rows),
+        }],
+    }
+
+
+@register_assignment_adapter(
+    "dataset.aggregate",
+    description="Aggregate rows from a materialized Parquet dataset",
+    metadata={"effect": "local",
+              "required_actions": ["retrieve", "calculate"],
+              "requires_resource": True,
+              "allow_standing_authorization": False})
+async def _dataset_aggregate(
+    inputs: Dict[str, Any], context: Dict[str, Any],
+) -> Dict[str, Any]:
+    binding = dict(inputs.get("resource_binding") or {})
+    resolved = await asyncio.to_thread(_recheck_binding, binding, context)
+    path = str(resolved.get("path") or "").strip()
+    if not path or not os.path.isfile(path):
+        raise NeedsContext({
+            "concept": "dataset_resource",
+            "reason": "the materialized dataset is not available",
+            "question": "The authorized dataset copy is unavailable.",
+            "kind": "missing_evidence",
+        })
+    import pandas as pd
+
+    from core.dataset_aggregation import (
+        _infer_roles,
+        _numeric_measure_candidates,
+        aggregate_selected_rows,
+    )
+
+    frame = await asyncio.to_thread(pd.read_parquet, path)
+    columns = [str(column) for column in frame.columns]
+    if "__sheet_row" not in columns:
+        raise NeedsContext({
+            "concept": "row_provenance",
+            "reason": "the materialized frame has no original sheet-row column",
+            "question": "Which original sheet rows should the result cite?",
+            "kind": "missing_evidence",
+        })
+    records = [
+        {str(key): value for key, value in row.items()}
+        for row in frame.to_dict(orient="records")
+    ]
+    records = _filter_records(records, inputs.get("filters") or [])
+    for record in records:
+        row_number = _sheet_row(record.get("__sheet_row"))
+        if row_number is None:
+            raise NeedsContext({
+                "concept": "row_provenance",
+                "reason": "a selected row has no usable original sheet-row number",
+                "question": "Which original sheet rows should be cited?",
+                "kind": "missing_evidence",
+            })
+        record["__sheet_row"] = row_number
+    operation = str(inputs.get("operation") or "sum").strip().lower()
+    if operation not in ("sum", "count"):
+        raise NeedsContext({
+            "concept": "calculation_method",
+            "reason": f"unsupported aggregate operation '{operation}'",
+            "question": "Which calculation should the source supply?",
+            "kind": "business_decision",
+        })
+    value_column = str(inputs.get("value_column") or "").strip()
+    if operation == "sum" and not value_column:
+        candidates = _numeric_measure_candidates(frame, columns)
+        if len(candidates) == 1:
+            value_column = candidates[0]
+        else:
+            raise NeedsContext({
+                "concept": "value_column",
+                "reason": "no single numeric measure was named",
+                "question": "Which column should be summed?",
+                "checked_evidence": [
+                    f"numeric_columns={candidates[:20]}"],
+                "kind": "missing_evidence",
+            })
+    if operation == "sum" and value_column not in columns:
+        raise NeedsContext({
+            "concept": "value_column",
+            "reason": f"the named measure '{value_column}' is not in the frame",
+            "question": "Which column should be summed?",
+            "checked_evidence": [f"columns={columns[:40]}"],
+            "kind": "missing_evidence",
+        })
+    roles = _infer_roles({"value_column": value_column}, columns)
+    source = _connected_source_block(resolved, binding)
+    source_label = _source_label(source)
+    coverage = dict(source.get("coverage") or {})
+    result = await asyncio.to_thread(
+        aggregate_selected_rows,
+        records,
+        columns,
+        roles,
+        sheet=str(source.get("sheet") or ""),
+        file_name=str(source.get("file_name") or ""),
+        version=str(source.get("source_version") or ""),
+        source_row_count=coverage.get("source_row_count"),
+        coverage=coverage,
+        operation=operation,
+        value_column=value_column,
+    )
+    status = str(result.get("status") or "")
+    if status != "complete":
+        gaps = result.get("gaps") or []
+        raise NeedsContext({
+            "concept": "calculation_input",
+            "reason": str(result.get("answer") or result.get("block")
+                          or "the aggregate could not be certified"),
+            "question": (
+                "The source rows cannot certify this calculation yet. Which "
+                "rows or values should be corrected?"),
+            "affected_subjects": [
+                f"row {item.get('row')} missing {item.get('missing')}"
+                for item in gaps[:20]
+            ],
+            "checked_evidence": [
+                f"operation={operation}", f"measure={value_column or 'rows'}",
+                f"selected_rows={len(records)}",
+            ],
+            "kind": "missing_evidence",
+        })
+    subtotals = dict(result.get("subtotals") or {})
+    values = [
+        {
+            "currency": currency,
+            "value": item.get("value"),
+            "rows": item.get("rows"),
+        }
+        for currency, item in subtotals.items()
+    ]
+    if operation == "count":
+        value = str(sum(int(item.get("rows") or 0)
+                        for item in subtotals.values()))
+        unit = "rows"
+    elif len(values) == 1:
+        unit = values[0]["currency"]
+        value = str(values[0]["value"])
+        unit = "" if unit == "(unstated)" else unit
+    else:
+        value = None
+        unit = ""
+    row_numbers = sorted({
+        int(row.get("row")) for row in result.get("rows") or []
+        if _sheet_row(row.get("row")) is not None
+    })
+    from core.sheet_dataset_service import load_formulas_for_parquet
+
+    formulas = _formula_rows(
+        load_formulas_for_parquet(path), set(row_numbers))
+    measure = value_column or "rows"
+    summary = (
+        f"{operation} of {measure} = {value} {unit} across "
+        f"{len(records)} row(s) from {source_label}".strip()
+        if value is not None else
+        f"{operation} of {measure} across {len(records)} row(s) from "
+        f"{source_label} (per-currency subtotals)")
+    return {
+        "status": "applied",
+        "summary": summary,
+        "operation": operation,
+        "measure": measure,
+        "value": value,
+        "unit": unit,
+        "values": values,
+        "rows": _json_safe((result.get("rows") or [])[:500]),
+        "subtotals": _json_safe(subtotals),
+        "formulas": formulas,
+        "selected_count": len(records),
+        "source_version": source["source_version"],
+        "source": source,
+        "source_label": source_label,
+        "evidence": [{
+            "kind": "connected_aggregate",
+            **source,
+            "path": path,
+            "operation": operation,
+            "measure": measure,
+            "subtotals": _json_safe(subtotals),
+            "sheet_rows": row_numbers[:2000],
+            "selected_count": len(records),
+        }],
     }
 
 
@@ -2717,10 +3598,12 @@ async def _artifact_document(inputs: Dict[str, Any], context: Dict[str, Any]) ->
 
     path = str(inputs.get("path") or "").strip()
     content = str(inputs.get("content") or "")
+    if not content.strip() and inputs.get("compose_from_results"):
+        content = _compose_evidence_content("document", inputs, context)
     if not path or not content.strip():
         raise NeedsContext({
             "concept": "artifact_content",
-            "reason": "the document needs both a path and content",
+            "reason": "the document needs both a path and grounded content",
             "question": "What content should the document contain?",
             "kind": "missing_evidence",
         })
@@ -2739,6 +3622,7 @@ async def _artifact_document(inputs: Dict[str, Any], context: Dict[str, Any]) ->
             "message": str(result.get("error") or "document render failed"),
             "evidence": findings,
         }
+    checks = _verify_artifact_substance("document", path, inputs, context)
     digest = _sha256_file(path)
     return {
         "status": "applied",
@@ -2749,6 +3633,7 @@ async def _artifact_document(inputs: Dict[str, Any], context: Dict[str, Any]) ->
             "sha256": digest,
             "revision": digest[:16],
         },
+        "substantive": checks,
         "evidence_refs": [{"kind": "artifact", "sha256": digest}],
     }
 
@@ -2762,10 +3647,13 @@ async def _artifact_spreadsheet(inputs: Dict[str, Any], context: Dict[str, Any])
 
     path = str(inputs.get("path") or "").strip()
     rows = inputs.get("rows")
+    if (not isinstance(rows, list) or not rows) and inputs.get(
+            "compose_from_results"):
+        rows = _compose_evidence_rows(context)
     if not path or not isinstance(rows, list) or not rows:
         raise NeedsContext({
             "concept": "artifact_rows",
-            "reason": "the spreadsheet needs a path and row data",
+            "reason": "the spreadsheet needs a path and grounded row data",
             "question": "Which rows should the spreadsheet contain?",
             "kind": "missing_evidence",
         })
@@ -2778,6 +3666,8 @@ async def _artifact_spreadsheet(inputs: Dict[str, Any], context: Dict[str, Any])
             "status": "failed",
             "message": str(result.get("error") or "spreadsheet render failed"),
         }
+    checks = _verify_artifact_substance(
+        "spreadsheet", path, inputs, context)
     digest = _sha256_file(path)
     return {
         "status": "applied",
@@ -2788,6 +3678,7 @@ async def _artifact_spreadsheet(inputs: Dict[str, Any], context: Dict[str, Any])
             "sha256": digest,
             "revision": digest[:16],
         },
+        "substantive": checks,
         "evidence_refs": [{"kind": "artifact", "sha256": digest}],
     }
 
@@ -2801,10 +3692,12 @@ async def _artifact_presentation(inputs: Dict[str, Any], context: Dict[str, Any]
 
     path = str(inputs.get("path") or "").strip()
     content = str(inputs.get("content") or "")
+    if not content.strip() and inputs.get("compose_from_results"):
+        content = _compose_evidence_content("presentation", inputs, context)
     if not path or not content.strip():
         raise NeedsContext({
             "concept": "artifact_content",
-            "reason": "the presentation needs a path and an outline",
+            "reason": "the presentation needs a path and a grounded outline",
             "question": "What outline should the presentation contain?",
             "kind": "missing_evidence",
         })
@@ -2823,6 +3716,8 @@ async def _artifact_presentation(inputs: Dict[str, Any], context: Dict[str, Any]
             "message": str(result.get("error") or "presentation render failed"),
             "evidence": findings,
         }
+    checks = _verify_artifact_substance(
+        "presentation", path, inputs, context)
     digest = _sha256_file(path)
     return {
         "status": "applied",
@@ -2833,6 +3728,7 @@ async def _artifact_presentation(inputs: Dict[str, Any], context: Dict[str, Any]
             "sha256": digest,
             "revision": digest[:16],
         },
+        "substantive": checks,
         "evidence_refs": [{"kind": "artifact", "sha256": digest}],
     }
 
@@ -2850,11 +3746,21 @@ def _compose_email_draft(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
     from core.artifact_teaching import apply_email_teaching
 
     spec = _office_format_spec(inputs, context)
+    body = str(inputs.get("body") or "")
+    if not body.strip() and inputs.get("compose_from_results"):
+        body = _compose_evidence_text(inputs, context)
+    if not body.strip():
+        raise NeedsContext({
+            "concept": "email_content",
+            "reason": "the draft has no grounded body",
+            "question": "What should the email draft say?",
+            "kind": "missing_evidence",
+        })
     content = {
         "to": inputs.get("to") or [],
         "cc": inputs.get("cc") or [],
         "subject": str(inputs.get("subject") or ""),
-        "body": str(inputs.get("body") or ""),
+        "body": body,
         "attachments": list(inputs.get("attachments") or []),
     }
     if isinstance(content["to"], str):

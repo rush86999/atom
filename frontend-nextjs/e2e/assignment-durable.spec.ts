@@ -7,6 +7,8 @@ const DOMAINS = [
     outputKey: "commercial_output",
     kind: "document",
     expression: "2*10 + 3*20",
+    content:
+      "## Summary\n\nTotal ${calculate.value}\n\n## Sources\n\n- connected-records.xlsx (Records)",
     recipient: "test-recipient@example.invalid",
     correlation: "browser-A",
   },
@@ -16,6 +18,8 @@ const DOMAINS = [
     outputKey: "eligibility_output",
     kind: "presentation",
     expression: "",
+    content:
+      "Slide 1: Overview\n- record-2\n\nSlide 2: Findings\n- Subject: record-2\n- Status: active\n\nSlide 3: Sources\n- qualification.txt",
     recipient: "",
     correlation: "",
   },
@@ -36,8 +40,8 @@ test("user starts both domains from the product and reload keeps durable state",
   for (const domain of DOMAINS) {
     await page.getByLabel("Assignment objective").fill(domain.objective);
     await page.getByLabel("Authorized source path").fill(health[domain.sourceKey]);
-    await page.getByLabel("Deliverable output path").fill(health[domain.outputKey]);
     await page.getByLabel("Deliverable kind").selectOption(domain.kind);
+    await page.getByLabel("Artifact content").fill(domain.content);
     if (domain.expression) {
       await page.getByLabel("Calculation expression").fill(domain.expression);
     }

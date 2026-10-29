@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ✓  1 e2e/assignment-guided-reopen.spec.ts:5:5 › guided connected assignments survive a backend restart (434ms)
+
+  1 passed (1.1s)

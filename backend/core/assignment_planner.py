@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Sequence
 
 from core.assignment_executor import default_adapter_registry
+from core.assignment_resources import resource_binding
 from core.assignment_plan import (
     ASSIGNMENT_SCHEMA_VERSION,
     new_assignment,
@@ -52,24 +53,54 @@ def _bounded(value: Any, limit: int) -> str:
     return str(value or "")[:limit]
 
 
-def _source_step(source: Dict[str, Any], index: int) -> Dict[str, Any]:
+def _source_step(
+    source: Dict[str, Any],
+    index: int,
+    *,
+    aggregate: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     kind = str(source.get("kind") or "").strip().lower()
-    adapter = _SOURCE_ADAPTERS.get(kind)
+    representation = str(source.get("representation") or "").strip().lower()
+    if representation == "parquet_frame":
+        adapter = "dataset.aggregate" if aggregate else "dataset.read"
+    elif representation in ("xlsx", "file"):
+        adapter = "workbook.read" if kind == "workbook" else "document.read"
+    else:
+        adapter = _SOURCE_ADAPTERS.get(kind)
     if not adapter:
         raise AssignmentPlanError(
             f"unsupported source kind '{kind}'; supported: "
             f"{sorted(_SOURCE_ADAPTERS)}")
-    locator = str(
-        source.get("path") or source.get("resource_id")
-        or source.get("locator") or "").strip()
-    if not locator:
+    binding = resource_binding(source)
+    if not binding.get("resource_id") and not binding.get("dataset_name"):
         raise AssignmentPlanError(
-            f"source {kind!r} requires an authorized path/resource locator")
-    inputs: Dict[str, Any] = {"path": locator}
+            f"source {kind!r} requires a server-resolved resource binding")
+    inputs: Dict[str, Any] = {"resource_binding": binding}
+    if source.get("internal_fixture") and source.get("path"):
+        inputs["path"] = str(source["path"])
     if kind == "workbook":
         for key in ("sheet", "columns", "filters", "header_row", "max_rows"):
             if source.get(key) is not None:
                 inputs[key] = source[key]
+    elif representation == "parquet_frame":
+        for key in ("columns", "filters", "max_rows"):
+            if source.get(key) is not None:
+                inputs[key] = source[key]
+    if aggregate:
+        inputs["operation"] = str(
+            aggregate.get("operation") or "sum").strip().lower()
+        if aggregate.get("value_column"):
+            inputs["value_column"] = str(aggregate["value_column"])
+        if aggregate.get("filters") is not None:
+            inputs["filters"] = aggregate["filters"]
+        return new_step(
+            step_id=f"source-{index}",
+            title=f"Aggregate {kind} source",
+            operation_type="calculate",
+            adapter=adapter,
+            inputs=inputs,
+            effect="local",
+        )
     return new_step(
         step_id=f"source-{index}",
         title=f"Read {kind} source",
@@ -88,6 +119,7 @@ def _deliverable_step(
     teaching: Dict[str, Any],
     objective: str,
     calculation_step: Optional[str],
+    source_step: Optional[str],
     transport_adapter: Optional[str],
 ) -> List[Dict[str, Any]]:
     kind = str(deliverable.get("kind") or "").strip().lower()
@@ -98,6 +130,14 @@ def _deliverable_step(
     step_id = str(deliverable.get("step_id") or f"deliverable-{index}")
     if kind == "email_draft":
         draft_id = step_id
+        body = str(deliverable.get("body") or "").strip()
+        compose = False
+        if not body and calculation_step:
+            compose = True
+        if not body and not compose:
+            raise AssignmentPlanError(
+                "an email draft requires explicit body content or a "
+                "validated result to compose from")
         draft = new_step(
             step_id=draft_id,
             title=f"Prepare {deliverable.get('description') or 'email draft'}",
@@ -109,16 +149,14 @@ def _deliverable_step(
                 "cc": deliverable.get("cc") or [],
                 "subject": deliverable.get("subject")
                 or _bounded(objective, 200),
-                "body": deliverable.get("body")
-                or "Please see the prepared result.",
+                "body": body,
+                "compose_from_results": compose,
                 "deliverable_id": str(
                     deliverable.get("deliverable_id")
                     or f"del-{step_id}"),
             },
             effect="local",
         )
-        if not deliverable.get("send", False):
-            return [draft]
         return [draft]
 
     adapter = _DELIVERABLE_ADAPTERS[kind]
@@ -131,20 +169,26 @@ def _deliverable_step(
     }
     if kind == "spreadsheet":
         rows = deliverable.get("rows")
-        if not isinstance(rows, list) or not rows:
+        if isinstance(rows, list) and rows:
+            inputs["rows"] = rows
+        elif source_step:
+            inputs["rows"] = f"${{{source_step}.rows}}"
+            inputs["compose_from_results"] = True
+        else:
             raise AssignmentPlanError(
                 "a spreadsheet deliverable requires explicit rows or a "
-                "$ref to a prior read result")
-        inputs["rows"] = rows
+                "validated source read")
     else:
-        content = deliverable.get("content")
-        if not content and calculation_step:
-            content = (
-                "## Summary\n\n${" + calculation_step + ".value}\n\n"
-                "## Sources\n\n- Authorized source")
-        inputs["content"] = content or (
-            f"## Summary\n\n{_bounded(objective, 1000)}\n\n"
-            "## Sources\n\n- Authorized source")
+        content = str(deliverable.get("content") or "").strip()
+        if content:
+            inputs["content"] = content
+        elif calculation_step:
+            inputs["content"] = ""
+            inputs["compose_from_results"] = True
+        else:
+            raise AssignmentPlanError(
+                "a grounded deliverable requires explicit content or a "
+                "validated calculation; generic prose is not a deliverable")
     if not inputs.get("path"):
         raise AssignmentPlanError(
             f"deliverable {kind!r} requires an output path")
@@ -177,8 +221,17 @@ def _send_step(
         "to": outbound.get("to") or [],
         "cc": outbound.get("cc") or [],
         "subject": outbound.get("subject") or "",
-        "body": outbound.get("body") or "",
+        "body": str(outbound.get("body") or ""),
+        "deliverable_id": str(
+            outbound.get("deliverable_id") or "del-send"),
     }
+    if not inputs["body"].strip():
+        if outbound.get("compose_from_results"):
+            inputs["compose_from_results"] = True
+        else:
+            raise AssignmentPlanError(
+                "an outbound effect requires explicit body content or a "
+                "validated result to compose from")
     if draft_step:
         inputs["canvas_id"] = outbound.get("canvas_id") or ""
         inputs["draft_revision"] = {
@@ -219,8 +272,30 @@ def plan_assignment(
     """Build and validate an assignment plan from opaque descriptors."""
     teaching = teaching_snapshot or new_teaching_snapshot(
         revision="untrained")
+    aggregate: Optional[Dict[str, Any]] = None
+    if calculation and isinstance(calculation.get("aggregate"), dict):
+        aggregate = dict(calculation["aggregate"])
+        if calculation.get("expression"):
+            raise AssignmentPlanError(
+                "a calculation cannot be both an expression and a connected "
+                "aggregate")
+    aggregate_index = 0
+    if aggregate is not None:
+        aggregate_index = max(0, int(calculation.get("source_index") or 0))
+        if aggregate_index >= len(sources or []):
+            raise AssignmentPlanError(
+                "the aggregate names a source that is not in the accepted "
+                "source scope")
+        if str((sources or [])[aggregate_index].get("representation")
+               or "") != "parquet_frame":
+            raise AssignmentPlanError(
+                "a connected aggregate requires a materialized Parquet "
+                "dataset; an authorized workbook is read as rows")
     source_steps = [
-        _source_step(dict(source), index + 1)
+        _source_step(
+            dict(source), index + 1,
+            aggregate=aggregate if index == aggregate_index else None,
+        )
         for index, source in enumerate(sources or [])
     ]
     source_ids = [step["step_id"] for step in source_steps]
@@ -247,7 +322,9 @@ def plan_assignment(
         )]
     calc_step: Optional[str] = None
     calc_steps: List[Dict[str, Any]] = []
-    if calculation and calculation.get("expression"):
+    if aggregate is not None:
+        calc_step = source_ids[aggregate_index]
+    elif calculation and calculation.get("expression"):
         calc_step = "calculate"
         calc_steps = [new_step(
             step_id=calc_step,
@@ -264,10 +341,10 @@ def plan_assignment(
             },
             effect="local",
         )]
-    if calculation and not calculation.get("expression"):
+    if calculation and not calculation.get("expression") and aggregate is None:
         raise AssignmentPlanError(
-            "a calculation requires an explicit expression; a method gap "
-            "cannot be invented")
+            "a calculation requires an explicit expression or a validated "
+            "aggregate; a method gap cannot be invented")
 
     deliverable_steps: List[Dict[str, Any]] = []
     deliverable_records: List[Dict[str, Any]] = []
@@ -283,6 +360,7 @@ def plan_assignment(
             teaching=teaching,
             objective=objective,
             calculation_step=calc_step,
+            source_step=source_ids[0] if source_ids else None,
             transport_adapter=transport_adapter,
         )
         deliverable_steps.extend(steps)
@@ -298,8 +376,11 @@ def plan_assignment(
 
     send_steps: List[Dict[str, Any]] = []
     if outbound:
+        outbound_payload = dict(outbound)
+        if not str(outbound_payload.get("body") or "").strip() and calc_step:
+            outbound_payload["compose_from_results"] = True
         send_steps = [_send_step(
-            dict(outbound), step_id="send",
+            outbound_payload, step_id="send",
             depends_on=list(base_deps) + [
                 step["step_id"] for step in deliverable_steps],
             draft_step=next((
@@ -351,8 +432,10 @@ def plan_assignment(
         steps=steps,
         deliverables=deliverable_records,
         sources=[
-            {key: value for key, value in dict(source).items()
-             if key not in ("path", "locator")}
+            {
+                "kind": source.get("kind"),
+                "binding": resource_binding(source),
+            }
             for source in (sources or [])
         ],
         authorized_actions=actions,

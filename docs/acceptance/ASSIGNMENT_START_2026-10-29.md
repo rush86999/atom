@@ -1,7 +1,8 @@
 # Assignment starting boundary — accepted Chat objective → validated plan — 2026-10-29
 
-Status: **local product boundary passed.** Preserves `efc4bc9d5` and its
-two-domain executor evidence. No live send, deployment or source writeback.
+Status: **connected guided-start boundary passed.** Preserves `efc4bc9d5` and
+its two-domain executor evidence, `44b62a6bb` and `322981bcc`. No live send,
+deployment or source writeback.
 
 ## What changed
 
@@ -46,13 +47,17 @@ unknown capabilities become 422, not a new adapter.
 ### Chat/Activity surface
 
 The existing Assignments tab now includes a **Start durable work** form
-(objective, authorized source, output path, deliverable kind, calculation,
-test recipient and correlation id). It calls the same authenticated route and
-refreshes the durable projection. It does not infer state from chat text.
+(objective, deliverable kind, optional advanced artifact content, calculation,
+test recipient and correlation id). The ordinary path uses **Discover an
+authorized resource from a scope**; it does not ask for a server path, output
+path, formula argument or catalog id. The advanced path accepts a controlled
+fixture reference only for isolated tests. The form calls the same
+authenticated route and refreshes the durable projection. It does not infer
+state from chat text.
 
 ### Two natural-language domains
 
-The route test starts:
+The route starts:
 
 1. a workbook + calculation + document + controlled outbound objective;
 2. a document + presentation objective under a different teaching set and
@@ -61,6 +66,19 @@ The route test starts:
 Both use the same route, planner, executor, teaching resolver and adapter
 registry. The first waits for a correlated external reply, then approves and
 completes; the second completes without an external action.
+
+The connected guided acceptance then starts two materially different
+objectives against a real scoped catalog entry and real materialized Parquet
+rows:
+
+1. **Sum the total for the scotch parts price list** → `dataset.aggregate`
+   (`sum` of `Total` = `85.00 USD`), grounded document, controlled approval,
+   grounded outbox body;
+2. **Count the records in the scotch parts price list** → `dataset.aggregate`
+   (`count` = `3`), grounded presentation.
+
+No prompt rows, developer-authored Python plan or mocked reader/catalog. The
+accepted plan carries a path-free typed resource binding.
 
 ### Launcher safety
 
@@ -124,31 +142,137 @@ formula argument or correlation id. Unknown content requirements yield a
 clarification/pending state rather than generic prose being treated as a
 grounded deliverable.
 
+## Connected guided correction — 2026-10-29
+
+### Typed resource-to-reader contract
+
+The plan carries a typed `resource_binding`, not a path:
+
+- catalog/resource identity (`resource_id`, `dataset_name`, `external_id`);
+- representation (`parquet_frame` / `xlsx` / `file`);
+- original file identity (`original_file_name`) and source kind;
+- active source version;
+- sheet/entity identity;
+- actual physical and numeric columns;
+- materialization coverage;
+- authenticated access scope (user, workspace, tenant).
+
+Connected materialized datasets are read by `dataset.read` / `dataset.aggregate`
+with pandas Parquet over the server-resolved path. `openpyxl` remains only for
+an actual authorized workbook representation. `__sheet_row` is preserved on
+every row, and formula sidecars are filtered to the matched rows. No XLSX is
+manufactured to satisfy an adapter.
+
+Every read re-resolves the binding through
+`resolve_dataset_entry_scoped_sync` + `_assert_connected_source_access` +
+`_validate_connected_coverage` immediately before reading. A path resolved at
+start is not continuing access: a revoked grant or superseded version stops the
+read with a durable source-access gap. The executor-level control resolves the
+source, starts a durable wait, revokes the grant, resumes, and proves the read
+step waits with `source_access_revoked` without reading stale rows.
+
+### Bounded candidate selection
+
+`select_resource_candidates` scores every active catalog entry against the
+accepted objective/scope, actual columns and coverage. It never adopts the
+first result:
+
+- one justified match → adopt;
+- several plausible files/sheets → 409 clarification with candidates;
+- explicit sheet → select that sheet;
+- required multiple sources → preserve distinct resources;
+- no justified match → explicit pending work;
+- wrong workspace → 403.
+
+The controls cover a distractor ranked first by recency, the same workbook with
+several plausible sheets, an explicit sheet, two required sources, no match,
+and a real cross-workspace refusal.
+
+### Grounded artifacts, not generic prose
+
+Generic objective + “authorized source” completion is removed. When content is
+missing:
+
+- a validated calculation/aggregate is composed into the artifact from the
+  actual previous read/calculation results; or
+- the route returns `artifact_content_required` / `outbound_content_required`
+  clarification/pending work.
+
+Every saved artifact is checked after rendering: the accepted result value,
+actual source reference(s), covered subjects/records, and the teaching format
+must all be present. A file opening is not task completion.
+
+The calculated outbound body is composed from the same result and source
+evidence; the controlled outbox record contains the value and source, not a
+generic placeholder.
+
+### Real connected acceptance
+
+`backend/scripts/assignment_connected_acceptance.py` runs the production route
+against an isolated scratch database with:
+
+- an authenticated user/workspace/tenant;
+- a real `DatasetEntry` and real Parquet file under the dataset root;
+- a real active integration grant;
+- teaching for document and presentation output;
+- real `dataset.aggregate`, artifact renderers and `__sheet_row` provenance;
+- the environment-gated controlled outbox only.
+
+It produces `connected_acceptance.json` plus the saved document/presentation.
+The two objectives yield `85.00` and `3`; the sum document includes rows 2, 3
+and 4 and `scotch-parts.xlsx`; approval completes the assignment; the outbox
+body carries the result and source; rebuilding the executor from durable state
+reports both assignments completed.
+
 ## Evidence
 
+- `docs/acceptance/evidence/durable_assignment_20261029/connected-guided/`
+  — real scoped catalog → real Parquet → validated plan → grounded
+  document/presentation, `connected_acceptance.json`, stored artifacts,
+  approval/outbox, durable reopen.
+- `docs/acceptance/evidence/durable_assignment_20261029/browser-guided/`
+  — guided browser run for the same two objectives, approval, completion,
+  reload, `playwright-restart.txt`, `status-after-restart.json`.
+- `docs/acceptance/evidence/durable_assignment_20261029/browser-explicit/`
+  — explicit advanced-form run, kept separate from guided discovery.
 - `docs/acceptance/evidence/durable_assignment_20261029/browser-start/`
-  — Playwright start-from-form run for both domains, approval, completion and
-  reload; `playwright-restart.txt` and `status-after-restart.json` prove the
-  completed assignments survive a backend restart.
+  — preserved earlier start-boundary evidence.
 - `docs/acceptance/evidence/durable_assignment_20261029/` — prior executor
   evidence remains untouched.
-- Backend: `tests/test_assignment_routes.py` (start, teaching transfer,
-  correlated response, approval, second domain, unregistered proposed
-  adapter), `tests/test_assignment_launcher_guard.py`.
+- Backend: `tests/test_assignment_routes.py` (guided real catalog, distractor,
+  no match, wrong workspace, owned output, teaching, approval, second domain,
+  unregistered proposed adapter), `tests/test_assignment_resource_boundary.py`
+  (typed binding, real Parquet reader, candidate selection, revoked grant at
+  resumed executor read, stale version, forged/cross-workspace resource,
+  authority and deliverable controls), `tests/test_assignment_executor.py`,
+  `tests/test_assignment_launcher_guard.py`.
 - Frontend component: `components/assignments/__tests__/AssignmentPanel.test.tsx`;
   TypeScript compile clean.
 
 ## Verification
 
-- Focused backend suite: **110 passed**.
+- Focused backend suite: **125 passed**.
 - Assignment component: **3 passed**.
-- Playwright start/reload: **1 passed**.
-- Playwright after-backend-restart: **1 passed**.
+- Guided Playwright start/reload: **1 passed**.
+- Guided Playwright after backend restart: **1 passed**.
+- Explicit Playwright start/reload: **1 passed**.
+- Explicit Playwright after backend restart: **1 passed**.
+- Connected acceptance script: **passed** (`85.00`, `3`, both reopened).
 - `tsc --noEmit`: clean.
 
 ## Boundaries
 
 - Controlled outbox only; no live provider acceptance or recipient delivery.
+- The connected acceptance uses a real scoped `DatasetEntry`, real Parquet
+  rows, the real resolver/reader and a real active grant row in an isolated
+  scratch database. It does not fetch a live OneDrive file; live OAuth remains
+  outside this slice.
+- The guided deterministic calculator covers explicit `sum`/`count` objectives
+  against one materialized source. Compound or unstated calculations produce a
+  clarification rather than an invented method.
+- The explicit advanced form remains available for controlled fixtures; it is
+  not evidence of autonomous discovery. The guided browser evidence and the
+  explicit browser evidence are stored separately.
 - The planner is a capability planner over registered adapters, not a new
   business workflow engine. It does not grant permissions or invent adapters.
 - A production Outlook send still requires a prepared canvas and the existing

@@ -1,0 +1,11 @@
+{
+  "evidence": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/durable_assignment_20261029/connected-guided/connected_acceptance.json",
+  "scratch": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v2",
+  "sum_value": "85.00",
+  "count_value": "3",
+  "reopened": {
+    "Sum the total for the scotch parts price list": "completed",
+    "Count the records in the scotch parts price list": "completed"
+  }
+}
+exit=0

@@ -24,7 +24,9 @@ from core.assignment_plan import new_teaching_snapshot
 from core.assignment_resources import (
     AssignmentResourceError,
     allocate_output_path,
+    derive_aggregate_spec,
     resolve_assignment_source,
+    select_resource_candidates,
     source_fingerprint,
 )
 from core.base_routes import BaseAPIRouter
@@ -169,12 +171,52 @@ async def start_assignment(
         from core.sheet_dataset_service import find_entries_sync
 
         scope = dict(body.source_scope or {})
+        scope_workspace = str(scope.get("workspace_id") or "").strip()
+        workspace_id = current_user.workspace_id or "default"
+        if scope_workspace and scope_workspace != workspace_id:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "resource_workspace_mismatch",
+                    "message": (
+                        "The permitted source scope names a different "
+                        "workspace."),
+                },
+            )
         entries = find_entries_sync(
             query=str(scope.get("query") or ""),
-            workspace_id=current_user.workspace_id or "default",
-            limit=max(1, min(int(scope.get("limit") or 5), 20)),
+            workspace_id=workspace_id,
+            limit=max(1, min(int(scope.get("limit") or 20), 50)),
         )
-        if not entries:
+        try:
+            chosen_entries = select_resource_candidates(
+                entries,
+                objective=body.objective,
+                scope_query=str(scope.get("query") or ""),
+                explicit_sheet=scope.get("sheet"),
+                required_count=max(
+                    1, min(int(scope.get("required_count") or 1), 5)),
+            )
+        except AssignmentResourceError as exc:
+            raise HTTPException(
+                status_code=exc.status,
+                detail={
+                    "error": exc.code,
+                    "message": str(exc),
+                    "candidates": [
+                        {
+                            "dataset_name": item.get("dataset_name"),
+                            "sheet": item.get("entity_name"),
+                            "file_name": item.get("file_name"),
+                            "columns": item.get("columns") or [],
+                            "row_count": item.get("row_count"),
+                            "coverage": item.get("coverage") or {},
+                        }
+                        for item in (exc.candidates or [])[:10]
+                    ],
+                },
+            )
+        if not chosen_entries:
             raise HTTPException(
                 status_code=409,
                 detail={
@@ -187,7 +229,6 @@ async def start_assignment(
                                     "the permitted scope explicitly.",
                 },
             )
-        chosen = entries[0]
         body.sources = [{
             "dataset_name": chosen.get("dataset_name"),
             "sheet": chosen.get("entity_name"),
@@ -195,7 +236,7 @@ async def start_assignment(
             "kind": "workbook" if str(
                 chosen.get("file_name") or "").lower().endswith(
                     (".xlsx", ".xls", ".csv")) else "document",
-        }]
+        } for chosen in chosen_entries]
     if not body.sources:
         raise HTTPException(
             status_code=422,
@@ -240,6 +281,20 @@ async def start_assignment(
         raise HTTPException(
             status_code=422, detail="no authorized source resolved")
 
+    if body.calculation is None:
+        try:
+            body.calculation = derive_aggregate_spec(
+                body.objective, resolved_sources)
+        except AssignmentResourceError as exc:
+            raise HTTPException(
+                status_code=exc.status,
+                detail={
+                    "error": exc.code,
+                    "message": str(exc),
+                    "candidates": list(exc.candidates or [])[:20],
+                },
+            )
+
     deliverables = []
     accepted_actions = ["retrieve"]
     if body.calculation:
@@ -257,36 +312,72 @@ async def start_assignment(
                 detail=f"unsupported deliverable kind '{kind}'")
         if kind == "email_draft":
             accepted_actions.append("edit")
+            if not str(deliverable.get("body") or "").strip(
+                    ) and not body.calculation:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "artifact_content_required",
+                        "message": (
+                            "The email draft needs a body or a validated "
+                            "result to compose from."),
+                        "clarifications": [{
+                            "concept": "email_content",
+                            "question": "What should the email draft say?",
+                        }],
+                    },
+                )
+        elif kind in ("document", "presentation"):
+            if not str(deliverable.get("content") or "").strip(
+                    ) and not body.calculation:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "artifact_content_required",
+                        "message": (
+                            "The artifact needs explicit content or a "
+                            "validated result to compose from; generic "
+                            "prose is not a grounded deliverable."),
+                        "clarifications": [{
+                            "concept": "artifact_content",
+                            "question": (
+                                "Which facts or calculation should the "
+                                "artifact contain?"),
+                        }],
+                    },
+                )
+        elif kind == "spreadsheet":
+            rows = deliverable.get("rows")
+            if not isinstance(rows, list) or not rows:
+                if not resolved_sources:
+                    raise HTTPException(
+                        status_code=409,
+                        detail={
+                            "error": "artifact_rows_required",
+                            "message": (
+                                "The spreadsheet needs rows or a validated "
+                                "source read."),
+                        },
+                    )
         title = str(deliverable.get("description")
                     or body.objective)[:200]
         deliverable["path"] = allocate_output_path(
             current_user, kind=kind, title=title,
             assignment_id=f"draft-{uuid.uuid4().hex[:12]}")
-        if not deliverable.get("content"):
-            source_label = (
-                resolved_sources[0].get("dataset_name")
-                or resolved_sources[0].get("resource_id")
-                or "authorized source")
-            if kind == "presentation":
-                deliverable["content"] = (
-                    "Slide 1: Overview\n- " + body.objective[:300]
-                    + "\n\nSlide 2: Summary\n- "
-                    + ("${calculate.value}" if body.calculation
-                       else "Prepared from the authorized source")
-                    + "\n\nSlide 3: Sources\n- " + str(source_label))
-            elif kind == "email_draft":
-                deliverable["body"] = (
-                    "Please see the prepared result for: "
-                    + body.objective[:300])
-            else:
-                deliverable["content"] = (
-                    "## Summary\n\n" + body.objective[:1000]
-                    + ("\n\nResult: ${calculate.value}"
-                       if body.calculation else "")
-                    + "\n\n## Sources\n\n- " + str(source_label))
         deliverables.append(deliverable)
     if body.outbound:
         accepted_actions.append("outbound")
+        if not str((body.outbound or {}).get("body") or "").strip(
+                ) and not body.calculation:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "outbound_content_required",
+                    "message": (
+                        "The outbound message needs a body or a validated "
+                        "result to compose from."),
+                },
+            )
     if body.proposed_steps is not None and os.getenv(
             "ATOM_ASSIGNMENT_ALLOW_PROPOSED_STEPS") != "1":
         raise HTTPException(
