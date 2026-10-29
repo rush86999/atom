@@ -51,9 +51,13 @@ Ledger: `docs/acceptance/CONNECTED_CORE_LEDGER_2026-10-28.json`
 ## Still open
 
 - **Live changed-byte refresh.** The only remaining job-protocol step is
-  modifying the OneDrive source, syncing, and verifying updated retrieval.
-  That requires source writeback, which the work order forbids. Verified
-  instead: real unchanged repeat sync, explicit rebind with assessment-reuse
+  modifying a disposable OneDrive source, syncing, and verifying updated
+  retrieval. It is blocked on two owner actions: restore the existing
+  Microsoft client configuration (live refresh currently returns
+  `invalid_client`) and name a disposable item for the change. The historical
+  production price list will not be modified. Protocol:
+  `docs/acceptance/CHANGED_SOURCE_REFRESH_PROTOCOL.md`. Verified instead:
+  real unchanged repeat sync, explicit rebind with assessment-reuse
   invalidation and retained prior provenance, plus a changed-version control
   at the catalog/materialization boundary in unit tests.
 - **Multi-user Office authorization.** Per-file Office path authorization is

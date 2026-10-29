@@ -258,8 +258,10 @@
     "previous_bindings_retained": true
    },
    "live_changed_source": {
-    "status": "not_run",
-    "reason": "modifying the OneDrive item would be source writeback, which this work order forbids",
+    "status": "blocked",
+    "reason": "awaiting owner-provided disposable OneDrive item and restored Microsoft refresh configuration; the historical production price list is not to be modified",
+    "owner_action": "change the disposable workbook manually; agent remains read-only",
+    "protocol": "docs/acceptance/CHANGED_SOURCE_REFRESH_PROTOCOL.md",
     "local_changed_version_control": "unit test materializes changed bytes under the same source identity, supersedes the old version, rebinds, and records prior provenance"
    }
   },
