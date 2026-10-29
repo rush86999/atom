@@ -1,0 +1,17 @@
+{
+  "schema": "atom-assignment-release-stop-1",
+  "stopped_at": "2026-10-29T17:11:17.754265+00:00",
+  "results": [
+    {
+      "label": "backend",
+      "pid": 8427,
+      "stopped": true
+    },
+    {
+      "label": "frontend",
+      "pid": 8428,
+      "stopped": true
+    }
+  ],
+  "reaped_release_listeners": []
+}

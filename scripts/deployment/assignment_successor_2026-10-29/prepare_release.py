@@ -168,6 +168,8 @@ def main() -> None:
         "ENABLE_SCHEDULER": "false",
         "ENABLE_INGESTION_SYNC": "false",
         "ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS": "0",
+        "ATOM_ASSIGNMENT_ALLOW_LIVE_SEND": "0",
+        "ATOM_EMAIL_SEND_DISABLED": "1",
         "ATOM_ASSIGNMENT_WORKER_TOPOLOGY": "one_worker_process_per_assignment",
         "API_PORT": str(args.api_port),
         "FE_PORT": str(args.frontend_port),

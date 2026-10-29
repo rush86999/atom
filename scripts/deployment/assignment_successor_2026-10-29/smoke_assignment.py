@@ -48,6 +48,50 @@ def docx_text(path: Path) -> str:
     return "\n".join(parts)
 
 
+def validate_assignment(assignment: dict, artifact_text: str,
+                        actual_sha256: str, expected_sum: str,
+                        artifact_exists: bool = True) -> dict:
+    """Return explicit errors for a partial/failed or unproven assignment."""
+    errors: list[str] = []
+    if not artifact_exists:
+        errors.append("artifact missing")
+    if assignment.get("status") != "completed":
+        errors.append(f"status={assignment.get('status')!r}")
+    required = [d for d in assignment.get("deliverables", [])
+                if d.get("required", True)]
+    if not required:
+        errors.append("no required deliverables")
+    for deliverable in required:
+        if deliverable.get("status") != "applied":
+            errors.append(
+                f"deliverable {deliverable.get('deliverable_id')} status="
+                f"{deliverable.get('status')!r}")
+    documents = [d for d in required if d.get("kind") == "document"]
+    if not documents:
+        errors.append("no required document deliverable")
+    for document in documents:
+        recorded = str(document.get("sha256") or "")
+        if not recorded:
+            errors.append(
+                f"deliverable {document.get('deliverable_id')} has no recorded hash")
+        elif recorded != actual_sha256:
+            errors.append(
+                f"artifact hash mismatch recorded={recorded!r} actual={actual_sha256!r}")
+    if not expected_sum or expected_sum not in artifact_text:
+        errors.append(f"artifact does not contain expected result {expected_sum!r}")
+    versions = [
+        str((source.get("binding") or {}).get("source_version") or "")
+        for source in assignment.get("sources", [])
+    ]
+    if not versions:
+        errors.append("no source provenance")
+    elif any(not version for version in versions):
+        errors.append(f"incomplete source provenance: {versions!r}")
+    return {"ok": not errors, "errors": errors,
+            "required_deliverables": len(required),
+            "source_versions": versions}
+
+
 def collect(client: Client, objective: str, expected_sum: str) -> dict:
     _, me = client.call("GET", "/api/auth/me")
     _, rows = client.call("GET", "/api/assignments?include_terminal=true")
@@ -70,8 +114,13 @@ def collect(client: Client, objective: str, expected_sum: str) -> dict:
     if not artifact.is_file():
         raise SystemExit(f"REFUSED: artifact missing {artifact}")
     text = docx_text(artifact)
-    if expected_sum not in text:
-        raise SystemExit(f"REFUSED: artifact does not contain {expected_sum}")
+    actual_sha = sha256(artifact)
+    validation = validate_assignment(
+        assignment, text, actual_sha, expected_sum, artifact_exists=True)
+    if not validation["ok"]:
+        raise SystemExit(
+            "REFUSED: assignment validation failed: "
+            + "; ".join(validation["errors"]))
     steps = assignment.get("steps") or []
     snapshot = {
         "schema": "atom-assignment-release-representative-1",
@@ -83,17 +132,16 @@ def collect(client: Client, objective: str, expected_sum: str) -> dict:
         "teaching_revision": assignment.get("teaching_revision"),
         "deliverables": [
             {"kind": d.get("kind"), "status": d.get("status"),
+             "required": d.get("required", True),
              "artifact_path": d.get("artifact_path"), "sha256": d.get("sha256")}
             for d in assignment.get("deliverables", [])
         ],
         "artifact_path": str(artifact),
-        "artifact_sha256": sha256(artifact),
+        "artifact_sha256": actual_sha,
         "artifact_contains_expected_sum": expected_sum in text,
+        "validation": validation,
         "step_summaries": [s.get("result_summary") for s in steps],
-        "source_versions": [
-            (s.get("binding") or {}).get("source_version")
-            for s in assignment.get("sources", [])
-        ],
+        "source_versions": validation["source_versions"],
         "user": {"id": me.get("id"), "email": me.get("email"),
                  "workspace_id": me.get("workspace_id"),
                  "tenant_id": me.get("tenant_id")},

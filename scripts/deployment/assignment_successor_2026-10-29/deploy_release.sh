@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
 # One reversible deployment transaction for the assignment successor.
 #
-# Preconditions:
-#   - the release is already prepared with prepare_release.py
-#   - root/config/APPROVED exists (or REHEARSAL_APPROVED for --rehearsal)
-#   - a password file is supplied for the normal login-form smoke
-#
-# The transaction backs up first, stops only this release's PIDs, starts the
-# release, runs normal-auth + representative-assignment checks, restarts and
-# compares. Any failure after the start flips back to the previous release.
-# It never restores the database automatically.
+# Recovery is armed BEFORE shutdown. Pre-shutdown failures leave the running
+# service untouched. Failures after shutdown attempt a verified code rollback;
+# rollback failure is reported explicitly, never hidden. The database is never
+# restored automatically.
 set -euo pipefail
 
 ROOT="${RELEASE_ROOT:-}"
 MODE="production"
-if [[ "${1:-}" == "--rehearsal" ]]; then MODE="rehearsal"; shift; fi
+PRINT_PLAN=0
+for arg in "$@"; do
+  case "$arg" in
+    --rehearsal) MODE="rehearsal" ;;
+    --print-plan) PRINT_PLAN=1 ;;
+    *) echo "REFUSED: unknown argument: $arg" >&2; exit 2 ;;
+  esac
+done
 if [[ -z "$ROOT" || ! -f "$ROOT/RELEASE_IDENTITY.json" ]]; then
   echo "REFUSED: set RELEASE_ROOT to a prepared release root" >&2
   exit 2
@@ -35,40 +37,121 @@ fi
 OBJECTIVE="${ATOM_SMOKE_OBJECTIVE:-Sum the price of the HARSLE press brake stock price list}"
 EXPECTED_SUM="${ATOM_SMOKE_EXPECTED_SUM:-216700.00}"
 ARTIFACT_SHA="${ATOM_SMOKE_ARTIFACT_SHA256:-}"
-RECEIPT="$ROOT/run/deployment_receipt.json"
+FRESH_DATASET="${ATOM_SMOKE_FRESH_DATASET:-outlook_harsle_press_brake_stock_price_list}"
+FRESH_SOURCE="${ATOM_SMOKE_FRESH_SOURCE:-outlook}"
+FRESH_EXTERNAL_ID="${ATOM_SMOKE_FRESH_EXTERNAL_ID:-}"
+FRESH_VERSION="${ATOM_SMOKE_FRESH_VERSION:-e0a7fb8a1b4757b7f6bef882b19cc4588d66246e}"
+FRESH_SHEET="${ATOM_SMOKE_FRESH_SHEET:-库存产品}"
+RECEIPT="${DEPLOY_RECEIPT_PATH:-$ROOT/run/deployment_receipt.json}"
 mkdir -p "$ROOT/run" "$ROOT/logs"
 
-if [[ "$MODE" == "production" && ! -f "$ROOT/config/APPROVED" ]]; then
-  echo "REFUSED: config/APPROVED is missing; deployment is not authorized" >&2
-  exit 2
+REHEARSAL_ARGS=()
+if [[ "$MODE" == "rehearsal" ]]; then
+  REHEARSAL_ARGS=(--rehearsal)
 fi
+
+release_tool=("$PY" "$KIT/release_tool.py" "--root" "$ROOT")
+approval_cmd=("${release_tool[@]}" approval-check --mode "$MODE")
+preflight_running=("${release_tool[@]}" preflight "${REHEARSAL_ARGS[@]}" --ignore-running-ports)
+preflight_stopped=("${release_tool[@]}" preflight "${REHEARSAL_ARGS[@]}")
+start_cmd=("${release_tool[@]}" start "${REHEARSAL_ARGS[@]}")
+stop_cmd=("${release_tool[@]}" stop)
+backup_cmd=("${release_tool[@]}" backup --label "predeploy-${MODE}")
+status_cmd=("${release_tool[@]}" status)
+rollback_cmd=("${release_tool[@]}" rollback)
+
+if [[ "$PRINT_PLAN" == "1" ]]; then
+  python3 - "$MODE" "${REHEARSAL_ARGS[*]:-}" "${approval_cmd[*]}" \
+    "${preflight_running[*]}" "${backup_cmd[*]}" "${stop_cmd[*]}" \
+    "${preflight_stopped[*]}" "${start_cmd[*]}" "${rollback_cmd[*]}" <<'PY'
+import json, sys
+mode, rehearsal, approval, pre, backup, stop, pre2, start, rollback = sys.argv[1:]
+print(json.dumps({
+    "mode": mode,
+    "rehearsal_args": rehearsal.split(),
+    "approval": approval.split(),
+    "preflight_before_stop": pre.split(),
+    "backup": backup.split(),
+    "stop": stop.split(),
+    "preflight_after_stop": pre2.split(),
+    "start": start.split(),
+    "rollback": rollback.split(),
+}, indent=2))
+PY
+  exit 0
+fi
+
+state_shutdown_started=0
+state_previous_stopped=0
+state_candidate_started=0
+state_committed=0
+state_rollback_active=0
+
+write_failure_receipt() {
+  local rc="$1" rollback_rc="$2"
+  python3 - "$ROOT" "$MODE" "$rc" "$rollback_rc" <<'PY' >/dev/null 2>&1 || true
+import json, sys, datetime
+from pathlib import Path
+root = Path(sys.argv[1]); mode = sys.argv[2]
+receipt = {
+    "schema": "atom-assignment-release-failure-1",
+    "failed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    "mode": mode,
+    "exit_status": int(sys.argv[3]),
+    "rollback_start_rc": int(sys.argv[4]),
+    "database_restored": False,
+    "user_data_preserved": True,
+}
+(root / "run").mkdir(parents=True, exist_ok=True)
+(root / "run" / "deployment_failure.json").write_text(json.dumps(receipt, indent=2) + "\n")
+PY
+}
+
+recover_on_exit() {
+  rc=$?
+  if [[ "$state_rollback_active" == "1" ]]; then
+    exit "$rc"
+  fi
+  if [[ "$state_committed" == "1" && "$rc" == "0" ]]; then
+    exit 0
+  fi
+  if [[ "$state_shutdown_started" == "0" ]]; then
+    # Nothing disruptive happened; leave the running service alone.
+    exit "$rc"
+  fi
+  state_rollback_active=1
+  set +e
+  echo "DEPLOYMENT FAILED rc=$rc after shutdown; attempting verified code rollback (data untouched)" >&2
+  "${rollback_cmd[@]}" > "$ROOT/logs/rollback.log" 2>&1
+  rollback_rc=$?
+  if [[ "$rollback_rc" -eq 0 ]]; then
+    echo "ROLLBACK RECOVERED previous release after failure rc=$rc" >&2
+  else
+    echo "ROLLBACK FAILED rc=$rollback_rc after deployment failure rc=$rc" >&2
+    write_failure_receipt "$rc" "$rollback_rc"
+  fi
+  set -e
+  exit "$rc"
+}
+trap recover_on_exit EXIT
+
+# Authorization and local preconditions: no backup, shutdown or service call.
+"${approval_cmd[@]}"
 if [[ ! -f "$PASSWORD_FILE" ]]; then
   echo "REFUSED: normal-login smoke password file missing: $PASSWORD_FILE" >&2
   exit 2
 fi
 
-rollback_on_error() {
-  rc=$?
-  echo "DEPLOYMENT FAILED rc=$rc; attempting code rollback (data untouched)" >&2
-  if [[ -L "$ROOT/previous" ]]; then
-    "$PY" "$KIT/release_tool.py" --root "$ROOT" rollback > "$ROOT/logs/rollback.log" 2>&1 || true
-  else
-    "$PY" "$KIT/release_tool.py" --root "$ROOT" stop > "$ROOT/logs/rollback-stop.log" 2>&1 || true
-  fi
-  exit "$rc"
-}
+"${preflight_running[@]}"
+"${backup_cmd[@]}"
 
-"$PY" "$KIT/release_tool.py" --root "$ROOT" preflight \
-  --rehearsal $([[ "$MODE" == "rehearsal" ]] && echo --rehearsal) \
-  --ignore-running-ports
-"$PY" "$KIT/release_tool.py" --root "$ROOT" backup --label "predeploy-${MODE}"
-"$PY" "$KIT/release_tool.py" --root "$ROOT" stop
+state_shutdown_started=1
+"${stop_cmd[@]}"
+state_previous_stopped=1
 
-trap rollback_on_error ERR
-"$PY" "$KIT/release_tool.py" --root "$ROOT" preflight \
-  --rehearsal $([[ "$MODE" == "rehearsal" ]] && echo --rehearsal)
-"$PY" "$KIT/release_tool.py" --root "$ROOT" start \
-  --rehearsal $([[ "$MODE" == "rehearsal" ]] && echo --rehearsal)
+"${preflight_stopped[@]}"
+"${start_cmd[@]}"
+state_candidate_started=1
 
 "$PY" "$KIT/smoke_auth.py" \
   --frontend "$FE_BASE" --api-base "$API_BASE" \
@@ -76,27 +159,44 @@ trap rollback_on_error ERR
   --objective "$OBJECTIVE" --artifact-sha256 "$ARTIFACT_SHA" \
   --out-dir "$ROOT/run/auth-smoke"
 
+# Persistence check on the earlier completed assignment.
 "$PY" "$KIT/smoke_assignment.py" \
   --api-base "$API_BASE" --email "$EMAIL" --password-file "$PASSWORD_FILE" \
   --objective "$OBJECTIVE" --expected-sum "$EXPECTED_SUM" \
   --out "$ROOT/run/before-restart.json"
 
-"$PY" "$KIT/release_tool.py" --root "$ROOT" stop
-"$PY" "$KIT/release_tool.py" --root "$ROOT" start \
-  --rehearsal $([[ "$MODE" == "rehearsal" ]] && echo --rehearsal)
+# Fresh read-only execution through the public authenticated interface.
+"$PY" "$KIT/smoke_fresh_assignment.py" \
+  --api-base "$API_BASE" --email "$EMAIL" --password-file "$PASSWORD_FILE" \
+  --dataset-name "$FRESH_DATASET" --source "$FRESH_SOURCE" \
+  --external-id "$FRESH_EXTERNAL_ID" --source-version "$FRESH_VERSION" \
+  --sheet "$FRESH_SHEET" --expected-sum "$EXPECTED_SUM" \
+  --out "$ROOT/run/fresh-before-restart.json"
+
+"${stop_cmd[@]}"
+"${start_cmd[@]}"
 
 "$PY" "$KIT/smoke_assignment.py" \
   --api-base "$API_BASE" --email "$EMAIL" --password-file "$PASSWORD_FILE" \
   --objective "$OBJECTIVE" --expected-sum "$EXPECTED_SUM" \
   --out "$ROOT/run/after-restart.json" --compare-to "$ROOT/run/before-restart.json"
+"$PY" "$KIT/smoke_fresh_assignment.py" \
+  --api-base "$API_BASE" --email "$EMAIL" --password-file "$PASSWORD_FILE" \
+  --dataset-name "$FRESH_DATASET" --source "$FRESH_SOURCE" \
+  --external-id "$FRESH_EXTERNAL_ID" --source-version "$FRESH_VERSION" \
+  --sheet "$FRESH_SHEET" --expected-sum "$EXPECTED_SUM" \
+  --verify-snapshot "$ROOT/run/fresh-before-restart.json" \
+  --out "$ROOT/run/fresh-after-restart.json"
 
-"$PY" "$KIT/release_tool.py" --root "$ROOT" status > "$ROOT/run/final-status.json"
+"${status_cmd[@]}" > "$ROOT/run/final-status.json"
 
-trap - ERR
-python3 - "$ROOT" "$MODE" <<'PY'
+# Atomic receipt publication is the commit point. Keep the guard armed until
+# this succeeds and the final health checks above are recorded.
+RECEIPT_TMP="${RECEIPT}.tmp"
+python3 - "$ROOT" "$MODE" "$RECEIPT_TMP" <<'PY'
 import json, sys, datetime
 from pathlib import Path
-root = Path(sys.argv[1]); mode = sys.argv[2]
+root = Path(sys.argv[1]); mode = sys.argv[2]; target = Path(sys.argv[3])
 identity = json.loads((root / "RELEASE_IDENTITY.json").read_text())
 receipt = {
     "schema": "atom-assignment-release-deployment-1",
@@ -113,12 +213,15 @@ receipt = {
     "auth_smoke": json.loads((root / "run" / "auth-smoke" / "auth-smoke.json").read_text()),
     "assignment_before_restart": json.loads((root / "run" / "before-restart.json").read_text()),
     "assignment_after_restart": json.loads((root / "run" / "after-restart.json").read_text()),
+    "fresh_before_restart": json.loads((root / "run" / "fresh-before-restart.json").read_text()),
+    "fresh_after_restart": json.loads((root / "run" / "fresh-after-restart.json").read_text()),
     "rollback_available": (root / "previous").is_symlink(),
     "database_restored": False,
     "user_data_preserved": True,
 }
-(root / "run" / "deployment_receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
-print(json.dumps({"ok": True, "receipt": str(root / "run" / "deployment_receipt.json")}, indent=2))
+target.write_text(json.dumps(receipt, indent=2) + "\n")
 PY
+mv "$RECEIPT_TMP" "$RECEIPT"
+state_committed=1
 
 echo "DEPLOYMENT PASSED: $ROOT"

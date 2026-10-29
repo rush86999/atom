@@ -1,0 +1,93 @@
+{
+  "schema": "atom-assignment-deployment-rehearsal-1",
+  "created_at": "2026-10-29",
+  "release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+  "product_tree_sha256": "92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c",
+  "deployment_kit_tree_sha256": "9de2c279dee2b12e0d4e2fc16840751b848d0ce8a439c700ca8b084016a246cf",
+  "files": {
+    "assignment-after-restart.json": {
+      "sha256": "43179a70676caf1b6fa2ceeb690c12debb2ca0ccf0520624934c08efdd4dd931",
+      "bytes": 2476
+    },
+    "assignment-before-restart.json": {
+      "sha256": "5059361a9d1cf290aa76b458c8374d77bad18e083ee4cd4b58a8ace84170784f",
+      "bytes": 2091
+    },
+    "auth-smoke/assignment-open.png": {
+      "sha256": "0913efdb2a9929a471a0c27ba8bfddb605a11445bff05bd66bef167a9a962d03",
+      "bytes": 151726
+    },
+    "auth-smoke/auth-smoke.json": {
+      "sha256": "9b46342b83462c004d67dd273e0329656399f97146772fde4d544b328b97ecb7",
+      "bytes": 1787
+    },
+    "auth-smoke/signed-in-again.png": {
+      "sha256": "9fa7c8b1d91db997c2bd7e87ede1c99895a0d90d48047923ba372ac2d7e21777",
+      "bytes": 132260
+    },
+    "auth-smoke/signed-in-assignments.png": {
+      "sha256": "7ebb740507a27ca6ea0dce90387de135446cf5525e62537acc6e7d13a6db17b5",
+      "bytes": 132233
+    },
+    "auth-smoke/signed-in-dashboard.png": {
+      "sha256": "8cec710b93a4e267f4d9627ec995a4be352c2dd2e29aacac97227f4f523b9290",
+      "bytes": 149411
+    },
+    "auth-smoke/signed-out.png": {
+      "sha256": "4e234d503f008f7b3374b1728628515d46783d497b6bb3f9cb5a0db24590ca2f",
+      "bytes": 255654
+    },
+    "backup-manifest.json": {
+      "sha256": "88955d78df90b9c7eff758d29c63b21e8d8221fb92c2d3c56589c7334514561c",
+      "bytes": 265514
+    },
+    "deployment-receipt.json": {
+      "sha256": "59d8525a226676254ad5b453075f198ab30145f882d6ceb9fd7b20be036f371a",
+      "bytes": 11678
+    },
+    "draft-smoke-after.json": {
+      "sha256": "88de4167e40070b77597b4df6ce00c132d3813a1cec362387adb4a3f961188ad",
+      "bytes": 436
+    },
+    "draft-smoke.json": {
+      "sha256": "e97dfe53269a1d5422e646cdc6e8d01cedcf6aaca122e4e3f8942d1c0765dc2c",
+      "bytes": 1726
+    },
+    "fresh-after-restart.json": {
+      "sha256": "464d87cd2674513d3618590a9ab5b06dcc87d73a3d67f473024d5e38a5fe2da3",
+      "bytes": 1942
+    },
+    "fresh-before-restart.json": {
+      "sha256": "fae7ab2a0d7c140c8e4b91ad0d8b5bded6b2f48c6317b783cd8b597339d448e9",
+      "bytes": 2098
+    },
+    "identity-agreement.json": {
+      "sha256": "18984edfaf780423455e78f2e68318709883708b67845ae2d480d1ccf8ba6269",
+      "bytes": 773
+    },
+    "launch-controls.json": {
+      "sha256": "34e0dfbbc184b9c7d56096972e891a3a56d08036ce9610c34c37f716606005e8",
+      "bytes": 451
+    },
+    "preflight.json": {
+      "sha256": "0701bb77f87926a82fef1c648f61bb7b997d98100a40ba2082251156cb76c97e",
+      "bytes": 5848
+    },
+    "release-identity.json": {
+      "sha256": "29909dfc82e5ce451a4506b20d908b516ef8388e902c46d87f2f7c2c8e4c30f3",
+      "bytes": 1122
+    },
+    "send-denial.json": {
+      "sha256": "26d66b12f90ee0cc8a4304ee9730be5580f7d52bcdf4a328236ec18fcc2d6859",
+      "bytes": 275
+    },
+    "startup-receipt.json": {
+      "sha256": "2120f2081852926d0e32b2660706bc9a6b2ac1f9f5ccb97a339c1deee510488f",
+      "bytes": 1416
+    },
+    "stop-receipt.json": {
+      "sha256": "cbb9227740c3ab889f2799e50d094da38b1652554c086dea8fa89fbbfa88c10e",
+      "bytes": 315
+    }
+  }
+}

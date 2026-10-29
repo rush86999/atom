@@ -4,12 +4,12 @@ Status: **passed in an isolated runtime; live deployment remains unauthorized.**
 
 ## Identity exercised
 
-- Product commit: `ef95ceb3194ec92c51e64941d7bb364c0b8b0e75`
+- Product commit: `901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0`
 - Tag: `assignment-successor-2026-10-29`
 - Tested live runtime: `001f93472`
 - Product tree SHA-256:
-  `12060bee618e7a58a98324f682d39077c144c19a6fb7d22d77de8179237dbb9e`
-- Frontend build: `i_Co6JD6WAcOXWZyMudPw`
+  `92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c`
+- Frontend build: `QqBNj-ytvaFAwwCWX2M5F`
 - Health identity returned the exact product commit with `dirty=false`.
 
 ## Results
@@ -25,6 +25,11 @@ Status: **passed in an isolated runtime; live deployment remains unauthorized.**
 | Second login and workspace access | Passed | `auth-smoke/signed-in-again.png` |
 | Representative assignment reopen | Passed; `216700.00`, 8 rows | `assignment-before-restart.json` |
 | Restart agreement | Passed; run/assignment/status/artifact/source versions identical | `assignment-after-restart.json` |
+| Fresh assignment retrieval → calculation → artifact | Passed; new run, `216700.00`, grounded document | `fresh-before-restart.json` |
+| Fresh assignment after restart | Passed; same run/artifact/hash | `fresh-after-restart.json` |
+| Draft save/reopen | Passed; `email_draft` applied, same revision/hash after restart | `draft-smoke.json`, `draft-smoke-after.json` |
+| Production send denial | Passed; HTTP 422 before run creation, no provider/outbox effect | `send-denial.json` |
+| Recovery controls | Passed; 19 fake-service/command/approval/smoke controls | `launch-controls.json` |
 | One-command deployment transaction | Passed | `deployment-receipt.json` |
 | Code rollback C6 → C4 → C6 | Passed; database untouched | `rollback-rehearsal.json` |
 
@@ -37,19 +42,23 @@ the runtime config mode 600 and is not in this repository.
 
 - `ATOM_DEPLOYMENT_AUDIENCE=single_user`
 - `ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS=0`
+- `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`
+- `ATOM_EMAIL_SEND_DISABLED=1`
 - `ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT` unset
 - `ENABLE_SCHEDULER=false`, `ENABLE_INGESTION_SYNC=false`
 - DeepSeek-only selected provider policy
 - Microsoft client id/secret present (presence checked, never printed)
 - One backend worker; one worker process per assignment
-- Email outbound scope: **draft-and-approval only**; no send test
+- Email outbound scope: **draft-and-approval only**; send denied before transport
 
 ## Remaining blocker
 
-Live deployment is blocked only on owner authorization. Create
-`<root>/config/APPROVED` with the approver, date,
-`assignment-successor-2026-10-29`, and product commit
-`ef95ceb3194ec92c51e64941d7bb364c0b8b0e75`, supply the pilot password file,
+Live deployment is blocked on owner authorization. Create
+`<root>/config/APPROVED` as JSON with `approver`, `approved_at`,
+`release_tag` `assignment-successor-2026-10-29`, `product_commit`
+`901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0`, `product_tree_sha256`
+`92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c`,
+`scope` `single_user` and `mode` `production`. Supply the pilot password file
 and run `deploy_release.sh` without `--rehearsal`.
 
 The originally named Zoho workbook remains inaccessible and outside this

@@ -1,0 +1,10 @@
+{
+  "http_status": 422,
+  "body": {
+    "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter"
+  },
+  "runs_before": 5,
+  "runs_after": 5,
+  "delta": 0,
+  "send_allowed": false
+}

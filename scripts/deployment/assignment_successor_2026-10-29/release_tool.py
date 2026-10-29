@@ -111,6 +111,45 @@ def check_source_manifest(app: Path) -> dict:
             "mismatches": mismatches[:20]}
 
 
+def validate_approval(root: Path, mode: str) -> dict:
+    identity = load_identity(root)
+    filename = "APPROVED" if mode == "production" else "REHEARSAL_APPROVED"
+    path = root / "config" / filename
+    required = ("approver", "approved_at", "release_tag", "product_commit",
+                "product_tree_sha256", "scope", "mode")
+    result = {"ok": False, "path": str(path), "mode": mode,
+              "required_fields": list(required), "missing": [], "mismatches": {}}
+    if not path.is_file():
+        result["missing"] = list(required)
+        result["error"] = "approval_record_missing"
+        return result
+    try:
+        record = json.loads(path.read_text())
+    except Exception as exc:  # noqa: BLE001
+        result["error"] = f"approval_record_unreadable: {type(exc).__name__}"
+        return result
+    if not isinstance(record, dict):
+        result["error"] = "approval_record_not_an_object"
+        return result
+    result["missing"] = [key for key in required if not str(record.get(key) or "").strip()]
+    expected = {
+        "release_tag": identity.get("release_tag"),
+        "product_commit": identity.get("release_commit"),
+        "product_tree_sha256": identity.get("product_tree_sha256"),
+        "scope": "single_user",
+        "mode": mode,
+    }
+    for key, value in expected.items():
+        if str(record.get(key) or "").strip() != str(value or "").strip():
+            result["mismatches"][key] = {"expected": value,
+                                         "actual": record.get(key)}
+    if mode == "production" and str(record.get("mode") or "").strip() != "production":
+        result["mismatches"]["mode"] = {
+            "expected": "production", "actual": record.get("mode")}
+    result["ok"] = not result["missing"] and not result["mismatches"]
+    return result
+
+
 def release_checks(root: Path, *, require_approval: bool, allow_rehearsal: bool,
                    check_ports: bool = True) -> dict:
     identity = load_identity(root)
@@ -161,6 +200,11 @@ def release_checks(root: Path, *, require_approval: bool, allow_rehearsal: bool,
     add("assignment.controlled_transport_disabled",
         not truthy(env.get("ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT")),
         env.get("ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT", "<unset>"))
+    add("email.server_send_disabled", truthy(env.get("ATOM_EMAIL_SEND_DISABLED")),
+        env.get("ATOM_EMAIL_SEND_DISABLED", "<unset>"))
+    add("assignment.live_send_not_authorized",
+        not truthy(env.get("ATOM_ASSIGNMENT_ALLOW_LIVE_SEND")),
+        env.get("ATOM_ASSIGNMENT_ALLOW_LIVE_SEND", "<unset>"))
     add("scheduler.disabled", not truthy(env.get("ENABLE_SCHEDULER")),
         env.get("ENABLE_SCHEDULER", "<unset>"))
     add("ingestion_sync.disabled", not truthy(env.get("ENABLE_INGESTION_SYNC")),
@@ -206,14 +250,12 @@ def release_checks(root: Path, *, require_approval: bool, allow_rehearsal: bool,
         identity.get("topology") == "one_worker_process_per_assignment",
         identity.get("topology"))
 
-    approval = root / "config" / "APPROVED"
-    rehearsal = root / "config" / "REHEARSAL_APPROVED"
-    approval_ok = approval.is_file() or (allow_rehearsal and rehearsal.is_file())
-    add("approval.present", approval_ok,
-        str(approval if approval.is_file() else rehearsal if rehearsal.is_file() else approval))
-    if require_approval and not approval_ok:
+    approval_mode = "rehearsal" if allow_rehearsal else "production"
+    approval = validate_approval(root, approval_mode)
+    add("approval.record", approval["ok"], approval)
+    if require_approval and not approval["ok"]:
         checks.append({"name": "approval.required", "ok": False,
-                       "detail": "create config/APPROVED after review"})
+                       "detail": approval})
 
     api_port = int(env.get("API_PORT", identity.get("api_port", 8071)))
     fe_port = int(env.get("FE_PORT", identity.get("frontend_port", 3130)))
@@ -288,6 +330,13 @@ def cmd_preflight(args) -> int:
     atomic_write_json(out, report)
     print(json.dumps(report, indent=2))
     return 0 if report["ok"] else 1
+
+
+def cmd_approval_check(args) -> int:
+    root = Path(args.root).resolve()
+    result = validate_approval(root, args.mode)
+    print(json.dumps(result, indent=2))
+    return 0 if result["ok"] else 2
 
 
 def cmd_backup(args) -> int:
@@ -577,6 +626,10 @@ def main() -> None:
     p.add_argument("--rehearsal", action="store_true")
     p.add_argument("--ignore-running-ports", action="store_true")
     p.set_defaults(func=cmd_preflight)
+    p = sub.add_parser("approval-check")
+    p.add_argument("--mode", choices=("production", "rehearsal"),
+                   default="production")
+    p.set_defaults(func=cmd_approval_check)
     p = sub.add_parser("start")
     p.add_argument("--rehearsal", action="store_true")
     p.set_defaults(func=cmd_start)

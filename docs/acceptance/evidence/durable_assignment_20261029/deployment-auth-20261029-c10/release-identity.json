@@ -1,0 +1,26 @@
+{
+  "schema": "atom-assignment-successor-release-1",
+  "release_tag": "assignment-successor-2026-10-29",
+  "release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+  "tested_runtime_commit": "001f93472",
+  "product_paths": [
+    "backend",
+    "frontend-nextjs"
+  ],
+  "product_tree_sha256": "92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c",
+  "product_tree_matches_tested": true,
+  "source_manifest_sha256": "d62d34537079e6f63d1efffc8165d3c4f6fe552304157ff5acf934574e4e97c2",
+  "deployment_kit_tree_sha256": "9de2c279dee2b12e0d4e2fc16840751b848d0ce8a439c700ca8b084016a246cf",
+  "frontend_build_id": "QqBNj-ytvaFAwwCWX2M5F",
+  "frontend_api_origin": "http://127.0.0.1:8071",
+  "api_port": 8071,
+  "frontend_port": 3130,
+  "audience": "single_user",
+  "pilot_email": "admin@example.com",
+  "outbound_scope": "draft_and_approval_only",
+  "send_authorized": false,
+  "topology": "one_worker_process_per_assignment",
+  "prepared_at": "2026-10-29T16:58:20.973885+00:00",
+  "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data",
+  "seeded_rehearsal_data": true
+}

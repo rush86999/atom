@@ -63,8 +63,9 @@
     "live_changed_artifact": "live-connected/changed-source/changed-artifact.docx",
     "failed_zoho_gate": "live-connected/gate-result.json",
     "provenance_reconciliation": "docs/acceptance/LIVE_PROVENANCE_RECONCILIATION_2026-10-29.md",
-    "deployment_rehearsal": "deployment-auth-20261029/EVIDENCE_MANIFEST.json",
-    "deployment_runbook": "docs/deployment/assignment_successor_2026-10-29/DEPLOYMENT_RUNBOOK.md"
+    "deployment_rehearsal": "deployment-auth-20261029-c10/EVIDENCE_MANIFEST.json",
+    "deployment_runbook": "docs/deployment/assignment_successor_2026-10-29/DEPLOYMENT_RUNBOOK.md",
+    "goal_ledger": "docs/acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md"
   },
   "connected_guided": {
     "source": "real scoped DatasetEntry -> real Parquet -> real resolver/reader",
@@ -104,7 +105,10 @@
     "normal_login_form": "passed on isolated packaged source",
     "logout_token_revocation": "passed; old token 401",
     "deployment_transaction_rehearsal": "passed",
-    "code_rollback_rehearsal": "passed C6 -> C4 -> C6"
+    "code_rollback_rehearsal": "passed C6 -> C4 -> C6",
+    "server_side_send_denial": "passed; HTTP 422 before run creation",
+    "fresh_packaged_assignment": "passed; 216700.00, artifact/hash stable after restart",
+    "deployment_recovery_controls": "19 passed"
   },
   "bounded_taught_job": {
     "controlled": true,
@@ -125,7 +129,7 @@
   "live_outbound": false,
   "deployment": false,
   "remaining_blocks": [
-    "Deployment authorization pending: create config/APPROVED with approver, date, tag assignment-successor-2026-10-29 and product commit ef95ceb31",
+    "Deployment authorization pending: create config/APPROVED with approver, date, tag assignment-successor-2026-10-29 and product commit 901e5d773",
     "Named Zoho workbook remains inaccessible and outside this release",
     "Production email sending is not authorized; draft-and-approval only"
   ],
@@ -151,12 +155,13 @@
   "live_outbound_controlled": true,
   "release_identity": {
     "release_tag": "assignment-successor-2026-10-29",
-    "deployable_product_commit": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
+    "deployable_product_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
     "tested_live_runtime_commit": "001f93472",
-    "product_tree_sha256": "12060bee618e7a58a98324f682d39077c144c19a6fb7d22d77de8179237dbb9e",
-    "deployment_kit_tree_sha256": "261c8472be8411516925b0bbaf2e093553cc3112e12f002f501aa4f1817e70b5",
+    "product_tree_sha256": "92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c",
+    "deployment_kit_tree_sha256": "9de2c279dee2b12e0d4e2fc16840751b848d0ce8a439c700ca8b084016a246cf",
     "outbound_scope": "draft_and_approval_only",
     "send_authorized": false,
-    "topology": "one_worker_process_per_assignment"
+    "topology": "one_worker_process_per_assignment",
+    "goal_ledger": "docs/acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md"
   }
 }

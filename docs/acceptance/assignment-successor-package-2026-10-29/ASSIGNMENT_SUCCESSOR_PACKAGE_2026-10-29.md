@@ -13,9 +13,9 @@ was sent and nothing was deployed.
 
 | Item | Commit |
 |---|---|
-| Deployable product source | `ef95ceb31` |
+| Deployable product source | `901e5d773` |
 | Release tag | `assignment-successor-2026-10-29` |
-| Isolated deployment rehearsal | `ef95ceb31` |
+| Isolated deployment rehearsal | `901e5d773` |
 | Candidate source (live gates) | `001f93472` |
 | Clean-source base | `058e38ddb` |
 | Runtime-tested source | `e4c11c354` |
@@ -49,7 +49,7 @@ The runtime-tested commit is `e4c11c354`; `058e38ddb` is that runtime plus
 live-boundary evidence/docs. The live-gate fixes (effective-default workspace
 scope, per-sheet supersession linkage, regression tests), the core-surface
 `/assignments` mapping and normal-sign-out token revocation are in
-`ef95ceb31`. Clean-source focused, bounded and connected-scratch tests pass;
+`901e5d773`. Clean-source focused, bounded and connected-scratch tests pass;
 the isolated deployment rehearsal also passes. The deployable product tree
 checksum and deployment kit checksum are recorded in
 `assignment_successor_manifest.json` and rechecked by preflight.
@@ -102,6 +102,14 @@ Evidence:
 - **Reversible deployment package:** preflight, verified SQLite backup, scoped
   start/stop, one-command deployment, restart agreement and code rollback
   (`C6 → C4 → C6`) passed; the database was never restored or overwritten.
+- **Server-side draft-only sending:** with `ATOM_EMAIL_SEND_DISABLED=1` and
+  `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`, the packaged instance rejected an
+  outbound assignment at plan time (HTTP 422) before creating a run, and the
+  canvas/Outlook transports deny before any provider call. A draft-only
+  assignment saved and reopened after restart.
+- **Fresh packaged execution:** a new read-only assignment retrieved the HARSLE
+  source, calculated `216700.00`, rendered a document, completed, and produced
+  the same artifact/hash after restart.
 
 ## Not claimed
 
@@ -125,6 +133,8 @@ Evidence:
 | Live outbound acceptance | Controlled outbox only; no production send |
 | Normal authentication | Verified on isolated packaged source: login, workspace, assignment/artifact, logout revocation, second login |
 | Reversible deployment | Verified in isolation: preflight, backup, start/stop, auth smoke, assignment reopen, restart, code rollback |
+| Server-side send denial | Verified: HTTP 422 before run creation; no provider/outbox effect |
+| Fresh packaged assignment | Verified: retrieval → 216700.00 → document → restart/reopen |
 | Deployment | Not performed; owner authorization pending |
 | Named Zoho workbook | Not revalidated; failed gate preserved unchanged |
 
@@ -199,25 +209,34 @@ npx playwright test e2e/assignment-durable-reopen.spec.ts --workers=1
 - Isolated normal-auth smoke: passed (11 checks, no injected session)
 - Isolated deployment transaction: passed
 - Isolated code rollback `C6 → C4 → C6`: passed; database untouched
+- Product controls C10: 41 passed (assignment routes/executor + send policy)
+- Deployment-kit controls: 19 passed (recovery, approval, command construction, non-complete/failed/altered/provenance-negative smoke checks)
+- Fresh packaged assignment: passed; `216700.00`, artifact/hash identical after restart
+- Server-side send denial: passed; HTTP 422, no run/provider/outbox effect
 - TypeScript: clean
 - Frontend source: byte-identical to the previously tested working tree; no
   separate clean `node_modules` install was performed
 
 ## Deployment package
 
-The deployable product commit is `ef95ceb31` under tag
+The deployable product commit is `901e5d773` under tag
 `assignment-successor-2026-10-29`. Product tree checksum:
 `12060bee…`. The deployment kit and runbook are under
 `docs/deployment/assignment_successor_2026-10-29/` and
 `scripts/deployment/assignment_successor_2026-10-29/`.
 
 Isolated evidence:
-`docs/acceptance/evidence/durable_assignment_20261029/deployment-auth-20261029/`.
+`docs/acceptance/evidence/durable_assignment_20261029/deployment-auth-20261029-c10/`.
+
+Goal ledger:
+`docs/acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md`.
 
 The release remains blocked only on owner authorization. To authorize, create
-the deployment root's `config/APPROVED` with approver, date, release tag and
-product commit after reviewing the runbook and receipts. Production email
-sending requires a separate authorization and real-provider test.
+the deployment root's `config/APPROVED` as the JSON record in the runbook
+(approver, date, tag, product commit, product-tree checksum, single-user scope
+and production mode) after reviewing the runbook and receipts. Production email
+sending requires a separate authorization and real-provider test; the current
+server-side gate refuses it before transport.
 
 ## Live execution record
 
@@ -251,7 +270,7 @@ sending requires a separate authorization and real-provider test.
 ## Rollout
 
 1. Deploy only the exact product source at commit
-   `ef95ceb3194ec92c51e64941d7bb364c0b8b0e75` (tag
+   `901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0` (tag
    `assignment-successor-2026-10-29`); do not copy local working-tree files and
    do not use the stale `9a89471cc` instruction.
 2. Run the focused suite and AssignmentPanel tests on the release source.
@@ -303,16 +322,20 @@ database.
 ## Remaining blockers and limits
 
 - Deployment authorization is not granted. The owner must create the prepared
-  runtime's `config/APPROVED` with approver, date, tag
-  `assignment-successor-2026-10-29` and product commit
-  `ef95ceb3194ec92c51e64941d7bb364c0b8b0e75` after reviewing the runbook and
-  receipts, then supply the pilot password file and run the deployment
+  runtime's `config/APPROVED` as JSON with `approver`, `approved_at`,
+  `release_tag` `assignment-successor-2026-10-29`, `product_commit`
+  `901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0`, `product_tree_sha256`
+  `92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c`,
+  `scope` `single_user` and `mode` `production`, after reviewing the runbook
+  and receipts; then supply the pilot password file and run the deployment
   transaction without `--rehearsal`.
-- The originally named Zoho WorkDrive price list remains inaccessible; its
-  expired token was not repaired and its failed gate is preserved. The passing
-  live gate uses the predeclared Microsoft replacement, not the Zoho workbook.
 - Production email sending is not authorized. This release is
-  draft-and-approval only; a real-provider send test would be a separate gate.
+  draft-and-approval only; the server-side gate refuses send before transport.
+  A real-provider send test would be a separate gate.
+- Complete unfamiliar-column mapping confirmation/resume UI remains partial;
+  see the goal ledger.
+- The originally named Zoho WorkDrive price list remains inaccessible and is
+  not promised by this release.
 - No production deployment, credential change or source writeback was performed.
 
 The operational authorization and execution record is

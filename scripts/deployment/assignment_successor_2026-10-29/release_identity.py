@@ -15,11 +15,11 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 RELEASE_TAG = "assignment-successor-2026-10-29"
-RELEASE_COMMIT = "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75"
+RELEASE_COMMIT = "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0"
 TESTED_RUNTIME_COMMIT = "001f93472"
 PRODUCT_PATHS: Sequence[str] = ("backend", "frontend-nextjs")
 EXPECTED_PRODUCT_TREE_SHA256 = (
-    "12060bee618e7a58a98324f682d39077c144c19a6fb7d22d77de8179237dbb9e"
+    "92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c"
 )
 
 
