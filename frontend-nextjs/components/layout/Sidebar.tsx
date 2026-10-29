@@ -181,8 +181,20 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     const displayName = session?.user?.name || profile.name || "Atom User";
     const displayEmail = session?.user?.email || profile.email || "Premium Agent Ops";
 
-    const handleSignOut = () => {
+    const handleSignOut = async () => {
         if (typeof window !== "undefined") {
+            const token = getAuthToken();
+            const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+            if (token && apiBase) {
+                try {
+                    await fetch(`${apiBase}/api/auth/logout`, {
+                        method: "POST",
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                } catch {
+                    // Local sign-out still proceeds; the UI must not trap a user.
+                }
+            }
             localStorage.setItem("atom_explicit_logout", "1");
             localStorage.removeItem("auth_token");
             localStorage.removeItem("token");

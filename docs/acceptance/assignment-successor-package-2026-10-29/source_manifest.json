@@ -258,6 +258,11 @@
       "path": "backend/core/product_profile.py",
       "category": "backend_runtime",
       "sha256": "4f05280c580001d71aa29e4ba9ee7a8139d046b6bbbc7c20ade299001f5eb5f7"
+    },
+    {
+      "path": "frontend-nextjs/components/layout/Sidebar.tsx",
+      "category": "frontend",
+      "sha256": "db7fc9f481b0b196e49d75a3bec03c6fae9e4fe00ac31693b73cd52e330419bf"
     }
   ],
   "migrations": [],
