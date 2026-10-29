@@ -3930,6 +3930,16 @@ async def _outlook_send(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
     """Send through the authorized Outlook/canvas path, not a generic SES
     fallback. Provider acceptance and reconciliation are recorded on the
     task operation by EmailCanvasService."""
+    if os.getenv("ATOM_ASSIGNMENT_ALLOW_LIVE_SEND", "0") != "1":
+        return {
+            "status": "failed",
+            "message": (
+                "production email sending is not authorized in this release; "
+                "the assignment must remain draft-and-approval only"),
+            "evidence": [{"kind": "outbound",
+                          "provider_state": "not_sent",
+                          "policy": "live_send_disabled"}],
+        }
     from core.canvas_email_service import EmailCanvasService
     from core.database import get_db_session
 

@@ -27,7 +27,7 @@
     {
       "path": "backend/core/assignment_planner.py",
       "category": "backend_runtime",
-      "sha256": "a73fd0486a24075f5f15532a1598f8591067723e66b738db019a33b966a52f62"
+      "sha256": "8420a686852427232830dcc166239d73dac1eaf64b4068427e127de4067d6288"
     },
     {
       "path": "backend/core/assignment_resources.py",
@@ -37,7 +37,7 @@
     {
       "path": "backend/core/assignment_executor.py",
       "category": "backend_runtime",
-      "sha256": "be4f5458f7cc87d35d5f73f9f28e42e38456c4ad5feead5f6f65e72a2147cb18"
+      "sha256": "83986b26aaa26c23ebf6bc957075e3edee54fc08820336c40f1db2980dc07e72"
     },
     {
       "path": "backend/core/assignment_controlled_transport.py",
@@ -263,6 +263,31 @@
       "path": "frontend-nextjs/components/layout/Sidebar.tsx",
       "category": "frontend",
       "sha256": "db7fc9f481b0b196e49d75a3bec03c6fae9e4fe00ac31693b73cd52e330419bf"
+    },
+    {
+      "path": "backend/core/email_send_policy.py",
+      "category": "backend_runtime",
+      "sha256": "573fb3db675f1875152932d6c1cf7fd86928042f7fea9a9cb7d20b0aa4bde7dd"
+    },
+    {
+      "path": "backend/core/canvas_email_service.py",
+      "category": "backend_runtime",
+      "sha256": "1f30bcf2ca6c7d4ce4769c9a48348fcf06f8d28419b18a5b55ee8c7adcd2da9f"
+    },
+    {
+      "path": "backend/integrations/outlook_service.py",
+      "category": "backend_runtime",
+      "sha256": "0515e01fee8ac8b0c232bf2ce7ad68b62d574cecc974e568fcf3c40691c0a7b0"
+    },
+    {
+      "path": "backend/tests/test_assignment_send_policy.py",
+      "category": "tests_and_harnesses",
+      "sha256": "4819dee9352c4511a1072ff14bac193c9b65c2c4b26faa198cb8a589bacec292"
+    },
+    {
+      "path": "backend/tests/test_email_send_policy.py",
+      "category": "tests_and_harnesses",
+      "sha256": "0a15b900fcfb5ed3a4144b153501ff9eccf8ad2427ce8c8f1a9070b68b056caa"
     }
   ],
   "migrations": [],

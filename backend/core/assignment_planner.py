@@ -13,6 +13,7 @@ steps.
 """
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List, Optional, Sequence
 
 from core.assignment_executor import default_adapter_registry
@@ -213,6 +214,12 @@ def _send_step(
     transport_adapter: Optional[str],
 ) -> Dict[str, Any]:
     adapter = transport_adapter or "email.send_outlook"
+    if adapter == "email.send_outlook" and os.getenv(
+            "ATOM_ASSIGNMENT_ALLOW_LIVE_SEND", "0") != "1":
+        raise AssignmentPlanError(
+            "production email sending is not authorized in this release; "
+            "use a draft-and-approval deliverable or the isolated controlled "
+            "outbox adapter")
     if adapter == "email.send_outlook" and not outbound.get("canvas_id"):
         raise AssignmentPlanError(
             "the Outlook send adapter requires an existing prepared canvas_id; "

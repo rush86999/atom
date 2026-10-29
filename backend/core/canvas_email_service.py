@@ -1141,6 +1141,12 @@ class EmailCanvasService:
         """
         if canvas_id and self._canvas_owner_id(canvas_id) != str(user_id):
             return {"success": False, "error": "Not the canvas owner"}
+        from core.email_send_policy import (
+            disabled_result,
+            live_email_send_disabled,
+        )
+        if live_email_send_disabled():
+            return disabled_result()
         from core.email_policy import evaluate_email_action
 
         # Grounded send gate (Installation Adaptation Plan Phase 4): the

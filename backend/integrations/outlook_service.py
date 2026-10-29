@@ -661,6 +661,13 @@ class OutlookService(IntegrationService):
     ) -> Optional[Dict[str, Any]]:
         """Send email via Outlook"""
         self.last_send_error = None
+        from core.email_send_policy import (
+            disabled_result,
+            live_email_send_disabled,
+        )
+        if live_email_send_disabled():
+            self.last_send_error = disabled_result()
+            return None
         try:
             # Consent check before the wire call: /me/sendMail needs the
             # Mail.Send delegated permission, which is SEPARATE from
