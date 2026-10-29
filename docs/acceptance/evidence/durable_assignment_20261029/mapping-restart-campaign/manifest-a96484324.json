@@ -1,0 +1,296 @@
+{
+  "schema": "atom-mapping-restart-campaign-manifest-1",
+  "generated_at": "2026-10-29T23:14:13.439463+00:00",
+  "status": "passed",
+  "scope": {
+    "slice": "mapping confirmation, correction and waiting-restart",
+    "goal_3_status": "Demonstrated for tested mapping/confirmation/correction/restart workflows",
+    "not_claimed": [
+      "automatic understanding of arbitrary schemas",
+      "every possible authority surface",
+      "arbitrary Excel compatibility"
+    ],
+    "no_deployment": true,
+    "no_real_sending": true,
+    "no_credential_change": true,
+    "no_source_writeback": true
+  },
+  "product": {
+    "commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tree": "ae8b96bba44df25915be38bce3679eab8901056a",
+    "head": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "dirty_paths": []
+  },
+  "configuration": {
+    "backend": "isolated uvicorn on 127.0.0.1:8071, scratch SQLite/parquet stores",
+    "frontend": "built standalone Next.js on 127.0.0.1:3130",
+    "email": "ATOM_EMAIL_SEND_DISABLED=1",
+    "live_send": "ATOM_ASSIGNMENT_ALLOW_LIVE_SEND unset/0",
+    "internal_paths": "disabled in browser harnesses",
+    "waiting_restart": "backend restarted against the same scratch DB, parquet, office and artifact stores; frontend stayed up"
+  },
+  "frozen_release": {
+    "commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "tag": "assignment-successor-2026-10-29",
+    "tag_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "unchanged": true
+  },
+  "runs": {
+    "workbook_b": {
+      "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+      "assignment_id": "asg-787c5e9954dc46cc",
+      "result": "35.00",
+      "currency": "USD",
+      "mapping_revision": 2,
+      "directory": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/attempts/c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+      "result_sha256": "bc9cac1ba9ebb1a9ff67ba754892e7975754a23d5b430d69282b02cc49ec22e0"
+    },
+    "workbook_c": {
+      "run_id": "a228e80a-1980-4d9c-8489-6295ca38abce",
+      "assignment_id": "asg-0fd041a25a0a4f78",
+      "result": "75.00",
+      "currency": "USD",
+      "mapping_revision": 2,
+      "unit_authority": "user_confirmed",
+      "directory": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/a228e80a-1980-4d9c-8489-6295ca38abce",
+      "result_sha256": "9832bf41d821c9cb83d897af698fb79a39201c7aea6a1ee42f009c43f6142a65",
+      "mapping": {
+        "concept": "Price",
+        "sheet": "Sheet1",
+        "column": "Value",
+        "unit": "USD",
+        "unit_authority": "user_confirmed",
+        "required_unit": "USD",
+        "source_unit": "",
+        "source_unit_column": "",
+        "source_version": "ffc757f370ae2469e66709171cded5bb5d90dd76",
+        "revision": 2,
+        "lesson_id": "5bae5c2461bf4ffe91261ec78b4026e7"
+      }
+    },
+    "correction": {
+      "run_id": "0f8db7bb-f3d2-4d5f-8ec5-768dd677843e",
+      "assignment_id": "asg-43178542de424137",
+      "initial_result": "100.00",
+      "corrected_result": "80.00",
+      "mapping_revision": 3,
+      "directory": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/0f8db7bb-f3d2-4d5f-8ec5-768dd677843e",
+      "result_sha256": "e80c016478b7a22569e39d2f2fe5ac3572f477ed3eac6037b8f2c63055c8106f"
+    },
+    "waiting_restart": {
+      "run_id": "a8b27ce5-ead8-4a9f-8b21-8069e088486e",
+      "assignment_id": "asg-a32409c8c11642a7",
+      "question_id": "a395e83e-c09d-45d8-b2fc-f90b7b903d91",
+      "source_version": "1a94f6f0d652ecf5e0da1ca060074802d53a2bc7",
+      "teaching_revision": "7df0cdfdd13a009d",
+      "result": "35.00",
+      "mapping_revision": 2,
+      "artifact_sha256": "732de22ef7c8e833013817f7884f1fdc4877228581c78f20482304392d1e0c1f",
+      "rejection": {
+        "same_question_id": true,
+        "same_candidates": true,
+        "durable_unchanged": true,
+        "teaching_unchanged": true,
+        "no_result": true
+      },
+      "restart": {
+        "same_assignment_id": true,
+        "same_question_id": true,
+        "same_candidates": true,
+        "same_source_version": true,
+        "same_teaching_revision": true,
+        "durable_unchanged": true
+      },
+      "reload": {
+        "status": "completed",
+        "mapping": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "Amount",
+          "unit": "USD",
+          "unit_authority": "source_evidence",
+          "required_unit": "USD",
+          "source_unit": "USD",
+          "source_unit_column": "Currency",
+          "source_version": "1a94f6f0d652ecf5e0da1ca060074802d53a2bc7",
+          "revision": 2,
+          "lesson_id": "e79e9664e8be448493a3268d0efe76f5"
+        },
+        "result": "35.00",
+        "artifact_sha256": "732de22ef7c8e833013817f7884f1fdc4877228581c78f20482304392d1e0c1f",
+        "mapping_history": [],
+        "durable_unchanged": true
+      },
+      "directory": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-waiting-restart/attempts/a8b27ce5-ead8-4a9f-8b21-8069e088486e",
+      "result_sha256": "30e1a250de038e00770b1ceebd14f4810aa998b73913024f0946bcfe59ff46a9"
+    }
+  },
+  "authority_controls": {
+    "test": "tests/test_assignment_routes.py::test_mapping_gap_authority_controls_and_idempotent_replay",
+    "wrong_request": "409, no durable/teaching mutation",
+    "wrong_assignment": "409, no durable/teaching mutation",
+    "forged_column": "409, no durable/teaching mutation",
+    "stale_source_payload": "409, no durable/teaching mutation",
+    "stale_source_current": "409 when the current authorized source version differs",
+    "stale_teaching_revision": "409, no durable/teaching mutation",
+    "wrong_workspace": "404, no durable/teaching mutation",
+    "incompatible_unit": "409, no durable/teaching mutation",
+    "rejection": "200 rejected_candidates; same request/candidates; no result/teaching write",
+    "identical_replay": "200 already_resolved; no new operation/result/teaching revision",
+    "conflicting_replay": "409; no durable/teaching mutation",
+    "ambiguous_mapping_identity": "409 for concept-only correction when multiple sheets match",
+    "result": "5 focused route tests passed; affected suite 98 passed"
+  },
+  "regression": {
+    "affected_suites": "98 passed",
+    "authority_controls": "5 passed",
+    "workbook_b": "passed",
+    "workbook_c": "passed",
+    "correction_browser": "passed",
+    "waiting_restart_browser": "passed"
+  },
+  "preserved_prior_evidence": {
+    "canonical_b_baseline": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/result.json",
+      "sha256": "0f3af9e098e487926b1ae0f42059fd0fda2776b8a9037e845a2a71b577c27f00",
+      "bytes": 3773
+    },
+    "original_c_result": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/15ba0882-9547-448a-8061-12a9be4c800c/result.json",
+      "sha256": "d84a1987852bb4fedde56a2ec1ca16891b09a6d67df267ddf8657764c14bddf8",
+      "bytes": 3176
+    },
+    "prior_correction_result": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/b195e996-5e27-48e9-9cef-bdcdb6d6d06f/result.json",
+      "sha256": "91464513076785d20e2a33dec8e24342047e8c2d4be8f6da915c5ac545bf53c3",
+      "bytes": 12042
+    },
+    "prior_correction_manifest": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-correction-campaign/successor-f0d96c5ed.json",
+      "sha256": "d090c86e33fa7cee6c07a76cfc37b7436e7176d2f18e94b3a76cc164f2c98534",
+      "bytes": 9438
+    },
+    "earlier_correction_manifest": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-correction-campaign/manifest.json",
+      "sha256": "514ff6aa185672edf0db0728988a1f0949de0381d5922067c599565bd9a2dc13",
+      "bytes": 8997
+    }
+  },
+  "files": [
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/attempts/c78b9a0c-4d4b-4ef6-97e5-4be56fa31449/mapping-candidates.png",
+      "sha256": "d39c4485035b632ad996ecb25163c3c7158941e0f57c84151671e2208f13710e",
+      "bytes": 141248
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/attempts/c78b9a0c-4d4b-4ef6-97e5-4be56fa31449/mapping-completed.png",
+      "sha256": "699b3b9110cfb1815ad85dd14da55bb04635aafca2109ff1f869a12cf7666512",
+      "bytes": 137513
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/attempts/c78b9a0c-4d4b-4ef6-97e5-4be56fa31449/result.json",
+      "sha256": "bc9cac1ba9ebb1a9ff67ba754892e7975754a23d5b430d69282b02cc49ec22e0",
+      "bytes": 4566
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/a228e80a-1980-4d9c-8489-6295ca38abce/result.json",
+      "sha256": "9832bf41d821c9cb83d897af698fb79a39201c7aea6a1ee42f009c43f6142a65",
+      "bytes": 3176
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/a228e80a-1980-4d9c-8489-6295ca38abce/unit-confirmed.png",
+      "sha256": "bee47a5bd728b4eeabc36a2c69ad2dab58b01f50625b048ebc6ceed469ff8126",
+      "bytes": 137326
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/a228e80a-1980-4d9c-8489-6295ca38abce/unit-unresolved.png",
+      "sha256": "bb8fd511e271dbef6f0d39b09ad1ee4f43fab50ab906b8b3a3e975a5b7676b02",
+      "bytes": 141965
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/0f8db7bb-f3d2-4d5f-8ec5-768dd677843e/after-restart.png",
+      "sha256": "fd69acba14f71ba8bbb07a346091c3a4ab619308d7f59a84381dd7e26f4f7c6c",
+      "bytes": 167224
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/0f8db7bb-f3d2-4d5f-8ec5-768dd677843e/corrected.png",
+      "sha256": "8f008e9b6ae6ecc26505efa152865a9c2e53298fcd3d19cf2a50e55d38a52988",
+      "bytes": 165082
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/0f8db7bb-f3d2-4d5f-8ec5-768dd677843e/correction-form.png",
+      "sha256": "aea5f11db95fd0680763d651693a5269fe2add818e4ca621bc3fe6ff596ac5e1",
+      "bytes": 167517
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/0f8db7bb-f3d2-4d5f-8ec5-768dd677843e/initial-confirmed.png",
+      "sha256": "87b8fdd253d2d6bbb40786503f3e0a1098e5e4ad060a95aa65928fe60156308e",
+      "bytes": 159890
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/0f8db7bb-f3d2-4d5f-8ec5-768dd677843e/result.json",
+      "sha256": "e80c016478b7a22569e39d2f2fe5ac3572f477ed3eac6037b8f2c63055c8106f",
+      "bytes": 12042
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-waiting-restart/attempts/a8b27ce5-ead8-4a9f-8b21-8069e088486e/confirmed-after-restart.png",
+      "sha256": "ea425c72d6db253bb897124b76ac575e9297eae4902bf0bd00480970870bdab1",
+      "bytes": 139309
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-waiting-restart/attempts/a8b27ce5-ead8-4a9f-8b21-8069e088486e/rejected-still-open.png",
+      "sha256": "f2260438da46d853acf5a595c79d8d1997e2db9bd6ebb2dc6ae9e080946814ef",
+      "bytes": 156743
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-waiting-restart/attempts/a8b27ce5-ead8-4a9f-8b21-8069e088486e/reloaded-after-confirm.png",
+      "sha256": "fb68ecac80aadb0b736bcbb6d690256862f5c7b138230916dc5e97fbdafabfce",
+      "bytes": 139301
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-waiting-restart/attempts/a8b27ce5-ead8-4a9f-8b21-8069e088486e/reopened-after-restart.png",
+      "sha256": "6a4f27aae2c2c298b8fdd60f4895f2e3af5863e3613776d358480917bc6df59c",
+      "bytes": 159758
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-waiting-restart/attempts/a8b27ce5-ead8-4a9f-8b21-8069e088486e/result.json",
+      "sha256": "30e1a250de038e00770b1ceebd14f4810aa998b73913024f0946bcfe59ff46a9",
+      "bytes": 3556
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-waiting-restart/attempts/a8b27ce5-ead8-4a9f-8b21-8069e088486e/unresolved-before-reject.png",
+      "sha256": "6a4f27aae2c2c298b8fdd60f4895f2e3af5863e3613776d358480917bc6df59c",
+      "bytes": 159758
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/regression-a96484324/affected-suites.log",
+      "sha256": "0b4bc887779c6d4817f49bdd6ddf9236745326cf7126a82f72d034a7997682fb",
+      "bytes": 29369
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/regression-a96484324/authority-controls.log",
+      "sha256": "0821a5c851f2d20d5120f2bab4af5aeba581685791b6815607d51588aed66192",
+      "bytes": 8837
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/regression-a96484324/correction-browser.log",
+      "sha256": "3033e6bb3b57090910112d3490406a4c07219856c04192db34c3110f8c8fe4ae",
+      "bytes": 285
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/regression-a96484324/waiting-restart-browser.log",
+      "sha256": "b1b5e2d1dc934507b02b14c4fb05cad7905de09095727ddaa803fae94702e1db",
+      "bytes": 295
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/regression-a96484324/workbook-b.log",
+      "sha256": "c69a912c1ac4b31fe32f6f44a93681a5c25899f829216ec4fff4c7fbd65a6107",
+      "bytes": 267
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/regression-a96484324/workbook-c.log",
+      "sha256": "76208a169eeb6fcb95b1907a8376c00775fd8304d63a3cecb2f877f96087390c",
+      "bytes": 267
+    }
+  ]
+}
