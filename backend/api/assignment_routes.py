@@ -65,6 +65,10 @@ class AssignmentMappingCorrection(BaseModel):
     column: str
     unit: str = ""
     evidence: str = ""
+    # Optional identity when the same concept is confirmed on more than one
+    # sheet or source version. Never used to widen the lookup.
+    sheet: str = ""
+    source_version: str = ""
 
 
 class AssignmentExternalResponse(BaseModel):
@@ -652,16 +656,38 @@ async def correct_assignment_mapping(
     record = executor.lifecycle.get_task(run_id) or {}
     assignment = record.get("assignment") or {}
     concept = str(body.concept or "").strip()
-    mapping = next((
+    from core.assignment_executor import (
+        AssignmentError,
+        select_confirmed_mapping,
+    )
+
+    mappings = [
         dict(item) for item in (
             assignment.get("teaching_snapshot") or {}
         ).get("field_mappings") or []
         if isinstance(item, dict)
-        and str(item.get("concept") or "").strip().lower()
-        == concept.lower()
-    ), None)
-    if mapping is None:
+    ]
+    selection, selection_problem = select_confirmed_mapping(
+        mappings, concept=concept, sheet=body.sheet,
+        source_version=body.source_version)
+    if selection_problem == "ambiguous":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"more than one confirmed mapping exists for concept "
+                f"'{concept}'; name the sheet or source version"))
+    if selection is None:
         raise HTTPException(status_code=404, detail="Mapping not found")
+    _index, mapping = selection
+    current_revision = int(mapping.get("revision") or 1)
+    if int(body.expected_revision) != current_revision:
+        # Refuse before resolving/reading the source: a stale token must not
+        # mutate or even re-enter the resource path.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"stale mapping revision: expected "
+                f"{body.expected_revision}, current {current_revision}"))
     source_binding = {}
     for raw_source in assignment.get("sources") or []:
         binding = dict(raw_source.get("binding") or {})
@@ -692,7 +718,6 @@ async def correct_assignment_mapping(
         raise HTTPException(
             status_code=exc.status,
             detail={"error": exc.code, "message": str(exc)})
-    from core.assignment_executor import AssignmentError
 
     try:
         executor.correct_mapping(
@@ -704,6 +729,8 @@ async def correct_assignment_mapping(
             corrected_by=str(current_user.id),
             current_source=current_source,
             evidence=body.evidence,
+            sheet=body.sheet,
+            source_version=body.source_version,
         )
     except AssignmentError as exc:
         raise HTTPException(status_code=409, detail=str(exc))

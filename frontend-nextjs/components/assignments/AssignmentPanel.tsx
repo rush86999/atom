@@ -660,6 +660,9 @@ export function AssignmentPanel({
                                       "",
                                     evidence:
                                       "mapping corrected from Assignments panel",
+                                    sheet: mapping.sheet,
+                                    source_version:
+                                      mapping.source_version || undefined,
                                   }
                                 );
                                 setCorrection(null);

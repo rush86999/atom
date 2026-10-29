@@ -1905,6 +1905,8 @@ class AssignmentExecutor:
         corrected_by: str = "",
         current_source: Optional[Dict[str, Any]] = None,
         evidence: str = "",
+        sheet: str = "",
+        source_version: str = "",
     ) -> Dict[str, Any]:
         """Correct one confirmed mapping and its dependants.
 
@@ -1933,15 +1935,20 @@ class AssignmentExecutor:
             dict(item) for item in snapshot.get("field_mappings") or []
             if isinstance(item, dict)
         ]
-        index = next((
-            offset for offset, item in enumerate(mappings)
-            if str(item.get("concept") or "").strip().lower()
-            == concept_value.lower()
-        ), None)
-        if index is None:
+        selection, selection_problem = select_confirmed_mapping(
+            mappings, concept=concept_value, sheet=sheet,
+            source_version=source_version)
+        if selection_problem == "ambiguous":
+            raise AssignmentError(
+                f"more than one confirmed mapping exists for concept "
+                f"'{concept_value}'; name the sheet or source version")
+        if selection is None:
             raise AssignmentError(
                 f"no confirmed mapping exists for concept '{concept_value}'")
-        mapping = mappings[index]
+        index, mapping = selection
+        mapping_sheet = str(sheet or mapping.get("sheet") or "")
+        mapping_version = str(
+            source_version or mapping.get("source_version") or "")
         expected = int(expected_revision or 0)
         current_revision = int(mapping.get("revision") or 1)
         if expected != current_revision:
@@ -2113,14 +2120,17 @@ class AssignmentExecutor:
                     current_assignment.get("teaching_snapshot") or {}
                 ).get("field_mappings") or [] if isinstance(item, dict)
             ]
-            current_index = next((
-                offset for offset, item in enumerate(current_mappings)
-                if str(item.get("concept") or "").strip().lower()
-                == concept_value.lower()
-            ), None)
-            if current_index is None:
+            current_selection, current_problem = select_confirmed_mapping(
+                current_mappings, concept=concept_value, sheet=mapping_sheet,
+                source_version=mapping_version)
+            if current_problem == "ambiguous":
+                raise AssignmentError(
+                    "more than one confirmed mapping matched during this "
+                    "correction; name the sheet or source version")
+            if current_selection is None:
                 raise AssignmentError(
                     "the confirmed mapping disappeared before correction")
+            current_index, _current_mapping = current_selection
             if int(current_mappings[current_index].get("revision") or 1) != expected:
                 raise AssignmentError(
                     "stale mapping revision: the mapping changed during this "
@@ -3726,6 +3736,40 @@ def _established_source_unit(
             return next(iter(values)), column
         return "", column
     return "", ""
+
+
+def select_confirmed_mapping(
+    mappings: Sequence[Dict[str, Any]],
+    *,
+    concept: str,
+    sheet: str = "",
+    source_version: str = "",
+) -> Tuple[Optional[Tuple[int, Dict[str, Any]]], str]:
+    """Identify ONE confirmed mapping by concept and, when supplied, source.
+
+    A concept alone is not an identity: the same concept can be confirmed on
+    two sheets or two source versions in one assignment. Returning the first
+    match would silently rewrite an unrelated mapping, so an underspecified
+    match is refused as ambiguous instead.
+    """
+    wanted_concept = str(concept or "").strip().lower()
+    matches: List[Tuple[int, Dict[str, Any]]] = []
+    for index, item in enumerate(mappings):
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("concept") or "").strip().lower() != wanted_concept:
+            continue
+        if sheet and str(item.get("sheet") or "") != str(sheet):
+            continue
+        if source_version and str(
+                item.get("source_version") or "") != str(source_version):
+            continue
+        matches.append((index, dict(item)))
+    if not matches:
+        return None, "missing"
+    if len(matches) > 1:
+        return None, "ambiguous"
+    return matches[0], ""
 
 
 def _mapping_affected_roots(

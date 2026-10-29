@@ -6,6 +6,7 @@ not the executor helper directly.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import os
 import shutil
@@ -1019,3 +1020,233 @@ def test_start_second_domain_presentation_completes(route_env, tmp_path):
     assert presentation.slides[0].shapes.title.text == "Overview"
 
 
+
+
+def _mapping_correction_plan(
+    route_env,
+    tmp_path,
+    *,
+    mappings=None,
+    execute=False,
+):
+    """A real aggregate plan with one confirmed Price mapping.
+
+    The source is an allowed controlled fixture, so the route still exercises
+    the real source resolver (monkeypatched to the same typed binding) and the
+    real dataset aggregate adapter.
+    """
+    import pandas as pd
+
+    parquet = tmp_path / "correction-source.parquet"
+    pd.DataFrame({
+        "Item": ["R-1", "R-2"],
+        "List Price": [60.0, 40.0],
+        "Contract Price": [45.0, 35.0],
+        "Renewal Price": [40.0, 30.0],
+        "Tax": [5.0, 3.0],
+        "Currency": ["USD", "USD"],
+        "__sheet_row": [2, 3],
+    }).to_parquet(parquet, index=False)
+    binding = {
+        "resource_id": "fixture:correction-source.parquet",
+        "dataset_name": "correction_source",
+        "source": "outlook",
+        "external_id": "correction-source",
+        "original_file_name": "correction-source.xlsx",
+        "representation": "parquet_frame",
+        "source_version": "v1",
+        "sheet": "Sheet1",
+        "columns": [
+            "Item", "List Price", "Contract Price", "Renewal Price",
+            "Tax", "Currency", "__sheet_row",
+        ],
+        "numeric_columns": [
+            "List Price", "Contract Price", "Renewal Price", "Tax",
+        ],
+        "workspace_id": "ws-1",
+        "tenant_id": "tenant-1",
+        "access_scope": {
+            "user_id": "lead-1", "workspace_id": "ws-1",
+            "tenant_id": "tenant-1",
+        },
+        "internal_fixture": True,
+        "path": str(parquet),
+    }
+    confirmed = [{
+        "concept": "Price", "sheet": "Sheet1", "column": "List Price",
+        "unit": "USD", "unit_authority": "source_evidence",
+        "required_unit": "USD", "source_unit": "USD",
+        "source_unit_column": "Currency", "source_version": "v1",
+        "revision": 2,
+    }, {
+        "concept": "Tax", "sheet": "Sheet1", "column": "Tax",
+        "unit": "USD", "unit_authority": "source_evidence",
+        "required_unit": "USD", "source_unit": "USD",
+        "source_unit_column": "Currency", "source_version": "v1",
+        "revision": 1,
+    }]
+    if mappings is not None:
+        confirmed = mappings
+    plan = new_assignment(
+        objective="Correct the price mapping",
+        employee_id="lead-1",
+        workspace_id="ws-1",
+        tenant_id="tenant-1",
+        teaching_snapshot=new_teaching_snapshot(
+            revision="corr-r1", field_mappings=confirmed),
+        steps=[new_step(
+            step_id="source-1", title="Aggregate the mapped price",
+            operation_type="calculate", adapter="dataset.aggregate",
+            inputs={
+                "resource_binding": binding,
+                "operation": "sum",
+                "value_column": "List Price",
+            },
+            effect="local")],
+        sources=[{"kind": "workbook", "binding": binding}],
+        authorized_actions=["retrieve", "calculate"],
+        completion_criteria=[{"kind": "required_work_complete"}],
+        provenance={"agent_id": "correction-agent"},
+    )
+    record = route_env["executor"].create_assignment(
+        "conv-correction", "Correct the price mapping", assignment=plan,
+        employee_id="lead-1", workspace_id="ws-1", tenant_id="tenant-1")
+    if execute:
+        _run(route_env["executor"].execute(record["run_id"]))
+    return record["run_id"], binding
+
+
+def _source_resolver(binding):
+    def resolve(db, user, reference, allow_internal=False):
+        return dict(binding)
+
+    return resolve
+
+
+def _durable_assignment_route(route_env, run_id):
+    record = route_env["lifecycle"].get_task(run_id) or {}
+    return copy.deepcopy(record.get("assignment") or {})
+
+
+def _correction_payload(**overrides):
+    payload = {
+        "concept": "Price",
+        "expected_revision": 2,
+        "column": "Contract Price",
+        "unit": "USD",
+        "evidence": "route acceptance correction",
+        "sheet": "Sheet1",
+        "source_version": "v1",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_mapping_correction_route_applies_and_resumes(route_env, tmp_path,
+                                                      monkeypatch):
+    run_id, binding = _mapping_correction_plan(
+        route_env, tmp_path, execute=True)
+    before = _durable_assignment_route(route_env, run_id)
+    assert before["steps"][0]["result"]["value"] == "100.00"
+    monkeypatch.setattr(
+        "api.assignment_routes.resolve_assignment_source",
+        _source_resolver(binding))
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/mappings/correct",
+        json=_correction_payload())
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["assignment"]["status"] == "completed", body
+    mapping = next(
+        item for item in body["assignment"]["mappings"]
+        if item["concept"] == "Price")
+    assert mapping["column"] == "Contract Price"
+    assert mapping["revision"] == 3
+    assert mapping["source_version"] == "v1"
+    assert mapping["unit_authority"] == "source_evidence"
+    step = next(
+        item for item in body["assignment"]["steps"]
+        if item["step_id"] == "source-1")
+    assert step["result_value"] == "80.00"
+    assert step["prior_result_count"] == 1
+    durable = _durable_assignment_route(route_env, run_id)
+    assert durable["steps"][0]["prior_results"][0]["result"]["value"] == (
+        "100.00")
+    assert durable["mapping_history"][0]["column"] == "List Price"
+    assert durable["mapping_history"][0]["revision"] == 2
+    assert next(
+        item for item in durable["teaching_snapshot"]["field_mappings"]
+        if item["concept"] == "Tax") == next(
+            item for item in before["teaching_snapshot"]["field_mappings"]
+            if item["concept"] == "Tax")
+
+
+def test_stale_mapping_correction_is_refused_before_source_resolution(
+        route_env, tmp_path, monkeypatch):
+    run_id, _binding = _mapping_correction_plan(route_env, tmp_path)
+    before = _durable_assignment_route(route_env, run_id)
+    called = {"resolve": 0}
+
+    def unexpected_resolve(*args, **kwargs):
+        called["resolve"] += 1
+        raise AssertionError("stale correction must not resolve the source")
+
+    monkeypatch.setattr(
+        "api.assignment_routes.resolve_assignment_source",
+        unexpected_resolve)
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/mappings/correct",
+        json=_correction_payload(expected_revision=1))
+    assert response.status_code == 409, response.text
+    assert "stale mapping revision" in response.json()["detail"]
+    assert called["resolve"] == 0
+    assert _durable_assignment_route(route_env, run_id) == before
+
+
+def test_wrong_workspace_mapping_correction_is_refused(route_env, tmp_path,
+                                                       monkeypatch):
+    run_id, binding = _mapping_correction_plan(route_env, tmp_path)
+    before = _durable_assignment_route(route_env, run_id)
+    monkeypatch.setattr(
+        "api.assignment_routes.resolve_assignment_source",
+        _source_resolver(binding))
+    route_env["current"]["user"] = route_env["users"]["other"]
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/mappings/correct",
+        json=_correction_payload())
+    assert response.status_code == 404, response.text
+    assert _durable_assignment_route(route_env, run_id) == before
+
+
+def test_ambiguous_mapping_correction_requires_source_identity(
+        route_env, tmp_path, monkeypatch):
+    first = {
+        "concept": "Price", "sheet": "Sheet1", "column": "List Price",
+        "unit": "USD", "unit_authority": "source_evidence",
+        "required_unit": "USD", "source_unit": "USD",
+        "source_unit_column": "Currency", "source_version": "v1",
+        "revision": 2,
+    }
+    second = {
+        **first, "sheet": "Sheet2", "column": "Renewal Price",
+        "revision": 1,
+    }
+    run_id, binding = _mapping_correction_plan(
+        route_env, tmp_path, mappings=[first, second])
+    before = _durable_assignment_route(route_env, run_id)
+    called = {"resolve": 0}
+
+    def unexpected_resolve(*args, **kwargs):
+        called["resolve"] += 1
+        raise AssertionError("ambiguous correction must not resolve a source")
+
+    monkeypatch.setattr(
+        "api.assignment_routes.resolve_assignment_source",
+        unexpected_resolve)
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/mappings/correct",
+        json=_correction_payload(sheet="", source_version=""))
+    assert response.status_code == 409, response.text
+    assert "more than one confirmed mapping" in response.json()["detail"]
+    assert called["resolve"] == 0
+    assert _durable_assignment_route(route_env, run_id) == before

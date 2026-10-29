@@ -167,6 +167,8 @@ export async function correctAssignmentMapping(
     column: string;
     unit?: string;
     evidence?: string;
+    sheet?: string;
+    source_version?: string;
   }
 ): Promise<AssignmentDetail> {
   const { data } = await apiClient.post<AssignmentDetail>(

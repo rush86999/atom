@@ -439,10 +439,14 @@ def test_mapping_correction_ui_scoped_and_survives_restart():
                 timeout=30000)
             initial_text = detail_el.get_by_test_id(
                 "mapping-current-price").inner_text()
-            assert "List Price" in initial_text
+            assert "Price → List Price" in initial_text
+            assert "Source: outlook" in initial_text
+            assert "Sheet: Sheet1" in initial_text
+            assert "Version: " in initial_text
             assert "Required unit: USD" in initial_text
             assert "source-established" in initial_text.lower()
             assert "Mapping revision: 2" in initial_text
+            assert "Teaching revision: " in initial_text
             page.screenshot(path=str(attempt_dir / "initial-confirmed.png"),
                             full_page=True)
             browser.close()
@@ -593,8 +597,13 @@ def test_mapping_correction_ui_scoped_and_survives_restart():
                     break
                 time.sleep(0.5)
             corrected_text = mapping_el.inner_text()
-            assert "Contract Price" in corrected_text
+            assert "Price → Contract Price" in corrected_text
+            assert "Source: outlook" in corrected_text
+            assert "Sheet: Sheet1" in corrected_text
+            assert "Required unit: USD" in corrected_text
+            assert "source-established" in corrected_text.lower()
             assert "Mapping revision: 3" in corrected_text
+            assert "Teaching revision: " in corrected_text
             page.screenshot(path=str(attempt_dir / "corrected.png"),
                             full_page=True)
             browser.close()
@@ -693,8 +702,11 @@ def test_mapping_correction_ui_scoped_and_survives_restart():
             detail_el = _open_assignment(page, OBJECTIVE)
             mapping_el = detail_el.get_by_test_id("mapping-current-price")
             mapping_el.wait_for(timeout=30000)
-            assert "Contract Price" in mapping_el.inner_text()
-            assert "Mapping revision: 3" in mapping_el.inner_text()
+            restart_mapping_text = mapping_el.inner_text()
+            assert "Price → Contract Price" in restart_mapping_text
+            assert "Source: outlook" in restart_mapping_text
+            assert "Sheet: Sheet1" in restart_mapping_text
+            assert "Mapping revision: 3" in restart_mapping_text
             result_el = detail_el.get_by_test_id("assignment-result-source-1")
             assert "80.00" in result_el.inner_text()
             artifact_text = detail_el.get_by_test_id(
