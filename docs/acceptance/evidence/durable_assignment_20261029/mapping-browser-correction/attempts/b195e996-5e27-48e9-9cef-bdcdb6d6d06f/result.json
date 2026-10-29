@@ -1,0 +1,356 @@
+{
+  "schema": "atom-mapping-correction-browser-1",
+  "status": "passed",
+  "product": {
+    "commit": "f0d96c5ed9aabb45c745156a818eb04242e0d4a1",
+    "tree": "b082b789d2e3111da3e694f6b37727ba8d8f1cde",
+    "head": "f0d96c5ed9aabb45c745156a818eb04242e0d4a1",
+    "dirty_paths": []
+  },
+  "frozen_release": {
+    "commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "tag": "assignment-successor-2026-10-29",
+    "tag_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "unchanged": true
+  },
+  "harness_sha256": "f914fd4a666ec334e4acb305298418a76ef49ea3e37a3d75ba3c9a9bf76bac3e",
+  "run_id": "b195e996-5e27-48e9-9cef-bdcdb6d6d06f",
+  "assignment_id": "asg-82e4d6186ed046b4",
+  "objective": "Correction Lab price total",
+  "fixture": "controlled acceptance workbook_correction: List Price 100.00, Contract Price 80.00, Renewal Price 70.00, Tax 8.00; not live-connected",
+  "source_version": "ac5ffddfedb0c975f7be1a360955e7cc85fb7f29",
+  "initial": {
+    "mapping": {
+      "concept": "Price",
+      "sheet": "Sheet1",
+      "column": "List Price",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "USD",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "ac5ffddfedb0c975f7be1a360955e7cc85fb7f29",
+      "revision": 2,
+      "lesson_id": "7fb854831098409787107107b3879bdd"
+    },
+    "teaching_revision": "1dca080d46a162f3+map",
+    "result": "100.00",
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_correction_acceptance/office/assignments/default/map-user/draft-4037be249abd/correction-lab-price-total-document-805aa554.docx",
+    "artifact_sha256": "e01610980bbf6aa2058439e7897d073c649bd83c246ee885b8e8c0b0ee886818",
+    "plan_revision": 1
+  },
+  "corrected": {
+    "mapping": {
+      "concept": "Price",
+      "sheet": "Sheet1",
+      "column": "Contract Price",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "USD",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "ac5ffddfedb0c975f7be1a360955e7cc85fb7f29",
+      "revision": 3,
+      "lesson_id": "7fb854831098409787107107b3879bdd",
+      "corrected_from_revision": 2,
+      "corrected_by": "map-user",
+      "corrected_at": "2026-10-29T22:52:06.176542+00:00"
+    },
+    "teaching_revision": "1dca080d46a162f3+map+corr",
+    "result": "80.00",
+    "plan_revision": 2,
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_correction_acceptance/office/assignments/default/map-user/draft-4037be249abd/correction-lab-price-total-document-805aa554-corr-2.docx",
+    "artifact_sha256": "b117c9d6004b9d63487c957d79c3a87bb701cbdc49d9c475c3ce07165d52a5d8",
+    "prior_result": {
+      "summary": "sum of List Price = 100.00 USD across 2 row(s) from workbook_correction.xlsx / Sheet1",
+      "evidence": [
+        {
+          "kind": "connected_aggregate",
+          "resource_id": "dbbf2620-53a0-4260-b4d8-3ff8b21cab62",
+          "dataset_name": "outlook_workbook_correction__sheet1",
+          "file_name": "workbook_correction.xlsx",
+          "sheet": "Sheet1",
+          "source_version": "ac5ffddfedb0c975f7be1a360955e7cc85fb7f29",
+          "representation": "parquet_frame",
+          "coverage": {
+            "known": true,
+            "source_row_count": 2,
+            "materialized_row_count": 2,
+            "truncated": false,
+            "row_cap": 500000
+          },
+          "workspace_id": "default",
+          "tenant_id": "default",
+          "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_correction_acceptance/sheet_datasets/default/ac5ffddfedb0/outlook_workbook_correction__sheet1.parquet",
+          "operation": "sum",
+          "measure": "List Price",
+          "subtotals": {
+            "USD": {
+              "rows": "\u2026",
+              "value": "\u2026"
+            }
+          },
+          "sheet_rows": [
+            2,
+            3
+          ],
+          "selected_count": 2
+        }
+      ],
+      "artifact": null,
+      "artifact_revision": null,
+      "value": "100.00",
+      "unit": "USD",
+      "expression": null,
+      "operation": "sum",
+      "measure": "List Price",
+      "values": [
+        {
+          "currency": "USD",
+          "value": "100.00",
+          "rows": 2
+        }
+      ],
+      "subtotals": {
+        "USD": {
+          "rows": 2,
+          "value": "100.00"
+        }
+      },
+      "source": {
+        "resource_id": "dbbf2620-53a0-4260-b4d8-3ff8b21cab62",
+        "dataset_name": "outlook_workbook_correction__sheet1",
+        "file_name": "workbook_correction.xlsx",
+        "sheet": "Sheet1",
+        "source_version": "ac5ffddfedb0c975f7be1a360955e7cc85fb7f29",
+        "representation": "parquet_frame",
+        "coverage": {
+          "known": true,
+          "source_row_count": 2,
+          "materialized_row_count": 2,
+          "truncated": false,
+          "row_cap": 500000
+        },
+        "workspace_id": "default",
+        "tenant_id": "default"
+      },
+      "source_label": "workbook_correction.xlsx / Sheet1",
+      "formulas": {},
+      "matched_count": null,
+      "selected_count": 2,
+      "truncated": null,
+      "substantive": null,
+      "source_version": "ac5ffddfedb0c975f7be1a360955e7cc85fb7f29",
+      "provider_ref": null,
+      "rows": [
+        {
+          "identity": "R-1",
+          "identity_source": "identity_column",
+          "row": 2,
+          "value": "60.00",
+          "currency": "USD",
+          "value_cell": "B2"
+        },
+        {
+          "identity": "R-2",
+          "identity_source": "identity_column",
+          "row": 3,
+          "value": "40.00",
+          "currency": "USD",
+          "value_cell": "B3"
+        }
+      ],
+      "schema": null,
+      "text": null,
+      "decision": null,
+      "draft": null,
+      "data": null,
+      "at": "2026-10-29T22:52:03.717952+00:00",
+      "receipt": {
+        "receipt_version": 1,
+        "operation_id": "05db6125-44a1-4307-86e6-9f0f67d1b47a",
+        "execution_id": null,
+        "action": "dataset.aggregate",
+        "binding_sha256": "262e8ac559030003f3bfe150ec160ece31eb2265ef56239a7af09b2c5984d3c6",
+        "observed_status": "confirmed",
+        "error_class": null,
+        "reconciliation_required": false,
+        "at": "2026-10-29T22:52:03.720809+00:00",
+        "source": {
+          "kind": null,
+          "path": null,
+          "revision": null,
+          "sha256": null,
+          "source_version": "ac5ffddfedb0c975f7be1a360955e7cc85fb7f29",
+          "coverage": null
+        },
+        "calculation": {
+          "expression": null,
+          "value": "100.00",
+          "unit": "USD",
+          "steps": null
+        },
+        "outbound": null,
+        "readback": null,
+        "summary": "sum of List Price = 100.00 USD across 2 row(s) from workbook_correction.xlsx / Sheet1",
+        "evidence": [
+          {
+            "kind": "connected_aggregate",
+            "resource_id": "dbbf2620-53a0-4260-b4d8-3ff8b21cab62",
+            "dataset_name": "outlook_workbook_correction__sheet1",
+            "file_name": "workbook_correction.xlsx",
+            "sheet": "Sheet1",
+            "source_version": "ac5ffddfedb0c975f7be1a360955e7cc85fb7f29",
+            "representation": "parquet_frame",
+            "coverage": {
+              "known": true,
+              "source_row_count": 2,
+              "materialized_row_count": 2,
+              "truncated": false,
+              "row_cap": 500000
+            },
+            "workspace_id": "default",
+            "tenant_id": "default",
+            "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_correction_acceptance/sheet_datasets/default/ac5ffddfedb0/outlook_workbook_correction__sheet1.parquet",
+            "operation": "sum",
+            "measure": "List Price",
+            "subtotals": {
+              "USD": {
+                "rows": 2,
+                "value": "100.00"
+              }
+            },
+            "sheet_rows": [
+              2,
+              3
+            ],
+            "selected_count": 2
+          }
+        ]
+      }
+    },
+    "prior_artifact": {
+      "kind": "document",
+      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_correction_acceptance/office/assignments/default/map-user/draft-4037be249abd/correction-lab-price-total-document-805aa554.docx",
+      "sha256": "e01610980bbf6aa2058439e7897d073c649bd83c246ee885b8e8c0b0ee886818",
+      "revision": "e01610980bbf6aa2"
+    },
+    "mapping_history": [
+      {
+        "concept": "Price",
+        "sheet": "Sheet1",
+        "column": "List Price",
+        "unit": "USD",
+        "unit_authority": "source_evidence",
+        "required_unit": "USD",
+        "source_unit": "USD",
+        "source_unit_column": "Currency",
+        "source_version": "ac5ffddfedb0c975f7be1a360955e7cc85fb7f29",
+        "revision": 2,
+        "lesson_id": "7fb854831098409787107107b3879bdd",
+        "replaced_by_revision": 3,
+        "corrected_by": "map-user",
+        "corrected_at": "2026-10-29T22:52:06.176542+00:00",
+        "reason": "mapping corrected from Assignments panel"
+      }
+    ]
+  },
+  "preserved": {
+    "unrelated_mapping": {
+      "concept": "Tax",
+      "sheet": "Sheet1",
+      "column": "Tax",
+      "unit": "USD",
+      "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": 1,
+      "lesson_id": "7fb854831098409787107107b3879bdd",
+      "lesson_revision": 1
+    },
+    "lesson_format_spec": {
+      "font_size": 12
+    },
+    "lesson_applies_to": [
+      "document"
+    ],
+    "tax_lesson_mapping": {
+      "concept": "Tax",
+      "sheet": "Sheet1",
+      "column": "Tax",
+      "unit": "USD",
+      "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": 1
+    },
+    "old_artifact_still_exists": true,
+    "docx_normal_font_size": "152400",
+    "formatting_preserved": true
+  },
+  "independent": {
+    "run_id": "051dc24c-b9ec-4ded-a8b5-82c75a10f32c",
+    "assignment_id": "asg-23e37f0e06234ef7",
+    "result": "8.00",
+    "artifact_sha256": "02b2613ba92abe99ff41129425be5584fb3d536a25f4d6970a2c244c3a6b0a81",
+    "durable_parameters_unchanged": true
+  },
+  "concurrency_control": {
+    "run_id": "ca3d13fc-63bc-4287-8ce4-0209d276adfd",
+    "http_statuses": [
+      200,
+      409
+    ],
+    "winner_column": "Contract Price",
+    "winning_revision": 3,
+    "winning_result": "80.00",
+    "control_teaching_mapping": {
+      "concept": "Price",
+      "sheet": "Sheet1",
+      "column": "Contract Price",
+      "unit": "USD",
+      "source_version": "ac5ffddfedb0c975f7be1a360955e7cc85fb7f29",
+      "revision": 3,
+      "unit_authority": "source_evidence",
+      "required_unit": "USD",
+      "source_unit": "USD",
+      "source_unit_column": "Currency"
+    }
+  },
+  "api_controls": {
+    "stale_correction": {
+      "http_status": 409,
+      "detail": "stale mapping revision: expected 1, current 2",
+      "durable_unchanged": true,
+      "teaching_unchanged": true
+    },
+    "wrong_workspace": {
+      "http_status": 404,
+      "detail": "Assignment not found",
+      "durable_unchanged": true,
+      "teaching_unchanged": true
+    }
+  },
+  "restart": {
+    "reopened_status": "completed",
+    "mapping_revision": 3,
+    "mapping_column": "Contract Price",
+    "result": "80.00",
+    "artifact_sha256": "b117c9d6004b9d63487c957d79c3a87bb701cbdc49d9c475c3ce07165d52a5d8",
+    "durable_parameters_unchanged": true,
+    "teaching_mapping": {
+      "concept": "Price",
+      "sheet": "Sheet1",
+      "column": "Contract Price",
+      "unit": "USD",
+      "source_version": "ac5ffddfedb0c975f7be1a360955e7cc85fb7f29",
+      "revision": 3,
+      "unit_authority": "source_evidence",
+      "required_unit": "USD",
+      "source_unit": "USD",
+      "source_unit_column": "Currency"
+    }
+  },
+  "screenshots": [
+    "initial-confirmed.png",
+    "correction-form.png",
+    "corrected.png",
+    "after-restart.png"
+  ]
+}
