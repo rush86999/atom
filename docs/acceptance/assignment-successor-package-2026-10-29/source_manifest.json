@@ -248,6 +248,16 @@
       "path": "backend/tests/unit/test_sheet_dataset_service.py",
       "category": "tests_and_harnesses",
       "sha256": "99500fbfb6af9c046997d081ff9aa4427014c20869cac7db42cf84afaf94dcc3"
+    },
+    {
+      "path": "backend/tests/test_product_profile.py",
+      "category": "tests_and_harnesses",
+      "sha256": "e6ce282a234cccd170f60e54c191b53633dfe63f469026ad39a53fc7abf077bf"
+    },
+    {
+      "path": "backend/core/product_profile.py",
+      "category": "backend_runtime",
+      "sha256": "4f05280c580001d71aa29e4ba9ee7a8139d046b6bbbc7c20ade299001f5eb5f7"
     }
   ],
   "migrations": [],

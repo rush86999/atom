@@ -139,6 +139,7 @@ ROUTE_CAPABILITY: Dict[str, str] = {
     "/goal-runs": "activity",
     "/execution-history": "activity",
     "/activity": "activity",
+    "/assignments": "activity",
     "/approvals": "approvals",
     "/settings/harness-evolution": "governance",
     "/settings": "settings",
