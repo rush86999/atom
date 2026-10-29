@@ -49,6 +49,10 @@
       "sha256": "2cee8b29fae9ccf4f1f2925b5c6b3c04f577dc5f03cf712c707f1c27f251415c",
       "bytes": 2842
     },
+    "identity-agreement.json": {
+      "sha256": "617e1ed72de6871df166278ad3171a4a62eadc79547464a0f1550447993ab531",
+      "bytes": 773
+    },
     "preflight.json": {
       "sha256": "b52908bd8adf916b068826afe7373581a4aaad7e392f8dd386679e25437319ae",
       "bytes": 5317
