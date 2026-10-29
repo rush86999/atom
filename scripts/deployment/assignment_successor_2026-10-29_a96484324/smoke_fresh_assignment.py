@@ -92,6 +92,48 @@ def detail(client: Client, run_id: str) -> dict:
     return body.get("assignment") or {}
 
 
+def provider_policy(client: Client) -> dict:
+    status, body = client.call("GET", "/api/ai/provider-policy")
+    if status != 200:
+        raise SystemExit(f"REFUSED: provider policy -> {status}: {body}")
+    policy = (body.get("data") or {}).get("policy") or body.get("policy") or {}
+    allowed = [str(x) for x in policy.get("allowed_providers") or []]
+    preferred = policy.get("preferred") or {}
+    if not (
+            policy.get("mode") == "selected"
+            and allowed == ["deepseek"]
+            and preferred.get("provider") == "deepseek"
+            and preferred.get("model") == "deepseek-flash"):
+        raise SystemExit(f"REFUSED: unexpected provider policy {policy!r}")
+    return {"mode": policy.get("mode"), "allowed_providers": allowed,
+            "preferred": preferred, "ok": True}
+
+
+def send_denial(client: Client, source: dict) -> dict:
+    _, before_rows = client.call(
+        "GET", "/api/assignments?include_terminal=true")
+    status, body = client.call("POST", "/api/assignments", {
+        "objective": f"Release send denial {uuid.uuid4().hex[:10]}",
+        "sources": [source],
+        "deliverables": [],
+        "outbound": {
+            "to": ["release-smoke@example.invalid"],
+            "subject": "Release send denial control",
+            "body": "This request must be refused before transport.",
+        },
+    })
+    _, after_rows = client.call(
+        "GET", "/api/assignments?include_terminal=true")
+    if status != 422:
+        raise SystemExit(
+            f"REFUSED: send denial expected 422, got {status}: {body}")
+    if len(before_rows) != len(after_rows):
+        raise SystemExit("REFUSED: denied send created a run")
+    return {"http_status": status, "detail": body.get("detail"),
+            "runs_before": len(before_rows), "runs_after": len(after_rows),
+            "run_created": False, "send_allowed": False}
+
+
 def snapshot(client: Client, run_id: str, expected_sum: str,
              source_version: str) -> dict:
     assignment = detail(client, run_id)
@@ -143,6 +185,16 @@ def main() -> None:
     if status != 200 or not body.get("access_token"):
         raise SystemExit("REFUSED: normal login failed")
     client.token = body["access_token"]
+    source = {
+        "kind": "workbook",
+        "dataset_name": args.dataset_name,
+        "source": args.source,
+        "external_id": args.external_id,
+        "source_version": args.source_version,
+        "sheet": args.sheet,
+    }
+    policy = provider_policy(client)
+    denial = send_denial(client, source)
 
     if args.verify_snapshot:
         before_doc = json.loads(Path(args.verify_snapshot).read_text())
@@ -156,6 +208,7 @@ def main() -> None:
             for field in fields if before.get(field) != after.get(field)
         }
         result = {"ok": not mismatches, "fresh": after,
+                  "provider_policy": policy, "send_denial": denial,
                   "restart_agreement": {"mismatches": mismatches,
                                         "ok": not mismatches}}
         Path(args.out).write_text(json.dumps(result, indent=2) + "\n")
@@ -167,14 +220,7 @@ def main() -> None:
     objective = f"Release smoke {uuid.uuid4().hex[:10]}: sum Price"
     _, created = client.call("POST", "/api/assignments", {
         "objective": objective,
-        "sources": [{
-            "kind": "workbook",
-            "dataset_name": args.dataset_name,
-            "source": args.source,
-            "external_id": args.external_id,
-            "source_version": args.source_version,
-            "sheet": args.sheet,
-        }],
+        "sources": [source],
         "deliverables": [{
             "kind": "document",
             "description": objective,
@@ -201,6 +247,8 @@ def main() -> None:
         "ok": True,
         "fresh": fresh,
         "objective": objective,
+        "provider_policy": policy,
+        "send_denial": denial,
         "database_delta": {
             "assignments_before": before_count,
             "assignments_after": after_count,

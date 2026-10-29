@@ -879,6 +879,8 @@ async def test_scan_entry_exit_bound_real_scan():
               return_value=list(catalog)),
         patch("core.sheet_dataset_service.entries_for_file_sync",
               return_value=list(catalog)),
+        patch("core.integrations.token_store.connected_source_grant_state",
+              return_value="active"),
     ):
         block = await planner._datasets_named_file_block(
             "u1", ask,
