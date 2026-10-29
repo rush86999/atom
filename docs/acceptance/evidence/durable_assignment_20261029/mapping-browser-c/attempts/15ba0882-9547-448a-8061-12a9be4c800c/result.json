@@ -1,0 +1,100 @@
+{
+  "schema": "atom-mapping-browser-c-1",
+  "status": "passed",
+  "product": {
+    "commit": "06e6c2cdcf465ac31864afbd3ae559ae3a67cabf",
+    "tree": "cec52079ff20b4ab57d34d834cc728b05f83ed50",
+    "dirty_paths": []
+  },
+  "frozen_release": {
+    "commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "tag": "assignment-successor-2026-10-29",
+    "tag_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "unchanged": true
+  },
+  "harness_sha256": "1d96e4957fff0cce50fded4713464f0060f3b0003319bd223166a4c666fdb3a8",
+  "run_id": "15ba0882-9547-448a-8061-12a9be4c800c",
+  "assignment_id": "asg-2434799dd1d54a95",
+  "fixture": "controlled acceptance workbook_c: columns Product,Qty,Value,Note; no source unit; not live-connected",
+  "expected": "75.00",
+  "result": "75.00",
+  "currency": "USD",
+  "unit_authority": "user_confirmed",
+  "source_version": "7f12e3325a4a91607cf1a5ebc90693c1323f5643",
+  "source_sha256": "9d82192d7f4e5ac334f7f17248e0c5b026ca100c7ae7b0064203a79a00409cf9",
+  "source_bytes_unchanged": true,
+  "mapping": {
+    "concept": "Price",
+    "sheet": "Sheet1",
+    "column": "Value",
+    "unit": "USD",
+    "unit_authority": "user_confirmed",
+    "required_unit": "USD",
+    "source_unit": "",
+    "source_unit_column": "",
+    "source_version": "7f12e3325a4a91607cf1a5ebc90693c1323f5643",
+    "revision": 2,
+    "lesson_id": "db844c3927164d95ad65d9f4a1e2c886"
+  },
+  "teaching_persisted": {
+    "concept": "Price",
+    "sheet": "Sheet1",
+    "column": "Value",
+    "unit": "USD",
+    "source_version": "7f12e3325a4a91607cf1a5ebc90693c1323f5643",
+    "revision": 2,
+    "unit_authority": "user_confirmed",
+    "required_unit": "USD"
+  },
+  "gap": {
+    "question_id": "ec24d334-d701-4b58-8cb4-f111729d2743",
+    "required_unit": "USD",
+    "source_unit": "",
+    "source_unit_column": "",
+    "candidates": [
+      "Product",
+      "Qty",
+      "Value",
+      "Note"
+    ]
+  },
+  "refusals": [
+    {
+      "kind": "missing_unit",
+      "http_status": 409,
+      "detail": "the taught method requires an explicit unit confirmation"
+    },
+    {
+      "kind": "incompatible_unit",
+      "unit": "EUR",
+      "http_status": 409,
+      "detail": "the confirmed unit 'EUR' does not match the taught unit 'USD'; no conversion is authorized"
+    }
+  ],
+  "no_mutation": {
+    "durable_parameters_identical": true,
+    "mapping_before": {
+      "concept": "Price",
+      "sheet": "Sheet1",
+      "column": "Unit Price",
+      "unit": "USD",
+      "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": 1,
+      "lesson_id": "db844c3927164d95ad65d9f4a1e2c886",
+      "lesson_revision": 1
+    },
+    "result_before_confirmation": null
+  },
+  "confirmation": {
+    "surface": "Assignments panel",
+    "column": "Value",
+    "unit": "USD"
+  },
+  "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_c_acceptance/office/assignments/default/map-user/draft-0c7d52b53f6d/mapping-c-total-24719c38.docx",
+  "artifact_sha256": "f188d3a2466f985d856e7305b3a871a6ebf2775d37b9546e5d24acef72184b7a",
+  "artifact_bytes_verified": true,
+  "screenshots": [
+    "unit-unresolved.png",
+    "unit-confirmed.png"
+  ]
+}

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import hashlib
 import json
 import os
 import uuid
@@ -820,6 +821,186 @@ def test_mapping_unit_without_source_evidence_requires_explicit_confirmation(
     assert snapshot_mapping["column"] == "Total"
     assert snapshot_mapping["unit"] == "USD"
     assert snapshot_mapping["unit_authority"] == "user_confirmed"
+
+
+def test_mapping_correction_invalidates_only_dependants_and_preserves_history(
+        tmp_path, monkeypatch):
+    import pandas as pd
+    from core.assignment_executor import AssignmentError, AssignmentExecutor
+    from core.goals.goal_run_service import GoalRunService
+    from core.goals.goal_service import GoalService
+    from core.models import DatasetEntry
+    from core.task_lifecycle import TaskLifecycle
+
+    db, user, _token, factory = _real_connected_catalog(tmp_path, monkeypatch)
+    parquet = tmp_path / "sheet_datasets" / "scotch.parquet"
+    frame = pd.read_parquet(parquet)
+    frame["List Price"] = [30.0, 50.0, 20.0]
+    frame["Contract Price"] = [20.0, 45.0, 15.0]
+    frame["Tax"] = [5.0, 2.0, 1.0]
+    frame.to_parquet(parquet, index=False)
+    entry = db.query(DatasetEntry).filter(
+        DatasetEntry.id == "entry-1").first()
+    entry.columns_json = {
+        "columns": [{"name": column} for column in frame.columns],
+        "coverage": {"known": True, "source_row_count": len(frame),
+                     "materialized_row_count": len(frame),
+                     "truncated": False},
+    }
+    db.commit()
+    resolved = resolve_assignment_source(
+        db, user, {"dataset_name": "scotch_parts_price_list",
+                   "sheet": "US$ SCOTCH PARTS"})
+    binding = resource_binding(resolved)
+    old_artifact = tmp_path / "out" / "mapping-total.docx"
+    old_artifact.parent.mkdir(parents=True, exist_ok=True)
+    mapping = {
+        "concept": "Price", "sheet": "US$ SCOTCH PARTS",
+        "column": "List Price", "unit": "USD",
+        "unit_authority": "source_evidence", "required_unit": "USD",
+        "source_unit": "USD", "source_unit_column": "Currency",
+        "source_version": "a" * 40, "revision": 2,
+        "lesson_id": "lesson-corr-1",
+    }
+    unrelated = {
+        "concept": "Tax", "sheet": "US$ SCOTCH PARTS",
+        "column": "Tax", "unit": "USD",
+        "unit_authority": "source_evidence",
+        "source_version": "a" * 40, "revision": 1,
+        "lesson_id": "lesson-corr-1",
+    }
+    plan = new_assignment(
+        objective="Correct the price mapping",
+        employee_id="u1",
+        workspace_id="ws-a",
+        tenant_id="t1",
+        teaching_snapshot=new_teaching_snapshot(
+            revision="corr-r1",
+            field_mappings=[mapping, unrelated],
+        ),
+        steps=[
+            new_step(
+                step_id="source-1", title="Aggregate the taught source",
+                operation_type="calculate", adapter="dataset.aggregate",
+                inputs={"resource_binding": binding, "operation": "sum",
+                        "value_column": "List Price"},
+                effect="local"),
+            new_step(
+                step_id="deliverable-1", title="Render the corrected total",
+                operation_type="present", adapter="artifact.document",
+                depends_on=["source-1"],
+                inputs={"path": str(old_artifact),
+                        "compose_from_results": True,
+                        "deliverable_id": "del-deliverable-1"},
+                effect="local"),
+        ],
+        deliverables=[new_deliverable(
+            deliverable_id="del-deliverable-1", kind="document",
+            description="Corrected total", required=True,
+            step_id="deliverable-1")],
+        sources=[{"kind": "workbook", "binding": binding}],
+        authorized_actions=["retrieve", "calculate", "present"],
+        completion_criteria=[{"kind": "required_work_complete"}],
+    )
+    executor = AssignmentExecutor(TaskLifecycle(
+        GoalRunService(
+            workspace_id="ws-a", tenant_id="t1", session_factory=factory),
+        GoalService(
+            workspace_id="ws-a", tenant_id="t1", session_factory=factory)))
+    record = executor.create_assignment(
+        "conv-corr", "Correct the price mapping", assignment=plan,
+        employee_id="u1", workspace_id="ws-a", tenant_id="t1")
+    asyncio.run(executor.execute(record["run_id"]))
+    initial = executor.status(record["run_id"])
+    assert initial["assignment"]["status"] == "completed", initial
+    initial_durable = executor.lifecycle.get_task(record["run_id"]) or {}
+    initial_step = next(
+        step for step in initial_durable["assignment"]["steps"]
+        if step["step_id"] == "source-1")
+    assert initial_step["result"]["value"] == "100.00"
+    initial_deliverable = next(
+        step for step in initial_durable["assignment"]["steps"]
+        if step["step_id"] == "deliverable-1")
+    old_result = initial_deliverable["result"]["artifact"]
+    assert old_result["path"] == str(old_artifact)
+    old_sha = old_result["sha256"]
+    assert old_artifact.exists()
+
+    before_stale = copy.deepcopy(
+        executor.lifecycle.get_task(record["run_id"]))
+    with pytest.raises(AssignmentError) as stale:
+        executor.correct_mapping(
+            record["run_id"], concept="Price", expected_revision=1,
+            column="Contract Price", unit="USD", corrected_by="u1",
+            current_source=resolved)
+    assert "stale mapping revision" in str(stale.value)
+    assert (executor.lifecycle.get_task(record["run_id"])["assignment"]
+            == before_stale["assignment"])
+
+    executor.correct_mapping(
+        record["run_id"], concept="Price", expected_revision=2,
+        column="Contract Price", unit="USD", corrected_by="u1",
+        current_source=resolved)
+    asyncio.run(executor.resume(record["run_id"]))
+    final = executor.status(record["run_id"])
+    assert final["assignment"]["status"] == "completed", final
+    durable = executor.lifecycle.get_task(record["run_id"]) or {}
+    assignment = durable["assignment"]
+    mappings = {
+        item["concept"]: item
+        for item in assignment["teaching_snapshot"]["field_mappings"]
+    }
+    assert mappings["Price"]["column"] == "Contract Price"
+    assert mappings["Price"]["revision"] == 3
+    assert mappings["Price"]["unit_authority"] == "source_evidence"
+    assert mappings["Tax"] == unrelated
+    source_step = next(
+        step for step in assignment["steps"]
+        if step["step_id"] == "source-1")
+    assert source_step["result"]["value"] == "80.00"
+    assert source_step["prior_results"][0]["result"]["value"] == "100.00"
+    deliverable_step = next(
+        step for step in assignment["steps"]
+        if step["step_id"] == "deliverable-1")
+    assert (deliverable_step["prior_results"][0]["result"]["artifact"]
+            ["path"] == str(old_artifact))
+    new_artifact = deliverable_step["result"]["artifact"]
+    assert new_artifact["path"] != str(old_artifact)
+    assert old_artifact.exists()
+    assert hashlib.sha256(
+        old_artifact.read_bytes()).hexdigest() == old_sha
+    assert Path(new_artifact["path"]).exists()
+    assert hashlib.sha256(
+        Path(new_artifact["path"]).read_bytes()).hexdigest() == (
+            new_artifact["sha256"])
+    deliverable = next(
+        item for item in assignment["deliverables"]
+        if item["deliverable_id"] == "del-deliverable-1")
+    assert deliverable["prior_artifacts"][0]["artifact_path"] == str(
+        old_artifact)
+    assert deliverable["prior_artifacts"][0]["sha256"] == old_sha
+    assert assignment["plan_revision"] > before_stale["assignment"][
+        "plan_revision"]
+
+    before_replay = copy.deepcopy(
+        executor.lifecycle.get_task(record["run_id"]))
+    with pytest.raises(AssignmentError) as replay:
+        executor.correct_mapping(
+            record["run_id"], concept="Price", expected_revision=2,
+            column="List Price", unit="USD", corrected_by="u1",
+            current_source=resolved)
+    assert "stale mapping revision" in str(replay.value)
+    assert (executor.lifecycle.get_task(record["run_id"])["assignment"]
+            == before_replay["assignment"])
+
+    with pytest.raises(AssignmentError) as non_numeric:
+        executor.correct_mapping(
+            record["run_id"], concept="Price", expected_revision=3,
+            column="Item Number", unit="USD", corrected_by="u1",
+            current_source=resolved)
+    assert "not numeric" in str(non_numeric.value)
+    assert (executor.lifecycle.get_task(record["run_id"])["assignment"]
+            == before_replay["assignment"])
 
 
 def test_revoked_grant_between_start_and_resumed_executor_read(

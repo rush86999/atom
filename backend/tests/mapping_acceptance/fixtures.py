@@ -22,6 +22,13 @@ C_ROWS = [
     {"Product": "C-2", "Qty": 2, "Value": 25.0, "Note": "blank qty"},
     {"Product": "C-3", "Qty": None, "Value": 10.0, "Note": "missing qty"},
 ]
+CORRECTION_ROWS = [
+    {"SKU": "R-1", "List Price": 60.0, "Contract Price": 45.0,
+     "Renewal Price": 40.0, "Tax": 5.0, "Currency": "USD", "Note": ""},
+    {"SKU": "R-2", "List Price": 40.0, "Contract Price": 35.0,
+     "Renewal Price": 30.0, "Tax": 3.0, "Currency": "USD",
+     "Note": "renewal"},
+]
 
 
 def expected_sum(rows, column):
