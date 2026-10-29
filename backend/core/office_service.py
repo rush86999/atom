@@ -319,7 +319,10 @@ class ExcelManager:
             logger.error(f"Error reading Excel range: {e}")
             return {"success": False, "error": "Failed to read Excel range"}
 
-    def create_spreadsheet(self, file_path: str, rows: List[List[Any]]) -> Dict[str, Any]:
+    def create_spreadsheet(
+        self, file_path: str, rows: List[List[Any]],
+        format_spec: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """Create a new .xlsx from row data (chat-table drafts → office
         canvas). One workbook open/save, unlike per-cell write_cell.
         Numeric-looking strings become real numbers so Excel formulas and
@@ -341,11 +344,41 @@ class ExcelManager:
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Sheet1"
-            for row in rows or []:
+            clean_rows = [list(row) for row in (rows or [])]
+            if format_spec and clean_rows:
+                wanted = [str(item) for item in
+                          (format_spec.get("table_columns") or [])]
+                header = [str(cell) for cell in clean_rows[0]]
+                if wanted and all(item in header for item in wanted):
+                    order = [header.index(item) for item in wanted]
+                    order += [i for i in range(len(header)) if i not in order]
+                    clean_rows = [
+                        [row[i] if i < len(row) else None for i in order]
+                        for row in clean_rows
+                    ]
+            for row in clean_rows:
                 ws.append([coerce(cell) for cell in row])
+            if format_spec:
+                from openpyxl.styles import Font
+
+                font_name = str(format_spec.get("font_name") or "")
+                font_size = format_spec.get("font_size")
+                header_bold = bool(format_spec.get("header_bold", True))
+                for row_cells in ws.iter_rows():
+                    for cell in row_cells:
+                        cell.font = Font(
+                            name=font_name or cell.font.name,
+                            size=float(font_size or cell.font.sz or 11),
+                            bold=(header_bold if cell.row == 1 else cell.font.bold),
+                        )
+                if format_spec.get("freeze_header"):
+                    ws.freeze_panes = "A2"
             os.makedirs(os.path.dirname(file_path) or ".", exist_ok=True)
             wb.save(file_path)
-            return {"success": True, "file_path": file_path, "rows": len(rows or [])}
+            return {
+                "success": True, "file_path": file_path,
+                "rows": len(clean_rows), "format_spec": dict(format_spec or {}),
+            }
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -601,6 +634,7 @@ class WordManager:
         markdown: str,
         title: Optional[str] = None,
         sources: Optional[List[str]] = None,
+        format_spec: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Create a REAL .docx from a markdown draft.
 
@@ -608,14 +642,41 @@ class WordManager:
         markdown tables become real Word tables (the old generator flattened
         every line into a paragraph, so "requested table" was never a table).
         Source references already present in the draft are carried into the
-        document metadata and a Sources section.
+        document metadata and a Sources section. ``format_spec`` is the
+        resolved artifact teaching and is applied deterministically here.
         """
         try:
             file_path = _validate_office_path(file_path)
         except ValueError as e:
             return {"success": False, "error": str(e)}
+        teaching_findings: List[Dict[str, str]] = []
+        if format_spec:
+            from core.artifact_teaching import apply_document_teaching
+
+            markdown, teaching_findings = apply_document_teaching(
+                markdown, format_spec)
+            if any(
+                item.get("code") == "prohibited_internal_information"
+                for item in teaching_findings
+            ):
+                return {
+                    "success": False,
+                    "error": "Prohibited internal information in document",
+                    "teaching_findings": teaching_findings,
+                }
         try:
             document = docx.Document()
+            if format_spec:
+                from docx.shared import Pt
+
+                normal = document.styles["Normal"]
+                if format_spec.get("font_name"):
+                    normal.font.name = str(format_spec["font_name"])
+                if format_spec.get("font_size"):
+                    normal.font.size = Pt(float(format_spec["font_size"]))
+                if format_spec.get("line_spacing"):
+                    normal.paragraph_format.line_spacing = float(
+                        format_spec["line_spacing"])
             blocks = list(_markdown_blocks(markdown))
             first_heading = next(
                 (payload[1] for kind, payload in blocks if kind == "heading" and payload[1]),
@@ -675,6 +736,8 @@ class WordManager:
                 "tables": sum(1 for kind, _ in _markdown_blocks(markdown) if kind == "table"),
                 "sources": source_list,
                 "size_bytes": os.path.getsize(file_path),
+                "format_spec": dict(format_spec or {}),
+                "teaching_findings": teaching_findings,
             }
         except Exception as e:
             logger.error(f"Error creating Word document: {e}")
@@ -792,6 +855,7 @@ class PowerPointManager:
         markdown: str,
         title: Optional[str] = None,
         sources: Optional[List[str]] = None,
+        format_spec: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Create a REAL .pptx from a Slide N: outline.
 
@@ -799,6 +863,7 @@ class PowerPointManager:
         native PowerPoint tables. Speaker notes and source references are
         written to the notes pane so they survive reopen/download. Text boxes
         stay inside the slide bounds and shrink for dense slides (no clipping).
+        ``format_spec`` is the resolved artifact teaching.
         """
         if not PPTX_AVAILABLE:
             return {"success": False, "error": "python-pptx library not installed"}
@@ -806,6 +871,21 @@ class PowerPointManager:
             file_path = _validate_office_path(file_path)
         except ValueError as e:
             return {"success": False, "error": str(e)}
+        teaching_findings: List[Dict[str, str]] = []
+        if format_spec:
+            from core.artifact_teaching import apply_presentation_teaching
+
+            markdown, teaching_findings = apply_presentation_teaching(
+                markdown, format_spec)
+            if any(
+                item.get("code") == "prohibited_internal_information"
+                for item in teaching_findings
+            ):
+                return {
+                    "success": False,
+                    "error": "Prohibited internal information in presentation",
+                    "teaching_findings": teaching_findings,
+                }
         try:
             from core.chat_draft_classifier import extract_slide_outline
             from pptx.util import Inches, Pt
@@ -821,6 +901,9 @@ class PowerPointManager:
             prs.slide_height = Inches(7.5)
             title_layout = prs.slide_layouts[5]  # Title Only (real placeholder)
             source_list = [str(item) for item in (sources or []) if str(item).strip()]
+            teaching_font = str((format_spec or {}).get("font_name") or "")
+            teaching_body_size = int(
+                (format_spec or {}).get("font_size") or 16)
 
             for deck_slide in slides_data:
                 slide = prs.slides.add_slide(title_layout)
@@ -839,6 +922,8 @@ class PowerPointManager:
                     for run in para.runs:
                         run.font.size = Pt(28)
                         run.font.bold = True
+                        if teaching_font:
+                            run.font.name = teaching_font
 
                 body_lines = str(deck_slide.get("content") or "").splitlines()
                 notes_lines = []
@@ -879,6 +964,8 @@ class PowerPointManager:
                                     run.font.size = font_size
                                     if r_idx == 0:
                                         run.font.bold = True
+                                    if teaching_font:
+                                        run.font.name = teaching_font
                     remainder = "\n".join(kept[table_start:]).strip()
                     if remainder:
                         below = slide.shapes.add_textbox(
@@ -888,7 +975,9 @@ class PowerPointManager:
                         below.text_frame.text = remainder
                         for para in below.text_frame.paragraphs:
                             for run in para.runs:
-                                run.font.size = Pt(12)
+                                run.font.size = Pt(teaching_body_size - 4 if teaching_body_size > 14 else 12)
+                                if teaching_font:
+                                    run.font.name = teaching_font
                 else:
                     body = "\n".join(kept).strip()
                     if body:
@@ -900,7 +989,10 @@ class PowerPointManager:
                         dense = len([ln for ln in body.splitlines() if ln.strip()]) > 10
                         for para in frame.paragraphs:
                             for run in para.runs:
-                                run.font.size = Pt(12 if dense else 16)
+                                run.font.size = Pt(
+                                    12 if dense else teaching_body_size)
+                                if teaching_font:
+                                    run.font.name = teaching_font
 
                 notes_text = "\n".join(
                     item for item in dict.fromkeys(notes_lines + source_list) if item
@@ -929,6 +1021,8 @@ class PowerPointManager:
                 "slides": len(slides_data),
                 "sources": source_list,
                 "size_bytes": os.path.getsize(file_path),
+                "format_spec": dict(format_spec or {}),
+                "teaching_findings": teaching_findings,
             }
         except Exception as e:
             logger.error(f"Error creating PowerPoint: {e}")

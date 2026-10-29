@@ -28,6 +28,12 @@ interface ConnectionStatus {
   token_state?: string | null;
   requires_reconnect?: boolean;
   retryable?: boolean;
+  admin_action_required?: boolean;
+  client_config_state?: {
+    configured?: boolean;
+    missing?: string[];
+    placeholders?: string[];
+  } | null;
 }
 
 interface DocumentItem {
@@ -80,7 +86,9 @@ function elapsedLabel(startedAt?: string | null, finishedAt?: string | null): st
 
 function connectionLabel(connection: ConnectionStatus): string {
   if (connection.is_connected) return 'Connected';
-  if (connection.token_state === 'invalid_client') return 'Configuration error';
+  if (connection.admin_action_required || connection.token_state === 'invalid_client') {
+    return 'Administrator configuration repair';
+  }
   if (connection.token_state === 'transient') return 'Refresh temporarily failed';
   if (connection.token_state === 'invalid_grant' || connection.requires_reconnect) {
     return 'Reconnect required';
@@ -248,6 +256,16 @@ export default function ConnectedDataStatus() {
                 {connection?.retryable && (
                   <p className="text-xs text-muted-foreground">
                     Temporary provider/network failure: retry before reconnecting.
+                  </p>
+                )}
+                {connection?.admin_action_required && (
+                  <p className="text-xs text-muted-foreground">
+                    Administrator repair:{' '}
+                    {[
+                      ...(connection.client_config_state?.missing || []),
+                      ...(connection.client_config_state?.placeholders || []),
+                    ].join(', ') || 'Microsoft OAuth client configuration'}
+                    {' '}must be restored. User reconnect alone will not fix this.
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">

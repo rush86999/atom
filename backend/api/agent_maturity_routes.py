@@ -128,6 +128,10 @@ class TeachingPointUpdate(BaseModel):
 
     text: Optional[str] = Field(None, min_length=1, max_length=2000)
     topic: Optional[str] = Field(None, min_length=1, max_length=200)
+    applies_to: Optional[List[str]] = Field(None, max_length=8)
+    format_spec: Optional[Dict[str, Any]] = None
+    conditions: Optional[Dict[str, Any]] = None
+    context: Optional[Dict[str, Any]] = None
 
 
 # ============================================================================
@@ -689,6 +693,12 @@ async def get_canvas_training_context(
                 # while working ``goal_id``. Absent (pre-scope rows) = global.
                 "scope": entry.get("scope") or "global",
                 "goal_id": entry.get("goal_id"),
+                "applies_to": list(entry.get("applies_to") or []),
+                "format_spec": dict(entry.get("format_spec") or {}),
+                "conditions": dict(entry.get("conditions") or {}),
+                "context": dict(entry.get("context") or {}),
+                "revision": entry.get("revision") or 1,
+                "workspace_id": entry.get("workspace_id"),
             }
             if source == "observation":
                 point.update(
@@ -796,13 +806,19 @@ async def update_agent_teaching_point(
     appendable. Deleting standing guidance is the supervisor-gated operation.
     """
     agent = _scoped_agent(db, agent_id, current_user)
-    if request.text is None and request.topic is None:
-        raise HTTPException(status_code=400, detail="Provide text and/or topic to update")
+    if (
+        request.text is None and request.topic is None
+        and request.applies_to is None and request.format_spec is None
+        and request.conditions is None and request.context is None
+    ):
+        raise HTTPException(status_code=400, detail="Provide a teaching field to update")
 
     from core.student_learning_service import update_teaching_point
 
     result = update_teaching_point(
-        db, agent.id, point_id, text=request.text, topic=request.topic
+        db, agent.id, point_id, text=request.text, topic=request.topic,
+        applies_to=request.applies_to, format_spec=request.format_spec,
+        conditions=request.conditions, context=request.context,
     )
     if result.get("status") != "ok":
         reason = result.get("reason")
@@ -812,6 +828,14 @@ async def update_agent_teaching_point(
             raise HTTPException(
                 status_code=400,
                 detail="Observed teaching points keep their type — only their text can be edited",
+            )
+        if reason == "invalid_format_spec":
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "Unsupported or invalid format specification",
+                    "errors": result.get("errors") or [],
+                },
             )
         raise HTTPException(status_code=400, detail=reason or "Teaching point not updated")
     return {"status": "ok", "teaching_point": result["entry"]}

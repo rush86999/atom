@@ -45,6 +45,49 @@
   },
   "evidence": ["oauth_renewal_controls.json", "docs/acceptance/OAUTH_RENEWAL_2026-10-29.md"]
  },
+ "teaching_context": {
+  "status": "pass_demonstrated_scope",
+  "store": "existing AgentRegistry learning log; same teaching-point ids",
+  "typed_states": ["applicable", "not_applicable", "needs_context", "conflict"],
+  "acceptance": {
+   "equivalent_context": "document transfer applied",
+   "wrong_location": "not_applicable",
+   "missing_qualification": "409 targeted clarification",
+   "scoped_exception": "font 14 only inside scope",
+   "correction": "revision 1->2; font 11->12; unrelated teaching preserved",
+   "second_context": "service report Times New Roman 12",
+   "restart": "revision/font/artifact reopen retained",
+   "source_text_not_teaching": "lesson count unchanged"
+  },
+  "evidence": "docs/acceptance/TEACHING_CONTEXT_2026-10-29.md; docs/acceptance/evidence/teaching_context_20261029/"
+ },
+ "durable_assignment": {
+  "status": "pass_mocked_transport_two_domains",
+  "executor": "core/assignment_executor.py (same code for both domains)",
+  "storage": "existing GoalRun task_lifecycle record; no new workflow engine",
+  "controls": {
+   "operation_binding": "versioned action/workspace/account/arguments/artifacts/authorization/prerequisites; changed payload conflicts",
+   "registry_boundary": "action.registry adapter checks preconditions and dispatches through action_registry",
+   "receipts": ["confirmed", "provider_accepted", "failed_before_effect", "uncertain"],
+   "waits": "match_exact correlation ids; consumed-once conditional update; wake replay after crash",
+   "approvals": "workspace/tenant scoped; payload/artifact/authorization bound; cancellation revives nothing",
+   "reconciliation": "Outlook/canvas path records provider acceptance/unknown; no blind resend",
+   "recovery": "durable re-entry; uncertain effects require evidence"
+  },
+  "two_domain_proof": {
+   "commercial": "workbook read, deterministic calculation, DOCX, draft, approval, controlled send",
+   "eligibility": "document read, different decision vocabulary, DOCX, approval, controlled notice",
+   "restart": "waiting state and correction survived restart",
+   "duplicate_effect": "one outbox record per approved effect"
+  },
+  "evidence": "docs/acceptance/DURABLE_ASSIGNMENT_2026-10-29.md; docs/acceptance/evidence/durable_assignment_20261029/",
+  "limitations": [
+   "no live connected send",
+   "provider delivery confirmation not claimed",
+   "single-worker topology verified",
+   "frontend assignment panel not wired"
+  ]
+ },
  "connected_sources": [
   {
    "provider": "microsoft_graph",
@@ -272,7 +315,7 @@
   }
  },
  "exit_condition_met": false,
- "exit_condition_detail": "Connected ingestion, binding, full-set calculation, certified taught assessment, correction, unfamiliar records, restart, artifacts, browser status and negative controls passed. OAuth replacement-token persistence and failure classification pass locally; live renewal is blocked by missing Microsoft client credentials (invalid_client, not revoked consent). A live changed-byte refresh was not performed because source writeback is prohibited and the live refresh path is unavailable; the rebind/invalidation path and a local changed-version control pass.",
+ "exit_condition_detail": "Connected ingestion, binding, full-set calculation, certified taught assessment, correction, unfamiliar records, restart, artifacts, browser status and negative controls passed. OAuth replacement-token persistence and failure classification pass locally; live renewal is blocked by missing Microsoft client credentials (invalid_client, not revoked consent). A live changed-byte refresh was not performed because source writeback is prohibited and the live refresh path is unavailable; the rebind/invalidation path and a local changed-version control pass. The durable assignment executor passes mocked-transport two-domain, wait/restart, approval-binding, cancellation and uncertain-outcome controls; a live connected send remains unauthorized and unrun.",
  "release_package_prepared": false,
  "deployment_authorized": false,
  "email_send_authorized": false,

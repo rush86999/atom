@@ -1,0 +1,895 @@
+{
+ "agent_a": "4f57c4cf-a375-427f-8696-33d080c4ee33",
+ "agent_b": "8434355e-578c-4577-89d0-2836dc7ed343",
+ "teaching_points": {
+  "document": "852aa20caa2e425cb6e58d12832c7032",
+  "exception": "cc5af95ae8094265bf3ed8f0a4dc1513",
+  "email": "45f5ef5d7eeb421e89fa69d4016050bb",
+  "presentation": "00b8e09e47fa4b3780664cfad2ebf27d",
+  "spreadsheet": "d7351ad68d674a93b8ac25c4c34e8e00"
+ },
+ "document_transfer": {
+  "canvas_id": "e3deeac1-1534-4723-9a6d-89c0faf03b6d",
+  "file": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/connected_world/office/chat-Pricing-Review-Standard-a9aaac2d.docx",
+  "teaching": {
+   "revision": "50432750e5a998e3",
+   "sources": [
+    {
+     "id": "852aa20caa2e425cb6e58d12832c7032",
+     "revision": 1,
+     "topic": "report standard",
+     "applies_to": [
+      "document"
+     ],
+     "conditions": {},
+     "context": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "location": "Warehouse B",
+      "source_version": "v1"
+     },
+     "specificity": 4
+    }
+   ],
+   "explanation": "Applied this instruction because these conditions match: audience=internal, business_category=pricing, location=Warehouse B, source_version=v1.",
+   "applicability": [
+    {
+     "lesson_id": "cc5af95ae8094265bf3ed8f0a4dc1513",
+     "revision": 1,
+     "topic": "expedited exception",
+     "status": "not_applicable",
+     "specificity": 4,
+     "matched": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "location": "Warehouse B",
+      "source_version": "v1"
+     },
+     "missing": [],
+     "conflicts": [
+      {
+       "key": "qualification",
+       "required": "expedited",
+       "actual": "standard"
+      }
+     ],
+     "excluded_by": [],
+     "reason": "context_mismatch"
+    },
+    {
+     "lesson_id": "852aa20caa2e425cb6e58d12832c7032",
+     "revision": 1,
+     "topic": "report standard",
+     "status": "applicable",
+     "specificity": 4,
+     "matched": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "location": "Warehouse B",
+      "source_version": "v1"
+     },
+     "missing": [],
+     "conflicts": [],
+     "excluded_by": [],
+     "reason": "context_matched"
+    }
+   ],
+   "spec": {
+    "font_name": "Arial",
+    "font_size": 11,
+    "line_spacing": 1.15,
+    "heading_order": [
+     "Summary",
+     "Findings",
+     "Sources"
+    ],
+    "table_columns": [
+     "Item",
+     "Value"
+    ],
+    "prohibited_terms": [
+     "INTERNAL ONLY"
+    ]
+   },
+   "status": "applicable"
+  },
+  "headings": [
+   "Summary",
+   "Findings",
+   "Sources"
+  ],
+  "table_columns": [
+   "Item",
+   "Value"
+  ],
+  "font": "Arial",
+  "font_size": 11.0
+ },
+ "wrong_location": {
+  "canvas_id": "0d057f04-716f-4437-8e15-fc2e64dee504",
+  "teaching": {
+   "revision": "",
+   "sources": [],
+   "explanation": "No applicable teaching was established for this context.",
+   "applicability": [
+    {
+     "lesson_id": "cc5af95ae8094265bf3ed8f0a4dc1513",
+     "revision": 1,
+     "topic": "expedited exception",
+     "status": "not_applicable",
+     "specificity": 3,
+     "matched": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "source_version": "v1"
+     },
+     "missing": [],
+     "conflicts": [
+      {
+       "key": "location",
+       "required": "Warehouse B",
+       "actual": "Warehouse A"
+      },
+      {
+       "key": "qualification",
+       "required": "expedited",
+       "actual": "standard"
+      }
+     ],
+     "excluded_by": [],
+     "reason": "context_mismatch"
+    },
+    {
+     "lesson_id": "852aa20caa2e425cb6e58d12832c7032",
+     "revision": 1,
+     "topic": "report standard",
+     "status": "not_applicable",
+     "specificity": 3,
+     "matched": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "source_version": "v1"
+     },
+     "missing": [],
+     "conflicts": [
+      {
+       "key": "location",
+       "required": "Warehouse B",
+       "actual": "Warehouse A"
+      }
+     ],
+     "excluded_by": [],
+     "reason": "context_mismatch"
+    }
+   ],
+   "spec": {},
+   "status": "not_applicable"
+  }
+ },
+ "missing_qualification": {
+  "http": 409,
+  "response": {
+   "error": "teaching_context_unresolved",
+   "message": "I need confirmation before applying this instruction: qualification.",
+   "teaching": {
+    "spec": {
+     "font_name": "Arial",
+     "font_size": 11,
+     "line_spacing": 1.15,
+     "heading_order": [
+      "Summary",
+      "Findings",
+      "Sources"
+     ],
+     "table_columns": [
+      "Item",
+      "Value"
+     ],
+     "prohibited_terms": [
+      "INTERNAL ONLY"
+     ]
+    },
+    "sources": [
+     {
+      "id": "852aa20caa2e425cb6e58d12832c7032",
+      "revision": 1,
+      "topic": "report standard",
+      "applies_to": [
+       "document"
+      ],
+      "conditions": {},
+      "context": {
+       "business_category": "pricing",
+       "audience": "internal",
+       "location": "Warehouse B",
+       "source_version": "v1"
+      },
+      "specificity": 4
+     }
+    ],
+    "revision": "50432750e5a998e3",
+    "unsupported": [],
+    "errors": [],
+    "output_type": "document",
+    "status": "needs_context",
+    "applicability": [
+     {
+      "lesson_id": "cc5af95ae8094265bf3ed8f0a4dc1513",
+      "revision": 1,
+      "topic": "expedited exception",
+      "status": "needs_context",
+      "specificity": 4,
+      "matched": {
+       "business_category": "pricing",
+       "audience": "internal",
+       "location": "Warehouse B",
+       "source_version": "v1"
+      },
+      "missing": [
+       "qualification"
+      ],
+      "conflicts": [],
+      "excluded_by": [],
+      "reason": "missing_required_context"
+     },
+     {
+      "lesson_id": "852aa20caa2e425cb6e58d12832c7032",
+      "revision": 1,
+      "topic": "report standard",
+      "status": "applicable",
+      "specificity": 4,
+      "matched": {
+       "business_category": "pricing",
+       "audience": "internal",
+       "location": "Warehouse B",
+       "source_version": "v1"
+      },
+      "missing": [],
+      "conflicts": [],
+      "excluded_by": [],
+      "reason": "context_matched"
+     }
+    ],
+    "clarifications": [
+     {
+      "lesson_id": "cc5af95ae8094265bf3ed8f0a4dc1513",
+      "revision": 1,
+      "topic": "expedited exception",
+      "status": "needs_context",
+      "specificity": 4,
+      "matched": {
+       "business_category": "pricing",
+       "audience": "internal",
+       "location": "Warehouse B",
+       "source_version": "v1"
+      },
+      "missing": [
+       "qualification"
+      ],
+      "conflicts": [],
+      "excluded_by": [],
+      "reason": "missing_required_context"
+     }
+    ],
+    "conflicts": [],
+    "explanation": "I need confirmation before applying this instruction: qualification."
+   }
+  }
+ },
+ "exception": {
+  "canvas_id": "32ebd18c-e5ad-4e30-b293-88d0c969f6d9",
+  "teaching": {
+   "revision": "fe0e420b2d091116",
+   "sources": [
+    {
+     "id": "cc5af95ae8094265bf3ed8f0a4dc1513",
+     "revision": 1,
+     "topic": "expedited exception",
+     "applies_to": [
+      "document"
+     ],
+     "conditions": {},
+     "context": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "location": "Warehouse B",
+      "source_version": "v1",
+      "qualification": "expedited"
+     },
+     "specificity": 5
+    },
+    {
+     "id": "852aa20caa2e425cb6e58d12832c7032",
+     "revision": 1,
+     "topic": "report standard",
+     "applies_to": [
+      "document"
+     ],
+     "conditions": {},
+     "context": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "location": "Warehouse B",
+      "source_version": "v1"
+     },
+     "specificity": 4
+    }
+   ],
+   "explanation": "Applied this instruction because these conditions match: audience=internal, business_category=pricing, location=Warehouse B, qualification=expedited, source_version=v1.",
+   "applicability": [
+    {
+     "lesson_id": "cc5af95ae8094265bf3ed8f0a4dc1513",
+     "revision": 1,
+     "topic": "expedited exception",
+     "status": "applicable",
+     "specificity": 5,
+     "matched": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "location": "Warehouse B",
+      "source_version": "v1",
+      "qualification": "expedited"
+     },
+     "missing": [],
+     "conflicts": [],
+     "excluded_by": [],
+     "reason": "context_matched"
+    },
+    {
+     "lesson_id": "852aa20caa2e425cb6e58d12832c7032",
+     "revision": 1,
+     "topic": "report standard",
+     "status": "applicable",
+     "specificity": 4,
+     "matched": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "location": "Warehouse B",
+      "source_version": "v1"
+     },
+     "missing": [],
+     "conflicts": [],
+     "excluded_by": [],
+     "reason": "context_matched"
+    }
+   ],
+   "spec": {
+    "font_size": 14,
+    "font_name": "Arial",
+    "line_spacing": 1.15,
+    "heading_order": [
+     "Summary",
+     "Findings",
+     "Sources"
+    ],
+    "table_columns": [
+     "Item",
+     "Value"
+    ],
+    "prohibited_terms": [
+     "INTERNAL ONLY"
+    ]
+   },
+   "status": "applicable"
+  },
+  "font_size": 14.0
+ },
+ "email": {
+  "canvas_id": "6c2157fb-b324-4755-8089-9f858ae24f22",
+  "subject": "[Review] Price review",
+  "body": "<p>Hello</p>Please find the review attached.<p>Rish Parikh Brennan Industries</p>",
+  "teaching": {
+   "revision": "a2c6dbca9454be1e",
+   "sources": [
+    {
+     "id": "45f5ef5d7eeb421e89fa69d4016050bb",
+     "revision": 1,
+     "topic": "email protocol",
+     "applies_to": [
+      "email"
+     ],
+     "conditions": {},
+     "context": {
+      "business_category": "pricing",
+      "audience": "customer"
+     },
+     "specificity": 2
+    }
+   ],
+   "explanation": "Applied this instruction because these conditions match: audience=customer, business_category=pricing.",
+   "applicability": [
+    {
+     "lesson_id": "45f5ef5d7eeb421e89fa69d4016050bb",
+     "revision": 1,
+     "topic": "email protocol",
+     "status": "applicable",
+     "specificity": 2,
+     "matched": {
+      "business_category": "pricing",
+      "audience": "customer"
+     },
+     "missing": [],
+     "conflicts": [],
+     "excluded_by": [],
+     "reason": "context_matched"
+    }
+   ],
+   "spec": {
+    "subject_prefix": "[Review]",
+    "greeting": "Hello",
+    "signature": "Rish Parikh Brennan Industries",
+    "prohibited_terms": [
+     "INTERNAL ONLY"
+    ]
+   },
+   "status": "applicable"
+  }
+ },
+ "email_prohibited": {
+  "http": 400,
+  "response": {
+   "error": "prohibited_internal_information",
+   "message": "The draft contains internal-only information.",
+   "findings": [
+    {
+     "code": "prohibited_internal_information",
+     "detail": "INTERNAL ONLY"
+    }
+   ]
+  }
+ },
+ "presentation": {
+  "canvas_id": "93eef3d9-c368-4c0d-b73d-bcfd8f27608a",
+  "titles": [
+   "Overview",
+   "Findings",
+   "Sources"
+  ],
+  "teaching": {
+   "revision": "a193a6db1b377b93",
+   "sources": [
+    {
+     "id": "00b8e09e47fa4b3780664cfad2ebf27d",
+     "revision": 1,
+     "topic": "deck standard",
+     "applies_to": [
+      "presentation"
+     ],
+     "conditions": {},
+     "context": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "location": "Warehouse B"
+     },
+     "specificity": 3
+    }
+   ],
+   "explanation": "Applied this instruction because these conditions match: audience=internal, business_category=pricing, location=Warehouse B.",
+   "applicability": [
+    {
+     "lesson_id": "00b8e09e47fa4b3780664cfad2ebf27d",
+     "revision": 1,
+     "topic": "deck standard",
+     "status": "applicable",
+     "specificity": 3,
+     "matched": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "location": "Warehouse B"
+     },
+     "missing": [],
+     "conflicts": [],
+     "excluded_by": [],
+     "reason": "context_matched"
+    }
+   ],
+   "spec": {
+    "font_name": "Arial",
+    "font_size": 18,
+    "slide_order": [
+     "Overview",
+     "Findings",
+     "Sources"
+    ],
+    "table_columns": [
+     "Item",
+     "Value"
+    ],
+    "prohibited_terms": [
+     "INTERNAL ONLY"
+    ]
+   },
+   "status": "applicable"
+  }
+ },
+ "spreadsheet": {
+  "canvas_id": "956c7f41-b4c0-4485-9a6a-d2a8cb362154",
+  "header": [
+   "Item",
+   "Value"
+  ],
+  "freeze": "A2",
+  "font": "Arial",
+  "teaching": {
+   "revision": "4ffbc46877283ee6",
+   "sources": [
+    {
+     "id": "d7351ad68d674a93b8ac25c4c34e8e00",
+     "revision": 1,
+     "topic": "sheet standard",
+     "applies_to": [
+      "spreadsheet"
+     ],
+     "conditions": {},
+     "context": {
+      "business_category": "pricing"
+     },
+     "specificity": 1
+    }
+   ],
+   "explanation": "Applied this instruction because these conditions match: business_category=pricing.",
+   "applicability": [
+    {
+     "lesson_id": "d7351ad68d674a93b8ac25c4c34e8e00",
+     "revision": 1,
+     "topic": "sheet standard",
+     "status": "applicable",
+     "specificity": 1,
+     "matched": {
+      "business_category": "pricing"
+     },
+     "missing": [],
+     "conflicts": [],
+     "excluded_by": [],
+     "reason": "context_matched"
+    }
+   ],
+   "spec": {
+    "font_name": "Arial",
+    "font_size": 11,
+    "header_bold": true,
+    "freeze_header": true,
+    "table_columns": [
+     "Item",
+     "Value"
+    ]
+   },
+   "status": "applicable"
+  }
+ },
+ "correction": {
+  "revision": 2,
+  "a_lessons": [
+   {
+    "id": "d7351ad68d674a93b8ac25c4c34e8e00",
+    "text": "Use the standard spreadsheet layout",
+    "scope": "global",
+    "goal_id": null,
+    "source": "teacher",
+    "topic": "sheet standard",
+    "applies_to": [
+     "spreadsheet"
+    ],
+    "format_spec": {
+     "font_name": "Arial",
+     "font_size": 11,
+     "header_bold": true,
+     "freeze_header": true,
+     "table_columns": [
+      "Item",
+      "Value"
+     ]
+    },
+    "conditions": {},
+    "context": {
+     "business_category": "pricing"
+    },
+    "workspace_id": "default",
+    "revision": 1,
+    "format_errors": [],
+    "unsupported_format_keys": [],
+    "learned_at": "2026-10-29T02:08:39.137119+00:00"
+   },
+   {
+    "id": "00b8e09e47fa4b3780664cfad2ebf27d",
+    "text": "Use the standard internal deck outline",
+    "scope": "global",
+    "goal_id": null,
+    "source": "teacher",
+    "topic": "deck standard",
+    "applies_to": [
+     "presentation"
+    ],
+    "format_spec": {
+     "font_name": "Arial",
+     "font_size": 18,
+     "slide_order": [
+      "Overview",
+      "Findings",
+      "Sources"
+     ],
+     "table_columns": [
+      "Item",
+      "Value"
+     ],
+     "prohibited_terms": [
+      "INTERNAL ONLY"
+     ]
+    },
+    "conditions": {},
+    "context": {
+     "business_category": "pricing",
+     "audience": "internal",
+     "location": "Warehouse B"
+    },
+    "workspace_id": "default",
+    "revision": 1,
+    "format_errors": [],
+    "unsupported_format_keys": [],
+    "learned_at": "2026-10-29T02:08:39.132946+00:00"
+   },
+   {
+    "id": "45f5ef5d7eeb421e89fa69d4016050bb",
+    "text": "Use the customer email protocol",
+    "scope": "global",
+    "goal_id": null,
+    "source": "teacher",
+    "topic": "email protocol",
+    "applies_to": [
+     "email"
+    ],
+    "format_spec": {
+     "subject_prefix": "[Review]",
+     "greeting": "Hello",
+     "signature": "Rish Parikh Brennan Industries",
+     "prohibited_terms": [
+      "INTERNAL ONLY"
+     ]
+    },
+    "conditions": {},
+    "context": {
+     "business_category": "pricing",
+     "audience": "customer"
+    },
+    "workspace_id": "default",
+    "revision": 1,
+    "format_errors": [],
+    "unsupported_format_keys": [],
+    "learned_at": "2026-10-29T02:08:39.128547+00:00"
+   },
+   {
+    "id": "cc5af95ae8094265bf3ed8f0a4dc1513",
+    "text": "For expedited pricing reviews use the exception report format",
+    "scope": "global",
+    "goal_id": null,
+    "source": "teacher",
+    "topic": "expedited exception",
+    "applies_to": [
+     "document"
+    ],
+    "format_spec": {
+     "font_size": 14
+    },
+    "conditions": {},
+    "context": {
+     "business_category": "pricing",
+     "audience": "internal",
+     "location": "Warehouse B",
+     "source_version": "v1",
+     "qualification": "expedited"
+    },
+    "workspace_id": "default",
+    "revision": 1,
+    "format_errors": [],
+    "unsupported_format_keys": [],
+    "learned_at": "2026-10-29T02:08:39.124336+00:00"
+   },
+   {
+    "id": "852aa20caa2e425cb6e58d12832c7032",
+    "text": "Use the standard report format for pricing reviews",
+    "scope": "global",
+    "goal_id": null,
+    "source": "teacher",
+    "topic": "report standard",
+    "applies_to": [
+     "document"
+    ],
+    "format_spec": {
+     "font_name": "Arial",
+     "font_size": 12,
+     "line_spacing": 1.15,
+     "heading_order": [
+      "Summary",
+      "Findings",
+      "Sources"
+     ],
+     "table_columns": [
+      "Item",
+      "Value"
+     ],
+     "prohibited_terms": [
+      "INTERNAL ONLY"
+     ]
+    },
+    "conditions": {},
+    "context": {
+     "business_category": "pricing",
+     "audience": "internal",
+     "location": "Warehouse B",
+     "source_version": "v1"
+    },
+    "workspace_id": "default",
+    "revision": 2,
+    "format_errors": [],
+    "unsupported_format_keys": [],
+    "learned_at": "2026-10-29T02:08:39.119929+00:00"
+   }
+  ],
+  "b_lessons": [
+   {
+    "id": "71564a5ec9b3457fb4186fca383d7a03",
+    "text": "Decision rule for B only",
+    "scope": "global",
+    "goal_id": null,
+    "source": "teacher",
+    "topic": "decision",
+    "applies_to": [],
+    "format_spec": {},
+    "conditions": {},
+    "context": {
+     "business_category": "service"
+    },
+    "workspace_id": "default",
+    "revision": 1,
+    "format_errors": [
+     "format_spec is required"
+    ],
+    "unsupported_format_keys": [],
+    "learned_at": "2026-10-29T02:08:39.141160+00:00"
+   }
+  ]
+ },
+ "corrected_document": {
+  "canvas_id": "bbf66055-e2a8-4d68-b3ec-6e4c03538df0",
+  "font_size": 12.0,
+  "headings": [
+   "Summary",
+   "Findings",
+   "Sources"
+  ],
+  "teaching": {
+   "revision": "a420d9544a98c9a7",
+   "sources": [
+    {
+     "id": "852aa20caa2e425cb6e58d12832c7032",
+     "revision": 2,
+     "topic": "report standard",
+     "applies_to": [
+      "document"
+     ],
+     "conditions": {},
+     "context": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "location": "Warehouse B",
+      "source_version": "v1"
+     },
+     "specificity": 4
+    }
+   ],
+   "explanation": "Applied this instruction because these conditions match: audience=internal, business_category=pricing, location=Warehouse B, source_version=v1.",
+   "applicability": [
+    {
+     "lesson_id": "cc5af95ae8094265bf3ed8f0a4dc1513",
+     "revision": 1,
+     "topic": "expedited exception",
+     "status": "not_applicable",
+     "specificity": 4,
+     "matched": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "location": "Warehouse B",
+      "source_version": "v1"
+     },
+     "missing": [],
+     "conflicts": [
+      {
+       "key": "qualification",
+       "required": "expedited",
+       "actual": "standard"
+      }
+     ],
+     "excluded_by": [],
+     "reason": "context_mismatch"
+    },
+    {
+     "lesson_id": "852aa20caa2e425cb6e58d12832c7032",
+     "revision": 2,
+     "topic": "report standard",
+     "status": "applicable",
+     "specificity": 4,
+     "matched": {
+      "business_category": "pricing",
+      "audience": "internal",
+      "location": "Warehouse B",
+      "source_version": "v1"
+     },
+     "missing": [],
+     "conflicts": [],
+     "excluded_by": [],
+     "reason": "context_matched"
+    }
+   ],
+   "spec": {
+    "font_name": "Arial",
+    "font_size": 12,
+    "line_spacing": 1.15,
+    "heading_order": [
+     "Summary",
+     "Findings",
+     "Sources"
+    ],
+    "table_columns": [
+     "Item",
+     "Value"
+    ],
+    "prohibited_terms": [
+     "INTERNAL ONLY"
+    ]
+   },
+   "status": "applicable"
+  }
+ },
+ "second_context": {
+  "canvas_id": "92dc5b18-e194-4c47-96ef-e6bb0d80fe7c",
+  "font": "Times New Roman",
+  "teaching": {
+   "revision": "d01c7436dda89f0b",
+   "sources": [
+    {
+     "id": "f64320203c644550bc0f7b22f09d83ee",
+     "revision": 1,
+     "topic": "service report",
+     "applies_to": [
+      "document"
+     ],
+     "conditions": {},
+     "context": {
+      "business_category": "service"
+     },
+     "specificity": 1
+    }
+   ],
+   "explanation": "Applied this instruction because these conditions match: business_category=service.",
+   "applicability": [
+    {
+     "lesson_id": "f64320203c644550bc0f7b22f09d83ee",
+     "revision": 1,
+     "topic": "service report",
+     "status": "applicable",
+     "specificity": 1,
+     "matched": {
+      "business_category": "service"
+     },
+     "missing": [],
+     "conflicts": [],
+     "excluded_by": [],
+     "reason": "context_matched"
+    }
+   ],
+   "spec": {
+    "font_name": "Times New Roman",
+    "font_size": 12,
+    "heading_order": [
+     "Summary",
+     "Sources"
+    ]
+   },
+   "status": "applicable"
+  }
+ },
+ "source_instruction_not_teaching": {
+  "before": 2,
+  "after": 2
+ }
+}

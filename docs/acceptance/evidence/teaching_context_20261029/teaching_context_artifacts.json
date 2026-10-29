@@ -1,0 +1,26 @@
+{
+ "document": {
+  "source_name": "chat-Pricing-Review-Standard-a9aaac2d.docx",
+  "evidence_file": "docs/acceptance/evidence/teaching_context_20261029/artifacts/document.docx",
+  "bytes": 36931,
+  "sha256": "c78f1d820b4c148fac13d447fdf103e18d380c13ce3e57fc70eb1f3eb3ee125e"
+ },
+ "presentation": {
+  "source_name": "chat-Pricing-Deck-acc9af7a.pptx",
+  "evidence_file": "docs/acceptance/evidence/teaching_context_20261029/artifacts/presentation.pptx",
+  "bytes": 30425,
+  "sha256": "ef8e02b00d76390a1fa4f56bc150f2e2c5e47cdcdbe8a88c944a485cabcb74a4"
+ },
+ "spreadsheet": {
+  "source_name": "chat-Pricing-Sheet-bd99ae6e.xlsx",
+  "evidence_file": "docs/acceptance/evidence/teaching_context_20261029/artifacts/spreadsheet.xlsx",
+  "bytes": 4950,
+  "sha256": "282be5709c101e6cabcadb73e3810d3bc055f690589f6ea37866b0b79b6c68a9"
+ },
+ "corrected_document": {
+  "source_name": "chat-Corrected-Pricing-Review-9962f822.docx",
+  "evidence_file": "docs/acceptance/evidence/teaching_context_20261029/artifacts/corrected_document.docx",
+  "bytes": 36935,
+  "sha256": "495847ab3be5ddd3eca58a8395e5678b4eee87a20ec833cb15b40b54afd8c819"
+ }
+}

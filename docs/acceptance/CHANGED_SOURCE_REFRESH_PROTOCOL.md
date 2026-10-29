@@ -1,49 +1,99 @@
-# Changed-source refresh protocol — disposable workbook
+# Disposable changed-source refresh — prepared protocol
 
-Status: **awaiting owner-provided disposable item and restored Microsoft
-refresh configuration.** The historical `Consolidated Price List 2019.xlsx`
-will not be modified.
+Status: **prepared; awaiting the one combined authorization.** The historical
+production price list will not be modified.
 
-## Predeclared fields
+## Exact configuration restoration
 
-| Field | Value |
-|---|---|
-| Source item id/path | TBD — owner-provided OneDrive disposable workbook |
-| Original version/hash | TBD from the first product sync |
-| Original expected result | TBD, frozen before the change |
-| One changed input | TBD (single cell or small bounded range) |
-| Expected new result | TBD, frozen before the change |
-| Records/artifacts expected stale | Assessment results and artifacts bound to the pre-change canvas revision |
-| Owner action | Change the workbook manually; agent remains read-only |
-| Agent write authorization | None for the source; local canvas/artifact writes only |
+- Existing approved private source:
+  `/Users/rushiparikh/projects/atom/backend/.env` (same Microsoft app id as the
+  stored grant; values verified by presence/length only).
+- Runtime destination:
+  `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/.env`
+- Keys restored: `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`,
+  `MICROSOFT_TENANT_ID`.
+- Prepared command:
+  `python scripts/acceptance/restore_private_microsoft_config.py --source /Users/rushiparikh/projects/atom/backend/.env --destination /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/.env`
+- The script backs up the destination, writes only those keys, prints presence
+  only, and never creates/rotates credentials or starts a user reconnect.
+- Process precedence: `main_api_app.py` loads `backend/.env`, then root
+  `.env`, then `.env.local` (override). The worktree has no root `.env` or
+  `.env.local`; `backend/.env` is the effective private destination.
 
-## Checks to run after access is restored
+## Exact test-only OneDrive location
 
-1. Product-sync the original disposable workbook; record item id, content
-   hash/version, materialized sheet coverage, formula sidecar and a
-   deterministic calculation plus a small certified assessment.
-2. Freeze the original result, changed input and expected new result here
-   before the owner edits the workbook.
-3. Owner changes the one input manually. Agent does not write to the provider.
-4. Run the existing product sync again. Verify:
-   - upstream version/hash changed;
-   - new materialized values and formula dependencies are coherent;
-   - old version is no longer selected as current;
-   - affected assessment reuse is invalidated (canvas revision/rebind
-     receipt);
-   - prior source/evidence history remains attributable;
-   - fresh calculation and assessment use the new version;
-   - restart retains the new binding;
-   - export/reopen/download agrees.
-5. Record failures and limitations; do not retry substantive failures until
-   green.
-6. Do not touch the production price list, request general writeback, rotate
-   credentials, send email or deploy.
+- Folder: `AtomAcceptance/connected-refresh-20261029-0120Z`
+- File: `refresh_probe_f5f_20261029.xlsx`
+- The folder/file are new, uniquely named, test-only, and safe to delete.
+- No other OneDrive item is created or modified.
 
-## Current blocker
+## Prepared workbook
 
-The runtime has no Microsoft client id/secret configured, so the existing
-refresh token exchange is rejected as `invalid_client` (configuration), not
-`invalid_grant` (revoked consent). Local renewal controls pass. The owner must
-restore the existing Microsoft client configuration/reconnect before a live
-product sync can run. No secret should be sent through chat or committed.
+Two sheets:
+
+- `Inputs`: `Item`, `Qty`, `Unit Price`
+  - `PROBE-001`, 2, 10.00
+  - `PROBE-002`, 3, 10.00
+- `Calc`: `Item`, `Qty`, `Unit Price`, `Line Total`
+  - `Calc!D2 = Inputs!B2*Inputs!C2` → 20
+  - `Calc!D3 = Inputs!B3*Inputs!C3` → 30
+
+Local files:
+
+- `docs/acceptance/evidence/connected_core_20261028/disposable_source/refresh_probe_f5f_baseline.xlsx`
+- `.../refresh_probe_f5f_changed_expected.xlsx`
+- `.../refresh_probe_f5f_manifest.json`
+
+## Predeclared baseline
+
+- Source version/hash: to be captured by the first product sync.
+- Calc total: **50.00**
+- Assessment policy: REVIEW when `Line Total >= 25`; APPROVE otherwise.
+- Decisions: `PROBE-001` APPROVE (20), `PROBE-002` REVIEW (30).
+- Coverage: 2/2 rows on `Calc`; no truncation.
+
+## One changed input
+
+- `Inputs!B2`: **2 → 3**
+- Only input changed. The workbook is re-saved so Excel/OneDrive recalculates
+  the cross-sheet formulas.
+
+## Predeclared changed expected
+
+- Calc formula values: `D2=30`, `D3=30`.
+- Calc total: **60.00**
+- Decisions: `PROBE-001` REVIEW (30), `PROBE-002` REVIEW (30).
+- Baseline calculation/assessment/export receipts for the old version become
+  stale and must not be reused.
+- Prior version/provenance must remain attributable in the catalog and canvas
+  `previous_bindings`.
+
+## Checks after authorization
+
+1. Restore the existing private Microsoft keys using the prepared command.
+2. Restart the isolated backend; verify startup preflight reports configured.
+3. Verify live refresh (`token_state=refreshed`, no reconnect).
+4. Create the exact test folder/file and upload the baseline workbook.
+5. Product-sync the file; record item id, version/hash, coverage, formula
+   sidecar and baseline calculation/assessment/export.
+6. Replace only the same test file with the changed workbook (one bounded
+   source edit).
+7. Product-sync again; verify changed hash, new materialization, old version
+   superseded, stale assessment reuse invalidated and prior provenance kept.
+8. Re-bind; calculate 60.00; assess REVIEW/REVIEW; export and reopen.
+9. Restart and verify the new binding, calculation, assessment and download.
+10. Preserve both versions and evidence; delete nothing until evidence is
+    captured.
+
+## Authorization requested
+
+One combined authorization covering only:
+
+- restoration of the existing approved Microsoft client settings to the
+  destination above;
+- creation and one modification of the exact disposable workbook above;
+- product sync, calculation, assessment, restart and download verification.
+
+Excluded: production price-list changes, general writeback, email send,
+credential rotation/creation, deployment, model changes, Zoho repair and
+multi-user ACL work.

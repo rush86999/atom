@@ -54,8 +54,11 @@ MAX_LOG_ENTRIES = 200
 # graduates beyond STUDENT. Storage alone changes a score; these accessors are
 # what put the lesson in front of the model at work time.
 WORK_TIME_LESSON_LIMIT = 5
-_LESSON_TEXT_CHARS = 320
-_LESSON_BLOCK_CHARS = 1600
+# A governing lesson can carry a trailing exception ("...unless the account
+# is on hold") that changes its meaning. Do not cut that clause off at 320
+# chars; the block still stays bounded at five lessons.
+_LESSON_TEXT_CHARS = 2000
+_LESSON_BLOCK_CHARS = 8000
 
 # A lesson taught from a canvas (TrainingPanel on /canvas/{id}) carries the
 # canvas it was taught on — name, app, and a bounded content digest — so at
@@ -88,6 +91,39 @@ def _is_permanent_lesson(entry: Dict[str, Any]) -> bool:
 
 def _lesson_text(entry: Dict[str, Any]) -> str:
     return str(entry.get("lesson") or entry.get("summary") or "").strip()
+
+
+def _artifact_lesson_fields(
+    applies_to: Optional[Sequence[str]] = None,
+    format_spec: Optional[Dict[str, Any]] = None,
+    conditions: Optional[Dict[str, Any]] = None,
+    context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Validate optional artifact teaching without creating a second store."""
+    if not format_spec and not applies_to and not context:
+        return {}
+    from core.artifact_teaching import (
+        normalize_artifact_teaching,
+        normalize_lesson_context,
+    )
+
+    normalized = normalize_artifact_teaching(
+        applies_to, format_spec or {}, conditions or {})
+    fields: Dict[str, Any] = {
+        "applies_to": normalized["applies_to"],
+        "conditions": normalized["conditions"],
+        "revision": 1,
+    }
+    lesson_context = normalize_lesson_context(context or {})
+    if lesson_context:
+        fields["context"] = lesson_context
+    if normalized["format_spec"]:
+        fields["format_spec"] = normalized["format_spec"]
+    if normalized["unsupported"]:
+        fields["unsupported_format_keys"] = normalized["unsupported"]
+    if normalized["errors"]:
+        fields["format_errors"] = normalized["errors"]
+    return fields
 
 
 def _canvas_digest(content: Any) -> str:
@@ -235,15 +271,24 @@ def _workspace_peers(db: Session, agent_id: str) -> List[str]:
     the agents the operator teaches from the ones they talk to — which is the
     failure this exists to fix. Fault-isolated → []."""
     try:
+        import os as _os
+
         me = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
         my_ws = str(getattr(me, "workspace_id", None) or "") if me else ""
+        legacy_cross_workspace = _os.getenv(
+            "ATOM_LEGACY_CROSS_WORKSPACE_TEACHING", "0"
+        ).lower() in {"1", "true", "on", "yes"}
         peers: List[str] = []
         for other in db.query(AgentRegistry).all():
             oid = str(getattr(other, "id", "") or "")
             if not oid or oid == str(agent_id):
                 continue
             o_ws = str(getattr(other, "workspace_id", None) or "")
-            if not o_ws or not my_ws or o_ws == my_ws:
+            if my_ws and o_ws and o_ws == my_ws:
+                peers.append(oid)
+            elif legacy_cross_workspace and (not o_ws or not my_ws):
+                # Explicit legacy opt-in only. A missing workspace is NOT
+                # permission to share governing teaching across workspaces.
                 peers.append(oid)
         return peers
     except Exception as e:  # noqa: BLE001 — sibling recall is additive
@@ -323,6 +368,15 @@ def list_agent_lessons(
             "goal_id": entry.get("goal_id"),
             "source": entry.get("source"),
             "topic": entry.get("topic") or entry.get("observation_type"),
+            "applies_to": list(entry.get("applies_to") or []),
+            "format_spec": dict(entry.get("format_spec") or {}),
+            "conditions": dict(entry.get("conditions") or {}),
+            "context": dict(entry.get("context") or {}),
+            "workspace_id": entry.get("workspace_id"),
+            "revision": entry.get("revision") or 1,
+            "format_errors": list(entry.get("format_errors") or []),
+            "unsupported_format_keys": list(
+                entry.get("unsupported_format_keys") or []),
             "learned_at": entry.get("learned_at"),
         })
         if len(out) >= max(0, limit):
@@ -413,6 +467,10 @@ def update_teaching_point(
     *,
     text: Optional[str] = None,
     topic: Optional[str] = None,
+    applies_to: Optional[Sequence[str]] = None,
+    format_spec: Optional[Dict[str, Any]] = None,
+    conditions: Optional[Dict[str, Any]] = None,
+    context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Rewrite one teaching point in place (its text and, for teacher
     lessons, its topic). Never raises — returns a service-shaped result.
@@ -435,7 +493,10 @@ def update_teaching_point(
         return {"status": "error", "reason": "empty_lesson"}
     if new_topic == "":
         new_topic = None
-    if new_text is None and new_topic is None:
+    if (
+        new_text is None and new_topic is None
+        and applies_to is None and format_spec is None and conditions is None
+    ):
         return {"status": "error", "reason": "nothing_to_update"}
     # observation_type classifies the entry (human_correction IS standing
     # guidance, hitl_approval is not) — a topic edit must not silently change
@@ -455,6 +516,30 @@ def update_teaching_point(
             updated["lesson"] = new_text[:2000]
     if new_topic is not None:
         updated["topic"] = new_topic[:200]
+    if applies_to is not None or format_spec is not None or conditions is not None:
+        merged_spec = dict(updated.get("format_spec") or {})
+        merged_spec.update(format_spec or {})
+        normalized = _artifact_lesson_fields(
+            applies_to=(applies_to if applies_to is not None
+                        else updated.get("applies_to")),
+            format_spec=merged_spec,
+            conditions=(conditions if conditions is not None
+                        else updated.get("conditions")),
+            context=(context if context is not None
+                     else updated.get("context")),
+        )
+        if normalized.get("format_errors"):
+            return {
+                "status": "error",
+                "reason": "invalid_format_spec",
+                "errors": normalized["format_errors"],
+            }
+        next_revision = int(entry.get("revision") or 1) + 1
+        for key in ("applies_to", "format_spec", "conditions",
+                    "unsupported_format_keys", "format_errors"):
+            updated.pop(key, None)
+        updated.update(normalized)
+        updated["revision"] = next_revision
     updated["id"] = updated.get("id") or _new_entry_id()
     updated["edited_at"] = datetime.now(timezone.utc).isoformat()
 
@@ -499,6 +584,11 @@ def journal_standing_lesson_entry(
     scope: str = "global",
     goal_id: Optional[str] = None,
     decision_options: Optional[Sequence[str]] = None,
+    applies_to: Optional[Sequence[str]] = None,
+    format_spec: Optional[Dict[str, Any]] = None,
+    conditions: Optional[Dict[str, Any]] = None,
+    context: Optional[Dict[str, Any]] = None,
+    workspace_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Append a permanent lesson DIRECTLY to an agent's registry lesson log —
     status-independent, so a taught rule reaches SUPERVISED and graduated
@@ -562,6 +652,12 @@ def journal_standing_lesson_entry(
             ][:20]
             if cleaned_decisions:
                 entry["decision_options"] = cleaned_decisions
+        entry.update(_artifact_lesson_fields(
+            applies_to=applies_to, format_spec=format_spec,
+            conditions=conditions, context=context,
+        ))
+        if workspace_id:
+            entry["workspace_id"] = str(workspace_id)
 
         from sqlalchemy.orm.attributes import flag_modified
 
@@ -705,6 +801,25 @@ def format_lessons_block(lessons: List[Dict[str, Any]]) -> str:
             line += (
                 " — taught to a DIFFERENT agent in this workspace; "
                 "workspace background only, not authority for this task")
+        applies_to = [str(item) for item in (entry.get("applies_to") or [])]
+        if applies_to:
+            line += f" [applies to: {', '.join(applies_to)}]"
+        if entry.get("format_spec"):
+            from core.artifact_teaching import format_spec_summary
+
+            line += " [format: " + format_spec_summary(
+                dict(entry["format_spec"])) + "]"
+        if entry.get("context"):
+            context_text = ", ".join(
+                f"{key}={value}" for key, value in
+                dict(entry["context"]).items()
+                if key != "exceptions"
+            )
+            if context_text:
+                line += " [applies when: " + context_text + "]"
+        if entry.get("format_errors"):
+            line += " [unsupported format: " + ", ".join(
+                str(item) for item in entry["format_errors"]) + "]"
         if used + len(line) + 1 > _LESSON_BLOCK_CHARS:
             break
         lines.append(line)
@@ -741,6 +856,11 @@ class StudentLearningService:
         scope: str = "global",
         goal_id: Optional[str] = None,
         decision_options: Optional[Sequence[str]] = None,
+        applies_to: Optional[Sequence[str]] = None,
+        format_spec: Optional[Dict[str, Any]] = None,
+        conditions: Optional[Dict[str, Any]] = None,
+        context: Optional[Dict[str, Any]] = None,
+        workspace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Record a teacher-delivered lesson (fast path). ``canvas_context``
         (see build_canvas_context) pins the lesson to the canvas it was
@@ -773,6 +893,12 @@ class StudentLearningService:
             ][:20]
             if cleaned_decisions:
                 entry["decision_options"] = cleaned_decisions
+        entry.update(_artifact_lesson_fields(
+            applies_to=applies_to, format_spec=format_spec,
+            conditions=conditions, context=context,
+        ))
+        if workspace_id:
+            entry["workspace_id"] = str(workspace_id)
         result = self._apply_learning(student, entry, boost=_TEACHER_BOOST)
 
         # Pedagogy circuit: a taught lesson is a POSITIVE exposure for its
@@ -1062,6 +1188,11 @@ def deliver_teacher_lesson(
     scope: str = "global",
     goal_id: Optional[str] = None,
     decision_options: Optional[Sequence[str]] = None,
+    applies_to: Optional[Sequence[str]] = None,
+    format_spec: Optional[Dict[str, Any]] = None,
+    conditions: Optional[Dict[str, Any]] = None,
+    context: Optional[Dict[str, Any]] = None,
+    workspace_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """One human/mentor-delivered lesson → permanent training, at ANY tier.
 
@@ -1140,6 +1271,11 @@ def deliver_teacher_lesson(
         scope=scope,
         goal_id=goal_id,
         decision_options=decision_options,
+        applies_to=applies_to,
+        format_spec=format_spec,
+        conditions=conditions,
+        context=context,
+        workspace_id=workspace_id,
     )
     if student_result.get("status") == "ok":
         entry = None
@@ -1182,6 +1318,11 @@ def deliver_teacher_lesson(
         scope=scope,
         goal_id=goal_id,
         decision_options=decision_options,
+        applies_to=applies_to,
+        format_spec=format_spec,
+        conditions=conditions,
+        context=context,
+        workspace_id=workspace_id,
     )
     if entry is not None:
         return {

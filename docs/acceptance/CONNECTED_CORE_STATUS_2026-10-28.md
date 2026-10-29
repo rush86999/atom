@@ -25,9 +25,14 @@ release. Nothing here is a deployment or a successor tag.
 | Restart | Same retrieval total/version; fresh 5/5 certified assessment; drafts and artifacts reopened |
 | Data/Settings browser | Connected state, scope, last success, coverage, failure, retry, disconnected/stale and restored states all exercised at `localhost:3003/settings` |
 | Negative controls | Wrong workspace, guessed id, stale version, inactive source, revoked grant, disconnected source, revoked-grant chat retrieval (no cached total), client path/hash/rows, incomplete materialization, blank/duplicate subject, snapshot-writeback claim |
+| Teaching transfer | Applicable context transfers to document/email/presentation/spreadsheet; wrong location, missing qualification, conflict, exception, stale source version and unrelated employee/workspace controls exercised; correction revision 2 survived restart |
+| Durable assignment | Same executor completed a commercial response and an eligibility package with different teaching, schemas, decision labels and approvals; missing facts waited durably, correlated replies resumed, changed payloads invalidated approvals, uncertain sends were reconciled without resend, and cancellation blocked unstarted effects |
 
 Evidence: `docs/acceptance/evidence/connected_core_20261028/`
-Detailed run: `docs/acceptance/EMPLOYEE_JOB_2026-10-28.md`
+Durable assignment evidence: `docs/acceptance/evidence/durable_assignment_20261029/`
+Teaching evidence: `docs/acceptance/evidence/teaching_context_20261029/`
+Detailed runs: `docs/acceptance/EMPLOYEE_JOB_2026-10-28.md`,
+`docs/acceptance/TEACHING_CONTEXT_2026-10-29.md`
 Ledger: `docs/acceptance/CONNECTED_CORE_LEDGER_2026-10-28.json`
 
 ## Real defects found and fixed

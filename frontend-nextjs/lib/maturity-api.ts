@@ -313,6 +313,12 @@ export interface TeachingPoint {
   teacher_agent_id?: string | null;
   /** The canvas the lesson was taught on (right-panel teaches), when captured. */
   canvas?: { canvas_id: string; name: string; canvas_type: string; label: string } | null;
+  applies_to?: string[];
+  format_spec?: Record<string, unknown>;
+  conditions?: Record<string, unknown>;
+  context?: Record<string, unknown>;
+  revision?: number;
+  workspace_id?: string | null;
 }
 
 export interface CanvasTrainingContext {
@@ -353,7 +359,14 @@ export async function teachAgent(
   lesson: string,
   topic?: string,
   canvasId?: string,
-  opts?: { asPlaybook?: boolean; playbookCanvasType?: string }
+  opts?: {
+    asPlaybook?: boolean;
+    playbookCanvasType?: string;
+    appliesTo?: string[];
+    formatSpec?: Record<string, unknown>;
+    conditions?: Record<string, unknown>;
+    context?: Record<string, unknown>;
+  }
 ): Promise<{ status: string; playbook_id?: string | null; [key: string]: unknown }> {
   const res = await fetchJson(`/api/agents/${agentId}/teach`, {
     method: 'POST',
@@ -366,6 +379,10 @@ export async function teachAgent(
       // becomes a playbook draft in the Training tab's review queue.
       ...(opts?.asPlaybook ? { as_playbook: true } : {}),
       ...(opts?.playbookCanvasType ? { playbook_canvas_type: opts.playbookCanvasType } : {}),
+      ...(opts?.appliesTo ? { applies_to: opts.appliesTo } : {}),
+      ...(opts?.formatSpec ? { format_spec: opts.formatSpec } : {}),
+      ...(opts?.conditions ? { conditions: opts.conditions } : {}),
+      ...(opts?.context ? { context: opts.context } : {}),
     }),
   });
   if (!res.ok) throw new Error(`Teach failed (${res.status})`);
@@ -394,7 +411,14 @@ export async function teachAgent(
 export async function updateTeachingPoint(
   agentId: string,
   pointId: string,
-  patch: { text?: string; topic?: string }
+  patch: {
+    text?: string;
+    topic?: string;
+    applies_to?: string[];
+    format_spec?: Record<string, unknown>;
+    conditions?: Record<string, unknown>;
+    context?: Record<string, unknown>;
+  }
 ): Promise<void> {
   const res = await fetchJson(
     `/api/maturity/agents/${agentId}/teaching-points/${encodeURIComponent(pointId)}`,

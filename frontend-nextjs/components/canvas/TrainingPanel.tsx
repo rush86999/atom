@@ -810,6 +810,28 @@ export function TrainingPanel({
                       </button>
                     )}
                   </div>
+                  {tp.applies_to?.length || tp.context || tp.format_spec ? (
+                    <div className="text-[10px] text-muted-foreground space-y-0.5" data-testid="teaching-point-scope">
+                      {!!tp.applies_to?.length && (
+                        <p>Applies to: {tp.applies_to.join(", ")}</p>
+                      )}
+                      {!!tp.context && Object.keys(tp.context).length > 0 && (
+                        <p>
+                          When: {Object.entries(tp.context)
+                            .filter(([key]) => key !== "exceptions")
+                            .map(([key, value]) => `${key}=${String(value)}`)
+                            .join(", ")}
+                        </p>
+                      )}
+                      {!!tp.format_spec && Object.keys(tp.format_spec).length > 0 && (
+                        <p>
+                          Format: {Object.entries(tp.format_spec)
+                            .map(([key, value]) => `${key}=${String(value)}`)
+                            .join("; ")}
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
                   {editingPointId === tp.id ? (
                     <div className="space-y-1.5 pt-1" data-testid="teaching-point-editor">
                       <textarea

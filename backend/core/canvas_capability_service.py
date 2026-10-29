@@ -82,6 +82,10 @@ def policy_revision(manifest: Dict[str, Any]) -> str:
     policy = {
         "task_policy": manifest.get("task_policy") or "",
         "decision_options": manifest.get("decision_options") or [],
+        # Applicability metadata changes what the policy governs, so it is
+        # part of the effective revision. Existing manifests without it keep
+        # their old hash.
+        "teaching_context": manifest.get("teaching_context") or {},
     }
     return _sha256_json(policy)[:16]
 
@@ -1434,11 +1438,22 @@ async def assess_operation(
         policy_index=policies,
     )
     certified = bool(review.get("ok")) and review.get("completion") == "completed"
+    execution_fingerprint = _sha256_json({
+        "policy_revision": policy_revision(manifest),
+        "teaching_context": manifest.get("teaching_context") or {},
+        "source_version": source.get("source_version"),
+        "upstream_version": (source.get("upstream") or {}).get("content_hash"),
+        "ask": str(ask or ""),
+        "max_subjects": cap,
+        "assessed_subjects": subjects,
+        "decisions": decisions,
+    })[:24]
     return {
         "success": certified,
         "operation": "assess",
         "canvas_id": canvas.id,
         "execution_id": execution_id,
+        "execution_fingerprint": execution_fingerprint,
         "status": review.get("completion"),
         "certified": certified,
         "assessments": review.get("assessments") or [],
@@ -1451,6 +1466,16 @@ async def assess_operation(
         "upstream_revision": (source.get("upstream") or {}).get("content_hash"),
         "manifest_revision": manifest.get("manifest_revision"),
         "policy_revision": policy_revision(manifest),
+        "teaching_snapshot": {
+            "policy_revision": policy_revision(manifest),
+            "task_policy": str(manifest.get("task_policy") or ""),
+            "decision_options": list(manifest.get("decision_options") or []),
+            "teaching_context": dict(manifest.get("teaching_context") or {}),
+            "source_snapshot_version": source.get("source_version"),
+            "source_upstream_version": (
+                source.get("upstream") or {}).get("content_hash"),
+            "execution_id": execution_id,
+        },
         "subjects": subjects,
         "unassessed_subjects": unassessed_subjects,
         "coverage": coverage,
@@ -1608,6 +1633,49 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
     columns = list(dataset.get("columns") or [])
     rows = dataset.get("rows") or []
     source = _dataset_source(canvas)
+    binding = manifest.get("teaching_binding") or {}
+    teaching = {}
+    if binding.get("agent_id"):
+        from core.artifact_teaching import resolve_artifact_teaching
+
+        teaching = resolve_artifact_teaching(
+            db, str(binding.get("agent_id")), "spreadsheet",
+            goal_id=str(binding.get("goal_id") or "") or None,
+            task_context=dict(manifest.get("teaching_context") or {}),
+            workspace_id=str(canvas.workspace_id or "") or None,
+        )
+        if teaching.get("status") in {"needs_context", "conflict"}:
+            raise CapabilityError(
+                "teaching_context_unresolved",
+                teaching.get("explanation")
+                or "Spreadsheet teaching context needs confirmation.",
+                409,
+                teaching=teaching,
+            )
+        spec = teaching.get("spec") or {}
+        wanted = [str(item) for item in (spec.get("table_columns") or [])]
+        if wanted:
+            normalized = {
+                " ".join(str(column).lower().split()): column
+                for column in columns
+            }
+            missing = [item for item in wanted
+                       if " ".join(item.lower().split()) not in normalized]
+            if missing:
+                raise CapabilityError(
+                    "unsupported_formatting",
+                    f"Required spreadsheet columns are missing: {', '.join(missing)}",
+                    409,
+                    teaching=teaching,
+                )
+            ordered = [normalized[" ".join(item.lower().split())] for item in wanted]
+            ordered += [column for column in columns if column not in ordered]
+            indexes = [columns.index(column) for column in ordered]
+            columns = ordered
+            rows = [
+                [row[index] if index < len(row) else None for index in indexes]
+                for row in rows
+            ]
     office_dir = Path(os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))).resolve()
     office_dir.mkdir(parents=True, exist_ok=True)
     safe = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in canvas.name)[:50] or "canvas"
@@ -1636,6 +1704,24 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
                     cell.value = int(text)
                 elif _re.fullmatch(r"-?\d*\.\d+", text):
                     cell.value = float(text)
+    spreadsheet_spec = (teaching or {}).get("spec") or {}
+    if spreadsheet_spec:
+        from openpyxl.styles import Font
+
+        font_name = str(spreadsheet_spec.get("font_name") or "")
+        font_size = spreadsheet_spec.get("font_size")
+        header_bold = bool(spreadsheet_spec.get("header_bold", True))
+        for row_cells in ws.iter_rows():
+            for cell in row_cells:
+                if font_name or font_size or (
+                        header_bold and cell.row == 1):
+                    cell.font = Font(
+                        name=font_name or cell.font.name,
+                        size=float(font_size or cell.font.sz or 11),
+                        bold=header_bold if cell.row == 1 else cell.font.bold,
+                    )
+        if spreadsheet_spec.get("freeze_header"):
+            ws.freeze_panes = "A2"
     meta = wb.create_sheet("Provenance")
     meta.append(["canvas_id", canvas.id])
     meta.append(["source_resource_id", source.get("resource_id")])
@@ -1655,6 +1741,7 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
         "artifact": target,
         "source_version": source.get("source_version"),
         "rows": len(rows),
+        "teaching": teaching,
     })
     db.commit()
     return {
@@ -1671,5 +1758,6 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
         },
         "source": source,
         "manifest_revision": manifest.get("manifest_revision"),
+        "teaching": teaching,
         "download_url": f"/api/v1/office/download?file_path={target}&canvas_id={canvas.id}",
     }

@@ -154,6 +154,9 @@ async def connection_status(current_user: User = Depends(get_current_user)):
         except Exception:  # noqa: BLE001 — status must not fail the page
             scope = None
 
+    from core.oauth_config_preflight import microsoft_client_config_state
+
+    config_state = microsoft_client_config_state()
     state = str(resolution.get("state") or "unknown")
     if token:
         reason = None
@@ -192,6 +195,11 @@ async def connection_status(current_user: User = Depends(get_current_user)):
         "requires_reconnect": bool(resolution.get("requires_reconnect")),
         "retryable": bool(resolution.get("retryable")),
         "legacy_connection": bool(resolution.get("legacy_connection")),
+        "client_config_state": config_state,
+        "admin_action_required": bool(
+            not config_state.get("configured")
+            or state == "invalid_client"
+        ),
     }
 
 

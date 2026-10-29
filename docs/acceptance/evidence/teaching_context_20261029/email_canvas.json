@@ -1,0 +1,66 @@
+{
+ "success": true,
+ "canvas_id": "6c2157fb-b324-4755-8089-9f858ae24f22",
+ "canvas_type": "email",
+ "content": {
+  "to": "customer@example.com",
+  "cc": "",
+  "subject": "[Review] Price review",
+  "body": "<p>Hello</p>Please find the review attached.<p>Rish Parikh Brennan Industries</p>",
+  "draft_only": true,
+  "send_performed": false,
+  "teaching_revision": "a2c6dbca9454be1e",
+  "teaching": {
+   "revision": "a2c6dbca9454be1e",
+   "sources": [
+    {
+     "id": "45f5ef5d7eeb421e89fa69d4016050bb",
+     "revision": 1,
+     "topic": "email protocol",
+     "applies_to": [
+      "email"
+     ],
+     "conditions": {},
+     "context": {
+      "business_category": "pricing",
+      "audience": "customer"
+     },
+     "specificity": 2
+    }
+   ],
+   "explanation": "Applied this instruction because these conditions match: audience=customer, business_category=pricing.",
+   "applicability": [
+    {
+     "lesson_id": "45f5ef5d7eeb421e89fa69d4016050bb",
+     "revision": 1,
+     "topic": "email protocol",
+     "status": "applicable",
+     "specificity": 2,
+     "matched": {
+      "business_category": "pricing",
+      "audience": "customer"
+     },
+     "missing": [],
+     "conflicts": [],
+     "excluded_by": [],
+     "reason": "context_matched"
+    }
+   ],
+   "spec": {
+    "subject_prefix": "[Review]",
+    "greeting": "Hello",
+    "signature": "Rish Parikh Brennan Industries",
+    "prohibited_terms": [
+     "INTERNAL ONLY"
+    ]
+   },
+   "status": "applicable"
+  }
+ },
+ "title": "Customer Price Review",
+ "action_type": "create",
+ "audit_id": "8758fe9c-a6dd-4136-906d-e229424d9971",
+ "operation_id": null,
+ "review_status": "unknown",
+ "created_at": "2026-10-29T02:08:39.211654"
+}

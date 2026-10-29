@@ -453,6 +453,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.debug(f"startup db wipe check skipped: {e}")
 
+    # OAuth configuration preflight: presence-only. Missing Microsoft client
+    # settings are an administrator repair, never "revoked consent".
+    try:
+        from core.oauth_config_preflight import run_oauth_config_preflight
+
+        run_oauth_config_preflight(logger)
+    except Exception as e:
+        logger.debug(f"OAuth config preflight skipped: {e}")
+
     # 0. Initialize Database
     try:
         logger.info("Initializing database tables...")

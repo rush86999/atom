@@ -1,0 +1,185 @@
+{
+ "lessons_after_restart": {
+  "agent_id": "4f57c4cf-a375-427f-8696-33d080c4ee33",
+  "agent_name": "Teaching Context A",
+  "goal_id": null,
+  "lessons": [
+   {
+    "id": "d7351ad68d674a93b8ac25c4c34e8e00",
+    "text": "Use the standard spreadsheet layout",
+    "scope": "global",
+    "goal_id": null,
+    "source": "teacher",
+    "topic": "sheet standard",
+    "applies_to": [
+     "spreadsheet"
+    ],
+    "format_spec": {
+     "font_name": "Arial",
+     "font_size": 11,
+     "header_bold": true,
+     "freeze_header": true,
+     "table_columns": [
+      "Item",
+      "Value"
+     ]
+    },
+    "conditions": {},
+    "context": {
+     "business_category": "pricing"
+    },
+    "workspace_id": "default",
+    "revision": 1,
+    "format_errors": [],
+    "unsupported_format_keys": [],
+    "learned_at": "2026-10-29T02:08:39.137119+00:00"
+   },
+   {
+    "id": "00b8e09e47fa4b3780664cfad2ebf27d",
+    "text": "Use the standard internal deck outline",
+    "scope": "global",
+    "goal_id": null,
+    "source": "teacher",
+    "topic": "deck standard",
+    "applies_to": [
+     "presentation"
+    ],
+    "format_spec": {
+     "font_name": "Arial",
+     "font_size": 18,
+     "slide_order": [
+      "Overview",
+      "Findings",
+      "Sources"
+     ],
+     "table_columns": [
+      "Item",
+      "Value"
+     ],
+     "prohibited_terms": [
+      "INTERNAL ONLY"
+     ]
+    },
+    "conditions": {},
+    "context": {
+     "business_category": "pricing",
+     "audience": "internal",
+     "location": "Warehouse B"
+    },
+    "workspace_id": "default",
+    "revision": 1,
+    "format_errors": [],
+    "unsupported_format_keys": [],
+    "learned_at": "2026-10-29T02:08:39.132946+00:00"
+   },
+   {
+    "id": "45f5ef5d7eeb421e89fa69d4016050bb",
+    "text": "Use the customer email protocol",
+    "scope": "global",
+    "goal_id": null,
+    "source": "teacher",
+    "topic": "email protocol",
+    "applies_to": [
+     "email"
+    ],
+    "format_spec": {
+     "subject_prefix": "[Review]",
+     "greeting": "Hello",
+     "signature": "Rish Parikh Brennan Industries",
+     "prohibited_terms": [
+      "INTERNAL ONLY"
+     ]
+    },
+    "conditions": {},
+    "context": {
+     "business_category": "pricing",
+     "audience": "customer"
+    },
+    "workspace_id": "default",
+    "revision": 1,
+    "format_errors": [],
+    "unsupported_format_keys": [],
+    "learned_at": "2026-10-29T02:08:39.128547+00:00"
+   },
+   {
+    "id": "cc5af95ae8094265bf3ed8f0a4dc1513",
+    "text": "For expedited pricing reviews use the exception report format",
+    "scope": "global",
+    "goal_id": null,
+    "source": "teacher",
+    "topic": "expedited exception",
+    "applies_to": [
+     "document"
+    ],
+    "format_spec": {
+     "font_size": 14
+    },
+    "conditions": {},
+    "context": {
+     "business_category": "pricing",
+     "audience": "internal",
+     "location": "Warehouse B",
+     "source_version": "v1",
+     "qualification": "expedited"
+    },
+    "workspace_id": "default",
+    "revision": 1,
+    "format_errors": [],
+    "unsupported_format_keys": [],
+    "learned_at": "2026-10-29T02:08:39.124336+00:00"
+   },
+   {
+    "id": "852aa20caa2e425cb6e58d12832c7032",
+    "text": "Use the standard report format for pricing reviews",
+    "scope": "global",
+    "goal_id": null,
+    "source": "teacher",
+    "topic": "report standard",
+    "applies_to": [
+     "document"
+    ],
+    "format_spec": {
+     "font_name": "Arial",
+     "font_size": 12,
+     "line_spacing": 1.15,
+     "heading_order": [
+      "Summary",
+      "Findings",
+      "Sources"
+     ],
+     "table_columns": [
+      "Item",
+      "Value"
+     ],
+     "prohibited_terms": [
+      "INTERNAL ONLY"
+     ]
+    },
+    "conditions": {},
+    "context": {
+     "business_category": "pricing",
+     "audience": "internal",
+     "location": "Warehouse B",
+     "source_version": "v1"
+    },
+    "workspace_id": "default",
+    "revision": 2,
+    "format_errors": [],
+    "unsupported_format_keys": [],
+    "learned_at": "2026-10-29T02:08:39.119929+00:00"
+   }
+  ]
+ },
+ "restart_document": {
+  "canvas_id": "3101d3c9-682c-4583-a357-231f07f6cc3f",
+  "font": "Arial",
+  "font_size": 12.0,
+  "headings": [
+   "Summary",
+   "Findings",
+   "Sources"
+  ],
+  "teaching_revision": "a420d9544a98c9a7"
+ },
+ "reopened": {}
+}
