@@ -94,6 +94,7 @@ export function AssignmentPanel({
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const refreshList = useCallback(async () => {
     try {
@@ -124,6 +125,7 @@ export function AssignmentPanel({
   const act = async (fn: () => Promise<unknown>, runId: string) => {
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       await fn();
       await refreshDetail(runId);
@@ -229,6 +231,14 @@ export function AssignmentPanel({
       {error ? (
         <div className="rounded border border-rose-200 bg-rose-50 p-2 text-rose-700">
           {error}
+        </div>
+      ) : null}
+      {notice ? (
+        <div
+          data-testid="assignment-notice"
+          className="rounded border border-amber-200 bg-amber-50 p-2 text-amber-800"
+        >
+          {notice}
         </div>
       ) : null}
 
@@ -723,6 +733,9 @@ export function AssignmentPanel({
                                 : ""
                             }`
                           : " · Source unit: not established"}
+                        {mapping.teaching_revision
+                          ? ` · Teaching revision: ${mapping.teaching_revision}`
+                          : ""}
                       </p>
                       {mapping.required_unit && !mapping.source_unit ? (
                         <div className="space-y-1">
@@ -767,6 +780,8 @@ export function AssignmentPanel({
                                     assignment_id: detail.assignment?.assignment_id,
                                     column: candidate.column,
                                     unit: mapping.source_unit || gapDrafts[`${gap.question_id}:unit`] || "",
+                                    source_version: mapping.source_version || undefined,
+                                    teaching_revision: mapping.teaching_revision || undefined,
                                   })
                                 ),
                               detail.run_id
@@ -789,15 +804,20 @@ export function AssignmentPanel({
                         disabled={busy}
                         data-testid="mapping-reject"
                         onClick={() =>
-                          act(
-                            () =>
-                              resolveAssignmentGap(
-                                detail.run_id,
-                                gap.question_id,
-                                JSON.stringify({ rejected: true })
-                              ),
-                            detail.run_id
-                          )
+                          act(async () => {
+                            await resolveAssignmentGap(
+                              detail.run_id,
+                              gap.question_id,
+                              JSON.stringify({
+                                rejected: true,
+                                request_id: gap.question_id,
+                                assignment_id: detail.assignment?.assignment_id,
+                              })
+                            );
+                            setNotice(
+                              "Candidates rejected. The same request remains open; no mapping was applied."
+                            );
+                          }, detail.run_id)
                         }
                       >
                         None of these

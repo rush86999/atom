@@ -1652,6 +1652,7 @@ class AssignmentExecutor:
         resolution: str,
         resolved_by: str = "",
         evidence: str = "",
+        current_source: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Record a human/external answer and reopen the waiting step.
 
@@ -1669,6 +1670,18 @@ class AssignmentExecutor:
                 question = dict(item)
                 waiting = dict(item.get("waiting") or {})
                 break
+        if not question:
+            raise AssignmentError("the outstanding request was not found")
+        if question.get("status") != "open":
+            if resolution_matches(question.get("resolution"), resolution):
+                current = self.status(run_id)
+                return {
+                    "status": "already_resolved",
+                    "assignment": current.get("assignment"),
+                    "open_gaps": current.get("open_gaps") or [],
+                }
+            raise AssignmentError(
+                "the gap was already resolved with a different answer")
         mapping = dict((question.get("inputs") or {}).get("mapping") or {})
         selected_column = ""
         selected_unit = ""
@@ -1680,11 +1693,6 @@ class AssignmentExecutor:
                 parsed = {"column": str(resolution or "").strip()}
             if not isinstance(parsed, dict):
                 raise AssignmentError("a mapping resolution must be an object")
-            if parsed.get("rejected") is True:
-                raise AssignmentError(
-                    "the candidate mapping was rejected; select or correct a field")
-            selected_column = str(parsed.get("column") or "").strip()
-            selected_unit = str(parsed.get("unit") or "").strip()
             request_id = str(parsed.get("request_id") or "").strip()
             assignment_id = str(parsed.get("assignment_id") or "").strip()
             if not request_id or request_id != question_id:
@@ -1694,6 +1702,47 @@ class AssignmentExecutor:
                     (record.get("assignment") or {}).get("assignment_id") or ""):
                 raise AssignmentError(
                     "the confirmation belongs to a different assignment")
+            if parsed.get("rejected") is True:
+                # Rejection is an acknowledgement, not a resolution: the
+                # same request and candidate evidence stay outstanding so a
+                # restart cannot fork a second clarification.
+                current = self.status(run_id)
+                return {
+                    "status": "rejected_candidates",
+                    "assignment": current.get("assignment"),
+                    "open_gaps": current.get("open_gaps") or [],
+                }
+            selected_column = str(parsed.get("column") or "").strip()
+            selected_unit = str(parsed.get("unit") or "").strip()
+            requested_source_version = str(
+                parsed.get("source_version") or "").strip()
+            if (requested_source_version
+                    and str(mapping.get("source_version") or "")
+                    and requested_source_version != str(
+                        mapping.get("source_version") or "")):
+                raise AssignmentError(
+                    "stale source version: reconfirm the mapping against "
+                    "the current schema")
+            requested_teaching_revision = str(
+                parsed.get("teaching_revision") or "").strip()
+            proposal_teaching_revision = str(
+                mapping.get("teaching_revision") or "").strip()
+            snapshot_teaching_revision = str(
+                ((record.get("assignment") or {}).get(
+                    "teaching_snapshot") or {}).get("revision") or "").strip()
+            if requested_teaching_revision:
+                if (proposal_teaching_revision
+                        and requested_teaching_revision
+                        != proposal_teaching_revision):
+                    raise AssignmentError(
+                        "stale teaching revision: reconfirm the mapping "
+                        "against the current teaching")
+                if (snapshot_teaching_revision
+                        and requested_teaching_revision
+                        != snapshot_teaching_revision):
+                    raise AssignmentError(
+                        "stale teaching revision: the assignment teaching "
+                        "changed after this request was raised")
             candidates = [
                 str(item.get("column") or "")
                 for item in (mapping.get("candidates") or [])
@@ -1702,6 +1751,31 @@ class AssignmentExecutor:
             if not selected_column or selected_column not in candidates:
                 raise AssignmentError(
                     "the confirmed mapping is not one of the current schema candidates")
+            if current_source:
+                current_sheet = str(current_source.get("sheet") or "")
+                if (current_sheet and str(mapping.get("sheet") or "")
+                        and current_sheet != str(mapping.get("sheet") or "")):
+                    raise AssignmentError(
+                        "the current authorized source does not match this "
+                        "mapping request")
+                current_source_version = str(
+                    current_source.get("source_version") or "")
+                if (current_source_version
+                        and str(mapping.get("source_version") or "")
+                        and current_source_version != str(
+                            mapping.get("source_version") or "")):
+                    raise AssignmentError(
+                        "stale source version: the current authorized source "
+                        "changed after this request was raised")
+                allowed_columns = [
+                    str(column) for column in
+                    current_source.get("columns") or []
+                    if str(column)
+                ]
+                if allowed_columns and selected_column not in allowed_columns:
+                    raise AssignmentError(
+                        "the confirmed mapping is not in the current "
+                        "authorized source schema")
             source = next((
                 item for item in (record.get("assignment") or {}).get("sources") or []
                 if str((item.get("binding") or {}).get("external_id") or "")
@@ -3736,6 +3810,22 @@ def _established_source_unit(
             return next(iter(values)), column
         return "", column
     return "", ""
+
+
+def resolution_matches(stored: Any, incoming: Any) -> bool:
+    """Whether a replay is the same resolution, ignoring audit metadata.
+
+    ``resolve_gap`` appends ``[by ...]`` and ``[evidence: ...]`` to the
+    durable resolution. A byte-identical retry is still the same request,
+    while a different answer remains a conflict.
+    """
+    stored_text = str(stored or "")
+    incoming_text = str(incoming or "")
+    if not incoming_text:
+        return False
+    if stored_text == incoming_text:
+        return True
+    return stored_text.startswith(incoming_text + " [")
 
 
 def select_confirmed_mapping(

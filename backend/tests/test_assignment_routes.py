@@ -1250,3 +1250,263 @@ def test_ambiguous_mapping_correction_requires_source_identity(
     assert "more than one confirmed mapping" in response.json()["detail"]
     assert called["resolve"] == 0
     assert _durable_assignment_route(route_env, run_id) == before
+
+
+def _mapping_gap_assignment(route_env, tmp_path):
+    """Execute a real aggregate against a frame missing the taught measure."""
+    import pandas as pd
+    from core.models import AgentRegistry
+    from core.student_learning_service import journal_standing_lesson_entry
+
+    parquet = tmp_path / "gap-source.parquet"
+    pd.DataFrame({
+        "Item": ["B-1", "B-2"],
+        "Amount": [15.0, 20.0],
+        "Discount": [1.0, 2.0],
+        "Currency": ["USD", "USD"],
+        "__sheet_row": [2, 3],
+    }).to_parquet(parquet, index=False)
+    binding = {
+        "resource_id": "fixture:gap-source.parquet",
+        "dataset_name": "gap_source",
+        "source": "outlook",
+        "external_id": "gap-source",
+        "original_file_name": "gap-source.xlsx",
+        "representation": "parquet_frame",
+        "source_version": "v1",
+        "sheet": "Sheet1",
+        "columns": [
+            "Item", "Amount", "Discount", "Currency", "__sheet_row"],
+        "numeric_columns": ["Amount", "Discount"],
+        "workspace_id": "ws-1",
+        "tenant_id": "tenant-1",
+        "access_scope": {
+            "user_id": "lead-1", "workspace_id": "ws-1",
+            "tenant_id": "tenant-1",
+        },
+        "internal_fixture": True,
+        "path": str(parquet),
+    }
+    agent_id = f"gap-agent-{uuid.uuid4().hex[:8]}"
+    agent = AgentRegistry(
+        id=agent_id, name="Gap Agent", category="operations",
+        description="mapping gap authority control",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        status="intern", confidence_score=0.5, configuration={},
+        capabilities=[], workspace_id="ws-1", tenant_id="tenant-1")
+    route_env["db"].add(agent)
+    route_env["db"].commit()
+    lesson = journal_standing_lesson_entry(
+        route_env["db"], agent_id,
+        "Price is a monetary amount and must be mapped explicitly.",
+        source="teacher", topic="price gap mapping",
+        applies_to=["document"],
+        context={"field_mappings": [{
+            "concept": "Price", "sheet": "Sheet1", "column": "Price",
+            "unit": "USD", "source_version": "a" * 40, "revision": 1,
+        }]}, workspace_id="ws-1")
+    assert lesson and lesson.get("id"), lesson
+    plan = new_assignment(
+        objective="Map the missing price measure",
+        employee_id="lead-1",
+        workspace_id="ws-1",
+        tenant_id="tenant-1",
+        teaching_snapshot=new_teaching_snapshot(
+            revision="gap-r1",
+            field_mappings=[{
+                "concept": "Price", "sheet": "Sheet1", "column": "Price",
+                "unit": "USD", "source_version": "a" * 40,
+                "revision": 1, "lesson_id": lesson["id"],
+            }]),
+        steps=[new_step(
+            step_id="source-1", title="Aggregate the missing price",
+            operation_type="calculate", adapter="dataset.aggregate",
+            inputs={
+                "resource_binding": binding,
+                "operation": "sum",
+                "value_column": "Price",
+            },
+            effect="local")],
+        sources=[{"kind": "workbook", "binding": binding}],
+        authorized_actions=["retrieve", "calculate"],
+        completion_criteria=[{"kind": "required_work_complete"}],
+        provenance={"agent_id": agent_id},
+    )
+    record = route_env["executor"].create_assignment(
+        "conv-gap", "Map the missing price measure", assignment=plan,
+        employee_id="lead-1", workspace_id="ws-1", tenant_id="tenant-1")
+    _run(route_env["executor"].execute(record["run_id"]))
+    status = route_env["executor"].status(record["run_id"])
+    gap = next(
+        item for item in status["open_gaps"]
+        if (item.get("inputs") or {}).get("mapping"))
+    return record["run_id"], plan["assignment_id"], gap, binding, agent_id
+
+
+def _agent_configuration(route_env, agent_id):
+    from core.models import AgentRegistry
+
+    route_env["db"].expire_all()
+    agent = route_env["db"].query(AgentRegistry).filter(
+        AgentRegistry.id == agent_id).first()
+    assert agent is not None
+    return copy.deepcopy(agent.configuration)
+
+
+def _gap_resolution(gap, assignment_id, column, *, unit=None,
+                    source_version="v1", teaching_revision="gap-r1",
+                    request_id=None, target_assignment_id=None):
+    payload = {
+        "request_id": request_id or gap["question_id"],
+        "assignment_id": target_assignment_id or assignment_id,
+        "column": column,
+        "source_version": source_version,
+        "teaching_revision": teaching_revision,
+    }
+    if unit is not None:
+        payload["unit"] = unit
+    return json.dumps(payload)
+
+
+def test_mapping_gap_authority_controls_and_idempotent_replay(
+        route_env, tmp_path, monkeypatch):
+    run_id, assignment_id, gap, binding, agent_id = _mapping_gap_assignment(
+        route_env, tmp_path)
+    monkeypatch.setattr(
+        "api.assignment_routes.resolve_assignment_source",
+        _source_resolver(binding))
+    params_before = route_env["lifecycle"].get_task(run_id)
+    params_before = copy.deepcopy(params_before)
+    lesson_before = _agent_configuration(route_env, agent_id)
+    mapping = gap["inputs"]["mapping"]
+    assert mapping["source_version"] == "v1"
+    assert mapping["teaching_revision"] == "gap-r1"
+    assert "Amount" in [
+        item["column"] for item in mapping["candidates"]]
+    assert mapping["source_unit"] == "USD"
+
+    rejected = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": json.dumps({
+            "rejected": True,
+            "request_id": gap["question_id"],
+            "assignment_id": assignment_id,
+        })})
+    assert rejected.status_code == 200, rejected.text
+    assert rejected.json()["status"] == "rejected_candidates"
+    assert copy.deepcopy(
+        route_env["lifecycle"].get_task(run_id)) == params_before
+    assert _agent_configuration(route_env, agent_id) == lesson_before
+
+    def assert_refused(payload, *, expected_status=409, contains=""):
+        response = route_env["client"].post(
+            f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+            json={"resolution": payload})
+        assert response.status_code == expected_status, response.text
+        if contains:
+            assert contains in response.text.lower(), response.text
+        assert copy.deepcopy(
+            route_env["lifecycle"].get_task(run_id)) == params_before
+        assert _agent_configuration(route_env, agent_id) == lesson_before
+        durable = _durable_assignment_route(route_env, run_id)
+        assert durable["objective"] == "Map the missing price measure"
+        assert durable["status"] != "completed"
+        assert not any(step.get("result") for step in durable["steps"])
+        return response
+
+    assert_refused(
+        _gap_resolution(gap, assignment_id, "Amount",
+                        request_id="wrong-request"),
+        contains="outstanding mapping request")
+    assert_refused(
+        _gap_resolution(gap, assignment_id, "Amount",
+                        target_assignment_id="wrong-assignment"),
+        contains="different assignment")
+    assert_refused(
+        _gap_resolution(gap, assignment_id, "Forged"),
+        contains="current schema candidates")
+    assert_refused(
+        _gap_resolution(gap, assignment_id, "Amount",
+                        source_version="v0"),
+        contains="stale source version")
+    monkeypatch.setattr(
+        "api.assignment_routes.resolve_assignment_source",
+        _source_resolver({**binding, "source_version": "v2"}))
+    assert_refused(
+        _gap_resolution(gap, assignment_id, "Amount"),
+        contains="stale source version")
+    monkeypatch.setattr(
+        "api.assignment_routes.resolve_assignment_source",
+        _source_resolver(binding))
+    assert_refused(
+        _gap_resolution(gap, assignment_id, "Amount",
+                        teaching_revision="gap-r0"),
+        contains="stale teaching revision")
+    assert_refused(
+        _gap_resolution(gap, assignment_id, "Amount", unit="EUR"),
+        contains="conflict")
+    route_env["current"]["user"] = route_env["users"]["other"]
+    assert_refused(
+        _gap_resolution(gap, assignment_id, "Amount"),
+        expected_status=404)
+    route_env["current"]["user"] = route_env["users"]["lead"]
+
+    accepted = _gap_resolution(
+        gap, assignment_id, "Amount", unit="USD")
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": accepted})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["assignment"]["status"] == "completed", body
+    assert body["assignment"]["assignment_id"] == assignment_id
+    durable_after = copy.deepcopy(
+        route_env["lifecycle"].get_task(run_id))
+    assignment = durable_after["assignment"]
+    source_step = next(
+        step for step in assignment["steps"]
+        if step["step_id"] == "source-1")
+    assert source_step["result"]["value"] == "35.00"
+    assert source_step["result"]["unit"] == "USD"
+    mappings = [
+        item for item in assignment["teaching_snapshot"]["field_mappings"]
+        if item["concept"] == "Price"
+    ]
+    assert len(mappings) == 1
+    assert mappings[0]["column"] == "Amount"
+    assert mappings[0]["revision"] == 2
+    assert mappings[0]["unit_authority"] == "source_evidence"
+    applied_operations = [
+        op for op in durable_after["operations"]
+        if op.get("status") == "applied"]
+    assert len(applied_operations) == 1
+    lesson_after = _agent_configuration(route_env, agent_id)
+    lesson_mappings = [
+        item for item in (
+            (lesson_after.get("learning") or {}).get("log") or [{}]
+        )[0].get("context", {}).get("field_mappings") or []
+        if item.get("concept") == "Price"
+    ]
+    assert len(lesson_mappings) == 1
+    assert lesson_mappings[0]["column"] == "Amount"
+    assert lesson_mappings[0]["revision"] == 2
+
+    # An identical replay is idempotent: no new operation, result or teaching
+    # revision. A conflicting replay is refused with no mutation.
+    replay = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": accepted})
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["status"] == "already_resolved"
+    assert copy.deepcopy(
+        route_env["lifecycle"].get_task(run_id)) == durable_after
+    assert _agent_configuration(route_env, agent_id) == lesson_after
+
+    conflict = route_env["client"].post(
+        f"/api/assignments/{run_id}/gaps/{gap['question_id']}/resolve",
+        json={"resolution": _gap_resolution(
+            gap, assignment_id, "Discount", unit="USD")})
+    assert conflict.status_code == 409, conflict.text
+    assert copy.deepcopy(
+        route_env["lifecycle"].get_task(run_id)) == durable_after
+    assert _agent_configuration(route_env, agent_id) == lesson_after

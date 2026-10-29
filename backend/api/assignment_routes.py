@@ -6,6 +6,7 @@ run's own workspace binding.
 """
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from typing import Any, Dict, List, Optional
@@ -597,6 +598,7 @@ async def resolve_assignment_gap(
     question_id: str,
     body: AssignmentGapResolution,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     run = _scoped_run(run_id, current_user)
     executor = _executor(run)
@@ -607,8 +609,10 @@ async def resolve_assignment_gap(
         if item.get("question_id") == question_id), None)
     if question is None:
         raise HTTPException(status_code=404, detail="Gap not found")
+    from core.assignment_executor import AssignmentError, resolution_matches
+
     if question.get("status") != "open":
-        if str(question.get("resolution") or "") == str(body.resolution):
+        if resolution_matches(question.get("resolution"), body.resolution):
             current = executor.status(run_id)
             return {"status": "already_resolved",
                     "assignment": current.get("assignment"),
@@ -621,19 +625,60 @@ async def resolve_assignment_gap(
         raise HTTPException(
             status_code=409,
             detail="The assignment is cancelled; a gap cannot revive it")
-    from core.assignment_executor import AssignmentError
+
+    mapping = dict((question.get("inputs") or {}).get("mapping") or {})
+    parsed: Dict[str, Any] = {}
+    if mapping:
+        try:
+            loaded = json.loads(str(body.resolution))
+            parsed = loaded if isinstance(loaded, dict) else {}
+        except (TypeError, ValueError):
+            parsed = {}
+    current_source = None
+    if mapping and parsed.get("rejected") is not True:
+        source_binding = {}
+        for raw_source in (record.get("assignment") or {}).get(
+                "sources") or []:
+            binding = dict(raw_source.get("binding") or {})
+            if str(binding.get("sheet") or "") != str(
+                    mapping.get("sheet") or ""):
+                continue
+            mapped_version = str(mapping.get("source_version") or "")
+            if mapped_version and str(
+                    binding.get("source_version") or "") != mapped_version:
+                continue
+            source_binding = binding
+            break
+        if source_binding:
+            try:
+                current_source = resolve_assignment_source(
+                    db, current_user,
+                    {
+                        "dataset_name": source_binding.get("dataset_name"),
+                        "source": source_binding.get("source"),
+                        "external_id": source_binding.get("external_id"),
+                        "sheet": source_binding.get("sheet"),
+                        "source_version": mapping.get("source_version"),
+                    })
+            except AssignmentResourceError as exc:
+                raise HTTPException(
+                    status_code=exc.status,
+                    detail={"error": exc.code, "message": str(exc)})
 
     try:
-        executor.resolve_gap(
+        result = executor.resolve_gap(
             run_id, question_id,
             resolution=body.resolution,
             resolved_by=str(current_user.id),
             evidence=body.evidence,
+            current_source=current_source,
         )
     except AssignmentError as exc:
         # A refused confirmation is a conflict with durable state, not a
         # server failure. resolve_gap validates before any lifecycle write.
         raise HTTPException(status_code=409, detail=str(exc))
+    if result.get("status") in ("already_resolved", "rejected_candidates"):
+        return result
     return await executor.resume(run_id)
 
 
