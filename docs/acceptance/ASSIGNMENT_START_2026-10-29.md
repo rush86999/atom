@@ -298,6 +298,9 @@ protocol remains prepared and unmodified.
   and repairs.
 - `docs/acceptance/LIVE_CONNECTED_GATE_2026-10-29.md` — exact live-connected
   blockers and unblock checklist.
+- `docs/acceptance/assignment-successor-package-2026-10-29/` — prepared
+  successor package, configuration preconditions, support claims and
+  rollback.
 - `docs/acceptance/evidence/durable_assignment_20261029/` — prior executor
   evidence remains untouched.
 - Backend: `tests/test_assignment_routes.py` (guided real catalog, distractor,

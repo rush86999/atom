@@ -45,6 +45,18 @@ Please review read-only; do not restart the owner's runtime or run a live send.
   rows/provenance without a mocked reader/catalog or prompt-supplied rows?
 - Do guided and explicit evidence remain clearly separated?
 
+## Post-review status
+
+The frozen `40b3367d9` delta was reviewed in
+`docs/acceptance/ASSIGNMENT_REVIEW_2026-10-29.md`. Five material findings were
+reproduced and repaired in `294fdf0ec`; affected controls pass. The bounded
+taught-method job is `de25c5148` and its controlled evidence is in
+`docs/acceptance/evidence/durable_assignment_20261029/bounded-taught-job/`.
+
+Live OneDrive guided start and live changed-byte refresh remain blocked by
+missing `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET` and the disposable-source
+authorization. See `docs/acceptance/LIVE_CONNECTED_GATE_2026-10-29.md`.
+
 ## Known boundaries
 
 - Controlled outbox only; no live provider acceptance or delivery.
@@ -53,7 +65,11 @@ Please review read-only; do not restart the owner's runtime or run a live send.
   not fetch a live OneDrive file; live OAuth is outside this slice.
 - Guided deterministic calculation covers explicit `sum`/`count` objectives
   against one materialized source; compound/unstated calculations clarify.
+- The bounded taught job covers one scalar method, one workbook row and one
+  wait. It is controlled, not live-connected.
 - One worker process per assignment is the verified topology.
 - Production Outlook send still requires a prepared canvas and the existing
   approval path.
+- Owner teaching working-tree files remain outside the scoped commits and must
+  be included in a release checkout.
 - No deployment, credential change or source modification.

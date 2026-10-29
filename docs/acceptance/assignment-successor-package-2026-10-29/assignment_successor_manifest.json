@@ -1,0 +1,100 @@
+{
+  "schema": "atom-assignment-successor-package-1",
+  "created": "2026-10-29",
+  "package_doc": "docs/acceptance/assignment-successor-package-2026-10-29/ASSIGNMENT_SUCCESSOR_PACKAGE_2026-10-29.md",
+  "candidate": {
+    "branch": "whole-app/successor-f5f",
+    "source_commit": "de25c5148",
+    "review_fix_commit": "294fdf0ec",
+    "preserved_connected_guided_commit": "40b3367d9",
+    "preserved_start_boundary": "44b62a6bb",
+    "preserved_correction_pass": "322981bcc",
+    "preserved_executor_freeze": "efc4bc9d5"
+  },
+  "owner_teaching_delta": {
+    "note": "Required by the candidate but intentionally not collected into the scoped commits. Bind by working-tree SHA256 and have the owner commit/merge before a clean release checkout.",
+    "files": {
+      "backend/core/artifact_teaching.py": "d3be1f0f767e306d94ec64b4048fd9a257f6ee07d89a39f7099a10f65445e4af",
+      "backend/core/student_learning_service.py": "2972936a89b342c30e1329c8a072b911e346cd4eaa26bb8acfc4096be9862e90",
+      "backend/core/office_service.py": "d01be9f1d9076bc4cc83386a39ec4964d6715cea145f3213dcfe4f5fa554eae6"
+    }
+  },
+  "evidence": {
+    "review": "docs/acceptance/ASSIGNMENT_REVIEW_2026-10-29.md",
+    "live_gate": "docs/acceptance/LIVE_CONNECTED_GATE_2026-10-29.md",
+    "start_boundary_report": "docs/acceptance/ASSIGNMENT_START_2026-10-29.md",
+    "connected_guided_acceptance": "docs/acceptance/evidence/durable_assignment_20261029/connected-guided/connected_acceptance.json",
+    "connected_guided_sha256": "d2f7a14edbff6af93e5fe35ccffdec0eb2cfdcb6e1979cac40b48ca9c58c310c",
+    "bounded_taught_job": "docs/acceptance/evidence/durable_assignment_20261029/bounded-taught-job/bounded_taught_job.json",
+    "bounded_taught_job_sha256": "9692e88493390dee39d9f51b982393a78a01074465507039cec33c3fbab806b3",
+    "bounded_taught_artifact": "docs/acceptance/evidence/durable_assignment_20261029/bounded-taught-job/bounded-review.docx",
+    "bounded_taught_artifact_sha256": "f9fe7da4a37c5f85d9a3f53b3dd8852a1e6429a4cc751ab5c4d2897a4034bc7f",
+    "guided_browser": "docs/acceptance/evidence/durable_assignment_20261029/browser-guided/",
+    "explicit_browser": "docs/acceptance/evidence/durable_assignment_20261029/browser-explicit/"
+  },
+  "supported_claims": {
+    "explicit_form_advanced_setup": true,
+    "guided_scratch_catalog_real_parquet": true,
+    "connected_sum_count_full_frame": true,
+    "supervisor_assignment_uses_requester_grant": true,
+    "revoked_grant_resumed_read_stops": true,
+    "grounded_multi_source_artifact": true,
+    "bounded_taught_scalar_method_with_wait": true,
+    "controlled_outbox_only": true,
+    "live_onedrive_guided_start": false,
+    "live_changed_source_refresh": false,
+    "live_send_or_deployment": false
+  },
+  "runtime_configuration": {
+    "required_production": {
+      "ATOM_DATA_DIR": "absolute backend data root",
+      "ATOM_OFFICE_DIR": "owned office artifact root",
+      "ATOM_ASSIGNMENT_OUTPUT_DIR": "optional owned assignment output root under office storage",
+      "ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS": "unset/0",
+      "ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT": "unset",
+      "MICROSOFT_CLIENT_ID": "present for live Microsoft refresh",
+      "MICROSOFT_CLIENT_SECRET": "present for live Microsoft refresh"
+    },
+    "test_only": {
+      "ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS": "1 only for isolated controlled fixtures",
+      "ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT": "1 only for controlled outbox acceptance"
+    },
+    "current_live_preflight": {
+      "configured": false,
+      "missing": ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"],
+      "token_state": "invalid_client",
+      "requires_reconnect": false
+    }
+  },
+  "verification": {
+    "focused_backend": "134 passed",
+    "assignment_component": "3 passed",
+    "guided_browser": "1 passed",
+    "guided_browser_restart": "1 passed",
+    "explicit_browser": "1 passed",
+    "explicit_browser_restart": "1 passed",
+    "connected_scratch_acceptance": "passed: 85.00, 3, reopened",
+    "bounded_taught_job": "passed: 24.00 USD, two sources, draft, reopened",
+    "typescript": "clean"
+  },
+  "rollout": {
+    "deployed": false,
+    "steps": [
+      "Owner commits/merges the bound teaching working-tree delta.",
+      "Run the focused backend suite and AssignmentPanel tests.",
+      "Run guided and explicit Playwright specs in isolated scratch worlds.",
+      "Run the connected scratch acceptance and bounded taught job evidence.",
+      "Keep live connected and changed-source gates closed until owner configuration and authorization are supplied."
+    ]
+  },
+  "rollback": {
+    "preserved_candidate": "40b3367d9",
+    "note": "Rolling back the review fixes reintroduces the reproduced findings in ASSIGNMENT_REVIEW_2026-10-29.md. Prefer rolling back the bounded taught-job commit (de25c5148) only."
+  },
+  "blockers": [
+    "MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET absent from the runtime",
+    "live OneDrive guided start not run",
+    "disposable changed-source authorization not granted",
+    "owner teaching working-tree delta not yet committed to the release branch"
+  ]
+}

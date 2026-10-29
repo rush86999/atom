@@ -5,7 +5,7 @@
  "connected_guided_commit": "40b3367d9",
  "evidence_refresh_commit": "c02f523ac",
  "review_fix_commit": "294fdf0ec",
- "bounded_job_commit": "pending-freeze",
+ "bounded_job_commit": "de25c5148",
  "branch": "whole-app/successor-f5f",
  "preserved_commit": "efc4bc9d5",
  "start_route": "POST /api/assignments",
