@@ -35,6 +35,7 @@ from test_mapping_browser_b import (  # noqa: E402
     _attempt_dir,
     _call,
     _evidence_identity,
+    _git,
     _port_free,
     _server_source,
     _wait,
@@ -48,6 +49,29 @@ BASE = "http://127.0.0.1:8071"
 FRONTEND = "http://127.0.0.1:3130"
 PASSWORD = "MappingPass123!"
 OBJECTIVE = "Correction Lab price total"
+PRODUCT_PATHS = [
+    "backend/core", "backend/api",
+    "frontend-nextjs/components", "frontend-nextjs/lib",
+    "frontend-nextjs/app",
+]
+
+
+def _product_commit_identity() -> dict:
+    """Bind evidence to the last commit that changed product code.
+
+    The harness/evidence commit may be HEAD when this runs; that commit does
+    not change the product source. The product tree is read from the product
+    commit itself, never from a later evidence-only commit.
+    """
+    commit = _git("log", "-1", "--format=%H", "--", *PRODUCT_PATHS)
+    assert commit, "no product commit found"
+    dirty = _git("status", "--porcelain", "--", *PRODUCT_PATHS)
+    return {
+        "commit": commit,
+        "tree": _git("rev-parse", f"{commit}^{{tree}}"),
+        "head": _git("rev-parse", "HEAD"),
+        "dirty_paths": [line for line in dirty.splitlines() if line.strip()],
+    }
 
 
 def _seed(root: Path) -> dict:
@@ -493,6 +517,11 @@ def test_mapping_correction_ui_scoped_and_survives_restart():
             else meta["renewal_expected"])
         assert _step(final_control, "source-1")["result"]["value"] == (
             control_expected)
+        control_lesson = _lesson(TMP, meta["control_agent_id"])
+        control_lesson_mapping = _lesson_mappings(control_lesson)["Price"]
+        assert control_lesson_mapping["column"] == (
+            final_control_mapping["column"])
+        assert control_lesson_mapping["revision"] == 3
 
         # 4. Stale correction and wrong-workspace controls on the main run.
         main_before_controls = _durable_parameters(TMP, run_id)
@@ -678,10 +707,12 @@ def test_mapping_correction_ui_scoped_and_survives_restart():
         after_restart_assignment = _durable_assignment(TMP, run_id)
         lesson_final = _lesson(TMP, meta["agent_id"])
         final_mapping = _mapping(after_restart_assignment, "Price")
+        identity = _evidence_identity(Path(__file__))
+        identity["product"] = _product_commit_identity()
         evidence = {
             "schema": "atom-mapping-correction-browser-1",
             "status": "passed",
-            **(_evidence_identity(Path(__file__))),
+            **identity,
             "run_id": run_id,
             "assignment_id": assignment_id,
             "objective": OBJECTIVE,
@@ -735,6 +766,7 @@ def test_mapping_correction_ui_scoped_and_survives_restart():
                 "winning_revision": final_control_mapping["revision"],
                 "winning_result": _step(
                     final_control, "source-1")["result"]["value"],
+                "control_teaching_mapping": control_lesson_mapping,
             },
             "api_controls": {
                 "stale_correction": {

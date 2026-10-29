@@ -1,9 +1,10 @@
 {
   "schema": "atom-mapping-correction-campaign-manifest-1",
-  "generated_at": "2026-10-29T22:30:27.295948+00:00",
+  "generated_at": "2026-10-29T22:32:52.722378+00:00",
   "product": {
     "commit": "06e6c2cdcf465ac31864afbd3ae559ae3a67cabf",
     "tree": "cec52079ff20b4ab57d34d834cc728b05f83ed50",
+    "head": "f26f2f1c76c9314f13729b9829bdef6c3f50ce5a",
     "dirty_paths": []
   },
   "frozen_release": {
@@ -23,14 +24,16 @@
   },
   "runs": {
     "correction_final": {
-      "run_id": "3ceb0057-61f8-4f92-a77b-f0eb737f314f",
-      "assignment_id": "asg-ef17198bdf7a4709",
+      "run_id": "5483a218-dda8-477d-b17f-b7520b8b4f71",
+      "assignment_id": "asg-b6535301e3e8457b",
       "initial_result": "100.00",
       "corrected_result": "80.00",
       "mapping_revision": 3,
-      "directory": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/3ceb0057-61f8-4f92-a77b-f0eb737f314f"
+      "directory": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/5483a218-dda8-477d-b17f-b7520b8b4f71"
     },
     "correction_development_attempts": [
+      "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/3ceb0057-61f8-4f92-a77b-f0eb737f314f",
+      "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/5f06bec3-18ce-48d7-a294-663fdcd67fae",
       "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/db4b16e5-40ac-49ae-8a1f-d3cc6fcf00c9",
       "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/e0a41076-734e-4501-8055-8a799ab11f62"
     ],
@@ -66,34 +69,34 @@
   },
   "files": [
     {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/3ceb0057-61f8-4f92-a77b-f0eb737f314f/after-restart.png",
-      "sha256": "f051787c7c63da63d1363b22d4c47283635779c1ae681579c67b0de541bb4006",
-      "bytes": 167016
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/5483a218-dda8-477d-b17f-b7520b8b4f71/after-restart.png",
+      "sha256": "d1c8a61f755b1916e425a6c4204dc34d4e0f0cd4592d601af80f43e10847b9fd",
+      "bytes": 166496
     },
     {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/3ceb0057-61f8-4f92-a77b-f0eb737f314f/corrected.png",
-      "sha256": "af48c394f5acdb20593245e645042906139707df5532f0a7c0af61b7e2e6ece0",
-      "bytes": 164886
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/5483a218-dda8-477d-b17f-b7520b8b4f71/corrected.png",
+      "sha256": "3182be25849e0bc2b07941db87332077ade1be402b435f6ff247e05751c448eb",
+      "bytes": 164370
     },
     {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/3ceb0057-61f8-4f92-a77b-f0eb737f314f/correction-form.png",
-      "sha256": "511c7fa9a78cbafb795d2d03ce4d5ca7f94a2fbb7870b25d6edf0fdfbc405960",
-      "bytes": 167076
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/5483a218-dda8-477d-b17f-b7520b8b4f71/correction-form.png",
+      "sha256": "08afbfbef1f22d5056247ff850406052045114e5c7e524c5516288046382878b",
+      "bytes": 166036
     },
     {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/3ceb0057-61f8-4f92-a77b-f0eb737f314f/execution.log",
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/5483a218-dda8-477d-b17f-b7520b8b4f71/execution.log",
       "sha256": "10d2fffd64c6fecef3504ec7ee092f543e6597843269faa47e2f6f46223c2ffd",
       "bytes": 179
     },
     {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/3ceb0057-61f8-4f92-a77b-f0eb737f314f/initial-confirmed.png",
-      "sha256": "095a898f246d78b2f1a5879550df970562c2c719653e7ca5dc0f4db408df5f57",
-      "bytes": 159416
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/5483a218-dda8-477d-b17f-b7520b8b4f71/initial-confirmed.png",
+      "sha256": "d3a41aaf346fd1527562de20ae0c5bde501f055bcf9712d4f6d41f0116c6872a",
+      "bytes": 158460
     },
     {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/3ceb0057-61f8-4f92-a77b-f0eb737f314f/result.json",
-      "sha256": "be86eb08a1cd2789d2376abac14a934a93dd3bef99d6585a2f62145391bcbd4c",
-      "bytes": 11609
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/5483a218-dda8-477d-b17f-b7520b8b4f71/result.json",
+      "sha256": "7aaec1e6a772ce26a4efeee8e9edcbb892ea01e69d387006e7ac61d3be8b6ae5",
+      "bytes": 12042
     },
     {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/attempts/77fd8909-d661-4383-ae52-227641a60885/mapping-candidates.png",
