@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock,
   FileText,
+  Pencil,
   Play,
   RefreshCw,
   Send,
@@ -19,6 +20,7 @@ import {
   AssignmentStep,
   AssignmentSummary,
   cancelAssignment,
+  correctAssignmentMapping,
   createAssignment,
   getAssignment,
   listAssignments,
@@ -48,6 +50,20 @@ function currentStep(detail: AssignmentDetail): AssignmentStep | undefined {
   );
 }
 
+function testIdPart(value: unknown): string {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function authorityLabel(authority: string): string {
+  if (authority === "user_confirmed") return "user-confirmed";
+  if (authority === "source_evidence") return "source-established";
+  if (authority === "taught") return "taught";
+  return authority || "not established";
+}
+
 export function AssignmentPanel({
   className = "",
   agentId = null,
@@ -59,6 +75,11 @@ export function AssignmentPanel({
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<AssignmentDetail | null>(null);
   const [gapDrafts, setGapDrafts] = useState<Record<string, string>>({});
+  const [correction, setCorrection] = useState<{
+    concept: string;
+    column: string;
+    unit: string;
+  } | null>(null);
   const [responseDraft, setResponseDraft] = useState("");
   const [startDraft, setStartDraft] = useState({
     objective: "",
@@ -364,7 +385,9 @@ export function AssignmentPanel({
         <div className="space-y-3 rounded border p-2" data-testid="assignment-detail">
           <div>
             <div className="flex items-center justify-between gap-2">
-              <p className="font-semibold">{detail.assignment.objective}</p>
+              <p className="font-semibold" data-testid="assignment-detail-objective">
+                {detail.assignment.objective}
+              </p>
               <span
                 className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
                   STATE_STYLES[detail.assignment.status] || STATE_STYLES.planned
@@ -451,10 +474,34 @@ export function AssignmentPanel({
                 <li className="text-muted-foreground">Nothing completed yet.</li>
               ) : null}
             </ul>
+            {detail.assignment.steps.some(
+              (s) => s.status === "applied" && s.result_value
+            ) ? (
+              <ul className="mt-1 space-y-0.5" data-testid="assignment-results">
+                {detail.assignment.steps
+                  .filter((s) => s.status === "applied" && s.result_value)
+                  .map((s) => (
+                    <li
+                      key={`${s.step_id}-result`}
+                      data-testid={`assignment-result-${s.step_id}`}
+                      className="text-xs"
+                    >
+                      <span className="font-medium">
+                        Result: {s.result_value} {s.result_unit || ""}
+                      </span>
+                      {s.result_measure ? (
+                        <span className="text-muted-foreground">
+                          {" "}· {s.result_measure}
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+              </ul>
+            ) : null}
           </div>
 
           {detail.assignment.deliverables.length ? (
-            <div>
+            <div data-testid="assignment-deliverables">
               <p className="mb-1 font-medium">Artifacts</p>
               <ul className="space-y-0.5">
                 {detail.assignment.deliverables.map((d) => (
@@ -467,6 +514,175 @@ export function AssignmentPanel({
                   </li>
                 ))}
               </ul>
+            </div>
+          ) : null}
+
+          {(detail.assignment.mappings || []).length ? (
+            <div className="space-y-2" data-testid="assignment-mappings">
+              <p className="font-medium">Mappings</p>
+              {(detail.assignment.mappings || []).map((mapping) => {
+                const mappingId = testIdPart(mapping.concept);
+                const editing = correction?.concept === mapping.concept;
+                return (
+                  <div
+                    key={`${mapping.concept}:${mapping.sheet}`}
+                    className="rounded border p-2 text-xs"
+                    data-testid={`mapping-current-${mappingId}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <p className="font-medium">
+                          {mapping.concept} → {mapping.column}
+                        </p>
+                        <p className="text-muted-foreground">
+                          Source: {mapping.source || "unknown"} · Sheet:{" "}
+                          {mapping.sheet} · Version:{" "}
+                          {String(mapping.source_version || "").slice(0, 12)}
+                        </p>
+                        <p className="text-muted-foreground">
+                          Required unit:{" "}
+                          {mapping.required_unit || "not specified"} ·
+                          Established: {authorityLabel(mapping.unit_authority)}
+                          {mapping.source_unit
+                            ? ` (${mapping.source_unit})`
+                            : ""}
+                        </p>
+                        <p className="text-muted-foreground">
+                          Mapping revision: {mapping.revision} · Teaching
+                          revision:{" "}
+                          {mapping.teaching_revision ||
+                            mapping.lesson_revision ||
+                            "—"}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        data-testid={`mapping-correct-${mappingId}`}
+                        disabled={busy || !mapping.correctable}
+                        onClick={() => {
+                          setCorrection({
+                            concept: mapping.concept,
+                            column: mapping.column,
+                            unit: mapping.source_unit || mapping.unit || "",
+                          });
+                        }}
+                      >
+                        <Pencil className="mr-1 h-3 w-3" />
+                        Correct mapping
+                      </Button>
+                    </div>
+                    {editing && correction ? (
+                      <div
+                        className="mt-2 space-y-2 rounded bg-muted/40 p-2"
+                        data-testid="mapping-correction-form"
+                      >
+                        <p className="font-medium">
+                          Correct {mapping.concept}
+                        </p>
+                        <p className="text-muted-foreground">
+                          Current: {mapping.column} · revision{" "}
+                          {mapping.revision}. The replacement is validated
+                          against the current authorized source.
+                        </p>
+                        <label className="block">
+                          Replacement column
+                        </label>
+                        <select
+                          data-testid="mapping-correction-column"
+                          className="w-full rounded border px-2 py-1 text-xs"
+                          value={correction.column}
+                          onChange={(e) =>
+                            setCorrection({
+                              ...correction,
+                              column: e.target.value,
+                            })
+                          }
+                        >
+                          <option value="">Select a column</option>
+                          {mapping.available_columns.map((column) => (
+                            <option key={column} value={column}>
+                              {column}
+                              {mapping.numeric_columns.includes(column)
+                                ? " (numeric)"
+                                : ""}
+                            </option>
+                          ))}
+                        </select>
+                        {mapping.required_unit && !mapping.source_unit ? (
+                          <div>
+                            <label className="block">Unit</label>
+                            <input
+                              data-testid="mapping-correction-unit"
+                              className="w-full rounded border px-2 py-1 text-xs"
+                              value={correction.unit}
+                              onChange={(e) =>
+                                setCorrection({
+                                  ...correction,
+                                  unit: e.target.value,
+                                })
+                              }
+                              placeholder={`Required: ${mapping.required_unit}`}
+                            />
+                          </div>
+                        ) : (
+                          <p data-testid="mapping-correction-unit-established">
+                            Unit:{" "}
+                            {mapping.source_unit ||
+                              mapping.unit ||
+                              "not established"}{" "}
+                            ({authorityLabel(mapping.unit_authority)})
+                          </p>
+                        )}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            data-testid="mapping-correction-submit"
+                            disabled={
+                              busy ||
+                              !correction.column ||
+                              correction.column === mapping.column ||
+                              (Boolean(mapping.required_unit) &&
+                                !mapping.source_unit &&
+                                !correction.unit.trim())
+                            }
+                            onClick={() =>
+                              act(async () => {
+                                await correctAssignmentMapping(
+                                  detail.run_id,
+                                  {
+                                    concept: mapping.concept,
+                                    expected_revision: mapping.revision,
+                                    column: correction.column,
+                                    unit:
+                                      mapping.source_unit ||
+                                      correction.unit ||
+                                      "",
+                                    evidence:
+                                      "mapping corrected from Assignments panel",
+                                  }
+                                );
+                                setCorrection(null);
+                              }, detail.run_id)
+                            }
+                          >
+                            Apply correction
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            data-testid="mapping-correction-cancel"
+                            disabled={busy}
+                            onClick={() => setCorrection(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           ) : null}
 

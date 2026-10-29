@@ -26,6 +26,7 @@ import logging
 import os
 import re
 import time
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -1748,11 +1749,14 @@ class AssignmentExecutor:
                 "sheet": str(mapping.get("sheet") or ""),
                 "column": selected_column,
                 "unit": selected_unit or str(source_mapping.get("unit") or ""),
+                "unit_authority": unit_authority,
+                "required_unit": required_unit,
+                "source_unit": source_unit,
+                "source_unit_column": str(
+                    mapping.get("source_unit_column") or ""),
                 "source_version": str(mapping.get("source_version") or ""),
                 "revision": int(source_mapping.get("revision") or 1) + 1,
             }
-            if unit_authority:
-                confirmed_mapping["unit_authority"] = unit_authority
             if source_mapping.get("lesson_id"):
                 confirmed_mapping["lesson_id"] = source_mapping["lesson_id"]
             mapping_applied = True
@@ -1889,6 +1893,419 @@ class AssignmentExecutor:
             "source": "assignment_gap_resolution",
         })
         return {"status": "resolved", **result}
+
+    def correct_mapping(
+        self,
+        run_id: str,
+        *,
+        concept: str,
+        expected_revision: int,
+        column: str,
+        unit: str = "",
+        corrected_by: str = "",
+        current_source: Optional[Dict[str, Any]] = None,
+        evidence: str = "",
+    ) -> Dict[str, Any]:
+        """Correct one confirmed mapping and its dependants.
+
+        The mapping revision is an optimistic concurrency token. The current
+        authorized source is re-read before mutation. Prior results and
+        artifacts stay in step/deliverable history; affected work is re-run
+        under a new plan revision. Applied external effects are never replayed
+        automatically.
+        """
+        record = self.lifecycle.get_task(run_id)
+        if record is None:
+            raise AssignmentError(f"no task record on run {run_id}")
+        assignment = record.get("assignment") or {}
+        if not assignment:
+            raise AssignmentError(f"run {run_id} has no assignment plan")
+        if assignment.get("status") == "cancelled" or str(
+                (record.get("task_revision") or {}).get("authorization")
+                or "").lower() == "cancelled":
+            raise AssignmentError(
+                "the assignment is cancelled; a mapping cannot be corrected")
+        concept_value = str(concept or "").strip()
+        if not concept_value:
+            raise AssignmentError("a mapping correction requires a concept")
+        snapshot = assignment.get("teaching_snapshot") or {}
+        mappings = [
+            dict(item) for item in snapshot.get("field_mappings") or []
+            if isinstance(item, dict)
+        ]
+        index = next((
+            offset for offset, item in enumerate(mappings)
+            if str(item.get("concept") or "").strip().lower()
+            == concept_value.lower()
+        ), None)
+        if index is None:
+            raise AssignmentError(
+                f"no confirmed mapping exists for concept '{concept_value}'")
+        mapping = mappings[index]
+        expected = int(expected_revision or 0)
+        current_revision = int(mapping.get("revision") or 1)
+        if expected != current_revision:
+            raise AssignmentError(
+                f"stale mapping revision: expected {expected}, current "
+                f"{current_revision}")
+        replacement = str(column or "").strip()
+        if not replacement:
+            raise AssignmentError("a mapping correction requires a column")
+        if replacement.lower() == str(
+                mapping.get("column") or "").strip().lower():
+            raise AssignmentError(
+                "the replacement column is already the current mapping")
+        source_binding = {}
+        for raw_source in assignment.get("sources") or []:
+            binding = dict(raw_source.get("binding") or {})
+            if str(binding.get("sheet") or "") != str(
+                    mapping.get("sheet") or ""):
+                continue
+            mapped_version = str(mapping.get("source_version") or "")
+            if mapped_version and str(
+                    binding.get("source_version") or "") != mapped_version:
+                continue
+            source_binding = binding
+            break
+        if not source_binding:
+            raise AssignmentError(
+                "the mapping's authorized source is no longer part of this "
+                "assignment")
+        current = dict(current_source or {})
+        if current:
+            for field in ("external_id", "sheet"):
+                expected_value = str(source_binding.get(field) or "")
+                actual_value = str(current.get(field) or "")
+                if expected_value and actual_value and (
+                        expected_value != actual_value):
+                    raise AssignmentError(
+                        "the resolved source does not match the assignment "
+                        "mapping")
+            current_version = str(current.get("source_version") or "")
+            binding_version = str(source_binding.get("source_version") or "")
+            if not current_version or current_version != binding_version:
+                raise AssignmentError(
+                    "the source version changed; reconfirm the mapping "
+                    "against the current schema")
+            allowed_columns = [
+                str(item) for item in current.get("columns") or []
+                if str(item)
+            ]
+            numeric_columns = [
+                str(item) for item in current.get("numeric_columns") or []
+                if str(item)
+            ]
+        else:
+            allowed_columns = [
+                str(item) for item in source_binding.get("columns") or []
+                if str(item)
+            ]
+            numeric_columns = [
+                str(item)
+                for item in source_binding.get("numeric_columns") or []
+                if str(item)
+            ]
+        if replacement == "__sheet_row" or replacement not in allowed_columns:
+            raise AssignmentError(
+                "the replacement column is not in the current authorized "
+                "source schema")
+        roots = _mapping_affected_roots(
+            assignment, column=str(mapping.get("column") or ""),
+            concept=concept_value)
+        if not roots:
+            raise AssignmentError(
+                "no assignment work depends on this mapping")
+        affected = downstream_step_ids(assignment, roots)
+        by_id = {
+            step["step_id"]: step for step in assignment.get("steps") or []
+        }
+        numeric_required = any(
+            by_id.get(step_id, {}).get("adapter") == "dataset.aggregate"
+            and str((by_id.get(step_id, {}).get("inputs") or {}).get(
+                "operation") or "sum").lower() == "sum"
+            for step_id in affected
+        )
+        if numeric_required and numeric_columns and (
+                replacement not in numeric_columns):
+            raise AssignmentError(
+                "the replacement column is not numeric for the affected "
+                "calculation")
+        for step_id in affected:
+            step = by_id.get(step_id) or {}
+            status = str(step.get("status") or "")
+            if status == "running":
+                raise AssignmentError(
+                    "affected work is running; correct the mapping after it "
+                    "settles")
+            if str(step.get("effect") or "") == "external" and status in (
+                    "applied", "failed", "uncertain", "awaiting_approval"):
+                raise AssignmentError(
+                    "correction would replay an external effect; the applied "
+                    "effect is preserved and is not re-run automatically")
+        source_unit, source_unit_column = "", ""
+        if current.get("path"):
+            try:
+                source_unit, source_unit_column = _source_unit_from_path(
+                    str(current["path"]))
+            except Exception as exc:  # noqa: BLE001
+                raise AssignmentError(
+                    "the current authorized source could not be read for "
+                    "correction") from exc
+        else:
+            source_unit = str(current.get("source_unit") or "").strip().upper()
+            source_unit_column = str(
+                current.get("source_unit_column") or "")
+        required_unit = str(mapping.get("required_unit") or "").strip()
+        if not required_unit and str(
+                mapping.get("unit_authority") or "") == "user_confirmed":
+            required_unit = str(mapping.get("unit") or "").strip()
+        selected_unit = str(unit or "").strip()
+        if selected_unit:
+            unit_authority = (
+                "source_evidence" if source_unit else "user_confirmed")
+        elif source_unit:
+            selected_unit = source_unit
+            unit_authority = "source_evidence"
+        elif required_unit:
+            raise AssignmentError(
+                "the taught method requires an explicit unit confirmation")
+        else:
+            unit_authority = str(mapping.get("unit_authority") or "")
+        if source_unit and selected_unit and (
+                source_unit.lower() != selected_unit.lower()):
+            raise AssignmentError(
+                f"the confirmed unit '{selected_unit}' conflicts with the "
+                f"source evidence unit '{source_unit}'")
+        if required_unit and selected_unit and (
+                required_unit.lower() != selected_unit.lower()):
+            raise AssignmentError(
+                f"the confirmed unit '{selected_unit}' does not match the "
+                f"taught unit '{required_unit}'; no conversion is authorized")
+        effective_unit = selected_unit or str(mapping.get("unit") or "")
+        new_revision = current_revision + 1
+        corrected_at = _utc_now_iso()
+        new_mapping = {
+            **mapping,
+            "column": replacement,
+            "unit": effective_unit,
+            "unit_authority": unit_authority,
+            "required_unit": required_unit,
+            "source_unit": source_unit,
+            "source_unit_column": source_unit_column,
+            "source_version": str(
+                source_binding.get("source_version") or ""),
+            "revision": new_revision,
+            "corrected_from_revision": current_revision,
+            "corrected_by": _bounded(corrected_by, 200),
+            "corrected_at": corrected_at,
+        }
+        history_entry = {
+            **mapping,
+            "replaced_by_revision": new_revision,
+            "corrected_by": _bounded(corrected_by, 200),
+            "corrected_at": corrected_at,
+            "reason": _bounded(evidence or "mapping corrected", 500),
+        }
+
+        def compute(record, current_assignment):
+            current_mappings = [
+                dict(item) for item in (
+                    current_assignment.get("teaching_snapshot") or {}
+                ).get("field_mappings") or [] if isinstance(item, dict)
+            ]
+            current_index = next((
+                offset for offset, item in enumerate(current_mappings)
+                if str(item.get("concept") or "").strip().lower()
+                == concept_value.lower()
+            ), None)
+            if current_index is None:
+                raise AssignmentError(
+                    "the confirmed mapping disappeared before correction")
+            if int(current_mappings[current_index].get("revision") or 1) != expected:
+                raise AssignmentError(
+                    "stale mapping revision: the mapping changed during this "
+                    "correction")
+            new_plan = copy.deepcopy(current_assignment)
+            new_snapshot = dict(new_plan.get("teaching_snapshot") or {})
+            current_mappings[current_index] = new_mapping
+            new_snapshot = new_teaching_snapshot(
+                revision=(
+                    str(new_snapshot.get("revision") or "untrained")
+                    + "+corr"),
+                effective_lesson_ids=new_snapshot.get(
+                    "effective_lesson_ids") or [],
+                applicable_conditions=new_snapshot.get(
+                    "applicable_conditions") or {},
+                matched_context=new_snapshot.get("matched_context") or {},
+                unresolved_conditions=new_snapshot.get(
+                    "unresolved_conditions") or [],
+                conflicting_conditions=new_snapshot.get(
+                    "conflicting_conditions") or [],
+                field_mappings=current_mappings,
+                source_versions=new_snapshot.get("source_versions") or {},
+                output_requirements=new_snapshot.get(
+                    "output_requirements") or {},
+                decision_schema=new_snapshot.get("decision_schema") or [],
+                artifact_requirements=new_snapshot.get(
+                    "artifact_requirements") or {},
+            )
+            new_plan["teaching_snapshot"] = new_snapshot
+            history = [
+                dict(item) for item in new_plan.get("mapping_history") or []
+                if isinstance(item, dict)
+            ]
+            history.append(history_entry)
+            new_plan["mapping_history"] = history[-20:]
+            new_plan["plan_revision"] = int(
+                current_assignment.get("plan_revision") or 1) + 1
+            roots_now = _mapping_affected_roots(
+                new_plan, column=str(mapping.get("column") or ""),
+                concept=concept_value)
+            affected_now = downstream_step_ids(new_plan, roots_now)
+            for step in new_plan.get("steps") or []:
+                if step.get("step_id") not in affected_now:
+                    continue
+                status = str(step.get("status") or "")
+                if str(step.get("effect") or "") == "external" and status in (
+                        "applied", "failed", "uncertain", "awaiting_approval"):
+                    raise AssignmentError(
+                        "correction would replay an external effect; the "
+                        "applied effect is preserved and is not re-run "
+                        "automatically")
+                prior = [
+                    dict(item) for item in step.get("prior_results") or []
+                    if isinstance(item, dict)
+                ]
+                if step.get("result") is not None and status in (
+                        "applied", "failed", "uncertain"):
+                    prior.append({
+                        "plan_revision": current_assignment.get(
+                            "plan_revision"),
+                        "status": status,
+                        "result": copy.deepcopy(step.get("result")),
+                        "artifact_revision": step.get("artifact_revision"),
+                        "reason": _bounded(
+                            f"mapping {concept_value} corrected from "
+                            f"'{mapping.get('column')}' to '{replacement}'",
+                            300),
+                    })
+                inputs = copy.deepcopy(step.get("inputs") or {})
+                inputs = _replace_mapping_value(
+                    inputs, str(mapping.get("column") or ""), replacement)
+                inputs = _replace_mapping_value(
+                    inputs, concept_value, replacement)
+                if str(step.get("adapter") or "").startswith("artifact."):
+                    old_path = str(inputs.get("path") or "").strip()
+                    if old_path:
+                        inputs["path"] = _corrected_artifact_path(
+                            old_path, new_plan["plan_revision"])
+                step["inputs"] = inputs
+                step["prior_results"] = prior[-10:]
+                step["status"] = "pending"
+                step["operation_id"] = None
+                step["result"] = None
+                step["artifact_revision"] = None
+                step["failure"] = None
+                step["waiting"] = None
+                step["gap_ids"] = []
+                step["updated_at"] = _utc_now_iso()
+            affected_step_ids = set(affected_now)
+            for deliverable in new_plan.get("deliverables") or []:
+                if deliverable.get("step_id") not in affected_step_ids:
+                    continue
+                prior_artifacts = [
+                    dict(item) for item in
+                    deliverable.get("prior_artifacts") or []
+                    if isinstance(item, dict)
+                ]
+                if deliverable.get("artifact_path") or deliverable.get(
+                        "sha256"):
+                    prior_artifacts.append({
+                        "plan_revision": current_assignment.get(
+                            "plan_revision"),
+                        "artifact_path": deliverable.get("artifact_path"),
+                        "sha256": deliverable.get("sha256"),
+                        "artifact_revision": deliverable.get(
+                            "artifact_revision"),
+                        "reason": f"mapping correction {concept_value}",
+                    })
+                deliverable["prior_artifacts"] = prior_artifacts[-10:]
+                deliverable["status"] = "pending"
+                deliverable["artifact_revision"] = None
+                deliverable["artifact_path"] = None
+                deliverable["sha256"] = None
+            new_plan["status"] = "planned"
+            new_plan["completed_at"] = None
+            new_plan["last_transition"] = {
+                "kind": "mapping_correction",
+                "concept": concept_value,
+                "from_column": str(mapping.get("column") or ""),
+                "to_column": replacement,
+                "from_revision": current_revision,
+                "to_revision": new_revision,
+                "affected_steps": affected_now,
+                "at": corrected_at,
+            }
+            new_plan["updated_at"] = corrected_at
+            return new_plan, {
+                "concept": concept_value,
+                "column": replacement,
+                "revision": new_revision,
+                "affected_steps": affected_now,
+            }
+
+        result = self.lifecycle.mutate_assignment(
+            run_id, compute,
+            rationale=(
+                f"correct mapping {concept_value} revision "
+                f"{current_revision} -> {new_revision}"))
+        lesson_id = str(mapping.get("lesson_id") or "")
+        agent_id = str(
+            (assignment.get("provenance") or {}).get("agent_id") or "")
+        if lesson_id and agent_id:
+            try:
+                from core.database import get_db_session
+                from core.models import AgentRegistry
+                from core.student_learning_service import (
+                    resolve_teaching_point,
+                    update_teaching_point,
+                )
+
+                with get_db_session() as db:
+                    agent = db.query(AgentRegistry).filter(
+                        AgentRegistry.id == agent_id).first()
+                    resolved_lesson = (
+                        resolve_teaching_point(agent, lesson_id)
+                        if agent is not None else None)
+                    current_lesson_revision = 0
+                    if resolved_lesson:
+                        _index, lesson_entry = resolved_lesson
+                        for item in ((lesson_entry.get("context") or {}).get(
+                                "field_mappings") or []):
+                            if (str(item.get("concept") or "").lower()
+                                    == concept_value.lower()):
+                                current_lesson_revision = int(
+                                    item.get("revision") or 1)
+                                break
+                    if current_lesson_revision > new_revision:
+                        # Another assignment already advanced the shared
+                        # teaching point. Do not regress it from an older
+                        # assignment snapshot; this assignment keeps its own
+                        # corrected mapping.
+                        logger.warning(
+                            "mapping correction %s left teaching point %s at "
+                            "newer revision %s (assignment revision %s)",
+                            concept_value, lesson_id,
+                            current_lesson_revision, new_revision)
+                    else:
+                        update_teaching_point(
+                            db, agent_id, lesson_id,
+                            context={"field_mappings": [dict(new_mapping)]})
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "mapping correction lesson update skipped for %s: %s",
+                    lesson_id, exc)
+        return {"status": "corrected", **result}
 
     def record_external_response(
         self,
@@ -3309,6 +3726,69 @@ def _established_source_unit(
             return next(iter(values)), column
         return "", column
     return "", ""
+
+
+def _mapping_affected_roots(
+    assignment: Dict[str, Any], *, column: str, concept: str,
+) -> List[str]:
+    """Steps that consume the corrected column (or its concept)."""
+    token = str(column or "").strip().lower()
+    concept_token = str(concept or "").strip().lower()
+    roots: List[str] = []
+    for step in assignment.get("steps") or []:
+        inputs = step.get("inputs") or {}
+        if token and _value_mentions(inputs, token):
+            roots.append(step["step_id"])
+            continue
+        if concept_token and _value_mentions(inputs, concept_token):
+            roots.append(step["step_id"])
+    if roots:
+        return roots
+    # Confirmed mappings are substituted into step inputs, so the old column
+    # may survive only in the aggregate result itself.
+    for step in assignment.get("steps") or []:
+        result = step.get("result") or {}
+        if str(result.get("measure") or "").strip().lower() == token:
+            roots.append(step["step_id"])
+    return roots
+
+
+def _value_mentions(value: Any, token: str) -> bool:
+    if isinstance(value, str):
+        return bool(token) and value.strip().lower() == token
+    if isinstance(value, list):
+        return any(_value_mentions(item, token) for item in value)
+    if isinstance(value, dict):
+        return any(_value_mentions(item, token) for item in value.values())
+    return False
+
+
+def _source_unit_from_path(path: str) -> Tuple[str, str]:
+    """Re-read the current authorized source before validating a correction."""
+    import pandas as pd
+
+    frame = pd.read_parquet(path)
+    records = [
+        {str(key): value for key, value in row.items()}
+        for row in frame.head(50).to_dict(orient="records")
+    ]
+    return _established_source_unit(records)
+
+
+def _corrected_artifact_path(path: str, plan_revision: int) -> str:
+    """A sibling path for the recomputed artifact.
+
+    The prior artifact is never overwritten; its path/hash stay in the
+    invalidated step and deliverable history.
+    """
+    original = Path(path)
+    candidate = original.with_name(
+        f"{original.stem}-corr-{plan_revision}{original.suffix}")
+    if candidate.exists():
+        candidate = original.with_name(
+            f"{original.stem}-corr-{plan_revision}-"
+            f"{uuid.uuid4().hex[:8]}{original.suffix}")
+    return str(candidate)
 
 
 def _mapping_proposal(

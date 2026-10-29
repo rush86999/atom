@@ -59,6 +59,14 @@ class AssignmentGapResolution(BaseModel):
     evidence: str = ""
 
 
+class AssignmentMappingCorrection(BaseModel):
+    concept: str
+    expected_revision: int
+    column: str
+    unit: str = ""
+    evidence: str = ""
+
+
 class AssignmentExternalResponse(BaseModel):
     response: str
     source: str = ""
@@ -621,6 +629,83 @@ async def resolve_assignment_gap(
     except AssignmentError as exc:
         # A refused confirmation is a conflict with durable state, not a
         # server failure. resolve_gap validates before any lifecycle write.
+        raise HTTPException(status_code=409, detail=str(exc))
+    return await executor.resume(run_id)
+
+
+@router.post("/{run_id}/mappings/correct")
+async def correct_assignment_mapping(
+    run_id: str,
+    body: AssignmentMappingCorrection,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Correct a confirmed mapping against the current authorized source.
+
+    The expected mapping revision is required and checked under the lifecycle
+    CAS. The route re-resolves the source with the authenticated principal so
+    a stale/foreign resource cannot be substituted, then the executor applies
+    the mapping change, invalidates only dependent work and resumes it.
+    """
+    run = _scoped_run(run_id, current_user)
+    executor = _executor(run)
+    record = executor.lifecycle.get_task(run_id) or {}
+    assignment = record.get("assignment") or {}
+    concept = str(body.concept or "").strip()
+    mapping = next((
+        dict(item) for item in (
+            assignment.get("teaching_snapshot") or {}
+        ).get("field_mappings") or []
+        if isinstance(item, dict)
+        and str(item.get("concept") or "").strip().lower()
+        == concept.lower()
+    ), None)
+    if mapping is None:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+    source_binding = {}
+    for raw_source in assignment.get("sources") or []:
+        binding = dict(raw_source.get("binding") or {})
+        if str(binding.get("sheet") or "") != str(
+                mapping.get("sheet") or ""):
+            continue
+        mapped_version = str(mapping.get("source_version") or "")
+        if mapped_version and str(
+                binding.get("source_version") or "") != mapped_version:
+            continue
+        source_binding = binding
+        break
+    if not source_binding:
+        raise HTTPException(
+            status_code=409,
+            detail="The mapping's authorized source is no longer available")
+    try:
+        current_source = resolve_assignment_source(
+            db, current_user,
+            {
+                "dataset_name": source_binding.get("dataset_name"),
+                "source": source_binding.get("source"),
+                "external_id": source_binding.get("external_id"),
+                "sheet": source_binding.get("sheet"),
+                "source_version": mapping.get("source_version"),
+            })
+    except AssignmentResourceError as exc:
+        raise HTTPException(
+            status_code=exc.status,
+            detail={"error": exc.code, "message": str(exc)})
+    from core.assignment_executor import AssignmentError
+
+    try:
+        executor.correct_mapping(
+            run_id,
+            concept=concept,
+            expected_revision=body.expected_revision,
+            column=body.column,
+            unit=body.unit,
+            corrected_by=str(current_user.id),
+            current_source=current_source,
+            evidence=body.evidence,
+        )
+    except AssignmentError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     return await executor.resume(run_id)
 

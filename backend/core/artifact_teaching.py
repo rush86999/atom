@@ -213,6 +213,14 @@ def normalize_lesson_context(raw: Any) -> Dict[str, Any]:
                     item.get("unit_authority") or "").strip()[:40]
                 if unit_authority:
                     row["unit_authority"] = unit_authority
+                for field, limit in (
+                    ("required_unit", 40),
+                    ("source_unit", 40),
+                    ("source_unit_column", 120),
+                ):
+                    value_text = str(item.get(field) or "").strip()[:limit]
+                    if value_text:
+                        row[field] = value_text
                 rows.append(row)
             if rows:
                 out[name] = rows

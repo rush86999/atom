@@ -571,12 +571,70 @@ def assignment_projection(assignment: Dict[str, Any]) -> Dict[str, Any]:
             "result_summary": (
                 (step.get("result") or {}).get("summary")
                 if isinstance(step.get("result"), dict) else None),
+            "result_value": (
+                (step.get("result") or {}).get("value")
+                if isinstance(step.get("result"), dict) else None),
+            "result_unit": (
+                (step.get("result") or {}).get("unit")
+                if isinstance(step.get("result"), dict) else None),
+            "result_measure": (
+                (step.get("result") or {}).get("measure")
+                if isinstance(step.get("result"), dict) else None),
+            "prior_result_count": len(step.get("prior_results") or []),
             "artifact_revision": step.get("artifact_revision"),
             "gap_ids": list(step.get("gap_ids") or []),
             "waiting": copy.deepcopy(step.get("waiting") or {}),
             "approval_request": copy.deepcopy(
                 step.get("approval_request") or {}),
             "failure": copy.deepcopy(step.get("failure") or {}),
+        })
+    sources = assignment.get("sources") or []
+    mappings = []
+    for raw in (assignment.get("teaching_snapshot") or {}).get(
+            "field_mappings") or []:
+        if not isinstance(raw, dict):
+            continue
+        mapping = dict(raw)
+        mapped_sheet = str(mapping.get("sheet") or "")
+        mapped_version = str(mapping.get("source_version") or "")
+        binding = {}
+        for source in sources:
+            candidate = dict(source.get("binding") or {})
+            if str(candidate.get("sheet") or "") != mapped_sheet:
+                continue
+            if mapped_version and str(
+                    candidate.get("source_version") or "") != mapped_version:
+                continue
+            binding = candidate
+            break
+        columns = [
+            str(column) for column in binding.get("columns") or []
+            if str(column) and str(column) != "__sheet_row"
+        ]
+        mappings.append({
+            "concept": str(mapping.get("concept") or ""),
+            "sheet": mapped_sheet,
+            "column": str(mapping.get("column") or ""),
+            "unit": str(mapping.get("unit") or ""),
+            "unit_authority": str(mapping.get("unit_authority") or ""),
+            "required_unit": str(mapping.get("required_unit") or ""),
+            "source_unit": str(mapping.get("source_unit") or ""),
+            "source_unit_column": str(
+                mapping.get("source_unit_column") or ""),
+            "source_version": mapped_version,
+            "revision": int(mapping.get("revision") or 1),
+            "lesson_id": mapping.get("lesson_id"),
+            "lesson_revision": mapping.get("lesson_revision"),
+            "teaching_revision": str(
+                (assignment.get("teaching_snapshot") or {}).get(
+                    "revision") or ""),
+            "source": binding.get("source"),
+            "dataset_name": binding.get("dataset_name"),
+            "external_id": binding.get("external_id"),
+            "available_columns": columns,
+            "numeric_columns": list(binding.get("numeric_columns") or []),
+            "correctable": bool(binding) and assignment.get(
+                "status") != "cancelled",
         })
     return {
         "assignment_id": assignment.get("assignment_id"),
@@ -589,6 +647,9 @@ def assignment_projection(assignment: Dict[str, Any]) -> Dict[str, Any]:
             (assignment.get("teaching_snapshot") or {}).get("revision")),
         "teaching_fingerprint": (
             (assignment.get("teaching_snapshot") or {}).get("fingerprint")),
+        "mappings": mappings,
+        "mapping_history": copy.deepcopy(
+            assignment.get("mapping_history") or []),
         "deliverables": copy.deepcopy(
             assignment.get("deliverables") or []),
         "sources": copy.deepcopy(assignment.get("sources") or []),
