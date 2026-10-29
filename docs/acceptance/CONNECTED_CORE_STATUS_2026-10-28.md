@@ -62,9 +62,14 @@ Ledger: `docs/acceptance/CONNECTED_CORE_LEDGER_2026-10-28.json`
   and memory are recorded, but no cost figure is claimed.
 - **Zoho WorkDrive.** Refresh still returns `invalid_client`; owner
   reauthorization is required and was not bypassed.
-- **Microsoft token expiry.** The Graph access token expired at
-  `2026-10-29T00:27:28Z`, after the evidence run. No refresh, rotation or
-  reconnect was performed; further live runs require the owner to reconnect.
+- **Microsoft token expiry / renewal.** The Graph access token expired at
+  `2026-10-29T00:27:28Z`, after the evidence run. The shared resolver now
+  persists replacement refresh tokens and classifies failure states; local
+  expired→refresh→authorized-read controls pass. Live refresh reaches the
+  provider but is rejected as `invalid_client` because Microsoft client
+  credentials are not configured in this runtime. That is a configuration
+  gap, not revoked consent; no credential replacement, rotation or reconnect
+  was performed. See `docs/acceptance/OAUTH_RENEWAL_2026-10-29.md`.
 
 ## Release position
 

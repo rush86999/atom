@@ -21,13 +21,37 @@
    {"provider": "deepseek", "model": "deepseek-flash", "assessment": "post-restart"}
   ]
  },
+ "oauth_renewal": {
+  "status": "local_pass_live_blocked",
+  "resolver": "core/integrations/token_store.py::resolve_integration_token",
+  "provider_callback": "integrations/onedrive_service.py::_refresh",
+  "replacement_refresh_token_persisted": true,
+  "omitted_replacement_preserves_old_token": true,
+  "failure_classification": {
+   "invalid_grant": "reconnect required",
+   "invalid_client": "client configuration; not revoked consent",
+   "refresh_rejected": "provider rejection; not revoked",
+   "transient": "retryable",
+   "refresh_unavailable": "reconnect required",
+   "no_grant": "legacy fallback allowed"
+  },
+  "live_check": {
+   "token_expired_at": "2026-10-29T00:27:28Z",
+   "state": "invalid_client",
+   "requires_reconnect": false,
+   "retryable": false,
+   "reason": "Microsoft client credentials are not configured in this runtime; no credential replacement or reconnect was performed",
+   "evidence": "oauth_live_status.json"
+  },
+  "evidence": ["oauth_renewal_controls.json", "docs/acceptance/OAUTH_RENEWAL_2026-10-29.md"]
+ },
  "connected_sources": [
   {
    "provider": "microsoft_graph",
    "services": ["outlook", "onedrive"],
    "status": "active_during_campaign",
    "evidence": "Graph /me and /me/drive/root/children returned 200; real OneDrive ingestion and Outlook MIME import completed",
-   "post_campaign_state": "access token expired at 2026-10-29T00:27:28Z; no refresh, rotation or reconnect was performed"
+   "post_campaign_state": "access token expired at 2026-10-29T00:27:28Z; refresh reached the provider but was rejected as invalid_client because client credentials are not configured in this runtime. No credential replacement, rotation or reconnect was performed."
   },
   {
    "provider": "zoho_workdrive",
@@ -246,15 +270,15 @@
   }
  },
  "exit_condition_met": false,
- "exit_condition_detail": "Connected ingestion, binding, full-set calculation, certified taught assessment, correction, unfamiliar records, restart, artifacts, browser status and negative controls passed. A live changed-byte refresh was not performed because source writeback is prohibited; the rebind/invalidation path and a local changed-version control pass.",
+ "exit_condition_detail": "Connected ingestion, binding, full-set calculation, certified taught assessment, correction, unfamiliar records, restart, artifacts, browser status and negative controls passed. OAuth replacement-token persistence and failure classification pass locally; live renewal is blocked by missing Microsoft client credentials (invalid_client, not revoked consent). A live changed-byte refresh was not performed because source writeback is prohibited and the live refresh path is unavailable; the rebind/invalidation path and a local changed-version control pass.",
  "release_package_prepared": false,
  "deployment_authorized": false,
  "email_send_authorized": false,
  "credential_rotation_performed": false,
  "known_failures": [
   "Zoho WorkDrive refresh invalid_client",
-  "Microsoft Graph access token expired after the campaign; owner reconnect required for further live runs",
-  "Live changed-byte OneDrive refresh not exercised under the no-writeback constraint",
+  "Microsoft Graph live refresh is blocked by missing Microsoft client credentials (invalid_client, not revoked consent); local renewal controls pass",
+  "Live changed-byte OneDrive refresh not exercised because the live refresh path is unavailable and a disposable source item still needs owner authorization",
   "Structured review route does not persist token cost; no cost figure is claimed",
   "Multi-user per-file Office authorization remains unsupported"
  ]

@@ -44,6 +44,10 @@ on live changed-source refresh.** Not a release package. R3 remains frozen.
   grant revocation; neither returned a cached total.
 - `employee_refresh_rebind.json` — explicit rebind, prior provenance retained,
   assessment reuse invalidated.
+- `oauth_live_status.json` — live post-expiry state: `invalid_client`,
+  `requires_reconnect=false`; no token values.
+- `oauth_renewal_controls.json` — local renewal/rotation/classification
+  controls.
 - `browser/` — Data/Settings screenshots and text for connected, retry,
   disconnected/stale and restored states.
 - `formula_same_sheet.txt`, `formula_cross_sheet.txt` — formula evaluation.
@@ -66,7 +70,10 @@ on live changed-source refresh.** Not a release package. R3 remains frozen.
 - Multi-user per-file Office authorization remains unsupported.
 - Token cost was not metered; no cost figure is claimed.
 - Microsoft Graph access expired at `2026-10-29T00:27:28Z` after the evidence
-  run; owner reconnect is required for further live runs.
+  run. Live refresh is rejected as `invalid_client` because client credentials
+  are not configured; this is not revoked consent. Local renewal controls pass,
+  but no live successful renewal is claimed until the existing client
+  configuration is restored.
 - Deployment, send and credential rotation did not occur.
 
 ## Honest blockers

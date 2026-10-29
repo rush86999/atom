@@ -170,8 +170,11 @@ its demonstrated scope, but the overall exit condition for a successor release
 remains open.
 
 The Microsoft Graph access token expired at `2026-10-29T00:27:28Z`, after the
-evidence run. No refresh, rotation or reconnect was performed; further live
-runs require the owner to reconnect.
+evidence run. The resolver now persists replacement refresh tokens and
+classifies refresh states; live refresh reaches the provider but is rejected as
+`invalid_client` because Microsoft client credentials are not configured in
+this runtime. That is not revoked consent. No credential replacement,
+rotation or reconnect was performed. See `OAUTH_RENEWAL_2026-10-29.md`.
 
 ## Release position
 

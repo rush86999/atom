@@ -25,6 +25,9 @@ interface ConnectionStatus {
   reason?: string | null;
   scope?: string | null;
   token_provider?: string | null;
+  token_state?: string | null;
+  requires_reconnect?: boolean;
+  retryable?: boolean;
 }
 
 interface DocumentItem {
@@ -73,6 +76,16 @@ function elapsedLabel(startedAt?: string | null, finishedAt?: string | null): st
   const seconds = Math.max(0, Math.round((end - start) / 1000));
   if (seconds < 60) return `${seconds}s`;
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
+
+function connectionLabel(connection: ConnectionStatus): string {
+  if (connection.is_connected) return 'Connected';
+  if (connection.token_state === 'invalid_client') return 'Configuration error';
+  if (connection.token_state === 'transient') return 'Refresh temporarily failed';
+  if (connection.token_state === 'invalid_grant' || connection.requires_reconnect) {
+    return 'Reconnect required';
+  }
+  return 'Disconnected / stale';
 }
 
 export default function ConnectedDataStatus() {
@@ -226,12 +239,19 @@ export default function ConnectedDataStatus() {
               </>
             ) : (
               <>
-                <Badge variant="destructive" data-testid="connection-state">Disconnected / stale</Badge>
+                <Badge variant="destructive" data-testid="connection-state">
+                  {connectionLabel(connection)}
+                </Badge>
                 <p className="text-muted-foreground">
                   {connection?.reason || 'No active OneDrive grant was found.'}
                 </p>
+                {connection?.retryable && (
+                  <p className="text-xs text-muted-foreground">
+                    Temporary provider/network failure: retry before reconnecting.
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
-                  Cached canvas snapshots remain local, but connected operations refuse until the grant is restored.
+                  Cached canvas snapshots remain local, but connected operations refuse until a usable grant is restored.
                 </p>
               </>
             )}
