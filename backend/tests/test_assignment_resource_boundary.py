@@ -663,15 +663,15 @@ def test_mapping_gap_confirmation_resumes_same_assignment(
     with pytest.raises(Exception):
         executor.resolve_gap(
             record["run_id"], gap["question_id"],
-            resolution=json.dumps({"column": "Forged"}))
+            resolution=json.dumps({"request_id": gap["question_id"], "assignment_id": record["assignment"]["assignment_id"], "column": "Forged"}))
     with pytest.raises(Exception):
         executor.resolve_gap(
             record["run_id"], gap["question_id"],
-            resolution=json.dumps({"column": "Total", "unit": "kg"}))
+            resolution=json.dumps({"request_id": gap["question_id"], "assignment_id": record["assignment"]["assignment_id"], "column": "Total", "unit": "kg"}))
 
     executor.resolve_gap(
         record["run_id"], gap["question_id"],
-        resolution=json.dumps({"column": "Total", "unit": "USD"}))
+        resolution=json.dumps({"request_id": gap["question_id"], "assignment_id": record["assignment"]["assignment_id"], "column": "Total", "unit": "USD"}))
     asyncio.run(executor.resume(record["run_id"]))
     final = executor.status(record["run_id"])
     assert final["assignment"]["status"] == "completed", final

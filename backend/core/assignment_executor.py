@@ -1684,6 +1684,15 @@ class AssignmentExecutor:
                     "the candidate mapping was rejected; select or correct a field")
             selected_column = str(parsed.get("column") or "").strip()
             selected_unit = str(parsed.get("unit") or "").strip()
+            request_id = str(parsed.get("request_id") or "").strip()
+            assignment_id = str(parsed.get("assignment_id") or "").strip()
+            if not request_id or request_id != question_id:
+                raise AssignmentError(
+                    "the confirmation does not identify the outstanding mapping request")
+            if not assignment_id or assignment_id != str(
+                    (record.get("assignment") or {}).get("assignment_id") or ""):
+                raise AssignmentError(
+                    "the confirmation belongs to a different assignment")
             candidates = [
                 str(item.get("column") or "")
                 for item in (mapping.get("candidates") or [])
@@ -1801,16 +1810,25 @@ class AssignmentExecutor:
                 step["updated_at"] = _utc_now_iso()
                 reopened.append(step["step_id"])
             # A confirmed mapping changes evidence/calculation identity:
-            # dependent unapplied work must rerun, never reuse a prior result.
+            # reopen only the affected step and its transitive dependants.
             if mapping_applied:
+                roots = [
+                    step["step_id"] for step in new_plan.get("steps") or []
+                    if question_id in (step.get("gap_ids") or [])
+                ]
+                affected = set(downstream_step_ids(new_plan, roots))
                 for step in new_plan.get("steps") or []:
-                    if step.get("status") in ("pending", "failed", "waiting"):
-                        if step.get("operation_id"):
-                            step["operation_id"] = None
-                        step["status"] = "pending"
-                        step["updated_at"] = _utc_now_iso()
-                        if step["step_id"] not in reopened:
-                            reopened.append(step["step_id"])
+                    if step.get("step_id") not in affected:
+                        continue
+                    if step.get("status") in ("cancelled", "superseded"):
+                        continue
+                    step["operation_id"] = None
+                    step["status"] = "pending"
+                    step["result"] = None
+                    step["artifact_revision"] = None
+                    step["updated_at"] = _utc_now_iso()
+                    if step["step_id"] not in reopened:
+                        reopened.append(step["step_id"])
             new_plan["status"] = "planned"
             new_plan["updated_at"] = _utc_now_iso()
             return new_plan, {"reopened_steps": reopened}

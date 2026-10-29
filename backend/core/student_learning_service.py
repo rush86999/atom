@@ -548,6 +548,25 @@ def update_teaching_point(
         if not normalized_context:
             return {"status": "error", "reason": "empty_context"}
         merged_context = dict(updated.get("context") or {})
+        new_mappings = normalized_context.get("field_mappings")
+        if isinstance(new_mappings, list):
+            existing_mappings = [
+                dict(item) for item in (merged_context.get("field_mappings") or [])
+                if isinstance(item, dict)
+            ]
+            merged_by_key = {
+                (str(item.get("concept") or "").lower(),
+                 str(item.get("sheet") or "")): dict(item)
+                for item in existing_mappings
+            }
+            for item in new_mappings:
+                if isinstance(item, dict):
+                    merged_by_key[(
+                        str(item.get("concept") or "").lower(),
+                        str(item.get("sheet") or ""),
+                    )] = dict(item)
+            normalized_context = dict(normalized_context)
+            normalized_context["field_mappings"] = list(merged_by_key.values())
         merged_context.update(normalized_context)
         updated["context"] = merged_context
         updated["revision"] = int(entry.get("revision") or 1) + 1

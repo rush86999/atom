@@ -592,10 +592,18 @@ async def resolve_assignment_gap(
     question = next((
         item for item in (record.get("task_revision") or {}).get(
             "unresolved") or []
-        if item.get("question_id") == question_id
-        and item.get("status") == "open"), None)
+        if item.get("question_id") == question_id), None)
     if question is None:
-        raise HTTPException(status_code=404, detail="Open gap not found")
+        raise HTTPException(status_code=404, detail="Gap not found")
+    if question.get("status") != "open":
+        if str(question.get("resolution") or "") == str(body.resolution):
+            current = executor.status(run_id)
+            return {"status": "already_resolved",
+                    "assignment": current.get("assignment"),
+                    "open_gaps": current.get("open_gaps") or []}
+        raise HTTPException(
+            status_code=409,
+            detail="The gap was already resolved with a different answer")
     if str((record.get("task_revision") or {}).get("authorization")
            or "").lower() == "cancelled":
         raise HTTPException(

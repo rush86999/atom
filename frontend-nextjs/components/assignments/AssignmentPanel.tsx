@@ -512,6 +512,8 @@ export function AssignmentPanel({
                                   detail.run_id,
                                   gap.question_id,
                                   JSON.stringify({
+                                    request_id: gap.question_id,
+                                    assignment_id: detail.assignment?.assignment_id,
                                     column: candidate.column,
                                     unit: mapping.mapping_source?.unit || "",
                                   })

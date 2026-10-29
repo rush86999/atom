@@ -7,7 +7,7 @@
     {
       "path": "backend/api/assignment_routes.py",
       "category": "backend_runtime",
-      "sha256": "10b7baf95629ecbb46ce9bbc274d52b1dcecd9ea928a10b788f3367b9aff4491"
+      "sha256": "c49d5f883ef8c9d7bb177823d761721ac09cc00198d3fed0785f2a7fd8b92907"
     },
     {
       "path": "backend/api/agent_maturity_routes.py",
@@ -37,7 +37,7 @@
     {
       "path": "backend/core/assignment_executor.py",
       "category": "backend_runtime",
-      "sha256": "2455157f2efc1599322be7a5ae4081bdf1054b8ac98ffd7cf3916fc329e80ac4"
+      "sha256": "9c19d5518367d43ddc44462434c856d02d2c84cdcd2d0ad4b16c4e17ba081702"
     },
     {
       "path": "backend/core/assignment_controlled_transport.py",
@@ -57,7 +57,7 @@
     {
       "path": "backend/core/student_learning_service.py",
       "category": "backend_runtime",
-      "sha256": "04c8658d065d2957128854fe5a48b488bf598e224f4536385390f94aed48cf75"
+      "sha256": "b4759958253ab5ed898b1e1a017504adcd7ce6778ef61a7d15fcda29e37f644a"
     },
     {
       "path": "backend/core/office_service.py",
@@ -132,7 +132,7 @@
     {
       "path": "backend/tests/test_assignment_resource_boundary.py",
       "category": "tests_and_harnesses",
-      "sha256": "d5f85247c151cec6bb8a3ce898c240ce85d8cabb43d9412c42dfde302c3e1098"
+      "sha256": "bf0262e442fe4d2085297d1dc2b6c92dcc7f70f0c6ba87f6f16b465f753bf988"
     },
     {
       "path": "backend/tests/test_assignment_executor.py",
@@ -187,7 +187,7 @@
     {
       "path": "frontend-nextjs/components/assignments/AssignmentPanel.tsx",
       "category": "frontend",
-      "sha256": "9b56b25e77513c5ae8e363c99c09861f7b13461133fa6000801fdd359c62bec4"
+      "sha256": "bc5dd1e6ca4de060e3b5dcd35d9eb82ce37d4ba2b9c710717d0aa125b9917865"
     },
     {
       "path": "frontend-nextjs/lib/assignment-api.ts",
