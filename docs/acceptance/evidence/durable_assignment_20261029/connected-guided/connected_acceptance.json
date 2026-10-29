@@ -1,6 +1,6 @@
 {
   "slice": "connected-guided-start",
-  "scratch": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v2",
+  "scratch": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v3",
   "source": "real DatasetEntry -> real Parquet -> real resolver/reader",
   "internal_fixture_paths": false,
   "provider_contacted": false,
@@ -9,7 +9,7 @@
     "kind": "document",
     "start_status": "waiting",
     "plan_revision": 1,
-    "teaching_revision": "21a5970d34f555dc",
+    "teaching_revision": "13953f0cbfdf55cb",
     "source_adapter": "dataset.aggregate",
     "resource_binding": {
       "resource_id": "acceptance-scotch-entry",
@@ -104,13 +104,13 @@
       "workspace_id": "acceptance-ws",
       "tenant_id": "acceptance-tenant"
     },
-    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v2/outputs/acceptance-ws/acceptance-user/draft-bb0730e9e01e/sum-the-total-for-the-scotch-parts-price-list-f0a25a5a.docx",
-    "artifact_sha256": "373663d2cb05e8a2d080f186c1dc4c9a6c6903651c2338f5efdc78951bdaf0fe",
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v3/outputs/acceptance-ws/acceptance-user/draft-de4fdaa81c43/sum-the-total-for-the-scotch-parts-price-list-7d2f20bc.docx",
+    "artifact_sha256": "f4a60c7f9d90504dcac824263804df456f3a3326877221bdd3a05c5d88925931",
     "artifact_text": "Sum the total for the scotch parts price list\nObjective\nSum the total for the scotch parts price list\nSummary\nsum of Total: 85.00 USD\nFindings\nSources\nscotch_parts_price_list\nscotch-parts.xlsx\nUS$ SCOTCH PARTS\nacceptance-scotch-entry\nscotch-parts.xlsx / US$ SCOTCH PARTS\nRow | identity | identity_source | row | value | currency | value_cell\n | SC-1 | identity_column | 2 | 20.00 | USD | E2\n | SC-2 | identity_column | 3 | 60.00 | USD | E3\n | SC-3 | identity_column | 4 | 5.00 | USD | E4",
     "approved_status": "completed",
     "outbox": [
       {
-        "operation_id": "2d166318-65d4-4e87-93bf-b8fbca83e98f",
+        "operation_id": "9c440043-1496-4a5f-9a45-14dcb903ad2f",
         "to": [
           "acceptance-reviewer@example.invalid"
         ],
@@ -125,7 +125,7 @@
     "kind": "presentation",
     "start_status": "completed",
     "plan_revision": 1,
-    "teaching_revision": "66a03a4492fd166d",
+    "teaching_revision": "dabc37803a52bab5",
     "source_adapter": "dataset.aggregate",
     "resource_binding": {
       "resource_id": "acceptance-scotch-entry",
@@ -220,8 +220,8 @@
       "workspace_id": "acceptance-ws",
       "tenant_id": "acceptance-tenant"
     },
-    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v2/outputs/acceptance-ws/acceptance-user/draft-842e2c5c2630/count-the-records-in-the-scotch-parts-price-list-42fc2575.pptx",
-    "artifact_sha256": "ae41231a4ea05bab91229e7f19d14acc4f94e0901c3cfb3b0b7e34ae5a33cf56",
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v3/outputs/acceptance-ws/acceptance-user/draft-367b49691b5f/count-the-records-in-the-scotch-parts-price-list-462beafe.pptx",
+    "artifact_sha256": "bb698f51c0d5363d5a59ba129d70cb6a031d61a43fbee623c9241a86ed8836d2",
     "artifact_text": "Overview\n- Count the records in the scotch parts price list\nResult\n- count of rows: 3.00 USD\nFindings\n- SC-1 | identity_column | 2 | 1 | USD |\n- SC-2 | identity_column | 3 | 1 | USD |\n- SC-3 | identity_column | 4 | 1 | USD |\nSources\n- scotch_parts_price_list\n- scotch-parts.xlsx\n- US$ SCOTCH PARTS\n- acceptance-scotch-entry\n- scotch-parts.xlsx / US$ SCOTCH PARTS",
     "stored_artifact": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/durable_assignment_20261029/connected-guided/count-artifact.pptx"
   },
@@ -236,9 +236,9 @@
           "required": true,
           "step_id": "deliverable-1",
           "status": "applied",
-          "artifact_revision": "373663d2cb05e8a2",
-          "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v2/outputs/acceptance-ws/acceptance-user/draft-bb0730e9e01e/sum-the-total-for-the-scotch-parts-price-list-f0a25a5a.docx",
-          "sha256": "373663d2cb05e8a2d080f186c1dc4c9a6c6903651c2338f5efdc78951bdaf0fe"
+          "artifact_revision": "f4a60c7f9d90504d",
+          "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v3/outputs/acceptance-ws/acceptance-user/draft-de4fdaa81c43/sum-the-total-for-the-scotch-parts-price-list-7d2f20bc.docx",
+          "sha256": "f4a60c7f9d90504dcac824263804df456f3a3326877221bdd3a05c5d88925931"
         }
       ]
     },
@@ -252,9 +252,9 @@
           "required": true,
           "step_id": "deliverable-1",
           "status": "applied",
-          "artifact_revision": "ae41231a4ea05bab",
-          "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v2/outputs/acceptance-ws/acceptance-user/draft-842e2c5c2630/count-the-records-in-the-scotch-parts-price-list-42fc2575.pptx",
-          "sha256": "ae41231a4ea05bab91229e7f19d14acc4f94e0901c3cfb3b0b7e34ae5a33cf56"
+          "artifact_revision": "bb698f51c0d5363d",
+          "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v3/outputs/acceptance-ws/acceptance-user/draft-367b49691b5f/count-the-records-in-the-scotch-parts-price-list-462beafe.pptx",
+          "sha256": "bb698f51c0d5363d5a59ba129d70cb6a031d61a43fbee623c9241a86ed8836d2"
         }
       ]
     }

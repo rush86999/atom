@@ -1,6 +1,6 @@
 {
   "evidence": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/durable_assignment_20261029/connected-guided/connected_acceptance.json",
-  "scratch": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v2",
+  "scratch": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v3",
   "sum_value": "85.00",
   "count_value": "3",
   "reopened": {
