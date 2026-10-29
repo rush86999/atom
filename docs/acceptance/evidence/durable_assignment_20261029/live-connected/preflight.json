@@ -1,0 +1,21 @@
+{
+  "slice": "live-connected-assignment",
+  "checked_at": "2026-10-29T13:23:39.951829+00:00",
+  "microsoft_client_config": {
+    "configured": false,
+    "missing": [
+      "MICROSOFT_CLIENT_ID",
+      "MICROSOFT_CLIENT_SECRET"
+    ],
+    "placeholders": [],
+    "checked_keys": [
+      "MICROSOFT_CLIENT_ID",
+      "MICROSOFT_CLIENT_SECRET"
+    ],
+    "source": "process_environment_after_dotenv"
+  },
+  "live_guided_start_run": false,
+  "live_changed_source_refresh_run": false,
+  "seed_replacement_catalog_or_grant": false,
+  "reason": "Microsoft client configuration missing; disposable-source authorization not granted."
+}

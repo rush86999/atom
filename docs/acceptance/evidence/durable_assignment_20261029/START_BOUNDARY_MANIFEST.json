@@ -33,7 +33,8 @@
   "bounded_taught_job": "bounded-taught-job/bounded_taught_job.json",
   "bounded_taught_artifact": "bounded-taught-job/bounded-review.docx",
   "review": "docs/acceptance/ASSIGNMENT_REVIEW_2026-10-29.md",
-  "live_connected_gate": "docs/acceptance/LIVE_CONNECTED_GATE_2026-10-29.md"
+  "live_connected_gate": "docs/acceptance/LIVE_CONNECTED_GATE_2026-10-29.md",
+  "live_connected_preflight": "live-connected/preflight.json"
  },
  "connected_guided": {
   "source": "real scoped DatasetEntry -> real Parquet -> real resolver/reader",
