@@ -24,7 +24,8 @@ class InterventionService:
         reason: str,
         agent_id: Optional[str] = None,
         user_id: Optional[str] = None,
-        required_role: Optional[str] = None
+        required_role: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Create a new HITL action request in the database.
@@ -39,6 +40,7 @@ class InterventionService:
             with get_db_session() as db:
                 hitl_action = HITLAction(
                     workspace_id=workspace_id,
+                    tenant_id=tenant_id,
                     agent_id=agent_id,
                     user_id=user_id,
                     action_type=action_type,
@@ -67,19 +69,43 @@ class InterventionService:
                 "message": f"Failed to persist intervention request: {str(e)}"
             }
 
-    def get_pending_interventions(self, workspace_id: str = None, user_id: str = None) -> List[Dict[str, Any]]:
+    def get_pending_interventions(
+        self,
+        workspace_id: str = None,
+        user_id: str = None,
+        tenant_id: str = None,
+        include_legacy_unscoped: bool = False,
+    ) -> List[Dict[str, Any]]:
         """
-        Get all pending interventions, optionally filtered by workspace or user ownership.
+        Get pending interventions, optionally filtered by workspace or user
+        ownership.
+
+        Resource scoping is applied whenever a workspace/tenant is supplied —
+        including the literal ``"default"`` workspace. The previous
+        ``workspace_id != "default"`` exception made the default workspace a
+        cross-workspace read, which is exactly how a guessed approval id could
+        leak or approve another assignment. Legacy rows with no workspace are
+        included only when the caller explicitly asks for them.
         """
         with get_db_session() as db:
-            query = db.query(HITLAction).filter(HITLAction.status == HITLActionStatus.PENDING.value)
-            
-            if workspace_id and workspace_id != "default":
-                query = query.filter(HITLAction.workspace_id == workspace_id)
-            
-            # If user_id is provided, we might want to filter by ownership or role
-            # For now, we return all applicable to the workspace
-            
+            query = db.query(HITLAction).filter(
+                HITLAction.status == HITLActionStatus.PENDING.value)
+
+            if workspace_id:
+                if include_legacy_unscoped:
+                    from sqlalchemy import or_
+                    query = query.filter(or_(
+                        HITLAction.workspace_id == workspace_id,
+                        HITLAction.workspace_id.is_(None),
+                    ))
+                else:
+                    query = query.filter(
+                        HITLAction.workspace_id == workspace_id)
+            if tenant_id:
+                query = query.filter(HITLAction.tenant_id == tenant_id)
+            if user_id:
+                query = query.filter(HITLAction.user_id == user_id)
+
             actions = query.all()
             
             results = []

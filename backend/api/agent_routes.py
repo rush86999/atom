@@ -616,9 +616,16 @@ async def list_pending_approvals(
     # Clamp limit server-side regardless of caller input
     if limit < 1 or limit > 1000:
         limit = 100
-    actions = db.query(HITLAction).filter(
-        HITLAction.status == HITLActionStatus.PENDING.value
-    ).order_by(HITLAction.created_at.desc()).limit(limit).all()
+    actions_query = db.query(HITLAction).filter(
+        HITLAction.status == HITLActionStatus.PENDING.value)
+    if current_user.workspace_id:
+        actions_query = actions_query.filter(
+            HITLAction.workspace_id == current_user.workspace_id)
+    if current_user.tenant_id:
+        actions_query = actions_query.filter(
+            HITLAction.tenant_id == current_user.tenant_id)
+    actions = actions_query.order_by(
+        HITLAction.created_at.desc()).limit(limit).all()
     return [{
         "id": a.id,
         "agent_id": a.agent_id,
@@ -644,14 +651,19 @@ async def decide_hitl_action(
     PostgreSQL acquires a row lock for the duration of the transaction.
     """
     # SELECT FOR UPDATE — concurrent approvals block until this commits
-    action = (
-        db.query(HITLAction)
-        .filter(HITLAction.id == action_id)
-        .with_for_update()
-        .first()
-    )
+    action_query = db.query(HITLAction).filter(HITLAction.id == action_id)
+    if current_user.workspace_id:
+        action_query = action_query.filter(
+            HITLAction.workspace_id == current_user.workspace_id)
+    if current_user.tenant_id:
+        action_query = action_query.filter(
+            HITLAction.tenant_id == current_user.tenant_id)
+    action = action_query.with_for_update().first()
     if not action:
         raise router.not_found_error("HITLAction", action_id)
+    from api.approvals_routes import _validate_assignment_approval_payload
+
+    _validate_assignment_approval_payload(action, req.modified_params)
 
     # Idempotent: already-resolved actions return current state, don't double-apply
     already_resolved = action.status in (

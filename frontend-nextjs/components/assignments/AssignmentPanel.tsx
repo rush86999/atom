@@ -1,0 +1,400 @@
+"use client";
+
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Play,
+  RefreshCw,
+  Send,
+  XCircle,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  approveAssignmentStep,
+  AssignmentDetail,
+  AssignmentStep,
+  AssignmentSummary,
+  cancelAssignment,
+  getAssignment,
+  listAssignments,
+  recordAssignmentResponse,
+  resolveAssignmentGap,
+  resumeAssignment,
+} from "@/lib/assignment-api";
+
+const STATE_STYLES: Record<string, string> = {
+  completed: "bg-emerald-100 text-emerald-800",
+  running: "bg-indigo-100 text-indigo-800",
+  waiting: "bg-amber-100 text-amber-800",
+  blocked: "bg-rose-100 text-rose-800",
+  partial: "bg-orange-100 text-orange-800",
+  failed: "bg-rose-100 text-rose-800",
+  cancelled: "bg-slate-200 text-slate-700",
+  planned: "bg-slate-100 text-slate-700",
+};
+
+function currentStep(detail: AssignmentDetail): AssignmentStep | undefined {
+  const steps = detail.assignment.steps;
+  return (
+    steps.find((s) => s.status === "awaiting_approval") ||
+    steps.find((s) => s.status === "waiting") ||
+    steps.find((s) => s.status === "running") ||
+    steps.find((s) => s.status === "pending")
+  );
+}
+
+export function AssignmentPanel({ className = "" }: { className?: string }) {
+  const [summaries, setSummaries] = useState<AssignmentSummary[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [detail, setDetail] = useState<AssignmentDetail | null>(null);
+  const [gapDrafts, setGapDrafts] = useState<Record<string, string>>({});
+  const [responseDraft, setResponseDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refreshList = useCallback(async () => {
+    try {
+      const rows = await listAssignments();
+      setSummaries(rows);
+      if (!selected && rows.length) setSelected(rows[0].run_id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load assignments");
+    }
+  }, [selected]);
+
+  const refreshDetail = useCallback(async (runId: string) => {
+    try {
+      setDetail(await getAssignment(runId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load assignment");
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshList();
+  }, [refreshList]);
+
+  useEffect(() => {
+    if (selected) refreshDetail(selected);
+  }, [selected, refreshDetail]);
+
+  const act = async (fn: () => Promise<unknown>, runId: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+      await refreshDetail(runId);
+      await refreshList();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const step = detail ? currentStep(detail) : undefined;
+  const openGaps = detail?.open_gaps ?? [];
+  const waitingParty = (step?.waiting?.party as string) || "";
+  const uncertain = detail?.assignment.steps.find(
+    (s) => s.status === "uncertain"
+  );
+
+  return (
+    <div className={`space-y-3 text-xs ${className}`} data-testid="assignment-panel">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-sm">Assignments</h3>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            refreshList();
+            if (selected) refreshDetail(selected);
+          }}
+          aria-label="Refresh assignments"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      {error ? (
+        <div className="rounded border border-rose-200 bg-rose-50 p-2 text-rose-700">
+          {error}
+        </div>
+      ) : null}
+
+      {summaries.length === 0 ? (
+        <p className="text-muted-foreground">No durable assignments yet.</p>
+      ) : (
+        <div className="space-y-1">
+          {summaries.map((item) => (
+            <button
+              key={item.run_id}
+              type="button"
+              onClick={() => setSelected(item.run_id)}
+              className={`w-full rounded border px-2 py-1.5 text-left ${
+                selected === item.run_id ? "border-indigo-400 bg-indigo-50" : ""
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate font-medium">
+                  {item.assignment.objective || "Untitled assignment"}
+                </span>
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                    STATE_STYLES[item.assignment.state] || STATE_STYLES.planned
+                  }`}
+                >
+                  {item.assignment.state}
+                </span>
+              </div>
+              {item.assignment.current_action ? (
+                <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                  Current: {item.assignment.current_action}
+                </p>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {detail ? (
+        <div className="space-y-3 rounded border p-2" data-testid="assignment-detail">
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-semibold">{detail.assignment.objective}</p>
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                  STATE_STYLES[detail.assignment.status] || STATE_STYLES.planned
+                }`}
+              >
+                {detail.assignment.status}
+              </span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Plan revision {detail.assignment.plan_revision}
+              {detail.assignment.teaching_revision
+                ? ` · teaching ${detail.assignment.teaching_revision}`
+                : ""}
+            </p>
+          </div>
+
+          {step ? (
+            <div className="rounded bg-slate-50 p-2">
+              <p className="font-medium">
+                {step.status === "awaiting_approval"
+                  ? "Awaiting approval"
+                  : step.status === "waiting"
+                    ? "Waiting"
+                    : "Current step"}
+                : {step.title}
+              </p>
+              {waitingParty ? (
+                <p className="text-[10px] text-amber-700">
+                  Waiting for {waitingParty}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {step?.status === "waiting" && step.waiting.correlation_id ? (
+            <div className="rounded border border-amber-300 bg-amber-50 p-2">
+              <p className="font-medium">Correlated response</p>
+              <p className="text-[10px]">
+                Waiting for {waitingParty || "an external reply"} on{" "}
+                {String(step.waiting.correlation_id)}. Paste only the
+                authorized response; it is evidence, not teaching.
+              </p>
+              <div className="mt-1 flex gap-1">
+                <input
+                  value={responseDraft}
+                  onChange={(e) => setResponseDraft(e.target.value)}
+                  placeholder="Authorized response"
+                  className="min-w-0 flex-1 rounded border px-1.5 py-1"
+                  aria-label="Correlated response"
+                />
+                <Button
+                  size="sm"
+                  disabled={busy || !responseDraft.trim()}
+                  onClick={() =>
+                    act(
+                      () =>
+                        recordAssignmentResponse(
+                          detail.run_id,
+                          String(step.waiting.correlation_id),
+                          responseDraft
+                        ),
+                      detail.run_id
+                    )
+                  }
+                >
+                  <Send className="h-3 w-3" /> Deliver
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          <div>
+            <p className="mb-1 font-medium">Completed work</p>
+            <ul className="space-y-0.5">
+              {detail.assignment.steps
+                .filter((s) => s.status === "applied")
+                .map((s) => (
+                  <li key={s.step_id} className="flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                    <span>{s.title}</span>
+                  </li>
+                ))}
+              {detail.assignment.steps.every((s) => s.status !== "applied") ? (
+                <li className="text-muted-foreground">Nothing completed yet.</li>
+              ) : null}
+            </ul>
+          </div>
+
+          {detail.assignment.deliverables.length ? (
+            <div>
+              <p className="mb-1 font-medium">Artifacts</p>
+              <ul className="space-y-0.5">
+                {detail.assignment.deliverables.map((d) => (
+                  <li key={d.deliverable_id} className="flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    <span>{d.description || d.kind}</span>
+                    <Badge variant="outline" className="text-[9px]">
+                      {d.status}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {openGaps.length ? (
+            <div className="space-y-2" data-testid="assignment-gaps">
+              <p className="font-medium">Missing information</p>
+              {openGaps.map((gap) => (
+                <div key={gap.question_id} className="rounded border p-2">
+                  <p>{gap.question}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {gap.reason || gap.concept || ""}
+                    {gap.next_retrieval
+                      ? ` · Next: ${gap.next_retrieval}`
+                      : ""}
+                    {gap.resolver ? ` · Resolver: ${gap.resolver}` : ""}
+                  </p>
+                  <div className="mt-1 flex gap-1">
+                    <input
+                      value={gapDrafts[gap.question_id] || ""}
+                      onChange={(e) =>
+                        setGapDrafts((d) => ({
+                          ...d,
+                          [gap.question_id]: e.target.value,
+                        }))
+                      }
+                      placeholder="Answer"
+                      className="min-w-0 flex-1 rounded border px-1.5 py-1"
+                      aria-label="Gap answer"
+                    />
+                    <Button
+                      size="sm"
+                      aria-label={`Resolve gap: ${gap.question}`}
+                      disabled={busy || !gapDrafts[gap.question_id]?.trim()}
+                      onClick={() =>
+                        act(
+                          () =>
+                            resolveAssignmentGap(
+                              detail.run_id,
+                              gap.question_id,
+                              gapDrafts[gap.question_id]
+                            ),
+                          detail.run_id
+                        )
+                      }
+                    >
+                      <Send className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {step?.status === "awaiting_approval" ? (
+            <div className="rounded border border-amber-300 bg-amber-50 p-2">
+              <p className="font-medium">Approval required</p>
+              <p className="text-[10px]">
+                Purpose: {String(step.approval_request.purpose || step.title)}
+              </p>
+              <p className="break-all text-[10px] text-muted-foreground">
+                Payload {String(step.approval_request.payload_sha256 || "").slice(0, 16)}
+                {step.approval_request.artifact_revision
+                  ? ` · artifact ${String(step.approval_request.artifact_revision)}`
+                  : ""}
+              </p>
+              <Button
+                size="sm"
+                className="mt-1"
+                disabled={busy}
+                onClick={() =>
+                  act(
+                    () =>
+                      approveAssignmentStep(detail.run_id, step.step_id),
+                    detail.run_id
+                  )
+                }
+              >
+                Approve this payload
+              </Button>
+            </div>
+          ) : null}
+
+          {uncertain ? (
+            <div className="rounded border border-rose-300 bg-rose-50 p-2">
+              <p className="flex items-center gap-1 font-medium text-rose-800">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                External outcome uncertain
+              </p>
+              <p className="text-[10px]">
+                {String(uncertain.failure?.message || "The provider may have accepted the effect.")}
+                {" "}It will not be resent automatically. Reconcile before retrying.
+              </p>
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy || ["completed", "cancelled", "failed"].includes(
+                detail.assignment.status
+              )}
+              onClick={() => act(() => resumeAssignment(detail.run_id), detail.run_id)}
+            >
+              <Play className="h-3 w-3" /> Resume
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy || detail.assignment.status === "cancelled"}
+              onClick={() =>
+                act(
+                  () => cancelAssignment(detail.run_id, "cancelled from panel"),
+                  detail.run_id
+                )
+              }
+            >
+              <XCircle className="h-3 w-3" /> Cancel
+            </Button>
+            {["waiting", "blocked", "partial"].includes(detail.assignment.status) ? (
+              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Clock className="h-3 w-3" /> Durable state persisted
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}

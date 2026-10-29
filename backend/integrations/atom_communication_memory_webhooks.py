@@ -26,6 +26,59 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
 
+async def _notify_waiting_goal_runs(
+    source: str, message: Dict[str, Any],
+) -> None:
+    """Deliver an inbound connector event to the durable GoalRun wait bridge.
+
+    The correlation identity is the provider thread/conversation id when
+    present, otherwise the provider message id. The message body is evidence
+    only; it never becomes governing teaching. Failures are logged and never
+    fail the webhook ingestion that already succeeded.
+    """
+    try:
+        from core.goals.goal_run_events import ingest_event
+
+        metadata = message.get("metadata") or {}
+        thread_id = str(
+            metadata.get("thread_id")
+            or metadata.get("conversation_id")
+            or message.get("thread_id")
+            or message.get("conversation_id")
+            or "")
+        message_id = str(message.get("id") or "")
+        correlation = thread_id or message_id
+        if not correlation:
+            return
+        workspace_id = str(
+            message.get("workspace_id")
+            or metadata.get("workspace_id")
+            or "default")
+        tenant_id = str(
+            message.get("tenant_id")
+            or metadata.get("tenant_id")
+            or "default")
+        sender = message.get("from")
+        if isinstance(sender, dict):
+            sender = sender.get("emailAddress", {}).get("address") or sender.get("address")
+        await ingest_event(
+            {
+                "event": "email",
+                "source": source,
+                "correlation_id": correlation,
+                "thread_id": thread_id or correlation,
+                "message_id": message_id,
+                "from": str(sender or ""),
+                "subject": str(message.get("subject") or ""),
+                "summary": str(message.get("content") or "")[:2000],
+            },
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+        )
+    except Exception as exc:  # noqa: BLE001 — ingestion already succeeded
+        logger.warning("goal-run wake bridge skipped for %s: %s", source, exc)
+
+
 def verify_token(payload: Dict[str, Any] = Depends(verify_jwt_token)):
     """
     Verify JWT token using centralized verifier.
@@ -545,6 +598,7 @@ class AtomCommunicationMemoryWebhooks:
 
                 # Ingest to memory
                 await ingestion_pipeline.ingest_message("gmail", normalized_message)
+                await _notify_waiting_goal_runs("gmail", normalized_message)
 
             logger.info(
                 f"Processed Gmail webhook: message_id {webhook_data.get('message', {}).get('id', 'unknown')}"
@@ -585,6 +639,7 @@ class AtomCommunicationMemoryWebhooks:
 
                     # Ingest to memory
                     await ingestion_pipeline.ingest_message("outlook", normalized_message)
+                    await _notify_waiting_goal_runs("outlook", normalized_message)
 
             logger.info(
                 f"Processed Outlook webhook: {len(webhook_data.get('value', []))} messages"

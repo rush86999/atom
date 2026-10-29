@@ -493,14 +493,28 @@ class GoalRunService:
             matched_by = self._match_wait(spec, event or {})
             if not matched_by:
                 return {"consumed": False, "reason": "event does not match wait spec"}
-            run.waiting_on = None
-            run.status = "active"
             log = list(run.decision_log or [])
             log.append({"ts": _iso(), "kind": "wake",
+                        "event_id": str((event or {}).get("event_id") or ""),
                         "event": {k: v for k, v in (event or {}).items()
-                                  if k in ("event", "from", "subject", "summary", "source")},
+                                  if k in ("event", "from", "subject", "summary", "source",
+                                           "correlation_id", "message_id", "thread_id")},
                         "matched_by": matched_by})
-            run.decision_log = log
+            # CONSUMED-ONCE GUARD: a single conditional UPDATE. Concurrent
+            # consumers may both read 'waiting'; only one row update matches
+            # after the first commit. The loser never advances the successor.
+            updated = session.query(GoalRun).filter(
+                GoalRun.id == run_id,
+                GoalRun.status == "waiting",
+                GoalRun.waiting_on.isnot(None),
+            ).update(
+                {"waiting_on": None, "status": "active",
+                 "decision_log": log},
+                synchronize_session=False,
+            )
+            if updated != 1:
+                session.rollback()
+                return {"consumed": False, "reason": "wait already consumed"}
             session.commit()
             session.refresh(run)
             return {"consumed": True, "matched_by": matched_by,
@@ -509,7 +523,15 @@ class GoalRunService:
     @staticmethod
     def _match_wait(spec: Dict[str, Any], event: Dict[str, Any]) -> Optional[str]:
         """Wait-spec matching (§3.4): event type must match; ``match`` fields
-        (from/thread_id/keyword) must be contained in the event payload."""
+        (from/thread_id/keyword) are contained in the event payload.
+
+        ``match_exact`` is the identity-safe form required for correlation
+        ids, thread ids and message ids: the event value must equal the
+        declared value exactly (case-sensitive) after both are stringified.
+        Descriptive keywords may keep containment matching; identifiers may
+        not, because "thread-1" must never wake "thread-10" or an unrelated
+        message that merely quotes the id in its body.
+        """
         want_event = str(spec.get("event") or "")
         got_event = str(event.get("event") or "")
         if want_event in ("any", "*") or got_event in ("any", "*"):
@@ -524,10 +546,16 @@ class GoalRunService:
             hay = str(event.get(key) or "")
             if not hay or str(needle).lower() not in hay.lower():
                 return None
-        if not constraints:
+        exact = spec.get("match_exact") or {}
+        for key, needle in exact.items():
+            hay = str(event.get(key) or "")
+            if not hay or hay != str(needle):
+                return None
+        if not constraints and not exact:
             # Unconstrained waits match only a declared timer/event source.
             return got_event or "timer"
-        return f"match:{','.join(constraints.keys())}"
+        keys = list(constraints.keys()) + list(exact.keys())
+        return f"match:{','.join(keys)}"
 
     # ------------------------------------------------------- decision loop
 

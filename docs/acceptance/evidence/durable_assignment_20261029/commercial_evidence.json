@@ -1,0 +1,1846 @@
+{
+ "run_id": "90e5edff-f7b5-4984-89d1-d2953b4b3b7c",
+ "status": {
+  "run_id": "90e5edff-f7b5-4984-89d1-d2953b4b3b7c",
+  "assignment": {
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "objective": "Prepare the commercial response",
+   "employee_id": "user-1",
+   "workspace_id": "ws_assign",
+   "plan_revision": 1,
+   "status": "completed",
+   "teaching_revision": "teach-r1",
+   "teaching_fingerprint": "9d97700df57af5fec6fecbecc598f8d5",
+   "deliverables": [
+    {
+     "deliverable_id": "del-doc",
+     "kind": "document",
+     "description": "Formatted commercial response",
+     "required": true,
+     "step_id": "doc",
+     "status": "applied",
+     "artifact_revision": "3fa0f2b26693313d",
+     "artifact_path": "../docs/acceptance/evidence/durable_assignment_20261029/commercial.docx",
+     "sha256": "3fa0f2b26693313dc6d75952df3a2ce2103f70587598db1f4ee55701908b759b"
+    },
+    {
+     "deliverable_id": "del-draft",
+     "kind": "email_draft",
+     "description": "Reply draft",
+     "required": true,
+     "step_id": "draft",
+     "status": "applied",
+     "artifact_revision": "fff3e6075038f5e3",
+     "artifact_path": null,
+     "sha256": "fcac947e46a03afe64ff08c1e4dc2fd82c2d8895b4038557567eddad761ac2ef"
+    },
+    {
+     "deliverable_id": "del-sent",
+     "kind": "email",
+     "description": "Provider-accepted reply",
+     "required": true,
+     "step_id": "send",
+     "status": "applied",
+     "artifact_revision": null,
+     "artifact_path": null,
+     "sha256": null
+    }
+   ],
+   "sources": [],
+   "authorized_actions": [
+    "retrieve",
+    "present",
+    "calculate",
+    "edit",
+    "outbound"
+   ],
+   "budget": {
+    "max_steps": 40,
+    "max_attempts_per_step": 3,
+    "max_wall_seconds": 600.0,
+    "max_cost_usd": 0.0,
+    "steps_started": 7,
+    "started_at": "2026-10-29T02:54:56.202562+00:00",
+    "elapsed_seconds": 0.0,
+    "cost_usd": 0.0
+   },
+   "steps": [
+    {
+     "step_id": "read",
+     "title": "Read eligible records",
+     "operation_type": "retrieve",
+     "adapter": "workbook.read",
+     "depends_on": [],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "c598f414-d6ca-492a-9d4c-6a4a187bd967",
+     "attempts": 0,
+     "result_summary": "read 2 of 2 matching record(s) from Records",
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "failure": {}
+    },
+    {
+     "step_id": "calc",
+     "title": "Calculate the eligible total",
+     "operation_type": "calculate",
+     "adapter": "formula.calculate",
+     "depends_on": [
+      "read"
+     ],
+     "required": true,
+     "effect": "local",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "576af3d8-319e-4a75-a0cb-44377503c3d1",
+     "attempts": 0,
+     "result_summary": "calculated 80 USD",
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "failure": {}
+    },
+    {
+     "step_id": "doc",
+     "title": "Render the commercial response",
+     "operation_type": "present",
+     "adapter": "artifact.document",
+     "depends_on": [
+      "calc",
+      "read"
+     ],
+     "required": true,
+     "effect": "local",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "746a8a46-fc89-4b4d-9a23-964bd3527f67",
+     "attempts": 0,
+     "result_summary": "rendered commercial.docx",
+     "artifact_revision": "3fa0f2b26693313d",
+     "gap_ids": [],
+     "waiting": {},
+     "failure": {}
+    },
+    {
+     "step_id": "draft",
+     "title": "Prepare the reply draft",
+     "operation_type": "outbound",
+     "adapter": "email.draft",
+     "depends_on": [
+      "doc"
+     ],
+     "required": true,
+     "effect": "local",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "a4b61cb6-a8e8-4cb6-9bd6-7df0dd8b087b",
+     "attempts": 0,
+     "result_summary": "prepared draft fff3e6075038f5e3",
+     "artifact_revision": "fff3e6075038f5e3",
+     "gap_ids": [],
+     "waiting": {},
+     "failure": {}
+    },
+    {
+     "step_id": "fact",
+     "title": "Resolve the external reference",
+     "operation_type": "retrieve",
+     "adapter": "test.request_fact",
+     "depends_on": [
+      "read"
+     ],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "e9fad07d-a765-4ce9-9123-cd5cb877173a",
+     "attempts": 1,
+     "result_summary": "external fact recorded",
+     "artifact_revision": null,
+     "gap_ids": [
+      "31887318-2e25-4fd4-9de2-fbd4036fa6f8"
+     ],
+     "waiting": {},
+     "failure": {}
+    },
+    {
+     "step_id": "send",
+     "title": "Send the approved reply",
+     "operation_type": "outbound",
+     "adapter": "test.outbox.send",
+     "depends_on": [
+      "draft",
+      "fact"
+     ],
+     "required": true,
+     "effect": "external",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+     "attempts": 0,
+     "result_summary": "provider accepted",
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "failure": {}
+    }
+   ],
+   "created_at": "2026-10-29T02:54:56.191803+00:00",
+   "updated_at": "2026-10-29T02:54:56.529157+00:00",
+   "completed_at": "2026-10-29T02:54:56.529159+00:00"
+  },
+  "open_gaps": [],
+  "operations": [
+   {
+    "operation_id": "c598f414-d6ca-492a-9d4c-6a4a187bd967",
+    "step_id": "read",
+    "type": "retrieve",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null
+   },
+   {
+    "operation_id": "576af3d8-319e-4a75-a0cb-44377503c3d1",
+    "step_id": "calc",
+    "type": "calculate",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null
+   },
+   {
+    "operation_id": "746a8a46-fc89-4b4d-9a23-964bd3527f67",
+    "step_id": "doc",
+    "type": "present",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null
+   },
+   {
+    "operation_id": "a4b61cb6-a8e8-4cb6-9bd6-7df0dd8b087b",
+    "step_id": "draft",
+    "type": "outbound",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null
+   },
+   {
+    "operation_id": "6f53a145-73db-421e-9a56-1f17d5e9a545",
+    "step_id": "fact",
+    "type": "retrieve",
+    "status": "superseded",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null
+   },
+   {
+    "operation_id": "e9fad07d-a765-4ce9-9123-cd5cb877173a",
+    "step_id": "fact",
+    "type": "retrieve",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null
+   },
+   {
+    "operation_id": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+    "step_id": "send",
+    "type": "outbound",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {
+     "payload_sha256": "2208fda53fe616f29e12b42d0a3fc1d738c237f959162d9cd427052d96879f2d",
+     "artifact_revision": "fff3e6075038f5e3",
+     "authorization_revision": "9e1242974f52ea4d00d7ce1697e7bf1e",
+     "requested_by": "user-1",
+     "purpose": "Send the prepared commercial response",
+     "requested_at": "2026-10-29T02:54:56.502894+00:00"
+    },
+    "uncertainty_reason": null
+   }
+  ]
+ },
+ "task_revision": {
+  "schema_version": 1,
+  "objective_id": "e096b321-7122-49f1-b6b1-8992a0d428d0",
+  "revision": 3,
+  "supersedes_revision": 2,
+  "goal_text": "Prepare the commercial response",
+  "entities": [],
+  "requested_fields": [],
+  "source_requirements": {},
+  "output_preferences": {
+   "style": "default",
+   "field": null
+  },
+  "authorized_actions": [
+   "retrieve",
+   "present",
+   "calculate",
+   "edit",
+   "outbound"
+  ],
+  "completion_criteria": [
+   {
+    "kind": "artifact_verified"
+   },
+   {
+    "kind": "provider_accepted"
+   }
+  ],
+  "clarifications": [],
+  "unresolved": [
+   {
+    "question_id": "31887318-2e25-4fd4-9de2-fbd4036fa6f8",
+    "item": "Resolve the external reference",
+    "question": "What is the approved external reference value?",
+    "kind": "business_decision",
+    "evidence": "",
+    "next_action": "read the authorized reply or supplier record",
+    "decision_owner": "owner",
+    "inputs": {},
+    "concept": "external_fact",
+    "reason": "the third-party value was not in the retrieved sources",
+    "affected_subjects": [
+     "A-1",
+     "B-2"
+    ],
+    "checked_evidence": [
+     "workbook:Records",
+     "email:thread-1"
+    ],
+    "next_retrieval": "read the authorized reply or supplier record",
+    "resolver": "case owner",
+    "step_id": "fact",
+    "waiting": {
+     "state": "waiting_for_external",
+     "party": "supplier",
+     "correlation_id": "corr-1",
+     "resume_on": "response",
+     "deadline": null,
+     "since": null,
+     "detail": "reply on thread-1"
+    },
+    "status": "resolved",
+    "attempts": 0,
+    "opened_at": "2026-10-29T02:54:56.460040+00:00",
+    "resolved_at": "2026-10-29T02:54:56.473165+00:00",
+    "resolution": "REF-9 [by case owner] [evidence: authorized reply]",
+    "source_operation": "6f53a145-73db-421e-9a56-1f17d5e9a545"
+   }
+  ],
+  "evidence": [],
+  "new_attempt_required": false,
+  "provenance": {
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "teaching_revision": "teach-r1"
+  },
+  "last_transition": {
+   "kind": "record_unresolved",
+   "requested_change": "resolved 31887318-2e25-4fd4-9de2-fbd4036fa6f8"
+  }
+ },
+ "operations": [
+  {
+   "schema_version": 1,
+   "operation_id": "c598f414-d6ca-492a-9d4c-6a4a187bd967",
+   "objective_id": "e096b321-7122-49f1-b6b1-8992a0d428d0",
+   "objective_revision": 1,
+   "execution_id": "asg-a2581c053cc24b9a:read:1",
+   "operation_type": "retrieve",
+   "requested_change": "Read eligible records",
+   "idempotency_key": "assignment:asg-a2581c053cc24b9a:read:r1:a1",
+   "parent_operation_id": null,
+   "evidence_revision": null,
+   "status": "applied",
+   "authorization": "authorized",
+   "operation_binding": {
+    "binding_version": 1,
+    "action_name": "workbook.read",
+    "workspace_id": "ws_assign",
+    "account_id": "user-1",
+    "task_revision": 1,
+    "arguments": {
+     "path": "../docs/acceptance/evidence/durable_assignment_20261029/records.xlsx",
+     "sheet": "Records",
+     "columns": [
+      "Item",
+      "Quantity",
+      "Unit Price",
+      "Status"
+     ],
+     "filters": [
+      {
+       "column": "Status",
+       "operator": "in",
+       "value": [
+        "APPROVE",
+        "REVIEW"
+       ]
+      }
+     ]
+    },
+    "artifact_refs": [],
+    "authorization_ref": "",
+    "prerequisite_operation_ids": [],
+    "prerequisite_evidence_revisions": []
+   },
+   "binding_sha256": "18acda69de12eaa9caedc450898b37fe280f10c3c0f0eb87491a6474f1e4dc33",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "step_id": "read",
+   "plan_revision": 1,
+   "adapter": "workbook.read",
+   "effect": "read_only",
+   "teaching_fingerprint": "9d97700df57af5fec6fecbecc598f8d5",
+   "authorization_revision": "9e1242974f52ea4d00d7ce1697e7bf1e",
+   "claimed_by": "instance_id:999b28afc38d-dirty.ae06d8f1a256.37296.1793242496",
+   "claimed_at": "2026-10-29T02:54:56.324337+00:00",
+   "receipt": {
+    "receipt_version": 1,
+    "operation_id": "c598f414-d6ca-492a-9d4c-6a4a187bd967",
+    "execution_id": null,
+    "action": "workbook.read",
+    "binding_sha256": "18acda69de12eaa9caedc450898b37fe280f10c3c0f0eb87491a6474f1e4dc33",
+    "observed_status": "confirmed",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-10-29T02:54:56.331125+00:00",
+    "source": {
+     "kind": null,
+     "path": null,
+     "revision": null,
+     "sha256": null,
+     "source_version": "636ac25981f86000669ca3abd09688ab426d572d6f99d2340447db7c0a1cf0d0",
+     "coverage": null
+    },
+    "calculation": null,
+    "outbound": null,
+    "readback": null,
+    "summary": "read 2 of 2 matching record(s) from Records",
+    "evidence": [
+     {
+      "kind": "workbook",
+      "path": "../docs/acceptance/evidence/durable_assignment_20261029/records.xlsx",
+      "sheet": "Records",
+      "content_hash": "636ac25981f86000669ca3abd09688ab426d572d6f99d2340447db7c0a1cf0d0"
+     }
+    ]
+   },
+   "execution": {
+    "summary": "read 2 of 2 matching record(s) from Records",
+    "evidence": [
+     {
+      "kind": "workbook",
+      "path": "../docs/acceptance/evidence/durable_assignment_20261029/records.xlsx",
+      "sheet": "Records",
+      "content_hash": "636ac25981f86000669ca3abd09688ab426d572d6f99d2340447db7c0a1cf0d0"
+     }
+    ],
+    "artifact": null,
+    "artifact_revision": null,
+    "value": null,
+    "unit": null,
+    "source_version": "636ac25981f86000669ca3abd09688ab426d572d6f99d2340447db7c0a1cf0d0",
+    "provider_ref": null,
+    "rows": [
+     {
+      "Item": "A-1",
+      "Quantity": 2,
+      "Unit Price": 10,
+      "Status": "APPROVE"
+     },
+     {
+      "Item": "B-2",
+      "Quantity": 3,
+      "Unit Price": 20,
+      "Status": "REVIEW"
+     }
+    ],
+    "schema": [
+     {
+      "column": "Item"
+     },
+     {
+      "column": "Quantity"
+     },
+     {
+      "column": "Unit Price"
+     },
+     {
+      "column": "Status"
+     }
+    ],
+    "text": null,
+    "decision": null,
+    "draft": null,
+    "data": null,
+    "at": "2026-10-29T02:54:56.329342+00:00",
+    "receipt": {
+     "receipt_version": 1,
+     "operation_id": "c598f414-d6ca-492a-9d4c-6a4a187bd967",
+     "execution_id": null,
+     "action": "workbook.read",
+     "binding_sha256": "18acda69de12eaa9caedc450898b37fe280f10c3c0f0eb87491a6474f1e4dc33",
+     "observed_status": "confirmed",
+     "error_class": null,
+     "reconciliation_required": false,
+     "at": "2026-10-29T02:54:56.331125+00:00",
+     "source": {
+      "kind": null,
+      "path": null,
+      "revision": null,
+      "sha256": null,
+      "source_version": "636ac25981f86000669ca3abd09688ab426d572d6f99d2340447db7c0a1cf0d0",
+      "coverage": null
+     },
+     "calculation": null,
+     "outbound": null,
+     "readback": null,
+     "summary": "read 2 of 2 matching record(s) from Records",
+     "evidence": [
+      {
+       "kind": "workbook",
+       "path": "../docs/acceptance/evidence/durable_assignment_20261029/records.xlsx",
+       "sheet": "Records",
+       "content_hash": "636ac25981f86000669ca3abd09688ab426d572d6f99d2340447db7c0a1cf0d0"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "schema_version": 1,
+   "operation_id": "576af3d8-319e-4a75-a0cb-44377503c3d1",
+   "objective_id": "e096b321-7122-49f1-b6b1-8992a0d428d0",
+   "objective_revision": 1,
+   "execution_id": "asg-a2581c053cc24b9a:calc:1",
+   "operation_type": "calculate",
+   "requested_change": "Calculate the eligible total",
+   "idempotency_key": "assignment:asg-a2581c053cc24b9a:calc:r1:a1",
+   "parent_operation_id": null,
+   "evidence_revision": null,
+   "status": "applied",
+   "authorization": "authorized",
+   "operation_binding": {
+    "binding_version": 1,
+    "action_name": "formula.calculate",
+    "workspace_id": "ws_assign",
+    "account_id": "user-1",
+    "task_revision": 1,
+    "arguments": {
+     "expression": "q1*p1 + q2*p2",
+     "bindings": {
+      "q1": 2,
+      "p1": 10,
+      "q2": 3,
+      "p2": 20
+     },
+     "output_unit": "USD",
+     "origin": {
+      "source": "records.xlsx"
+     }
+    },
+    "artifact_refs": [],
+    "authorization_ref": "",
+    "prerequisite_operation_ids": [
+     "c598f414-d6ca-492a-9d4c-6a4a187bd967"
+    ],
+    "prerequisite_evidence_revisions": [
+     "636ac25981f86000669ca3abd09688ab426d572d6f99d2340447db7c0a1cf0d0"
+    ]
+   },
+   "binding_sha256": "9c5bd7318492f2a23c5fd13c61d8f76556b2561cd7ba6d2c261d31cf6efa946e",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "step_id": "calc",
+   "plan_revision": 1,
+   "adapter": "formula.calculate",
+   "effect": "local",
+   "teaching_fingerprint": "9d97700df57af5fec6fecbecc598f8d5",
+   "authorization_revision": "9e1242974f52ea4d00d7ce1697e7bf1e",
+   "claimed_by": "instance_id:999b28afc38d-dirty.ae06d8f1a256.37296.1793242496",
+   "claimed_at": "2026-10-29T02:54:56.341096+00:00",
+   "receipt": {
+    "receipt_version": 1,
+    "operation_id": "576af3d8-319e-4a75-a0cb-44377503c3d1",
+    "execution_id": null,
+    "action": "formula.calculate",
+    "binding_sha256": "9c5bd7318492f2a23c5fd13c61d8f76556b2561cd7ba6d2c261d31cf6efa946e",
+    "observed_status": "confirmed",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-10-29T02:54:56.345329+00:00",
+    "source": {
+     "kind": null,
+     "path": null,
+     "revision": null,
+     "sha256": null,
+     "source_version": null,
+     "coverage": null
+    },
+    "calculation": {
+     "expression": "q1*p1 + q2*p2   [q1=2; p1=10; q2=3; p2=20]",
+     "value": "80",
+     "unit": "USD",
+     "steps": [
+      {
+       "cell": "expression",
+       "op": "multiply",
+       "operands": [
+        {
+         "value": "2"
+        },
+        {
+         "value": "10"
+        }
+       ],
+       "output": "20"
+      },
+      {
+       "cell": "expression",
+       "op": "multiply",
+       "operands": [
+        {
+         "value": "3"
+        },
+        {
+         "value": "20"
+        }
+       ],
+       "output": "60"
+      },
+      {
+       "cell": "expression",
+       "op": "add",
+       "operands": [
+        {
+         "value": "20"
+        },
+        {
+         "value": "60"
+        }
+       ],
+       "output": "80"
+      }
+     ]
+    },
+    "outbound": null,
+    "readback": null,
+    "summary": "calculated 80 USD",
+    "evidence": [
+     {
+      "kind": "calculation",
+      "expression": "q1*p1 + q2*p2   [q1=2; p1=10; q2=3; p2=20]",
+      "value": "80",
+      "unit": "USD"
+     }
+    ]
+   },
+   "execution": {
+    "summary": "calculated 80 USD",
+    "evidence": [
+     {
+      "kind": "calculation",
+      "expression": "q1*p1 + q2*p2   [q1=2; p1=10; q2=3; p2=20]",
+      "value": "80",
+      "unit": "USD"
+     }
+    ],
+    "artifact": null,
+    "artifact_revision": null,
+    "value": "80",
+    "unit": "USD",
+    "source_version": null,
+    "provider_ref": null,
+    "rows": null,
+    "schema": null,
+    "text": null,
+    "decision": null,
+    "draft": null,
+    "data": null,
+    "at": "2026-10-29T02:54:56.343881+00:00",
+    "receipt": {
+     "receipt_version": 1,
+     "operation_id": "576af3d8-319e-4a75-a0cb-44377503c3d1",
+     "execution_id": null,
+     "action": "formula.calculate",
+     "binding_sha256": "9c5bd7318492f2a23c5fd13c61d8f76556b2561cd7ba6d2c261d31cf6efa946e",
+     "observed_status": "confirmed",
+     "error_class": null,
+     "reconciliation_required": false,
+     "at": "2026-10-29T02:54:56.345329+00:00",
+     "source": {
+      "kind": null,
+      "path": null,
+      "revision": null,
+      "sha256": null,
+      "source_version": null,
+      "coverage": null
+     },
+     "calculation": {
+      "expression": "q1*p1 + q2*p2   [q1=2; p1=10; q2=3; p2=20]",
+      "value": "80",
+      "unit": "USD",
+      "steps": [
+       {
+        "cell": "expression",
+        "op": "multiply",
+        "operands": [
+         {
+          "value": "2"
+         },
+         {
+          "value": "10"
+         }
+        ],
+        "output": "20"
+       },
+       {
+        "cell": "expression",
+        "op": "multiply",
+        "operands": [
+         {
+          "value": "3"
+         },
+         {
+          "value": "20"
+         }
+        ],
+        "output": "60"
+       },
+       {
+        "cell": "expression",
+        "op": "add",
+        "operands": [
+         {
+          "value": "20"
+         },
+         {
+          "value": "60"
+         }
+        ],
+        "output": "80"
+       }
+      ]
+     },
+     "outbound": null,
+     "readback": null,
+     "summary": "calculated 80 USD",
+     "evidence": [
+      {
+       "kind": "calculation",
+       "expression": "q1*p1 + q2*p2   [q1=2; p1=10; q2=3; p2=20]",
+       "value": "80",
+       "unit": "USD"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "schema_version": 1,
+   "operation_id": "746a8a46-fc89-4b4d-9a23-964bd3527f67",
+   "objective_id": "e096b321-7122-49f1-b6b1-8992a0d428d0",
+   "objective_revision": 1,
+   "execution_id": "asg-a2581c053cc24b9a:doc:1",
+   "operation_type": "present",
+   "requested_change": "Render the commercial response",
+   "idempotency_key": "assignment:asg-a2581c053cc24b9a:doc:r1:a1",
+   "parent_operation_id": null,
+   "evidence_revision": null,
+   "status": "applied",
+   "authorization": "authorized",
+   "operation_binding": {
+    "binding_version": 1,
+    "action_name": "artifact.document",
+    "workspace_id": "ws_assign",
+    "account_id": "user-1",
+    "task_revision": 1,
+    "arguments": {
+     "path": "../docs/acceptance/evidence/durable_assignment_20261029/commercial.docx",
+     "title": "Commercial Response",
+     "content": "## Findings\n\nEligible records were read from the authorized workbook.\n\n## Summary\n\nTotal: 80 USD\n\n## Sources\n\n- Records"
+    },
+    "artifact_refs": [],
+    "authorization_ref": "",
+    "prerequisite_operation_ids": [
+     "576af3d8-319e-4a75-a0cb-44377503c3d1",
+     "c598f414-d6ca-492a-9d4c-6a4a187bd967"
+    ],
+    "prerequisite_evidence_revisions": [
+     "636ac25981f86000669ca3abd09688ab426d572d6f99d2340447db7c0a1cf0d0"
+    ]
+   },
+   "binding_sha256": "27b502b3f085d9a806b92ab01d64f11765e1d2437475ef947537eba3afafe4a8",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "step_id": "doc",
+   "plan_revision": 1,
+   "adapter": "artifact.document",
+   "effect": "local",
+   "teaching_fingerprint": "9d97700df57af5fec6fecbecc598f8d5",
+   "authorization_revision": "9e1242974f52ea4d00d7ce1697e7bf1e",
+   "claimed_by": "instance_id:999b28afc38d-dirty.ae06d8f1a256.37296.1793242496",
+   "claimed_at": "2026-10-29T02:54:56.355664+00:00",
+   "receipt": {
+    "receipt_version": 1,
+    "operation_id": "746a8a46-fc89-4b4d-9a23-964bd3527f67",
+    "execution_id": null,
+    "action": "artifact.document",
+    "binding_sha256": "27b502b3f085d9a806b92ab01d64f11765e1d2437475ef947537eba3afafe4a8",
+    "observed_status": "confirmed",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-10-29T02:54:56.431371+00:00",
+    "source": {
+     "kind": "document",
+     "path": "../docs/acceptance/evidence/durable_assignment_20261029/commercial.docx",
+     "revision": "3fa0f2b26693313d",
+     "sha256": "3fa0f2b26693313dc6d75952df3a2ce2103f70587598db1f4ee55701908b759b",
+     "source_version": null,
+     "coverage": null
+    },
+    "calculation": null,
+    "outbound": null,
+    "readback": {
+     "revision": "3fa0f2b26693313d",
+     "sha256": "3fa0f2b26693313dc6d75952df3a2ce2103f70587598db1f4ee55701908b759b"
+    },
+    "summary": "rendered commercial.docx",
+    "evidence": []
+   },
+   "execution": {
+    "summary": "rendered commercial.docx",
+    "evidence": [],
+    "artifact": {
+     "kind": "document",
+     "path": "../docs/acceptance/evidence/durable_assignment_20261029/commercial.docx",
+     "sha256": "3fa0f2b26693313dc6d75952df3a2ce2103f70587598db1f4ee55701908b759b",
+     "revision": "3fa0f2b26693313d"
+    },
+    "artifact_revision": "3fa0f2b26693313d",
+    "value": null,
+    "unit": null,
+    "source_version": null,
+    "provider_ref": null,
+    "rows": null,
+    "schema": null,
+    "text": null,
+    "decision": null,
+    "draft": null,
+    "data": null,
+    "at": "2026-10-29T02:54:56.428718+00:00",
+    "receipt": {
+     "receipt_version": 1,
+     "operation_id": "746a8a46-fc89-4b4d-9a23-964bd3527f67",
+     "execution_id": null,
+     "action": "artifact.document",
+     "binding_sha256": "27b502b3f085d9a806b92ab01d64f11765e1d2437475ef947537eba3afafe4a8",
+     "observed_status": "confirmed",
+     "error_class": null,
+     "reconciliation_required": false,
+     "at": "2026-10-29T02:54:56.431371+00:00",
+     "source": {
+      "kind": "document",
+      "path": "../docs/acceptance/evidence/durable_assignment_20261029/commercial.docx",
+      "revision": "3fa0f2b26693313d",
+      "sha256": "3fa0f2b26693313dc6d75952df3a2ce2103f70587598db1f4ee55701908b759b",
+      "source_version": null,
+      "coverage": null
+     },
+     "calculation": null,
+     "outbound": null,
+     "readback": {
+      "revision": "3fa0f2b26693313d",
+      "sha256": "3fa0f2b26693313dc6d75952df3a2ce2103f70587598db1f4ee55701908b759b"
+     },
+     "summary": "rendered commercial.docx",
+     "evidence": []
+    }
+   }
+  },
+  {
+   "schema_version": 1,
+   "operation_id": "a4b61cb6-a8e8-4cb6-9bd6-7df0dd8b087b",
+   "objective_id": "e096b321-7122-49f1-b6b1-8992a0d428d0",
+   "objective_revision": 1,
+   "execution_id": "asg-a2581c053cc24b9a:draft:1",
+   "operation_type": "outbound",
+   "requested_change": "Prepare the reply draft",
+   "idempotency_key": "assignment:asg-a2581c053cc24b9a:draft:r1:a1",
+   "parent_operation_id": null,
+   "evidence_revision": null,
+   "status": "applied",
+   "authorization": "pending_approval",
+   "operation_binding": {
+    "binding_version": 1,
+    "action_name": "email.draft",
+    "workspace_id": "ws_assign",
+    "account_id": "user-1",
+    "task_revision": 1,
+    "arguments": {
+     "to": [
+      "test-recipient@example.invalid"
+     ],
+     "subject": "Commercial response",
+     "body": "Total: 80 USD. See attachment.",
+     "deliverable_id": "del-draft"
+    },
+    "artifact_refs": [
+     {
+      "artifact_id": "../docs/acceptance/evidence/durable_assignment_20261029/commercial.docx",
+      "revision": "3fa0f2b26693313d",
+      "sha256": "3fa0f2b26693313dc6d75952df3a2ce2103f70587598db1f4ee55701908b759b"
+     }
+    ],
+    "authorization_ref": "",
+    "prerequisite_operation_ids": [
+     "746a8a46-fc89-4b4d-9a23-964bd3527f67"
+    ],
+    "prerequisite_evidence_revisions": []
+   },
+   "binding_sha256": "b596e616f1c6811ccd99715049ce600d24898b193e7b728276d90658accfa324",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "step_id": "draft",
+   "plan_revision": 1,
+   "adapter": "email.draft",
+   "effect": "local",
+   "teaching_fingerprint": "9d97700df57af5fec6fecbecc598f8d5",
+   "authorization_revision": "9e1242974f52ea4d00d7ce1697e7bf1e",
+   "claimed_by": "instance_id:999b28afc38d-dirty.ae06d8f1a256.37296.1793242496",
+   "claimed_at": "2026-10-29T02:54:56.443271+00:00",
+   "receipt": {
+    "receipt_version": 1,
+    "operation_id": "a4b61cb6-a8e8-4cb6-9bd6-7df0dd8b087b",
+    "execution_id": null,
+    "action": "email.draft",
+    "binding_sha256": "b596e616f1c6811ccd99715049ce600d24898b193e7b728276d90658accfa324",
+    "observed_status": "confirmed",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-10-29T02:54:56.446195+00:00",
+    "source": {
+     "kind": "email_draft",
+     "path": null,
+     "revision": "fff3e6075038f5e3",
+     "sha256": "fcac947e46a03afe64ff08c1e4dc2fd82c2d8895b4038557567eddad761ac2ef",
+     "source_version": null,
+     "coverage": null
+    },
+    "calculation": null,
+    "outbound": null,
+    "readback": {
+     "revision": "fff3e6075038f5e3",
+     "sha256": "fcac947e46a03afe64ff08c1e4dc2fd82c2d8895b4038557567eddad761ac2ef"
+    },
+    "summary": "prepared draft fff3e6075038f5e3",
+    "evidence": []
+   },
+   "execution": {
+    "summary": "prepared draft fff3e6075038f5e3",
+    "evidence": [],
+    "artifact": {
+     "kind": "email_draft",
+     "revision": "fff3e6075038f5e3",
+     "path": null,
+     "sha256": "fcac947e46a03afe64ff08c1e4dc2fd82c2d8895b4038557567eddad761ac2ef"
+    },
+    "artifact_revision": "fff3e6075038f5e3",
+    "value": null,
+    "unit": null,
+    "source_version": null,
+    "provider_ref": null,
+    "rows": null,
+    "schema": null,
+    "text": null,
+    "decision": null,
+    "draft": {
+     "to": [
+      "test-recipient@example.invalid"
+     ],
+     "cc": [],
+     "subject": "Commercial response",
+     "body": "Total: 80 USD. See attachment.",
+     "attachments": [],
+     "draft_only": true,
+     "send_performed": false,
+     "teaching_revision": "teach-r1",
+     "draft_revision": "fff3e6075038f5e3"
+    },
+    "data": null,
+    "at": "2026-10-29T02:54:56.444607+00:00",
+    "receipt": {
+     "receipt_version": 1,
+     "operation_id": "a4b61cb6-a8e8-4cb6-9bd6-7df0dd8b087b",
+     "execution_id": null,
+     "action": "email.draft",
+     "binding_sha256": "b596e616f1c6811ccd99715049ce600d24898b193e7b728276d90658accfa324",
+     "observed_status": "confirmed",
+     "error_class": null,
+     "reconciliation_required": false,
+     "at": "2026-10-29T02:54:56.446195+00:00",
+     "source": {
+      "kind": "email_draft",
+      "path": null,
+      "revision": "fff3e6075038f5e3",
+      "sha256": "fcac947e46a03afe64ff08c1e4dc2fd82c2d8895b4038557567eddad761ac2ef",
+      "source_version": null,
+      "coverage": null
+     },
+     "calculation": null,
+     "outbound": null,
+     "readback": {
+      "revision": "fff3e6075038f5e3",
+      "sha256": "fcac947e46a03afe64ff08c1e4dc2fd82c2d8895b4038557567eddad761ac2ef"
+     },
+     "summary": "prepared draft fff3e6075038f5e3",
+     "evidence": []
+    }
+   }
+  },
+  {
+   "schema_version": 1,
+   "operation_id": "6f53a145-73db-421e-9a56-1f17d5e9a545",
+   "objective_id": "e096b321-7122-49f1-b6b1-8992a0d428d0",
+   "objective_revision": 1,
+   "execution_id": "asg-a2581c053cc24b9a:fact:1",
+   "operation_type": "retrieve",
+   "requested_change": "Resolve the external reference",
+   "idempotency_key": "assignment:asg-a2581c053cc24b9a:fact:r1:a1",
+   "parent_operation_id": null,
+   "evidence_revision": null,
+   "status": "superseded",
+   "authorization": "authorized",
+   "operation_binding": {
+    "binding_version": 1,
+    "action_name": "test.request_fact",
+    "workspace_id": "ws_assign",
+    "account_id": "user-1",
+    "task_revision": 1,
+    "arguments": {
+     "value": "REF-9"
+    },
+    "artifact_refs": [],
+    "authorization_ref": "",
+    "prerequisite_operation_ids": [
+     "c598f414-d6ca-492a-9d4c-6a4a187bd967"
+    ],
+    "prerequisite_evidence_revisions": [
+     "636ac25981f86000669ca3abd09688ab426d572d6f99d2340447db7c0a1cf0d0"
+    ]
+   },
+   "binding_sha256": "8e9391c89deb3b01247f6e8605c7bc0cca55fc6b95c8cb7f7eb0b39f553c62ce",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "step_id": "fact",
+   "plan_revision": 1,
+   "adapter": "test.request_fact",
+   "effect": "read_only",
+   "teaching_fingerprint": "9d97700df57af5fec6fecbecc598f8d5",
+   "authorization_revision": "9e1242974f52ea4d00d7ce1697e7bf1e",
+   "claimed_by": "instance_id:999b28afc38d-dirty.ae06d8f1a256.37296.1793242496",
+   "claimed_at": "2026-10-29T02:54:56.458141+00:00",
+   "waiting": {
+    "state": "waiting_for_external",
+    "party": "supplier",
+    "correlation_id": "corr-1",
+    "resume_on": "response",
+    "detail": "reply on thread-1",
+    "gap_question_id": "31887318-2e25-4fd4-9de2-fbd4036fa6f8"
+   }
+  },
+  {
+   "schema_version": 1,
+   "operation_id": "e9fad07d-a765-4ce9-9123-cd5cb877173a",
+   "objective_id": "e096b321-7122-49f1-b6b1-8992a0d428d0",
+   "objective_revision": 3,
+   "execution_id": "asg-a2581c053cc24b9a:fact:2",
+   "operation_type": "retrieve",
+   "requested_change": "Resolve the external reference",
+   "idempotency_key": "assignment:asg-a2581c053cc24b9a:fact:r1:a2",
+   "parent_operation_id": null,
+   "evidence_revision": null,
+   "status": "applied",
+   "authorization": "authorized",
+   "operation_binding": {
+    "binding_version": 1,
+    "action_name": "test.request_fact",
+    "workspace_id": "ws_assign",
+    "account_id": "user-1",
+    "task_revision": 3,
+    "arguments": {
+     "value": "REF-9"
+    },
+    "artifact_refs": [],
+    "authorization_ref": "",
+    "prerequisite_operation_ids": [
+     "c598f414-d6ca-492a-9d4c-6a4a187bd967"
+    ],
+    "prerequisite_evidence_revisions": [
+     "636ac25981f86000669ca3abd09688ab426d572d6f99d2340447db7c0a1cf0d0"
+    ]
+   },
+   "binding_sha256": "9f89d353d532e2536f34e88de879ad46861d28404de4aa80bf006a83c5f8ea38",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "step_id": "fact",
+   "plan_revision": 1,
+   "adapter": "test.request_fact",
+   "effect": "read_only",
+   "teaching_fingerprint": "9d97700df57af5fec6fecbecc598f8d5",
+   "authorization_revision": "9e1242974f52ea4d00d7ce1697e7bf1e",
+   "claimed_by": "instance_id:999b28afc38d-dirty.ae06d8f1a256.37296.1793242496",
+   "claimed_at": "2026-10-29T02:54:56.486353+00:00",
+   "receipt": {
+    "receipt_version": 1,
+    "operation_id": "e9fad07d-a765-4ce9-9123-cd5cb877173a",
+    "execution_id": null,
+    "action": "test.request_fact",
+    "binding_sha256": "9f89d353d532e2536f34e88de879ad46861d28404de4aa80bf006a83c5f8ea38",
+    "observed_status": "confirmed",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-10-29T02:54:56.489545+00:00",
+    "source": {
+     "kind": null,
+     "path": null,
+     "revision": null,
+     "sha256": null,
+     "source_version": null,
+     "coverage": null
+    },
+    "calculation": {
+     "expression": null,
+     "value": "REF-9",
+     "unit": null,
+     "steps": null
+    },
+    "outbound": null,
+    "readback": null,
+    "summary": "external fact recorded",
+    "evidence": []
+   },
+   "execution": {
+    "summary": "external fact recorded",
+    "evidence": [],
+    "artifact": null,
+    "artifact_revision": null,
+    "value": "REF-9",
+    "unit": null,
+    "source_version": null,
+    "provider_ref": null,
+    "rows": null,
+    "schema": null,
+    "text": null,
+    "decision": null,
+    "draft": null,
+    "data": null,
+    "at": "2026-10-29T02:54:56.487858+00:00",
+    "receipt": {
+     "receipt_version": 1,
+     "operation_id": "e9fad07d-a765-4ce9-9123-cd5cb877173a",
+     "execution_id": null,
+     "action": "test.request_fact",
+     "binding_sha256": "9f89d353d532e2536f34e88de879ad46861d28404de4aa80bf006a83c5f8ea38",
+     "observed_status": "confirmed",
+     "error_class": null,
+     "reconciliation_required": false,
+     "at": "2026-10-29T02:54:56.489545+00:00",
+     "source": {
+      "kind": null,
+      "path": null,
+      "revision": null,
+      "sha256": null,
+      "source_version": null,
+      "coverage": null
+     },
+     "calculation": {
+      "expression": null,
+      "value": "REF-9",
+      "unit": null,
+      "steps": null
+     },
+     "outbound": null,
+     "readback": null,
+     "summary": "external fact recorded",
+     "evidence": []
+    }
+   }
+  },
+  {
+   "schema_version": 1,
+   "operation_id": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+   "objective_id": "e096b321-7122-49f1-b6b1-8992a0d428d0",
+   "objective_revision": 3,
+   "execution_id": "asg-a2581c053cc24b9a:send:1",
+   "operation_type": "outbound",
+   "requested_change": "Send the approved reply",
+   "idempotency_key": "assignment:asg-a2581c053cc24b9a:send:r1:a1",
+   "parent_operation_id": null,
+   "evidence_revision": null,
+   "status": "applied",
+   "authorization": "pending_approval",
+   "operation_binding": {
+    "binding_version": 1,
+    "action_name": "test.outbox.send",
+    "workspace_id": "ws_assign",
+    "account_id": "user-1",
+    "task_revision": 3,
+    "arguments": {
+     "to": [
+      "test-recipient@example.invalid"
+     ],
+     "subject": "Commercial response",
+     "body": "Total: 80 USD. See attachment.",
+     "draft_revision": "fff3e6075038f5e3",
+     "deliverable_id": "del-sent"
+    },
+    "artifact_refs": [
+     {
+      "artifact_id": "fff3e6075038f5e3",
+      "revision": "fff3e6075038f5e3",
+      "sha256": "fcac947e46a03afe64ff08c1e4dc2fd82c2d8895b4038557567eddad761ac2ef"
+     }
+    ],
+    "authorization_ref": "Send the prepared commercial response",
+    "prerequisite_operation_ids": [
+     "a4b61cb6-a8e8-4cb6-9bd6-7df0dd8b087b",
+     "e9fad07d-a765-4ce9-9123-cd5cb877173a"
+    ],
+    "prerequisite_evidence_revisions": []
+   },
+   "binding_sha256": "4f3444deba0b0b46044bbef63d7554c9e14e2700a8f17ed205100fe7bd10aaee",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "step_id": "send",
+   "plan_revision": 1,
+   "adapter": "test.outbox.send",
+   "effect": "external",
+   "teaching_fingerprint": "9d97700df57af5fec6fecbecc598f8d5",
+   "authorization_revision": "9e1242974f52ea4d00d7ce1697e7bf1e",
+   "approval_history": [],
+   "approval_request": {
+    "payload_sha256": "2208fda53fe616f29e12b42d0a3fc1d738c237f959162d9cd427052d96879f2d",
+    "artifact_revision": "fff3e6075038f5e3",
+    "authorization_revision": "9e1242974f52ea4d00d7ce1697e7bf1e",
+    "requested_by": "user-1",
+    "purpose": "Send the prepared commercial response",
+    "requested_at": "2026-10-29T02:54:56.502894+00:00"
+   },
+   "approval": {
+    "payload_sha256": "2208fda53fe616f29e12b42d0a3fc1d738c237f959162d9cd427052d96879f2d",
+    "artifact_revision": "fff3e6075038f5e3",
+    "authorization_revision": "9e1242974f52ea4d00d7ce1697e7bf1e",
+    "approved_by": "owner",
+    "approved_at": "2026-10-29T02:54:56.512034+00:00",
+    "note": null
+   },
+   "approved_payload_sha256": "2208fda53fe616f29e12b42d0a3fc1d738c237f959162d9cd427052d96879f2d",
+   "approved_artifact_revision": "fff3e6075038f5e3",
+   "approved_authorization_revision": "9e1242974f52ea4d00d7ce1697e7bf1e",
+   "claimed_by": "instance_id:999b28afc38d-dirty.ae06d8f1a256.37296.1793242496",
+   "claimed_at": "2026-10-29T02:54:56.519407+00:00",
+   "receipt": {
+    "receipt_version": 1,
+    "operation_id": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+    "execution_id": null,
+    "action": "test.outbox.send",
+    "binding_sha256": "4f3444deba0b0b46044bbef63d7554c9e14e2700a8f17ed205100fe7bd10aaee",
+    "observed_status": "provider_accepted",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-10-29T02:54:56.523099+00:00",
+    "source": {
+     "kind": null,
+     "path": null,
+     "revision": null,
+     "sha256": null,
+     "source_version": null,
+     "coverage": null
+    },
+    "calculation": null,
+    "outbound": {
+     "provider_state": "sent",
+     "provider_ref": "a1526a56-dbc6-4504-b80a-f80f54b8ec43"
+    },
+    "readback": null,
+    "summary": "provider accepted",
+    "evidence": []
+   },
+   "execution": {
+    "summary": "provider accepted",
+    "evidence": [],
+    "artifact": null,
+    "artifact_revision": null,
+    "value": null,
+    "unit": null,
+    "source_version": null,
+    "provider_ref": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+    "rows": null,
+    "schema": null,
+    "text": null,
+    "decision": null,
+    "draft": null,
+    "data": null,
+    "at": "2026-10-29T02:54:56.521237+00:00",
+    "receipt": {
+     "receipt_version": 1,
+     "operation_id": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+     "execution_id": null,
+     "action": "test.outbox.send",
+     "binding_sha256": "4f3444deba0b0b46044bbef63d7554c9e14e2700a8f17ed205100fe7bd10aaee",
+     "observed_status": "provider_accepted",
+     "error_class": null,
+     "reconciliation_required": false,
+     "at": "2026-10-29T02:54:56.523099+00:00",
+     "source": {
+      "kind": null,
+      "path": null,
+      "revision": null,
+      "sha256": null,
+      "source_version": null,
+      "coverage": null
+     },
+     "calculation": null,
+     "outbound": {
+      "provider_state": "sent",
+      "provider_ref": "a1526a56-dbc6-4504-b80a-f80f54b8ec43"
+     },
+     "readback": null,
+     "summary": "provider accepted",
+     "evidence": []
+    }
+   }
+  }
+ ],
+ "deliveries": [],
+ "decisions": [
+  {
+   "ts": "2026-10-29T02:54:56.198818+00:00",
+   "kind": "task_created",
+   "rationale": "Prepare the commercial response",
+   "revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.199908+00:00",
+   "kind": "assignment",
+   "rationale": "assignment planned",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "planned",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.204746+00:00",
+   "kind": "assignment",
+   "rationale": "assignment started",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.206711+00:00",
+   "kind": "assignment",
+   "rationale": "step read started",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.209199+00:00",
+   "kind": "operation",
+   "rationale": "Read eligible records",
+   "operation_id": "c598f414-d6ca-492a-9d4c-6a4a187bd967",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.210577+00:00",
+   "kind": "assignment",
+   "rationale": "step read operation bound",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.325723+00:00",
+   "kind": "operation",
+   "rationale": "execution claimed",
+   "operation_id": "c598f414-d6ca-492a-9d4c-6a4a187bd967",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.330445+00:00",
+   "kind": "operation",
+   "rationale": "running -> applied",
+   "operation_id": "c598f414-d6ca-492a-9d4c-6a4a187bd967",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.331590+00:00",
+   "kind": "operation",
+   "rationale": "attached receipt",
+   "operation_id": "c598f414-d6ca-492a-9d4c-6a4a187bd967",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.332884+00:00",
+   "kind": "operation",
+   "rationale": "attached execution",
+   "operation_id": "c598f414-d6ca-492a-9d4c-6a4a187bd967",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.334503+00:00",
+   "kind": "assignment",
+   "rationale": "step read applied",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.336399+00:00",
+   "kind": "assignment",
+   "rationale": "step calc started",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.339000+00:00",
+   "kind": "operation",
+   "rationale": "Calculate the eligible total",
+   "operation_id": "576af3d8-319e-4a75-a0cb-44377503c3d1",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.340505+00:00",
+   "kind": "assignment",
+   "rationale": "step calc operation bound",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.341568+00:00",
+   "kind": "operation",
+   "rationale": "execution claimed",
+   "operation_id": "576af3d8-319e-4a75-a0cb-44377503c3d1",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.344683+00:00",
+   "kind": "operation",
+   "rationale": "running -> applied",
+   "operation_id": "576af3d8-319e-4a75-a0cb-44377503c3d1",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.345836+00:00",
+   "kind": "operation",
+   "rationale": "attached receipt",
+   "operation_id": "576af3d8-319e-4a75-a0cb-44377503c3d1",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.346964+00:00",
+   "kind": "operation",
+   "rationale": "attached execution",
+   "operation_id": "576af3d8-319e-4a75-a0cb-44377503c3d1",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.348600+00:00",
+   "kind": "assignment",
+   "rationale": "step calc applied",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.350627+00:00",
+   "kind": "assignment",
+   "rationale": "step doc started",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.353187+00:00",
+   "kind": "operation",
+   "rationale": "Render the commercial response",
+   "operation_id": "746a8a46-fc89-4b4d-9a23-964bd3527f67",
+   "operation_type": "present"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.355038+00:00",
+   "kind": "assignment",
+   "rationale": "step doc operation bound",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.356168+00:00",
+   "kind": "operation",
+   "rationale": "execution claimed",
+   "operation_id": "746a8a46-fc89-4b4d-9a23-964bd3527f67",
+   "operation_type": "present"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.430526+00:00",
+   "kind": "operation",
+   "rationale": "running -> applied",
+   "operation_id": "746a8a46-fc89-4b4d-9a23-964bd3527f67",
+   "operation_type": "present"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.431944+00:00",
+   "kind": "operation",
+   "rationale": "attached receipt",
+   "operation_id": "746a8a46-fc89-4b4d-9a23-964bd3527f67",
+   "operation_type": "present"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.433342+00:00",
+   "kind": "operation",
+   "rationale": "attached execution",
+   "operation_id": "746a8a46-fc89-4b4d-9a23-964bd3527f67",
+   "operation_type": "present"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.435300+00:00",
+   "kind": "assignment",
+   "rationale": "step doc applied",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.437734+00:00",
+   "kind": "assignment",
+   "rationale": "step draft started",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.440688+00:00",
+   "kind": "operation",
+   "rationale": "Prepare the reply draft",
+   "operation_id": "a4b61cb6-a8e8-4cb6-9bd6-7df0dd8b087b",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.442521+00:00",
+   "kind": "assignment",
+   "rationale": "step draft operation bound",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.443834+00:00",
+   "kind": "operation",
+   "rationale": "execution claimed",
+   "operation_id": "a4b61cb6-a8e8-4cb6-9bd6-7df0dd8b087b",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.445473+00:00",
+   "kind": "operation",
+   "rationale": "running -> applied",
+   "operation_id": "a4b61cb6-a8e8-4cb6-9bd6-7df0dd8b087b",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.446753+00:00",
+   "kind": "operation",
+   "rationale": "attached receipt",
+   "operation_id": "a4b61cb6-a8e8-4cb6-9bd6-7df0dd8b087b",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.447963+00:00",
+   "kind": "operation",
+   "rationale": "attached execution",
+   "operation_id": "a4b61cb6-a8e8-4cb6-9bd6-7df0dd8b087b",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.449887+00:00",
+   "kind": "assignment",
+   "rationale": "step draft applied",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.452294+00:00",
+   "kind": "assignment",
+   "rationale": "step fact started",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.455231+00:00",
+   "kind": "operation",
+   "rationale": "Resolve the external reference",
+   "operation_id": "6f53a145-73db-421e-9a56-1f17d5e9a545",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.457408+00:00",
+   "kind": "assignment",
+   "rationale": "step fact operation bound",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.458782+00:00",
+   "kind": "operation",
+   "rationale": "execution claimed",
+   "operation_id": "6f53a145-73db-421e-9a56-1f17d5e9a545",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.460342+00:00",
+   "kind": "task_revision",
+   "rationale": "What is the approved external reference value?",
+   "revision": 2,
+   "transition": "record_unresolved"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.462073+00:00",
+   "kind": "operation",
+   "rationale": "waiting: waiting_for_external",
+   "operation_id": "6f53a145-73db-421e-9a56-1f17d5e9a545",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.465652+00:00",
+   "kind": "assignment",
+   "rationale": "step waiting for context",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.468182+00:00",
+   "kind": "assignment",
+   "rationale": "assignment waiting",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "waiting",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.473480+00:00",
+   "kind": "task_revision",
+   "rationale": "resolved 31887318-2e25-4fd4-9de2-fbd4036fa6f8",
+   "revision": 3,
+   "transition": "record_unresolved"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.474886+00:00",
+   "kind": "operation",
+   "rationale": "waiting -> superseded",
+   "operation_id": "6f53a145-73db-421e-9a56-1f17d5e9a545",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.476470+00:00",
+   "kind": "assignment",
+   "rationale": "gap 31887318-2e25-4fd4-9de2-fbd4036fa6f8 resolved",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "planned",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.477480+00:00",
+   "kind": "wake",
+   "event_id": "",
+   "event": {
+    "event": "human_input",
+    "correlation_id": "corr-1",
+    "source": "assignment_gap_resolution"
+   },
+   "matched_by": "match:correlation_id"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.480513+00:00",
+   "kind": "assignment",
+   "rationale": "step fact started",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.483616+00:00",
+   "kind": "operation",
+   "rationale": "Resolve the external reference",
+   "operation_id": "e9fad07d-a765-4ce9-9123-cd5cb877173a",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.485576+00:00",
+   "kind": "assignment",
+   "rationale": "step fact operation bound",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.486988+00:00",
+   "kind": "operation",
+   "rationale": "execution claimed",
+   "operation_id": "e9fad07d-a765-4ce9-9123-cd5cb877173a",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.488800+00:00",
+   "kind": "operation",
+   "rationale": "running -> applied",
+   "operation_id": "e9fad07d-a765-4ce9-9123-cd5cb877173a",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.490156+00:00",
+   "kind": "operation",
+   "rationale": "attached receipt",
+   "operation_id": "e9fad07d-a765-4ce9-9123-cd5cb877173a",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.491588+00:00",
+   "kind": "operation",
+   "rationale": "attached execution",
+   "operation_id": "e9fad07d-a765-4ce9-9123-cd5cb877173a",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.493645+00:00",
+   "kind": "assignment",
+   "rationale": "step fact applied",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.496190+00:00",
+   "kind": "assignment",
+   "rationale": "step send started",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.499260+00:00",
+   "kind": "operation",
+   "rationale": "Send the approved reply",
+   "operation_id": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.501268+00:00",
+   "kind": "assignment",
+   "rationale": "step send operation bound",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.503585+00:00",
+   "kind": "approval_request",
+   "rationale": "Send the prepared commercial response",
+   "operation_id": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+   "operation_type": "outbound",
+   "payload_sha256": "2208fda53fe616f29e12b42d0a3fc1d738c237f959162d9cd427052d96879f2d"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.506814+00:00",
+   "kind": "assignment",
+   "rationale": "step awaiting approval",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.509484+00:00",
+   "kind": "assignment",
+   "rationale": "assignment waiting",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "waiting",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.512365+00:00",
+   "kind": "approval",
+   "rationale": "Send the prepared commercial response",
+   "operation_id": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+   "operation_type": "outbound",
+   "approved_by": "owner",
+   "payload_sha256": "2208fda53fe616f29e12b42d0a3fc1d738c237f959162d9cd427052d96879f2d"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.515286+00:00",
+   "kind": "assignment",
+   "rationale": "step send approved",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "waiting",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.518047+00:00",
+   "kind": "assignment",
+   "rationale": "step send operation bound",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "waiting",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.520103+00:00",
+   "kind": "operation",
+   "rationale": "execution claimed",
+   "operation_id": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.522271+00:00",
+   "kind": "operation",
+   "rationale": "running -> applied",
+   "operation_id": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.523767+00:00",
+   "kind": "operation",
+   "rationale": "attached receipt",
+   "operation_id": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.525250+00:00",
+   "kind": "operation",
+   "rationale": "attached execution",
+   "operation_id": "a1526a56-dbc6-4504-b80a-f80f54b8ec43",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.527532+00:00",
+   "kind": "assignment",
+   "rationale": "step send applied",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "waiting",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.530676+00:00",
+   "kind": "assignment",
+   "rationale": "assignment terminal",
+   "assignment_id": "asg-a2581c053cc24b9a",
+   "state": "completed",
+   "plan_revision": 1
+  }
+ ]
+}
