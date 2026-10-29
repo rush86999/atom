@@ -27,8 +27,69 @@ import pytest
 REPO = Path(__file__).resolve().parents[3]
 BACKEND = REPO / "backend"
 FRONTEND_BUILD = REPO / "frontend-nextjs" / ".next"
-EVIDENCE = REPO / "docs" / "acceptance" / "evidence" / "durable_assignment_20261029" / "mapping-browser-b"
+EVIDENCE_ROOT = (
+    REPO / "docs" / "acceptance" / "evidence" / "durable_assignment_20261029")
+B_EVIDENCE = EVIDENCE_ROOT / "mapping-browser-b"
 TMP = Path("/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_b_acceptance")
+
+
+def _git(*args: str) -> str:
+    result = subprocess.run(
+        ["git", *args], cwd=REPO, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or f"git {' '.join(args)} failed")
+    return result.stdout.strip()
+
+
+def _product_identity() -> dict:
+    """Identity of the product paths the evidence is bound to.
+
+    The harness and evidence live outside these paths, so a run can prove it
+    exercised exactly this product commit even while the test artifact is
+    still untracked.
+    """
+    paths = [
+        "backend/core", "backend/api",
+        "frontend-nextjs/components", "frontend-nextjs/lib",
+        "frontend-nextjs/app",
+    ]
+    dirty = _git("status", "--porcelain", "--", *paths)
+    return {
+        "commit": _git("rev-parse", "HEAD"),
+        "tree": _git("rev-parse", "HEAD^{tree}"),
+        "dirty_paths": [line for line in dirty.splitlines() if line.strip()],
+    }
+
+
+def _frozen_identity() -> dict:
+    frozen = "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0"
+    tag = "assignment-successor-2026-10-29"
+    tag_commit = _git("rev-parse", f"{tag}^{{commit}}")
+    return {
+        "commit": frozen,
+        "tag": tag,
+        "tag_commit": tag_commit,
+        "unchanged": tag_commit == frozen,
+    }
+
+
+def _harness_sha256(path: Path | None = None) -> str:
+    import hashlib
+    return hashlib.sha256(
+        (path or Path(__file__)).read_bytes()).hexdigest()
+
+
+def _attempt_dir(kind: str, run_id: str) -> Path:
+    """A unique run directory; never overwrite a prior attempt's evidence."""
+    return EVIDENCE_ROOT / f"mapping-browser-{kind}" / "attempts" / run_id
+
+
+def _evidence_identity(harness: Path | None = None) -> dict:
+    return {
+        "product": _product_identity(),
+        "frozen_release": _frozen_identity(),
+        "harness_sha256": _harness_sha256(harness),
+    }
 
 
 def _port_free(port: int) -> bool:
@@ -236,7 +297,8 @@ def test_workbook_b_mapping_confirmation_completes():
         assert "Discount" in [c["column"] for c in gap["inputs"]["mapping"]["candidates"]]
 
         from playwright.sync_api import sync_playwright
-        EVIDENCE.mkdir(parents=True, exist_ok=True)
+        attempt_dir = _attempt_dir("b", run_id)
+        attempt_dir.mkdir(parents=True, exist_ok=True)
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page(viewport={"width": 1440, "height": 1100})
@@ -250,10 +312,12 @@ def test_workbook_b_mapping_confirmation_completes():
             page.get_by_role("button").filter(has_text="Mapping B sum Price").first.click()
             detail_el = page.get_by_test_id("assignment-detail")
             detail_el.get_by_test_id("mapping-candidates").wait_for(timeout=30000)
-            page.screenshot(path=str(EVIDENCE / "mapping-candidates.png"), full_page=True)
+            page.screenshot(path=str(attempt_dir / "mapping-candidates.png"),
+                            full_page=True)
             detail_el.get_by_test_id("mapping-candidate-Amount").click()
             detail_el.get_by_text("completed", exact=True).wait_for(timeout=60000)
-            page.screenshot(path=str(EVIDENCE / "mapping-completed.png"), full_page=True)
+            page.screenshot(path=str(attempt_dir / "mapping-completed.png"),
+                            full_page=True)
             browser.close()
 
         status, final = _call(
@@ -279,6 +343,7 @@ def test_workbook_b_mapping_confirmation_completes():
         evidence = {
             "schema": "atom-mapping-browser-b-1",
             "status": "passed",
+            **(_evidence_identity()),
             "run_id": run_id,
             "assignment_id": assignment_id,
             "result": result["value"],
@@ -286,13 +351,17 @@ def test_workbook_b_mapping_confirmation_completes():
             "source_version": meta["source_version"],
             "mapping_revision": durable["teaching_snapshot"][
                 "field_mappings"][0]["revision"],
+            "unit_authority": durable["teaching_snapshot"][
+                "field_mappings"][0].get("unit_authority"),
             "artifact_path": artifact["artifact_path"],
             "artifact_sha256": artifact["sha256"],
             "first_gap": gap,
             "screenshots": ["mapping-candidates.png", "mapping-completed.png"],
             "fixture": "controlled acceptance workbook_b (not live-connected)",
+            "canonical_baseline": str(B_EVIDENCE / "result.json"),
         }
-        (EVIDENCE / "result.json").write_text(json.dumps(evidence, indent=2) + "\n")
+        (attempt_dir / "result.json").write_text(
+            json.dumps(evidence, indent=2) + "\n")
     finally:
         for proc in (frontend_proc, backend):
             try:

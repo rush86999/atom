@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import os
 import uuid
@@ -660,14 +661,35 @@ def test_mapping_gap_confirmation_resumes_same_assignment(
     assert "Total" in [item["column"] for item in mapping["candidates"]]
     assert mapping["mapping_source"]["lesson_id"] == "lesson-map-1"
 
-    with pytest.raises(Exception):
+    durable_before = copy.deepcopy(
+        executor.lifecycle.get_task(record["run_id"]))
+    snapshot_before = durable_before["assignment"]["teaching_snapshot"]
+
+    with pytest.raises(Exception) as forged:
         executor.resolve_gap(
             record["run_id"], gap["question_id"],
             resolution=json.dumps({"request_id": gap["question_id"], "assignment_id": record["assignment"]["assignment_id"], "column": "Forged"}))
-    with pytest.raises(Exception):
+    assert "candidates" in str(forged.value)
+    durable_after_forged = executor.lifecycle.get_task(record["run_id"])
+    assert (durable_after_forged["assignment"]["teaching_snapshot"]
+            == snapshot_before)
+    assert not any(
+        step.get("result")
+        for step in durable_after_forged["assignment"]["steps"])
+
+    with pytest.raises(Exception) as incompatible:
         executor.resolve_gap(
             record["run_id"], gap["question_id"],
             resolution=json.dumps({"request_id": gap["question_id"], "assignment_id": record["assignment"]["assignment_id"], "column": "Total", "unit": "kg"}))
+    assert "conflict" in str(incompatible.value).lower()
+    durable_after_unit = executor.lifecycle.get_task(record["run_id"])
+    assert (durable_after_unit["assignment"]["teaching_snapshot"]
+            == snapshot_before)
+    assert durable_after_unit["assignment"]["teaching_snapshot"] == (
+        durable_after_forged["assignment"]["teaching_snapshot"])
+    assert not any(
+        step.get("result")
+        for step in durable_after_unit["assignment"]["steps"])
 
     executor.resolve_gap(
         record["run_id"], gap["question_id"],
@@ -680,8 +702,124 @@ def test_mapping_gap_confirmation_resumes_same_assignment(
         step for step in (durable.get("assignment") or {}).get("steps", [])
         if step["step_id"] == "source-1")
     assert source_step["result"]["value"] == "85.00"
-    assert (durable.get("assignment") or {}).get(
-        "teaching_snapshot", {}).get("field_mappings", [])[0]["column"] == "Total"
+    snapshot_mapping = (durable.get("assignment") or {}).get(
+        "teaching_snapshot", {}).get("field_mappings", [])[0]
+    assert snapshot_mapping["column"] == "Total"
+    assert snapshot_mapping["unit"] == "USD"
+    assert snapshot_mapping["unit_authority"] == "source_evidence"
+
+
+def test_mapping_unit_without_source_evidence_requires_explicit_confirmation(
+        tmp_path, monkeypatch):
+    """The taught unit is not source evidence and is never auto-certified."""
+    import pandas as pd
+    from core.assignment_executor import AssignmentExecutor
+    from core.goals.goal_run_service import GoalRunService
+    from core.goals.goal_service import GoalService
+    from core.models import DatasetEntry
+    from core.task_lifecycle import TaskLifecycle
+
+    db, user, _token, factory = _real_connected_catalog(tmp_path, monkeypatch)
+    parquet = tmp_path / "sheet_datasets" / "scotch.parquet"
+    frame = pd.read_parquet(parquet).drop(columns=["Currency"])
+    frame.to_parquet(parquet, index=False)
+    entry = db.query(DatasetEntry).filter(
+        DatasetEntry.id == "entry-1").first()
+    entry.columns_json = {
+        "columns": [{"name": column} for column in frame.columns],
+        "coverage": {"known": True, "source_row_count": len(frame),
+                     "materialized_row_count": len(frame),
+                     "truncated": False},
+    }
+    db.commit()
+
+    resolved = resolve_assignment_source(
+        db, user, {"dataset_name": "scotch_parts_price_list",
+                   "sheet": "US$ SCOTCH PARTS"})
+    binding = resource_binding(resolved)
+    plan = new_assignment(
+        objective="Sum a price with no source unit",
+        employee_id="u1",
+        workspace_id="ws-a",
+        tenant_id="t1",
+        teaching_snapshot=new_teaching_snapshot(
+            revision="unit-r1",
+            field_mappings=[{
+                "concept": "Price", "sheet": "US$ SCOTCH PARTS",
+                "column": "Price", "unit": "USD",
+                "source_version": "a" * 40, "revision": 1,
+                "lesson_id": "lesson-unit-1",
+            }],
+        ),
+        steps=[new_step(
+            step_id="source-1", title="Aggregate the taught source",
+            operation_type="calculate", adapter="dataset.aggregate",
+            inputs={"resource_binding": binding, "operation": "sum",
+                    "value_column": "Price"},
+            effect="local")],
+        sources=[{"kind": "workbook", "binding": binding}],
+        authorized_actions=["retrieve", "calculate"],
+        completion_criteria=[{"kind": "required_work_complete"}],
+    )
+    executor = AssignmentExecutor(TaskLifecycle(
+        GoalRunService(
+            workspace_id="ws-a", tenant_id="t1", session_factory=factory),
+        GoalService(
+            workspace_id="ws-a", tenant_id="t1", session_factory=factory)))
+    record = executor.create_assignment(
+        "conv-unit", "Sum a price with no source unit", assignment=plan,
+        employee_id="u1", workspace_id="ws-a", tenant_id="t1")
+    asyncio.run(executor.execute(record["run_id"]))
+    status = executor.status(record["run_id"])
+    gap = next(g for g in status["open_gaps"]
+               if g.get("inputs", {}).get("mapping"))
+    mapping = gap["inputs"]["mapping"]
+    assert mapping["required_unit"] == "USD"
+    assert mapping["source_unit"] == ""
+    assert mapping.get("source_unit_column", "") == ""
+
+    before = copy.deepcopy(executor.lifecycle.get_task(record["run_id"]))
+    with pytest.raises(Exception) as missing:
+        executor.resolve_gap(
+            record["run_id"], gap["question_id"],
+            resolution=json.dumps({
+                "request_id": gap["question_id"],
+                "assignment_id": record["assignment"]["assignment_id"],
+                "column": "Total"}))
+    assert "explicit unit" in str(missing.value).lower()
+    after_missing = executor.lifecycle.get_task(record["run_id"])
+    assert after_missing["assignment"] == before["assignment"]
+
+    with pytest.raises(Exception) as incompatible:
+        executor.resolve_gap(
+            record["run_id"], gap["question_id"],
+            resolution=json.dumps({
+                "request_id": gap["question_id"],
+                "assignment_id": record["assignment"]["assignment_id"],
+                "column": "Total", "unit": "EUR"}))
+    assert "no conversion" in str(incompatible.value).lower()
+    after_unit = executor.lifecycle.get_task(record["run_id"])
+    assert after_unit["assignment"] == before["assignment"]
+
+    executor.resolve_gap(
+        record["run_id"], gap["question_id"],
+        resolution=json.dumps({
+            "request_id": gap["question_id"],
+            "assignment_id": record["assignment"]["assignment_id"],
+            "column": "Total", "unit": "USD"}))
+    asyncio.run(executor.resume(record["run_id"]))
+    final = executor.status(record["run_id"])
+    assert final["assignment"]["status"] == "completed", final
+    durable = executor.lifecycle.get_task(record["run_id"]) or {}
+    source_step = next(
+        step for step in (durable.get("assignment") or {}).get("steps", [])
+        if step["step_id"] == "source-1")
+    assert source_step["result"]["value"] == "85.00"
+    snapshot_mapping = (durable.get("assignment") or {}).get(
+        "teaching_snapshot", {}).get("field_mappings", [])[0]
+    assert snapshot_mapping["column"] == "Total"
+    assert snapshot_mapping["unit"] == "USD"
+    assert snapshot_mapping["unit_authority"] == "user_confirmed"
 
 
 def test_revoked_grant_between_start_and_resumed_executor_read(

@@ -18,14 +18,17 @@ B_ROWS = [
     {"SKU": "B-2", "Quantity": 3, "Amount": 20.0, "Discount": 2.0, "Currency": "USD", "Note": "renamed"},
 ]
 C_ROWS = [
-    {"Product": "C-1", "Units": 1, "Value": 40.0, "Currency": "USD", "Note": ""},
-    {"Product": "C-2", "Units": 2, "Value": 25.0, "Currency": "USD", "Note": "blank qty"},
-    {"Product": "C-3", "Units": None, "Value": 10.0, "Currency": "USD", "Note": "missing units"},
+    {"Product": "C-1", "Qty": 1, "Value": 40.0, "Note": ""},
+    {"Product": "C-2", "Qty": 2, "Value": 25.0, "Note": "blank qty"},
+    {"Product": "C-3", "Qty": None, "Value": 10.0, "Note": "missing qty"},
 ]
 
 
 def expected_sum(rows, column):
-    return str(sum(Decimal(str(row[column])) for row in rows if row.get(column) is not None))
+    total = sum(
+        Decimal(str(row[column])) for row in rows
+        if row.get(column) is not None)
+    return f"{total:.2f}"
 
 
 def build(root: Path):
