@@ -69,7 +69,9 @@ export interface AssignmentSummary {
 }
 
 export async function listAssignments(): Promise<AssignmentSummary[]> {
-  const { data } = await apiClient.get<AssignmentSummary[]>("/api/assignments");
+  const { data } = await apiClient.get<AssignmentSummary[]>(
+    "/api/assignments?include_terminal=true"
+  );
   return data;
 }
 
@@ -78,6 +80,8 @@ export async function createAssignment(payload: {
   conversation_id?: string;
   agent_id?: string;
   sources: Record<string, unknown>[];
+  source_scope?: Record<string, unknown>;
+  discover?: boolean;
   deliverables: Record<string, unknown>[];
   calculation?: Record<string, unknown>;
   outbound?: Record<string, unknown>;

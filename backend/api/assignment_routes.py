@@ -6,6 +6,7 @@ run's own workspace binding.
 """
 from __future__ import annotations
 
+import os
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -20,6 +21,12 @@ from core.assignment_planner import (
     validate_proposed_plan,
 )
 from core.assignment_plan import new_teaching_snapshot
+from core.assignment_resources import (
+    AssignmentResourceError,
+    allocate_output_path,
+    resolve_assignment_source,
+    source_fingerprint,
+)
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.goals.goal_run_service import GoalRunService
@@ -57,6 +64,8 @@ class AssignmentStart(BaseModel):
     agent_id: Optional[str] = None
     employee_id: Optional[str] = None
     sources: List[Dict[str, Any]] = []
+    source_scope: Optional[Dict[str, Any]] = None
+    discover: bool = False
     deliverables: List[Dict[str, Any]] = []
     calculation: Optional[Dict[str, Any]] = None
     outbound: Optional[Dict[str, Any]] = None
@@ -156,6 +165,37 @@ async def start_assignment(
     """Create a validated assignment from an accepted Chat objective."""
     if not str(body.objective or "").strip():
         raise HTTPException(status_code=422, detail="objective is required")
+    if body.discover and not body.sources:
+        from core.sheet_dataset_service import find_entries_sync
+
+        scope = dict(body.source_scope or {})
+        entries = find_entries_sync(
+            query=str(scope.get("query") or ""),
+            workspace_id=current_user.workspace_id or "default",
+            limit=max(1, min(int(scope.get("limit") or 5), 20)),
+        )
+        if not entries:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "resource_discovery_empty",
+                    "message": (
+                        "No authorized active resource matched the requested "
+                        "scope. Name a permitted source or refresh the "
+                        "connected catalog."),
+                    "next_action": "Refresh the connected source or widen "
+                                    "the permitted scope explicitly.",
+                },
+            )
+        chosen = entries[0]
+        body.sources = [{
+            "dataset_name": chosen.get("dataset_name"),
+            "sheet": chosen.get("entity_name"),
+            "source_version": chosen.get("content_hash"),
+            "kind": "workbook" if str(
+                chosen.get("file_name") or "").lower().endswith(
+                    (".xlsx", ".xls", ".csv")) else "document",
+        }]
     if not body.sources:
         raise HTTPException(
             status_code=422,
@@ -186,15 +226,83 @@ async def start_assignment(
         if agent is None:
             raise HTTPException(status_code=404, detail="Employee agent not found")
 
-    output_types = []
-    for deliverable in body.deliverables:
+    allow_internal = os.getenv("ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS") == "1"
+    resolved_sources = []
+    for reference in body.sources:
+        try:
+            resolved_sources.append(resolve_assignment_source(
+                db, current_user, reference, allow_internal=allow_internal))
+        except AssignmentResourceError as exc:
+            raise HTTPException(
+                status_code=exc.status,
+                detail={"error": exc.code, "message": str(exc)})
+    if not resolved_sources:
+        raise HTTPException(
+            status_code=422, detail="no authorized source resolved")
+
+    deliverables = []
+    accepted_actions = ["retrieve"]
+    if body.calculation:
+        accepted_actions.append("calculate")
+    if body.deliverables:
+        accepted_actions.append("present")
+    for index, raw in enumerate(body.deliverables):
+        deliverable = dict(raw)
+        deliverable.pop("path", None)
         kind = str(deliverable.get("kind") or "").lower()
+        if kind not in ("document", "presentation", "spreadsheet",
+                        "email_draft"):
+            raise HTTPException(
+                status_code=422,
+                detail=f"unsupported deliverable kind '{kind}'")
+        if kind == "email_draft":
+            accepted_actions.append("edit")
+        title = str(deliverable.get("description")
+                    or body.objective)[:200]
+        deliverable["path"] = allocate_output_path(
+            current_user, kind=kind, title=title,
+            assignment_id=f"draft-{uuid.uuid4().hex[:12]}")
+        if not deliverable.get("content"):
+            source_label = (
+                resolved_sources[0].get("dataset_name")
+                or resolved_sources[0].get("resource_id")
+                or "authorized source")
+            if kind == "presentation":
+                deliverable["content"] = (
+                    "Slide 1: Overview\n- " + body.objective[:300]
+                    + "\n\nSlide 2: Summary\n- "
+                    + ("${calculate.value}" if body.calculation
+                       else "Prepared from the authorized source")
+                    + "\n\nSlide 3: Sources\n- " + str(source_label))
+            elif kind == "email_draft":
+                deliverable["body"] = (
+                    "Please see the prepared result for: "
+                    + body.objective[:300])
+            else:
+                deliverable["content"] = (
+                    "## Summary\n\n" + body.objective[:1000]
+                    + ("\n\nResult: ${calculate.value}"
+                       if body.calculation else "")
+                    + "\n\n## Sources\n\n- " + str(source_label))
+        deliverables.append(deliverable)
+    if body.outbound:
+        accepted_actions.append("outbound")
+    if body.proposed_steps is not None and os.getenv(
+            "ATOM_ASSIGNMENT_ALLOW_PROPOSED_STEPS") != "1":
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "public proposals cannot submit executable steps directly; "
+                "use the capability planner"))
+
+    output_types = []
+    for deliverable in deliverables:
         output_types.append({
             "document": "document",
             "spreadsheet": "spreadsheet",
             "presentation": "presentation",
             "email_draft": "email",
-        }.get(kind, ""))
+        }.get(str(deliverable.get("kind") or "").lower(), ""))
     if body.outbound:
         output_types.append("email")
     teaching = _teaching_snapshot_for_start(
@@ -219,14 +327,13 @@ async def start_assignment(
     try:
         plan = plan_assignment(
             objective=body.objective,
-            sources=body.sources,
-            deliverables=body.deliverables,
+            sources=resolved_sources,
+            deliverables=deliverables,
             calculation=body.calculation,
             outbound=body.outbound,
             wait=body.wait,
             teaching_snapshot=teaching,
-            authorized_actions=["retrieve", "calculate", "present",
-                                "outbound"],
+            authorized_actions=accepted_actions,
             employee_id=employee.id,
             workspace_id=current_user.workspace_id or "default",
             tenant_id=current_user.tenant_id or "default",
@@ -236,6 +343,7 @@ async def start_assignment(
                 "conversation_id": body.conversation_id,
                 "started_from": "chat",
                 "requester_id": current_user.id,
+                "source_fingerprint": source_fingerprint(resolved_sources),
             },
             proposed_steps=body.proposed_steps,
         )

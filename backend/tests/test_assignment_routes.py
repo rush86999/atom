@@ -39,6 +39,8 @@ def route_env(tmp_path, monkeypatch):
     monkeypatch.setenv(
         "ATOM_ASSIGNMENT_OUTBOX", str(tmp_path / "controlled-outbox.jsonl"))
     monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS", "1")
+    monkeypatch.setenv("ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT", str(tmp_path))
     engine = create_engine(f"sqlite:///{tmp_path}/routes.db")
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
@@ -343,9 +345,14 @@ def test_start_from_chat_objective_uses_registered_plan_and_teaching(
     doc_step = next(step for step in assignment["steps"]
                     if step["step_id"] == "deliverable-1")
     assert doc_step["status"] == "applied"
+    doc_deliverable = next(
+        item for item in assignment["deliverables"]
+        if item.get("kind") == "document")
+    doc_path = doc_deliverable.get("artifact_path")
+    assert doc_path, doc_deliverable
     import docx
 
-    document = docx.Document(str(tmp_path / "commercial.docx"))
+    document = docx.Document(str(doc_path))
     assert document.styles["Normal"].font.name == "Times New Roman"
 
     run_id = body["run_id"]
@@ -360,10 +367,13 @@ def test_start_from_chat_objective_uses_registered_plan_and_teaching(
     assert approved.json()["assignment"]["assignment"]["status"] == "completed"
 
 
-def test_start_rejects_unregistered_proposed_adapter(route_env, tmp_path):
+def test_start_rejects_unregistered_proposed_adapter(route_env, tmp_path, monkeypatch):
+    monkeypatch.setenv("ATOM_ASSIGNMENT_ALLOW_PROPOSED_STEPS", "1")
+    source = tmp_path / "a.txt"
+    source.write_text("source")
     response = route_env["client"].post("/api/assignments", json={
         "objective": "Unsafe plan",
-        "sources": [{"kind": "document", "path": str(tmp_path / "a.txt")}],
+        "sources": [{"kind": "document", "path": str(source)}],
         "deliverables": [{
             "kind": "document", "path": str(tmp_path / "out.docx"),
             "content": "body",
@@ -384,6 +394,57 @@ def test_start_rejects_unregistered_proposed_adapter(route_env, tmp_path):
     })
     assert response.status_code == 422
     assert "unregistered adapter" in response.text
+
+
+def test_guided_discovery_mode_needs_no_paths(route_env, tmp_path, monkeypatch):
+    source = tmp_path / "discovered.txt"
+    source.write_text("Subject: discovered\nStatus: active\n")
+    monkeypatch.setattr(
+        "core.sheet_dataset_service.find_entries_sync",
+        lambda **kwargs: [{
+            "dataset_name": "discovered-doc",
+            "file_name": "discovered.txt",
+            "entity_name": "Sheet1",
+            "content_hash": "v1",
+        }],
+    )
+    monkeypatch.setattr(
+        "api.assignment_routes.resolve_assignment_source",
+        lambda db, user, ref, allow_internal=False: {
+            "kind": "document", "path": str(source),
+            "resource_id": "discovered-doc", "dataset_name": "discovered-doc",
+            "source_version": "v1",
+            "coverage": {"known": True, "truncated": False},
+        },
+    )
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare a narrative for the permitted source",
+        "discover": True,
+        "source_scope": {"query": "discovered"},
+        "deliverables": [{"kind": "document",
+                          "description": "Narrative"}],
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["assignment"]["assignment"]["status"] == "completed"
+    assert body["assignment"]["assignment"]["deliverables"][0][
+        "artifact_path"]
+
+
+def test_public_proposed_steps_are_gated(route_env, tmp_path):
+    source = tmp_path / "gate.txt"
+    source.write_text("source")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Public proposed plan",
+        "sources": [{"kind": "document", "path": str(source)}],
+        "deliverables": [{
+            "kind": "document", "path": str(tmp_path / "out.docx"),
+            "content": "body",
+        }],
+        "proposed_steps": [],
+    })
+    assert response.status_code == 422
+    assert "cannot submit executable steps" in response.text
 
 
 def test_start_second_domain_presentation_completes(route_env, tmp_path):
@@ -408,9 +469,14 @@ def test_start_second_domain_presentation_completes(route_env, tmp_path):
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["assignment"]["assignment"]["status"] == "completed", body
+    presentation_deliverable = next(
+        item for item in body["assignment"]["assignment"]["deliverables"]
+        if item.get("kind") == "presentation")
+    presentation_path = presentation_deliverable.get("artifact_path")
+    assert presentation_path, presentation_deliverable
     import pptx
 
-    presentation = pptx.Presentation(str(tmp_path / "eligibility.pptx"))
+    presentation = pptx.Presentation(str(presentation_path))
     assert presentation.slides[0].shapes.title.text == "Overview"
 
 

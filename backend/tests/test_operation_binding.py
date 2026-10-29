@@ -187,7 +187,8 @@ def test_registry_dispatch_is_the_execution_boundary(tmp_path, monkeypatch):
 
     action_registry.register(
         "test.bound.action", handler,
-        parameters_schema={"type": "object", "properties": {}, "required": []})
+        parameters_schema={"type": "object", "properties": {}, "required": []},
+        effects=[{"effect": "read"}])
     lifecycle, factory = _lifecycle(tmp_path)
     executor = AssignmentExecutor(lifecycle)
     plan = new_assignment(

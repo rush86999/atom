@@ -68,6 +68,8 @@ export function AssignmentPanel({
     recipient: "",
     expression: "",
     correlation: "",
+    discover: false,
+    scopeQuery: "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,14 +121,20 @@ export function AssignmentPanel({
       const sourceKind = /\.xlsx?$/i.test(startDraft.sourcePath)
         ? "workbook"
         : "document";
-      const payload: Record<string, any> = {
+      const payload: Parameters<typeof createAssignment>[0] = {
         objective: startDraft.objective,
         agent_id: agentId || undefined,
-        sources: [{ kind: sourceKind, path: startDraft.sourcePath }],
+        sources: startDraft.discover
+          ? []
+          : [{ kind: sourceKind, path: startDraft.sourcePath }],
+        discover: startDraft.discover,
+        source_scope: startDraft.discover
+          ? { query: startDraft.scopeQuery }
+          : undefined,
         deliverables: [{
           kind: startDraft.deliverableKind,
           description: startDraft.objective,
-          path: startDraft.outputPath,
+          path: startDraft.discover ? undefined : startDraft.outputPath,
           content: startDraft.deliverableKind === "presentation"
             ? "Slide 1: Overview\n- Prepared from the authorized source\n\nSlide 2: Sources\n- Authorized source"
             : startDraft.expression
@@ -167,6 +175,8 @@ export function AssignmentPanel({
         recipient: "",
         expression: "",
         correlation: "",
+        discover: false,
+        scopeQuery: "",
       });
       setSelected(result.run_id);
       await refreshList();
@@ -220,15 +230,38 @@ export function AssignmentPanel({
           className="w-full rounded border px-1.5 py-1"
           aria-label="Assignment objective"
         />
-        <input
-          value={startDraft.sourcePath}
-          onChange={(e) =>
-            setStartDraft((d) => ({ ...d, sourcePath: e.target.value }))
-          }
-          placeholder="Authorized source path (.xlsx/.docx)"
-          className="w-full rounded border px-1.5 py-1"
-          aria-label="Authorized source path"
-        />
+        <label className="flex items-center gap-1 text-[10px]">
+          <input
+            type="checkbox"
+            checked={startDraft.discover}
+            onChange={(e) =>
+              setStartDraft((d) => ({ ...d, discover: e.target.checked }))
+            }
+            aria-label="Discover resource from scope"
+          />
+          Discover an authorized resource from a scope (ordinary employee)
+        </label>
+        {startDraft.discover ? (
+          <input
+            value={startDraft.scopeQuery}
+            onChange={(e) =>
+              setStartDraft((d) => ({ ...d, scopeQuery: e.target.value }))
+            }
+            placeholder="Permitted source scope (for example: price list)"
+            className="w-full rounded border px-1.5 py-1"
+            aria-label="Permitted source scope"
+          />
+        ) : (
+          <input
+            value={startDraft.sourcePath}
+            onChange={(e) =>
+              setStartDraft((d) => ({ ...d, sourcePath: e.target.value }))
+            }
+            placeholder="Authorized source reference (advanced/controlled)"
+            className="w-full rounded border px-1.5 py-1"
+            aria-label="Authorized source path"
+          />
+        )}
         <input
           value={startDraft.outputPath}
           onChange={(e) =>
@@ -287,8 +320,9 @@ export function AssignmentPanel({
           disabled={
             busy ||
             !startDraft.objective.trim() ||
-            !startDraft.sourcePath.trim() ||
-            !startDraft.outputPath.trim()
+            (!startDraft.discover && !startDraft.sourcePath.trim()) ||
+            (!startDraft.discover && !startDraft.outputPath.trim()) ||
+            (startDraft.discover && !startDraft.scopeQuery.trim())
           }
           onClick={start}
         >

@@ -91,9 +91,14 @@ default_adapter_registry.register(
     _controlled_send,
     prepare=_controlled_prepare,
     description="Acceptance-only local outbox sender",
+    metadata={"effect": "external", "required_actions": ["outbound"],
+              "requires_approval": True,
+              "allow_standing_authorization": False},
 )
 default_adapter_registry.register(
     "assignment.controlled_wait",
     _controlled_wait,
     description="Acceptance-only external reply wait",
+    metadata={"effect": "read_only", "required_actions": ["retrieve"],
+              "allow_standing_authorization": False},
 )

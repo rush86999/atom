@@ -71,6 +71,59 @@ requires the launcher marker for reuse, and deletes only with both the marker
 and `ATOM_ASSIGNMENT_BROWSER_WORLD_RESET=1`. The browser server no longer
 calls `shutil.rmtree` unconditionally on import.
 
+## Correction pass — review findings
+
+### Server-resolved resources and outputs
+
+Public proposals no longer accept filesystem paths. `core/assignment_resources.py`
+resolves a catalog reference through the existing
+`resolve_dataset_entry_scoped_sync` / `connected_parquet_path` path, checks
+workspace scope, the active connected grant, source version and
+materialization coverage, and returns the authoritative local path to the
+read adapter. A controlled fixture path is accepted only with
+`ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS=1` and a path under the configured
+fixture root.
+
+Output paths are allocated server-side under owned artifact storage; a client
+supplies a title/kind, never a path.
+
+Negative controls cover another workspace's resource, forged catalog
+reference, revoked grant, stale source version, a local file outside the
+fixture scope, and output allocation under the authenticated user's store.
+
+### Authority independent of the proposal
+
+The planner no longer unions proposed operation types into
+`authorized_actions`. Each adapter now carries trusted metadata (effect class,
+required actions, approval requirement, standing-authorization policy), and
+validation rejects:
+
+- an external adapter declared `read_only`;
+- `action.registry` invoking a concrete write action while declared retrieval;
+- caller-invented `standing_authorization`;
+- an action outside the accepted source/action scope.
+
+`action.registry` resolves the concrete action before validating its effect.
+The route rejects direct public `proposed_steps` unless the controlled
+proposal flag is set.
+
+### Deliverable validation
+
+Every required deliverable’s `step_id` must be an actual planned step, the
+step may produce only the matching artifact kind, deliverable identities must
+be unique, and two deliverables cannot claim one step. Read steps cannot
+claim a DOCX deliverable.
+
+### Guided versus explicit setup
+
+The explicit form remains the advanced/controlled setup path. A guided path
+(`discover: true` + permitted `source_scope`) lets the route discover an
+authorized catalog resource through existing retrieval, gather teaching, and
+validate the same plan boundary without the user supplying a server path,
+formula argument or correlation id. Unknown content requirements yield a
+clarification/pending state rather than generic prose being treated as a
+grounded deliverable.
+
 ## Evidence
 
 - `docs/acceptance/evidence/durable_assignment_20261029/browser-start/`
@@ -87,7 +140,7 @@ calls `shutil.rmtree` unconditionally on import.
 
 ## Verification
 
-- Focused backend suite: **97 passed**.
+- Focused backend suite: **110 passed**.
 - Assignment component: **3 passed**.
 - Playwright start/reload: **1 passed**.
 - Playwright after-backend-restart: **1 passed**.

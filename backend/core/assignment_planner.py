@@ -339,10 +339,8 @@ def plan_assignment(
                          "deliverable_id": "del-send"})
     criteria.append({"kind": "required_work_complete"})
 
-    actions = sorted({
-        step.get("operation_type") for step in steps
-        if step.get("operation_type")
-    } | set(authorized_actions or []))
+    actions = sorted(set(str(item) for item in (authorized_actions or [])
+                          if str(item).strip()))
 
     assignment = new_assignment(
         objective=objective,
@@ -352,7 +350,11 @@ def plan_assignment(
         teaching_snapshot=teaching,
         steps=steps,
         deliverables=deliverable_records,
-        sources=[dict(source) for source in (sources or [])],
+        sources=[
+            {key: value for key, value in dict(source).items()
+             if key not in ("path", "locator")}
+            for source in (sources or [])
+        ],
         authorized_actions=actions,
         completion_criteria=criteria,
         budget={"max_steps": max(4, min(len(steps) + 8, 40)),
@@ -387,36 +389,98 @@ def validate_proposed_plan(
             (assignment.get("budget") or {}).get("max_steps") or 40):
         raise AssignmentPlanError("the plan exceeds its step budget")
     known_steps = {step["step_id"] for step in assignment["steps"]}
-    deliverable_steps = {
-        item.get("step_id") for item in assignment.get("deliverables") or []
-    }
+    accepted_actions = set(assignment.get("authorized_actions") or [])
     for step in assignment["steps"]:
-        if registry.get(step.get("adapter") or "") is None:
+        adapter = registry.get(step.get("adapter") or "")
+        if adapter is None:
             raise AssignmentPlanError(
                 f"step {step['step_id']} names unregistered adapter "
                 f"'{step.get('adapter')}'")
+        metadata = dict(adapter.metadata or {})
+        expected_effect = metadata.get("effect")
+        if expected_effect and expected_effect != "declared" and str(
+                step.get("effect") or "") != str(expected_effect):
+            raise AssignmentPlanError(
+                f"step {step['step_id']} declares effect "
+                f"'{step.get('effect')}' but adapter "
+                f"'{step.get('adapter')}' is '{expected_effect}'")
+        required_actions = set(metadata.get("required_actions") or [])
+        if required_actions and not required_actions <= accepted_actions:
+            raise AssignmentPlanError(
+                f"step {step['step_id']} requires actions "
+                f"{sorted(required_actions)} outside the accepted authority "
+                f"{sorted(accepted_actions)}")
+        if step.get("standing_authorization") and not metadata.get(
+                "allow_standing_authorization"):
+            raise AssignmentPlanError(
+                f"step {step['step_id']} invents standing authorization; "
+                f"the adapter does not accept it")
         for dependency in step.get("depends_on") or []:
             if dependency not in known_steps:
                 raise AssignmentPlanError(
                     f"step {step['step_id']} depends on missing step "
                     f"{dependency}")
+        if step.get("adapter") == "action.registry":
+            from core.action_registry import action_registry
+
+            action_name = str((step.get("inputs") or {}).get("action") or "")
+            action = action_registry.get_action(action_name)
+            if action is None:
+                raise AssignmentPlanError(
+                    f"step {step['step_id']} names unregistered action "
+                    f"'{action_name}'")
+            effects = [str(item.get("effect") or "")
+                       for item in (action.effects or [])
+                       if isinstance(item, dict)]
+            mutating = {"write", "create", "update", "delete", "send",
+                        "execute", "graph_updated", "record_created"}
+            action_effect = "external" if any(
+                effect.lower() in mutating for effect in effects
+            ) else ("read_only" if effects else "external")
+            if str(step.get("effect") or "") != action_effect:
+                raise AssignmentPlanError(
+                    f"step {step['step_id']} declares "
+                    f"'{step.get('effect')}' but registered action "
+                    f"'{action_name}' is '{action_effect}'")
         if step.get("effect") == "external" and not (
-                (step.get("approval") or {}).get("required")
-                or step.get("standing_authorization")):
+                (step.get("approval") or {}).get("required")):
             raise AssignmentPlanError(
-                f"external step {step['step_id']} requires approval or "
-                f"standing authorization")
+                f"external step {step['step_id']} requires approval")
         if step.get("operation_type") == "outbound" and step.get(
                 "effect") == "external" and not (
                 (step.get("inputs") or {}).get("to")):
             raise AssignmentPlanError(
                 f"outbound step {step['step_id']} requires a recipient")
+    seen_deliverable_ids = set()
+    seen_deliverable_steps = set()
     for item in assignment.get("deliverables") or []:
-        if item.get("required", True) and item.get("step_id") not in (
-                deliverable_steps | known_steps):
+        deliverable_id = str(item.get("deliverable_id") or "")
+        if not deliverable_id or deliverable_id in seen_deliverable_ids:
             raise AssignmentPlanError(
-                f"deliverable {item.get('deliverable_id')} references a "
-                f"missing step")
+                "deliverable identities must be present and unique")
+        seen_deliverable_ids.add(deliverable_id)
+        step_id = str(item.get("step_id") or "")
+        if step_id not in known_steps:
+            raise AssignmentPlanError(
+                f"deliverable {deliverable_id} references missing step "
+                f"{step_id}")
+        if step_id in seen_deliverable_steps:
+            raise AssignmentPlanError(
+                f"more than one deliverable claims step {step_id}")
+        seen_deliverable_steps.add(step_id)
+        step = next(s for s in assignment["steps"] if s["step_id"] == step_id)
+        output_kind = {
+            "artifact.document": "document",
+            "artifact.spreadsheet": "spreadsheet",
+            "artifact.presentation": "presentation",
+            "email.draft": "email_draft",
+            "email.send_outlook": "email",
+            "assignment.controlled_outbox": "email",
+        }.get(str(step.get("adapter") or ""))
+        if output_kind != str(item.get("kind") or ""):
+            raise AssignmentPlanError(
+                f"deliverable {deliverable_id} is '{item.get('kind')}' but "
+                f"step {step_id} produces '{output_kind or 'nothing'}'")
     if not assignment.get("completion_criteria"):
         raise AssignmentPlanError(
             "the assignment must declare acceptance criteria")

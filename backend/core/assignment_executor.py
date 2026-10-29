@@ -26,7 +26,7 @@ import logging
 import os
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence
@@ -91,6 +91,7 @@ class AdapterDefinition:
     handler: AdapterHandler
     prepare: Optional[AdapterPreparer] = None
     description: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class AdapterRegistry:
@@ -104,12 +105,14 @@ class AdapterRegistry:
         *,
         prepare: Optional[AdapterPreparer] = None,
         description: str = "",
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> AdapterDefinition:
         if not re.match(r"^[a-z][a-z0-9_.-]{0,80}$", str(name or "")):
             raise AssignmentError(f"invalid adapter name '{name}'")
         definition = AdapterDefinition(
             name=str(name), handler=handler, prepare=prepare,
-            description=description or getattr(handler, "__doc__", "") or "")
+            description=description or getattr(handler, "__doc__", "") or "",
+            metadata=dict(metadata or {}))
         self._adapters[str(name)] = definition
         return definition
 
@@ -136,12 +139,14 @@ def register_assignment_adapter(
     *,
     prepare: Optional[AdapterPreparer] = None,
     description: str = "",
+    metadata: Optional[Dict[str, Any]] = None,
     registry: Optional[AdapterRegistry] = None,
 ):
     target = registry or default_adapter_registry
 
     def decorator(func: AdapterHandler) -> AdapterHandler:
-        target.register(name, func, prepare=prepare, description=description)
+        target.register(name, func, prepare=prepare, description=description,
+                        metadata=metadata)
         return func
 
     return decorator
@@ -2381,7 +2386,9 @@ class AssignmentExecutor:
 
 @register_assignment_adapter(
     "action.registry",
-    description="Dispatch one registered action through the shared registry")
+    description="Dispatch one registered action through the shared registry",
+    metadata={"effect": "declared", "required_actions": [],
+              "allow_standing_authorization": False})
 async def _action_registry_adapter(
     inputs: Dict[str, Any], context: Dict[str, Any],
 ) -> Dict[str, Any]:
@@ -2443,7 +2450,10 @@ async def _action_registry_adapter(
     }
 
 
-@register_assignment_adapter("workbook.read", description="Read workbook rows")
+@register_assignment_adapter(
+    "workbook.read", description="Read workbook rows",
+    metadata={"effect": "read_only", "required_actions": ["retrieve"],
+              "requires_resource": True})
 async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     path = str(inputs.get("path") or "").strip()
     if not path:
@@ -2574,7 +2584,10 @@ async def _workbook_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
     }
 
 
-@register_assignment_adapter("document.read", description="Read a document")
+@register_assignment_adapter(
+    "document.read", description="Read a document",
+    metadata={"effect": "read_only", "required_actions": ["retrieve"],
+              "requires_resource": True})
 async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     path = str(inputs.get("path") or "").strip()
     if not path or not os.path.isfile(path):
@@ -2621,7 +2634,9 @@ async def _document_read(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dic
 
 
 @register_assignment_adapter(
-    "formula.calculate", description="Evaluate a deterministic expression")
+    "formula.calculate", description="Evaluate a deterministic expression",
+    metadata={"effect": "local", "required_actions": ["calculate"],
+              "allow_standing_authorization": False})
 async def _formula_calculate(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.formula_engine import evaluate_expression
 
@@ -2693,7 +2708,10 @@ def _office_format_spec(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
     return {}
 
 
-@register_assignment_adapter("artifact.document", description="Render a DOCX")
+@register_assignment_adapter(
+    "artifact.document", description="Render a DOCX",
+    metadata={"effect": "local", "required_actions": ["present"],
+              "allow_standing_authorization": False})
 async def _artifact_document(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.office_service import OfficeService
 
@@ -2735,7 +2753,10 @@ async def _artifact_document(inputs: Dict[str, Any], context: Dict[str, Any]) ->
     }
 
 
-@register_assignment_adapter("artifact.spreadsheet", description="Render an XLSX")
+@register_assignment_adapter(
+    "artifact.spreadsheet", description="Render an XLSX",
+    metadata={"effect": "local", "required_actions": ["present"],
+              "allow_standing_authorization": False})
 async def _artifact_spreadsheet(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.office_service import OfficeService
 
@@ -2771,7 +2792,10 @@ async def _artifact_spreadsheet(inputs: Dict[str, Any], context: Dict[str, Any])
     }
 
 
-@register_assignment_adapter("artifact.presentation", description="Render a PPTX")
+@register_assignment_adapter(
+    "artifact.presentation", description="Render a PPTX",
+    metadata={"effect": "local", "required_actions": ["present"],
+              "allow_standing_authorization": False})
 async def _artifact_presentation(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.office_service import OfficeService
 
@@ -2880,7 +2904,9 @@ async def _email_draft(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[
 
 default_adapter_registry.register(
     "email.draft", _email_draft, prepare=_email_draft_prepare,
-    description="Prepare an email draft without sending")
+    description="Prepare an email draft without sending",
+    metadata={"effect": "local", "required_actions": ["edit"],
+              "allow_standing_authorization": False})
 
 
 def _outlook_send_prepare(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
@@ -2963,4 +2989,7 @@ async def _outlook_send(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
 
 default_adapter_registry.register(
     "email.send_outlook", _outlook_send, prepare=_outlook_send_prepare,
-    description="Send through the authorized Outlook/canvas path")
+    description="Send through the authorized Outlook/canvas path",
+    metadata={"effect": "external", "required_actions": ["outbound"],
+              "requires_approval": True,
+              "allow_standing_authorization": False})

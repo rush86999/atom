@@ -28,6 +28,8 @@ os.environ["ATOM_DATA_DIR"] = str(SCRATCH)
 os.environ["ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT"] = "1"
 os.environ["ATOM_ASSIGNMENT_OUTBOX"] = str(SCRATCH / "outbox.jsonl")
 os.environ["ATOM_OFFICE_DIR"] = str(SCRATCH)
+os.environ["ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS"] = "1"
+os.environ["ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT"] = str(SCRATCH)
 
 from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
