@@ -1,6 +1,7 @@
 {
   "schema": "atom-assignment-source-manifest-1",
-  "candidate_commit": "9a89471cc0f307130c733bd4485d689e6e83b35c",
+  "candidate_commit": "e4c11c354",
+  "package_commit": "058e38ddb",
   "created": "2026-10-29",
   "files": [
     {
@@ -66,7 +67,7 @@
     {
       "path": "backend/core/canvas_capability_service.py",
       "category": "backend_runtime",
-      "sha256": "2c654f18828436acce4bbe137ba6bef7631c2e30eee4510d292c35f8cebddbfe"
+      "sha256": "b81012e99ba7643a821ec0d97aeee5d2b7e4812bd36949125296e55af005e663"
     },
     {
       "path": "backend/core/oauth_config_preflight.py",
@@ -131,7 +132,7 @@
     {
       "path": "backend/tests/test_assignment_resource_boundary.py",
       "category": "tests_and_harnesses",
-      "sha256": "796b677f1333258e54e1d01a4a73065320bd9193245af4bdd10ccd3dff0ca9d5"
+      "sha256": "cd609c4a1cd47f026d77e1b7afcfd1d39cfe1105a66237a813828971c0b42b1c"
     },
     {
       "path": "backend/tests/test_assignment_executor.py",

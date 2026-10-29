@@ -1,16 +1,18 @@
 # Assignment successor release package — 2026-10-29
 
-Status: **integrated, clean-source verified, not deployed.** Live OneDrive
-start and live changed-source refresh remain blocked by owner
-configuration/authorization, so this is not a claim that the live-connected
-exit condition is closed.
+Status: **integrated, clean-source verified, not deployed.** The approved
+Microsoft configuration was restored and token resolution is valid. The live
+guided gate stopped at the resource/source authority boundary: the named
+price-list catalog is Zoho WorkDrive with an expired token, and no genuine
+Microsoft/OneDrive catalog entry for that workbook exists. Live connected and
+changed-source claims remain open.
 
 ## Exact source
 
 | Item | Commit |
 |---|---|
-| Candidate source | `02822343d` |
-| Runtime-tested source | `9a89471cc0f307130c733bd4485d689e6e83b35c` |
+| Candidate source | `058e38ddb` |
+| Runtime-tested source | `e4c11c354` |
 | Integrated teaching/OAuth runtime | `1d5e8d780` |
 | Review repairs | `294fdf0ec` |
 | Bounded taught job | `de25c5148` |
@@ -34,11 +36,12 @@ schema migrations and no checked-in artifact templates for this slice.
 
 ## Clean-source verification
 
-Clean worktree from `02822343d`:
-`/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-clean-02822343d`
+Clean worktree from `058e38ddb`:
+`/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-clean-058e38ddb`
 
-The runtime-tested commit is `9a89471cc`; `9a89471cc..02822343d` is docs-only, so
-the backend/frontend runtime bytes are identical.
+The runtime-tested commit is `e4c11c354`; `058e38ddb` is that runtime plus
+live-boundary evidence/docs. Clean-source focused, bounded and connected-scratch
+tests pass.
 
 Verified:
 
@@ -142,7 +145,7 @@ npx playwright test e2e/assignment-durable-reopen.spec.ts --workers=1
 
 ## Verification results
 
-- Clean-source focused backend: 134 passed
+- Clean-source focused backend: 135 passed
 - Clean-source bounded taught job: 1 passed
 - Clean-source connected scratch: `85.00`, `3`, both reopened
 - Assignment component: 3 passed
@@ -154,15 +157,28 @@ npx playwright test e2e/assignment-durable-reopen.spec.ts --workers=1
 - Frontend source: byte-identical to the previously tested working tree; no
   separate clean `node_modules` install was performed
 
+## Live execution record
+
+- Microsoft client configuration restored; preflight `configured=true`.
+- Token resolution `state=valid`, token available, no reconnect.
+- Live guided gate stopped at the resource/source authority boundary:
+  the named price-list catalog rows are `zoho_workdrive` with an expired token;
+  no Microsoft/OneDrive catalog entry exists.
+- Cached Parquet rows were not used; no replacement catalog/grant was seeded.
+- Reproduced defect fixed: expired access tokens now raise
+  `source_access_expired`.
+- Changed-source refresh not run because Part A did not pass.
+
 ## Rollout
 
-1. Deploy only from clean source commit `9a89471cc`; do not copy local
+1. Deploy only from clean source commit `058e38ddb`; do not copy local
    working-tree files.
 2. Run the focused suite and AssignmentPanel tests on the release source.
 3. Run the four Playwright specs in isolated scratch worlds.
 4. Run the connected scratch acceptance and bounded taught job.
-5. Keep live-connected and changed-source gates closed until the owner supplies
-   client configuration and the exact disposable-source authorization.
+5. Keep live-connected and changed-source gates closed until the named workbook
+   has an authorized accessible source (Zoho renewal or a genuine
+   Microsoft/OneDrive workbook).
 6. Do not enable controlled transport or internal paths in production.
 
 ## Rollback
@@ -199,9 +215,12 @@ database.
 
 ## Remaining blockers
 
-- Microsoft client configuration absent.
-- Live OneDrive guided start not run.
-- Disposable changed-source authorization not granted.
+- Named price-list catalog rows are `zoho_workdrive`; Zoho access expired
+  `2026-10-24` and Zoho repair is not authorized.
+- No Microsoft/OneDrive catalog entry exists for the named price list.
+- Live guided browser gate not run; normal end-user authentication session is
+  not available to the agent.
+- Disposable changed-source refresh not run because Part A did not pass.
 
-The combined operational authorization request is
+The operational authorization and execution record is
 `docs/acceptance/OPERATIONAL_AUTHORIZATION_2026-10-29.md`.
