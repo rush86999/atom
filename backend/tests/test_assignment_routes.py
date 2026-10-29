@@ -6,7 +6,9 @@ not the executor helper directly.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
+import shutil
 import uuid
 from datetime import datetime, timedelta
 
@@ -681,6 +683,241 @@ def test_supervisor_assignment_rechecks_requester_source_grant(
     assert source_step["status"] == "applied", source_step
     assert source_step["inputs"]["resource_binding"]["access_scope"][
         "user_id"] == "lead-1"
+
+
+def test_bounded_taught_method_job_with_wait_and_draft(
+        route_env, tmp_path, monkeypatch):
+    import docx
+    from core.student_learning_service import (
+        deliver_teacher_lesson, list_agent_lessons,
+    )
+
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    note = tmp_path / "email-note.docx"
+    document = docx.Document()
+    document.add_paragraph("Customer: Acme")
+    document.add_paragraph("Approval reference: REF-9")
+    document.add_paragraph("Message: please review the corrected line total.")
+    document.save(note)
+
+    agent_id = _teaching_agent(
+        route_env, "Taught method employee", "Arial", "reviewer")
+    deliver_teacher_lesson(
+        route_env["db"], agent_id,
+        "Use the taught line-total method",
+        topic="calculation method", applies_to=["document"],
+        format_spec={
+            "calculation_expression": "line_total * correction_factor",
+            "calculation_fields": ["line_total=Total"],
+            "calculation_wait_variable": "correction_factor",
+            "calculation_unit": "USD",
+        },
+        context={"audience": "reviewer"}, workspace_id="ws-1")
+    deliver_teacher_lesson(
+        route_env["db"], agent_id,
+        "Use the reviewer email protocol",
+        topic="email standard", applies_to=["email"],
+        format_spec={
+            "greeting": "Dear reviewer,",
+            "signature": "Regards,\nOperations",
+            "subject_prefix": "[Review]",
+        },
+        context={"audience": "reviewer"}, workspace_id="ws-1")
+    lessons = list_agent_lessons(route_env["db"], agent_id)
+    assert any(
+        (lesson.get("format_spec") or {}).get("calculation_expression")
+        for lesson in lessons), lessons
+
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare the bounded review package using the taught method",
+        "agent_id": agent_id,
+        "sources": [
+            {
+                "kind": "workbook",
+                "dataset_name": "scotch_parts_price_list",
+                "sheet": "US$ SCOTCH PARTS",
+                "columns": ["Total"],
+            },
+            {"kind": "document", "path": str(note)},
+        ],
+        "deliverables": [
+            {"kind": "document", "description": "Bounded review"},
+            {"kind": "email_draft", "description": "Reviewer note"},
+        ],
+        "wait": {
+            "correlation_id": "bounded-correction",
+            "party": "reviewer",
+            "detail": "correction factor",
+        },
+        "task_context": {"audience": "reviewer"},
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assignment = body["assignment"]["assignment"]
+    assert assignment["status"] == "waiting", assignment
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    calc_step = next(
+        step for step in internal["steps"]
+        if step["step_id"] == "calculate")
+    assert calc_step["inputs"]["expression"] == (
+        "line_total * correction_factor")
+    assert calc_step["inputs"]["bindings"]["line_total"] == {
+        "$ref": "source-1.rows.0.Total"}
+    assert calc_step["inputs"]["bindings"]["correction_factor"] == {
+        "$ref": "wait.value"}
+
+    responded = route_env["client"].post(
+        "/api/assignments/" + body["run_id"]
+        + "/responses/bounded-correction",
+        json={"response": "1.2", "source": "reviewer",
+              "evidence": "corrected factor"},
+    )
+    assert responded.status_code == 200, responded.text
+    completed = responded.json()["assignment"]
+    assert completed["status"] == "completed", completed
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    calc_step = next(
+        step for step in internal["steps"]
+        if step["step_id"] == "calculate")
+    assert str(calc_step["result"]["value"]) in ("24", "24.0", "24.00")
+    doc = next(item for item in completed["deliverables"]
+               if item["kind"] == "document")
+    assert doc["artifact_path"], doc
+    text = "\n".join(
+        paragraph.text for paragraph in docx.Document(
+            doc["artifact_path"]).paragraphs)
+    for table in docx.Document(doc["artifact_path"]).tables:
+        for row in table.rows:
+            text += "\n" + " | ".join(cell.text for cell in row.cells)
+    assert "24" in text, text
+    assert "scotch-parts.xlsx" in text, text
+    assert "email-note.docx" in text, text
+    assert "REF-9" in text, text
+    draft_step = next(
+        step for step in internal["steps"]
+        if step["adapter"] == "email.draft")
+    draft = draft_step["result"]["draft"]
+    assert "Dear reviewer," in draft["body"]
+    assert "Regards" in draft["body"]
+    assert "24" in draft["body"]
+    assert draft["subject"].startswith("[Review]")
+
+    # Rebuild the executor from durable state only.
+    rebuilt = AssignmentExecutor(TaskLifecycle(
+        GoalRunService(
+            workspace_id="ws-1", tenant_id="tenant-1",
+            session_factory=route_env["factory"]),
+        GoalService(
+            workspace_id="ws-1", tenant_id="tenant-1",
+            session_factory=route_env["factory"])))
+    reopened = rebuilt.status(body["run_id"])
+    assert reopened["assignment"]["status"] == "completed"
+    reopened_doc = next(
+        item for item in reopened["assignment"]["deliverables"]
+        if item["kind"] == "document")
+    assert reopened_doc["artifact_path"] == doc["artifact_path"]
+    assert os.path.isfile(reopened_doc["artifact_path"])
+
+    evidence_dir = os.getenv("ATOM_ASSIGNMENT_BOUNDED_EVIDENCE_DIR")
+    if evidence_dir:
+        os.makedirs(evidence_dir, exist_ok=True)
+        stored_doc = os.path.join(evidence_dir, "bounded-review.docx")
+        shutil.copy2(doc["artifact_path"], stored_doc)
+        payload = {
+            "slice": "bounded-taught-method-job",
+            "controlled": True,
+            "live_connected": False,
+            "objective": (
+                "Prepare the bounded review package using the taught method"),
+            "plan_revision": completed["plan_revision"],
+            "teaching_revision": completed["teaching_revision"],
+            "sources": internal.get("sources") or [],
+            "calculation": {
+                "expression": calc_step["inputs"]["expression"],
+                "bindings": calc_step["inputs"]["bindings"],
+                "value": calc_step["result"]["value"],
+                "unit": calc_step["result"]["unit"],
+            },
+            "wait_response": "1.2",
+            "artifact_path": doc["artifact_path"],
+            "stored_artifact": stored_doc,
+            "artifact_sha256": doc.get("sha256"),
+            "artifact_text": text,
+            "draft": draft,
+            "draft_revision": draft.get("draft_revision"),
+            "reopened_status": reopened["assignment"]["status"],
+        }
+        with open(os.path.join(
+                evidence_dir, "bounded_taught_job.json"), "w") as handle:
+            json.dump(payload, handle, indent=2, default=str)
+
+
+
+def test_taught_method_missing_wait_is_a_clarification(
+        route_env, tmp_path, monkeypatch):
+    from core.student_learning_service import deliver_teacher_lesson
+
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    agent_id = _teaching_agent(
+        route_env, "Taught wait employee", "Arial", "reviewer")
+    deliver_teacher_lesson(
+        route_env["db"], agent_id,
+        "Use the taught line-total method",
+        topic="calculation method", applies_to=["document"],
+        format_spec={
+            "calculation_expression": "line_total * correction_factor",
+            "calculation_fields": ["line_total=Total"],
+            "calculation_wait_variable": "correction_factor",
+            "calculation_unit": "USD",
+        },
+        context={"audience": "reviewer"}, workspace_id="ws-1")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare the bounded review package using the taught method",
+        "agent_id": agent_id,
+        "sources": [{
+            "kind": "workbook",
+            "dataset_name": "scotch_parts_price_list",
+            "sheet": "US$ SCOTCH PARTS",
+        }],
+        "deliverables": [{"kind": "document", "description": "Bounded review"}],
+        "task_context": {"audience": "reviewer"},
+    })
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"] == (
+        "calculation_method_unresolved")
+
+
+def test_unsupported_taught_method_is_a_clarification(
+        route_env, tmp_path, monkeypatch):
+    from core.student_learning_service import deliver_teacher_lesson
+
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    agent_id = _teaching_agent(
+        route_env, "Taught invalid employee", "Arial", "reviewer")
+    deliver_teacher_lesson(
+        route_env["db"], agent_id,
+        "Use the taught line-total method",
+        topic="calculation method", applies_to=["document"],
+        format_spec={
+            "calculation_expression": "line_total *",
+            "calculation_fields": ["line_total=Total"],
+            "calculation_unit": "USD",
+        },
+        context={"audience": "reviewer"}, workspace_id="ws-1")
+    response = route_env["client"].post("/api/assignments", json={
+        "objective": "Prepare the bounded review package using the taught method",
+        "agent_id": agent_id,
+        "sources": [{
+            "kind": "workbook",
+            "dataset_name": "scotch_parts_price_list",
+            "sheet": "US$ SCOTCH PARTS",
+        }],
+        "deliverables": [{"kind": "document", "description": "Bounded review"}],
+        "task_context": {"audience": "reviewer"},
+    })
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"] in (
+        "calculation_method_unresolved", "calculation_method_unsupported")
 
 
 def test_guided_no_match_is_explicit_pending_work(

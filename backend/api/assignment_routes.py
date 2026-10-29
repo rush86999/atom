@@ -29,6 +29,11 @@ from core.assignment_resources import (
     select_resource_candidates,
     source_fingerprint,
 )
+import core.assignment_teaching  # noqa: F401,E402  (installs taught-calc schema)
+from core.assignment_teaching import (  # noqa: E402
+    TaughtCalculationError,
+    build_taught_calculation,
+)
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.goals.goal_run_service import GoalRunService
@@ -295,6 +300,38 @@ async def start_assignment(
                 },
             )
 
+    output_types = [
+        {
+            "document": "document",
+            "spreadsheet": "spreadsheet",
+            "presentation": "presentation",
+            "email_draft": "email",
+        }.get(str(item.get("kind") or "").lower(), "")
+        for item in body.deliverables
+    ]
+    if body.outbound:
+        output_types.append("email")
+    teaching = _teaching_snapshot_for_start(
+        db,
+        agent_id=body.agent_id,
+        workspace_id=current_user.workspace_id or "default",
+        output_types=[item for item in output_types if item],
+        task_context=body.task_context,
+    )
+    if body.calculation is None:
+        try:
+            body.calculation = build_taught_calculation(
+                teaching, resolved_sources, body.wait)
+        except TaughtCalculationError as exc:
+            raise HTTPException(
+                status_code=exc.status,
+                detail={
+                    "error": exc.code,
+                    "message": str(exc),
+                    **dict(exc.detail or {}),
+                },
+            )
+
     deliverables = []
     accepted_actions = ["retrieve"]
     if body.calculation:
@@ -385,24 +422,6 @@ async def start_assignment(
             detail=(
                 "public proposals cannot submit executable steps directly; "
                 "use the capability planner"))
-
-    output_types = []
-    for deliverable in deliverables:
-        output_types.append({
-            "document": "document",
-            "spreadsheet": "spreadsheet",
-            "presentation": "presentation",
-            "email_draft": "email",
-        }.get(str(deliverable.get("kind") or "").lower(), ""))
-    if body.outbound:
-        output_types.append("email")
-    teaching = _teaching_snapshot_for_start(
-        db,
-        agent_id=body.agent_id,
-        workspace_id=current_user.workspace_id or "default",
-        output_types=[item for item in output_types if item],
-        task_context=body.task_context,
-    )
 
     transport_adapter = None
     if body.transport == "controlled":

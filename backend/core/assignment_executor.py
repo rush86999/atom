@@ -561,11 +561,20 @@ def _collect_evidence(context: Dict[str, Any]) -> Dict[str, Any]:
                     for line in text.splitlines() if line.strip()
                 ][:40]
         if rows:
+            row_label = str(result.get("source_label") or "").strip()
+            if not row_label:
+                for evidence in result.get("evidence") or []:
+                    if not isinstance(evidence, dict):
+                        continue
+                    path = str(evidence.get("path") or "").strip()
+                    if path:
+                        row_label = Path(path).name
+                        break
             row_sets.append({
                 "step_id": step_id,
                 "rows": rows,
                 "schema": list(result.get("schema") or []),
-                "source_label": result.get("source_label") or "",
+                "source_label": row_label,
                 "source": result.get("source") or {},
             })
         for evidence in result.get("evidence") or []:
@@ -598,6 +607,16 @@ def _row_columns(rows: List[Dict[str, Any]]) -> List[str]:
     return columns[:8]
 
 
+def _row_set_label(entry: Dict[str, Any]) -> str:
+    label = str(entry.get("source_label") or "").strip()
+    if label:
+        return label
+    source = entry.get("source") if isinstance(
+        entry.get("source"), dict) else {}
+    return str(source.get("file_name") or source.get("dataset_name")
+               or entry.get("step_id") or "authorized source")
+
+
 def _compose_evidence_content(
     kind: str,
     inputs: Dict[str, Any],
@@ -621,14 +640,15 @@ def _compose_evidence_content(
             slide += 1
         if row_sets:
             lines += ["", f"Slide {slide}: Findings"]
-            entry = row_sets[0]
-            columns = _row_columns(entry["rows"])
-            for row in entry["rows"][:8]:
-                cells = " | ".join(
-                    str(row.get(column, "") or "") for column in columns)
-                row_number = row.get("__sheet_row")
-                prefix = f"row {row_number}: " if row_number else ""
-                lines.append(f"- {prefix}{cells}")
+            for entry in row_sets[:3]:
+                lines.append(f"- {_row_set_label(entry)}")
+                columns = _row_columns(entry["rows"])
+                for row in entry["rows"][:4]:
+                    cells = " | ".join(
+                        str(row.get(column, "") or "") for column in columns)
+                    row_number = row.get("__sheet_row")
+                    prefix = f"row {row_number}: " if row_number else ""
+                    lines.append(f"  - {prefix}{cells}")
             slide += 1
         lines += ["", f"Slide {slide}: Sources"]
         lines += [f"- {label}" for label in (labels[:8] or ["authorized source"])]
@@ -641,22 +661,24 @@ def _compose_evidence_content(
     else:
         lines += ["- See the retrieved records below."]
     if row_sets:
-        entry = row_sets[0]
-        rows = entry["rows"]
-        columns = _row_columns(rows)
         lines += ["", "## Findings"]
-        if columns:
-            lines.append("| Row | " + " | ".join(columns) + " |")
-            lines.append("|" + "---|" * (len(columns) + 1))
-            for row in rows[:20]:
-                values = [
-                    str(row.get(column, "") or "").replace("|", "/")
-                    for column in columns
-                ]
-                lines.append("| " + str(row.get("__sheet_row") or "") + " | "
-                             + " | ".join(values) + " |")
-        else:
-            lines += [f"- {row}" for row in rows[:20]]
+        for entry in row_sets[:3]:
+            rows = entry["rows"]
+            columns = _row_columns(rows)
+            lines += ["", f"### {_row_set_label(entry)}"]
+            if columns:
+                lines.append("| Row | " + " | ".join(columns) + " |")
+                lines.append("|" + "---|" * (len(columns) + 1))
+                for row in rows[:10]:
+                    values = [
+                        str(row.get(column, "") or "").replace("|", "/")
+                        for column in columns
+                    ]
+                    lines.append(
+                        "| " + str(row.get("__sheet_row") or "") + " | "
+                        + " | ".join(values) + " |")
+            else:
+                lines += [f"- {row}" for row in rows[:10]]
     lines += ["", "## Sources"]
     lines += [f"- {label}" for label in (labels[:12] or ["authorized source"])]
     return "\n".join(lines)
@@ -674,15 +696,18 @@ def _compose_evidence_text(
         lines.append("Result:")
         lines += [f"- {fact['label']}" for fact in evidence["facts"]]
     if evidence["row_sets"]:
-        rows = evidence["row_sets"][0]["rows"]
-        columns = _row_columns(rows)
         lines.append("Findings:")
-        for row in rows[:10]:
-            cells = " | ".join(str(row.get(column, "") or "")
-                               for column in columns)
-            row_number = row.get("__sheet_row")
-            lines.append(f"- row {row_number}: {cells}" if row_number
-                         else f"- {cells}")
+        for entry in evidence["row_sets"][:3]:
+            rows = entry["rows"]
+            columns = _row_columns(rows)
+            lines.append(f"- {_row_set_label(entry)}")
+            for row in rows[:10]:
+                cells = " | ".join(str(row.get(column, "") or "")
+                                   for column in columns)
+                row_number = row.get("__sheet_row")
+                lines.append(
+                    f"  - row {row_number}: {cells}" if row_number
+                    else f"  - {cells}")
     lines.append("Sources:")
     lines += [f"- {label}" for label in
               (evidence["labels"][:8] or ["authorized source"])]
@@ -806,20 +831,31 @@ def _verify_artifact_substance(
                 for fact in facts)
         checks["subjects_covered"] = checks["result_present"]
     if row_sets:
-        values = []
-        for row in row_sets[0]["rows"][:50]:
-            for key, value in row.items():
-                if str(key) == "__sheet_row" or value in (None, ""):
-                    continue
-                cell = str(value).strip()
-                if len(cell) >= 2:
-                    values.append(cell)
-        found = [value for value in values
-                 if value.lower() in text.lower()]
-        if not facts:
-            checks["subjects_covered"] = len(set(found)) >= min(
-                2, len(set(values)))
-            checks["result_present"] = bool(found)
+        per_set_found: List[bool] = []
+        single_values: List[str] = []
+        single_found: List[str] = []
+        for entry in row_sets:
+            values = []
+            for row in entry["rows"][:50]:
+                for key, value in row.items():
+                    if str(key) == "__sheet_row" or value in (None, ""):
+                        continue
+                    cell = str(value).strip()
+                    if len(cell) >= 2:
+                        values.append(cell)
+            found = [value for value in values
+                     if value.lower() in text.lower()]
+            per_set_found.append(bool(found))
+            single_values.extend(values)
+            single_found.extend(found)
+        if len(row_sets) > 1:
+            checks["subjects_covered"] = all(per_set_found)
+            if not facts:
+                checks["result_present"] = all(per_set_found)
+        elif not facts:
+            checks["subjects_covered"] = len(set(single_found)) >= min(
+                2, len(set(single_values)))
+            checks["result_present"] = bool(single_found)
         else:
             checks["subjects_covered"] = checks["result_present"]
     if labels:

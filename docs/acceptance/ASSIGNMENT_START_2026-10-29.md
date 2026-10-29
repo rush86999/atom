@@ -1,8 +1,10 @@
 # Assignment starting boundary — accepted Chat objective → validated plan — 2026-10-29
 
-Status: **connected guided-start boundary passed.** Preserves `efc4bc9d5` and
-its two-domain executor evidence, `44b62a6bb` and `322981bcc`. No live send,
-deployment or source writeback.
+Status: **connected guided-start and bounded taught-method job passed on
+controlled/scratch sources; live connected and changed-source checks remain
+blocked by owner configuration/authorization.** Preserves `efc4bc9d5`,
+`44b62a6bb`, `322981bcc` and `40b3367d9`. No live send, deployment or source
+writeback.
 
 ## What changed
 
@@ -224,6 +226,58 @@ and 4 and `scotch-parts.xlsx`; approval completes the assignment; the outbox
 body carries the result and source; rebuilding the executor from durable state
 reports both assignments completed.
 
+## Focused review repairs — `294fdf0ec`
+
+The frozen `40b3367d9` delta was reviewed against the existing request. Five
+material findings were reproduced and repaired; full detail is in
+`docs/acceptance/ASSIGNMENT_REVIEW_2026-10-29.md`.
+
+- Exact active source version is required; a short hash prefix is refused.
+- Supervisor-assigned reads recheck the requester’s authenticated grant, not
+  the assignee’s identity.
+- A sum over zero eligible rows raises a durable `records` clarification.
+- `action.registry` read actions require accepted `retrieve`; mutating actions
+  require accepted `outbound`.
+- Required calculation/aggregate results must all appear in the artifact;
+  multi-source artifacts must include evidence from every source row set.
+
+Existing approval, uncertain-effect, provenance and full-frame controls still
+pass. No material finding remained in those paths.
+
+## Bounded taught-method job
+
+A controlled composite job proves the next planning boundary without claiming
+live connectivity:
+
+- a real materialized Parquet workbook source (connected scratch catalog);
+- a document/email evidence source;
+- an explicitly taught method, stored as a lesson, not a prompt formula:
+  `line_total * correction_factor`, with `line_total=Total` and
+  `correction_factor` bound to the missing-information wait;
+- one durable wait for the correction factor `1.2`;
+- calculation result `24.00 USD` over the workbook row;
+- a grounded document containing both source row sets, the correction and
+  `REF-9`;
+- an email draft formatted with the taught greeting/signature/subject prefix;
+- reload and a freshly rebuilt executor reporting completed.
+
+The method is read from the existing lesson journal through
+`core/assignment_teaching.py`; unsupported expressions, missing waits and
+bad field mappings return `calculation_method_*` clarifications. The job uses
+the same planner, executor, adapters, approval and restart path.
+
+Evidence: `docs/acceptance/evidence/durable_assignment_20261029/bounded-taught-job/`.
+
+## Live-connected gate
+
+Live OneDrive guided start and live changed-byte refresh were **not run**.
+Presence-only preflight reports `MICROSOFT_CLIENT_ID` and
+`MICROSOFT_CLIENT_SECRET` missing; the stored grant is not treated as revoked.
+No replacement catalog row, materialization, grant or fake token was seeded.
+The exact unblock checklist and remaining checks are in
+`docs/acceptance/LIVE_CONNECTED_GATE_2026-10-29.md`. The disposable-source
+protocol remains prepared and unmodified.
+
 ## Evidence
 
 - `docs/acceptance/evidence/durable_assignment_20261029/connected-guided/`
@@ -237,6 +291,13 @@ reports both assignments completed.
   — explicit advanced-form run, kept separate from guided discovery.
 - `docs/acceptance/evidence/durable_assignment_20261029/browser-start/`
   — preserved earlier start-boundary evidence.
+- `docs/acceptance/evidence/durable_assignment_20261029/bounded-taught-job/`
+  — controlled taught-method job: two sources, external correction, grounded
+  artifact, formatted draft, durable reopen.
+- `docs/acceptance/ASSIGNMENT_REVIEW_2026-10-29.md` — focused review findings
+  and repairs.
+- `docs/acceptance/LIVE_CONNECTED_GATE_2026-10-29.md` — exact live-connected
+  blockers and unblock checklist.
 - `docs/acceptance/evidence/durable_assignment_20261029/` — prior executor
   evidence remains untouched.
 - Backend: `tests/test_assignment_routes.py` (guided real catalog, distractor,
@@ -251,14 +312,17 @@ reports both assignments completed.
 
 ## Verification
 
-- Focused backend suite: **126 passed**.
+- Focused backend suite: **134 passed**.
 - Assignment component: **3 passed**.
 - Guided Playwright start/reload: **1 passed**.
 - Guided Playwright after backend restart: **1 passed**.
 - Explicit Playwright start/reload: **1 passed**.
 - Explicit Playwright after backend restart: **1 passed**.
-- Connected acceptance script: **passed** (`85.00`, `3`, both reopened).
+- Connected scratch acceptance: **passed** (`85.00`, `3`, both reopened).
+- Bounded taught-method job: **passed** (`24.00 USD`, two sources, draft,
+  restart).
 - `tsc --noEmit`: clean.
+- Live connected / changed-source: **blocked**, not claimed.
 
 ## Boundaries
 
@@ -266,16 +330,23 @@ reports both assignments completed.
 - The connected acceptance uses a real scoped `DatasetEntry`, real Parquet
   rows, the real resolver/reader and a real active grant row in an isolated
   scratch database. It does not fetch a live OneDrive file; live OAuth remains
-  outside this slice.
-- The guided deterministic calculator covers explicit `sum`/`count` objectives
-  against one materialized source. Compound or unstated calculations produce a
-  clarification rather than an invented method.
+  blocked by missing client configuration.
+- The bounded taught-method job is controlled: the workbook is a scratch
+  connected dataset and the document/email evidence is a controlled fixture.
+  It is not a live-connected claim.
+- Guided deterministic calculation covers explicit `sum`/`count` objectives
+  against one materialized source. The bounded taught job covers one scalar
+  method over one workbook row plus one wait. Compound, arbitrary multi-row or
+  unsupported methods still clarify rather than invent.
 - The explicit advanced form remains available for controlled fixtures; it is
-  not evidence of autonomous discovery. The guided browser evidence and the
-  explicit browser evidence are stored separately.
+  not evidence of autonomous discovery. Guided and explicit browser evidence
+  are stored separately.
 - The planner is a capability planner over registered adapters, not a new
   business workflow engine. It does not grant permissions or invent adapters.
 - A production Outlook send still requires a prepared canvas and the existing
   approval path; the start form marks the controlled transport only for
   acceptance.
+- Owner teaching/OAuth working-tree files are required by the current
+  candidate but remain outside the scoped commits; a clean release checkout
+  must include them before deployment.
 - No deployment, credential change or source modification.

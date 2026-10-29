@@ -1,0 +1,115 @@
+{
+  "slice": "bounded-taught-method-job",
+  "controlled": true,
+  "live_connected": false,
+  "objective": "Prepare the bounded review package using the taught method",
+  "plan_revision": 1,
+  "teaching_revision": "6c2bec75eb744b84+cfc5c0593909305a",
+  "sources": [
+    {
+      "kind": "workbook",
+      "binding": {
+        "resource_id": "scotch-entry",
+        "dataset_name": "scotch_parts_price_list",
+        "source": "onedrive",
+        "source_kind": "file",
+        "external_id": "scotch-drive-1",
+        "original_file_name": "scotch-parts.xlsx",
+        "representation": "parquet_frame",
+        "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sheet": "US$ SCOTCH PARTS",
+        "columns": [
+          "Item Number",
+          "Description",
+          "Quantity",
+          "Unit Price",
+          "Total",
+          "Currency",
+          "__sheet_row"
+        ],
+        "numeric_columns": [
+          "Quantity",
+          "Unit Price",
+          "Total"
+        ],
+        "row_count": 3,
+        "coverage": {
+          "known": true,
+          "source_row_count": 3,
+          "materialized_row_count": 3,
+          "truncated": false
+        },
+        "access_scope": {
+          "user_id": "lead-1",
+          "workspace_id": "ws-1",
+          "tenant_id": "tenant-1"
+        },
+        "workspace_id": "ws-1",
+        "tenant_id": "tenant-1",
+        "internal_fixture": false
+      }
+    },
+    {
+      "kind": "document",
+      "binding": {
+        "resource_id": "fixture:email-note.docx",
+        "dataset_name": null,
+        "source": null,
+        "source_kind": null,
+        "external_id": null,
+        "original_file_name": "email-note.docx",
+        "representation": "file",
+        "source_version": "feca7d12b2dc2003d6b8067ba5ed80173a24cdc14eb317bda1cf5cf2e19e1929",
+        "sheet": null,
+        "columns": [],
+        "numeric_columns": [],
+        "row_count": null,
+        "coverage": {
+          "known": true,
+          "truncated": false,
+          "controlled_fixture": true
+        },
+        "access_scope": {
+          "user_id": "lead-1",
+          "workspace_id": "ws-1",
+          "tenant_id": "tenant-1"
+        },
+        "workspace_id": "ws-1",
+        "tenant_id": "tenant-1",
+        "internal_fixture": true
+      }
+    }
+  ],
+  "calculation": {
+    "expression": "line_total * correction_factor",
+    "bindings": {
+      "line_total": {
+        "$ref": "source-1.rows.0.Total"
+      },
+      "correction_factor": {
+        "$ref": "wait.value"
+      }
+    },
+    "value": "24.00",
+    "unit": "USD"
+  },
+  "wait_response": "1.2",
+  "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-1760/test_bounded_taught_method_job0/ws-1/lead-1/draft-e36d4d7eee7a/bounded-review-c4c71d78.docx",
+  "stored_artifact": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/durable_assignment_20261029/bounded-taught-job/bounded-review.docx",
+  "artifact_sha256": "f9fe7da4a37c5f85d9a3f53b3dd8852a1e6429a4cc751ab5c4d2897a4034bc7f",
+  "artifact_text": "Prepare the bounded review package using the taught method\nObjective\nPrepare the bounded review package using the taught method\nSummary\ncontrolled reply received: 1.2\nline_total * correction_factor   [line_total=20.0; correction_factor=1.2] = 24.00 USD\nFindings\nscotch-parts.xlsx / US$ SCOTCH PARTS\nemail-note.docx\nSources\nscotch_parts_price_list\nscotch-parts.xlsx\nUS$ SCOTCH PARTS\nscotch-entry\nemail-note.docx\nfixture:email-note.docx\nscotch-parts.xlsx / US$ SCOTCH PARTS\nRow | Item Number | Description | Quantity | Unit Price | Total | Currency\n2 | SC-1 | Scotch A | 2 | 10.0 | 20.0 | USD\n3 | SC-2 | Scotch B | 3 | 20.0 | 60.0 | USD\n4 | SC-3 | Scotch C | 1 | 5.0 | 5.0 | USD\nRow | excerpt\n | Customer: Acme\n | Approval reference: REF-9\n | Message: please review the corrected line total.",
+  "draft": {
+    "to": [],
+    "cc": [],
+    "subject": "[Review] Prepare the bounded review package using the taught method",
+    "body": "<p>Dear reviewer,</p>Result:\n- controlled reply received: 1.2\n- line_total * correction_factor   [line_total=20.0; correction_factor=1.2] = 24.00 USD\nFindings:\n- scotch-parts.xlsx / US$ SCOTCH PARTS\n  - row 2: SC-1 | Scotch A | 2 | 10.0 | 20.0 | USD\n  - row 3: SC-2 | Scotch B | 3 | 20.0 | 60.0 | USD\n  - row 4: SC-3 | Scotch C | 1 | 5.0 | 5.0 | USD\n- email-note.docx\n  - Customer: Acme\n  - Approval reference: REF-9\n  - Message: please review the corrected line total.\nSources:\n- scotch_parts_price_list\n- scotch-parts.xlsx\n- US$ SCOTCH PARTS\n- scotch-entry\n- email-note.docx\n- fixture:email-note.docx\n- scotch-parts.xlsx / US$ SCOTCH PARTS<p>Regards, Operations</p>",
+    "attachments": [],
+    "draft_only": true,
+    "send_performed": false,
+    "teaching_revision": "6c2bec75eb744b84+cfc5c0593909305a",
+    "draft_revision": "104c4d97b51b2535",
+    "draft_revision_version": 2
+  },
+  "draft_revision": "104c4d97b51b2535",
+  "reopened_status": "completed"
+}

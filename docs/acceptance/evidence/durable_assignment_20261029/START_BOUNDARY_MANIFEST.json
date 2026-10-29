@@ -4,6 +4,8 @@
  "correction_commit": "322981bcc",
  "connected_guided_commit": "40b3367d9",
  "evidence_refresh_commit": "c02f523ac",
+ "review_fix_commit": "294fdf0ec",
+ "bounded_job_commit": "pending-freeze",
  "branch": "whole-app/successor-f5f",
  "preserved_commit": "efc4bc9d5",
  "start_route": "POST /api/assignments",
@@ -27,7 +29,11 @@
   "guided_screenshots": ["browser-guided/guided-document-completed.png", "browser-guided/guided-presentation-completed.png"],
   "explicit_browser": "browser-explicit/playwright.txt",
   "explicit_browser_after_restart": "browser-explicit/playwright-restart.txt",
-  "explicit_outbox": "browser-explicit/outbox.jsonl"
+  "explicit_outbox": "browser-explicit/outbox.jsonl",
+  "bounded_taught_job": "bounded-taught-job/bounded_taught_job.json",
+  "bounded_taught_artifact": "bounded-taught-job/bounded-review.docx",
+  "review": "docs/acceptance/ASSIGNMENT_REVIEW_2026-10-29.md",
+  "live_connected_gate": "docs/acceptance/LIVE_CONNECTED_GATE_2026-10-29.md"
  },
  "connected_guided": {
   "source": "real scoped DatasetEntry -> real Parquet -> real resolver/reader",
@@ -46,15 +52,35 @@
   "reopened": "both completed"
  },
  "controls": {
-  "backend": "126 passed",
+  "backend": "134 passed",
   "frontend_component": "3 passed",
   "guided_browser_start": "1 passed",
   "guided_browser_after_restart": "1 passed",
   "explicit_browser_start": "1 passed",
   "explicit_browser_after_restart": "1 passed",
   "connected_acceptance": "passed",
+  "bounded_taught_job": "passed",
   "typescript": "clean"
  },
+ "bounded_taught_job": {
+  "controlled": true,
+  "live_connected": false,
+  "sources": ["connected scratch Parquet workbook", "controlled document/email evidence"],
+  "taught_expression": "line_total * correction_factor",
+  "wait_response": "1.2",
+  "value": "24.00",
+  "artifact": "bounded-taught-job/bounded-review.docx",
+  "draft": "formatted email draft",
+  "reopened": "completed"
+ },
+ "live_connected": false,
+ "changed_source_refresh": false,
+ "remaining_blocks": [
+  "MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET are absent from the runtime",
+  "live OneDrive guided start not run",
+  "disposable changed-byte refresh authorization not granted",
+  "owner teaching working-tree files remain outside scoped commits"
+ ],
  "transport": "environment-gated controlled outbox only",
  "live_send": false,
  "deployment": false
