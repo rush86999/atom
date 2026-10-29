@@ -4,6 +4,7 @@
   "package_doc": "docs/acceptance/assignment-successor-package-2026-10-29/ASSIGNMENT_SUCCESSOR_PACKAGE_2026-10-29.md",
   "package_commit": "13a7f82a2",
   "evidence_refresh_commit": "46e0b91a0",
+  "live_preflight_commit": "90ff58421",
   "candidate": {
     "branch": "whole-app/successor-f5f",
     "source_commit": "de25c5148",
