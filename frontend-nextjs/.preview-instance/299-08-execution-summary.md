@@ -1,1 +1,0 @@
-/Users/rushiparikh/projects/atom/frontend-nextjs/299-08-execution-summary.md

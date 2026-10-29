@@ -1,1 +1,0 @@
-/Users/rushiparikh/projects/atom/frontend-nextjs/next-env.d.ts
