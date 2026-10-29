@@ -138,6 +138,7 @@ product returned 422 before creating a job. Fixed in
 | Stale version | `stale_source_version` (409), active version named |
 | Inactive/superseded source | `source_inactive` (409); unit control |
 | Revoked grant | `source_permission_revoked` (403) |
+| Revoked-grant chat retrieval | named and generic catalog asks returned no cached total; the answer named the inactive/revoked grant |
 | Disconnected source | `source_disconnected` (409); unit control |
 | Client-supplied `file_path` | 422 `extra_forbidden` |
 | Client-supplied `sha256` | 422 `extra_forbidden` |
@@ -167,6 +168,10 @@ separate sandbox drive where the operator permits a write), then a re-run of
 the refresh boundary. Until then the connected employee job is accepted for
 its demonstrated scope, but the overall exit condition for a successor release
 remains open.
+
+The Microsoft Graph access token expired at `2026-10-29T00:27:28Z`, after the
+evidence run. No refresh, rotation or reconnect was performed; further live
+runs require the owner to reconnect.
 
 ## Release position
 

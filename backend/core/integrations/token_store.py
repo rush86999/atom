@@ -25,6 +25,62 @@ logger = logging.getLogger(__name__)
 # Refresh when the access token expires within this window.
 _EXPIRY_MARGIN = timedelta(minutes=2)
 
+# One umbrella OAuth grant writes one IntegrationToken row per provider alias
+# (see _TOKEN_FANOUT in api/oauth_routes.py). A catalog source must ask the
+# whole family before deciding a grant is gone.
+SOURCE_PROVIDER_ALIASES = {
+    "onedrive": ("onedrive", "microsoft", "outlook", "microsoft365"),
+    "microsoft": ("microsoft", "onedrive", "outlook", "microsoft365"),
+    "microsoft365": ("microsoft365", "microsoft", "onedrive", "outlook"),
+    "outlook": ("outlook", "microsoft", "onedrive", "microsoft365"),
+    "google_drive": ("google_drive", "google", "gmail"),
+    "google": ("google", "google_drive", "gmail"),
+    "gmail": ("gmail", "google", "google_drive"),
+    "zoho_workdrive": ("zoho_workdrive", "zoho"),
+    "zoho": ("zoho", "zoho_workdrive"),
+}
+
+
+def connected_source_grant_state(
+    source: str, user_id: Optional[str],
+) -> str:
+    """Return ``active`` / ``revoked`` / ``disconnected`` / ``unknown``.
+
+    Read-only state check over the existing token store. It does NOT refresh;
+    a caller that needs live access still resolves the token through the
+    provider service. ``unknown`` means this is not a connected-source family
+    or the caller did not supply an authenticated user, so legacy/local reads
+    keep working.
+    """
+    aliases = SOURCE_PROVIDER_ALIASES.get(str(source or "").strip().lower())
+    uid = str(user_id or "").strip()
+    if not aliases or not uid:
+        return "unknown"
+    from core.database import SessionLocal
+    from core.models import IntegrationToken
+
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(IntegrationToken)
+            .filter(
+                IntegrationToken.user_id == uid,
+                IntegrationToken.provider.in_(list(aliases)),
+            )
+            .all()
+        )
+        if any(
+            str(row.status or "").lower() == "active" and row.access_token
+            for row in rows
+        ):
+            return "active"
+        return "revoked" if rows else "disconnected"
+    except Exception as e:  # noqa: BLE001 — state check must not crash a read
+        logger.error(f"Error checking connected grant {source} for {uid}: {e}")
+        return "unknown"
+    finally:
+        db.close()
+
 
 async def resolve_integration_token(
     user_id: str,

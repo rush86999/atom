@@ -1,0 +1,25 @@
+{
+ "named": {
+  "http": 200,
+  "elapsed_seconds": 23.82,
+  "message": "I could not resolve that document against the catalogued files \u2014 nothing was read. Connected source grant is not active.",
+  "has_cached_total": false,
+  "grant_blocked": true
+ },
+ "generic": {
+  "http": 200,
+  "elapsed_seconds": 73.65,
+  "message": "The unit price for part number **046005** is not supported from the connected workbooks right now \u2014 the OneDrive source grant is revoked, so the connected search returned no rows for that part number. Reconnect OneDrive and retry to retrieve the exact unit price.",
+  "has_cached_total": false,
+  "grant_blocked": false
+ },
+ "restored_connection": {
+  "is_connected": false,
+  "reason": "No OneDrive/Microsoft connection found. Connect the integration first.",
+  "user_id": "1e3b6cdb-ab8b-4ad2-ac08-233058ff230d",
+  "email": null,
+  "scope": null,
+  "token_provider": null
+ },
+ "note": "The named and generic asks were blocked after revoking the grant. The trailing connection-status check ran after the Microsoft access token had naturally expired at 2026-10-29T00:27:28Z; the browser restore evidence was captured before expiry and shows Connected."
+}

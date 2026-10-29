@@ -101,6 +101,23 @@ async def load_registered_dataset(
                 "error": f"No active dataset named '{dataset_name}'. Call find_datasets first.",
             }
 
+        # The catalog copy is not a grant: a revoked/disconnected connected
+        # source must not be loaded into a query session from cache.
+        from core.integrations.token_store import connected_source_grant_state
+
+        grant_state = connected_source_grant_state(
+            entry.get("source"), kwargs.get("user_id"),
+        )
+        if grant_state in {"revoked", "disconnected"}:
+            return {
+                "success": False,
+                "error": (
+                    f"Connected source grant is {grant_state}; reconnect "
+                    "before loading cached rows."
+                ),
+                "source_access": grant_state,
+            }
+
         path = entry.get("parquet_path") or ""
         # Defense in depth: only catalog-registered paths under the data root.
         _validate_dataset_source(path)

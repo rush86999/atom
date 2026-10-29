@@ -24,7 +24,7 @@ release. Nothing here is a deployment or a successor tag.
 | Repeat sync | Completed `unchanged=True skipped`; no duplicate logical records observed |
 | Restart | Same retrieval total/version; fresh 5/5 certified assessment; drafts and artifacts reopened |
 | Data/Settings browser | Connected state, scope, last success, coverage, failure, retry, disconnected/stale and restored states all exercised at `localhost:3003/settings` |
-| Negative controls | Wrong workspace, guessed id, stale version, inactive source, revoked grant, disconnected source, client path/hash/rows, incomplete materialization, blank/duplicate subject, snapshot-writeback claim |
+| Negative controls | Wrong workspace, guessed id, stale version, inactive source, revoked grant, disconnected source, revoked-grant chat retrieval (no cached total), client path/hash/rows, incomplete materialization, blank/duplicate subject, snapshot-writeback claim |
 
 Evidence: `docs/acceptance/evidence/connected_core_20261028/`
 Detailed run: `docs/acceptance/EMPLOYEE_JOB_2026-10-28.md`
@@ -62,6 +62,9 @@ Ledger: `docs/acceptance/CONNECTED_CORE_LEDGER_2026-10-28.json`
   and memory are recorded, but no cost figure is claimed.
 - **Zoho WorkDrive.** Refresh still returns `invalid_client`; owner
   reauthorization is required and was not bypassed.
+- **Microsoft token expiry.** The Graph access token expired at
+  `2026-10-29T00:27:28Z`, after the evidence run. No refresh, rotation or
+  reconnect was performed; further live runs require the owner to reconnect.
 
 ## Release position
 

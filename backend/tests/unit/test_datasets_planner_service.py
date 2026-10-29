@@ -23,13 +23,26 @@ from core.sheet_dataset_service import search_all_datasets_sync
 def _isolated(tmp_path, monkeypatch):
     import core.models  # noqa: F401
     from core.database import SessionLocal
-    from core.models import DatasetEntry
+    from core.models import DatasetEntry, IntegrationToken
 
     Base.metadata.create_all(bind=engine)
     monkeypatch.setenv("ATOM_DATA_DIR", str(tmp_path))
+    with SessionLocal() as db:
+        db.query(IntegrationToken).filter(
+            IntegrationToken.user_id == "u1"
+        ).delete()
+        db.add(IntegrationToken(
+            id="planner-test-token", tenant_id="default", user_id="u1",
+            workspace_id="ws-test", provider="zoho_workdrive",
+            access_token="test-token", status="active",
+        ))
+        db.commit()
     yield
     with SessionLocal() as db:
         db.query(DatasetEntry).delete()
+        db.query(IntegrationToken).filter(
+            IntegrationToken.user_id == "u1"
+        ).delete()
         db.commit()
 
 

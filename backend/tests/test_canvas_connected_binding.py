@@ -140,6 +140,25 @@ def test_scoped_lookup_refuses_missing_workspace():
         resolve_dataset_entry_scoped_sync("anything", workspace_id="")
 
 
+def test_grant_state_distinguishes_revoked_from_disconnected(world):
+    from core.integrations.token_store import connected_source_grant_state
+
+    assert connected_source_grant_state("onedrive", "connected-user") == "active"
+    with SessionLocal() as db:
+        token = db.query(IntegrationToken).filter(
+            IntegrationToken.id == "connected-token"
+        ).one()
+        token.status = "revoked"
+        db.commit()
+    assert connected_source_grant_state("onedrive", "connected-user") == "revoked"
+    with SessionLocal() as db:
+        db.query(IntegrationToken).filter(
+            IntegrationToken.id == "connected-token"
+        ).delete()
+        db.commit()
+    assert connected_source_grant_state("onedrive", "connected-user") == "disconnected"
+
+
 def test_connected_bind_preserves_snapshot_and_upstream_identity(world, monkeypatch):
     from core.canvas_capability_service import calculate_operation, edit_operation
 

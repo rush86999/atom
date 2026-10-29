@@ -25,8 +25,9 @@
   {
    "provider": "microsoft_graph",
    "services": ["outlook", "onedrive"],
-   "status": "active",
-   "evidence": "Graph /me and /me/drive/root/children returned 200; real OneDrive ingestion and Outlook MIME import completed"
+   "status": "active_during_campaign",
+   "evidence": "Graph /me and /me/drive/root/children returned 200; real OneDrive ingestion and Outlook MIME import completed",
+   "post_campaign_state": "access token expired at 2026-10-29T00:27:28Z; no refresh, rotation or reconnect was performed"
   },
   {
    "provider": "zoho_workdrive",
@@ -203,6 +204,12 @@
     "client_rows": "422 extra_forbidden",
     "revoked_grant": "source_permission_revoked (403)"
    },
+   "revoked_chat_retrieval": {
+    "status": "pass",
+    "named_ask": "no cached total; connected-source grant inactive message",
+    "generic_ask": "no cached total; grant revoked message",
+    "evidence": "employee_revoked_retrieval.json"
+   },
    "unit": [
     "missing workspace scope",
     "wrong workspace",
@@ -213,7 +220,7 @@
     "duplicate subject",
     "snapshot edit does not write upstream"
    ],
-   "evidence": "employee_negative_controls.json; backend/tests/test_canvas_connected_binding.py"
+   "evidence": "employee_negative_controls.json; employee_revoked_retrieval.json; backend/tests/test_canvas_connected_binding.py"
   },
   "refresh": {
    "status": "partial",
@@ -234,8 +241,8 @@
   },
   "authorization": {
    "status": "partial",
-   "existing": "R3 canvas/office owner checks, server-side capability intersection and single-user deployment guard",
-   "missing": "per-file multi-user Office authorization and a live revoked-provider negative control across users"
+   "existing": "R3 canvas/office owner checks, server-side capability intersection, single-user deployment guard, and revoked-grant blocking for canvas, chat named/generic catalog retrieval and dataset loading",
+   "missing": "per-file multi-user Office authorization and a cross-user revoked-provider control"
   }
  },
  "exit_condition_met": false,
@@ -246,6 +253,7 @@
  "credential_rotation_performed": false,
  "known_failures": [
   "Zoho WorkDrive refresh invalid_client",
+  "Microsoft Graph access token expired after the campaign; owner reconnect required for further live runs",
   "Live changed-byte OneDrive refresh not exercised under the no-writeback constraint",
   "Structured review route does not persist token cost; no cost figure is claimed",
   "Multi-user per-file Office authorization remains unsupported"

@@ -51,17 +51,7 @@ _MAX_ASSESS_SUBJECTS = int(os.getenv("ATOM_ASSESS_MAX_SUBJECTS", "50") or 50)
 # existing journey services already resolve; adding a provider here does not
 # grant access, it only lets the binding ask the existing token store whether
 # the authenticated user still has an active grant.
-_CONNECTED_PROVIDER_ALIASES = {
-    "onedrive": ("onedrive", "microsoft", "outlook", "microsoft365"),
-    "microsoft": ("microsoft", "onedrive", "outlook", "microsoft365"),
-    "microsoft365": ("microsoft365", "microsoft", "onedrive", "outlook"),
-    "outlook": ("outlook", "microsoft", "onedrive", "microsoft365"),
-    "google_drive": ("google_drive", "google", "gmail"),
-    "google": ("google", "google_drive", "gmail"),
-    "gmail": ("gmail", "google", "google_drive"),
-    "zoho_workdrive": ("zoho_workdrive", "zoho"),
-    "zoho": ("zoho", "zoho_workdrive"),
-}
+from core.integrations.token_store import SOURCE_PROVIDER_ALIASES as _CONNECTED_PROVIDER_ALIASES
 
 
 class CapabilityError(Exception):

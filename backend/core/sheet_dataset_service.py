@@ -1465,6 +1465,25 @@ def search_all_datasets_sync(
             order.append(key)
         files[key].append(e)
     order = order[:max_files]
+    blocked_sources: Dict[str, str] = {}
+    if user_id:
+        try:
+            from core.integrations.token_store import (
+                connected_source_grant_state,
+            )
+
+            states: Dict[str, str] = {}
+            for key in list(order):
+                source = str(key[0] or "")
+                state = states.get(source)
+                if state is None:
+                    state = connected_source_grant_state(source, user_id)
+                    states[source] = state
+                if state in {"revoked", "disconnected"}:
+                    blocked_sources[source] = state
+            order = [key for key in order if key[0] not in blocked_sources]
+        except Exception as e:  # noqa: BLE001 — local catalog unaffected
+            logger.debug(f"source grant filter skipped: {e}")
     # A query that NAMES a file must reach that file. Token content-matching alone
     # does not do it: "vipul" occurs inside an unrelated vendor form and an
     # invoice export, and those matched before the workbook whose NAME contains
@@ -1534,6 +1553,7 @@ def search_all_datasets_sync(
                 "files_searched": len(order),
                 "hits": named[:limit],
                 "incomplete": _out_of_time(),
+                "blocked_sources": blocked_sources,
             }
     for token in candidates or [None]:
         if token is None:
@@ -1559,6 +1579,7 @@ def search_all_datasets_sync(
                 "files_searched": len(order),
                 "hits": hits[:limit],
                 "incomplete": _out_of_time(),
+                "blocked_sources": blocked_sources,
                 "subject_scope_omitted": sorted(_omitted)[:12],
                 "subject_scope_unprobed": sorted(
                     str(request_subjects[i])[:80]
@@ -1570,6 +1591,7 @@ def search_all_datasets_sync(
         "tokens_tried": candidates,
         "files_searched": len(order),
         "hits": [],
+        "blocked_sources": blocked_sources,
         # "nothing matched" and "time ran out" are different answers, and the
         # caller must be able to tell them apart — otherwise a truncated scan
         # reads as a definitive empty catalog.
@@ -2330,9 +2352,14 @@ def _probe_sheet_hits(entries: List[Dict[str, Any]], token: str, max_rows: int) 
             ):
                 _rows = _rows_all
                 return {
+                    "dataset_name": e.get("dataset_name"),
                     "file_name": e.get("file_name"),
                     "entity_name": e.get("entity_name"),
+                    "source_kind": e.get("source_kind"),
+                    "source": e.get("source"),
                     "external_id": e.get("external_id"),
+                    "content_hash": e.get("content_hash"),
+                    "ingested_at": e.get("ingested_at"),
                     "source_modified_at": e.get("source_modified_at"),
                     "sql": f"-- content probe: scanned for '{token}' (whole-number match)",
                     "columns": head.columns.tolist(),

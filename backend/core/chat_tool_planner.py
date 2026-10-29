@@ -7434,6 +7434,49 @@ async def _datasets_named_file_block(
     if not file_entries:
         return None
 
+    # A materialized copy is not a grant. Check the caller's current source
+    # grant before this lane reads rows; revoked and disconnected must not be
+    # papered over with cached data.
+    try:
+        from core.integrations.token_store import connected_source_grant_state
+
+        grant_user_id = user_id or (context or {}).get("user_id")
+        blocked_states = {}
+        for entry in file_entries:
+            source_name = str(entry.get("source") or "")
+            state = connected_source_grant_state(source_name, grant_user_id)
+            if state in {"revoked", "disconnected"}:
+                blocked_states[source_name or "unknown"] = state
+        if blocked_states:
+            if plan is not None:
+                meta = getattr(plan, "_result_meta", None)
+                if not isinstance(meta, dict):
+                    meta = {}
+                    plan._result_meta = meta
+                meta["storage_read"] = {
+                    "service": "datasets",
+                    "file_id": key[1] or None,
+                    "resource_id": key[1] or None,
+                    "file_name": names.get(key),
+                    "identity_verified": False,
+                    "completed": False,
+                    "served": False,
+                    "coverage_complete": False,
+                    "source_access": blocked_states,
+                    "note": "connected source grant is not active",
+                }
+            state_text = ", ".join(
+                f"{src}={state}" for src, state in sorted(blocked_states.items())
+            )
+            return _with_grounding(
+                "LIVE TOOL RESULTS (datasets.named-file) — the connected "
+                f"source grant is not active ({state_text}). No catalogued "
+                "rows were served from the cached copy. Reconnect the source "
+                "and retry; do not report the cached value as current."
+            )
+    except Exception as _grant_err:  # noqa: BLE001 — state check is best-effort
+        logger.debug("named-file grant check skipped: %r", _grant_err)
+
     e0 = file_entries[0]
     hashes = {
         str(entry.get("content_hash") or "")
@@ -8721,6 +8764,28 @@ async def _datasets_search_block(
     )
     files_searched = result.get("files_searched", 0) if result else 0
     hits = (result or {}).get("hits") or []
+    blocked_sources = (result or {}).get("blocked_sources") or {}
+    if blocked_sources and not hits:
+        if plan is not None:
+            meta = getattr(plan, "_result_meta", None)
+            if not isinstance(meta, dict):
+                meta = {}
+                plan._result_meta = meta
+            meta["datasets_search"] = {
+                "files_searched": int(files_searched or 0),
+                "hits": 0,
+                "blocked_sources": blocked_sources,
+                "query": str(query)[:200],
+            }
+        state_text = ", ".join(
+            f"{src}={state}" for src, state in sorted(blocked_sources.items())
+        )
+        return _with_grounding(
+            "LIVE TOOL RESULTS (datasets.search) — the connected source "
+            f"grant is not active ({state_text}). No catalogued rows were "
+            "served from the cached copy. Reconnect the source and retry; "
+            "do not report the cached value as current."
+        )
     # STRUCTURED RECEIPT (round 36 reviewer correction 4): this branch
     # previously returned ONLY prose — the ledger read 2,641 chars of text
     # with no execution receipt and could not distinguish a real empty

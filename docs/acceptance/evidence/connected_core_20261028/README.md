@@ -40,6 +40,8 @@ on live changed-source refresh.** Not a release package. R3 remains frozen.
   assessment after restart.
 - `employee_negative_controls.json` — API-level wrong/stale/forged/revoked
   refusals.
+- `employee_revoked_retrieval.json` — named and generic chat retrieval after
+  grant revocation; neither returned a cached total.
 - `employee_refresh_rebind.json` — explicit rebind, prior provenance retained,
   assessment reuse invalidated.
 - `browser/` — Data/Settings screenshots and text for connected, retry,
@@ -63,6 +65,8 @@ on live changed-source refresh.** Not a release package. R3 remains frozen.
   unit control were used instead.
 - Multi-user per-file Office authorization remains unsupported.
 - Token cost was not metered; no cost figure is claimed.
+- Microsoft Graph access expired at `2026-10-29T00:27:28Z` after the evidence
+  run; owner reconnect is required for further live runs.
 - Deployment, send and credential rotation did not occur.
 
 ## Honest blockers
