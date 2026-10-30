@@ -117,6 +117,7 @@ export function AssignmentPanel({
     unit: string;
   } | null>(null);
   const [responseDraft, setResponseDraft] = useState("");
+  const [resolutionValue, setResolutionValue] = useState("");
   const [sources, setSources] = useState<AssignmentSource[]>([]);
   const [agents, setAgents] = useState<AssignmentAgent[]>([]);
   const [sourcesLoading, setSourcesLoading] = useState(true);
@@ -711,13 +712,22 @@ export function AssignmentPanel({
                   : ""}. Paste only the authorized response; it is evidence,
                 not teaching.
               </p>
-              <div className="mt-1 flex gap-1">
+              <div className="mt-1 space-y-1">
                 <input
                   value={responseDraft}
                   onChange={(e) => setResponseDraft(e.target.value)}
                   placeholder="Authorized response"
-                  className="min-w-0 flex-1 rounded border px-1.5 py-1"
+                  className="w-full rounded border px-1.5 py-1"
                   aria-label="Correlated response"
+                />
+                <div className="flex gap-1">
+                <input
+                  value={resolutionValue}
+                  onChange={(e) => setResolutionValue(e.target.value)}
+                  placeholder="Exact value (optional, for agreeing with an established fact)"
+                  className="min-w-0 flex-1 rounded border px-1.5 py-1"
+                  aria-label="Exact resolution value"
+                  data-testid="assignment-resolution-value"
                 />
                 <Button
                   size="sm"
@@ -727,10 +737,14 @@ export function AssignmentPanel({
                       const result = await recordAssignmentResponse(
                         detail.run_id,
                         String(step.waiting.correlation_id),
-                        responseDraft
+                        responseDraft,
+                        "",
+                        resolutionValue.trim() || undefined
                       );
                       if (result?.status === "conflict"
-                          || result?.status === "partial") {
+                          || result?.status === "partial"
+                          || result?.status === "unavailable"
+                          || result?.status === "incomplete") {
                         setNotice(
                           String(result.message || "The reply conflicts with "
                             + "the source and did not complete the wait.")
@@ -746,6 +760,7 @@ export function AssignmentPanel({
                 >
                   <Send className="h-3 w-3" /> Deliver
                 </Button>
+                </div>
               </div>
             </div>
           ) : null}

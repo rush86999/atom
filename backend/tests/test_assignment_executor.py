@@ -1385,3 +1385,219 @@ def test_mixed_currency_values_require_record_specific_resolution(env):
     assert conflict["reason"] == "source_fact_mixed"
     assert conflict["blank_subjects"]
     assert conflict["established_values"] == ["USD"]
+
+
+def test_substring_replies_do_not_confirm_established_values(env):
+    run_id, _ = _wait_assignment(
+        env, correlation="corr-substring", fact="currency",
+        source_values=[{"currency": "USD", "value": "400.00"}])
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    for reply in ("Not USD; use EUR", "USDX"):
+        result = executor.record_external_response(
+            run_id, "corr-substring", response=reply)
+        assert result["status"] == "conflict", (reply, result)
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "waiting"
+    assert all(item["reason"] == "source_fact_conflict"
+               for item in wait_step["waiting"]["conflicts"])
+
+
+def test_numeric_substring_reply_is_not_agreement(env):
+    run_id, _ = _wait_assignment(
+        env, correlation="corr-number", fact="currency",
+        source_values=[{"currency": "120", "value": "400.00"}])
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-number", response="20")
+    assert result["status"] == "conflict"
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")["status"] == "waiting"
+
+
+def test_explicit_typed_value_can_confirm_with_explanatory_text(env):
+    run_id, _ = _wait_assignment(
+        env, correlation="corr-explicit", fact="currency",
+        source_values=[{"currency": "USD", "value": "400.00"}])
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-explicit", response="Use USD for this quote",
+        value="USD")
+    assert result["status"] == "resumed"
+    _run(executor.execute(run_id))
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "applied"
+    assert wait_step["external_response"]["fact_confirmation"][
+        "reason"] == "source_fact_confirmed"
+
+
+def _parquet_source(env, rows):
+    import pandas as pd
+
+    path = env["tmp"] / f"fact-{uuid.uuid4().hex[:8]}.parquet"
+    pd.DataFrame(rows).to_parquet(path, index=False)
+    return path
+
+
+def test_fact_resolution_uses_only_accepted_rows(env):
+    path = _parquet_source(env, {
+        "Currency": ["USD", "EUR"],
+        "__sheet_row": [2, 3],
+    })
+    accepted = {
+        "status": "applied", "summary": "accepted row 2",
+        "evidence": [{
+            "path": str(path),
+            "sheet_rows": [2],
+            "selected_count": 1,
+            "coverage": {"known": True, "source_row_count": 2,
+                         "truncated": False},
+        }],
+        "selected_count": 1,
+    }
+
+    async def source(inputs, context):
+        return accepted
+
+    async def wait_fact(inputs, context):
+        step = context.get("step") or {}
+        if step.get("external_response"):
+            return {"status": "applied", "summary": "reply received",
+                    "value": step["external_response"].get("response")}
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "party": "owner", "correlation_id": "corr-filtered",
+            "resume_on": "response", "detail": "currency", "fact": "currency",
+        })
+
+    env["registry"].register("test.source", source)
+    env["registry"].register("test.wait_fact", wait_fact)
+    steps = [
+        new_step(
+            step_id="source", title="Read accepted row",
+            operation_type="retrieve", adapter="test.source",
+            inputs={"resource_binding": {
+                "columns": ["Currency", "__sheet_row"]}},
+            effect="read_only"),
+        new_step(
+            step_id="wait", title="Wait for currency",
+            operation_type="retrieve", adapter="test.wait_fact",
+            depends_on=["source"], effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Filtered fact", steps=steps, teaching=_teaching())
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-filtered", response="EUR")
+    assert result["status"] == "conflict"
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    conflict = wait_step["waiting"]["conflicts"][-1]
+    assert conflict["established_values"] == ["USD"]
+    assert conflict["subjects"] == ["row 2"]
+    assert "EUR" not in conflict["established_values"]
+
+
+def test_unreadable_evidence_is_not_treated_as_missing(env):
+    async def source(inputs, context):
+        return {
+            "status": "applied", "summary": "source with missing file",
+            "evidence": [{
+                "path": str(env["tmp"] / "missing.parquet"),
+                "sheet_rows": [2],
+                "selected_count": 1,
+                "coverage": {"known": True, "source_row_count": 1,
+                             "truncated": False},
+            }],
+            "selected_count": 1,
+        }
+
+    async def wait_fact(inputs, context):
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "party": "owner", "correlation_id": "corr-unreadable",
+            "resume_on": "response", "detail": "currency", "fact": "currency",
+        })
+
+    env["registry"].register("test.source", source)
+    env["registry"].register("test.wait_fact", wait_fact)
+    steps = [
+        new_step(
+            step_id="source", title="Read source",
+            operation_type="retrieve", adapter="test.source",
+            inputs={"resource_binding": {
+                "columns": ["Currency", "__sheet_row"]}},
+            effect="read_only"),
+        new_step(
+            step_id="wait", title="Wait for currency",
+            operation_type="retrieve", adapter="test.wait_fact",
+            depends_on=["source"], effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Unreadable fact", steps=steps, teaching=_teaching())
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-unreadable", response="USD")
+    assert result["status"] == "unavailable"
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "waiting"
+    assert wait_step["waiting"]["conflicts"][-1]["reason"] == (
+        "source_fact_unavailable")
+
+
+def test_incomplete_coverage_does_not_allow_ordinary_resolution(env):
+    path = _parquet_source(env, {
+        "Currency": ["USD"], "__sheet_row": [2],
+    })
+
+    async def source(inputs, context):
+        return {
+            "status": "applied", "summary": "truncated source",
+            "evidence": [{
+                "path": str(path), "sheet_rows": [2], "selected_count": 1,
+                "coverage": {"known": True, "source_row_count": 500001,
+                             "truncated": True},
+            }],
+            "selected_count": 1,
+        }
+
+    async def wait_fact(inputs, context):
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "party": "owner", "correlation_id": "corr-incomplete",
+            "resume_on": "response", "detail": "currency", "fact": "currency",
+        })
+
+    env["registry"].register("test.source", source)
+    env["registry"].register("test.wait_fact", wait_fact)
+    steps = [
+        new_step(
+            step_id="source", title="Read source",
+            operation_type="retrieve", adapter="test.source",
+            inputs={"resource_binding": {
+                "columns": ["Currency", "__sheet_row"]}},
+            effect="read_only"),
+        new_step(
+            step_id="wait", title="Wait for currency",
+            operation_type="retrieve", adapter="test.wait_fact",
+            depends_on=["source"], effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Incomplete fact", steps=steps, teaching=_teaching())
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-incomplete", response="USD")
+    assert result["status"] == "incomplete"
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "waiting"
+    assert wait_step["waiting"]["conflicts"][-1]["reason"] == (
+        "source_fact_incomplete")

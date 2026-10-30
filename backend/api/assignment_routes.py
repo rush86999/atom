@@ -80,6 +80,7 @@ class AssignmentExternalResponse(BaseModel):
     response: str
     source: str = ""
     evidence: str = ""
+    value: Optional[Any] = None
 
 
 class AssignmentStart(BaseModel):
@@ -696,10 +697,12 @@ async def record_assignment_response(
         response=body.response,
         source=body.source or str(current_user.id),
         evidence=body.evidence,
+        value=body.value,
     )
     if result.get("status") == "unmatched":
         raise HTTPException(status_code=404, detail=result.get("message"))
-    if result.get("status") in ("conflict", "partial"):
+    if result.get("status") in (
+            "conflict", "partial", "unavailable", "incomplete"):
         # The reply was retained as a durable conflict or record-specific
         # partial answer and the wait remains open. Do not resume and do not
         # turn it into a generic assignment projection the UI cannot explain.

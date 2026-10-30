@@ -232,11 +232,12 @@ export async function recordAssignmentResponse(
   runId: string,
   correlationId: string,
   response: string,
-  evidence = ""
+  evidence = "",
+  value?: unknown
 ): Promise<Record<string, any>> {
-  const { data } = await apiClient.post<AssignmentDetail>(
+  const { data } = await apiClient.post(
     `/api/assignments/${encodeURIComponent(runId)}/responses/${encodeURIComponent(correlationId)}`,
-    { response, evidence }
+    { response, evidence, value }
   );
   return data;
 }
