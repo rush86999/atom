@@ -784,13 +784,15 @@ def _fact_resolution_from_records(
 
 
 def _source_fact_resolution(record: Dict[str, Any], fact: str) -> Dict[str, Any]:
-    """Resolve the wait fact against the accepted read receipt's records.
+    """Resolve a wait fact through one validated evidence contract.
 
-    The resolver never treats a column header as a value, never scans the
-    whole frame when the receipt names selected rows, and never turns an
-    unreadable/incomplete receipt into a blank cell. Status is one of:
-    ``missing`` (verified blanks), ``established``, ``mixed``,
-    ``incomplete`` or ``unavailable``.
+    Coverage and accepted population are checked before any representation
+    is selected. Inline rows must cover the accepted identities exactly and
+    must actually carry the fact field. Parquet reads are filtered to the
+    accepted identities. Aggregate receipts must name their measure and the
+    grouping dimension explicitly; a subtotal key never satisfies an
+    unrelated measure. Status is ``missing`` (verified blanks),
+    ``established``, ``mixed``, ``incomplete`` or ``unavailable``.
     """
     wanted = _normalized_fact_name(fact)
     if not wanted:
@@ -832,26 +834,20 @@ def _source_fact_resolution(record: Dict[str, Any], fact: str) -> Dict[str, Any]
             "coverage": coverage,
         }
 
-        # A read adapter's result rows are already the accepted selection,
-        # but only when those rows actually carry the requested column. An
-        # aggregate may return rows containing only the measure; in that case
-        # use the receipt's row identities and read the bound frame.
-        raw_rows = result.get("rows")
-        if (isinstance(raw_rows, list) and raw_rows
-                and any(isinstance(row, dict) and column in row
-                        for row in raw_rows)):
-            records = []
-            for index, row in enumerate(raw_rows):
-                if not isinstance(row, dict):
-                    continue
-                subject = (
-                    f"row {row.get('__sheet_row')}"
-                    if row.get("__sheet_row") is not None
-                    else f"row {index + 1}")
-                records.append({"subject": subject, "value": row.get(column)})
-            if records:
-                return _fact_resolution_from_records(
-                    records, fact=fact, column=column, source=source)
+        # Validate coverage before choosing inline rows, Parquet or aggregate.
+        # A receipt that declares itself truncated is incomplete regardless
+        # of which representation it carries.
+        if (coverage.get("known") is False
+                or coverage.get("truncated") is True
+                or result.get("truncated") is True):
+            return {
+                "status": "incomplete",
+                "reason": "accepted_coverage_incomplete",
+                "fact": fact,
+                "column": column,
+                "source": source,
+                "source_version": source.get("source_version"),
+            }
 
         selected_rows: List[Any] = []
         selected_count = result.get("selected_count")
@@ -861,83 +857,88 @@ def _source_fact_resolution(record: Dict[str, Any], fact: str) -> Dict[str, Any]
             if selected_count is None:
                 selected_count = item.get("selected_count")
         selected_rows = list(dict.fromkeys(selected_rows))
+        if (selected_rows and selected_count is not None
+                and len(selected_rows) != int(selected_count)):
+            return {
+                "status": "incomplete",
+                "reason": "accepted_population_truncated",
+                "fact": fact,
+                "column": column,
+                "accepted_count": selected_count,
+                "identified_rows": len(selected_rows),
+                "source": source,
+                "source_version": source.get("source_version"),
+            }
         all_rows_selected = (
             not selected_rows
             and selected_count is not None
             and source_row_count is not None
             and int(selected_count) == int(source_row_count)
         )
-        if not selected_rows and not all_rows_selected:
-            # An aggregate receipt may carry accepted grouping values (for
-            # example currency keys) without per-row identities. Those values
-            # are bounded to the accepted aggregate, not the whole frame.
-            aggregate_records: List[Dict[str, Any]] = []
-            for item in result.get("values") or []:
-                if not isinstance(item, dict):
-                    continue
-                for key, val in item.items():
-                    if _normalized_fact_name(key) == wanted:
-                        aggregate_records.append({
-                            "subject": "aggregate",
-                            "value": val,
-                        })
-            if not aggregate_records and isinstance(
-                    result.get("subtotals"), dict):
-                for key in result["subtotals"]:
-                    aggregate_records.append({
-                        "subject": "aggregate",
-                        "value": key,
-                    })
-            if aggregate_records:
-                return _fact_resolution_from_records(
-                    aggregate_records, fact=fact, column=column, source=source)
-            return {
-                "status": "unavailable",
-                "reason": "accepted_row_identities_missing",
-                "fact": fact,
-                "column": column,
-                "source": source,
-                "source_version": source.get("source_version"),
-            }
-        if coverage.get("known") is False or coverage.get("truncated") is True:
-            return {
-                "status": "incomplete",
-                "reason": "accepted_coverage_incomplete",
-                "fact": fact,
-                "column": column,
-                "source": source,
-                "source_version": source.get("source_version"),
-            }
-        if not path or not Path(path).is_file():
-            return {
-                "status": "unavailable",
-                "reason": "evidence_path_missing",
-                "fact": fact,
-                "column": column,
-                "source": source,
-                "source_version": source.get("source_version"),
-            }
-        try:
-            import pyarrow.parquet as pq
+        accepted_known = bool(selected_rows) or all_rows_selected
 
-            read_columns = [column]
-            if "__sheet_row" in columns:
-                read_columns.append("__sheet_row")
-            table = pq.read_table(path, columns=read_columns)
-            frame = table.to_pylist()
-        except Exception as exc:  # noqa: BLE001 — unavailable, never blank
-            return {
-                "status": "unavailable",
-                "reason": "evidence_read_failed",
-                "detail": str(exc)[:300],
-                "fact": fact,
-                "column": column,
-                "source": source,
-                "source_version": source.get("source_version"),
-            }
-        if not selected_rows:
+        # 1. Inline rows: exact accepted population, and the field must be
+        # present in every accepted row (absent is not blank).
+        raw_rows = result.get("rows")
+        inline_candidate = (
+            isinstance(raw_rows, list) and raw_rows
+            and any(isinstance(row, dict)
+                    and row.get("__sheet_row") is not None
+                    for row in raw_rows)
+        )
+        if inline_candidate:
+            if not accepted_known:
+                return {
+                    "status": "unavailable",
+                    "reason": "accepted_row_identities_missing",
+                    "fact": fact,
+                    "column": column,
+                    "source": source,
+                    "source_version": source.get("source_version"),
+                }
+            inline_rows = [row for row in raw_rows if isinstance(row, dict)]
+            if selected_rows:
+                inline_ids = [
+                    str(row.get("__sheet_row"))
+                    for row in inline_rows
+                    if row.get("__sheet_row") is not None
+                ]
+                wanted_ids = [str(item) for item in selected_rows]
+                if (len(inline_ids) != len(inline_rows)
+                        or len(inline_ids) != len(wanted_ids)
+                        or set(inline_ids) != set(wanted_ids)):
+                    return {
+                        "status": "incomplete",
+                        "reason": "inline_rows_do_not_match_accepted_population",
+                        "fact": fact,
+                        "column": column,
+                        "accepted_rows": wanted_ids,
+                        "inline_rows": inline_ids,
+                        "source": source,
+                        "source_version": source.get("source_version"),
+                    }
+            elif len(inline_rows) != int(selected_count or 0):
+                return {
+                    "status": "incomplete",
+                    "reason": "inline_rows_do_not_match_accepted_count",
+                    "fact": fact,
+                    "column": column,
+                    "accepted_count": selected_count,
+                    "inline_count": len(inline_rows),
+                    "source": source,
+                    "source_version": source.get("source_version"),
+                }
+            if any(column not in row for row in inline_rows):
+                return {
+                    "status": "incomplete",
+                    "reason": "fact_field_absent_in_inline_rows",
+                    "fact": fact,
+                    "column": column,
+                    "source": source,
+                    "source_version": source.get("source_version"),
+                }
             records = []
-            for index, row in enumerate(frame):
+            for index, row in enumerate(inline_rows):
                 subject = (
                     f"row {row.get('__sheet_row')}"
                     if row.get("__sheet_row") is not None
@@ -945,31 +946,132 @@ def _source_fact_resolution(record: Dict[str, Any], fact: str) -> Dict[str, Any]
                 records.append({"subject": subject, "value": row.get(column)})
             return _fact_resolution_from_records(
                 records, fact=fact, column=column, source=source)
-        wanted_rows = {str(item) for item in selected_rows}
-        records = []
-        found_rows = set()
-        for index, row in enumerate(frame):
-            row_id = row.get("__sheet_row")
-            subject = (
-                f"row {row_id}" if row_id is not None else f"row {index + 1}")
-            if row_id is None or str(row_id) not in wanted_rows:
-                continue
-            found_rows.add(str(row_id))
-            records.append({"subject": subject, "value": row.get(column)})
-        missing_rows = sorted(wanted_rows - found_rows)
-        if missing_rows:
+
+        # 2. Parquet: read only the accepted identities. Without identities,
+        # do not scan the whole frame.
+        if accepted_known:
+            if not path or not Path(path).is_file():
+                return {
+                    "status": "unavailable",
+                    "reason": "evidence_path_missing",
+                    "fact": fact,
+                    "column": column,
+                    "source": source,
+                    "source_version": source.get("source_version"),
+                }
+            try:
+                import pyarrow.parquet as pq
+
+                read_columns = [column]
+                if "__sheet_row" in columns:
+                    read_columns.append("__sheet_row")
+                table = pq.read_table(path, columns=read_columns)
+                frame = table.to_pylist()
+            except Exception as exc:  # noqa: BLE001 — unavailable, never blank
+                return {
+                    "status": "unavailable",
+                    "reason": "evidence_read_failed",
+                    "detail": str(exc)[:300],
+                    "fact": fact,
+                    "column": column,
+                    "source": source,
+                    "source_version": source.get("source_version"),
+                }
+            if not selected_rows:
+                records = []
+                for index, row in enumerate(frame):
+                    subject = (
+                        f"row {row.get('__sheet_row')}"
+                        if row.get("__sheet_row") is not None
+                        else f"row {index + 1}")
+                    records.append({"subject": subject,
+                                    "value": row.get(column)})
+                return _fact_resolution_from_records(
+                    records, fact=fact, column=column, source=source)
+            wanted_rows = {str(item) for item in selected_rows}
+            records = []
+            found_rows = set()
+            for index, row in enumerate(frame):
+                row_id = row.get("__sheet_row")
+                subject = (
+                    f"row {row_id}" if row_id is not None
+                    else f"row {index + 1}")
+                if row_id is None or str(row_id) not in wanted_rows:
+                    continue
+                found_rows.add(str(row_id))
+                records.append({"subject": subject, "value": row.get(column)})
+            missing_rows = sorted(wanted_rows - found_rows)
+            if missing_rows:
+                return {
+                    "status": "incomplete",
+                    "reason": "accepted_rows_not_found",
+                    "missing_subjects": [f"row {item}" for item in missing_rows],
+                    "fact": fact,
+                    "column": column,
+                    "source": source,
+                    "source_version": source.get("source_version"),
+                }
+            return _fact_resolution_from_records(
+                records, fact=fact, column=column, source=source,
+                selected_rows=selected_rows)
+
+        # 3. Aggregate: require an explicit measure and grouping dimension.
+        # A subtotal key alone is not evidence for an unrelated measure, and
+        # an aggregate can only establish the fact named by its declared
+        # grouping dimension — never an arbitrary matching key.
+        measure = str(result.get("measure") or "").strip()
+        group_by = str(
+            result.get("group_by")
+            or result.get("grouping_dimension") or "").strip()
+        if not measure:
             return {
-                "status": "incomplete",
-                "reason": "accepted_rows_not_found",
-                "missing_subjects": [f"row {item}" for item in missing_rows],
+                "status": "unavailable",
+                "reason": "aggregate_measure_missing",
+                "fact": fact,
+                "column": column,
+                "source": source,
+                "source_version": source.get("source_version"),
+            }
+        if not group_by or _normalized_fact_name(group_by) != wanted:
+            return {
+                "status": "unavailable",
+                "reason": "aggregate_dimension_unbound",
+                "fact": fact,
+                "column": column,
+                "source": source,
+                "source_version": source.get("source_version"),
+            }
+        aggregate_records: List[Dict[str, Any]] = []
+        for item in result.get("values") or []:
+            if not isinstance(item, dict):
+                continue
+            fact_key = next((
+                key for key in item
+                if _normalized_fact_name(key) == wanted), None)
+            if fact_key is None:
+                continue
+            aggregate_records.append({
+                "subject": "aggregate",
+                "value": item.get(fact_key),
+            })
+        if (not aggregate_records
+                and isinstance(result.get("subtotals"), dict)):
+            for key in result["subtotals"]:
+                aggregate_records.append({
+                    "subject": "aggregate",
+                    "value": key,
+                })
+        if not aggregate_records:
+            return {
+                "status": "unavailable",
+                "reason": "aggregate_dimension_values_missing",
                 "fact": fact,
                 "column": column,
                 "source": source,
                 "source_version": source.get("source_version"),
             }
         return _fact_resolution_from_records(
-            records, fact=fact, column=column, source=source,
-            selected_rows=selected_rows)
+            aggregate_records, fact=fact, column=column, source=source)
     return {"status": "missing", "fact": fact, "reason": "no_bound_column"}
 
 
@@ -3909,6 +4011,8 @@ class AssignmentExecutor:
             "expression": result.get("expression"),
             "operation": result.get("operation"),
             "measure": result.get("measure"),
+            "group_by": result.get("group_by"),
+            "grouping_dimension": result.get("grouping_dimension"),
             "values": result.get("values"),
             "subtotals": result.get("subtotals"),
             "source": result.get("source"),
@@ -4873,6 +4977,7 @@ async def _dataset_aggregate(
         "summary": summary,
         "operation": operation,
         "measure": measure,
+        "group_by": str(roles.get("currency_column") or ""),
         "value": value,
         "unit": unit,
         "values": values,
