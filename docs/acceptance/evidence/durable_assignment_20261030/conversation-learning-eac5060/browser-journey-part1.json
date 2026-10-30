@@ -1,0 +1,11 @@
+{
+  "candidate_id": "lc-888093105365488e",
+  "applied_value": "15 USD",
+  "stale_status": "invalidated",
+  "apply_after_change_http": 409,
+  "page_errors": [],
+  "screenshots": [
+    "/Users/rushiparikh/projects/atom-conversation-world/journey-promoted.png",
+    "/Users/rushiparikh/projects/atom-conversation-world/journey-stale.png"
+  ]
+}

@@ -1,13 +1,13 @@
 # Conversation-derived, reference-bound learning
 
 Status: **bounded successor implementation complete; independent verifier
-review pending.** Source commit `59464e742` (tree `1ea2b19f`). This is
+review pending.** Source commit `eac50600e` (tree `063751c`). This is
 deliberately separate from the accepted local-core closure at `da9cc8b12` /
 tag `local-core-2026-10-30-final`. It does not relabel historical
 browser/live evidence or claim a full application journey on this source.
 
 Evidence:
-`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-59464e7/`.
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-eac5060/`.
 
 ## 1. Why this phase exists
 
@@ -94,6 +94,22 @@ Promotion requires:
 The write goes through `journal_standing_lesson_entry`; an incoming email
 cannot write a lesson directly.
 
+### 3.6 Scope, authority and reuse enforcement
+
+- Email evidence is scoped to authorized canvases **before** any limit. An
+  empty workspace returns no threads, messages or catalog rows. Default-scope
+  (`NULL`) canvases are visible only to the default workspace.
+- Every candidate mutation re-authorizes the target employee in the caller's
+  workspace/tenant. Reviewer identity comes from the authenticated database
+  user; client `reviewer` text is ignored. Viewer roles are refused.
+- Promotion validates current reference versions. Normal work-time lesson
+  retrieval also checks the governing dataset version, so a changed source
+  blocks reuse even when the candidate endpoint is never called. The raw
+  journal keeps the old lesson with `stale`/`revalidation_required` provenance.
+- The `learning` capability is enabled in the core profile and appears in
+  navigation. The page uses an authorized employee selector and exposes an
+  apply-to-unfamiliar-work action after promotion.
+
 ## 4. Acceptance matrix
 
 All cases run through the shared implementation in
@@ -123,7 +139,14 @@ Additional coverage:
 - punctuation-sensitive identifiers do not collide;
 - promoted lessons carry and re-apply their validated method
   (`test_promoted_lesson_applies_its_method_to_new_rows`);
+- empty-workspace disclosure, foreign-employee targeting, viewer refusal,
+  forged reviewer text, source-change work-time blocking and promotion
+  blocking are permanent negatives;
 - local thread listing and evidence resolution through the public routes.
+
+The service/route suite is **30 passed**; assignment regressions **126
+passed**; teaching/renderer regressions **137 passed**; frontend targeted
+**35 passed**; TypeScript clean. The production frontend build succeeded.
 
 Two domains are exercised by the method-transfer case: sales pricing
 (`quantity × unit price`) and payroll-style units/rates, with independently
@@ -131,6 +154,7 @@ expected totals `20.00` and `16.50`.
 
 ## 5. Public routes
 
+- `GET /api/conversation-learning/employees`
 - `GET /api/conversation-learning/threads`
 - `POST /api/conversation-learning/evidence`
 - `GET /api/conversation-learning/threads/{thread_id}/evidence`
@@ -141,6 +165,7 @@ expected totals `20.00` and `16.50`.
 - `POST /api/conversation-learning/candidates/{candidate_id}/resolve`
 - `POST /api/conversation-learning/candidates/{candidate_id}/confirm`
 - `POST /api/conversation-learning/candidates/{candidate_id}/promote`
+- `POST /api/conversation-learning/candidates/{candidate_id}/apply`
 - `POST /api/conversation-learning/candidates/{candidate_id}/reject`
 
 All routes scope candidates by the authenticated workspace/tenant.
@@ -158,6 +183,22 @@ and shows the compact review:
 - unresolved questions with resource/answer controls;
 - supporting messages and the authority excerpt;
 - confirm/promote/reject actions.
+
+## 6.1 Full-app browser journey
+
+The production frontend build and full app were exercised on
+`127.0.0.1:3130` / `127.0.0.1:8071` against an isolated world:
+
+1. open the persisted local thread;
+2. select the authorized employee from the selector;
+3. propose/review the lesson with the resolved `rates.xlsx` binding;
+4. confirm and promote;
+5. apply the approved method to an unfamiliar row → **15 USD**;
+6. change the governing dataset version `v1` → `v2`;
+7. reload: candidate `invalidated`, apply HTTP 409;
+8. restart the backend against the same world;
+9. reopen: candidate still `invalidated`, raw lesson `stale`, apply HTTP 409;
+10. no page errors.
 
 ## 7. Bounds and deferred work
 

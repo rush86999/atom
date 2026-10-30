@@ -202,11 +202,13 @@ learning from persisted email conversations:
   units and rounding;
 - UI `/learning` presents the evidence chain and review actions.
 
-Acceptance matrix: 23 backend service/route tests passed; frontend review
-panel 3 tests passed; assignment/teaching regressions 126 + 137 passed.
-Independent verifier review of this successor is pending. Live mailbox
-access, automatic teaching-cue extraction from every email, arbitrary
-URL/recursive traversal, deployment and publication remain deferred.
+Acceptance matrix: 30 backend service/route tests passed; frontend targeted
+35 passed; assignment/teaching regressions 126 + 137 passed. The production
+frontend build and full-app browser journey passed, including source-change
+blocking and restart persistence. Independent verifier review of this
+successor is pending. Live mailbox access, automatic teaching-cue extraction
+from every email, arbitrary URL/recursive traversal, deployment and
+publication remain deferred.
 
 See `docs/acceptance/CONVERSATION_DERIVED_LEARNING_2026-10-30.md` and
-`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-59464e7/`.
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-eac5060/`.

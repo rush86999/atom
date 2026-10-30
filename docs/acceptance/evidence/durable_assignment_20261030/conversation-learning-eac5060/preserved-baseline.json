@@ -1,0 +1,19 @@
+{
+  "schema": "atom-preserved-core-baseline-2",
+  "core_tag": {
+    "name": "local-core-2026-10-30-final",
+    "target": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d",
+    "source_commit": "fc46342ed77df624b8922a0fc4d834935fc4f481"
+  },
+  "preserved_evidence": [
+    "local-core-repro-5ce5f57/",
+    "composite-protocol-5ce5f57/",
+    "wait-value-e27ec63/",
+    "wait-value-fc46342/",
+    "conversation-learning-554b462/",
+    "conversation-learning-59464e7/",
+    "final-local-closure-fc46342.json",
+    "manifest-fc46342.json"
+  ],
+  "note": "The successor is bound to eac50600e. The accepted core tag, historical evidence and prior successor attempts remain unchanged."
+}
