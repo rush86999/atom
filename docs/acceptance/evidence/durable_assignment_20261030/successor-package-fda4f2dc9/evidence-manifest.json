@@ -4719,6 +4719,26 @@
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/research-assignment-qualification.json",
       "sha256": "1e7c070365cbd84cbabcd8fa5985c31865717d8a4bbeab1caff33f08c3084a57",
       "bytes": 1105
+    },
+    "send-qualification/send-qualification.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-qualification/send-qualification.json",
+      "sha256": "224868fccd9a5d71facfda4d97e6f97d69b6caab4c0134c25bc0b3f47e9ae1d5",
+      "bytes": 3709
+    },
+    "send-qualification/send-raw.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-qualification/send-raw.json",
+      "sha256": "616977be4c07f2d1438badaaa042009854425a31fbc7cbe14123d67909a4a1a8",
+      "bytes": 5849
+    },
+    "send-qualification/send-reconciliation.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-qualification/send-reconciliation.json",
+      "sha256": "c18736cead7eac6eed15193ecf2cd9602fb179b9698cefdb5bbe9389fa3d4b14",
+      "bytes": 1141
+    },
+    "send-qualification/send-restart-check.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-qualification/send-restart-check.json",
+      "sha256": "c855e0a3236cb1d4f3b96f74c0adb8e01261d37f35910adfe4f5d79572b9559e",
+      "bytes": 319
     }
   },
   "live_research": {
@@ -4808,5 +4828,103 @@
     "artifact": "/tmp/fda_cross_source/office/cross.docx",
     "artifact_sha256": "9568dc87a7107708184e25d155b817af854a419e9d6a41c1c760348c90326e1c",
     "document_text": "Cross-Source Response\nSummary\nRetrieved price: 31800.0\nSources\ningested:HARSLE press brake stock price list.xlsx\ne0a7fb8a1b4757b7f6bef882b19cc4588d66246e"
+  },
+  "send_qualification": {
+    "schema": "atom-real-send-qualification-1",
+    "status": "qualified",
+    "sender": "rish@brennan.ca",
+    "recipient": "rish.maniar@gmail.com",
+    "subject": "HARSLE press brake stock total \u2014 approval draft",
+    "body_sha256": "f18e94ae37748e1d829773797c61b2ba58a0a862c0936031f553487d531822cc",
+    "attachment": {
+      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-review/harsle-live-price-total-currency-unstated.docx",
+      "sha256": "7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6",
+      "bytes": 37082,
+      "attachment_id": "staged_14d49f2ea0f04f2980668030a5178f67"
+    },
+    "approval_payload_sha256": "4a91227a3bf1f896f807d1118e3ea5218318b7aa31d24e1dc8248bcc9bd3bf66",
+    "operation": {
+      "operation_id": "09cc654d-2731-44d3-81a4-f51a10d513f5",
+      "status": "applied",
+      "provider_state": null,
+      "provider_ref": null,
+      "error_class": null,
+      "uncertainty_reason": null
+    },
+    "provider_response": {
+      "receipt_version": 1,
+      "operation_id": "09cc654d-2731-44d3-81a4-f51a10d513f5",
+      "execution_id": null,
+      "action": "email.send_outlook",
+      "binding_sha256": "940270be519e2fe8c734544484b92baa09689147f2b865bbc9f58c20ca0703e9",
+      "observed_status": "provider_accepted",
+      "error_class": null,
+      "reconciliation_required": false,
+      "at": "2026-10-30T12:13:30.373324+00:00",
+      "source": {
+        "kind": null,
+        "path": null,
+        "revision": null,
+        "sha256": null,
+        "source_version": null,
+        "coverage": null
+      },
+      "calculation": null,
+      "outbound": {
+        "provider_state": "sent",
+        "provider_ref": null
+      },
+      "readback": null,
+      "summary": "provider accepted message (sent)",
+      "evidence": [
+        {
+          "kind": "outbound",
+          "provider_state": "sent"
+        }
+      ]
+    },
+    "sent_items": {
+      "schema": "atom-send-reconciliation-1",
+      "checked_at": "2026-10-30T12:13:56.732532+00:00",
+      "match_count": 1,
+      "matches": [
+        {
+          "id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEJAADEtbYrrPLwTae3iXb78LoOAAHt10AmAAA=",
+          "internetMessageId": "<YQBPR0101MB47483FC0A197D506B4D7F1C1AC6D2@YQBPR0101MB4748.CANPRD01.PROD.OUTLOOK.COM>",
+          "subject": "HARSLE press brake stock total \u2014 approval draft",
+          "sentDateTime": "2026-10-30T12:13:30Z",
+          "to": [
+            {
+              "emailAddress": {
+                "name": "rish.maniar@gmail.com",
+                "address": "rish.maniar@gmail.com"
+              }
+            }
+          ],
+          "attachment_name": "harsle-live-price-total-currency-unstated.docx",
+          "attachment_sha256": "7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6",
+          "attachment_hash_match": true
+        }
+      ],
+      "expected_attachment_sha256": "7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6",
+      "recipient": "rish.maniar@gmail.com",
+      "subject": "HARSLE press brake stock total \u2014 approval draft"
+    },
+    "restart": {
+      "schema": "atom-send-restart-check-1",
+      "checked_at": "2026-10-30T12:14:16.134076+00:00",
+      "run_id": "3c3898f4-ce6d-463f-87a2-8d5c38c92123",
+      "status_before": "completed",
+      "status_after": "completed",
+      "sent_count_before": 1,
+      "sent_count_after": 1,
+      "no_duplicate": true,
+      "operation_status": "applied"
+    },
+    "provider_accepted": true,
+    "sent_record_confirmed": true,
+    "delivery_confirmed": false,
+    "delivery_note": "Provider acceptance and Sent Items match only; no independent recipient delivery evidence.",
+    "sent_at": "2026-10-30T12:13:30Z"
   }
 }

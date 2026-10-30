@@ -1,0 +1,11 @@
+{
+  "schema": "atom-send-restart-check-1",
+  "checked_at": "2026-10-30T12:14:16.134076+00:00",
+  "run_id": "3c3898f4-ce6d-463f-87a2-8d5c38c92123",
+  "status_before": "completed",
+  "status_after": "completed",
+  "sent_count_before": 1,
+  "sent_count_after": 1,
+  "no_duplicate": true,
+  "operation_status": "applied"
+}

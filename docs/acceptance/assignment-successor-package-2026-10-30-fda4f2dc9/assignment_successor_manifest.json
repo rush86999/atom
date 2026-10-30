@@ -85,7 +85,9 @@
     "typed_external_obligation": true,
     "external_research_same_assignment": true,
     "external_content_as_evidence_only": true,
-    "bounded_external_research_live_qualified": true
+    "bounded_external_research_live_qualified": true,
+    "real_provider_send_qualified": true,
+    "recipient_delivery_confirmed": false
   },
   "blockers": [
     "Deployment authorization is not granted; config/APPROVED is absent.",
@@ -99,8 +101,8 @@
   "evidence": {
     "production_package": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/evidence-manifest.json",
-      "sha256": "5622ca68257ef84d17e585cf341c330fcf0a1a5d058c3eadedc92ae68b3e7c54",
-      "bytes": 181581
+      "sha256": "6546d239ff867e8ee39a428d6dc9219d1f40124d7f683db0f12a4d49765290a4",
+      "bytes": 186706
     },
     "preparation_report": "docs/acceptance/PRODUCTION_PACKAGE_PREPARATION_2026-10-30-fda4f2dc9.md",
     "deployment_decision": "docs/acceptance/DEPLOYMENT_DECISION_fda4f2dc9_2026-10-30.md",
@@ -166,8 +168,8 @@
     },
     "evidence_manifest": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/evidence-manifest.json",
-      "sha256": "5622ca68257ef84d17e585cf341c330fcf0a1a5d058c3eadedc92ae68b3e7c54",
-      "bytes": 181581
+      "sha256": "6546d239ff867e8ee39a428d6dc9219d1f40124d7f683db0f12a4d49765290a4",
+      "bytes": 186706
     },
     "data_handoff": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/production-data-handoff.json",
@@ -263,6 +265,11 @@
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/cross-source-qualification.json",
       "sha256": "10b737d4b939bc26cca68ade8b6884e97b8b191a676d407d59d7d3106d81cf10",
       "bytes": 450
+    },
+    "send_qualification": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-qualification/send-qualification.json",
+      "sha256": "224868fccd9a5d71facfda4d97e6f97d69b6caab4c0134c25bc0b3f47e9ae1d5",
+      "bytes": 3709
     }
   }
 }

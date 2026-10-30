@@ -1,0 +1,145 @@
+{
+  "schema": "atom-send-qualification-1",
+  "started_at": "2026-10-30T12:13:28.611856+00:00",
+  "sender": "rish@brennan.ca",
+  "recipient": "rish.maniar@gmail.com",
+  "subject": "HARSLE press brake stock total \u2014 approval draft",
+  "body": "Hello,\n\nThe HARSLE press brake stock price list totals 216,700.00 across 8 units.\n\nThe attached document records the itemized calculation and its source row. The source does not establish a currency; please confirm if one should be applied.\n\nRegards,\nAtom",
+  "attachment": {
+    "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-review/harsle-live-price-total-currency-unstated.docx",
+    "sha256": "7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6",
+    "bytes": 37082,
+    "attachment_id": "staged_14d49f2ea0f04f2980668030a5178f67"
+  },
+  "send_attempted": true,
+  "provider_response": {
+    "receipt_version": 1,
+    "operation_id": "09cc654d-2731-44d3-81a4-f51a10d513f5",
+    "execution_id": null,
+    "action": "email.send_outlook",
+    "binding_sha256": "940270be519e2fe8c734544484b92baa09689147f2b865bbc9f58c20ca0703e9",
+    "observed_status": "provider_accepted",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-10-30T12:13:30.373324+00:00",
+    "source": {
+      "kind": null,
+      "path": null,
+      "revision": null,
+      "sha256": null,
+      "source_version": null,
+      "coverage": null
+    },
+    "calculation": null,
+    "outbound": {
+      "provider_state": "sent",
+      "provider_ref": null
+    },
+    "readback": null,
+    "summary": "provider accepted message (sent)",
+    "evidence": [
+      {
+        "kind": "outbound",
+        "provider_state": "sent"
+      }
+    ]
+  },
+  "sent_items": {
+    "match_count": 0,
+    "matches": []
+  },
+  "restart": {
+    "status": "completed",
+    "sent_count_before": 0,
+    "sent_count_after": 0,
+    "no_duplicate": true
+  },
+  "errors": [],
+  "canvas_id": "6858859c-d20b-4115-a64f-3f7c411bd81f",
+  "run_id": "3c3898f4-ce6d-463f-87a2-8d5c38c92123",
+  "first_status": "waiting",
+  "approval": {
+    "status": "approved",
+    "operation": {
+      "schema_version": 1,
+      "operation_id": "09cc654d-2731-44d3-81a4-f51a10d513f5",
+      "objective_id": "1d6f51ae-2304-4ece-8e8d-e168f40fcef4",
+      "objective_revision": 1,
+      "execution_id": null,
+      "operation_type": "outbound",
+      "requested_change": "Send approved HARSLE draft",
+      "idempotency_key": "assignment:asg-15d3ae00eedd4f03:send:r1:a1",
+      "parent_operation_id": null,
+      "evidence_revision": null,
+      "status": "approved",
+      "authorization": "pending_approval",
+      "operation_binding": {
+        "binding_version": 1,
+        "action_name": "email.send_outlook",
+        "workspace_id": "default",
+        "account_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "task_revision": 1,
+        "arguments": {
+          "to": [
+            "rish.maniar@gmail.com"
+          ],
+          "cc": [],
+          "subject": "HARSLE press brake stock total \u2014 approval draft",
+          "body": "Hello,\n\nThe HARSLE press brake stock price list totals 216,700.00 across 8 units.\n\nThe attached document records the itemized calculation and its source row. The source does not establish a currency; please confirm if one should be applied.\n\nRegards,\nAtom",
+          "canvas_id": "6858859c-d20b-4115-a64f-3f7c411bd81f",
+          "attachment_ids": [
+            "staged_14d49f2ea0f04f2980668030a5178f67"
+          ],
+          "attachment_hashes": {
+            "staged_14d49f2ea0f04f2980668030a5178f67": "7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6"
+          },
+          "deliverable_id": "del-send"
+        },
+        "artifact_refs": [],
+        "authorization_ref": "Send the exact approved HARSLE draft",
+        "prerequisite_operation_ids": [],
+        "prerequisite_evidence_revisions": []
+      },
+      "binding_sha256": "940270be519e2fe8c734544484b92baa09689147f2b865bbc9f58c20ca0703e9",
+      "assignment_id": "asg-15d3ae00eedd4f03",
+      "step_id": "send",
+      "plan_revision": 1,
+      "adapter": "email.send_outlook",
+      "effect": "external",
+      "teaching_fingerprint": "8b0f33586cea951c486f4a4319155aae",
+      "authorization_revision": "005ec1653d0b3125dc0b10917c8dab31",
+      "approval_history": [],
+      "approval_request": {
+        "payload_sha256": "4a91227a3bf1f896f807d1118e3ea5218318b7aa31d24e1dc8248bcc9bd3bf66",
+        "artifact_revision": null,
+        "authorization_revision": "005ec1653d0b3125dc0b10917c8dab31",
+        "requested_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "purpose": "Send the exact approved HARSLE draft",
+        "requested_at": "2026-10-30T12:13:29.357579+00:00"
+      },
+      "approval": {
+        "payload_sha256": "4a91227a3bf1f896f807d1118e3ea5218318b7aa31d24e1dc8248bcc9bd3bf66",
+        "artifact_revision": null,
+        "authorization_revision": "005ec1653d0b3125dc0b10917c8dab31",
+        "approved_by": "owner",
+        "approved_at": "2026-10-30T12:13:29.368233+00:00",
+        "note": null
+      },
+      "approved_payload_sha256": "4a91227a3bf1f896f807d1118e3ea5218318b7aa31d24e1dc8248bcc9bd3bf66",
+      "approved_artifact_revision": null,
+      "approved_authorization_revision": "005ec1653d0b3125dc0b10917c8dab31"
+    }
+  },
+  "approval_payload_sha256": "4a91227a3bf1f896f807d1118e3ea5218318b7aa31d24e1dc8248bcc9bd3bf66",
+  "final_assignment_status": "completed",
+  "operation": {
+    "operation_id": "09cc654d-2731-44d3-81a4-f51a10d513f5",
+    "status": "applied",
+    "provider_state": null,
+    "provider_ref": null,
+    "error_class": null,
+    "uncertainty_reason": null
+  },
+  "ok": false,
+  "finished_at": "2026-10-30T12:13:30.688054+00:00"
+}

@@ -23,7 +23,7 @@ Statuses: **Demonstrated**, **Partial**, **Deferred**, **Blocked**.
 | 8 | Email, documents and presentations | Demonstrated for draft/format/reopen; send separate | `core/office_service.py`, email/canvas services, artifact renderers | Historical Office/email evidence; C10 draft smoke completed and survived restart | `deployment-auth-20261029-c10/draft-smoke.json`; historical DOCX/PPTX/email evidence | Image/chart understanding is excluded. Real-provider send is **Blocked** on the separate authorized test (goal 11). |
 | 9 | User-created canvases inherit capabilities | Demonstrated for supported table adapter; two canvas shapes current test | Versioned capability manifests, adapter registry, canvas routes | Historical capability evidence; C10 no change | Capability acceptance evidence | Only the supported table adapter is claimed; every future canvas component is not. |
 | 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart; bounded external research live-qualified on `rish@brennan.ca`; artifact-restart current test | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
-| 11 | Approval and eventual sending | **Partial / Blocked** — local path, sender identity and Sent Items permissions verified; awaiting recipient/window for live qualification | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; server-side denial tested | C10 `send-denial.json`: HTTP 422 before run creation; draft smoke saved/reopened; no provider/outbox effect | Draft and approval preparation work; production send is refused before transport. **Remaining action:** separately authorized real-provider test with exact payload, provider receipt, reconciliation and restart/no-duplicate checks. |
+| 11 | Approval and eventual sending | **Demonstrated live** — payload-bound approval, provider acceptance and exact Sent Items match; recipient delivery not independently confirmed | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; server-side denial tested | C10 `send-denial.json`: HTTP 422 before run creation; draft smoke saved/reopened; no provider/outbox effect | Draft and approval preparation work; production send is refused before transport. **Remaining action:** separately authorized real-provider test with exact payload, provider receipt, reconciliation and restart/no-duplicate checks. |
 | 12 | Everyday usability, security and operational readiness | Pilot candidate; successor package prepared; deployment blocked on approval/password/quiescence | Normal auth, Assignments/Activity, durable storage, deployment kit and recovery guards | C10 packaged source plus successor packaged smoke on `a96484324` | C10 auth smoke, fresh assignment, restart agreement, deployment receipt, 19 kit controls, 41 product controls; successor packaged smoke, backup and restart receipts | Normal sign-in/logout/relogin and fresh packaged execution pass in isolation. The successor packaged smoke reopened an existing taught assignment, exercised the mapping flow and survived restart. Deployment authorization is requested but not granted. |
 
 Mapping campaign identities: the canonical B baseline stays bound to harness
@@ -36,6 +36,31 @@ product `ae53e7e41` (tree `a7f627fdf7705a26b361c0d1b1e7e17abadc13d3`). Frozen
 release `901e5d773` is unchanged. The final manifest and file hashes are
 `docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/manifest-a96484324.json`;
 the prior manifests and attempt directories are preserved unchanged.
+
+## Real-provider send qualification — observed 2026-10-30
+
+- Sender `rish@brennan.ca`; recipient `rish.maniar@gmail.com`; subject
+  `HARSLE press brake stock total — approval draft`.
+- Exact approval payload SHA-256:
+  `4a91227a3bf1f896f807d1118e3ea5218318b7aa31d24e1dc8248bcc9bd3bf66`.
+- Attachment SHA-256:
+  `7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6`;
+  Sent Items attachment hash matched exactly.
+- Provider accepted at `2026-10-30T12:13:30Z`; Sent Items message
+  `<YQBPR0101MB47483FC0A197D506B4D7F1C1AC6D2@YQBPR0101MB4748.CANPRD01.PROD.OUTLOOK.COM>`.
+- Restart check: completed, one sent message before and after, no duplicate;
+  operation `applied`.
+- **Provider acceptance and Sent Items confirmation are not recipient
+  delivery.** `delivery_confirmed` remains false without independent recipient
+  evidence.
+- The first reconciliation query used an unsupported OData filter and failed
+  read-only; a simpler Sent Items listing reconciled the exact message. No
+  second send occurred.
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-qualification/`.
+
+Remaining: deployment only.
 
 ## Live research qualification — observed 2026-10-30
 

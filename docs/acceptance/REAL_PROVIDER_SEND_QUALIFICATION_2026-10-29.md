@@ -1,7 +1,6 @@
 # Real-provider send qualification — prepared, not authorized
 
-Status: **plan prepared; no transport call, credential change or recipient
-invention.** The frozen release remains draft-and-approval only
+Status: **qualified live on 2026-10-30; no recipient delivery inferred.** The frozen release remains draft-and-approval only
 (`ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`).
 
 This qualification reuses the existing send path. It does not add a second
@@ -114,3 +113,15 @@ approval of a real provider send.
 - any real send outside the exact approved payload/window.
 
 No credential is changed by this plan. No real transport is attempted here.
+
+## Observed qualification result
+
+- Sender `rish@brennan.ca`; recipient `rish.maniar@gmail.com`.
+- Exact approval payload SHA-256 `4a91227a3bf1f896f807d1118e3ea5218318b7aa31d24e1dc8248bcc9bd3bf66`.
+- Provider accepted at `2026-10-30T12:13:30Z`.
+- Exact Sent Items message `<YQBPR0101MB47483FC0A197D506B4D7F1C1AC6D2@YQBPR0101MB4748.CANPRD01.PROD.OUTLOOK.COM>`;
+  attachment SHA-256 `7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6` matched.
+- Restart: one sent message before/after, no duplicate; operation applied.
+- `delivery_confirmed` remains false; provider acceptance/Sent Items is not
+  recipient delivery.
+- Evidence: `docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-qualification/`.

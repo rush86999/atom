@@ -1,0 +1,27 @@
+{
+  "schema": "atom-send-reconciliation-1",
+  "checked_at": "2026-10-30T12:13:56.732532+00:00",
+  "match_count": 1,
+  "matches": [
+    {
+      "id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEJAADEtbYrrPLwTae3iXb78LoOAAHt10AmAAA=",
+      "internetMessageId": "<YQBPR0101MB47483FC0A197D506B4D7F1C1AC6D2@YQBPR0101MB4748.CANPRD01.PROD.OUTLOOK.COM>",
+      "subject": "HARSLE press brake stock total \u2014 approval draft",
+      "sentDateTime": "2026-10-30T12:13:30Z",
+      "to": [
+        {
+          "emailAddress": {
+            "name": "rish.maniar@gmail.com",
+            "address": "rish.maniar@gmail.com"
+          }
+        }
+      ],
+      "attachment_name": "harsle-live-price-total-currency-unstated.docx",
+      "attachment_sha256": "7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6",
+      "attachment_hash_match": true
+    }
+  ],
+  "expected_attachment_sha256": "7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6",
+  "recipient": "rish.maniar@gmail.com",
+  "subject": "HARSLE press brake stock total \u2014 approval draft"
+}
