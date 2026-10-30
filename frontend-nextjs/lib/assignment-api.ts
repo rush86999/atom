@@ -160,7 +160,14 @@ export async function createAssignment(payload: {
   task_context?: Record<string, unknown>;
   transport?: string;
 }): Promise<Record<string, any>> {
-  const { data } = await apiClient.post("/api/assignments", payload);
+  // Creation is not idempotent on the server. The shared client retries
+  // timeouts, and a cold first request can exceed the default 10s while the
+  // run is already created — the retry then creates a second assignment.
+  // Give creation its own longer budget and never auto-retry it.
+  const { data } = await apiClient.post("/api/assignments", payload, {
+    timeout: 60000,
+    retry: false,
+  });
   return data;
 }
 
