@@ -1741,6 +1741,56 @@ def invalidate_candidate(
     return candidate
 
 
+def _mark_promoted_lesson_stale(
+    db: Session,
+    candidate: LearningCandidate,
+    reason: str,
+) -> None:
+    """Mark the promoted lesson for revalidation without deleting it.
+
+    The raw journal keeps the old lesson and its provenance; work-time
+    retrieval skips entries whose structured provenance says revalidation is
+    required. The candidate remains the review handle for the new version.
+    """
+    if not candidate.promoted_entry_id:
+        return
+    try:
+        from sqlalchemy.orm.attributes import flag_modified
+
+        from core.models import AgentRegistry
+
+        agent = db.query(AgentRegistry).filter(
+            AgentRegistry.id == candidate.agent_id).first()
+        if agent is None:
+            return
+        config = agent.configuration if isinstance(
+            agent.configuration, dict) else {}
+        learning = dict(config.get("learning") or {})
+        log = list(learning.get("log") or [])
+        changed = False
+        for entry in log:
+            if str(entry.get("id") or "") != str(
+                    candidate.promoted_entry_id):
+                continue
+            details = dict(entry.get("details") or {})
+            provenance = dict(
+                details.get("conversation_learning") or {})
+            provenance["revalidation_required"] = True
+            provenance["revalidation_reason"] = _bounded(reason, 500)
+            details["conversation_learning"] = provenance
+            entry["details"] = details
+            entry["stale"] = True
+            changed = True
+        if changed:
+            learning["log"] = log
+            config = {**config, "learning": learning}
+            agent.configuration = config
+            flag_modified(agent, "configuration")
+            db.commit()
+    except Exception as exc:  # noqa: BLE001 — staleness must not break review
+        logger.debug("promoted lesson revalidation mark skipped: %s", exc)
+
+
 def revalidate_candidate(
     db: Session,
     candidate: LearningCandidate,
@@ -1757,23 +1807,23 @@ def revalidate_candidate(
         if edge.target_binding is None:
             continue
         binding = current.get(str(edge.target_binding.resource_id))
+        reason = ""
         if binding is None:
-            return invalidate_candidate(
-                db, candidate,
-                reason=f"resource_missing:{edge.target_binding.resource_id}")
-        if str(binding.source_version) != str(
+            reason = f"resource_missing:{edge.target_binding.resource_id}"
+        elif str(binding.source_version) != str(
                 edge.target_binding.source_version):
-            return invalidate_candidate(
-                db, candidate,
-                reason=(
-                    f"source_version_changed:"
-                    f"{edge.target_binding.resource_id}"))
-        unavailable = _resource_unavailable_reason(binding)
-        if unavailable:
-            return invalidate_candidate(
-                db, candidate,
-                reason=f"resource_{unavailable}:"
-                       f"{edge.target_binding.resource_id}")
+            reason = (
+                f"source_version_changed:"
+                f"{edge.target_binding.resource_id}")
+        else:
+            unavailable = _resource_unavailable_reason(binding)
+            if unavailable:
+                reason = (
+                    f"resource_{unavailable}:"
+                    f"{edge.target_binding.resource_id}")
+        if reason:
+            _mark_promoted_lesson_stale(db, candidate, reason)
+            return invalidate_candidate(db, candidate, reason=reason)
     return candidate
 
 

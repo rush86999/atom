@@ -365,6 +365,42 @@ def test_version_change_invalidates_relevant_reuse(db):
     assert reloaded.status == "invalidated"
 
 
+def test_version_change_marks_promoted_lesson_stale(db):
+    from core.student_learning_service import get_agent_lessons
+
+    agent = _agent(db)
+    old = _binding(resource_id="ds-1", version="v1")
+    new = _binding(resource_id="ds-1", version="v2")
+    candidate = _candidate(
+        lesson="Use the versioned rates workbook.",
+        references=[ReferenceEdge(
+            origin_message_id="m1", origin_span="0:10",
+            reference_text="the rates workbook",
+            relation="calculation_input",
+            resolution_status="resolved", target_binding=old,
+        )],
+    )
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    promoted = promote_candidate(
+        db, candidate, reviewer="owner", expected_revision=1)
+    lesson_id = promoted["lesson_id"]
+    assert any(entry.get("id") == lesson_id
+               for entry in get_agent_lessons(db, "agent-1"))
+
+    updated = revalidate_candidate(db, candidate, [new])
+    assert updated.status == "invalidated"
+    assert not any(entry.get("id") == lesson_id
+                   for entry in get_agent_lessons(db, "agent-1"))
+    db.refresh(agent)
+    raw = next(
+        entry for entry in agent.configuration["learning"]["log"]
+        if entry.get("id") == lesson_id)
+    assert raw["stale"] is True
+    assert raw["details"]["conversation_learning"][
+        "revalidation_required"] is True
+
+
 def test_revoked_access_prevents_source_retrieval():
     catalog = [
         _binding(resource_id="ds-1", file_name="rates.xlsx",

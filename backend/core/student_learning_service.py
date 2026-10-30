@@ -207,6 +207,7 @@ def get_agent_lessons(
     lessons = [
         e for e in _permanent_lessons(db, agent_id)
         if _lesson_in_scope(e, goal_id)
+        and not _lesson_revalidation_required(e)
     ]
     # SIBLING LESSONS. Teaching is addressed to "the agent I am talking to", but
     # the knowledge usually is not: a pricing rule taught to the Sales Agent is
@@ -332,6 +333,19 @@ def _permanent_lessons(db: Session, agent_id: str) -> List[Dict[str, Any]]:
     lessons = [e for e in log if _is_permanent_lesson(e)]
     lessons.reverse()  # newest first (the log is append-ordered)
     return lessons
+
+
+def _lesson_revalidation_required(entry: Dict[str, Any]) -> bool:
+    """True when a reference-bound lesson's governing resource changed.
+
+    The entry stays in the raw journal with its provenance; work-time
+    injection skips it until the candidate is reviewed again.
+    """
+    details = entry.get("details") if isinstance(entry.get("details"),
+                                                dict) else {}
+    learning = details.get("conversation_learning") if isinstance(
+        details.get("conversation_learning"), dict) else {}
+    return bool(learning.get("revalidation_required"))
 
 
 def _lesson_in_scope(entry: Dict[str, Any], goal_id: Optional[str]) -> bool:
