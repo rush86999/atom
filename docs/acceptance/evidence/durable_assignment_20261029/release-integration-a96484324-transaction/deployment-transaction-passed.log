@@ -1,0 +1,901 @@
+{
+  "ok": true,
+  "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/config/REHEARSAL_APPROVED",
+  "mode": "rehearsal",
+  "required_fields": [
+    "approver",
+    "approved_at",
+    "release_tag",
+    "product_commit",
+    "product_tree_sha256",
+    "scope",
+    "mode"
+  ],
+  "missing": [],
+  "mismatches": {}
+}
+{
+  "schema": "atom-assignment-release-preflight-1",
+  "ok": true,
+  "checked_at": "2026-10-30T00:12:10.603514+00:00",
+  "root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+  "checks": [
+    {
+      "name": "identity.release_commit",
+      "ok": true,
+      "detail": {
+        "expected": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+        "actual": "a9648432495f4f75f59bf4667cac3cb997d7f229"
+      }
+    },
+    {
+      "name": "identity.tested_runtime",
+      "ok": true,
+      "detail": "a96484324"
+    },
+    {
+      "name": "identity.product_tree_sha256",
+      "ok": true,
+      "detail": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6"
+    },
+    {
+      "name": "app.present",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/app"
+    },
+    {
+      "name": "app.head_matches_release",
+      "ok": true,
+      "detail": "a9648432495f4f75f59bf4667cac3cb997d7f229"
+    },
+    {
+      "name": "app.clean",
+      "ok": true,
+      "detail": "clean"
+    },
+    {
+      "name": "app.product_tree_matches",
+      "ok": true,
+      "detail": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6"
+    },
+    {
+      "name": "source_manifest.hashes",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "checked": 62,
+        "mismatches": []
+      }
+    },
+    {
+      "name": "audience.single_user",
+      "ok": true,
+      "detail": "single_user"
+    },
+    {
+      "name": "audience.pilot_declared",
+      "ok": true,
+      "detail": "admin@example.com"
+    },
+    {
+      "name": "assignment.internal_paths_disabled",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "name": "assignment.controlled_transport_disabled",
+      "ok": true,
+      "detail": "<unset>"
+    },
+    {
+      "name": "email.server_send_disabled",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "assignment.live_send_not_authorized",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "name": "scheduler.disabled",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "name": "ingestion_sync.disabled",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "name": "microsoft.client_id_present",
+      "ok": true,
+      "detail": "<presence-only>"
+    },
+    {
+      "name": "microsoft.client_secret_present",
+      "ok": true,
+      "detail": "<presence-only>"
+    },
+    {
+      "name": "provider_policy.selected_and_valid",
+      "ok": true,
+      "detail": {
+        "mode": "selected",
+        "allowed_providers": [
+          "deepseek"
+        ],
+        "preferred": {
+          "provider": "deepseek",
+          "model": "deepseek-flash"
+        }
+      }
+    },
+    {
+      "name": "data.absolute_under_root",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data"
+    },
+    {
+      "name": "office.absolute_under_root",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office"
+    },
+    {
+      "name": "data.writable",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data"
+    },
+    {
+      "name": "office.writable",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office"
+    },
+    {
+      "name": "deployment.outbound_scope",
+      "ok": true,
+      "detail": "draft_and_approval_only"
+    },
+    {
+      "name": "deployment.send_not_authorized",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "name": "deployment.topology",
+      "ok": true,
+      "detail": "one_worker_process_per_assignment"
+    },
+    {
+      "name": "approval.record",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/config/REHEARSAL_APPROVED",
+        "mode": "rehearsal",
+        "required_fields": [
+          "approver",
+          "approved_at",
+          "release_tag",
+          "product_commit",
+          "product_tree_sha256",
+          "scope",
+          "mode"
+        ],
+        "missing": [],
+        "mismatches": {}
+      }
+    },
+    {
+      "name": "frontend.server_present",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/frontend/server.js"
+    }
+  ],
+  "identity": {
+    "schema": "atom-assignment-successor-release-1",
+    "release_tag": "assignment-successor-2026-10-29-a96484324",
+    "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tested_runtime_commit": "a96484324",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+    "product_tree_matches_tested": true,
+    "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+    "deployment_kit_tree_sha256": "2582ae3421a3f25a02accda73712f4bf404d6e92c5bcd5a07ecf49138cea89c6",
+    "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
+    "frontend_api_origin": "http://127.0.0.1:8071",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "prepared_at": "2026-10-29T23:43:56.891207+00:00",
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+    "seeded_rehearsal_data": true
+  }
+}
+{
+  "ok": true,
+  "backup": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/backups/predeploy-rehearsal-20261030T001210Z",
+  "manifest": {
+    "schema": "atom-assignment-release-backup-1",
+    "created_at": "2026-10-30T00:12:10.739497+00:00",
+    "source_data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+    "label": "predeploy-rehearsal",
+    "sqlite_backup_api": true,
+    "sqlite_integrity_check": true,
+    "row_counts": {
+      "users": 1,
+      "dataset_entries": 1,
+      "goal_runs": 3,
+      "hitl_interventions": null
+    },
+    "config_copied_mode_600": true,
+    "memory_included": false,
+    "memory_note": "atom_memory excluded by default because it is large; pass --include-memory when a full vector-store snapshot is required",
+    "files": {
+      "atom.db": {
+        "sha256": "e1503bd9dfd45cbb677592de42964ffc522bad87e64f36a375157c547a4b09f7",
+        "bytes": 8986624
+      },
+      "atom.db-shm": {
+        "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+        "bytes": 32768
+      },
+      "atom.db-wal": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "byok_config.json": {
+        "sha256": "11b5878e5f025dc70a624cb9faff1ae77fefb968b97608da8362b7aed689bfa2",
+        "bytes": 27387
+      },
+      "byok_encryption_key": {
+        "sha256": "2b7fbf36e86e9d79c975c07265dd3845e61b81ac7efc068b833a6ca8fda73f50",
+        "bytes": 44
+      },
+      "byok_keys.json": {
+        "sha256": "755b6f135a7892adf30fad3ee287c568bd1a031f6dbe171a8117af8af16762bc",
+        "bytes": 17
+      },
+      "config/RELEASE_IDENTITY.json": {
+        "sha256": "40bdf34117ef848aa2885a75c0bf4947f8233a7c6bbd11aa0a3209623a7ede71",
+        "bytes": 1162
+      },
+      "config/env.release": {
+        "sha256": "dc2d7cc5303136540685e5e051a306d0f29abb9be2693870051921e6523c7048",
+        "bytes": 2190
+      },
+      "config/secrets.env": {
+        "sha256": "7e934e982aad831ffdd40758b7ed7848db6d9f2381058391da6ec1ad355cc5bb",
+        "bytes": 92
+      },
+      "office/assignments/default/map-user/draft-6f7aa548d584/release-smoke-2b1caa6773-sum-amount-9b9e8aa5.docx": {
+        "sha256": "e4c02cad9e05e9e6d355c2a0c242d5b883c99331072e9c09dbfc541629f71a54",
+        "bytes": 37111
+      },
+      "office/assignments/default/map-user/draft-77b35319817a/release-mapping-smoke-total-48af1f42.docx": {
+        "sha256": "a137f411a27d4fe0e5b48937effd4111e5ef068f8f94d2fd5e94c285fd383a91",
+        "bytes": 37124
+      },
+      "office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx": {
+        "sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
+        "bytes": 37088
+      },
+      "sheet_datasets/default/31533335b40b/outlook_workbook_b__sheet1.parquet": {
+        "sha256": "1e91ad10ef0a64ab376a3dacca9efce45ff70d5d5945908c5afdcd73f630c154",
+        "bytes": 4880
+      },
+      "sheet_datasets/default/31533335b40b/outlook_workbook_b__sheet1.parquet.formulas.json": {
+        "sha256": "521ee0d6e08296ac26457f2d0bd2363a8cdf408b927513fdd08683914c9f411f",
+        "bytes": 35
+      }
+    },
+    "newer_user_data_preserved": true
+  }
+}
+{
+  "schema": "atom-assignment-release-stop-1",
+  "stopped_at": "2026-10-30T00:12:12.243951+00:00",
+  "results": [
+    {
+      "label": "backend",
+      "pid": 50442,
+      "stopped": true
+    },
+    {
+      "label": "frontend",
+      "pid": 50443,
+      "stopped": true
+    }
+  ],
+  "reaped_release_listeners": []
+}
+{
+  "schema": "atom-assignment-release-preflight-1",
+  "ok": true,
+  "checked_at": "2026-10-30T00:12:12.672941+00:00",
+  "root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+  "checks": [
+    {
+      "name": "identity.release_commit",
+      "ok": true,
+      "detail": {
+        "expected": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+        "actual": "a9648432495f4f75f59bf4667cac3cb997d7f229"
+      }
+    },
+    {
+      "name": "identity.tested_runtime",
+      "ok": true,
+      "detail": "a96484324"
+    },
+    {
+      "name": "identity.product_tree_sha256",
+      "ok": true,
+      "detail": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6"
+    },
+    {
+      "name": "app.present",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/app"
+    },
+    {
+      "name": "app.head_matches_release",
+      "ok": true,
+      "detail": "a9648432495f4f75f59bf4667cac3cb997d7f229"
+    },
+    {
+      "name": "app.clean",
+      "ok": true,
+      "detail": "clean"
+    },
+    {
+      "name": "app.product_tree_matches",
+      "ok": true,
+      "detail": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6"
+    },
+    {
+      "name": "source_manifest.hashes",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "checked": 62,
+        "mismatches": []
+      }
+    },
+    {
+      "name": "audience.single_user",
+      "ok": true,
+      "detail": "single_user"
+    },
+    {
+      "name": "audience.pilot_declared",
+      "ok": true,
+      "detail": "admin@example.com"
+    },
+    {
+      "name": "assignment.internal_paths_disabled",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "name": "assignment.controlled_transport_disabled",
+      "ok": true,
+      "detail": "<unset>"
+    },
+    {
+      "name": "email.server_send_disabled",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "assignment.live_send_not_authorized",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "name": "scheduler.disabled",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "name": "ingestion_sync.disabled",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "name": "microsoft.client_id_present",
+      "ok": true,
+      "detail": "<presence-only>"
+    },
+    {
+      "name": "microsoft.client_secret_present",
+      "ok": true,
+      "detail": "<presence-only>"
+    },
+    {
+      "name": "provider_policy.selected_and_valid",
+      "ok": true,
+      "detail": {
+        "mode": "selected",
+        "allowed_providers": [
+          "deepseek"
+        ],
+        "preferred": {
+          "provider": "deepseek",
+          "model": "deepseek-flash"
+        }
+      }
+    },
+    {
+      "name": "data.absolute_under_root",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data"
+    },
+    {
+      "name": "office.absolute_under_root",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office"
+    },
+    {
+      "name": "data.writable",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data"
+    },
+    {
+      "name": "office.writable",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office"
+    },
+    {
+      "name": "deployment.outbound_scope",
+      "ok": true,
+      "detail": "draft_and_approval_only"
+    },
+    {
+      "name": "deployment.send_not_authorized",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "name": "deployment.topology",
+      "ok": true,
+      "detail": "one_worker_process_per_assignment"
+    },
+    {
+      "name": "approval.record",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/config/REHEARSAL_APPROVED",
+        "mode": "rehearsal",
+        "required_fields": [
+          "approver",
+          "approved_at",
+          "release_tag",
+          "product_commit",
+          "product_tree_sha256",
+          "scope",
+          "mode"
+        ],
+        "missing": [],
+        "mismatches": {}
+      }
+    },
+    {
+      "name": "ports.api_free",
+      "ok": true,
+      "detail": 8071
+    },
+    {
+      "name": "ports.frontend_free",
+      "ok": true,
+      "detail": 3130
+    },
+    {
+      "name": "frontend.server_present",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/frontend/server.js"
+    }
+  ],
+  "identity": {
+    "schema": "atom-assignment-successor-release-1",
+    "release_tag": "assignment-successor-2026-10-29-a96484324",
+    "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tested_runtime_commit": "a96484324",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+    "product_tree_matches_tested": true,
+    "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+    "deployment_kit_tree_sha256": "2582ae3421a3f25a02accda73712f4bf404d6e92c5bcd5a07ecf49138cea89c6",
+    "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
+    "frontend_api_origin": "http://127.0.0.1:8071",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "prepared_at": "2026-10-29T23:43:56.891207+00:00",
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+    "seeded_rehearsal_data": true
+  }
+}
+{
+  "schema": "atom-assignment-release-startup-1",
+  "started_at": "2026-10-30T00:12:19.563086+00:00",
+  "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+  "api_port": 8071,
+  "frontend_port": 3130,
+  "api_origin": "http://127.0.0.1:8071",
+  "backend_pid": 50661,
+  "frontend_pid": 50662,
+  "health_identity": {
+    "pid": 50661,
+    "started_at": "2026-10-30T00:12:16.471847+00:00",
+    "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/releases/a9648432495f4f75f59bf4667cac3cb997d7f229/app/backend",
+    "git_commit": "a9648432495f",
+    "source_id": "a9648432495f",
+    "instance_id": "a9648432495f.50661.1793319139",
+    "revision": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "dirty": false,
+    "dirty_digest": "e3b0c44298fc",
+    "dirty_paths": [],
+    "untracked_paths": [],
+    "captured_at": "2026-10-30T00:12:19.188932+00:00",
+    "port": 8071,
+    "error": null,
+    "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/atom.db",
+    "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/byok_keys.json"
+  },
+  "health_status": "healthy",
+  "audience": "single_user",
+  "pilot_email": "admin@example.com",
+  "outbound_scope": "draft_and_approval_only",
+  "controlled_transport": "<unset>",
+  "internal_paths": "0",
+  "topology": "one_worker_process_per_assignment"
+}
+{
+  "schema": "atom-assignment-release-auth-smoke-1",
+  "status": "passed",
+  "checks": [
+    {
+      "name": "fresh_context_login_form",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "normal_form_login",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "workspace_profile_visible",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "authenticated_workspace_access",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "existing_assignment_completed",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "artifact_listed",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "artifact_present_and_openable",
+      "ok": true,
+      "detail": {
+        "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+        "sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854"
+      }
+    },
+    {
+      "name": "logout_clears_storage",
+      "ok": true,
+      "detail": {
+        "auth": null,
+        "token": null
+      }
+    },
+    {
+      "name": "old_token_refused_after_logout",
+      "ok": true,
+      "detail": {
+        "status": 401
+      }
+    },
+    {
+      "name": "second_normal_form_login",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "second_session_workspace_access",
+      "ok": true,
+      "detail": null
+    }
+  ],
+  "session_injected": false,
+  "normal_login_form_used": true,
+  "screenshots": [
+    "assignment-open.png",
+    "signed-in-again.png",
+    "signed-in-assignments.png",
+    "signed-in-dashboard.png",
+    "signed-out.png"
+  ]
+}
+{
+  "ok": true,
+  "snapshot": {
+    "schema": "atom-assignment-release-representative-1",
+    "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+    "assignment_id": "asg-787c5e9954dc46cc",
+    "objective": "Mapping B sum Price",
+    "status": "completed",
+    "plan_revision": 1,
+    "teaching_revision": "3dce63cc9aa4ef14+map",
+    "deliverables": [
+      {
+        "kind": "document",
+        "status": "applied",
+        "required": true,
+        "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+        "sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854"
+      }
+    ],
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+    "artifact_sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
+    "artifact_contains_expected_sum": true,
+    "validation": {
+      "ok": true,
+      "errors": [],
+      "required_deliverables": 1,
+      "source_versions": [
+        "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+      ]
+    },
+    "step_summaries": [
+      "sum of Amount = 35.00 USD across 2 row(s) from workbook_b.xlsx / Sheet1",
+      "rendered mapping-b-total-0f76048f.docx"
+    ],
+    "source_versions": [
+      "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+    ],
+    "user": {
+      "id": "map-user",
+      "email": "admin@example.com",
+      "workspace_id": "default",
+      "tenant_id": null
+    }
+  }
+}
+{
+  "ok": true,
+  "fresh": {
+    "schema": "atom-assignment-fresh-smoke-1",
+    "run_id": "c0c975c9-15ff-4175-b091-9464b29e90b9",
+    "assignment_id": "asg-2c86b005a82049aa",
+    "objective": "Release smoke f884f7523c: sum Amount",
+    "status": "completed",
+    "plan_revision": 1,
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-30f4cca87c7f/release-smoke-f884f7523c-sum-amount-455feb1b.docx",
+    "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+    "artifact_contains_expected_sum": true,
+    "source_versions": [
+      "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+    ],
+    "validation": {
+      "ok": true,
+      "errors": [],
+      "artifact_text": "Release smoke f884f7523c: sum Amount\nObjective\nRelease smoke f884f7523c: sum Amount\nSummary\nsum of Amount: 35.00 USD\nFindings\nworkbook_b.xlsx / Sheet1\nSources\noutlook_workbook_b__sheet1\nworkbook_b.xlsx\nSheet1\n6494998e-c310-4861-8b5e-8bb981f32567\nworkbook_b.xlsx / Sheet1\nRow | identity | identity_source | row | value | currency | value_cell\n | B-1 | identity_column | 2 | 15.00 | USD | C2\n | B-2 | identity_column | 3 | 20.00 | USD | C3",
+      "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+      "recorded_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33"
+    }
+  },
+  "objective": "Release smoke f884f7523c: sum Amount",
+  "provider_policy": {
+    "mode": "selected",
+    "allowed_providers": [
+      "deepseek"
+    ],
+    "preferred": {
+      "provider": "deepseek",
+      "model": "deepseek-flash"
+    },
+    "ok": true
+  },
+  "send_denial": {
+    "http_status": 422,
+    "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter",
+    "runs_before": 3,
+    "runs_after": 3,
+    "run_created": false,
+    "send_allowed": false
+  },
+  "database_delta": {
+    "assignments_before": 3,
+    "assignments_after": 4,
+    "delta": 1,
+    "intentional_new_run_id": "c0c975c9-15ff-4175-b091-9464b29e90b9"
+  }
+}
+{
+  "schema": "atom-assignment-release-stop-1",
+  "stopped_at": "2026-10-30T00:12:29.176739+00:00",
+  "results": [
+    {
+      "label": "backend",
+      "pid": 50661,
+      "stopped": true
+    },
+    {
+      "label": "frontend",
+      "pid": 50662,
+      "stopped": true
+    }
+  ],
+  "reaped_release_listeners": []
+}
+{
+  "schema": "atom-assignment-release-startup-1",
+  "started_at": "2026-10-30T00:12:36.100701+00:00",
+  "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+  "api_port": 8071,
+  "frontend_port": 3130,
+  "api_origin": "http://127.0.0.1:8071",
+  "backend_pid": 50736,
+  "frontend_pid": 50737,
+  "health_identity": {
+    "pid": 50736,
+    "started_at": "2026-10-30T00:12:32.979270+00:00",
+    "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/releases/a9648432495f4f75f59bf4667cac3cb997d7f229/app/backend",
+    "git_commit": "a9648432495f",
+    "source_id": "a9648432495f",
+    "instance_id": "a9648432495f.50736.1793319155",
+    "revision": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "dirty": false,
+    "dirty_digest": "e3b0c44298fc",
+    "dirty_paths": [],
+    "untracked_paths": [],
+    "captured_at": "2026-10-30T00:12:35.708351+00:00",
+    "port": 8071,
+    "error": null,
+    "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/atom.db",
+    "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/byok_keys.json"
+  },
+  "health_status": "healthy",
+  "audience": "single_user",
+  "pilot_email": "admin@example.com",
+  "outbound_scope": "draft_and_approval_only",
+  "controlled_transport": "<unset>",
+  "internal_paths": "0",
+  "topology": "one_worker_process_per_assignment"
+}
+{
+  "ok": true,
+  "snapshot": {
+    "schema": "atom-assignment-release-representative-1",
+    "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+    "assignment_id": "asg-787c5e9954dc46cc",
+    "objective": "Mapping B sum Price",
+    "status": "completed",
+    "plan_revision": 1,
+    "teaching_revision": "3dce63cc9aa4ef14+map",
+    "deliverables": [
+      {
+        "kind": "document",
+        "status": "applied",
+        "required": true,
+        "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+        "sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854"
+      }
+    ],
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+    "artifact_sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
+    "artifact_contains_expected_sum": true,
+    "validation": {
+      "ok": true,
+      "errors": [],
+      "required_deliverables": 1,
+      "source_versions": [
+        "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+      ]
+    },
+    "step_summaries": [
+      "sum of Amount = 35.00 USD across 2 row(s) from workbook_b.xlsx / Sheet1",
+      "rendered mapping-b-total-0f76048f.docx"
+    ],
+    "source_versions": [
+      "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+    ],
+    "user": {
+      "id": "map-user",
+      "email": "admin@example.com",
+      "workspace_id": "default",
+      "tenant_id": null
+    }
+  },
+  "restart_agreement": {
+    "before": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/run/before-restart.json",
+    "fields": [
+      "run_id",
+      "assignment_id",
+      "status",
+      "plan_revision",
+      "teaching_revision",
+      "artifact_path",
+      "artifact_sha256",
+      "source_versions"
+    ],
+    "mismatches": {},
+    "ok": true
+  }
+}
+{
+  "ok": true,
+  "fresh": {
+    "schema": "atom-assignment-fresh-smoke-1",
+    "run_id": "c0c975c9-15ff-4175-b091-9464b29e90b9",
+    "assignment_id": "asg-2c86b005a82049aa",
+    "objective": "Release smoke f884f7523c: sum Amount",
+    "status": "completed",
+    "plan_revision": 1,
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-30f4cca87c7f/release-smoke-f884f7523c-sum-amount-455feb1b.docx",
+    "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+    "artifact_contains_expected_sum": true,
+    "source_versions": [
+      "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+    ],
+    "validation": {
+      "ok": true,
+      "errors": [],
+      "artifact_text": "Release smoke f884f7523c: sum Amount\nObjective\nRelease smoke f884f7523c: sum Amount\nSummary\nsum of Amount: 35.00 USD\nFindings\nworkbook_b.xlsx / Sheet1\nSources\noutlook_workbook_b__sheet1\nworkbook_b.xlsx\nSheet1\n6494998e-c310-4861-8b5e-8bb981f32567\nworkbook_b.xlsx / Sheet1\nRow | identity | identity_source | row | value | currency | value_cell\n | B-1 | identity_column | 2 | 15.00 | USD | C2\n | B-2 | identity_column | 3 | 20.00 | USD | C3",
+      "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+      "recorded_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33"
+    }
+  },
+  "provider_policy": {
+    "mode": "selected",
+    "allowed_providers": [
+      "deepseek"
+    ],
+    "preferred": {
+      "provider": "deepseek",
+      "model": "deepseek-flash"
+    },
+    "ok": true
+  },
+  "send_denial": {
+    "http_status": 422,
+    "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter",
+    "runs_before": 4,
+    "runs_after": 4,
+    "run_created": false,
+    "send_allowed": false
+  },
+  "restart_agreement": {
+    "mismatches": {},
+    "ok": true
+  }
+}
+DEPLOYMENT PASSED: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal

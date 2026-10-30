@@ -42,6 +42,7 @@ FRESH_SOURCE="${ATOM_SMOKE_FRESH_SOURCE:-outlook}"
 FRESH_EXTERNAL_ID="${ATOM_SMOKE_FRESH_EXTERNAL_ID:-}"
 FRESH_VERSION="${ATOM_SMOKE_FRESH_VERSION:-e0a7fb8a1b4757b7f6bef882b19cc4588d66246e}"
 FRESH_SHEET="${ATOM_SMOKE_FRESH_SHEET:-库存产品}"
+FRESH_MEASURE="${ATOM_SMOKE_FRESH_MEASURE:-Price}"
 RECEIPT="${DEPLOY_RECEIPT_PATH:-$ROOT/run/deployment_receipt.json}"
 mkdir -p "$ROOT/run" "$ROOT/logs"
 
@@ -170,7 +171,8 @@ state_candidate_started=1
   --api-base "$API_BASE" --email "$EMAIL" --password-file "$PASSWORD_FILE" \
   --dataset-name "$FRESH_DATASET" --source "$FRESH_SOURCE" \
   --external-id "$FRESH_EXTERNAL_ID" --source-version "$FRESH_VERSION" \
-  --sheet "$FRESH_SHEET" --expected-sum "$EXPECTED_SUM" \
+  --sheet "$FRESH_SHEET" --measure "$FRESH_MEASURE" \
+  --expected-sum "$EXPECTED_SUM" \
   --out "$ROOT/run/fresh-before-restart.json"
 
 "${stop_cmd[@]}"
@@ -184,7 +186,8 @@ state_candidate_started=1
   --api-base "$API_BASE" --email "$EMAIL" --password-file "$PASSWORD_FILE" \
   --dataset-name "$FRESH_DATASET" --source "$FRESH_SOURCE" \
   --external-id "$FRESH_EXTERNAL_ID" --source-version "$FRESH_VERSION" \
-  --sheet "$FRESH_SHEET" --expected-sum "$EXPECTED_SUM" \
+  --sheet "$FRESH_SHEET" --measure "$FRESH_MEASURE" \
+  --expected-sum "$EXPECTED_SUM" \
   --verify-snapshot "$ROOT/run/fresh-before-restart.json" \
   --out "$ROOT/run/fresh-after-restart.json"
 

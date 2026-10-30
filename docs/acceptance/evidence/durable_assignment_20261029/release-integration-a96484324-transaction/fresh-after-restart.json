@@ -1,0 +1,47 @@
+{
+  "ok": true,
+  "fresh": {
+    "schema": "atom-assignment-fresh-smoke-1",
+    "run_id": "c0c975c9-15ff-4175-b091-9464b29e90b9",
+    "assignment_id": "asg-2c86b005a82049aa",
+    "objective": "Release smoke f884f7523c: sum Amount",
+    "status": "completed",
+    "plan_revision": 1,
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-30f4cca87c7f/release-smoke-f884f7523c-sum-amount-455feb1b.docx",
+    "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+    "artifact_contains_expected_sum": true,
+    "source_versions": [
+      "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+    ],
+    "validation": {
+      "ok": true,
+      "errors": [],
+      "artifact_text": "Release smoke f884f7523c: sum Amount\nObjective\nRelease smoke f884f7523c: sum Amount\nSummary\nsum of Amount: 35.00 USD\nFindings\nworkbook_b.xlsx / Sheet1\nSources\noutlook_workbook_b__sheet1\nworkbook_b.xlsx\nSheet1\n6494998e-c310-4861-8b5e-8bb981f32567\nworkbook_b.xlsx / Sheet1\nRow | identity | identity_source | row | value | currency | value_cell\n | B-1 | identity_column | 2 | 15.00 | USD | C2\n | B-2 | identity_column | 3 | 20.00 | USD | C3",
+      "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+      "recorded_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33"
+    }
+  },
+  "provider_policy": {
+    "mode": "selected",
+    "allowed_providers": [
+      "deepseek"
+    ],
+    "preferred": {
+      "provider": "deepseek",
+      "model": "deepseek-flash"
+    },
+    "ok": true
+  },
+  "send_denial": {
+    "http_status": 422,
+    "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter",
+    "runs_before": 4,
+    "runs_after": 4,
+    "run_created": false,
+    "send_allowed": false
+  },
+  "restart_agreement": {
+    "mismatches": {},
+    "ok": true
+  }
+}

@@ -1,8 +1,8 @@
 # Assignment successor release package — a96484324
 
 Status: **frozen successor candidate; four mapping browser flows passed; 98
-affected regressions passed; packaged smoke passed; deployment requested, not
-authorized.** The previous frozen release `901e5d773` and all prior evidence
+mapping regressions and 508 release-affected regressions passed; full isolated
+deployment transaction passed; deployment requested, not authorized.** The previous frozen release `901e5d773` and all prior evidence
 remain unchanged. Nothing was deployed, sent through a real provider, or written
 back to a source.
 
@@ -62,11 +62,20 @@ the packaged frontend/backend at the frozen commit. It:
 - restarted the packaged backend and reopened both assignments, results and
   artifacts with identical identity/hash and no restart disagreement.
 
+The full isolated deployment transaction also passed: approval check, preflight,
+verified backup, scoped stop/start, fresh normal-browser authentication, existing
+teaching assignment reopen, fresh calculation/artifact assignment, provider
+policy, send denial, scoped restart and restart agreement. The first transaction
+attempt failed at the browser onboarding modal and is preserved; the repaired
+harness passed. The rehearsal root was a first release with no previous link, so
+that transaction did not exercise automatic rollback.
+
 Receipts:
-`docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/`
-(`preflight.json`, `startup-receipt.json`, `mapping-taught-smoke.json`,
-`mapping-taught-smoke-after-restart.json`, `backup-manifest.json`,
-`final-status.json`, `evidence-manifest.json`).
+`docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/`
+(`deployment-receipt.json`, `auth-smoke/`, `assignment-before/after-restart.json`,
+`fresh-before/after-restart.json`, `failed-attempt.json`, `evidence-manifest.json`).
+Component-level mapping/fresh receipts remain under
+`release-integration-a96484324-final/`.
 
 ## Release and rollback package
 
@@ -83,7 +92,10 @@ manifest and product-tree checksum, supports a verified SQLite backup, scoped
 start/stop, one-command deployment and code rollback. The database is never
 restored automatically. The rollback target for this candidate is the previous
 frozen release `901e5d773`; a successor deployment over the existing pilot root
-records that release as `previous`.
+records that release as `previous`. The isolated first-release rehearsal root
+had no previous link, so automatic rollback was not exercised there; the 19 kit
+controls cover the failure path, and the earlier full C6 -> C4 -> C6 rehearsal
+was on `901e5d773`, not production.
 
 ## Authorization request
 

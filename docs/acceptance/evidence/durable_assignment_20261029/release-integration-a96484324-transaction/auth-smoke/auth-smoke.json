@@ -1,0 +1,78 @@
+{
+  "schema": "atom-assignment-release-auth-smoke-1",
+  "status": "passed",
+  "checks": [
+    {
+      "name": "fresh_context_login_form",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "normal_form_login",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "workspace_profile_visible",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "authenticated_workspace_access",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "existing_assignment_completed",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "artifact_listed",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "artifact_present_and_openable",
+      "ok": true,
+      "detail": {
+        "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+        "sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854"
+      }
+    },
+    {
+      "name": "logout_clears_storage",
+      "ok": true,
+      "detail": {
+        "auth": null,
+        "token": null
+      }
+    },
+    {
+      "name": "old_token_refused_after_logout",
+      "ok": true,
+      "detail": {
+        "status": 401
+      }
+    },
+    {
+      "name": "second_normal_form_login",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "second_session_workspace_access",
+      "ok": true,
+      "detail": null
+    }
+  ],
+  "session_injected": false,
+  "normal_login_form_used": true,
+  "screenshots": [
+    "assignment-open.png",
+    "signed-in-again.png",
+    "signed-in-assignments.png",
+    "signed-in-dashboard.png",
+    "signed-out.png"
+  ]
+}

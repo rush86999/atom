@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "snapshot": {
+    "schema": "atom-assignment-release-representative-1",
+    "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+    "assignment_id": "asg-787c5e9954dc46cc",
+    "objective": "Mapping B sum Price",
+    "status": "completed",
+    "plan_revision": 1,
+    "teaching_revision": "3dce63cc9aa4ef14+map",
+    "deliverables": [
+      {
+        "kind": "document",
+        "status": "applied",
+        "required": true,
+        "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+        "sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854"
+      }
+    ],
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+    "artifact_sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
+    "artifact_contains_expected_sum": true,
+    "validation": {
+      "ok": true,
+      "errors": [],
+      "required_deliverables": 1,
+      "source_versions": [
+        "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+      ]
+    },
+    "step_summaries": [
+      "sum of Amount = 35.00 USD across 2 row(s) from workbook_b.xlsx / Sheet1",
+      "rendered mapping-b-total-0f76048f.docx"
+    ],
+    "source_versions": [
+      "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+    ],
+    "user": {
+      "id": "map-user",
+      "email": "admin@example.com",
+      "workspace_id": "default",
+      "tenant_id": null
+    }
+  }
+}

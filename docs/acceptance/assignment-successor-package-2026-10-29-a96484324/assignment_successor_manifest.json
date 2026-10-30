@@ -26,7 +26,7 @@
     "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
     "product_tree_matches_tested": true,
     "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
-    "deployment_kit_tree_sha256": "9f89542fcfb9cb976ad4b6746ee0a41b3b3c8aeb1a618b8ad67ac7dcfd17a9cc",
+    "deployment_kit_tree_sha256": "2582ae3421a3f25a02accda73712f4bf404d6e92c5bcd5a07ecf49138cea89c6",
     "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
     "frontend_api_origin": "http://127.0.0.1:8071",
     "api_port": 8071,
@@ -149,7 +149,7 @@
         "bytes": 8837
       },
       "deployment_kit": {
-        "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/kit-tests.log",
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/kit-tests.log",
         "sha256": "c2724c99aa68516d62231c44d92b74e9695949b574ca7624df0c919866f00c1e",
         "bytes": 1189
       },
@@ -164,6 +164,7 @@
   },
   "packaged_smoke": {
     "status": "passed",
+    "mode": "isolated rehearsal deployment transaction",
     "release_identity": {
       "schema": "atom-assignment-successor-release-1",
       "release_tag": "assignment-successor-2026-10-29-a96484324",
@@ -176,7 +177,7 @@
       "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
       "product_tree_matches_tested": true,
       "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
-      "deployment_kit_tree_sha256": "9f89542fcfb9cb976ad4b6746ee0a41b3b3c8aeb1a618b8ad67ac7dcfd17a9cc",
+      "deployment_kit_tree_sha256": "2582ae3421a3f25a02accda73712f4bf404d6e92c5bcd5a07ecf49138cea89c6",
       "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
       "frontend_api_origin": "http://127.0.0.1:8071",
       "api_port": 8071,
@@ -191,65 +192,49 @@
       "seeded_rehearsal_data": true
     },
     "evidence_manifest": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/evidence-manifest.json",
-      "sha256": "7614bb08bfebd0632626bfb7bc9a46dc1468c10d78bbd25aa7e505e9cfd11cc2",
-      "bytes": 19393
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/evidence-manifest.json",
+      "sha256": "1bebad62573d4aec6972189a5dbe14931612baf7e27fc03eba62caad98e9ee49",
+      "bytes": 23656
     },
-    "before_restart": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/mapping-taught-smoke.json",
-      "sha256": "59e8ef4e32a3fef1d1f30118256bc3dbd3ace3c6eae5069c58597a36376c72e7",
-      "bytes": 3569
+    "deployment_receipt": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/deployment-receipt.json",
+      "sha256": "7e98e91a4f2b59dc3ce330869bd3fe483b6b9997470d2c8ca32c3336dcebed92",
+      "bytes": 11133
     },
-    "after_restart": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/mapping-taught-smoke-after-restart.json",
-      "sha256": "3ab96a0a6d7cead4acc5719fc6d6dd5dd68fe76380ce1fd9392acd2e1b040c9a",
-      "bytes": 3123
+    "auth_smoke": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/auth-smoke/auth-smoke.json",
+      "sha256": "23bacadd5719bd33b4b0aa6a6694de5c2d089b093d2c71c64694a42531d34860",
+      "bytes": 1748
+    },
+    "assignment_before_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/assignment-before-restart.json",
+      "sha256": "d134c824bf72b60a30106eca779205b63dad504fd454516a9d694bc66ff2bef9",
+      "bytes": 1691
+    },
+    "assignment_after_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/assignment-after-restart.json",
+      "sha256": "6fae5363f3e7c37ac408c78e0d0f3fc9a4c7b10033574220c2d32c81965c488d",
+      "bytes": 2106
     },
     "fresh_before_restart": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/fresh-before-restart.json",
-      "sha256": "11424796d2dde26cf2e4359a11e44e9253c6dd78d6d0d395a15b995aa1f41abb",
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/fresh-before-restart.json",
+      "sha256": "935693395af5a087f518fbff750e809667a768735b9ebf364b3757ac35359755",
       "bytes": 2203
     },
     "fresh_after_restart": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/fresh-after-restart.json",
-      "sha256": "45f25f535c68fadd97c6a53e85f89cc7bfbb619b44b6072445c659181f98f247",
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/fresh-after-restart.json",
+      "sha256": "174649eddabaf4cbb34dbdc642bae9ce2fe5030eb2f7448d1d978aad71695c86",
       "bytes": 2046
     },
-    "existing_taught_assignment": {
-      "assignment_id": "asg-787c5e9954dc46cc",
-      "status": "completed",
-      "plan_revision": 1,
-      "teaching_revision": "3dce63cc9aa4ef14+map",
-      "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
-      "artifact_sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
-      "artifact_contains_expected_sum": true,
-      "deliverable_status": "applied",
-      "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
-      "objective": "Mapping B sum Price"
+    "failed_attempt": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/failed-attempt.json",
+      "sha256": "19cd3a11562784e75c214c90aa417d616c4353899fe2a943c1389fd5be712a24",
+      "bytes": 233
     },
-    "mapping_result": "35.00",
-    "mapping_revision": 3,
-    "fresh_result": true,
-    "fresh_assignment": {
-      "schema": "atom-assignment-fresh-smoke-1",
-      "run_id": "f5bcfba7-ae47-444d-8bac-a6b2e02f4b81",
-      "assignment_id": "asg-0807c51c8a2d458d",
-      "objective": "Release smoke 2b1caa6773: sum Amount",
-      "status": "completed",
-      "plan_revision": 1,
-      "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-6f7aa548d584/release-smoke-2b1caa6773-sum-amount-9b9e8aa5.docx",
-      "artifact_sha256": "e4c02cad9e05e9e6d355c2a0c242d5b883c99331072e9c09dbfc541629f71a54",
-      "artifact_contains_expected_sum": true,
-      "source_versions": [
-        "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
-      ],
-      "validation": {
-        "ok": true,
-        "errors": [],
-        "artifact_text": "Release smoke 2b1caa6773: sum Amount\nObjective\nRelease smoke 2b1caa6773: sum Amount\nSummary\nsum of Amount: 35.00 USD\nFindings\nworkbook_b.xlsx / Sheet1\nSources\noutlook_workbook_b__sheet1\nworkbook_b.xlsx\nSheet1\n6494998e-c310-4861-8b5e-8bb981f32567\nworkbook_b.xlsx / Sheet1\nRow | identity | identity_source | row | value | currency | value_cell\n | B-1 | identity_column | 2 | 15.00 | USD | C2\n | B-2 | identity_column | 3 | 20.00 | USD | C3",
-        "artifact_sha256": "e4c02cad9e05e9e6d355c2a0c242d5b883c99331072e9c09dbfc541629f71a54",
-        "recorded_sha256": "e4c02cad9e05e9e6d355c2a0c242d5b883c99331072e9c09dbfc541629f71a54"
-      }
+    "failed_attempt_log": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/deployment-transaction-failed.log",
+      "sha256": "84515b22e446c643275275faf751d18bb54fe33fe96162391cc3400450bfbcd3",
+      "bytes": 21221
     },
     "provider_policy": {
       "mode": "selected",
@@ -265,39 +250,32 @@
     "send_denial": {
       "http_status": 422,
       "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter",
-      "runs_before": 1,
-      "runs_after": 1,
+      "runs_before": 3,
+      "runs_after": 3,
       "run_created": false,
       "send_allowed": false
     },
-    "mapping_restart_agreement": {
-      "ok": true,
-      "mismatches": {}
+    "restart_agreement": {
+      "before": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/run/before-restart.json",
+      "fields": [
+        "run_id",
+        "assignment_id",
+        "status",
+        "plan_revision",
+        "teaching_revision",
+        "artifact_path",
+        "artifact_sha256",
+        "source_versions"
+      ],
+      "mismatches": {},
+      "ok": true
     },
     "fresh_restart_agreement": {
       "mismatches": {},
       "ok": true
     },
-    "backup_manifest": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/backup-manifest.json",
-      "sha256": "e835a189501963c5a55fab6ba403aea0ec3d724418dd0771ac96c0dd27467700",
-      "bytes": 2536
-    },
-    "preflight": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/preflight.json",
-      "sha256": "d287ebb649940cc01dcbc147182325ff65fd1908dbc2643aff7436c887ff3441",
-      "bytes": 5955
-    },
-    "startup_receipt": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/startup-receipt.json",
-      "sha256": "1a048f6c0777055b494e68b0a41ea6d7caefae1bb3229b4f09c7459641556b62",
-      "bytes": 1510
-    },
-    "deploy_plan": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/deploy-plan.json",
-      "sha256": "1aabb9631f5620c073674e66d0454c25c2023e7bd86a302b426b694245b999a6",
-      "bytes": 2864
-    }
+    "rollback_available_in_rehearsal_root": false,
+    "rollback_note": "First-release rehearsal root had no previous release link; automatic rollback was not exercised in this transaction. Kit controls cover the failure path; the prior full C6->C4->C6 rehearsal was on 901e5d773, not production."
   },
   "supported_claims": {
     "mapping_confirmation": true,
@@ -321,9 +299,9 @@
   ],
   "evidence": {
     "release_integration": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/evidence-manifest.json",
-      "sha256": "eb7f5cc54cb6b7ba86aade23ee8dc31eaea82d85835cabccfc56095b42ec5a88",
-      "bytes": 18750
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/evidence-manifest.json",
+      "sha256": "1bebad62573d4aec6972189a5dbe14931612baf7e27fc03eba62caad98e9ee49",
+      "bytes": 23656
     },
     "goal_ledger": "docs/acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md",
     "deployment_runbook": "docs/deployment/assignment_successor_2026-10-29_a96484324/DEPLOYMENT_RUNBOOK.md",
@@ -331,7 +309,12 @@
     "deployment_kit": "scripts/deployment/assignment_successor_2026-10-29_a96484324",
     "goal_audit": "docs/acceptance/GOAL_COMPLETION_AUDIT_2026-10-29.md",
     "deployment_decision": "docs/acceptance/DEPLOYMENT_DECISION_a96484324_2026-10-29.md",
-    "send_qualification": "docs/acceptance/REAL_PROVIDER_SEND_QUALIFICATION_2026-10-29.md"
+    "send_qualification": "docs/acceptance/REAL_PROVIDER_SEND_QUALIFICATION_2026-10-29.md",
+    "release_integration_component_smoke": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/evidence-manifest.json",
+      "sha256": "7614bb08bfebd0632626bfb7bc9a46dc1468c10d78bbd25aa7e505e9cfd11cc2",
+      "bytes": 19393
+    }
   },
   "no_deployment": true,
   "no_real_sending": true,

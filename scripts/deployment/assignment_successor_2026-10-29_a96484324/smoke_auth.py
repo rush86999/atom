@@ -59,6 +59,11 @@ def main() -> None:
         page.get_by_test_id("login-submit-button").click()
         page.wait_for_url("**/dashboard", timeout=30000)
         page.wait_for_timeout(1000)
+        # The first-run onboarding wizard is a modal over the workspace. A
+        # fresh packaged login may see it; Escape is the product's normal
+        # dialog dismissal and does not inject a session or skip auth.
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(500)
         token = page.evaluate("() => localStorage.getItem('auth_token')")
         rec("normal_form_login", bool(token))
         rec("workspace_profile_visible",

@@ -59,7 +59,9 @@ provider-policy check → send-denial-before-transport check → scoped restart 
 reopen/compare both assignments → final health → atomic deployment receipt.
 
 Expected duration: **10–20 minutes** on this workstation, plus up to ~5 minutes
-if a post-shutdown failure triggers the rollback attempt.
+if a post-shutdown failure triggers the rollback attempt. The equivalent
+isolated transaction passed; the first attempt exposed a browser onboarding
+modal, was preserved, and the repaired harness passed on the next run.
 
 ## Failure and rollback bounds
 
@@ -73,9 +75,11 @@ if a post-shutdown failure triggers the rollback attempt.
 - The database is **never** restored automatically; newer user data is
   preserved.
 - The final deployment receipt is published atomically only after all checks.
-- **No production rollback has occurred.** The rollback path is exercised in
-  isolated kit controls; a full isolated C6→C4→C6 rollback was previously
-  demonstrated for `901e5d773`, not for this candidate in production.
+- **No production rollback has occurred.** The isolated transaction root was a
+  first release with no `previous` link, so that transaction did not exercise
+  automatic rollback. The rollback path is covered by isolated kit controls; a
+  full isolated C6→C4→C6 rollback was previously demonstrated for `901e5d773`,
+  not for this candidate in production.
 
 ## Separate sending qualification
 
@@ -100,8 +104,8 @@ not recipient delivery.
 
 - Package manifest:
   `docs/acceptance/assignment-successor-package-2026-10-29-a96484324/assignment_successor_manifest.json`
-- Packaged smoke/restart/backup receipts:
-  `docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/`
+- Full isolated deployment transaction and restart/backup receipts:
+  `docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/`
 - Goal audit: `docs/acceptance/GOAL_COMPLETION_AUDIT_2026-10-29.md`
 - Durable ledger: `docs/acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md`
 

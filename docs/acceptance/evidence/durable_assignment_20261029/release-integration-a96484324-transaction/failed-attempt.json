@@ -1,0 +1,9 @@
+{
+  "schema": "atom-assignment-release-failure-1",
+  "failed_at": "2026-10-30T00:11:16.481074+00:00",
+  "mode": "rehearsal",
+  "exit_status": 1,
+  "rollback_start_rc": 1,
+  "database_restored": false,
+  "user_data_preserved": true
+}

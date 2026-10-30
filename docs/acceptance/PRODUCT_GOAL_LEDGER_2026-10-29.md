@@ -56,7 +56,7 @@ fresh read-only assignment with calculation and grounded artifact, confirmed
 the selected DeepSeek policy (`deepseek` / `deepseek-flash`), proved an outbound
 assignment is refused with HTTP 422 before run creation, and reopened both
 results after a packaged backend restart with no disagreement. Receipts:
-`docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/`.
+`docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/`.
 
 Deployment kit:
 `scripts/deployment/assignment_successor_2026-10-29_a96484324/`; runbook:
