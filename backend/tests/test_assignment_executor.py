@@ -1016,3 +1016,122 @@ def test_restart_after_artifact_creation_does_not_recreate_work(
     assert completed["assignment"]["status"] == "completed"
     assert hashlib.sha256(artifact.read_bytes()).hexdigest() == before_hash
     assert len(outbox.read_text().strip().splitlines()) == 1
+
+
+def _research_steps(tmp_path, *, required_fields=None):
+    doc = tmp_path / "research-output.docx"
+    return [
+        new_step(
+            step_id="research", title="Retrieve the missing reference",
+            operation_type="retrieve", adapter="external.research",
+            inputs={
+                "action": "test.research.lookup",
+                "arguments": {"key": "REF-9"},
+                "required_fields": required_fields or ["value"],
+                "purpose": "Find the approved external reference",
+                "question": "What is the approved external reference?",
+            },
+            effect="read_only"),
+        new_step(
+            step_id="calc", title="Calculate from retrieved evidence",
+            operation_type="calculate", adapter="formula.calculate",
+            depends_on=["research"],
+            inputs={
+                "expression": "value * 2",
+                "bindings": {"value": {"$ref": "research.data.value"}},
+                "output_unit": "USD",
+            },
+            effect="local"),
+        new_step(
+            step_id="doc", title="Render the grounded response",
+            operation_type="present", adapter="artifact.document",
+            depends_on=["calc"],
+            inputs={
+                "path": str(doc), "title": "Research Response",
+                "content": "## Summary\n\nTotal: ${calc.value} ${calc.unit}",
+            },
+            effect="local"),
+    ], doc
+
+
+def test_external_research_reads_action_result_as_evidence(env, monkeypatch):
+    from core.action_registry import action_registry
+
+    async def lookup(args, context):
+        return {"value": 21, "source": "approved-readonly-source"}
+
+    action_registry.register(
+        "test.research.lookup", lookup, effects=[{"effect": "read"}])
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(env["tmp"]))
+    steps, doc = _research_steps(env["tmp"])
+    run_id, plan = _create(
+        env, objective="Research then calculate", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "calculate", "present"],
+        completion_criteria=[{"kind": "artifact_verified"}])
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    text = "\n".join(p.text for p in docx.Document(str(doc)).paragraphs)
+    assert "42" in text and "USD" in text
+    research = step_by_id(env["lifecycle"].get_assignment(run_id), "research")
+    assert research["result"]["evidence"][0]["kind"] == "external_information"
+    assert research["result"]["evidence"][0]["source"] == "approved-readonly-source"
+    assert env["lifecycle"].get_task(run_id)["assignment"][
+        "teaching_snapshot"]["revision"] == "teach-r1"
+
+
+def test_external_research_missing_result_is_typed_obligation_and_resumes(
+        env, monkeypatch):
+    from core.action_registry import action_registry
+
+    async def lookup(args, context):
+        return {"value": None, "source": "approved-readonly-source"}
+
+    action_registry.register(
+        "test.research.lookup", lookup, effects=[{"effect": "read"}])
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(env["tmp"]))
+    steps, doc = _research_steps(env["tmp"])
+    run_id, plan = _create(
+        env, objective="Research missing reference", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "calculate", "present"],
+        completion_criteria=[{"kind": "artifact_verified"}])
+    first = _run(env["executor"].execute(run_id))
+    assert first["assignment"]["status"] == "waiting"
+    record = env["lifecycle"].get_task(run_id)
+    gap = next(item for item in record["task_revision"]["unresolved"]
+               if item["status"] == "open")
+    assert gap["kind"] == "external_research"
+    assert gap["concept"] == "external_research"
+    assignment_id = record["assignment"]["assignment_id"]
+
+    env["executor"].resolve_gap(
+        run_id, gap["question_id"], resolution="21",
+        resolved_by="owner", evidence="approved supplier record")
+    resumed = _run(env["executor"].execute(run_id))
+    assert resumed["assignment"]["status"] == "completed", resumed
+    assert resumed["assignment"]["assignment_id"] == assignment_id
+    research = step_by_id(env["lifecycle"].get_assignment(run_id), "research")
+    assert research["result"]["evidence"][0]["source"] == "resolved_obligation"
+    assert research["result"]["data"]["value"] == "21"
+    text = "\n".join(p.text for p in docx.Document(str(doc)).paragraphs)
+    assert "42" in text and "USD" in text
+
+
+def test_external_research_rejects_write_actions(env):
+    from core.action_registry import action_registry
+
+    async def write_action(args, context):
+        return {"value": 21}
+
+    action_registry.register(
+        "test.research.write", write_action, effects=[{"effect": "update"}])
+    steps, _doc = _research_steps(env["tmp"])
+    steps[0]["inputs"]["action"] = "test.research.write"
+    run_id, _ = _create(
+        env, objective="Reject write research", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "calculate", "present"],
+        completion_criteria=[{"kind": "artifact_verified"}])
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] in ("failed", "partial")
+    research = step_by_id(env["lifecycle"].get_assignment(run_id), "research")
+    assert research["failure"]["reason"] == "failed"
+    assert "read-only" in research["failure"]["message"]

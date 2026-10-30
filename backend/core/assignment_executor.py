@@ -1844,6 +1844,7 @@ class AssignmentExecutor:
                     + (f" [by {resolved_by}]" if resolved_by else "")
                     + (f" [evidence: {evidence}]" if evidence else ""),
                     400),
+                "value": _bounded(resolution, 400),
             }],
         })
         # Close the waiting attempt honestly; the reopened step gets a NEW
@@ -3778,6 +3779,167 @@ async def _action_registry_adapter(
         "summary": f"registered action {name} completed",
         "data": _json_safe(result),
         "evidence": [{"kind": "action_registry", "action": name}],
+    }
+
+
+_READ_ONLY_RESEARCH_ACTIONS = {
+    "documents.search", "search_communications", "documents.ls",
+    "documents.cat", "documents.read",
+}
+
+
+@register_assignment_adapter(
+    "external.research",
+    description="Retrieve one missing fact through a bounded read-only action",
+    metadata={"effect": "read_only", "required_actions": ["retrieve"],
+              "allow_standing_authorization": False})
+async def _external_research_adapter(
+    inputs: Dict[str, Any], context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Bounded external-information retrieval through the shared registry.
+
+    The action must be registered and read-only. Its result is validated
+    before any downstream calculation or deliverable consumes it. A missing
+    result becomes a typed ``external_research`` obligation; resolving that
+    obligation supplies evidence, never teaching or authority.
+    """
+    from core.action_registry import action_registry
+
+    name = str(inputs.get("action") or "").strip()
+    arguments = inputs.get("arguments") or {}
+    required_fields = [
+        str(item).strip() for item in (inputs.get("required_fields") or [])
+        if str(item).strip()
+    ]
+    if not name:
+        raise NeedsContext({
+            "concept": "external_research",
+            "kind": "external_research",
+            "question": "Which approved read-only source should be searched?",
+            "reason": "the research step names no action",
+            "resolver": "owner",
+        })
+    action = action_registry.get_action(name)
+    if action is None:
+        return {
+            "status": "failed",
+            "message": f"registered action '{name}' is not available",
+            "error_class": "action_not_registered",
+        }
+    effects = [str((item or {}).get("effect") or "").lower()
+               for item in (action.effects or [])]
+    if any(effect not in ("", "read") for effect in effects):
+        return {
+            "status": "failed",
+            "message": f"action '{name}' is not read-only; research cannot use it",
+            "error_class": "research_action_not_read_only",
+        }
+    if not effects and name not in _READ_ONLY_RESEARCH_ACTIONS:
+        return {
+            "status": "failed",
+            "message": f"action '{name}' is not in the read-only research allowlist",
+            "error_class": "research_action_not_allowlisted",
+        }
+    if not required_fields:
+        raise NeedsContext({
+            "concept": "external_research",
+            "kind": "external_research",
+            "question": "Which fields must the retrieved evidence contain?",
+            "reason": "the research step declares no required result fields",
+            "resolver": "owner",
+        })
+    if not isinstance(arguments, dict):
+        return {
+            "status": "failed",
+            "message": "research arguments must be a mapping",
+            "error_class": "research_arguments_invalid",
+        }
+    dispatched = await _action_registry_adapter(
+        {"action": name, "arguments": arguments}, context)
+    if dispatched.get("status") != "applied":
+        return dispatched
+    data = dispatched.get("data")
+    if not isinstance(data, dict):
+        return {
+            "status": "failed",
+            "message": "research action returned no object",
+            "error_class": "research_result_invalid",
+        }
+    missing = [
+        field for field in required_fields
+        if data.get(field) in (None, "", [], {})
+    ]
+    if missing:
+        # A resolved obligation is evidence for this attempt. It never
+        # rewrites teaching, permissions or the action result.
+        gap_ids = set((context.get("step") or {}).get("gap_ids") or [])
+        resolution = next((
+            item for item in (context.get("resolved_gaps") or [])
+            if item.get("question_id") in gap_ids
+            and str(item.get("resolution") or "").strip()
+        ), None)
+        if resolution is not None:
+            value = str(
+                resolution.get("resolution_value")
+                or resolution.get("resolution") or "").strip()
+            return {
+                "status": "applied",
+                "summary": "missing information supplied as external evidence",
+                "data": {
+                    "value": value,
+                    "source": "resolved_obligation",
+                    "required_fields": required_fields,
+                },
+                "evidence": [{
+                    "kind": "external_information",
+                    "action": name,
+                    "source": "resolved_obligation",
+                    "value": _bounded(value, 2000),
+                    "question_id": resolution.get("question_id"),
+                    "resolved_by": resolution.get("resolved_by"),
+                }],
+                "provenance": {
+                    "action": name,
+                    "arguments": _json_safe(arguments),
+                    "retrieved_at": _utc_now_iso(),
+                    "required_fields": required_fields,
+                },
+            }
+        raise NeedsContext({
+            "concept": "external_research",
+            "kind": "external_research",
+            "question": str(inputs.get("question") or
+                           "What is the missing information?"),
+            "reason": (
+                "the approved read-only source returned no usable evidence "
+                f"for {', '.join(required_fields)}"),
+            "resolver": str(inputs.get("resolver") or "owner"),
+            "checked_evidence": [dispatched.get("evidence") or []],
+            "next_retrieval": f"{name} with the approved arguments",
+            "inputs": {
+                "action": name,
+                "arguments": _json_safe(arguments),
+                "required_fields": required_fields,
+                "purpose": str(inputs.get("purpose") or ""),
+            },
+        })
+    return {
+        "status": "applied",
+        "summary": f"retrieved {', '.join(required_fields)} from {name}",
+        "data": _json_safe(data),
+        "evidence": [{
+            "kind": "external_information",
+            "action": name,
+            "source": str(data.get("source") or name),
+            "required_fields": required_fields,
+            "retrieved_at": _utc_now_iso(),
+        }],
+        "provenance": {
+            "action": name,
+            "arguments": _json_safe(arguments),
+            "retrieved_at": _utc_now_iso(),
+            "required_fields": required_fields,
+        },
     }
 
 
