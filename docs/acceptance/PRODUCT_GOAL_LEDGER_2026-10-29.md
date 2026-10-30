@@ -37,6 +37,29 @@ release `901e5d773` is unchanged. The final manifest and file hashes are
 `docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/manifest-a96484324.json`;
 the prior manifests and attempt directories are preserved unchanged.
 
+## Core completion successor — fda4f2dc9
+
+Product `fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4` (tag
+`assignment-successor-2026-10-30-fda4f2dc9`, tree
+`92924cd8f8f3cffa8e884a9a7fecc5f820f4f5ce8acbba60fdd257975df614fa`)
+preserves all prior evidence and adds the bounded external-information
+workflow.
+
+- `external.research` dispatches only registered read-only actions through the
+  shared action registry, validates required result fields, and records
+  retrieved content as evidence with action/arguments/time provenance.
+- A missing result becomes a typed `external_research` obligation. Resolving it
+  resumes the same assignment; the raw answer is preserved separately from the
+  audit annotation, and it never changes teaching or authority.
+- Current tests cover successful retrieval, typed obligation/resume with the
+  same assignment identity, write-action refusal, and teaching preservation.
+- Release-affected suite: **581 passed, 2 skipped**; kit controls: **25
+  passed**; four mapping browser flows passed on this product.
+
+Remaining required external gates: deployment authorization/password/source
+quiescence, and one real-provider send qualification. Broader compatibility
+limits remain explicit and do not exclude the required employee workflows.
+
 ## Core completion successor — 242c9a01f
 
 The successor product is frozen at

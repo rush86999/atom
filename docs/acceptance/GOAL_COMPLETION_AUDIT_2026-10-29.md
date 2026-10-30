@@ -23,6 +23,17 @@ evidence bound to an earlier source, not automatically a successor pass;
 | 11 | Approval/eventual sending | Draft/approval + attachment-byte Y; send gated | Y | H (draft) | Y | Y | — | — |
 | 12 | Usability/security/operations | Successor package prepared | Y (22 kit controls) | Y current mapping flows | Y | Y | — | Not deployed |
 
+## Core completion successor — fda4f2dc9
+
+- Product: `fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4`, tree
+  `92924cd8f8f3cffa8e884a9a7fecc5f820f4f5ce8acbba60fdd257975df614fa`.
+- Bounded external research through the shared action registry: read-only
+  action allowlist, result validation, typed obligation, same-assignment
+  resume, evidence-only provenance.
+- 581 release-affected passed / 2 skipped; 25 kit controls; four mapping
+  browser flows passed.
+- Deployment and real-provider sending remain external gates.
+
 ## Core completion successor — 242c9a01f
 
 - Product: `242c9a01ff9aebb0467ad7a619ea7e4e468f454d`, tree

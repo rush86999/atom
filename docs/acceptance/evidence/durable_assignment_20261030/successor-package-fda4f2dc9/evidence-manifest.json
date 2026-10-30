@@ -1,0 +1,4694 @@
+{
+  "schema": "atom-successor-package-preparation-1",
+  "created_at": "2026-10-30T03:54:10.048573+00:00",
+  "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9",
+  "release_identity": {
+    "schema": "atom-assignment-successor-release-1",
+    "release_tag": "assignment-successor-2026-10-30-fda4f2dc9",
+    "release_commit": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+    "tested_runtime_commit": "fda4f2dc9",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "92924cd8f8f3cffa8e884a9a7fecc5f820f4f5ce8acbba60fdd257975df614fa",
+    "product_tree_matches_tested": true,
+    "source_manifest_sha256": "4c99dc2334457ef4706c8ca4553fa01b0904d8fc50b77883c1c73fa6671c4c85",
+    "deployment_kit_tree_sha256": "5c58bdd36c109b11b14efb6ccf6d8f5410662beb930c7e08a8e2de24bea3ca26",
+    "frontend_build_id": "7Y8qAVXDNHG0Q9YDMKwb4",
+    "frontend_api_origin": "http://127.0.0.1:8071",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "prepared_at": "2026-10-30T03:47:51.715522+00:00",
+    "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/data",
+    "seeded_rehearsal_data": false
+  },
+  "previous_identity": {
+    "schema": "atom-assignment-successor-release-1",
+    "release_tag": "assignment-successor-2026-10-29",
+    "release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "tested_runtime_commit": "001f93472",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c",
+    "product_tree_matches_tested": true,
+    "source_manifest_sha256": "d62d34537079e6f63d1efffc8165d3c4f6fe552304157ff5acf934574e4e97c2",
+    "deployment_kit_tree_sha256": "8e98d96551ccff59a0f4187f895a368fe3af54ba2a4858f41760cc3b6aa828f4",
+    "frontend_build_id": "QqBNj-ytvaFAwwCWX2M5F",
+    "frontend_api_origin": "http://127.0.0.1:8071",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "prepared_at": "2026-10-29T16:58:20.973885+00:00",
+    "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data",
+    "seeded_rehearsal_data": true
+  },
+  "data_handoff": {
+    "schema": "atom-production-data-handoff-2",
+    "created_at": "2026-10-30T03:48:26.667791+00:00",
+    "source_data_dir": "/Users/rushiparikh/projects/atom/backend/data",
+    "target_data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/data",
+    "database_sha256": "b15d22135c7f69c7d303227a4018aef12f7284cf4622681b213dc1fed879c1d4",
+    "row_counts": {
+      "users": 50,
+      "dataset_entries": 481,
+      "goal_runs": 557
+    },
+    "admin_password_hash_preserved": true,
+    "pilot_password_file_supplied": false,
+    "pilot_password_requirement": "The owner must supply config/pilot_password for the existing admin account. This handoff never generates or changes it.",
+    "artifact_files": 1205,
+    "artifact_files_checked": 4,
+    "artifact_hash_mismatches": [],
+    "secrets_env_copied": true,
+    "memory_included": false,
+    "rehearsal_fixture_used": false,
+    "schema_migration": {
+      "required": {
+        "dataset_entries.parquet_path": "updated"
+      },
+      "optional": {
+        "ingested_documents.file_path": "updated",
+        "accounting_documents.file_path": "updated"
+      },
+      "rewritten_rows": {
+        "dataset_entries.parquet_path": 457,
+        "ingested_documents.file_path": 0,
+        "accounting_documents.file_path": 0
+      },
+      "assignment_paths_changed": 12,
+      "historical_source_reference_count": 54,
+      "remaining_source_reference_counts": {
+        "dataset_entries.parquet_path": 0,
+        "ingested_documents.file_path": 0,
+        "accounting_documents.file_path": 0
+      }
+    },
+    "source_snapshot_sha256": "fe394390f30f61c2c4ef9e801be7a5a15ae7d653fd33986822493c40a9419ea9",
+    "source_snapshot_fingerprint": {
+      "ab_test_participants": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ab_tests": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_accounts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_bills": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_budgets": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_categorization_proposals": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_closes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_documents": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_entities": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_invoices": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_journal_entries": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_rules": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_tax_nexus": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_transactions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "action_autonomy_policies": {
+        "rows": 6,
+        "sha256": "3217f0754a3e5622e08463cf22d53359edef586e4260338d872fd20a8e93053a"
+      },
+      "action_proposals": {
+        "rows": 103,
+        "sha256": "1f9801a9c06cec53db2ad7b7a157f28d4f7fae4095233c2803bbb98331ce6eb8"
+      },
+      "active_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "acu_consumption": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "admin_roles": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "admin_users": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_canvas_presence": {
+        "rows": 3,
+        "sha256": "76f5d822a9b18e667e0ce445fdaa4c0b3780c99794f4e4cc659badf4d0f282e3"
+      },
+      "agent_divisions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_episodes": {
+        "rows": 1012,
+        "sha256": "8130e7c071cad8695b7d59d1291ee4da3f70dbb7a34cc62992203a9be0b3f4d2"
+      },
+      "agent_evolution_traces": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_executions": {
+        "rows": 4286,
+        "sha256": "b0d8fb52a4c3e3b91be0bddeb9ee861af40a8d6ccd4b2a8028ad584d88a1ea61"
+      },
+      "agent_failure_tracking": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_feed_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_feedback": {
+        "rows": 56,
+        "sha256": "7962eee7f0a3ff20218f7e354b068bbcd2e5ea1a42ca3e3c541e0d8744f463cc"
+      },
+      "agent_handoffs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_installations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_jobs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_learning": {
+        "rows": 1,
+        "sha256": "02e2f64ff843183cb41eb8e09c04165968515ffdfc1b3bf73c1cd54ea3e47047"
+      },
+      "agent_memories": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_model_metrics": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_operation_tracker": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_org_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_proactive_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_proposals": {
+        "rows": 16,
+        "sha256": "2164c59d190a43b4483d557bea9c65f0fd4e4b6646cb9d305ee8535cdef4fed2"
+      },
+      "agent_reasoning_steps": {
+        "rows": 4799,
+        "sha256": "09819b5657a13af9fb7e1f920fd72c57aaae9b8067f00d52a0423a688baaf271"
+      },
+      "agent_registry": {
+        "rows": 11,
+        "sha256": "1ac3ee540ed3c2109a2ac11adc4733c28e0fe8ff8e626fee0b16aba0998b175c"
+      },
+      "agent_request_logs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_skills": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_templates": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_threads": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "analytics_workflow_logs": {
+        "rows": 2,
+        "sha256": "9506f26c88195f6318dd04ae32b7ad8d4b60b40590c30276c6b64ec07d140dc0"
+      },
+      "apscheduler_jobs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "artifact_comments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "artifact_versions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "artifacts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "async_continuation_claims": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "blocked_triggers": {
+        "rows": 3348,
+        "sha256": "161000c8f12bbcc31295b5c669420ffe1e9ec97ed3ab5411f1e54eb73f5e4ffd"
+      },
+      "board_columns": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "board_tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "boards": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "browser_audit": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "browser_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "bundle_exports": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "bundle_imports": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "business_product_services": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "business_rules": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canvas_audit": {
+        "rows": 1126,
+        "sha256": "34fbe79de18796697391e621eb57a8672816b18878864126ceffa82f51c30b28"
+      },
+      "canvas_components": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canvas_contexts": {
+        "rows": 68,
+        "sha256": "d850ce5f17beafd8b549883da48d88184eb7545c761f57209a9b79d280032c8f"
+      },
+      "canvas_logic": {
+        "rows": 48,
+        "sha256": "d094c69b588814916c03062ef3ae5ed3e6bd418d4f26625aac932938f20265e4"
+      },
+      "canvas_recording_reviews": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canvas_recordings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canvas_records": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canvas_states": {
+        "rows": 18,
+        "sha256": "cc519bd6e5e2862bf9fadf9c51f108d086bb815d5b7843bc92665fc006b15542"
+      },
+      "canvas_templates": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canvases": {
+        "rows": 200,
+        "sha256": "43d4101f6dd12dac44e4287b61b4582e54b9a6091877e31fe25debfd05c34bd7"
+      },
+      "category_cache": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "certificate_validations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "chain_links": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "channels": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "chat_messages": {
+        "rows": 5498,
+        "sha256": "c6166e889d2ac7b2e016f55ecd93cb042ecfb2968b3fd3980e21a3431f255b67"
+      },
+      "chat_processes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "chat_request_records": {
+        "rows": 518,
+        "sha256": "61e386c2682230331e636680e1e91d4efd42f31a3d971074f580e2a1713a4cae"
+      },
+      "chat_sessions": {
+        "rows": 1047,
+        "sha256": "754104d69365b788786afc7b9b419f7a5e7d6d06ccf8076f27b39891e5c30bdc"
+      },
+      "citation_verification_batches": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_experiences": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_tier_preferences": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "communication_channels": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "communication_comments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "communication_suggestions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "community_membership": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "community_skills": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "competitor_analyses": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "component_installations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "component_usage": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "component_versions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "condition_alert_status": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "condition_alerts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "condition_monitor_types": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "condition_monitors": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "conflict_log": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "conversation_events": {
+        "rows": 778,
+        "sha256": "8beb7c82ced1ef0ae5e7e8b9f0449a6f7af1c7480fe2069d32d29e047b345682"
+      },
+      "coordinated_strategies": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "custom_components": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "custom_domains": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "custom_roles": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "dashboard_widgets": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "dashboards": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "dataset_entries": {
+        "rows": 481,
+        "sha256": "7fc2fa335ebc8e907f499bec67ee67524532b0b109549a67d3fd54ac1c46d609"
+      },
+      "debug_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "debug_insights": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "debug_logs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "debug_metrics": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "debug_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "debug_state_snapshots": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "debug_variables": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "decision_automation_actions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "decision_gate_audit": {
+        "rows": 11,
+        "sha256": "ab43e5fdef758846af6400886f6fb81f90565c94b97f2927a43e3d31edbefbfb"
+      },
+      "decision_intent_labels": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "decision_router_audit": {
+        "rows": 5,
+        "sha256": "9dd2acbd513aa9532b1a7352642a877357898551af8d5e611c89e90d4e57b7f8"
+      },
+      "decision_turn_audit": {
+        "rows": 12,
+        "sha256": "e7fda4c0e530d37b5cc617516657267b38148ad6f11a75cd7eeb2317327af6cc"
+      },
+      "deep_link_audit": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "delegation_chains": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "delivery_events": {
+        "rows": 342,
+        "sha256": "9b69333d4603e61ebb1c8550ef52bfeca5d8bd82f988a57bb91dc91859a2dbf0"
+      },
+      "desktop_actions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "desktop_api_keys": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "desktop_commands": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "desktop_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "device_attestations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "device_audit": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "device_nodes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "device_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "devices": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "discovered_entities": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "distributed_tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "document_ingestions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "domain_experience_ledger": {
+        "rows": 1002,
+        "sha256": "2fab3af6eb46c47ac6dd4dc6b800c7477104c264efd5ca6d1e7193da77a8df56"
+      },
+      "ecommerce_customers": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ecommerce_order_items": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ecommerce_orders": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ecommerce_stores": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ecommerce_subscription_audit": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ecommerce_subscriptions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "edge_case_library": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "email_verification_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "entity_type_definitions": {
+        "rows": 7,
+        "sha256": "5e5bc44dc9e88d4d7bafbac9d0877a1ceafc6afaeb48414d9deef3852d85125a"
+      },
+      "entity_type_version_history": {
+        "rows": 1270,
+        "sha256": "16fe802b47ee62fe8b22d2f74ac7b990488a8261a6d19c62093042b2ccfb75b0"
+      },
+      "episode_access_logs": {
+        "rows": 34499,
+        "sha256": "c76c0202c5ba65f676ccb39bd2c67b640fe2c9d0a61a68cf2ef75cf33834eb07"
+      },
+      "episode_feedback": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "episode_segments": {
+        "rows": 29676,
+        "sha256": "fedabeb23628248be4d8b086789b64808fe7c618e98dee15070f07c02583cf2e"
+      },
+      "escalation_log": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "exchange_examples": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "execution_traces": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "experience_exports": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "experience_imports": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "experience_items": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "experience_role_registry": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "failed_rating_uploads": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "federation_credentials": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "federation_dids": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "feedback_votes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ffmpeg_job": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "field_guides": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "financial_accounts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "financial_audits": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fleet_healing_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fleet_overages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fleet_performance_metrics": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fleet_router_automation_actions": {
+        "rows": 2,
+        "sha256": "9f741795a797b86c8c35ed02a24232bb55839d6d4c59e0520fedc3e23b64342d"
+      },
+      "fleet_routing_audit": {
+        "rows": 20,
+        "sha256": "0b6af5209c9e266ba1c51e4612a10069ba8143efd12f0a639cbeb327d36400b5"
+      },
+      "formula_feedback": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "formulas": {
+        "rows": 223999,
+        "sha256": "39cc40a35990834516e20723dc022f72937b9926a935ee9f63f431f286054575"
+      },
+      "gateway_api_keys": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "gateway_request_logs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "goal_objectives": {
+        "rows": 557,
+        "sha256": "24e7ec356b75d39797bf70006ff48e86f343bd8c8dc4a5e9afb226140ca6e607"
+      },
+      "goal_runs": {
+        "rows": 557,
+        "sha256": "fddf117107603bb00d77b15725ba681bdc7f1c034408352909df1ffd81b3569d"
+      },
+      "governance_documents": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "graduation_exams": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "graph_communities": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "graph_community_snapshots": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "graph_edges": {
+        "rows": 38368,
+        "sha256": "237402133942ee34aeb728bab52b6d2130994a12c30a1b004a8fe10e52cc80e2"
+      },
+      "graph_nodes": {
+        "rows": 21367,
+        "sha256": "14d8158157c05234b884a712761e80041e6392a304f1a3a9fe071a321c8b2f31"
+      },
+      "guacamole_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "historical_sync_jobs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "hitl_actions": {
+        "rows": 47,
+        "sha256": "8b47af2360e8701734871cce2ebbe1b319dcc5cfc5372cab0efebfefa3e42aaa"
+      },
+      "home_assistant_connections": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "hosting_deployments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "hosting_projects": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "hosting_resources": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "hue_bridges": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "hypothesis_trees": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "im_audit_log": {
+        "rows": 1,
+        "sha256": "49cae07511b1500eedb1ffd6425eac971e728a7dd2d0082d237727941775ac61"
+      },
+      "incident_evals": {
+        "rows": 8,
+        "sha256": "6f7881470949f2863dcef90fcf6094ed501aae4c135d78472781343bedb292e0"
+      },
+      "ingested_documents": {
+        "rows": 3758,
+        "sha256": "e5049ceb349180df658c53e960ef48ddeea51a444f1efcb5b502264c9044bf48"
+      },
+      "ingested_documents_fts": {
+        "rows": 3758,
+        "sha256": "2ac136219edfc6e2c3f6a372000887536a890add3a4d8d05cae988aef2d250e5"
+      },
+      "ingested_documents_fts_config": {
+        "rows": 1,
+        "sha256": "4d22cc3d4f1c19eddc0f7b3ada59e7f109661467b3f7c49ed8b4e6c575a03d25"
+      },
+      "ingested_documents_fts_data": {
+        "rows": 316,
+        "sha256": "e60d88d7e14f2503be1556b58ca799004ed29073fd351d28ac0b17a5fa65c665"
+      },
+      "ingested_documents_fts_docsize": {
+        "rows": 3758,
+        "sha256": "630e82fae51defa1a9feaf204de22c7bd939575ca9b77848d92755637651be60"
+      },
+      "ingested_documents_fts_idx": {
+        "rows": 311,
+        "sha256": "25433f8e0018ca58cdfeada4708682a4289c71e92b2d90203991043d617635b7"
+      },
+      "ingestion_audit_logs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ingestion_jobs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ingestion_profile_imports": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ingestion_settings": {
+        "rows": 4,
+        "sha256": "872f401dbeee4cbfcea97ca6585c9293bab9c02dd564b3d6dee5dcdcdbe25788"
+      },
+      "installation_profiles": {
+        "rows": 28,
+        "sha256": "85ec92eea84ba556caf675e81b8e2d2d7342c4e7ee3faa9c6dc145716020475e"
+      },
+      "integration_canvas_nodes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "integration_catalog": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "integration_connections": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "integration_health_metrics": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "integration_metrics": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "integration_tokens": {
+        "rows": 9,
+        "sha256": "053903d180f911893317d7b3c8b127173986c16ea37167d3246e4c09306fa883"
+      },
+      "intervention_outcomes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "interventions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "invocation_events": {
+        "rows": 1243,
+        "sha256": "dbccc19e5772e53968432581dc50e960f0e879360f38a334f64b66218c956e4a"
+      },
+      "knowledge_documents": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "knowledge_documents_fts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "knowledge_documents_fts_config": {
+        "rows": 1,
+        "sha256": "4d22cc3d4f1c19eddc0f7b3ada59e7f109661467b3f7c49ed8b4e6c575a03d25"
+      },
+      "knowledge_documents_fts_data": {
+        "rows": 2,
+        "sha256": "cfa2829e70286074437fa77f9e79f11121ad1c3cc593f05ff02bcbb4423bf34c"
+      },
+      "knowledge_documents_fts_docsize": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "knowledge_documents_fts_idx": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "knowledge_patterns": {
+        "rows": 5559,
+        "sha256": "f79d0bc6e46429f0841132f25237b9aee69f57c74eb6e9efcf6716dc5cbace79"
+      },
+      "lateral_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "learning_plans": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "link_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "llm_models": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "llm_oauth_credentials": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "llm_routing_feedback": {
+        "rows": 311724,
+        "sha256": "c555ca2f5795a6a991d1f6974ed23d3768f2a8f39a430ac8e44f7db55825d168"
+      },
+      "llm_stage_router_audit": {
+        "rows": 170,
+        "sha256": "4a96e6d3d265d099d82c2bb021eaba0a23a7cf034cec539ff77f18b0caf91ad9"
+      },
+      "local_model_capabilities": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "local_model_providers": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "machines": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "marketing_ad_spend": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "marketing_attribution_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "marketing_channels": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "marketplace_instance": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "marketplace_ratings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "marketplace_usage_local": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "meeting_attendance": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "menu_bar_audit": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "message_delivery_reports": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "message_routing_rules": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "message_templates": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "mini_app_assets": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "mini_app_installations": {
+        "rows": 18,
+        "sha256": "7a52d2ccbc2e500db484efa12cb382f1ec659538f7f35a0819d316abe4c9edbe"
+      },
+      "mini_apps": {
+        "rows": 30,
+        "sha256": "cf7acb9ed764bd5ff473373342e22cb66ce4136b7a3811ab9b4c728096058e50"
+      },
+      "mobile_devices": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "model_catalog": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "net_worth_snapshots": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "notifications": {
+        "rows": 407,
+        "sha256": "f9d722e2ad304786a8b5fe96356ababb87c908134a0bd8c993c01dcaeab7bfdf"
+      },
+      "notion_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "oauth_clients": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "oauth_states": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "oauth_tokens": {
+        "rows": 2,
+        "sha256": "437939f2e8f73efde93912360502180f5b25106875f93df56938e12c38ccba70"
+      },
+      "offline_actions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ontology_draft_actions": {
+        "rows": 7,
+        "sha256": "3b6e5e6d461fda3879d0e98501d25e168c186cb2c3128a0bc7c9c5ce51694d8b"
+      },
+      "operation_error_resolutions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "org_politics_actions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "org_public_keys": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "package_installations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "package_registry": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "package_whitelist": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "password_reset_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "paused_agent_tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "permissions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "playbooks": {
+        "rows": 19,
+        "sha256": "2abf1c5ed82f6f4ddf46d4e9660895dfb7c217b443468a52d89a99d40ed3dc3a"
+      },
+      "post_reactions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "proactive_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "promotion_history": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "provider_registry": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "public_api_keys": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "push_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "rate_usage_records": {
+        "rows": 58051,
+        "sha256": "3ca8900af0b1212d818372c295b18be9ac392a7117e065dd0cf6acf5557165cd"
+      },
+      "relation_type_definitions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revoked_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "role_permissions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "run_sandboxes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "runtime_settings": {
+        "rows": 3,
+        "sha256": "535a8e987579a7f1f34f3190f549e2485aae3cd339cc632e669825cbd0d6cfb3"
+      },
+      "saas_audit_logs": {
+        "rows": 821,
+        "sha256": "8cf211509d2a19acf11bc7e708161f3bae2ca298d5671c8062aebf57250ff44d"
+      },
+      "sales_call_transcripts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sales_commissions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sales_deals": {
+        "rows": 1,
+        "sha256": "f2b58076e65d44fcd5bcabcd145c39ccb6d33fc68a2fc97f795813da5f587bc3"
+      },
+      "sales_follow_up_tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sales_leads": {
+        "rows": 125,
+        "sha256": "bf1c741f7fdb04164aa9b570ae6349bfb2e2054ff58f81f83ae5b2ddcb64a71a"
+      },
+      "sandbox_violations": {
+        "rows": 32,
+        "sha256": "674a92c9c03cd4e21bf9a3efdff46c1d5607be68b8dedaa10977009faf09ded8"
+      },
+      "scaling_auto_approvals": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "scaling_operations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "scaling_proposals": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "scheduled_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "scheduled_social_posts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "scim_configurations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_agent_configs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_audit_log": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_code_quality_metrics": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_deployment_health_checks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_deployments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_projects": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_pull_request_reviews": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "self_consistency_votes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "service_appointments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "service_contracts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "service_milestones": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "service_projects": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "service_tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ses_bounce_list": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ses_complaint_list": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ses_email_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ses_templates": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "setting_change_audit": {
+        "rows": 13,
+        "sha256": "261704834a527d6cf336cf6d3393268df6abb01a7dab46b3aac96df8bb2729c9"
+      },
+      "shell_audit_log": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "shell_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_cache": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_candidates": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_composition_executions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_composition_steps": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_compositions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_executions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_impact_entries": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_installations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_ratings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_suggestion_feedback": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_versions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skills": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smarthome_automation_rules": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smarthome_devices": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smarthome_energy_usage": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smarthome_scenes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smarthome_schedules": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "social_media_audit": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "social_post_history": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "social_posts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "specialist_domains": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sso_configurations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stage_router_automation_actions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "strategy_contributions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "supervised_execution_queue": {
+        "rows": 30,
+        "sha256": "5f718847f8a1aedce853a8e2e196ebe38ff82451ed817b8cb639b3df48beaf6e"
+      },
+      "supervision_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "supervisor_comments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "supervisor_performance": {
+        "rows": 21,
+        "sha256": "06b55994d7678cfcac15be987fc1c0b89c3d7298fbffb74108efa314d4cc0bbf"
+      },
+      "supervisor_ratings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "support_tickets": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "swarm_tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sync_state": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "system_settings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "task_executions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "task_operation_records": {
+        "rows": 283,
+        "sha256": "1854782a7914af8baf3d565637819342c5d79993f0b207930616039a656b8cf8"
+      },
+      "tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "team_members": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "team_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "teams": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "template_executions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "template_versions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tenant_integration_configs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tenant_integrations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tenant_settings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tenants": {
+        "rows": 86,
+        "sha256": "93a3d07031ac79e9e24c1ddc15aef13b255cd5b90723350a469bb609f86733bf"
+      },
+      "ticket_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "token_usage": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tool_mutations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "training_alert_configurations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "training_alerts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "training_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "trust_calibration_actions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "trust_calibration_assessments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "turn_facts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "unified_calendar_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "unified_communications": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "unified_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "unified_workspaces": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_accounts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_activities": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_activity_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_availability": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_connections": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_identities": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_preferences": {
+        "rows": 2,
+        "sha256": "4f5d7780639dfef139fa8b7d71a486b6028b5b1d370931c13368a551b6666c91"
+      },
+      "user_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_workspaces": {
+        "rows": 11,
+        "sha256": "8859c1376ea27bf0bf2c64186a69272ab4110bf33a6cefeb78e6fba7be232ada"
+      },
+      "users": {
+        "rows": 50,
+        "sha256": "20398845d410f33d3611d720b98c51c0be4b7a9409bc1c70aa72b4144934607d"
+      },
+      "verify_panel_runs": {
+        "rows": 908,
+        "sha256": "c1265bc0e33f7f6723f3bd3d9190834ee33e8d6b5e2a97fe6f1267976cc58c71"
+      },
+      "view_orchestration_state": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "webhook_tombstones": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "websocket_state": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow_breakpoints": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow_debug_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow_executions": {
+        "rows": 1,
+        "sha256": "7f6b8b457d15598b2adb680a1f81e3087029258d4848fd3f97bdbbd3177bb977"
+      },
+      "workflow_runs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow_snapshots": {
+        "rows": 1,
+        "sha256": "fbaead9a46c12a40828c80624a46c8e8575c096307596d46da54564d55361062"
+      },
+      "workflow_step_executions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow_steps": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow_templates": {
+        "rows": 3,
+        "sha256": "351e011abbe5d868ae7fcf943237bfa6460a5c7fbbd109a282898acc7203b26c"
+      },
+      "workflow_variants": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflows": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workspace_skills": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workspace_sync_logs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workspaces": {
+        "rows": 86,
+        "sha256": "ce256f0c1295366a8cc0a61abd25e04354ec017c56f5796a6cdf871788c8aa43"
+      }
+    },
+    "source_snapshot_fingerprint_scope": "Logical per-table row-count/row-value digests of the consistent SQLite backup snapshot, before operational path rewriting. Physical WAL/page churn is intentionally excluded.",
+    "source_consistency": {
+      "database_snapshot": "sqlite_backup_api",
+      "source_opened_read_only": true,
+      "source_hash_before": "19e26d6f5cd7e57659f3eaff08e4bf50cc5bd5b16967b775fb79c3cd4278c0fe",
+      "source_hash_after": "19e26d6f5cd7e57659f3eaff08e4bf50cc5bd5b16967b775fb79c3cd4278c0fe",
+      "source_wal_before": {
+        "exists": true,
+        "bytes": 12557792,
+        "mtime_ns": 1793330904524870950,
+        "sha256": "84eba968206c3ed42698f331814b1daaf3568a175096b38a7f3138ee5a5690b3"
+      },
+      "source_wal_after": {
+        "exists": true,
+        "bytes": 12557792,
+        "mtime_ns": 1793330904524870950,
+        "sha256": "84eba968206c3ed42698f331814b1daaf3568a175096b38a7f3138ee5a5690b3"
+      },
+      "source_changed_during_copy": false,
+      "snapshot_is_consistent": true,
+      "provisional": false,
+      "final_cutover_required": true,
+      "cutover_freshness_gate": "check_freshness.py compares the current source logical fingerprint, memory table versions and referenced files to this snapshot. Any change refuses the transaction.",
+      "note": "The backup API produced a consistent point-in-time snapshot. A live source may commit after the snapshot; that is expected and is detected by the cutover freshness gate, which requires a refresh rather than implying later writes are included."
+    },
+    "source_mutated": false,
+    "source_readonly_checks": [
+      "SQLite source opened with URI mode=ro for backup and admin-hash read",
+      "no write connection to the source data directory",
+      "source hash/stat compared before and after the copy",
+      "target operational paths checked for remaining source references"
+    ]
+  },
+  "memory_handoff": {
+    "schema": "atom-memory-handoff-1",
+    "created_at": "2026-10-30T03:48:48.355514+00:00",
+    "source_memory_dir": "/Users/rushiparikh/projects/atom/backend/data/atom_memory",
+    "target_memory_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/data/atom_memory",
+    "workspace_migrated": "default",
+    "strategy": "read-only-logical-export-required-tables",
+    "workspace_tables": {
+      "documents": {
+        "version": 26802,
+        "rows": 44908
+      },
+      "business_facts": {
+        "version": 31452,
+        "rows": 31415
+      },
+      "agent_experience": {
+        "version": 290,
+        "rows": 289
+      },
+      "chat_messages": {
+        "version": 1727,
+        "rows": 1726
+      },
+      "ingestion_metadata": {
+        "version": 20313,
+        "rows": 4
+      },
+      "integration_zoho": {
+        "version": 7744,
+        "rows": 2331
+      },
+      "formula_cards": {
+        "version": 1,
+        "rows": 0
+      }
+    },
+    "root_tables": {
+      "documents": {
+        "version": 45,
+        "rows": 45
+      },
+      "chat_messages": {
+        "version": 37,
+        "rows": 26
+      },
+      "atom_communications": {
+        "version": 18,
+        "rows": 7
+      },
+      "ingestion_metadata": {
+        "version": 18,
+        "rows": 5
+      },
+      "turn_facts": {
+        "version": 12,
+        "rows": 11
+      },
+      "exchange_examples": {
+        "version": 4,
+        "rows": 2
+      },
+      "knowledge_graph": {
+        "version": 1,
+        "rows": 0
+      }
+    },
+    "omitted": {
+      "workspace/atom_communications": {
+        "bytes": 7762174979,
+        "reason": "large communication archive; not required for document/assignment retrieval"
+      },
+      "workspace/default_shared": {
+        "bytes": 31680309480,
+        "reason": "legacy shared workspace not used by the declared admin workspace"
+      }
+    },
+    "required_bytes": 921085831,
+    "free_bytes_before": 29315006464,
+    "free_bytes_after_estimate": 28393920633,
+    "min_free_gib": 20.0,
+    "active_writer_processes_seen": [
+      "12625 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8082",
+      "19046 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 75",
+      "30289 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8084",
+      "61581 /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/Resources/Python.app/Contents/MacOS/Python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8107 --timeout-keep-alive 75",
+      "72728 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8105 --timeout-keep-alive 300",
+      "93252 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8121"
+    ],
+    "source_access": "read-only LanceDB table export at recorded versions",
+    "source_mutated": false,
+    "indexes": "Data rows are preserved. LanceDB ANN/FTS indexes are rebuildable from the exported rows and are not copied as mutable index files."
+  },
+  "handoff_verification": {
+    "schema": "atom-production-handoff-verification-1",
+    "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9",
+    "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/data",
+    "row_counts": {
+      "users": 50,
+      "dataset_entries": 481,
+      "goal_runs": 557
+    },
+    "admin_password_hash_present": true,
+    "operations_checked": 16305,
+    "operation_binding_mismatches": 0,
+    "artifact_checks": 4,
+    "artifact_checks_ok": true,
+    "dataset_paths_checked": 481,
+    "dataset_paths_ok": true,
+    "referenced_dataset_names": 2,
+    "referenced_dataset_paths_ok": true,
+    "pre_existing_missing_dataset_paths": 21,
+    "pre_existing_missing_dataset_details": [
+      {
+        "dataset_name": "outlook_canada_trigger_report_cml_usa_15_sept_26_to_15_sept_26__visitor_list",
+        "status": "active",
+        "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/3bd033eef729/outlook_canada_trigger_report_cml_usa_15_sept_26_to_15_sept_26__visitor_list.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_260827_2026_brennan_machinery_inc__premium",
+        "status": "active",
+        "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/1d31dda11985/outlook_260827_2026_brennan_machinery_inc__premium.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_260827_2026_brennan_machinery_inc__cgl",
+        "status": "active",
+        "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/1d31dda11985/outlook_260827_2026_brennan_machinery_inc__cgl.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_business_incometax_july_26_1___business_income_tax_25_26",
+        "status": "active",
+        "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/48dc003ddf1a/outlook_business_incometax_july_26_1___business_income_tax_25_26.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_business_incometax_july_26_1___july_26_oct25",
+        "status": "active",
+        "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/48dc003ddf1a/outlook_business_incometax_july_26_1___july_26_oct25.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_business_incometax_july_26_1___sep25_oct24",
+        "status": "active",
+        "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/48dc003ddf1a/outlook_business_incometax_july_26_1___sep25_oct24.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_business_incometax_july_26_1___business_income_tax_24_25",
+        "status": "active",
+        "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/48dc003ddf1a/outlook_business_incometax_july_26_1___business_income_tax_24_25.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_reimb_vacation__sheet1",
+        "status": "active",
+        "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/111a55421bea/outlook_reimb_vacation__sheet1.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_canada_trigger_report_cml_usa_14_sept_26_to_14_sept_26__visitor_list",
+        "status": "active",
+        "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/200d2ea9c0f8/outlook_canada_trigger_report_cml_usa_14_sept_26_to_14_sept_26__visitor_list.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_canada_trigger_report_cml_usa_21_sept_26_to_21_sept_26__visitor_list",
+        "status": "active",
+        "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/d2bf0082b69c/outlook_canada_trigger_report_cml_usa_21_sept_26_to_21_sept_26__visitor_list.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_canada_trigger_report_cml_usa_26_sept_26_to_26_sept_26__visitor_list",
+        "status": "active",
+        "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/b455dbe5a59f/outlook_canada_trigger_report_cml_usa_26_sept_26_to_26_sept_26__visitor_list.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_canada_trigger_report_cml_usa_27_sept_26_to_27_sept_26__visitor_list",
+        "status": "active",
+        "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/08527c13df4c/outlook_canada_trigger_report_cml_usa_27_sept_26_to_27_sept_26__visitor_list.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_trial_balance_7_oct_2024_30_sep_2025__trial_balance",
+        "status": "active",
+        "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/f8cd9f041640/outlook_trial_balance_7_oct_2024_30_sep_2025__trial_balance.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_detailed_general_ledger_7_oct_2024_30sep2025__general_ledger",
+        "status": "active",
+        "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/1791b2d197a7/outlook_detailed_general_ledger_7_oct_2024_30sep2025__general_ledger.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_detailed_general_ledger_7_oct_2024_30sep2025__detailed_general_ledger",
+        "status": "active",
+        "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/1791b2d197a7/outlook_detailed_general_ledger_7_oct_2024_30sep2025__detailed_general_ledger.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_canada_trigger_report_cml_usa_28_sept_26_to_28_sept_26__visitor_list",
+        "status": "active",
+        "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/4cc8d902712e/outlook_canada_trigger_report_cml_usa_28_sept_26_to_28_sept_26__visitor_list.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_cogs_7oct_24_30sep_25__cogs",
+        "status": "active",
+        "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/4be36e9aa789/outlook_cogs_7oct_24_30sep_25__cogs.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_cogs_7oct_24_30sep_25__cost_of_goods_sold_7_oct_30sept",
+        "status": "active",
+        "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/4be36e9aa789/outlook_cogs_7oct_24_30sep_25__cost_of_goods_sold_7_oct_30sept.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_cogs_7oct_24_30sep_25__cost_of_item_7oct_30sep",
+        "status": "active",
+        "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/4be36e9aa789/outlook_cogs_7oct_24_30sep_25__cost_of_item_7oct_30sep.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_cogs_7oct_24_30sep_25__freight_in_charges",
+        "status": "active",
+        "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/4be36e9aa789/outlook_cogs_7oct_24_30sep_25__freight_in_charges.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      },
+      {
+        "dataset_name": "outlook_cogs_7oct_24_30sep_25__gary_s_inventory_previous_owner",
+        "status": "active",
+        "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/4be36e9aa789/outlook_cogs_7oct_24_30sep_25__gary_s_inventory_previous_owner.parquet",
+        "referenced_by": [],
+        "retrieval_consequence": "historical catalog row only; no current assignment references it"
+      }
+    ],
+    "operational_source_references": 0,
+    "historical_source_reference_count": 42,
+    "representative_assignments": {
+      "completed": {
+        "run_id": "a8b59e81-6a8f-46a9-aa88-e42b4b44ee1d",
+        "assignment_id": "asg-e045bfd791f74a57",
+        "status": "completed",
+        "plan_revision": 1,
+        "deliverables": 2,
+        "mappings": 0
+      },
+      "waiting": null
+    },
+    "memory_handoff": {
+      "manifest": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/run/memory_handoff.json",
+      "workspace_tables": {
+        "documents": {
+          "version": 26802,
+          "rows": 44908
+        },
+        "business_facts": {
+          "version": 31452,
+          "rows": 31415
+        },
+        "agent_experience": {
+          "version": 290,
+          "rows": 289
+        },
+        "chat_messages": {
+          "version": 1727,
+          "rows": 1726
+        },
+        "ingestion_metadata": {
+          "version": 20313,
+          "rows": 4
+        },
+        "integration_zoho": {
+          "version": 7744,
+          "rows": 2331
+        },
+        "formula_cards": {
+          "version": 1,
+          "rows": 0
+        }
+      },
+      "strategy": "read-only-logical-export-required-tables",
+      "ok": true
+    },
+    "authentication_smoke": "blocked_missing_pilot_password",
+    "authentication_note": "No config/pilot_password is present. The admin password hash was preserved; actual login must be run after the owner supplies the pilot password file."
+  },
+  "freshness_baseline": {
+    "schema": "atom-production-freshness-baseline-2",
+    "created_at": "2026-10-30T03:48:28.543320+00:00",
+    "source_data_dir": "/Users/rushiparikh/projects/atom/backend/data",
+    "target_data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/data",
+    "source_db_sha256": "fe394390f30f61c2c4ef9e801be7a5a15ae7d653fd33986822493c40a9419ea9",
+    "source_db_fingerprint": {
+      "ab_test_participants": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ab_tests": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_accounts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_bills": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_budgets": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_categorization_proposals": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_closes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_documents": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_entities": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_invoices": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_journal_entries": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_rules": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_tax_nexus": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting_transactions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "action_autonomy_policies": {
+        "rows": 6,
+        "sha256": "3217f0754a3e5622e08463cf22d53359edef586e4260338d872fd20a8e93053a"
+      },
+      "action_proposals": {
+        "rows": 103,
+        "sha256": "1f9801a9c06cec53db2ad7b7a157f28d4f7fae4095233c2803bbb98331ce6eb8"
+      },
+      "active_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "acu_consumption": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "admin_roles": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "admin_users": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_canvas_presence": {
+        "rows": 3,
+        "sha256": "76f5d822a9b18e667e0ce445fdaa4c0b3780c99794f4e4cc659badf4d0f282e3"
+      },
+      "agent_divisions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_episodes": {
+        "rows": 1012,
+        "sha256": "8130e7c071cad8695b7d59d1291ee4da3f70dbb7a34cc62992203a9be0b3f4d2"
+      },
+      "agent_evolution_traces": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_executions": {
+        "rows": 4286,
+        "sha256": "b0d8fb52a4c3e3b91be0bddeb9ee861af40a8d6ccd4b2a8028ad584d88a1ea61"
+      },
+      "agent_failure_tracking": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_feed_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_feedback": {
+        "rows": 56,
+        "sha256": "7962eee7f0a3ff20218f7e354b068bbcd2e5ea1a42ca3e3c541e0d8744f463cc"
+      },
+      "agent_handoffs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_installations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_jobs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_learning": {
+        "rows": 1,
+        "sha256": "02e2f64ff843183cb41eb8e09c04165968515ffdfc1b3bf73c1cd54ea3e47047"
+      },
+      "agent_memories": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_model_metrics": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_operation_tracker": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_org_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_proactive_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_proposals": {
+        "rows": 16,
+        "sha256": "2164c59d190a43b4483d557bea9c65f0fd4e4b6646cb9d305ee8535cdef4fed2"
+      },
+      "agent_reasoning_steps": {
+        "rows": 4799,
+        "sha256": "09819b5657a13af9fb7e1f920fd72c57aaae9b8067f00d52a0423a688baaf271"
+      },
+      "agent_registry": {
+        "rows": 11,
+        "sha256": "1ac3ee540ed3c2109a2ac11adc4733c28e0fe8ff8e626fee0b16aba0998b175c"
+      },
+      "agent_request_logs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_skills": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_templates": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "agent_threads": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "analytics_workflow_logs": {
+        "rows": 2,
+        "sha256": "9506f26c88195f6318dd04ae32b7ad8d4b60b40590c30276c6b64ec07d140dc0"
+      },
+      "apscheduler_jobs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "artifact_comments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "artifact_versions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "artifacts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "async_continuation_claims": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "blocked_triggers": {
+        "rows": 3348,
+        "sha256": "161000c8f12bbcc31295b5c669420ffe1e9ec97ed3ab5411f1e54eb73f5e4ffd"
+      },
+      "board_columns": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "board_tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "boards": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "browser_audit": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "browser_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "bundle_exports": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "bundle_imports": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "business_product_services": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "business_rules": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canvas_audit": {
+        "rows": 1126,
+        "sha256": "34fbe79de18796697391e621eb57a8672816b18878864126ceffa82f51c30b28"
+      },
+      "canvas_components": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canvas_contexts": {
+        "rows": 68,
+        "sha256": "d850ce5f17beafd8b549883da48d88184eb7545c761f57209a9b79d280032c8f"
+      },
+      "canvas_logic": {
+        "rows": 48,
+        "sha256": "d094c69b588814916c03062ef3ae5ed3e6bd418d4f26625aac932938f20265e4"
+      },
+      "canvas_recording_reviews": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canvas_recordings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canvas_records": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canvas_states": {
+        "rows": 18,
+        "sha256": "cc519bd6e5e2862bf9fadf9c51f108d086bb815d5b7843bc92665fc006b15542"
+      },
+      "canvas_templates": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "canvases": {
+        "rows": 200,
+        "sha256": "43d4101f6dd12dac44e4287b61b4582e54b9a6091877e31fe25debfd05c34bd7"
+      },
+      "category_cache": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "certificate_validations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "chain_links": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "channels": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "chat_messages": {
+        "rows": 5498,
+        "sha256": "c6166e889d2ac7b2e016f55ecd93cb042ecfb2968b3fd3980e21a3431f255b67"
+      },
+      "chat_processes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "chat_request_records": {
+        "rows": 518,
+        "sha256": "61e386c2682230331e636680e1e91d4efd42f31a3d971074f580e2a1713a4cae"
+      },
+      "chat_sessions": {
+        "rows": 1047,
+        "sha256": "754104d69365b788786afc7b9b419f7a5e7d6d06ccf8076f27b39891e5c30bdc"
+      },
+      "citation_verification_batches": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_experiences": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_tier_preferences": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "communication_channels": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "communication_comments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "communication_suggestions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "community_membership": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "community_skills": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "competitor_analyses": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "component_installations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "component_usage": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "component_versions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "condition_alert_status": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "condition_alerts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "condition_monitor_types": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "condition_monitors": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "conflict_log": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "conversation_events": {
+        "rows": 778,
+        "sha256": "8beb7c82ced1ef0ae5e7e8b9f0449a6f7af1c7480fe2069d32d29e047b345682"
+      },
+      "coordinated_strategies": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "custom_components": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "custom_domains": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "custom_roles": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "dashboard_widgets": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "dashboards": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "dataset_entries": {
+        "rows": 481,
+        "sha256": "7fc2fa335ebc8e907f499bec67ee67524532b0b109549a67d3fd54ac1c46d609"
+      },
+      "debug_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "debug_insights": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "debug_logs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "debug_metrics": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "debug_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "debug_state_snapshots": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "debug_variables": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "decision_automation_actions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "decision_gate_audit": {
+        "rows": 11,
+        "sha256": "ab43e5fdef758846af6400886f6fb81f90565c94b97f2927a43e3d31edbefbfb"
+      },
+      "decision_intent_labels": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "decision_router_audit": {
+        "rows": 5,
+        "sha256": "9dd2acbd513aa9532b1a7352642a877357898551af8d5e611c89e90d4e57b7f8"
+      },
+      "decision_turn_audit": {
+        "rows": 12,
+        "sha256": "e7fda4c0e530d37b5cc617516657267b38148ad6f11a75cd7eeb2317327af6cc"
+      },
+      "deep_link_audit": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "delegation_chains": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "delivery_events": {
+        "rows": 342,
+        "sha256": "9b69333d4603e61ebb1c8550ef52bfeca5d8bd82f988a57bb91dc91859a2dbf0"
+      },
+      "desktop_actions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "desktop_api_keys": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "desktop_commands": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "desktop_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "device_attestations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "device_audit": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "device_nodes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "device_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "devices": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "discovered_entities": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "distributed_tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "document_ingestions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "domain_experience_ledger": {
+        "rows": 1002,
+        "sha256": "2fab3af6eb46c47ac6dd4dc6b800c7477104c264efd5ca6d1e7193da77a8df56"
+      },
+      "ecommerce_customers": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ecommerce_order_items": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ecommerce_orders": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ecommerce_stores": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ecommerce_subscription_audit": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ecommerce_subscriptions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "edge_case_library": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "email_verification_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "entity_type_definitions": {
+        "rows": 7,
+        "sha256": "5e5bc44dc9e88d4d7bafbac9d0877a1ceafc6afaeb48414d9deef3852d85125a"
+      },
+      "entity_type_version_history": {
+        "rows": 1270,
+        "sha256": "16fe802b47ee62fe8b22d2f74ac7b990488a8261a6d19c62093042b2ccfb75b0"
+      },
+      "episode_access_logs": {
+        "rows": 34499,
+        "sha256": "c76c0202c5ba65f676ccb39bd2c67b640fe2c9d0a61a68cf2ef75cf33834eb07"
+      },
+      "episode_feedback": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "episode_segments": {
+        "rows": 29676,
+        "sha256": "fedabeb23628248be4d8b086789b64808fe7c618e98dee15070f07c02583cf2e"
+      },
+      "escalation_log": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "exchange_examples": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "execution_traces": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "experience_exports": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "experience_imports": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "experience_items": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "experience_role_registry": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "failed_rating_uploads": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "federation_credentials": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "federation_dids": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "feedback_votes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ffmpeg_job": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "field_guides": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "financial_accounts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "financial_audits": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fleet_healing_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fleet_overages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fleet_performance_metrics": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fleet_router_automation_actions": {
+        "rows": 2,
+        "sha256": "9f741795a797b86c8c35ed02a24232bb55839d6d4c59e0520fedc3e23b64342d"
+      },
+      "fleet_routing_audit": {
+        "rows": 20,
+        "sha256": "0b6af5209c9e266ba1c51e4612a10069ba8143efd12f0a639cbeb327d36400b5"
+      },
+      "formula_feedback": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "formulas": {
+        "rows": 223999,
+        "sha256": "39cc40a35990834516e20723dc022f72937b9926a935ee9f63f431f286054575"
+      },
+      "gateway_api_keys": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "gateway_request_logs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "goal_objectives": {
+        "rows": 557,
+        "sha256": "24e7ec356b75d39797bf70006ff48e86f343bd8c8dc4a5e9afb226140ca6e607"
+      },
+      "goal_runs": {
+        "rows": 557,
+        "sha256": "fddf117107603bb00d77b15725ba681bdc7f1c034408352909df1ffd81b3569d"
+      },
+      "governance_documents": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "graduation_exams": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "graph_communities": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "graph_community_snapshots": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "graph_edges": {
+        "rows": 38368,
+        "sha256": "237402133942ee34aeb728bab52b6d2130994a12c30a1b004a8fe10e52cc80e2"
+      },
+      "graph_nodes": {
+        "rows": 21367,
+        "sha256": "14d8158157c05234b884a712761e80041e6392a304f1a3a9fe071a321c8b2f31"
+      },
+      "guacamole_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "historical_sync_jobs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "hitl_actions": {
+        "rows": 47,
+        "sha256": "8b47af2360e8701734871cce2ebbe1b319dcc5cfc5372cab0efebfefa3e42aaa"
+      },
+      "home_assistant_connections": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "hosting_deployments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "hosting_projects": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "hosting_resources": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "hue_bridges": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "hypothesis_trees": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "im_audit_log": {
+        "rows": 1,
+        "sha256": "49cae07511b1500eedb1ffd6425eac971e728a7dd2d0082d237727941775ac61"
+      },
+      "incident_evals": {
+        "rows": 8,
+        "sha256": "6f7881470949f2863dcef90fcf6094ed501aae4c135d78472781343bedb292e0"
+      },
+      "ingested_documents": {
+        "rows": 3758,
+        "sha256": "e5049ceb349180df658c53e960ef48ddeea51a444f1efcb5b502264c9044bf48"
+      },
+      "ingested_documents_fts": {
+        "rows": 3758,
+        "sha256": "2ac136219edfc6e2c3f6a372000887536a890add3a4d8d05cae988aef2d250e5"
+      },
+      "ingested_documents_fts_config": {
+        "rows": 1,
+        "sha256": "4d22cc3d4f1c19eddc0f7b3ada59e7f109661467b3f7c49ed8b4e6c575a03d25"
+      },
+      "ingested_documents_fts_data": {
+        "rows": 316,
+        "sha256": "e60d88d7e14f2503be1556b58ca799004ed29073fd351d28ac0b17a5fa65c665"
+      },
+      "ingested_documents_fts_docsize": {
+        "rows": 3758,
+        "sha256": "630e82fae51defa1a9feaf204de22c7bd939575ca9b77848d92755637651be60"
+      },
+      "ingested_documents_fts_idx": {
+        "rows": 311,
+        "sha256": "25433f8e0018ca58cdfeada4708682a4289c71e92b2d90203991043d617635b7"
+      },
+      "ingestion_audit_logs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ingestion_jobs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ingestion_profile_imports": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ingestion_settings": {
+        "rows": 4,
+        "sha256": "872f401dbeee4cbfcea97ca6585c9293bab9c02dd564b3d6dee5dcdcdbe25788"
+      },
+      "installation_profiles": {
+        "rows": 28,
+        "sha256": "85ec92eea84ba556caf675e81b8e2d2d7342c4e7ee3faa9c6dc145716020475e"
+      },
+      "integration_canvas_nodes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "integration_catalog": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "integration_connections": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "integration_health_metrics": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "integration_metrics": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "integration_tokens": {
+        "rows": 9,
+        "sha256": "053903d180f911893317d7b3c8b127173986c16ea37167d3246e4c09306fa883"
+      },
+      "intervention_outcomes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "interventions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "invocation_events": {
+        "rows": 1243,
+        "sha256": "dbccc19e5772e53968432581dc50e960f0e879360f38a334f64b66218c956e4a"
+      },
+      "knowledge_documents": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "knowledge_documents_fts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "knowledge_documents_fts_config": {
+        "rows": 1,
+        "sha256": "4d22cc3d4f1c19eddc0f7b3ada59e7f109661467b3f7c49ed8b4e6c575a03d25"
+      },
+      "knowledge_documents_fts_data": {
+        "rows": 2,
+        "sha256": "cfa2829e70286074437fa77f9e79f11121ad1c3cc593f05ff02bcbb4423bf34c"
+      },
+      "knowledge_documents_fts_docsize": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "knowledge_documents_fts_idx": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "knowledge_patterns": {
+        "rows": 5559,
+        "sha256": "f79d0bc6e46429f0841132f25237b9aee69f57c74eb6e9efcf6716dc5cbace79"
+      },
+      "lateral_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "learning_plans": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "link_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "llm_models": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "llm_oauth_credentials": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "llm_routing_feedback": {
+        "rows": 311724,
+        "sha256": "c555ca2f5795a6a991d1f6974ed23d3768f2a8f39a430ac8e44f7db55825d168"
+      },
+      "llm_stage_router_audit": {
+        "rows": 170,
+        "sha256": "4a96e6d3d265d099d82c2bb021eaba0a23a7cf034cec539ff77f18b0caf91ad9"
+      },
+      "local_model_capabilities": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "local_model_providers": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "machines": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "marketing_ad_spend": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "marketing_attribution_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "marketing_channels": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "marketplace_instance": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "marketplace_ratings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "marketplace_usage_local": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "meeting_attendance": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "menu_bar_audit": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "message_delivery_reports": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "message_routing_rules": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "message_templates": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "mini_app_assets": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "mini_app_installations": {
+        "rows": 18,
+        "sha256": "7a52d2ccbc2e500db484efa12cb382f1ec659538f7f35a0819d316abe4c9edbe"
+      },
+      "mini_apps": {
+        "rows": 30,
+        "sha256": "cf7acb9ed764bd5ff473373342e22cb66ce4136b7a3811ab9b4c728096058e50"
+      },
+      "mobile_devices": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "model_catalog": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "net_worth_snapshots": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "notifications": {
+        "rows": 407,
+        "sha256": "f9d722e2ad304786a8b5fe96356ababb87c908134a0bd8c993c01dcaeab7bfdf"
+      },
+      "notion_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "oauth_clients": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "oauth_states": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "oauth_tokens": {
+        "rows": 2,
+        "sha256": "437939f2e8f73efde93912360502180f5b25106875f93df56938e12c38ccba70"
+      },
+      "offline_actions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ontology_draft_actions": {
+        "rows": 7,
+        "sha256": "3b6e5e6d461fda3879d0e98501d25e168c186cb2c3128a0bc7c9c5ce51694d8b"
+      },
+      "operation_error_resolutions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "org_politics_actions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "org_public_keys": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "package_installations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "package_registry": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "package_whitelist": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "password_reset_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "paused_agent_tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "permissions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "playbooks": {
+        "rows": 19,
+        "sha256": "2abf1c5ed82f6f4ddf46d4e9660895dfb7c217b443468a52d89a99d40ed3dc3a"
+      },
+      "post_reactions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "proactive_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "promotion_history": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "provider_registry": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "public_api_keys": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "push_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "rate_usage_records": {
+        "rows": 58051,
+        "sha256": "3ca8900af0b1212d818372c295b18be9ac392a7117e065dd0cf6acf5557165cd"
+      },
+      "relation_type_definitions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revoked_tokens": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "role_permissions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "run_sandboxes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "runtime_settings": {
+        "rows": 3,
+        "sha256": "535a8e987579a7f1f34f3190f549e2485aae3cd339cc632e669825cbd0d6cfb3"
+      },
+      "saas_audit_logs": {
+        "rows": 821,
+        "sha256": "8cf211509d2a19acf11bc7e708161f3bae2ca298d5671c8062aebf57250ff44d"
+      },
+      "sales_call_transcripts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sales_commissions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sales_deals": {
+        "rows": 1,
+        "sha256": "f2b58076e65d44fcd5bcabcd145c39ccb6d33fc68a2fc97f795813da5f587bc3"
+      },
+      "sales_follow_up_tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sales_leads": {
+        "rows": 125,
+        "sha256": "bf1c741f7fdb04164aa9b570ae6349bfb2e2054ff58f81f83ae5b2ddcb64a71a"
+      },
+      "sandbox_violations": {
+        "rows": 32,
+        "sha256": "674a92c9c03cd4e21bf9a3efdff46c1d5607be68b8dedaa10977009faf09ded8"
+      },
+      "scaling_auto_approvals": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "scaling_operations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "scaling_proposals": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "scheduled_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "scheduled_social_posts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "scim_configurations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_agent_configs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_audit_log": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_code_quality_metrics": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_deployment_health_checks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_deployments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_projects": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sdlc_pull_request_reviews": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "self_consistency_votes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "service_appointments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "service_contracts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "service_milestones": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "service_projects": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "service_tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ses_bounce_list": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ses_complaint_list": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ses_email_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ses_templates": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "setting_change_audit": {
+        "rows": 13,
+        "sha256": "261704834a527d6cf336cf6d3393268df6abb01a7dab46b3aac96df8bb2729c9"
+      },
+      "shell_audit_log": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "shell_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_cache": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_candidates": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_composition_executions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_composition_steps": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_compositions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_executions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_impact_entries": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_installations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_ratings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_suggestion_feedback": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skill_versions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "skills": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smarthome_automation_rules": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smarthome_devices": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smarthome_energy_usage": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smarthome_scenes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smarthome_schedules": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "social_media_audit": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "social_post_history": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "social_posts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "specialist_domains": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sso_configurations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stage_router_automation_actions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "strategy_contributions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "supervised_execution_queue": {
+        "rows": 30,
+        "sha256": "5f718847f8a1aedce853a8e2e196ebe38ff82451ed817b8cb639b3df48beaf6e"
+      },
+      "supervision_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "supervisor_comments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "supervisor_performance": {
+        "rows": 21,
+        "sha256": "06b55994d7678cfcac15be987fc1c0b89c3d7298fbffb74108efa314d4cc0bbf"
+      },
+      "supervisor_ratings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "support_tickets": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "swarm_tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sync_state": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "system_settings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "task_executions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "task_operation_records": {
+        "rows": 283,
+        "sha256": "1854782a7914af8baf3d565637819342c5d79993f0b207930616039a656b8cf8"
+      },
+      "tasks": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "team_members": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "team_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "teams": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "template_executions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "template_versions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tenant_integration_configs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tenant_integrations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tenant_settings": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tenants": {
+        "rows": 86,
+        "sha256": "93a3d07031ac79e9e24c1ddc15aef13b255cd5b90723350a469bb609f86733bf"
+      },
+      "ticket_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "token_usage": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tool_mutations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "training_alert_configurations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "training_alerts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "training_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "trust_calibration_actions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "trust_calibration_assessments": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "turn_facts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "unified_calendar_events": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "unified_communications": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "unified_messages": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "unified_workspaces": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_accounts": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_activities": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_activity_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_availability": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_connections": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_identities": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_preferences": {
+        "rows": 2,
+        "sha256": "4f5d7780639dfef139fa8b7d71a486b6028b5b1d370931c13368a551b6666c91"
+      },
+      "user_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "user_workspaces": {
+        "rows": 11,
+        "sha256": "8859c1376ea27bf0bf2c64186a69272ab4110bf33a6cefeb78e6fba7be232ada"
+      },
+      "users": {
+        "rows": 50,
+        "sha256": "20398845d410f33d3611d720b98c51c0be4b7a9409bc1c70aa72b4144934607d"
+      },
+      "verify_panel_runs": {
+        "rows": 908,
+        "sha256": "c1265bc0e33f7f6723f3bd3d9190834ee33e8d6b5e2a97fe6f1267976cc58c71"
+      },
+      "view_orchestration_state": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "webhook_tombstones": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "websocket_state": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow_breakpoints": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow_debug_sessions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow_executions": {
+        "rows": 1,
+        "sha256": "7f6b8b457d15598b2adb680a1f81e3087029258d4848fd3f97bdbbd3177bb977"
+      },
+      "workflow_runs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow_snapshots": {
+        "rows": 1,
+        "sha256": "fbaead9a46c12a40828c80624a46c8e8575c096307596d46da54564d55361062"
+      },
+      "workflow_step_executions": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow_steps": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow_templates": {
+        "rows": 3,
+        "sha256": "351e011abbe5d868ae7fcf943237bfa6460a5c7fbbd109a282898acc7203b26c"
+      },
+      "workflow_variants": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflows": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workspace_skills": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workspace_sync_logs": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workspaces": {
+        "rows": 86,
+        "sha256": "ce256f0c1295366a8cc0a61abd25e04354ec017c56f5796a6cdf871788c8aa43"
+      }
+    },
+    "target_db_sha256": "b15d22135c7f69c7d303227a4018aef12f7284cf4622681b213dc1fed879c1d4",
+    "memory": {
+      "workspace": {
+        "documents": {
+          "version": 26802,
+          "rows": 44908
+        },
+        "business_facts": {
+          "version": 31452,
+          "rows": 31415
+        },
+        "agent_experience": {
+          "version": 290,
+          "rows": 289
+        },
+        "chat_messages": {
+          "version": 1727,
+          "rows": 1726
+        },
+        "ingestion_metadata": {
+          "version": 20313,
+          "rows": 4
+        },
+        "integration_zoho": {
+          "version": 7744,
+          "rows": 2331
+        },
+        "formula_cards": {
+          "version": 1,
+          "rows": 0
+        }
+      },
+      "root": {
+        "documents": {
+          "version": 45,
+          "rows": 45
+        },
+        "chat_messages": {
+          "version": 37,
+          "rows": 26
+        },
+        "atom_communications": {
+          "version": 18,
+          "rows": 7
+        },
+        "ingestion_metadata": {
+          "version": 18,
+          "rows": 5
+        },
+        "turn_facts": {
+          "version": 12,
+          "rows": 11
+        },
+        "exchange_examples": {
+          "version": 4,
+          "rows": 2
+        },
+        "knowledge_graph": {
+          "version": 1,
+          "rows": 0
+        }
+      }
+    },
+    "note": "Created from the consistent handoff snapshot. check_freshness.py compares current source logical content, memory versions and referenced files to this baseline. WAL byte churn alone is not a data change.",
+    "memory_exported_at": "2026-10-30T03:48:48.355514+00:00"
+  },
+  "freshness_check": {
+    "schema": "atom-production-freshness-check-2",
+    "checked_at": "2026-10-30T03:52:35.645816+00:00",
+    "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9",
+    "fresh": false,
+    "changes": [
+      {
+        "item": "source_quiescence",
+        "reason": "source writers remain active; stop them with operational authorization before cutover",
+        "processes": [
+          {
+            "pid": 19046,
+            "command": "python3.14"
+          }
+        ]
+      }
+    ],
+    "phase": "preflight",
+    "require_quiescent_source": true,
+    "source_writers": {
+      "available": true,
+      "processes": [
+        {
+          "pid": 19046,
+          "command": "python3.14"
+        }
+      ]
+    },
+    "source_tables_fingerprinted": 389,
+    "source_table_changes": 0,
+    "memory_unchanged": true,
+    "referenced_files_checked": 461,
+    "baseline": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/run/freshness_baseline.json",
+    "baseline_created_at": "2026-10-30T03:48:28.543320+00:00",
+    "comparison": "logical SQLite table content + LanceDB table versions/rows + referenced artifact/dataset hashes; WAL byte churn excluded"
+  },
+  "config_compatibility": {
+    "schema": "atom-production-config-compatibility-1",
+    "secrets_env": {
+      "exists": true,
+      "mode": "0o600",
+      "key_names": [
+        "MICROSOFT_CLIENT_ID",
+        "MICROSOFT_CLIENT_SECRET",
+        "MICROSOFT_REDIRECT_URI",
+        "MICROSOFT_TENANT_ID"
+      ]
+    },
+    "byok_files": {
+      "byok_config.json": {
+        "exists": true,
+        "mode": "0o600"
+      },
+      "byok_keys.json": {
+        "exists": true,
+        "mode": "0o600"
+      },
+      "byok_encryption_key": {
+        "exists": true,
+        "mode": "0o600"
+      }
+    },
+    "oauth_token_record_present": true,
+    "oauth_token_decrypts": true,
+    "oauth_token_error": null,
+    "provider_policy": "{\"mode\":\"selected\",\"allowed_providers\":[\"deepseek\"],\"preferred\":{\"provider\":\"deepseek\",\"model\":\"deepseek-flash\"}}",
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "send_disabled": "1",
+    "live_send_allowed": "0",
+    "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/data",
+    "lancedb_uri_base": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/data/atom_memory",
+    "secret_values_included": false
+  },
+  "source_verification": {
+    "schema": "atom-source-verification-1",
+    "checked_at": "2026-10-30T03:52:42.417651+00:00",
+    "pid": 19046,
+    "command": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 75",
+    "cwd": "/Users/rushiparikh/projects/atom-releases/c912375de/backend",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+    "port": 8001,
+    "scope_sha256": "82ec6f21796a3eec9f701e610cfae0e2e057a3a14146f887b90f741f9ebba668",
+    "ok": true,
+    "errors": [],
+    "other_source_db_holders": []
+  },
+  "source_shutdown_scope": {
+    "schema": "atom-source-shutdown-scope-1",
+    "pid": 19046,
+    "service": "atom-c912375de",
+    "commit": "c912375de81b55465e61fe468bf0bc2b405fd206",
+    "command": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 75",
+    "cwd": "/Users/rushiparikh/projects/atom-releases/c912375de/backend",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+    "port": 8001,
+    "supervisor": "none detected (PPID 1; no launchd job)",
+    "other_source_db_holders": [],
+    "restore_command": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 75",
+    "restore_cwd": "/Users/rushiparikh/projects/atom-releases/c912375de/backend",
+    "restore_env_source": "/Users/rushiparikh/projects/atom/backend/.env",
+    "restore_venv": "/Users/rushiparikh/projects/atom/backend/venv314",
+    "note": "Stop only this verified process after owner authorization. On failure, restore this exact service command/cwd/environment, not merely the rollback release. No secret values are stored here."
+  },
+  "rollback_receipt": {
+    "schema": "atom-assignment-release-rollback-1",
+    "at": "2026-10-30T03:51:35.147138+00:00",
+    "from_release": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/releases/fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+    "to_release": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/releases/901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "to_release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "start_ok": true,
+    "startup": {
+      "schema": "atom-assignment-release-startup-1",
+      "started_at": "2026-10-30T03:51:35.146702+00:00",
+      "mode": "rollback",
+      "release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+      "release_tag": "assignment-successor-2026-10-29",
+      "api_port": 8071,
+      "frontend_port": 3130,
+      "api_origin": "http://127.0.0.1:8071",
+      "backend_pid": 82535,
+      "frontend_pid": 82536,
+      "health_identity": {
+        "pid": 82535,
+        "started_at": "2026-10-30T03:51:30.365949+00:00",
+        "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/releases/901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0/app/backend",
+        "git_commit": "901e5d77348e",
+        "source_id": "901e5d77348e",
+        "instance_id": "901e5d77348e.82535.1793332294",
+        "revision": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+        "dirty": false,
+        "dirty_digest": "e3b0c44298fc",
+        "dirty_paths": [],
+        "untracked_paths": [],
+        "captured_at": "2026-10-30T03:51:34.766327+00:00",
+        "port": 8071,
+        "error": null,
+        "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data/atom.db",
+        "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data/byok_keys.json"
+      },
+      "health_status": "healthy",
+      "audience": "single_user",
+      "pilot_email": "admin@example.com",
+      "outbound_scope": "draft_and_approval_only",
+      "controlled_transport": "<unset>",
+      "internal_paths": "0",
+      "topology": "one_worker_process_per_assignment"
+    },
+    "health_identity": {
+      "pid": 82535,
+      "started_at": "2026-10-30T03:51:30.365949+00:00",
+      "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/releases/901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0/app/backend",
+      "git_commit": "901e5d77348e",
+      "source_id": "901e5d77348e",
+      "instance_id": "901e5d77348e.82535.1793332294",
+      "revision": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-10-30T03:51:34.766327+00:00",
+      "port": 8071,
+      "error": null,
+      "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data/atom.db",
+      "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data/byok_keys.json"
+    },
+    "database_restored": false,
+    "user_data_preserved": true,
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data",
+    "new_interactive_approval_required": false
+  },
+  "rollback_before": {
+    "counts": {
+      "users": 50,
+      "dataset_entries": 481,
+      "goal_runs": 557
+    },
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-3d906339cbe3/harsle-live-price-total-6c095beb.docx",
+    "artifact_sha256": "e59d99141654c8a30047c80e62b19c57d946dfb5fb027d59f236a04e783d19f5",
+    "operations": 16305,
+    "binding_mismatches": 0,
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data"
+  },
+  "rollback_after_901": {
+    "counts": {
+      "users": 50,
+      "dataset_entries": 481,
+      "goal_runs": 557
+    },
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-3d906339cbe3/harsle-live-price-total-6c095beb.docx",
+    "artifact_sha256": "e59d99141654c8a30047c80e62b19c57d946dfb5fb027d59f236a04e783d19f5",
+    "operations": 16305,
+    "binding_mismatches": 0,
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data"
+  },
+  "rollback_candidate_start": {
+    "schema": "atom-assignment-release-startup-1",
+    "started_at": "2026-10-30T03:51:22.694826+00:00",
+    "release_commit": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "api_origin": "http://127.0.0.1:8071",
+    "backend_pid": 82482,
+    "frontend_pid": 82483,
+    "health_identity": {
+      "pid": 82482,
+      "started_at": "2026-10-30T03:51:19.896250+00:00",
+      "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/releases/fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4/app/backend",
+      "git_commit": "fda4f2dc9376",
+      "source_id": "fda4f2dc9376",
+      "instance_id": "fda4f2dc9376.82482.1793332282",
+      "revision": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-10-30T03:51:22.303537+00:00",
+      "port": 8071,
+      "error": null,
+      "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data/atom.db",
+      "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data/byok_keys.json"
+    },
+    "health_status": "healthy",
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "controlled_transport": "<unset>",
+    "internal_paths": "0",
+    "topology": "one_worker_process_per_assignment"
+  },
+  "memory_before_restart": {
+    "teaching_agent_id": "9837ec71-4f1b-41db-b014-119862362d44",
+    "teaching_lesson_id": null,
+    "teaching_topic": "inventory check",
+    "teaching_text": "do not use pdf sources for inventory check",
+    "teaching_mapping_count": 0,
+    "teaching_mapping_concepts": [],
+    "document_count_listed": 50,
+    "document_with_text_found": true,
+    "document_id": "file_1787509191.498114",
+    "document_source": null,
+    "document_text_prefix": "--- Sheet: Sheet1 ---\n     Item  Qty\n0  Widget   10",
+    "document_detail_retrieved": true,
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data"
+  },
+  "memory_after_restart": {
+    "teaching_agent_id": "9837ec71-4f1b-41db-b014-119862362d44",
+    "teaching_lesson_id": null,
+    "teaching_topic": "inventory check",
+    "teaching_text": "do not use pdf sources for inventory check",
+    "teaching_mapping_count": 0,
+    "teaching_mapping_concepts": [],
+    "document_count_listed": 50,
+    "document_with_text_found": true,
+    "document_id": "file_1787509191.498114",
+    "document_source": null,
+    "document_text_prefix": "--- Sheet: Sheet1 ---\n     Item  Qty\n0  Widget   10",
+    "document_detail_retrieved": true,
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-fda4f2dc9-rollback/data"
+  },
+  "mapping_browser": {
+    "b": {
+      "schema": "atom-mapping-browser-b-1",
+      "status": "passed",
+      "product": {
+        "commit": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+        "tree": "89d720301326b7a8f934c2305f0588d73edf3544",
+        "dirty_paths": []
+      },
+      "frozen_release": {
+        "commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+        "tag": "assignment-successor-2026-10-29",
+        "tag_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+        "unchanged": true
+      },
+      "harness_sha256": "917c8353104dd748085a3c2d6a0601e36e21a9462f3522adda70bde4c695baab",
+      "run_id": "1005bbce-d3a7-4132-b0d4-140af6f5bf5e",
+      "assignment_id": "asg-1c4b28c9f26546e4",
+      "result": "35.00",
+      "currency": "USD",
+      "source_version": "6caf0ce24d29ebfcf82c4dbe01047d7fb5b2335f",
+      "mapping_revision": 2,
+      "unit_authority": "source_evidence",
+      "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_b_acceptance/office/assignments/default/map-user/draft-ccbf7708c59e/mapping-b-total-a4329fab.docx",
+      "artifact_sha256": "c558d5c723f98fa26eda3f0b39171aaea37d1cf581101865b294516b3812b1ac",
+      "first_gap": {
+        "question_id": "b53ba10f-ad94-400a-b77c-b27d3cd00d60",
+        "item": "Aggregate workbook source",
+        "question": "Which column should be summed?",
+        "kind": "missing_evidence",
+        "evidence": "",
+        "next_action": "select the matching column from the current schema and confirm",
+        "decision_owner": null,
+        "inputs": {
+          "mapping": {
+            "concept": "Price",
+            "required_unit": "USD",
+            "source_unit": "USD",
+            "source_unit_column": "Currency",
+            "missing_column": "Price",
+            "source": "outlook",
+            "external_id": "fixture-b",
+            "dataset_name": "outlook_workbook_b__sheet1",
+            "resource_id": "d91d9f17-589b-4d00-8fa5-204ab7034898",
+            "sheet": "Sheet1",
+            "source_version": "6caf0ce24d29ebfcf82c4dbe01047d7fb5b2335f",
+            "teaching_revision": "858a5c5e97cdc3c8",
+            "mapping_source": {
+              "concept": "Price",
+              "sheet": "Sheet1",
+              "column": "Unit Price",
+              "unit": "USD",
+              "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "revision": 1,
+              "lesson_id": "908ffe386a1e4fc682d4e93b736b61cb",
+              "lesson_revision": 1
+            },
+            "candidates": [
+              {
+                "column": "SKU",
+                "sample_values": [
+                  "B-1",
+                  "B-2"
+                ],
+                "inferred_type": "text"
+              },
+              {
+                "column": "Quantity",
+                "sample_values": [
+                  "2",
+                  "3"
+                ],
+                "inferred_type": "number"
+              },
+              {
+                "column": "Amount",
+                "sample_values": [
+                  "15",
+                  "20"
+                ],
+                "inferred_type": "number"
+              },
+              {
+                "column": "Discount",
+                "sample_values": [
+                  "1",
+                  "2"
+                ],
+                "inferred_type": "number"
+              },
+              {
+                "column": "Currency",
+                "sample_values": [
+                  "USD",
+                  "USD"
+                ],
+                "inferred_type": "text"
+              },
+              {
+                "column": "Note",
+                "sample_values": [
+                  "renamed"
+                ],
+                "inferred_type": "text"
+              }
+            ]
+          }
+        },
+        "concept": "value_column",
+        "reason": "the named measure 'Price' is not in the frame",
+        "affected_subjects": [],
+        "checked_evidence": [
+          "columns=['SKU', 'Quantity', 'Amount', 'Discount', 'Currency', 'Note', '__sheet_row']"
+        ],
+        "next_retrieval": "select the matching column from the current schema and confirm",
+        "resolver": null,
+        "step_id": "source-1",
+        "waiting": {
+          "state": "waiting_for_person",
+          "party": "owner",
+          "correlation_id": null,
+          "resume_on": "answer",
+          "deadline": null,
+          "since": "2026-10-30T03:53:00.418046+00:00",
+          "detail": null
+        },
+        "status": "open",
+        "attempts": 0,
+        "opened_at": "2026-10-30T03:53:00.418959+00:00",
+        "resolved_at": null,
+        "resolution": null,
+        "source_operation": "2cfb73c3-4730-47b3-a344-30d533f39dd2"
+      },
+      "screenshots": [
+        "mapping-candidates.png",
+        "mapping-completed.png"
+      ],
+      "fixture": "controlled acceptance workbook_b (not live-connected)",
+      "canonical_baseline": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/result.json"
+    },
+    "c": {
+      "schema": "atom-mapping-browser-c-1",
+      "status": "passed",
+      "product": {
+        "commit": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+        "tree": "89d720301326b7a8f934c2305f0588d73edf3544",
+        "dirty_paths": []
+      },
+      "frozen_release": {
+        "commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+        "tag": "assignment-successor-2026-10-29",
+        "tag_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+        "unchanged": true
+      },
+      "harness_sha256": "1d96e4957fff0cce50fded4713464f0060f3b0003319bd223166a4c666fdb3a8",
+      "run_id": "d961be84-87ce-48af-8b88-3ed862f1a1a9",
+      "assignment_id": "asg-515e855bdd844383",
+      "fixture": "controlled acceptance workbook_c: columns Product,Qty,Value,Note; no source unit; not live-connected",
+      "expected": "75.00",
+      "result": "75.00",
+      "currency": "USD",
+      "unit_authority": "user_confirmed",
+      "source_version": "890ec98cb740ed296a0865ffd0c140ff3acc83d2",
+      "source_sha256": "55450e4d42fa542155fea1b170753679d24653b029a87052a8f6f45daac64b72",
+      "source_bytes_unchanged": true,
+      "mapping": {
+        "concept": "Price",
+        "sheet": "Sheet1",
+        "column": "Value",
+        "unit": "USD",
+        "unit_authority": "user_confirmed",
+        "required_unit": "USD",
+        "source_unit": "",
+        "source_unit_column": "",
+        "source_version": "890ec98cb740ed296a0865ffd0c140ff3acc83d2",
+        "revision": 2,
+        "lesson_id": "a4809d9ebec64c0399817c04c616a74a"
+      },
+      "teaching_persisted": {
+        "concept": "Price",
+        "sheet": "Sheet1",
+        "column": "Value",
+        "unit": "USD",
+        "source_version": "890ec98cb740ed296a0865ffd0c140ff3acc83d2",
+        "revision": 2,
+        "unit_authority": "user_confirmed",
+        "required_unit": "USD"
+      },
+      "gap": {
+        "question_id": "47772e6e-0ff7-4a95-9349-baf0718ee409",
+        "required_unit": "USD",
+        "source_unit": "",
+        "source_unit_column": "",
+        "candidates": [
+          "Product",
+          "Qty",
+          "Value",
+          "Note"
+        ]
+      },
+      "refusals": [
+        {
+          "kind": "missing_unit",
+          "http_status": 409,
+          "detail": "the taught method requires an explicit unit confirmation"
+        },
+        {
+          "kind": "incompatible_unit",
+          "unit": "EUR",
+          "http_status": 409,
+          "detail": "the confirmed unit 'EUR' does not match the taught unit 'USD'; no conversion is authorized"
+        }
+      ],
+      "no_mutation": {
+        "durable_parameters_identical": true,
+        "mapping_before": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "Unit Price",
+          "unit": "USD",
+          "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revision": 1,
+          "lesson_id": "a4809d9ebec64c0399817c04c616a74a",
+          "lesson_revision": 1
+        },
+        "result_before_confirmation": null
+      },
+      "confirmation": {
+        "surface": "Assignments panel",
+        "column": "Value",
+        "unit": "USD"
+      },
+      "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_c_acceptance/office/assignments/default/map-user/draft-2444dfd59d3e/mapping-c-total-1c94e9d9.docx",
+      "artifact_sha256": "08ed2a11e9ef634633e357b05b517c175993a2f3ed2cc559bcddcde90855fe6a",
+      "artifact_bytes_verified": true,
+      "screenshots": [
+        "unit-unresolved.png",
+        "unit-confirmed.png"
+      ]
+    },
+    "correction": {
+      "schema": "atom-mapping-correction-browser-1",
+      "status": "passed",
+      "product": {
+        "commit": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+        "tree": "89d720301326b7a8f934c2305f0588d73edf3544",
+        "head": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+        "dirty_paths": []
+      },
+      "frozen_release": {
+        "commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+        "tag": "assignment-successor-2026-10-29",
+        "tag_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+        "unchanged": true
+      },
+      "harness_sha256": "f914fd4a666ec334e4acb305298418a76ef49ea3e37a3d75ba3c9a9bf76bac3e",
+      "run_id": "0e5a4a11-3b02-48dd-9910-c8aa8d9b9746",
+      "assignment_id": "asg-3edc7851b4b54fcc",
+      "objective": "Correction Lab price total",
+      "fixture": "controlled acceptance workbook_correction: List Price 100.00, Contract Price 80.00, Renewal Price 70.00, Tax 8.00; not live-connected",
+      "source_version": "833ce82068fe6f14d3ecbe6fbd219ee31384657e",
+      "initial": {
+        "mapping": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "List Price",
+          "unit": "USD",
+          "unit_authority": "source_evidence",
+          "required_unit": "USD",
+          "source_unit": "USD",
+          "source_unit_column": "Currency",
+          "source_version": "833ce82068fe6f14d3ecbe6fbd219ee31384657e",
+          "revision": 2,
+          "lesson_id": "8657da53011b4435b8a7e31fc8c5678e"
+        },
+        "teaching_revision": "f0354d5f496b1970+map",
+        "result": "100.00",
+        "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_correction_acceptance/office/assignments/default/map-user/draft-3272a7d93636/correction-lab-price-total-document-161e5b47.docx",
+        "artifact_sha256": "ec1f75f99b8126912d5cf03a641d1dfc95ad59a5772ad55748d8e58086843517",
+        "plan_revision": 1
+      },
+      "corrected": {
+        "mapping": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "Contract Price",
+          "unit": "USD",
+          "unit_authority": "source_evidence",
+          "required_unit": "USD",
+          "source_unit": "USD",
+          "source_unit_column": "Currency",
+          "source_version": "833ce82068fe6f14d3ecbe6fbd219ee31384657e",
+          "revision": 3,
+          "lesson_id": "8657da53011b4435b8a7e31fc8c5678e",
+          "corrected_from_revision": 2,
+          "corrected_by": "map-user",
+          "corrected_at": "2026-10-30T03:53:28.813924+00:00"
+        },
+        "teaching_revision": "f0354d5f496b1970+map+corr",
+        "result": "80.00",
+        "plan_revision": 2,
+        "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_correction_acceptance/office/assignments/default/map-user/draft-3272a7d93636/correction-lab-price-total-document-161e5b47-corr-2.docx",
+        "artifact_sha256": "c9c03f3428394f2cc143a70628a114d7dacf7fbe9ecccf17604141111e745978",
+        "prior_result": {
+          "summary": "sum of List Price = 100.00 USD across 2 row(s) from workbook_correction.xlsx / Sheet1",
+          "evidence": [
+            {
+              "kind": "connected_aggregate",
+              "resource_id": "9a904e11-7db8-4e8c-bca4-93a6aea10ce9",
+              "dataset_name": "outlook_workbook_correction__sheet1",
+              "file_name": "workbook_correction.xlsx",
+              "sheet": "Sheet1",
+              "source_version": "833ce82068fe6f14d3ecbe6fbd219ee31384657e",
+              "representation": "parquet_frame",
+              "coverage": {
+                "known": true,
+                "source_row_count": 2,
+                "materialized_row_count": 2,
+                "truncated": false,
+                "row_cap": 500000
+              },
+              "workspace_id": "default",
+              "tenant_id": "default",
+              "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_correction_acceptance/sheet_datasets/default/833ce82068fe/outlook_workbook_correction__sheet1.parquet",
+              "operation": "sum",
+              "measure": "List Price",
+              "subtotals": {
+                "USD": {
+                  "rows": "\u2026",
+                  "value": "\u2026"
+                }
+              },
+              "sheet_rows": [
+                2,
+                3
+              ],
+              "selected_count": 2
+            }
+          ],
+          "artifact": null,
+          "artifact_revision": null,
+          "value": "100.00",
+          "unit": "USD",
+          "expression": null,
+          "operation": "sum",
+          "measure": "List Price",
+          "values": [
+            {
+              "currency": "USD",
+              "value": "100.00",
+              "rows": 2
+            }
+          ],
+          "subtotals": {
+            "USD": {
+              "rows": 2,
+              "value": "100.00"
+            }
+          },
+          "source": {
+            "resource_id": "9a904e11-7db8-4e8c-bca4-93a6aea10ce9",
+            "dataset_name": "outlook_workbook_correction__sheet1",
+            "file_name": "workbook_correction.xlsx",
+            "sheet": "Sheet1",
+            "source_version": "833ce82068fe6f14d3ecbe6fbd219ee31384657e",
+            "representation": "parquet_frame",
+            "coverage": {
+              "known": true,
+              "source_row_count": 2,
+              "materialized_row_count": 2,
+              "truncated": false,
+              "row_cap": 500000
+            },
+            "workspace_id": "default",
+            "tenant_id": "default"
+          },
+          "source_label": "workbook_correction.xlsx / Sheet1",
+          "formulas": {},
+          "matched_count": null,
+          "selected_count": 2,
+          "truncated": null,
+          "substantive": null,
+          "source_version": "833ce82068fe6f14d3ecbe6fbd219ee31384657e",
+          "provider_ref": null,
+          "rows": [
+            {
+              "identity": "R-1",
+              "identity_source": "identity_column",
+              "row": 2,
+              "value": "60.00",
+              "currency": "USD",
+              "value_cell": "B2"
+            },
+            {
+              "identity": "R-2",
+              "identity_source": "identity_column",
+              "row": 3,
+              "value": "40.00",
+              "currency": "USD",
+              "value_cell": "B3"
+            }
+          ],
+          "schema": null,
+          "text": null,
+          "decision": null,
+          "draft": null,
+          "data": null,
+          "at": "2026-10-30T03:53:26.405387+00:00",
+          "receipt": {
+            "receipt_version": 1,
+            "operation_id": "afa6294f-484c-45b7-9c51-769fb6ce417f",
+            "execution_id": null,
+            "action": "dataset.aggregate",
+            "binding_sha256": "638738f4eb42a82794fa941434b73e69f3c3cee9063c064a35acd2a498d79505",
+            "observed_status": "confirmed",
+            "error_class": null,
+            "reconciliation_required": false,
+            "at": "2026-10-30T03:53:26.407681+00:00",
+            "source": {
+              "kind": null,
+              "path": null,
+              "revision": null,
+              "sha256": null,
+              "source_version": "833ce82068fe6f14d3ecbe6fbd219ee31384657e",
+              "coverage": null
+            },
+            "calculation": {
+              "expression": null,
+              "value": "100.00",
+              "unit": "USD",
+              "steps": null
+            },
+            "outbound": null,
+            "readback": null,
+            "summary": "sum of List Price = 100.00 USD across 2 row(s) from workbook_correction.xlsx / Sheet1",
+            "evidence": [
+              {
+                "kind": "connected_aggregate",
+                "resource_id": "9a904e11-7db8-4e8c-bca4-93a6aea10ce9",
+                "dataset_name": "outlook_workbook_correction__sheet1",
+                "file_name": "workbook_correction.xlsx",
+                "sheet": "Sheet1",
+                "source_version": "833ce82068fe6f14d3ecbe6fbd219ee31384657e",
+                "representation": "parquet_frame",
+                "coverage": {
+                  "known": true,
+                  "source_row_count": 2,
+                  "materialized_row_count": 2,
+                  "truncated": false,
+                  "row_cap": 500000
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_correction_acceptance/sheet_datasets/default/833ce82068fe/outlook_workbook_correction__sheet1.parquet",
+                "operation": "sum",
+                "measure": "List Price",
+                "subtotals": {
+                  "USD": {
+                    "rows": 2,
+                    "value": "100.00"
+                  }
+                },
+                "sheet_rows": [
+                  2,
+                  3
+                ],
+                "selected_count": 2
+              }
+            ]
+          }
+        },
+        "prior_artifact": {
+          "kind": "document",
+          "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_correction_acceptance/office/assignments/default/map-user/draft-3272a7d93636/correction-lab-price-total-document-161e5b47.docx",
+          "sha256": "ec1f75f99b8126912d5cf03a641d1dfc95ad59a5772ad55748d8e58086843517",
+          "revision": "ec1f75f99b812691"
+        },
+        "mapping_history": [
+          {
+            "concept": "Price",
+            "sheet": "Sheet1",
+            "column": "List Price",
+            "unit": "USD",
+            "unit_authority": "source_evidence",
+            "required_unit": "USD",
+            "source_unit": "USD",
+            "source_unit_column": "Currency",
+            "source_version": "833ce82068fe6f14d3ecbe6fbd219ee31384657e",
+            "revision": 2,
+            "lesson_id": "8657da53011b4435b8a7e31fc8c5678e",
+            "replaced_by_revision": 3,
+            "corrected_by": "map-user",
+            "corrected_at": "2026-10-30T03:53:28.813924+00:00",
+            "reason": "mapping corrected from Assignments panel"
+          }
+        ]
+      },
+      "preserved": {
+        "unrelated_mapping": {
+          "concept": "Tax",
+          "sheet": "Sheet1",
+          "column": "Tax",
+          "unit": "USD",
+          "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revision": 1,
+          "lesson_id": "8657da53011b4435b8a7e31fc8c5678e",
+          "lesson_revision": 1
+        },
+        "lesson_format_spec": {
+          "font_size": 12
+        },
+        "lesson_applies_to": [
+          "document"
+        ],
+        "tax_lesson_mapping": {
+          "concept": "Tax",
+          "sheet": "Sheet1",
+          "column": "Tax",
+          "unit": "USD",
+          "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revision": 1
+        },
+        "old_artifact_still_exists": true,
+        "docx_normal_font_size": "152400",
+        "formatting_preserved": true
+      },
+      "independent": {
+        "run_id": "2f844595-d53e-47a0-b920-5ded4c170c32",
+        "assignment_id": "asg-530479f96ebf4439",
+        "result": "8.00",
+        "artifact_sha256": "236bc05f33a8f560609c30a6f22eba1380808dcf9501b083702c207948423414",
+        "durable_parameters_unchanged": true
+      },
+      "concurrency_control": {
+        "run_id": "4eaa5efc-6d48-42ca-b6b5-6cc1a8f8f4a0",
+        "http_statuses": [
+          200,
+          409
+        ],
+        "winner_column": "Renewal Price",
+        "winning_revision": 3,
+        "winning_result": "70.00",
+        "control_teaching_mapping": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "Renewal Price",
+          "unit": "USD",
+          "source_version": "833ce82068fe6f14d3ecbe6fbd219ee31384657e",
+          "revision": 3,
+          "unit_authority": "source_evidence",
+          "required_unit": "USD",
+          "source_unit": "USD",
+          "source_unit_column": "Currency"
+        }
+      },
+      "api_controls": {
+        "stale_correction": {
+          "http_status": 409,
+          "detail": "stale mapping revision: expected 1, current 2",
+          "durable_unchanged": true,
+          "teaching_unchanged": true
+        },
+        "wrong_workspace": {
+          "http_status": 404,
+          "detail": "Assignment not found",
+          "durable_unchanged": true,
+          "teaching_unchanged": true
+        }
+      },
+      "restart": {
+        "reopened_status": "completed",
+        "mapping_revision": 3,
+        "mapping_column": "Contract Price",
+        "result": "80.00",
+        "artifact_sha256": "c9c03f3428394f2cc143a70628a114d7dacf7fbe9ecccf17604141111e745978",
+        "durable_parameters_unchanged": true,
+        "teaching_mapping": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "Contract Price",
+          "unit": "USD",
+          "source_version": "833ce82068fe6f14d3ecbe6fbd219ee31384657e",
+          "revision": 3,
+          "unit_authority": "source_evidence",
+          "required_unit": "USD",
+          "source_unit": "USD",
+          "source_unit_column": "Currency"
+        }
+      },
+      "screenshots": [
+        "initial-confirmed.png",
+        "correction-form.png",
+        "corrected.png",
+        "after-restart.png"
+      ]
+    },
+    "waiting-restart": {
+      "schema": "atom-mapping-waiting-restart-browser-1",
+      "status": "passed",
+      "product": {
+        "commit": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+        "tree": "89d720301326b7a8f934c2305f0588d73edf3544",
+        "dirty_paths": []
+      },
+      "frozen_release": {
+        "commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+        "tag": "assignment-successor-2026-10-29",
+        "tag_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+        "unchanged": true
+      },
+      "harness_sha256": "3bd8a2f2847a0a066189f7d33f5ff9ed4c53213994d34c171df7ec3c6d952daa",
+      "run_id": "8635dabd-e885-4cb4-959f-b5ae18d04978",
+      "assignment_id": "asg-ae52b4654ecc44ee",
+      "question_id": "e9097df1-a13c-4b4e-981f-6722818778e5",
+      "objective": "Waiting restart price total",
+      "source_version": "3ea430d6ae967873fd1fd82967c0b0bb09abb9d5",
+      "teaching_revision": "76e2cfbd7a18ee3d",
+      "mapping_teaching_revision": "76e2cfbd7a18ee3d",
+      "required_unit": "USD",
+      "source_unit": "USD",
+      "fixture": "controlled acceptance workbook_b: Amount 35.00, Discount distractor; not live-connected",
+      "rejection": {
+        "same_question_id": true,
+        "same_candidates": true,
+        "durable_unchanged": true,
+        "teaching_unchanged": true,
+        "no_result": true
+      },
+      "restart": {
+        "same_assignment_id": true,
+        "same_question_id": true,
+        "same_candidates": true,
+        "same_source_version": true,
+        "same_teaching_revision": true,
+        "durable_unchanged": true
+      },
+      "confirmation": {
+        "question_id": "e9097df1-a13c-4b4e-981f-6722818778e5",
+        "mapping": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "Amount",
+          "unit": "USD",
+          "unit_authority": "source_evidence",
+          "required_unit": "USD",
+          "source_unit": "USD",
+          "source_unit_column": "Currency",
+          "source_version": "3ea430d6ae967873fd1fd82967c0b0bb09abb9d5",
+          "revision": 2,
+          "lesson_id": "c77c58fa0a714556a44fba01ff261fed"
+        },
+        "result": "35.00",
+        "unit": "USD",
+        "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_waiting_restart_acceptance/office/assignments/default/map-user/draft-e2c9615107db/waiting-restart-total-5ad686da.docx",
+        "artifact_sha256": "bc4cfa5eb368e346318d228793d9ea369eab3fa28743e47a160b65d07d95d9b0",
+        "applied_calculation_operations": 1,
+        "superseded_calculation_operations": 1,
+        "question_status": "resolved",
+        "lesson_mapping": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "Amount",
+          "unit": "USD",
+          "source_version": "3ea430d6ae967873fd1fd82967c0b0bb09abb9d5",
+          "revision": 2,
+          "unit_authority": "source_evidence",
+          "required_unit": "USD",
+          "source_unit": "USD",
+          "source_unit_column": "Currency"
+        }
+      },
+      "reload": {
+        "status": "completed",
+        "mapping": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "Amount",
+          "unit": "USD",
+          "unit_authority": "source_evidence",
+          "required_unit": "USD",
+          "source_unit": "USD",
+          "source_unit_column": "Currency",
+          "source_version": "3ea430d6ae967873fd1fd82967c0b0bb09abb9d5",
+          "revision": 2,
+          "lesson_id": "c77c58fa0a714556a44fba01ff261fed"
+        },
+        "result": "35.00",
+        "artifact_sha256": "bc4cfa5eb368e346318d228793d9ea369eab3fa28743e47a160b65d07d95d9b0",
+        "mapping_history": [],
+        "durable_unchanged": true
+      },
+      "screenshots": [
+        "unresolved-before-reject.png",
+        "rejected-still-open.png",
+        "reopened-after-restart.png",
+        "confirmed-after-restart.png",
+        "reloaded-after-confirm.png"
+      ]
+    }
+  },
+  "files": {
+    "RELEASE_IDENTITY.json": {
+      "sha256": "0edf736c4302ded0f3b4ebc7765750a4e7f4628a35aafd2ff82f60c783d33e31",
+      "bytes": 1143
+    },
+    "config-compatibility.json": {
+      "sha256": "681718df0d89737f4d246e0a9f66baf61e3c4f8611011ee16226291b614571d3",
+      "bytes": 1170
+    },
+    "freshness-baseline.json": {
+      "sha256": "48021962efe2aaedd8ea65a85e4ec84304c65ac6f2e4f1bd75e3f991fb09af2b",
+      "bytes": 54408
+    },
+    "freshness-blocker.txt": {
+      "sha256": "e02dc134a5892f094781ac28344074024eb1f0c2b0da3afcb0df7b5c7ac1e36b",
+      "bytes": 263
+    },
+    "freshness-check.json": {
+      "sha256": "1a90a5a876bfa62c2e33a5a4f45fe75cfc75934af6a1bedadfcc1d2a81a0ae8e",
+      "bytes": 1169
+    },
+    "kit-tests.log": {
+      "sha256": "e92837b193b29cc5b62259124f03d1c3049a57a14886c00dedb830d2c94541e0",
+      "bytes": 1189
+    },
+    "mapping-b-result.json": {
+      "sha256": "59f8d454cc269e4016a0cf62b69e090601290e1e72dfe211d46409a8d4b701fa",
+      "bytes": 4566
+    },
+    "mapping-c-result.json": {
+      "sha256": "4ff6ccf799d53e82a5325fe1a9696061c1cbda5b21789b1c96bd188b47e6ab7b",
+      "bytes": 3176
+    },
+    "mapping-correction-result.json": {
+      "sha256": "d6136fa42fa18d45daca6eb8416ae93f1d6e48a7bc65fa20ee09ab08a1329faf",
+      "bytes": 12040
+    },
+    "mapping-waiting-restart-result.json": {
+      "sha256": "bc25cd991b6903f24b661d6df9baefa0e6e1fbd2e2f810e6125bf1be76452a9e",
+      "bytes": 3556
+    },
+    "memory-after-restart.json": {
+      "sha256": "630c44fedc1fd1a658b9186a4cc019e60721603c59a020b8a3044932a8ca7f52",
+      "bytes": 651
+    },
+    "memory-before-restart.json": {
+      "sha256": "630c44fedc1fd1a658b9186a4cc019e60721603c59a020b8a3044932a8ca7f52",
+      "bytes": 651
+    },
+    "memory-handoff.json": {
+      "sha256": "e531a2b2026c79e30f4b24bbb7faf01158d3ce79e599c141358fb72db0197f0a",
+      "bytes": 3111
+    },
+    "preflight-no-approval.json": {
+      "sha256": "6dfd7427c4dc61dfb278f9da103df752f9347f928cd400489aeeba336594ee44",
+      "bytes": 8507
+    },
+    "previous-identity.json": {
+      "sha256": "945ac34c867e4dd00e6d5e015cad2e3e8edd75fc41dab2b9f59f886c32657ae5",
+      "bytes": 1122
+    },
+    "production-data-handoff.json": {
+      "sha256": "205a4923b74f61e72ee1a2760bff42b01602dbd434d3128b035529e5df300c38",
+      "bytes": 55962
+    },
+    "production-handoff-verification.json": {
+      "sha256": "5e894fd9c0e6676191adeb0185e255ce2e46a68b5795e5ea69bde98f5983c87d",
+      "bytes": 10856
+    },
+    "release-affected.log": {
+      "sha256": "7097121684984d32091b9926aa4bb1727c1094238881bfb21f7b03dacfb0e3ef",
+      "bytes": 212731
+    },
+    "rollback-after-901.json": {
+      "sha256": "583dd8d3fc7ac925e95ba79cc941690362598a7d5e8f234832808ab62ca24e36",
+      "bytes": 609
+    },
+    "rollback-before.json": {
+      "sha256": "583dd8d3fc7ac925e95ba79cc941690362598a7d5e8f234832808ab62ca24e36",
+      "bytes": 609
+    },
+    "rollback-candidate-start.json": {
+      "sha256": "7e409f8aa4c01994b36886d556158de2bb9eb53e5a051e1858154b82f209f4a8",
+      "bytes": 1507
+    },
+    "rollback-receipt.json": {
+      "sha256": "0c5bf62e416dca0db3a844b0af61803bb62817d5a17d751bc77b9c0fadb84024",
+      "bytes": 3385
+    },
+    "source-shutdown-scope.json": {
+      "sha256": "82ec6f21796a3eec9f701e610cfae0e2e057a3a14146f887b90f741f9ebba668",
+      "bytes": 1144
+    },
+    "source-verification.json": {
+      "sha256": "477614ce9cca2101a97b2e3e4c24818832bd4f1ac1cd6883e92212f683c3b735",
+      "bytes": 576
+    },
+    "space.txt": {
+      "sha256": "966dc220cd8e6895bc9adf342bf5296fafad2e56a0e05614bd3a85b0af1f3e12",
+      "bytes": 164
+    }
+  }
+}
