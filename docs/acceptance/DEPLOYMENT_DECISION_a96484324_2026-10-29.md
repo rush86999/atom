@@ -52,7 +52,9 @@ ATOM_SMOKE_PASSWORD_FILE=/Users/rushiparikh/projects/atom-deployments/assignment
 /Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/current/scripts/deploy_release.sh
 ```
 
-The transaction runs: approval check → preflight → verified SQLite backup →
+The transaction runs: approval check → freshness check against the handoff
+baseline (logical SQLite content, memory versions, referenced files) →
+preflight → verified SQLite backup →
 scoped stop → stopped preflight → start → normal-auth smoke → representative
 assignment reopen → fresh retrieval/calculation/artifact assignment →
 provider-policy check → send-denial-before-transport check → scoped restart →
@@ -66,7 +68,9 @@ modal, was preserved, and the repaired harness passed on the next run.
 ## Failure and rollback bounds
 
 - Recovery is armed **before** the first disruptive operation.
-- Pre-shutdown failures leave the running service untouched.
+- A stale freshness check, missing pilot password or failed preflight refuses
+  before backup/shutdown; the running service is untouched. If the live source
+  advances after the handoff, refresh the handoff and baseline first.
 - After shutdown, any failure (stop/start, auth, assignment/artifact assertion,
   restart agreement, receipt publication) triggers a verified code rollback to
   `901e5d773`.

@@ -36,19 +36,38 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+_EXCLUDED_DIRS = {"__pycache__", ".pytest_cache", ".hypothesis", ".benchmarks"}
+_EXCLUDED_SUFFIXES = {".pyc", ".pyo"}
+
+
+def _included(path: Path, root: Path) -> bool:
+    rel = path.relative_to(root)
+    return (
+        path.suffix not in _EXCLUDED_SUFFIXES
+        and not any(part in _EXCLUDED_DIRS for part in rel.parts)
+    )
+
+
 def sha256_tree(root: Path, paths: Iterable[str] | None = None) -> str:
-    """Content checksum over a stable sorted file list (relative paths)."""
+    """Content checksum over a stable sorted file list (relative paths).
+
+    Cache/bytecode directories are excluded so running the kit's own tests
+    cannot change the identity of the deployable kit.
+    """
     root = root.resolve()
     files: list[Path] = []
     if paths is None:
-        files = [p for p in root.rglob("*") if p.is_file()]
+        files = [p for p in root.rglob("*") if p.is_file() and _included(p, root)]
     else:
         for rel in paths:
             target = root / rel
-            if target.is_file():
+            if target.is_file() and _included(target, root):
                 files.append(target)
             elif target.is_dir():
-                files.extend(p for p in target.rglob("*") if p.is_file())
+                files.extend(
+                    p for p in target.rglob("*")
+                    if p.is_file() and _included(p, root)
+                )
     entries = []
     for p in sorted(files):
         rel = p.relative_to(root).as_posix()

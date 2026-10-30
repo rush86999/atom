@@ -53,6 +53,7 @@ fi
 
 release_tool=("$PY" "$KIT/release_tool.py" "--root" "$ROOT")
 approval_cmd=("${release_tool[@]}" approval-check --mode "$MODE")
+freshness_cmd=("$PY" "$KIT/check_freshness.py" --root "$ROOT")
 preflight_running=("${release_tool[@]}" preflight "${REHEARSAL_ARGS[@]}" --ignore-running-ports)
 preflight_stopped=("${release_tool[@]}" preflight "${REHEARSAL_ARGS[@]}")
 start_cmd=("${release_tool[@]}" start "${REHEARSAL_ARGS[@]}")
@@ -138,6 +139,7 @@ trap recover_on_exit EXIT
 
 # Authorization and local preconditions: no backup, shutdown or service call.
 "${approval_cmd[@]}"
+"${freshness_cmd[@]}"
 if [[ ! -f "$PASSWORD_FILE" ]]; then
   echo "REFUSED: normal-login smoke password file missing: $PASSWORD_FILE" >&2
   exit 2

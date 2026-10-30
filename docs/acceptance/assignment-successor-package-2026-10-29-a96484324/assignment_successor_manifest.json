@@ -26,7 +26,7 @@
     "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
     "product_tree_matches_tested": true,
     "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
-    "deployment_kit_tree_sha256": "9d3b97a079548e1a1002540cd0b5700adda6eed026bbe28f926915305e520983",
+    "deployment_kit_tree_sha256": "3113326779621dd8201062ab8fd820cf0d5d335dba32df00b8d8347baf874f34",
     "frontend_build_id": "9XAkf6w6bcGinpRtHpj8X",
     "frontend_api_origin": "http://127.0.0.1:8071",
     "api_port": 8071,
@@ -319,13 +319,20 @@
     "arbitrary_schema_understanding": false,
     "production_data_handoff_prepared": true,
     "required_memory_exported": true,
-    "actual_rollback_to_901_verified_in_isolation": true
+    "actual_rollback_to_901_verified_in_isolation": true,
+    "production_freshness_guard": true,
+    "known_missing_historical_datasets_visible": true,
+    "omitted_memory_explicit": true,
+    "production_freshness_gate_logical": true,
+    "production_rollback_verified_with_refreshed_data": true
   },
   "blockers": [
     "Deployment authorization is not granted; config/APPROVED is absent.",
-    "The owner must supply config/pilot_password for the existing admin account; normal authentication smoke cannot run without it.",
+    "The owner must supply config/pilot_password for the existing admin account; production authentication smoke cannot run without it.",
     "Real-provider email sending remains open and unauthorized; the release refuses it before transport.",
-    "The 7.2 GiB atom_communications archive and 30 GiB default_shared workspace were not migrated; they remain preserved at the source for an explicit later migration.",
+    "The 7.23 GiB atom_communications archive and 29.5 GiB default_shared workspace are not in the production copy; their historical email/context is not searchable there. Both remain preserved at source.",
+    "21 pre-existing missing historical dataset paths remain visible as retrieval gaps with affected resources and honest retrieval consequences; none is referenced by a current assignment.",
+    "The source is a live instance. The freshness gate refuses if it advances before cutover; a final refresh or quiescent source is required immediately before the transaction.",
     "Automatic understanding of arbitrary schemas and every possible authority surface are not claimed."
   ],
   "evidence": {
@@ -348,8 +355,8 @@
     },
     "production_package": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/evidence-manifest.json",
-      "sha256": "a6577385b57bdfd0f3c1bd438d9399650a5179c55000bc185d768c23365d04d9",
-      "bytes": 21298
+      "sha256": "e3e99adfe39763b9cdaf1db7e46a9d41083d9a4cc03c8ae97b7bb5e671b9ccb6",
+      "bytes": 145780
     },
     "preparation_report": "docs/acceptance/PRODUCTION_PACKAGE_PREPARATION_a96484324_2026-10-30.md"
   },
@@ -371,7 +378,7 @@
       "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
       "product_tree_matches_tested": true,
       "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
-      "deployment_kit_tree_sha256": "9d3b97a079548e1a1002540cd0b5700adda6eed026bbe28f926915305e520983",
+      "deployment_kit_tree_sha256": "3113326779621dd8201062ab8fd820cf0d5d335dba32df00b8d8347baf874f34",
       "frontend_build_id": "9XAkf6w6bcGinpRtHpj8X",
       "frontend_api_origin": "http://127.0.0.1:8071",
       "api_port": 8071,
@@ -413,23 +420,23 @@
     },
     "evidence_manifest": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/evidence-manifest.json",
-      "sha256": "331b0000c87b23dfd958791c72a2b92c231655fed89bf5f6de743a36864a84c3",
-      "bytes": 22621
+      "sha256": "e3e99adfe39763b9cdaf1db7e46a9d41083d9a4cc03c8ae97b7bb5e671b9ccb6",
+      "bytes": 145780
     },
     "data_handoff": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/production-data-handoff.json",
-      "sha256": "8b2596ef9a406f639f11c45e175eabf339bb0a53180f53c772f1b018812b8fd5",
-      "bytes": 2420
+      "sha256": "5ed5dab86f80917b87fb1f1a8a91314c20ab4bb31035b0948b1477370b8990a2",
+      "bytes": 55962
     },
     "memory_handoff": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/memory-handoff.json",
-      "sha256": "5ceaba0e37a9c0224118a4e56018aa079cba016171c21703b08aafcdcddd5b24",
+      "sha256": "524eb3aeeca6c9a18b298fd8ae2c6e21d276ad53c3cd67870d7aa1a03142069f",
       "bytes": 3111
     },
     "handoff_verification": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/production-handoff-verification.json",
-      "sha256": "4967048465c2e8ce02447f123531da9c8d2b55c1f816124f4426e9d0d44fb7d9",
-      "bytes": 2912
+      "sha256": "de844ab3e35474ba46d8f7e93a2f295031ea8a18a606f23f474b6a1e01c9d69b",
+      "bytes": 10856
     },
     "config_compatibility": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/config-compatibility.json",
@@ -438,13 +445,13 @@
     },
     "preflight_no_approval": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/preflight-no-approval.json",
-      "sha256": "ba2f4b7e0354a20db83cb965e8631fcf8df7a61829e65c2c97659949fae11402",
+      "sha256": "9abf2b1495db8affb1b562b420445b2cfa19df8b6d886863c06af4b17dee697b",
       "bytes": 8367
     },
     "rollback_receipt": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-receipt.json",
-      "sha256": "f78277831e8f4681c098c45bb54858ec33fc72aa25c75e58348ca67ea7acab14",
-      "bytes": 3475
+      "sha256": "18ef5a7144538ead963e055c1a0538500b0eeab1898dee580f256840af4aefb0",
+      "bytes": 2346
     },
     "rollback_before": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-before.json",
@@ -475,6 +482,21 @@
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-auth-candidate.json",
       "sha256": "bc83dba672f105a95f00bb520c680f5a26766ca665af7f6879d030ea610fe9b6",
       "bytes": 161
+    },
+    "freshness_baseline": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/freshness-baseline.json",
+      "sha256": "1e932fa1c2dc6f8c5391ae98d2d2c3a99fd389fff8e0b559d2ac0a9780848a86",
+      "bytes": 54408
+    },
+    "freshness_check": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/freshness-check.json",
+      "sha256": "e494f31c2fe0b726574ed13a384fe5dda1a136b081a032dfea979d3ad01d540c",
+      "bytes": 701
+    },
+    "rollback_candidate_start": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-candidate-start.json",
+      "sha256": "75edce1355127e193a069f451b2e313931d7ef86a719723c5d0a3410a97ee5b9",
+      "bytes": 1537
     }
   }
 }

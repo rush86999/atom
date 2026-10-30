@@ -75,6 +75,15 @@ if command == "status":
     save(); sys.exit(0)
 save(); sys.exit(0)
 ''')
+    freshness = scripts / "check_freshness.py"
+    freshness.write_text(
+        "import json,os,sys\n"
+        "state_file=os.environ['FAKE_STATE_FILE']\n"
+        "from pathlib import Path\n"
+        "state=json.loads(Path(state_file).read_text()) if Path(state_file).is_file() else {'calls':[]}\n"
+        "state['calls'].append({'command':'freshness','args':sys.argv[1:]})\n"
+        "Path(state_file).write_text(json.dumps(state))\n"
+        "sys.exit(1 if os.environ.get('FAKE_SCENARIO')=='freshness_stale' else 0)\n")
     for name, body in {
         "smoke_auth.py": "import json,os,sys\nstate=os.environ.get('FAKE_SCENARIO','success')\nif state=='auth_fail': sys.exit(1)\nout=sys.argv[sys.argv.index('--out-dir')+1]\nos.makedirs(out,exist_ok=True)\nopen(out+'/auth-smoke.json','w').write(json.dumps({'status':'passed'}))\n",
         "smoke_assignment.py": "import json,os,sys\nstate=os.environ.get('FAKE_SCENARIO','success')\nrestart='--compare-to' in sys.argv\nif state=='assignment_fail' or (state=='restart_fail' and restart): sys.exit(1)\nout=sys.argv[sys.argv.index('--out')+1]\nopen(out,'w').write(json.dumps({'ok':True,'snapshot':{}}))\n",
@@ -120,6 +129,17 @@ def test_pre_shutdown_failures_leave_service_alone(tmp_path):
         assert not (root / "state.json").is_file() or \
             all(c["command"] != "stop" for c in _state(root)["calls"])
         assert not _state(root).get("rollback_called")
+
+
+def test_stale_freshness_refuses_before_shutdown(tmp_path):
+    root = tmp_path / "stale"
+    _fake_kit(root)
+    result = _run(root, "freshness_stale")
+    assert result.returncode != 0
+    state = _state(root)
+    assert state["calls"][-1]["command"] == "freshness"
+    assert all(c["command"] != "stop" for c in state["calls"])
+    assert not state.get("rollback_called")
 
 
 def test_partial_stop_triggers_recovery(tmp_path):

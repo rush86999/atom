@@ -124,11 +124,15 @@ def main() -> None:
         # Only datasets actually referenced by an assignment are required to
         # resolve. Older catalog rows may already point at deleted historical
         # roots; record them instead of pretending the handoff broke them.
-        entries = {
-            row[0]: {"status": row[1], "parquet_path": row[2]}
+        entry_rows = [
+            {"dataset_name": row[0], "status": row[1],
+             "parquet_path": row[2]}
             for row in con.execute(
                 "select dataset_name, status, parquet_path from dataset_entries")
-        }
+        ]
+        entries_by_name = {}
+        for entry in entry_rows:
+            entries_by_name.setdefault(entry["dataset_name"], []).append(entry)
         referenced = {}
         for run_id, params in con.execute("select id, parameters from goal_runs"):
             assignment = ((json.loads(params).get("task_lifecycle") or {})
@@ -137,12 +141,33 @@ def main() -> None:
                 name = str((source.get("binding") or {}).get("dataset_name") or "")
                 if name:
                     referenced.setdefault(name, []).append(run_id)
+        missing_details = []
+        for entry in entry_rows:
+            path = str(entry.get("parquet_path") or "")
+            if path and Path(path).is_file():
+                continue
+            name = entry["dataset_name"]
+            missing_details.append({
+                "dataset_name": name,
+                "status": entry.get("status"),
+                "path": path or None,
+                "referenced_by": referenced.get(name, []),
+                "retrieval_consequence": (
+                    "assignment source unavailable" if referenced.get(name)
+                    else "historical catalog row only; no current assignment references it"),
+            })
         missing_referenced = []
         for name in referenced:
-            entry = entries.get(name)
-            path = str((entry or {}).get("parquet_path") or "")
-            if not entry or not path or not Path(path).is_file():
-                missing_referenced.append({"dataset_name": name, "path": path})
+            rows = entries_by_name.get(name) or []
+            resolved = [
+                row for row in rows
+                if row.get("parquet_path") and Path(row["parquet_path"]).is_file()
+            ]
+            if not resolved:
+                missing_referenced.append({
+                    "dataset_name": name,
+                    "paths": [row.get("parquet_path") for row in rows],
+                })
         if missing_referenced:
             raise SystemExit(
                 "REFUSED: assignment-referenced datasets are unavailable: "
@@ -205,8 +230,8 @@ def main() -> None:
         "dataset_paths_ok": True,
         "referenced_dataset_names": len(referenced),
         "referenced_dataset_paths_ok": True,
-        "pre_existing_missing_dataset_paths": len(missing_datasets),
-        "pre_existing_missing_dataset_samples": missing_datasets[:5],
+        "pre_existing_missing_dataset_paths": len(missing_details),
+        "pre_existing_missing_dataset_details": missing_details,
         "operational_source_references": 0,
         "historical_source_reference_count": historical_refs,
         "representative_assignments": representatives,

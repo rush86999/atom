@@ -85,8 +85,13 @@ The prepared production root now exists at
 `/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324`.
 It contains the exact product release, the real `901e5d773` rollback release,
 the authoritative SQLite/artifact handoff, and a read-only logical export of the
-required LanceDB tables. The 7.2 GiB communication archive and 30 GiB legacy
-`default_shared` workspace remain at the source and are explicitly omitted.
+required LanceDB tables. The 7.23 GiB communication archive and 29.5 GiB
+legacy `default_shared` workspace remain at the source and are explicitly
+omitted; their historical email/context is not searchable in the production
+copy. A logical freshness baseline (389 SQLite tables, memory versions and
+referenced files) now guards the cutover, and 21 pre-existing missing
+historical dataset paths remain visible as retrieval gaps with their affected
+resources and retrieval consequence.
 
 Preparation report:
 `docs/acceptance/PRODUCTION_PACKAGE_PREPARATION_a96484324_2026-10-30.md`.

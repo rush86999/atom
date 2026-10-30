@@ -176,6 +176,15 @@ def main() -> None:
     run.mkdir(parents=True, exist_ok=True)
     (run / "memory_handoff.json").write_text(
         json.dumps(manifest, indent=2) + "\n")
+    baseline_path = run / "freshness_baseline.json"
+    if baseline_path.is_file():
+        baseline = json.loads(baseline_path.read_text())
+        baseline["memory"] = {
+            "workspace": workspace_export,
+            "root": root_export,
+        }
+        baseline["memory_exported_at"] = manifest["created_at"]
+        baseline_path.write_text(json.dumps(baseline, indent=2) + "\n")
     print(json.dumps(manifest, indent=2))
 
 

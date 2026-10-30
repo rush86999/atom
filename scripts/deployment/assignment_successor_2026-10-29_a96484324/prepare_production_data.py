@@ -78,6 +78,43 @@ def admin_hash(path: Path) -> str:
         con.close()
 
 
+def db_fingerprint(path: Path) -> dict:
+    """Logical per-table fingerprint of a SQLite database.
+
+    Reads rows in a single read transaction so a live WAL writer cannot produce
+    a mixed snapshot. Physical page/WAL churn is deliberately excluded: only
+    committed logical content (row count + row values) changes the digest.
+    """
+    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    con.execute("pragma busy_timeout=30000")
+    try:
+        con.execute("begin")
+        tables = [row[0] for row in con.execute(
+            "select name from sqlite_master where type='table' "
+            "and name not like 'sqlite_%' order by name")]
+        out = {}
+        for name in tables:
+            try:
+                con.execute(f'select rowid from "{name}" limit 1').fetchone()
+                order = "rowid"
+            except sqlite3.Error:
+                info = list(con.execute(f'pragma table_info("{name}")'))
+                pk = [row[1] for row in info if row[5]]
+                order = ", ".join(
+                    f'"{col}"' for col in (pk or [row[1] for row in info]))
+            digest = hashlib.sha256()
+            rows = 0
+            for row in con.execute(f'select * from "{name}" order by {order}'):
+                digest.update(repr(row).encode("utf-8", "surrogatepass"))
+                digest.update(b"\x1e")
+                rows += 1
+            out[name] = {"rows": rows, "sha256": digest.hexdigest()}
+        con.commit()
+        return out
+    finally:
+        con.close()
+
+
 def _relocate(value, source_prefix: str, target_prefix: str):
     if isinstance(value, str) and source_prefix in value:
         return value.replace(source_prefix, target_prefix)
@@ -142,17 +179,29 @@ def main() -> None:
     before_hash = admin_hash(src_db)
     source_stat_before = src_db.stat()
     source_hash_before = sha256(src_db)
+    wal_path = source / "atom.db-wal"
+    wal_before = (
+        {"exists": True, "bytes": wal_path.stat().st_size,
+         "mtime_ns": wal_path.stat().st_mtime_ns, "sha256": sha256(wal_path)}
+        if wal_path.is_file() else {"exists": False})
     backup_db(src_db, target / "atom.db")
     after_hash = admin_hash(target / "atom.db")
     if before_hash != after_hash:
         raise SystemExit("REFUSED: admin password hash changed during handoff")
     source_stat_after = src_db.stat()
     source_hash_after = sha256(src_db)
+    wal_after = (
+        {"exists": True, "bytes": wal_path.stat().st_size,
+         "mtime_ns": wal_path.stat().st_mtime_ns, "sha256": sha256(wal_path)}
+        if wal_path.is_file() else {"exists": False})
     source_changed = (
         source_hash_before != source_hash_after
         or source_stat_before.st_size != source_stat_after.st_size
         or source_stat_before.st_mtime_ns != source_stat_after.st_mtime_ns
+        or wal_before != wal_after
     )
+    snapshot_sha256 = sha256(target / "atom.db")
+    snapshot_fingerprint = db_fingerprint(target / "atom.db")
 
     for name in ("office", "sheet_datasets", "email_attachments"):
         src = source / name
@@ -344,18 +393,32 @@ def main() -> None:
         "memory_included": bool(args.include_memory),
         "rehearsal_fixture_used": False,
         "schema_migration": schema_report,
+        "source_snapshot_sha256": snapshot_sha256,
+        "source_snapshot_fingerprint": snapshot_fingerprint,
+        "source_snapshot_fingerprint_scope": (
+            "Logical per-table row-count/row-value digests of the consistent "
+            "SQLite backup snapshot, before operational path rewriting. "
+            "Physical WAL/page churn is intentionally excluded."),
         "source_consistency": {
             "database_snapshot": "sqlite_backup_api",
             "source_opened_read_only": True,
             "source_hash_before": source_hash_before,
             "source_hash_after": source_hash_after,
+            "source_wal_before": wal_before,
+            "source_wal_after": wal_after,
             "source_changed_during_copy": source_changed,
-            "provisional": source_changed,
-            "final_cutover_required": source_changed,
+            "snapshot_is_consistent": True,
+            "provisional": False,
+            "final_cutover_required": True,
+            "cutover_freshness_gate": (
+                "check_freshness.py compares the current source logical "
+                "fingerprint, memory table versions and referenced files to "
+                "this snapshot. Any change refuses the transaction."),
             "note": (
-                "If source_changed_during_copy is true, refresh from a "
-                "quiescent source before activation; do not imply this copy "
-                "contains writes made after the snapshot."),
+                "The backup API produced a consistent point-in-time snapshot. "
+                "A live source may commit after the snapshot; that is expected "
+                "and is detected by the cutover freshness gate, which requires "
+                "a refresh rather than implying later writes are included."),
         },
         "source_mutated": False,
         "source_readonly_checks": [
@@ -369,6 +432,23 @@ def main() -> None:
     run.mkdir(parents=True, exist_ok=True)
     (run / "production_data_handoff.json").write_text(
         json.dumps(manifest, indent=2) + "\n")
+    baseline = {
+        "schema": "atom-production-freshness-baseline-2",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "source_data_dir": str(source),
+        "target_data_dir": str(target),
+        "source_db_sha256": snapshot_sha256,
+        "source_db_fingerprint": snapshot_fingerprint,
+        "target_db_sha256": sha256(target / "atom.db"),
+        "memory": {},
+        "note": (
+            "Created from the consistent handoff snapshot. check_freshness.py "
+            "compares current source logical content, memory versions and "
+            "referenced files to this baseline. WAL byte churn alone is not a "
+            "data change."),
+    }
+    (run / "freshness_baseline.json").write_text(
+        json.dumps(baseline, indent=2) + "\n")
     print(json.dumps(manifest, indent=2))
 
 

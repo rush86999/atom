@@ -68,8 +68,11 @@ approval request:
 The production root now exists at
 `/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324`
 with the authoritative data/artifact handoff, required memory export and a real
-`901e5d773` previous link. Actual candidate-failure → rollback-start was
-verified in an isolated copy; authentication smoke awaits the owner pilot
+`901e5d773` previous link. A logical freshness baseline (389 SQLite tables,
+memory versions, referenced files) guards cutover and refused a stale snapshot
+during preparation; the current v4 handoff checks fresh. Actual
+candidate-failure → rollback-start was re-verified against the refreshed data
+in an isolated copy; production authentication smoke awaits the owner pilot
 password. Deployment is **not authorized**. The one reviewable deployment decision is
 `docs/acceptance/DEPLOYMENT_DECISION_a96484324_2026-10-29.md`; the goal-by-goal
 audit is `docs/acceptance/GOAL_COMPLETION_AUDIT_2026-10-29.md`. Real-provider
