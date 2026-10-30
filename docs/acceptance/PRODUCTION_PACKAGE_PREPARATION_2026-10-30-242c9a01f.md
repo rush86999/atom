@@ -81,3 +81,9 @@ deployment request.
 ## Evidence
 
 `docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/`
+
+## Style rubric
+
+Subjective formatting claims use the declared rubric in
+`docs/acceptance/ARTIFACT_STYLE_RUBRIC_2026-10-30.md`; schema validation alone
+is not accepted as style certification.
