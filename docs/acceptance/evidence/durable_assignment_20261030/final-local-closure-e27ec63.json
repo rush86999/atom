@@ -1,0 +1,122 @@
+{
+  "schema": "atom-final-local-closure-3",
+  "source": {
+    "commit": "e27ec63abcbd5accd8bc085f06ea2242d0930633",
+    "tree": "dc67a86e89e95ea6df11561df14156c851a54f59",
+    "tag": "local-core-2026-10-30-final",
+    "functional_baseline": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4"
+  },
+  "runtime": {
+    "python": "3.11.16",
+    "node": "v20.19.6",
+    "npm": "10.8.2",
+    "clean_build": "jDccLkCOwPIvfD8dW-mSz",
+    "controlled_build": "DAyJPdxkcutCPtDNO1645"
+  },
+  "clean_install": {
+    "source_commit": "5ce5f571539ce6444fba696644cf9ddc8924e85b",
+    "evidence": "local-core-repro-5ce5f57",
+    "operation": "Result: 2225.75 USD \u00b7 Net Amount",
+    "artifact_sha256": "25e5deb308506b68a757fe88c67a4360760730fe7282db3b6d5b26b26d530dff",
+    "after_restart_sha256": "25e5deb308506b68a757fe88c67a4360760730fe7282db3b6d5b26b26d530dff",
+    "page_errors": [],
+    "failed_assets": [],
+    "first_start_pid": 35853,
+    "restart_pid": 36279
+  },
+  "composite_protocol": {
+    "source_commit": "5ce5f571539ce6444fba696644cf9ddc8924e85b",
+    "evidence": "composite-protocol-5ce5f57",
+    "active_run": "62588f60-7ee8-4454-8ba3-e98d769d516b",
+    "active_teaching_revision": "93e2706cbf20587b+e938ac4c979b4c10+map",
+    "active_artifact_sha256": "323f34314ff3bc00fba4bf60882bd1571bfe052d44dd4b0ab82d2d80421b4101",
+    "second_run": "b65a6d94-77ce-4784-a87f-c2ce7b8f0982",
+    "second_teaching_revision": "922186d7c93cd416+map",
+    "second_artifact_sha256": "6670ca2446c9304cf974a6352eb95f5fa80b74cb8f1f0c4b39f66a43e3b4906a",
+    "outbox_final_run_lines": 1,
+    "outbox_operation_id": "bc439dd7-61a4-4132-b969-aaf7608ad494",
+    "email_protocol_verified_in_outbox": true,
+    "verifier_negative_controls": "passed",
+    "restart": {
+      "old_pid": 34360,
+      "new_pid": 35413
+    }
+  },
+  "wait_value_fix": {
+    "source_commit": "e27ec63abcbd5accd8bc085f06ea2242d0930633",
+    "evidence": "wait-value-e27ec63",
+    "blank_currency": {
+      "fact_status": "missing",
+      "blank_subjects": [
+        "row 2",
+        "row 3"
+      ],
+      "assignment_status": "completed",
+      "artifact_sha256": "b18c4874c644aff5c0a9cb65951b6d075c0df2f83a442ea8317a15d81a2b679f",
+      "artifact_hash_matches_after_restart": true,
+      "applied_wait_operations": 1
+    },
+    "agreeing_currency": {
+      "fact_status": "established",
+      "values": [
+        "USD"
+      ],
+      "subjects": [
+        "row 2",
+        "row 3",
+        "row 4"
+      ],
+      "confirmation_reason": "source_fact_confirmed",
+      "assignment_status": "completed"
+    },
+    "conflicting_currency": {
+      "fact_status": "established",
+      "values": [
+        "USD"
+      ],
+      "assignment_status": "waiting",
+      "artifact_created": false,
+      "response_retained": true
+    },
+    "exact_comparison_negatives": [
+      "Not USD; use EUR",
+      "USDX",
+      "20 vs 120"
+    ],
+    "filtered_rows_only": true,
+    "unavailable_evidence_status": "unavailable",
+    "incomplete_coverage_status": "incomplete",
+    "explicit_typed_value_accepted": true,
+    "restart": {
+      "old_pid": 49087,
+      "new_pid": 49391,
+      "same_data_root": true
+    },
+    "verifier_negative_controls": "passed"
+  },
+  "regressions": {
+    "backend_assignment": "98 passed",
+    "backend_teaching": "137 passed",
+    "frontend": "31 passed",
+    "logs": [
+      "wait-value-e27ec63/backend-targeted-tests.log",
+      "wait-value-e27ec63/teaching-targeted-tests.log",
+      "wait-value-e27ec63/frontend-targeted-tests.log"
+    ]
+  },
+  "deferred": [
+    "hosted deployment",
+    "public release",
+    "publication"
+  ],
+  "limits": [
+    "arbitrary Excel compatibility",
+    "arbitrary schema understanding",
+    "embedded image/chart interpretation",
+    "every future canvas component",
+    "non-Microsoft connectors",
+    "multi-worker campaigns",
+    "unrestricted autonomous research"
+  ],
+  "conclusion": "Bounded local core complete for the documented supported workflows."
+}

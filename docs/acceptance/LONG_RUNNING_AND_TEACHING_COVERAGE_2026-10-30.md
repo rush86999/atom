@@ -1,7 +1,7 @@
 # Long-running assignments and complex teaching — coverage
 
-Source: `43f3dae58f2742a478614569c47b5a34ab1d2b2e`
-Tree: `47af5d9197b6d70c2b7b4ee45817b0c4fb058788`
+Source: `e27ec63abcbd5accd8bc085f06ea2242d0930633`
+Tree: `dc67a86e89e95ea6df11561df14156c851a54f59`
 Protocol campaign source: `5ce5f571539ce6444fba696644cf9ddc8924e85b`
 Functional baseline: `fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4`
 Local tag: `local-core-2026-10-30-final`
@@ -133,7 +133,7 @@ Artifacts:
   exposes `Currency`: the assignment stayed `waiting`, the response was
   retained as `source_already_provides_fact`, and no artifact was created.
 
-## 5. Wait-value repair — 43f3dae58
+## 5. Wait-value repair — e27ec63a
 
 The earlier wait repair treated a column header as an established fact. That
 blocked legitimate blank-cell recovery and misclassified an agreeing reply as
@@ -142,16 +142,21 @@ a conflict. The corrected resolver reads the bound records' actual values:
 | Source values | Reply | Result |
 |---|---|---|
 | `Currency` column, all blank | `USD` | `missing`; authorized resolution accepted; assignment completed |
-| `Currency=USD` on all rows | `USD` | `established`; `source_fact_confirmed`; assignment completed |
+| `Currency=USD` on all rows | `USD` | `established`; exact match → `source_fact_confirmed`; assignment completed |
+| `Currency=USD` on all rows | `Not USD; use EUR` / `USDX` | `established`; exact comparison refuses agreement; durable conflict |
+| `Currency=120` | `20` | `established`; numeric canonical comparison refuses agreement |
+| accepted row 2 USD; frame also row 3 EUR | `EUR` | only accepted row 2 inspected; EUR is not evidence |
+| column present, file unreadable | `USD` | `unavailable`, not `missing`; stays waiting |
+| truncated coverage | `USD` | `incomplete`, not `missing`; stays waiting |
 | `Currency=USD` on all rows | `Currency unstated...` | `established`; durable `source_fact_conflict`; assignment stayed waiting; no artifact |
 | `Currency=USD` and blank rows | `USD` | `mixed`; durable `source_fact_mixed`; record-specific blank subjects remain unresolved |
 
 The blank-currency assignment survived a real backend restart with the same
-artifact SHA-256 `8a0a5ccfca09a8209abbf9aca4ba7cdac70ff8944f8fe2acabf33faa477dd96e`
+artifact SHA-256 `b18c4874c644aff5c0a9cb65951b6d075c0df2f83a442ea8317a15d81a2b679f`
 and exactly one applied wait operation. The agreeing twin completed with
 `source_fact_confirmed`.
 
-Evidence: `wait-value-43f3dae5/`.
+Evidence: `wait-value-e27ec63/`.
 
 ## 6. Failure and timing twins
 
@@ -162,7 +167,7 @@ The current source was tested with:
 - `backend/tests/test_assignment_send_policy.py`
 - `backend/tests/test_assignment_resource_boundary.py`
 
-Result: **92 passed** (`backend-targeted-tests.log`).
+Result: **98 passed** (`backend-targeted-tests.log`).
 
 Teaching regressions:
 

@@ -125,7 +125,7 @@ No goal is marked fully complete where a promised behavior remains unqualified.
   sanitized fresh install passed.
 - Hosted deployment/public release/publication are deferred and not claimed.
 
-## Final local closure — 43f3dae58
+## Final local closure — e27ec63a
 
 - New clean clone, new Python 3.11.16 venv, pinned wheel-backed install, new
   `npm ci` and build; new empty data root.
@@ -144,7 +144,7 @@ No goal is marked fully complete where a promised behavior remains unqualified.
   values stay waiting; mixed rows remain record-specific unresolved work.
   The blank-currency assignment completed, survived a real restart with the
   same artifact hash, and applied exactly one wait operation.
-- Current-source regressions: 92 assignment/executor/send/resource tests and
+- Current-source regressions: 98 assignment/executor/send/resource tests and
   137 teaching/renderer tests passed; 31 frontend tests passed.
 
 Conclusion: **Bounded local core complete for the documented supported

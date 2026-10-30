@@ -24,7 +24,7 @@ Statuses: **Demonstrated**, **Partial**, **Deferred**, **Blocked**.
 | 9 | User-created canvases inherit capabilities | Demonstrated for supported table adapter; two canvas shapes current test | Versioned capability manifests, adapter registry, canvas routes | Historical capability evidence; C10 no change | Capability acceptance evidence | Only the supported table adapter is claimed; every future canvas component is not. |
 | 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart; bounded external research live-qualified on `rish@brennan.ca`; artifact-restart current test | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
 | 11 | Approval and eventual sending | **Demonstrated live** — payload-bound approval, provider acceptance, exact Sent Items message and attachment-hash match, restart no duplicate; recipient delivery not independently confirmed | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; controlled approval and live qualification separate | `send-qualification/` exact Sent Items receipt; composite controlled approval/outbox; C10 `send-denial.json` | The one authorized live send is final for this scope. No standing permission or new send. Production sending remains disabled by default; recipient delivery is unclaimed. |
-| 12 | Everyday usability, security and operational readiness | **Bounded local core complete for documented supported workflows** — clean install/startup, normal auth/UI, persistence, composite long-running job, restart/recovery, accurate docs; hosted deployment/public release/publication deferred | Normal auth, Assignments/Activity, durable storage, local UI entry points, backup/recovery docs | Final local source `43f3dae58` (tag `local-core-2026-10-30-final`); clean root on `8071/3130`; Python 3.11.16 / Node 20.19.6 | `local-core-repro-5ce5f57/`, `composite-protocol-5ce5f57/`, `wait-value-43f3dae5/`, `LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md` | Local completion only. Hosted deployment, public release and publication are deferred. Compatibility limits remain explicit. |
+| 12 | Everyday usability, security and operational readiness | **Bounded local core complete for documented supported workflows** — clean install/startup, normal auth/UI, persistence, composite long-running job, restart/recovery, accurate docs; hosted deployment/public release/publication deferred | Normal auth, Assignments/Activity, durable storage, local UI entry points, backup/recovery docs | Final local source `e27ec63a` (tag `local-core-2026-10-30-final`); clean root on `8071/3130`; Python 3.11.16 / Node 20.19.6 | `local-core-repro-5ce5f57/`, `composite-protocol-5ce5f57/`, `wait-value-e27ec63/`, `LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md` | Local completion only. Hosted deployment, public release and publication are deferred. Compatibility limits remain explicit. |
 
 Mapping campaign identities: the canonical B baseline stays bound to harness
 `7399fe41e`; new B/C/correction/waiting-restart attempts are written under
@@ -56,10 +56,10 @@ the prior manifests and attempt directories are preserved unchanged.
 Evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/`.
 
-## Final local closure — 43f3dae58
+## Final local closure — e27ec63a
 
-Final local source `43f3dae58f2742a478614569c47b5a34ab1d2b2e` (tree
-`47af5d9197b6d70c2b7b4ee45817b0c4fb058788`, tag
+Final local source `e27ec63abcbd5accd8bc085f06ea2242d0930633` (tree
+`dc67a86e89e95ea6df11561df14156c851a54f59`, tag
 `local-core-2026-10-30-final`) preserves the functional baseline
 `fda4f2dc9` and adds the usability/reproducibility repairs.
 
@@ -84,8 +84,8 @@ Final local source `43f3dae58f2742a478614569c47b5a34ab1d2b2e` (tree
   value is a durable conflict; mixed rows stay waiting with record-specific
   unresolved subjects. The blank-currency assignment completed, survived a
   real restart with the same artifact hash, and applied exactly one wait
-  operation. Evidence: `wait-value-43f3dae5/`.
-- Current-source regressions: 92 assignment/executor/send/resource tests and
+  operation. Evidence: `wait-value-e27ec63/`.
+- Current-source regressions: 98 assignment/executor/send/resource tests and
   137 teaching/renderer tests passed; 31 frontend tests passed.
 
 Evidence:
@@ -93,7 +93,7 @@ Evidence:
 and
 `docs/acceptance/evidence/durable_assignment_20261030/composite-protocol-5ce5f57/`
 and
-`docs/acceptance/evidence/durable_assignment_20261030/wait-value-43f3dae5/`.
+`docs/acceptance/evidence/durable_assignment_20261030/wait-value-e27ec63/`.
 Transition table: `docs/acceptance/LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md`.
 
 Hosted deployment, public release and publication remain deferred. No source
