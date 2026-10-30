@@ -10,10 +10,10 @@ deployment launcher or source-service shutdown.
 | Item | Value |
 |---|---|
 | Final local source tag | `local-core-2026-10-30-final` |
-| Runtime source commit | `0efe3a9fbdc19414b0615ae033a3823e02d04d75` |
-| Runtime source tree | `f1ef5e1faed79cdf974fad0f68269c026510ade3` |
+| Runtime source commit | `5ce5f571539ce6444fba696644cf9ddc8924e85b` |
+| Runtime source tree | `f9f5b883ce5d971573c25b780e56a0ab1e16f9df` |
 | Functional baseline | `fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4` |
-| Frontend build (clean install) | `gPz569sUaoRTx_JBxsPCA` |
+| Frontend build (clean install) | `jDccLkCOwPIvfD8dW-mSz` |
 | Python | `3.11.16` |
 | Node | `v20.19.6` |
 | npm | `10.8.2` |
@@ -331,7 +331,7 @@ data root.
   completed. Pinned: `lancedb 0.24.3`, `cryptography 42.0.8`,
   `schemathesis 3.39.16`.
 - Node `v20.19.6`; npm `10.8.2`; `npm ci` and `next build` completed; build ID
-  `gPz569sUaoRTx_JBxsPCA`.
+  `jDccLkCOwPIvfD8dW-mSz`.
 - Standalone frontend started with `.next/static` and `public` copied.
 - Browser loaded the login page with **no failed JS/CSS/public asset responses
   and no page errors**. The only console messages were pre-auth shell requests
@@ -343,21 +343,27 @@ data root.
   `2225.75 USD`, and download the DOCX artifact.
 - Restart without `ADMIN_PASSWORD` preserved the login, assignment, result and
   artifact. The artifact SHA-256 before and after restart was identical:
-  `fc6e770be3489f99e3df3a6d8dccadb04d43fb1f744d8ff3996bf1e22aba47d3`.
+  `25e5deb308506b68a757fe88c67a4360760730fe7282db3b6d5b26b26d530dff`.
 - Controlled adapters were used where a live provider credential was not
   available; that is labelled separately from the live-connected evidence.
+- Composite protocol/wait evidence: the approved controlled email carried
+  `[Quote]` in the subject, `Dear colleague,` at the start and `Sales team` at
+  the end. The successful wait used the genuinely missing `delivery_term`
+  (`FOB destination`). A contradictory `Currency unstated...` reply against a
+  source that already exposes `Currency` stayed waiting, was retained as a
+  conflict, and produced no artifact.
 
 Clean-install evidence:
-`docs/acceptance/evidence/durable_assignment_20261030/local-core-repro-0efe3a9fb/`
+`docs/acceptance/evidence/durable_assignment_20261030/local-core-repro-5ce5f57/`
 
 Long-running and complex teaching evidence:
-`docs/acceptance/evidence/durable_assignment_20261030/composite-final-0efe3a9fb/`
+`docs/acceptance/evidence/durable_assignment_20261030/composite-protocol-5ce5f57/`
 and `docs/acceptance/LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md`.
-The earlier `composite-long-running-0efe3a9fb/` directory is preserved as a
-prior cross-source attempt, not the final campaign.
+The earlier `composite-final-0efe3a9fb/` and `composite-long-running-0efe3a9fb/`
+directories are preserved as prior attempts, not the final campaign.
 
 Consolidated closure record:
-`docs/acceptance/evidence/durable_assignment_20261030/final-local-closure-0efe3a9fb.json`.
+`docs/acceptance/evidence/durable_assignment_20261030/final-local-closure-5ce5f57.json`.
 
 ## Compatibility limits
 

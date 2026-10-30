@@ -1,0 +1,24 @@
+{
+  "schema": "atom-composite-runtime-1",
+  "source_commit": "5ce5f571539ce6444fba696644cf9ddc8924e85b",
+  "source_tree": "f9f5b883ce5d971573c25b780e56a0ab1e16f9df",
+  "python": "3.11.16",
+  "node": "v20.19.6",
+  "npm": "10.8.2",
+  "frontend_build": "O8X4B7ujNIh_Q24QwCra_",
+  "frontend_build_env": {
+    "NEXT_PUBLIC_API_URL": "http://127.0.0.1:8071",
+    "NEXT_PUBLIC_ALLOW_LOOPBACK": "1",
+    "NEXT_PUBLIC_ASSIGNMENT_TRANSPORT": "controlled"
+  },
+  "backend_env": {
+    "ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT": "1",
+    "ATOM_EMAIL_SEND_DISABLED": "1",
+    "ATOM_ASSIGNMENT_ALLOW_LIVE_SEND": "0"
+  },
+  "fixtures": {
+    "integrated_quote.csv": "controlled local upload; Price maps to Gross Amount; expected 400.00",
+    "clean_quote.csv": "controlled local upload; Price maps to Net Amount; expected 2225.75"
+  },
+  "frontend_build_source_commit": "844f8a7fa5bcbaf07ffad84af67bd8f978e41d5e"
+}

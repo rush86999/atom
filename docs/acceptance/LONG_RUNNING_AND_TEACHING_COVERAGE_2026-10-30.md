@@ -1,7 +1,7 @@
 # Long-running assignments and complex teaching — coverage
 
-Source: `0efe3a9fbdc19414b0615ae033a3823e02d04d75`
-Tree: `f1ef5e1faed79cdf974fad0f68269c026510ade3`
+Source: `5ce5f571539ce6444fba696644cf9ddc8924e85b`
+Tree: `f9f5b883ce5d971573c25b780e56a0ab1e16f9df`
 Functional baseline: `fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4`
 Local tag: `local-core-2026-10-30-final`
 
@@ -14,12 +14,12 @@ mapping-wait recovery is **not** certification of every long-running state.
 | Required transition | What was actually done | Source-bound evidence |
 |---|---|---|
 | Database-session reload | Close and reopen the SQLAlchemy session, read the same durable row | `mapping-browser-waiting-restart` result: `durable_unchanged`; `backend/tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers` |
-| Actual backend process restart | Stop the isolated uvicorn process, start a new process against the same SQLite/LanceDB/office root, authenticate normally | Final composite restart: old PID `30124` → new PID `30602`; `composite-final-0efe3a9fb/restart.json`; `reopened-after-restart.png` |
+| Actual backend process restart | Stop the isolated uvicorn process, start a new process against the same SQLite/LanceDB/office root, authenticate normally | Final composite restart: old PID `34360` → new PID `35413`; `composite-protocol-5ce5f57/restart.json`; `reopened-after-restart.png` |
 | Browser close/reopen | Part 1 browser context closed before restart; part 2 used a new browser context and normal login | `part1.json`, `part2-attempt-preserved.log`, `reopened-after-restart.png` |
 | Interrupted operation recovery | Recovery paths for a lost worker, running operation, wake-before-advance, and stranded uncertain operation | `test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain`, `test_ordinary_resume_leaves_healthy_running_operation_intact`, `test_crash_after_wake_before_advance_recovers` |
 | Delayed external-event handling | Source completed, durable `wait` step with correlation id, process stopped, restarted, then the correlated response delivered | `part1.json` (`source-1 applied`, `wait waiting`), `verify.json` (completed after restart) |
 | Restart after retrieval | The source aggregate `400.00` was applied before the restart and remained | `part1.json`, `durable-state.json` |
-| Restart after artifact creation | Completed artifact reopened and downloaded with the same SHA-256 | `active-reload-assignment-artifact.docx` = `f0d902dd...`; `verify.json` |
+| Restart after artifact creation | Completed artifact reopened and downloaded with the same SHA-256 | `active-reload-assignment-artifact.docx` = `323f3431...`; `verify.json` |
 | Changed source version | Stale version is refused before read; current version is re-resolved on every read | `test_assignment_routes.py` stale-source controls; `test_assignment_resource_boundary.py` |
 | Revoked access | Connected-source grant is re-checked on every read; cached rows are not access | `test_assignment_routes.py::test_supervisor_assignment_rechecks_requester_source_grant`; resource boundary tests |
 | Changed attachment invalidating approval | Approval is bound to attachment bytes; changing the artifact invalidates the old request | `test_assignment_executor.py::test_changed_artifact_invalidates_approval`, `test_send_prepare_binds_attachment_bytes_not_just_ids` |
@@ -49,7 +49,7 @@ The composite taught one coherent policy through the normal Training panel:
 | Required qualification | `qualification=licensed` | A start without qualification returned `teaching_context_unresolved`; a licensed start proceeded |
 | Effective period | `2026-01-01` … `2027-12-31` | Applied; the expired `2019-01-01` … `2020-01-01` Courier New lesson was excluded |
 | Output formatting | Arial 11, headings Summary/Findings/Sources, table columns Item/Value | Inspected in the DOCX Normal style and text |
-| Communication protocol | Email greeting “Dear colleague,”, signature “Sales team”, subject prefix `[Quote]` | Stored as the email output requirement; no live send |
+| Communication protocol | Email greeting “Dear colleague,”, signature “Sales team”, subject prefix `[Quote]` | Present in the approved payload and the controlled outbox bytes; no live send |
 | Intentionally conflicting instruction | Arial 11 vs Times New Roman 12, same context/specificity | Start refused with `font_name` and `font_size` conflicts; the conflicting lesson was removed through the UI |
 | Similarity vs applicability | The resolver used declared context/conditions, not text similarity | Missing qualification and expired lessons were not silently applied |
 
@@ -66,14 +66,14 @@ reassessment**. It is exposed in the assignment detail:
 
 Evidence:
 
-- Final active run `860a8d81-f17b-4bb0-9e87-442d8abbbaa4` kept teaching
-  revision `87d15fb70ae01762+bf5d58e747ff9cdf+map` after a new Calibri 14
+- Final active run `62588f60-7ee8-4454-8ba3-e98d769d516b` kept teaching
+  revision `93e2706cbf20587b+e938ac4c979b4c10+map` after a new Calibri 14
   lesson was taught while it was waiting.
 - The active artifact remained Arial 11 and SHA-256
-  `f0d902ddac32f38f8dd6bb1516eb3fbdfc371699537b1d8af7c540a516ded428`.
-- New work `c869aa2c-d562-4c3c-8d79-786ce5d88396` used the new revision
-  `b9ea9fd7046d2776+map` and produced Calibri 14, result `2225.75`, SHA-256
-  `fb87716c3d20299a0e035b7c22e3d8a38b42dee008c88bd5160ae33d2564c241`.
+  `323f34314ff3bc00fba4bf60882bd1571bfe052d44dd4b0ab82d2d80421b4101`.
+- New work `b65a6d94-77ce-4784-a87f-c2ce7b8f0982` used the new revision
+  `922186d7c93cd416+map` and produced Calibri 14, result `2225.75`, SHA-256
+  `6670ca2446c9304cf974a6352eb95f5fa80b74cb8f1f0c4b39f66a43e3b4906a`.
 
 No old calculation was silently mixed with new policy, and the unrelated
 active work was not invalidated.
@@ -86,9 +86,9 @@ The harness is:
 `scripts/acceptance/composite_long_running_verify.py`.
 
 Final campaign evidence:
-`docs/acceptance/evidence/durable_assignment_20261030/composite-final-0efe3a9fb/`.
-The earlier `composite-long-running-0efe3a9fb/` directory is preserved as a
-prior cross-source attempt and is not the final campaign.
+`docs/acceptance/evidence/durable_assignment_20261030/composite-protocol-5ce5f57/`.
+The earlier `composite-final-0efe3a9fb/` and `composite-long-running-0efe3a9fb/`
+directories are preserved as prior attempts and are not the final campaign.
 
 Browser actions (not API setup) established the agent, the teaching policy,
 the conflict and correction, the data upload, the assignment start, the
@@ -107,12 +107,13 @@ Sequence:
 7. Licensed start: created.
 8. Mapping `Price → Gross Amount` confirmed through the UI.
 9. Durable wait reached; source result `400.00` applied.
-10. Browser closed; backend PID `30124` stopped; new PID `30602` started on the
+10. Browser closed; backend PID `34360` stopped; new PID `35413` started on the
     same data root; browser reopened and normal login.
 11. Waiting state, objective, source evidence and teaching revision verified.
 12. New Calibri 14 lesson taught; active revision unchanged.
 13. Correlated response delivered; artifact rendered; exact approval payload
-    shown; the final run wrote one controlled outbox line.
+    shown; the final run wrote one controlled outbox line whose subject starts
+    `[Quote]` and whose body starts `Dear colleague,` and ends `Sales team`.
 14. Page reloaded; status, history, mapping and artifact hash agreed.
 15. New revised-scope assignment on a differently shaped source
     (`clean_quote.csv`) used the new teaching revision and produced Calibri 14.
@@ -121,12 +122,15 @@ Artifacts:
 
 - `active-assignment-artifact.docx` and
   `active-reload-assignment-artifact.docx` are byte-identical
-  (`f0d902dd...`).
-- `revised-assignment-artifact.docx` is `fb87716c...`.
-- `controlled-outbox-final.jsonl` has exactly one line for the final run;
-  `outbox-analysis.json` records one final-run operation and zero duplicate
-  operations. The older line in `controlled-outbox-all-runs.jsonl` belongs to
-  the preserved prior attempt, not this run.
+  (`323f3431...`).
+- `revised-assignment-artifact.docx` is `6670ca24...`.
+- `controlled-outbox.jsonl` has exactly one line for the final run; the
+  verifier asserts one operation and rejects a duplicate. The email protocol
+  bytes are present in that line.
+- `wait-negative-control.json` records the contradictory
+  `Currency unstated...` reply against a `currency` wait whose source already
+  exposes `Currency`: the assignment stayed `waiting`, the response was
+  retained as `source_already_provides_fact`, and no artifact was created.
 
 ## 5. Failure and timing twins
 
@@ -137,7 +141,7 @@ The current source was tested with:
 - `backend/tests/test_assignment_send_policy.py`
 - `backend/tests/test_assignment_resource_boundary.py`
 
-Result: **86 passed** (`backend-targeted-tests.log`).
+Result: **89 passed** (`backend-targeted-tests.log`).
 
 Teaching regressions:
 

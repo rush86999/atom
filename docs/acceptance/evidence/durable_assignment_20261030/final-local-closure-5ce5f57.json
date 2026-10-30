@@ -1,0 +1,99 @@
+{
+  "schema": "atom-final-local-closure-1",
+  "source": {
+    "commit": "5ce5f571539ce6444fba696644cf9ddc8924e85b",
+    "tree": "f9f5b883ce5d971573c25b780e56a0ab1e16f9df",
+    "tag": "local-core-2026-10-30-final",
+    "functional_baseline": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4"
+  },
+  "runtime": {
+    "python": "3.11.16",
+    "node": "v20.19.6",
+    "npm": "10.8.2",
+    "clean_build": "jDccLkCOwPIvfD8dW-mSz",
+    "controlled_build": "O8X4B7ujNIh_Q24QwCra_"
+  },
+  "clean_install": {
+    "evidence": "local-core-repro-5ce5f57",
+    "operation": "Result: 2225.75 USD \u00b7 Net Amount",
+    "artifact_sha256": "25e5deb308506b68a757fe88c67a4360760730fe7282db3b6d5b26b26d530dff",
+    "after_restart_sha256": "25e5deb308506b68a757fe88c67a4360760730fe7282db3b6d5b26b26d530dff",
+    "page_errors": [],
+    "failed_assets": [],
+    "first_start_pid": 35853,
+    "restart_pid": 36279
+  },
+  "composite": {
+    "evidence": "composite-protocol-5ce5f57",
+    "active_run": "62588f60-7ee8-4454-8ba3-e98d769d516b",
+    "active_teaching_revision": "93e2706cbf20587b+e938ac4c979b4c10+map",
+    "active_artifact_sha256": "323f34314ff3bc00fba4bf60882bd1571bfe052d44dd4b0ab82d2d80421b4101",
+    "active_font": [
+      "Arial",
+      11.0
+    ],
+    "second_run": "b65a6d94-77ce-4784-a87f-c2ce7b8f0982",
+    "second_teaching_revision": "922186d7c93cd416+map",
+    "second_artifact_sha256": "6670ca2446c9304cf974a6352eb95f5fa80b74cb8f1f0c4b39f66a43e3b4906a",
+    "second_font": [
+      "Calibri",
+      14.0
+    ],
+    "outbox_final_run_lines": 1,
+    "outbox_duplicate_final_run_operations": 0,
+    "email_protocol": {
+      "subject_prefix": "[Quote]",
+      "greeting": "Dear colleague,",
+      "signature": "Sales team"
+    },
+    "wait_fact": "delivery_term",
+    "wait_response": "FOB destination; delivery term supplied by the customer.",
+    "restart": {
+      "old_pid": 34360,
+      "new_pid": 35413,
+      "same_data_root": true,
+      "browser_closed": true,
+      "status_after_restart": "waiting",
+      "status_after_completion": "completed"
+    },
+    "wait_negative_control": {
+      "run_id": "d49d28b7-b700-4ce1-9c91-fca639328de5",
+      "status": "waiting",
+      "response_retained": true,
+      "artifact_created": false
+    },
+    "prior_attempts_preserved": [
+      "composite-long-running-0efe3a9fb",
+      "composite-final-0efe3a9fb"
+    ],
+    "outbox_operation_id": "bc439dd7-61a4-4132-b969-aaf7608ad494",
+    "outbox_subject": "[Quote] Sum Price for the protocol composite quote sheet 2026-10-30 v4",
+    "verifier_negative_controls": "passed",
+    "email_protocol_verified_in_outbox": true
+  },
+  "regressions": {
+    "backend_assignment": "89 passed",
+    "backend_teaching": "137 passed",
+    "frontend": "31 passed",
+    "logs": [
+      "composite-protocol-5ce5f57/backend-targeted-tests.log",
+      "composite-protocol-5ce5f57/teaching-targeted-tests.log",
+      "composite-protocol-5ce5f57/frontend-targeted-tests.log"
+    ]
+  },
+  "deferred": [
+    "hosted deployment",
+    "public release",
+    "publication"
+  ],
+  "limits": [
+    "arbitrary Excel compatibility",
+    "arbitrary schema understanding",
+    "embedded image/chart interpretation",
+    "every future canvas component",
+    "non-Microsoft connectors",
+    "multi-worker campaigns",
+    "unrestricted autonomous research"
+  ],
+  "conclusion": "Bounded local core complete for the documented supported workflows."
+}

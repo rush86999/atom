@@ -1,0 +1,30 @@
+{
+  "schema": "atom-local-clean-install-startup-1",
+  "source_commit": "5ce5f571539ce6444fba696644cf9ddc8924e85b",
+  "source_tree": "f9f5b883ce5d971573c25b780e56a0ab1e16f9df",
+  "root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_final",
+  "api_port": 8071,
+  "frontend_port": 3130,
+  "first_start": {
+    "pid": 35853,
+    "admin_password_supplied": true,
+    "data_root_was_empty": true
+  },
+  "restart": {
+    "pid": 36279,
+    "admin_password_supplied": false,
+    "same_data_root": true,
+    "same_frontend_build": true
+  },
+  "first_login": "normal browser form reached /dashboard",
+  "operation": "Result: 2225.75 USD \u00b7 Net Amount",
+  "artifact_sha256": "25e5deb308506b68a757fe88c67a4360760730fe7282db3b6d5b26b26d530dff",
+  "artifact_after_restart_sha256": "25e5deb308506b68a757fe88c67a4360760730fe7282db3b6d5b26b26d530dff",
+  "artifact_hash_unchanged": true,
+  "page_errors": [],
+  "failed_assets": [],
+  "console_errors": [
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 405 (Method Not Allowed)"
+  ]
+}

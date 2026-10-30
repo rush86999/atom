@@ -117,8 +117,10 @@ def fill_start(page, *, frontend: str, agent_id: str, source_file: str,
                objective: str, qualification: str, task_scope: str,
                correlation: str, recipient: str,
                missing_fact: str = "delivery_term") -> str:
-    # A fresh query string remounts the panel after a refused attempt; a
-    # same-route goto can preserve the previous form/busy state in Next.js.
+    # A blank navigation then a fresh assignments URL guarantees a full
+    # document reload and resets the panel after a refused attempt; a
+    # same-route goto can preserve React form state in Next.js.
+    page.goto("about:blank")
     page.goto(f"{frontend}/assignments?attempt={time.time_ns()}",
               wait_until="domcontentloaded")
     page.get_by_test_id("assignment-source-select").wait_for(timeout=30000)

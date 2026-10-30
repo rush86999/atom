@@ -1,0 +1,21 @@
+{
+  "schema": "atom-composite-wait-negative-control-1",
+  "status": "passed",
+  "objective": "Negative control: currency contradiction v3",
+  "run_id": "d49d28b7-b700-4ce1-9c91-fca639328de5",
+  "assignment_status": "waiting",
+  "wait_step_status": "waiting",
+  "conflicts": [
+    {
+      "correlation_id": "negative-currency",
+      "fact": "currency",
+      "response": "Currency unstated by source; report the total without a currency.",
+      "source": "d51d3156-97ae-452d-9bfb-6b7ae92d1972",
+      "evidence": "",
+      "at": "2026-10-30T14:50:13.399859+00:00",
+      "reason": "source_already_provides_fact"
+    }
+  ],
+  "response_retained": true,
+  "artifact_created": false
+}

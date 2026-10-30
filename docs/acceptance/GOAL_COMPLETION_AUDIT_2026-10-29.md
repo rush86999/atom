@@ -125,7 +125,7 @@ No goal is marked fully complete where a promised behavior remains unqualified.
   sanitized fresh install passed.
 - Hosted deployment/public release/publication are deferred and not claimed.
 
-## Final local closure — 0efe3a9fb
+## Final local closure — 5ce5f5715
 
 - New clean clone, new Python 3.11.16 venv, pinned wheel-backed install, new
   `npm ci` and build; new empty data root.
@@ -135,11 +135,11 @@ No goal is marked fully complete where a promised behavior remains unqualified.
   sum → DOCX download; restart preserved the artifact hash.
 - Composite long-running journey: complex teaching policy, conflict and
   missing-qualification refusals, mapping, source result `400.00`, browser
-  close, real backend process restart (`30124` → `30602`), waiting-state
+  close, real backend process restart (`34360` → `35413`), waiting-state
   reopen, active teaching snapshot retention, new Calibri lesson, correlated
-  response, exact approval, one controlled outbox line, reload, and a
+  response, exact approval with the taught email protocol, one controlled outbox line, the `delivery_term` wait and its contradictory-response negative control, reload, and a
   revised-scope second run `2225.75` at Calibri 14.
-- Current-source regressions: 86 assignment/executor/send/resource tests and
+- Current-source regressions: 89 assignment/executor/send/resource tests and
   137 teaching/renderer tests passed; 31 frontend tests passed.
 
 Conclusion: **Bounded local core complete for the documented supported

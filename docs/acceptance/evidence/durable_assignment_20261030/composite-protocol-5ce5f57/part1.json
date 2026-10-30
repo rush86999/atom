@@ -1,0 +1,80 @@
+{
+  "schema": "atom-composite-long-running-part1-1",
+  "status": "waiting",
+  "agent_name": "Quote Specialist",
+  "agent_id": "f8ce6712-e8d3-4192-898c-672ad462d8f2",
+  "canvas_url": "http://127.0.0.1:3130/canvas/4d625321-fea2-4a22-9e38-dbc3276922f8?agent_id=f8ce6712-e8d3-4192-898c-672ad462d8f2&side=training",
+  "objective": "Sum Price for the protocol composite quote sheet 2026-10-30 v4",
+  "correlation_id": "quote-missing-currency-1",
+  "run_id": "62588f60-7ee8-4454-8ba3-e98d769d516b",
+  "assignment_id": "asg-00dcce554d4b4bc5",
+  "teaching_revision": "93e2706cbf20587b+e938ac4c979b4c10+map",
+  "mapping": [
+    {
+      "concept": "Price",
+      "sheet": "integrated_quote",
+      "column": "Gross Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+      "revision": 2,
+      "lesson_id": null,
+      "lesson_revision": null,
+      "teaching_revision": "93e2706cbf20587b+e938ac4c979b4c10+map",
+      "source": "upload",
+      "dataset_name": "upload_integrated_quote__integrated_quote",
+      "external_id": "sha1:abf5444c388170ee6e978b026d7d18fe9190ac61",
+      "available_columns": [
+        "Item Code",
+        "Units",
+        "Gross Amount",
+        "Currency"
+      ],
+      "numeric_columns": [
+        "Units",
+        "Gross Amount"
+      ],
+      "correctable": true
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "result_value": "400.00",
+      "waiting": {}
+    },
+    {
+      "step_id": "wait",
+      "status": "waiting",
+      "result_value": null,
+      "waiting": {
+        "event": "email",
+        "state": "waiting_for_external",
+        "party": "external responder",
+        "correlation_id": "quote-missing-currency-1",
+        "resume_on": "response",
+        "detail": "authorized external reply",
+        "fact": "delivery_term"
+      }
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    },
+    {
+      "step_id": "send",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    }
+  ],
+  "open_gaps": [],
+  "first_error": "Assignments\nTeaching cannot govern this assignment until the missing context is confirmed. (font_name: \"Arial\" vs \"Times New Roman\"; font_size: 11 vs 12)\n\nStart durable work\n\nRefresh data\nNo employee binding\nDemo Assistant \u00b7 system\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nintegrated_quote.csv / integrated_quote \u00b7 3 rows\nclean_quote.csv / clean_quote \u00b7 3 rows\nDocument\nPresentation\nEmail draft\nNo calculation / infer\nCount rows\nSum Units\nSum Gross Amount\nOther business concept\u2026\nLet Atom choose from a permitted scope instead of the selected data\nAdvanced (optional)\n\nSending stays disabled unless this local build enables the controlled transport or a separate live-send authorization is in force. Any send step still requires explicit approval.\n\nStart assignment\nNegative control: currency contradiction v3\nwaiting\n\nCurrent: Wait for the missing external fact\n\nNegative control: currency contradiction v2\nwaiting\n\nCurrent: Wait for the missing external fact\n\nNegative control: currency contradiction\nwaiting\n\nCurrent: Wait for the missing external fact\n\nSum Price for the protocol revised quote sheet 2026-10-30 v3\ncompleted\nSum Price for the protocol composite quote sheet 2026-10-30 v3\ncompleted\nSum Price for the protocol composite quote sheet 2026-10-30\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Price for the final revised composite quote sheet 2026-10-30 v2\ncompleted\nSum Price for the final composite quote sheet 2026-10-30 v2\ncompleted\nSum Price for the final composite quote sheet 2026-10-30\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Price for the revised composite quote sheet 2026-10-30\ncompleted\nSum Price for the composite quote sheet 2026-10-30\ncompleted\nSum Price for the composite quote sheet 2026-10-30\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Price for the composite quote sheet 2026-10-30\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Price for the integrated quote sheet\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Price for the integrated quote sheet\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Net Amount for the uploaded clean quote sheet\ncompleted\n\nNegative control: currency contradiction v3\n\nwaiting\n\nPlan revision 1 \u00b7 teaching 0eb3fd25063174af+map\n\nTeaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.\n\nWaiting: Wait for the missing external fact\n\nWaiting for external responder\n\nCorrelated response\n\nWaiting for external responder on negative-currency \u00b7 missing fact: currency. Paste only the authorized response; it is evidence, not teaching.\n\nDeliver\n\nCompleted work\n\nAggregate workbook source\nResult: 400.00 USD \u00b7 Gross Amount\n\nArtifacts\n\nNegative control: currency contradiction v3\npending\n\nMappings\n\nPrice \u2192 Gross Amount\n\nSource: upload \u00b7 Sheet: integrated_quote \u00b7 Version: abf5444c3881\n\nRequired unit: not specified \u00b7 Established: source-established (USD)\n\nMapping revision: 2 \u00b7 Teaching revision: 0eb3fd25063174af+map\n\nCorrect mapping\nResume\nCancel\nDurable state persisted",
+  "teaching_points_visible": 0
+}

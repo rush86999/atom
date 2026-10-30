@@ -1,0 +1,33 @@
+{
+  "schema": "atom-local-runtime-versions-1",
+  "python": "3.11.16",
+  "python_full": "3.11.16 (main, Aug 12 2026, 23:03:19) [Clang 21.0.0 (clang-2100.1.1.101)]",
+  "platform": "macOS-26.5.2-x86_64-i386-64bit",
+  "machine": "x86_64",
+  "node": "v20.19.6",
+  "npm": "10.8.2",
+  "pip": "pip 26.2.2 from /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_final/atom-local/backend/.venv/lib/python3.11/site-packages/pip (python 3.11)",
+  "packages": {
+    "fastapi": "0.162.0",
+    "uvicorn": "0.54.0",
+    "pydantic": "2.14.2",
+    "sqlalchemy": "2.1.6",
+    "lancedb": "0.24.3",
+    "pyarrow": "25.0.1",
+    "pandas": "2.3.3",
+    "numpy": "1.26.4",
+    "duckdb": "2.0.0",
+    "python-docx": "0.8.11",
+    "openpyxl": "3.1.5",
+    "playwright": "1.58.0",
+    "cryptography": "42.0.8",
+    "schemathesis": "3.39.16",
+    "torch": "2.2.2",
+    "transformers": "4.57.6",
+    "sentence-transformers": "2.7.0"
+  },
+  "frontend_build_id": "jDccLkCOwPIvfD8dW-mSz",
+  "source_commit": "5ce5f571539ce6444fba696644cf9ddc8924e85b",
+  "source_tree": "f9f5b883ce5d971573c25b780e56a0ab1e16f9df",
+  "git_status": ""
+}

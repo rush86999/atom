@@ -115,7 +115,20 @@ python scripts/acceptance/composite_long_running_verify.py \
   --part1 /path/to/evidence/part1.json \
   --objective "Sum Price for the composite quote sheet 2026-10-30" \
   --second-objective "Sum Price for the revised composite quote sheet 2026-10-30" \
-  --outbox /path/to/controlled-outbox.jsonl
+  --outbox /path/to/controlled-outbox.jsonl \
+  --negative-controls
+```
+
+The verifier enforces the active/second fonts, results, revisions, artifact hashes, one-effect outbox and the taught email protocol. `--negative-controls` proves that wrong font, unchanged revision, duplicate operation, missing protocol and contradictory completion all fail.
+
+A separate runtime negative control checks that a reply denying a source fact does not complete the wait:
+
+```bash
+python scripts/acceptance/composite_wait_negative_control.py \
+  --frontend http://127.0.0.1:3130 \
+  --password-file /path/to/local-admin-password \
+  --out-dir /path/to/evidence \
+  --part1 /path/to/evidence/part1.json
 ```
 
 The composite uses controlled external effects only. It does not send a real

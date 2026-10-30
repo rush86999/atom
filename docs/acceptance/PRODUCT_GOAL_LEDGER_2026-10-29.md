@@ -24,7 +24,7 @@ Statuses: **Demonstrated**, **Partial**, **Deferred**, **Blocked**.
 | 9 | User-created canvases inherit capabilities | Demonstrated for supported table adapter; two canvas shapes current test | Versioned capability manifests, adapter registry, canvas routes | Historical capability evidence; C10 no change | Capability acceptance evidence | Only the supported table adapter is claimed; every future canvas component is not. |
 | 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart; bounded external research live-qualified on `rish@brennan.ca`; artifact-restart current test | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
 | 11 | Approval and eventual sending | **Demonstrated live** — payload-bound approval, provider acceptance, exact Sent Items message and attachment-hash match, restart no duplicate; recipient delivery not independently confirmed | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; controlled approval and live qualification separate | `send-qualification/` exact Sent Items receipt; composite controlled approval/outbox; C10 `send-denial.json` | The one authorized live send is final for this scope. No standing permission or new send. Production sending remains disabled by default; recipient delivery is unclaimed. |
-| 12 | Everyday usability, security and operational readiness | **Bounded local core complete for documented supported workflows** — clean install/startup, normal auth/UI, persistence, composite long-running job, restart/recovery, accurate docs; hosted deployment/public release/publication deferred | Normal auth, Assignments/Activity, durable storage, local UI entry points, backup/recovery docs | Final local source `0efe3a9fb` (tag `local-core-2026-10-30-final`); clean root on `8071/3130`; Python 3.11.16 / Node 20.19.6 | `local-core-repro-0efe3a9fb/`, `composite-final-0efe3a9fb/`, `LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md` | Local completion only. Hosted deployment, public release and publication are deferred. Compatibility limits remain explicit. |
+| 12 | Everyday usability, security and operational readiness | **Bounded local core complete for documented supported workflows** — clean install/startup, normal auth/UI, persistence, composite long-running job, restart/recovery, accurate docs; hosted deployment/public release/publication deferred | Normal auth, Assignments/Activity, durable storage, local UI entry points, backup/recovery docs | Final local source `5ce5f5715` (tag `local-core-2026-10-30-final`); clean root on `8071/3130`; Python 3.11.16 / Node 20.19.6 | `local-core-repro-5ce5f57/`, `composite-protocol-5ce5f57/`, `LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md` | Local completion only. Hosted deployment, public release and publication are deferred. Compatibility limits remain explicit. |
 
 Mapping campaign identities: the canonical B baseline stays bound to harness
 `7399fe41e`; new B/C/correction/waiting-restart attempts are written under
@@ -56,35 +56,36 @@ the prior manifests and attempt directories are preserved unchanged.
 Evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/`.
 
-## Final local closure — 0efe3a9fb
+## Final local closure — 5ce5f5715
 
-Final local source `0efe3a9fbdc19414b0615ae033a3823e02d04d75` (tree
-`f1ef5e1faed79cdf974fad0f68269c026510ade3`, tag
+Final local source `5ce5f571539ce6444fba696644cf9ddc8924e85b` (tree
+`f9f5b883ce5d971573c25b780e56a0ab1e16f9df`, tag
 `local-core-2026-10-30-final`) preserves the functional baseline
 `fda4f2dc9` and adds the usability/reproducibility repairs.
 
 - Clean install: new clone, new Python 3.11.16 venv,
   `pip install --prefer-binary -r requirements.txt`, new `npm ci`, new
-  `next build` (build `gPz569sUaoRTx_JBxsPCA`), new empty data root.
+  `next build` (build `jDccLkCOwPIvfD8dW-mSz`), new empty data root.
 - First start and restart without `ADMIN_PASSWORD`; normal browser login;
   no failed JS/CSS/public assets and no page errors.
 - One supported operation through the UI: CSV upload, source selection,
   `Net Amount` sum `2225.75 USD`, DOCX download. Restart preserved the
-  artifact SHA-256 `fc6e770b...`.
+  artifact SHA-256 `25e5deb3...`.
 - Composite long-running journey: complex teaching policy (method, contextual
   exception, qualification, effective period, document format, email protocol,
   conflict), conflict removal, missing-qualification clarification, mapping,
-  source result `400.00`, browser close, real backend restart (`30124` →
-  `30602`), waiting-state reopen, active teaching snapshot retention, new
-  Calibri lesson, correlated response, exact approval, one controlled outbox
-  line, reload, and a revised-scope second run `2225.75` at Calibri 14.
-- Current-source regressions: 86 assignment/executor/send/resource tests and
+  source result `400.00`, browser close, real backend restart (`34360` →
+  `35413`), waiting-state reopen, active teaching snapshot retention, new
+  Calibri lesson, correlated response, exact approval with the taught email protocol, one controlled outbox
+  line, the `delivery_term` wait and its contradictory-response negative
+  control, reload, and a revised-scope second run `2225.75` at Calibri 14.
+- Current-source regressions: 89 assignment/executor/send/resource tests and
   137 teaching/renderer tests passed; 31 frontend tests passed.
 
 Evidence:
-`docs/acceptance/evidence/durable_assignment_20261030/local-core-repro-0efe3a9fb/`
+`docs/acceptance/evidence/durable_assignment_20261030/local-core-repro-5ce5f57/`
 and
-`docs/acceptance/evidence/durable_assignment_20261030/composite-final-0efe3a9fb/`.
+`docs/acceptance/evidence/durable_assignment_20261030/composite-protocol-5ce5f57/`.
 Transition table: `docs/acceptance/LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md`.
 
 Hosted deployment, public release and publication remain deferred. No source
