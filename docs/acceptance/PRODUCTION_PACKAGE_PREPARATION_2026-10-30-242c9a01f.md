@@ -38,10 +38,13 @@ SQLite backup API. The prior v4 copy remains preserved under `backups/`.
 ## Freshness and quiescence
 
 The logical baseline covers 389 SQLite tables, memory table versions/rows and
-461 referenced files. The current data is logically unchanged (0 table
-changes). Cutover is still refused because the live source writer pid `19046`
-holds the database/WAL open. This is intentional: a pre-backup check alone
-would race a live writer.
+461 referenced files. The prepared snapshot was logically current when
+captured. The latest check is stale: four telemetry/ingestion tables advanced
+(`ingestion_settings`, `knowledge_patterns`, `llm_routing_feedback`,
+`rate_usage_records`) and the live source writer pid `19046` still holds the
+database/WAL open. This is intentional: a pre-backup check alone would race a
+live writer. Stop the writer with operational authorization, refresh the
+handoff, then rerun the check before the transaction.
 
 `deploy_release.sh` now:
 1. checks freshness and quiescence before backup;

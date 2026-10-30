@@ -3631,7 +3631,7 @@
   },
   "freshness_check": {
     "schema": "atom-production-freshness-check-2",
-    "checked_at": "2026-10-30T02:14:46.363697+00:00",
+    "checked_at": "2026-10-30T02:29:01.329606+00:00",
     "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-242c9a01f",
     "fresh": false,
     "changes": [
@@ -3644,6 +3644,56 @@
             "command": "python3.14"
           }
         ]
+      },
+      {
+        "item": "source_db_fingerprint",
+        "changed_tables": [
+          {
+            "table": "ingestion_settings",
+            "baseline": {
+              "rows": 4,
+              "sha256": "d41852e7c420c4229ee2861eded740a610db02d0715a9812ee795c180a779682"
+            },
+            "current": {
+              "rows": 4,
+              "sha256": "dca0c071203c3bfd556e947d337870a3ae60d33368ddc22e29ce3d8c7a6054c3"
+            }
+          },
+          {
+            "table": "knowledge_patterns",
+            "baseline": {
+              "rows": 5552,
+              "sha256": "a74b142f47c7b657f19ce42f340a8399e8fd701bf15f40750a52c0c7461b9c7b"
+            },
+            "current": {
+              "rows": 5555,
+              "sha256": "232b2cd51ee1dd96b726d805bae2ea1b96a78f74ec1bb0e1271da9a5998dbe20"
+            }
+          },
+          {
+            "table": "llm_routing_feedback",
+            "baseline": {
+              "rows": 311722,
+              "sha256": "c5c63a92343db2c2ed7e4880690e4cda53b9d1448187df779eb333165eade7c3"
+            },
+            "current": {
+              "rows": 311723,
+              "sha256": "2243eb57df34f736f5bf0b310936d3eea19d59649d3e8adac289fb6eb9e34ff0"
+            }
+          },
+          {
+            "table": "rate_usage_records",
+            "baseline": {
+              "rows": 58049,
+              "sha256": "0a286daaae4601ac9341d427b13f9fe9a549803c93e89f8df7999e952a8d4142"
+            },
+            "current": {
+              "rows": 58050,
+              "sha256": "b21286be3577e0c148c7eca82fdd49bb5136810f43514782c905cb17dbb36627"
+            }
+          }
+        ],
+        "changed_table_count": 4
       }
     ],
     "phase": "preflight",
@@ -3658,7 +3708,7 @@
       ]
     },
     "source_tables_fingerprinted": 389,
-    "source_table_changes": 0,
+    "source_table_changes": 4,
     "memory_unchanged": true,
     "referenced_files_checked": 461,
     "baseline": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-242c9a01f/run/freshness_baseline.json",
@@ -4518,12 +4568,14 @@
       "bytes": 54408
     },
     "freshness-blocker.txt": {
-      "sha256": "bc52ba0436f3e0246f915902ae83c4424ef0351aab833998d1eca29300e6e2a0",
-      "bytes": 324
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/freshness-blocker.txt",
+      "sha256": "8a016e52f3f8134dfd43ecf8fcec4b33f59fc7703f69e3ce4e39c6ed32cba568",
+      "bytes": 466
     },
     "freshness-check.json": {
-      "sha256": "bac76c04be1cc945e9d6f7ff922683762a2d4b8145b2f5f0ae22ab6d9cd961e8",
-      "bytes": 1169
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/freshness-check.json",
+      "sha256": "1e21667912da6a7e09ab1e3cc4d52a61a791372738f860cbe09731a524b5a0a3",
+      "bytes": 2744
     },
     "kit-tests.log": {
       "sha256": "d460934ecba931426e88278c7a9728a4aa52ec66502024cca1909b0c4c033a7c",

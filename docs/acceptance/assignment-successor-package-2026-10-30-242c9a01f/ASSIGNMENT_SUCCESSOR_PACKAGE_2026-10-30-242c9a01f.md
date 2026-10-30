@@ -62,11 +62,12 @@ connected source.
 
 ## Cutover freshness boundary
 
-The data snapshot is logically current (0 table changes, memory unchanged, 461
-referenced files checked). Production cutover is deliberately refused while the
-live source writer is active: pid `19046` (`python3.14`) still holds the source
-database/WAL. The deployment transaction now requires quiescence and re-runs
-the logical check after backup and immediately before activation.
+The prepared snapshot was logically current when captured. The latest check is
+stale: four telemetry/ingestion tables advanced after the snapshot and the live
+source writer pid `19046` (`python3.14`) still holds the source database/WAL.
+Production cutover is deliberately refused. The deployment transaction now
+requires quiescence and re-runs the logical check after backup and immediately
+before activation.
 
 Before deployment the owner must either stop that writer with operational
 authorization and refresh if the source advanced, or authorize an equivalent
