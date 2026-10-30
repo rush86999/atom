@@ -10,6 +10,7 @@ import json
 import mimetypes
 import os
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -129,6 +130,9 @@ def _teaching_snapshot_for_start(
     workspace_id: str,
     output_types: List[str],
     task_context: Dict[str, Any],
+    recipient: Optional[str] = None,
+    task_scope: Optional[str] = None,
+    now: Optional[str] = None,
 ) -> Dict[str, Any]:
     from core.artifact_teaching import resolve_artifact_teaching
 
@@ -141,8 +145,11 @@ def _teaching_snapshot_for_start(
     for output_type in sorted(set(output_types)):
         resolution = resolve_artifact_teaching(
             db, agent_id, output_type,
+            recipient=recipient,
+            task_scope=task_scope,
             task_context=task_context or {},
             workspace_id=workspace_id or "default",
+            now=now,
         )
         status = str(resolution.get("status") or "")
         if status in ("needs_context", "conflict"):
@@ -335,12 +342,21 @@ async def start_assignment(
     ]
     if body.outbound:
         output_types.append("email")
+    outbound_recipients = list((body.outbound or {}).get("to") or [])
+    teaching_recipient = str(
+        (outbound_recipients[0] if outbound_recipients else "")
+        or (body.task_context or {}).get("recipient") or "") or None
+    teaching_scope = str(
+        (body.task_context or {}).get("task_scope") or "") or None
     teaching = _teaching_snapshot_for_start(
         db,
         agent_id=body.agent_id,
         workspace_id=current_user.workspace_id or "default",
         output_types=[item for item in output_types if item],
         task_context=body.task_context,
+        recipient=teaching_recipient,
+        task_scope=teaching_scope,
+        now=datetime.now(timezone.utc).isoformat(),
     )
     if body.calculation is None:
         try:
