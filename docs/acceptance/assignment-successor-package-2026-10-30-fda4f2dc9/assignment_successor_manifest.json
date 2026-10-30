@@ -87,7 +87,13 @@
     "external_content_as_evidence_only": true,
     "bounded_external_research_live_qualified": true,
     "real_provider_send_qualified": true,
-    "recipient_delivery_confirmed": false
+    "recipient_delivery_confirmed": false,
+    "local_installation": true,
+    "local_install_and_auth": true,
+    "local_integrated_job": true,
+    "local_restart": true,
+    "sanitized_fresh_install": true,
+    "hosted_deployment": false
   },
   "blockers": [
     "Deployment authorization is not granted; config/APPROVED is absent.",
@@ -101,12 +107,13 @@
   "evidence": {
     "production_package": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/evidence-manifest.json",
-      "sha256": "486a666c3cb22f5ba3c0eff05ef0c50bbf4d69e0be7471987c91960bd4e4debf",
-      "bytes": 190518
+      "sha256": "db4685249e235d0806ebdee66d2a366009f734c1e07026ec5bc51bdac277a36c",
+      "bytes": 200454
     },
     "preparation_report": "docs/acceptance/PRODUCTION_PACKAGE_PREPARATION_2026-10-30-fda4f2dc9.md",
     "deployment_decision": "docs/acceptance/DEPLOYMENT_DECISION_fda4f2dc9_2026-10-30.md",
-    "goal_ledger": "docs/acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md"
+    "goal_ledger": "docs/acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md",
+    "local_installation": "docs/acceptance/LOCAL_INSTALLATION_AND_ACCEPTANCE_fda4f2dc9.md"
   },
   "no_deployment": true,
   "no_real_sending": true,
@@ -168,8 +175,8 @@
     },
     "evidence_manifest": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/evidence-manifest.json",
-      "sha256": "486a666c3cb22f5ba3c0eff05ef0c50bbf4d69e0be7471987c91960bd4e4debf",
-      "bytes": 190518
+      "sha256": "db4685249e235d0806ebdee66d2a366009f734c1e07026ec5bc51bdac277a36c",
+      "bytes": 200454
     },
     "data_handoff": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/production-data-handoff.json",
@@ -275,6 +282,11 @@
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/qualification-binding.json",
       "sha256": "b4dc8fb546db71ffb0d92ddb5e43babf629fc2a97f8d6095476d04fbf00bbc26",
       "bytes": 3388
+    },
+    "local_acceptance": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/local-acceptance.json",
+      "sha256": "6b11a53017cdd8a52bed685d1b62ba8cf5185c44ee1d9dfe15c733a2f513792e",
+      "bytes": 7307
     }
   }
 }

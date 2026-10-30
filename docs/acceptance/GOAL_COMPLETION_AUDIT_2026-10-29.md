@@ -21,7 +21,7 @@ evidence bound to an earlier source, not automatically a successor pass;
 | 9 | User-created canvases inherit capabilities | Y table adapter; two shapes current | Y | H | Y | Y | — | — |
 | 10 | Long-running employee work | Y controlled wait/approval/restart | Y | H | Y | Y | — | — |
 | 11 | Approval/eventual sending | Live provider acceptance + exact Sent Items match Y; delivery not independently confirmed | Y | Y | Y | Y | Y | — |
-| 12 | Usability/security/operations | Successor package prepared | Y (22 kit controls) | Y current mapping flows | Y | Y | — | Not deployed |
+| 12 | Usability/security/operations | Local core demonstrated; hosted deployment deferred | Y | Y local UI + integrated job | Y | Y | — | Local only |
 
 ### Live research qualification — observed
 
@@ -115,3 +115,10 @@ No goal is marked fully complete where a promised behavior remains unqualified.
   attachment-hash match passed for `rish@brennan.ca` → `rish.maniar@gmail.com`.
 - Restart preserved one sent message and no duplicate operation.
 - Delivery remains unconfirmed; deployment remains unauthorized.
+
+### Local core acceptance — observed
+
+- Isolated local start on the exact product; browser auth/UI, integrated job,
+  teaching/calculation/missing-info/artifact/approval, restart persistence and
+  sanitized fresh install passed.
+- Hosted deployment/public release/publication are deferred and not claimed.

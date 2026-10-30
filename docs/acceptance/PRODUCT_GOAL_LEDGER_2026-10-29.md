@@ -24,7 +24,7 @@ Statuses: **Demonstrated**, **Partial**, **Deferred**, **Blocked**.
 | 9 | User-created canvases inherit capabilities | Demonstrated for supported table adapter; two canvas shapes current test | Versioned capability manifests, adapter registry, canvas routes | Historical capability evidence; C10 no change | Capability acceptance evidence | Only the supported table adapter is claimed; every future canvas component is not. |
 | 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart; bounded external research live-qualified on `rish@brennan.ca`; artifact-restart current test | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
 | 11 | Approval and eventual sending | **Demonstrated live** — payload-bound approval, provider acceptance and exact Sent Items match; recipient delivery not independently confirmed | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; server-side denial tested | C10 `send-denial.json`: HTTP 422 before run creation; draft smoke saved/reopened; no provider/outbox effect | Draft and approval preparation work; production send is refused before transport. **Remaining action:** separately authorized real-provider test with exact payload, provider receipt, reconciliation and restart/no-duplicate checks. |
-| 12 | Everyday usability, security and operational readiness | Pilot candidate; successor package prepared; deployment blocked on approval/password/quiescence | Normal auth, Assignments/Activity, durable storage, deployment kit and recovery guards | C10 packaged source plus successor packaged smoke on `a96484324` | C10 auth smoke, fresh assignment, restart agreement, deployment receipt, 19 kit controls, 41 product controls; successor packaged smoke, backup and restart receipts | Normal sign-in/logout/relogin and fresh packaged execution pass in isolation. The successor packaged smoke reopened an existing taught assignment, exercised the mapping flow and survived restart. Deployment authorization is requested but not granted. |
+| 12 | Everyday usability, security and operational readiness | **Local core demonstrated** — install/startup, browser auth/UI, persistence, integrated job, restart, sanitized fresh install; hosted deployment/public release deferred | Normal auth, Assignments/Activity, durable storage, deployment kit and recovery guards | C10 packaged source plus successor packaged smoke on `a96484324` | C10 auth smoke, fresh assignment, restart agreement, deployment receipt, 19 kit controls, 41 product controls; successor packaged smoke, backup and restart receipts | Normal sign-in/logout/relogin and fresh packaged execution pass in isolation. The successor packaged smoke reopened an existing taught assignment, exercised the mapping flow and survived restart. Deployment authorization is requested but not granted. |
 
 Mapping campaign identities: the canonical B baseline stays bound to harness
 `7399fe41e`; new B/C/correction/waiting-restart attempts are written under
@@ -36,6 +36,25 @@ product `ae53e7e41` (tree `a7f627fdf7705a26b361c0d1b1e7e17abadc13d3`). Frozen
 release `901e5d773` is unchanged. The final manifest and file hashes are
 `docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/manifest-a96484324.json`;
 the prior manifests and attempt directories are preserved unchanged.
+
+## Local core acceptance — observed 2026-10-30
+
+- Exact product `fda4f2dc9` started in an isolated local root on `8071/3130`;
+  existing source service PID `19046` on `8001` was untouched.
+- Normal browser login/logout/relogin and dashboard/Assignments/artifact
+  surfaces passed.
+- One integrated employee job completed: connected HARSLE retrieval, taught
+  document format, `216700.00` calculation, durable missing-currency wait,
+  formatted DOCX, payload-bound approval and controlled local outbox.
+- Restart against the same data root preserved assignment status, teaching
+  revision, history, artifact hash and outbox count.
+- Sanitized fresh install in a separate empty root, with no copied secrets or
+  private paths and controlled adapters, passed startup and browser login.
+- Hosted deployment, public release and publication remain **deferred
+  separately**. No production approval file or source shutdown was used.
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/`.
 
 ## Real-provider send qualification — observed 2026-10-30
 

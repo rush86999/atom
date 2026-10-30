@@ -4744,6 +4744,46 @@
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/qualification-binding.json",
       "sha256": "b4dc8fb546db71ffb0d92ddb5e43babf629fc2a97f8d6095476d04fbf00bbc26",
       "bytes": 3388
+    },
+    "local-acceptance/assignment-open.png": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/assignment-open.png",
+      "sha256": "24f6ce2c66fa34c9e448712bd9a9ac7d5271fd491c2886f13afe05019c671eb9",
+      "bytes": 158125
+    },
+    "local-acceptance/auth-smoke.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/auth-smoke.json",
+      "sha256": "da3dbcdd6cda3000e36b9eac53e24ef6b2d135030b6e1f82cccd2b2dbb6a9d9c",
+      "bytes": 1766
+    },
+    "local-acceptance/fresh-install-dashboard.png": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/fresh-install-dashboard.png",
+      "sha256": "79f799f9f0f6a8bfac55915b18b6706b523940175e5b02012fd7fc41cdad0e39",
+      "bytes": 100695
+    },
+    "local-acceptance/fresh-install-smoke.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/fresh-install-smoke.json",
+      "sha256": "b20035ffcdcc2a2337333061c632e730de9ecb8e7a00237f12936c55b6675ff9",
+      "bytes": 2152
+    },
+    "local-acceptance/integrated-assignment-ui.png": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/integrated-assignment-ui.png",
+      "sha256": "61865ccd1920c9328cf52bf74b3e50059fa88916d135554c292121868b8640a8",
+      "bytes": 100417
+    },
+    "local-acceptance/local-acceptance.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/local-acceptance.json",
+      "sha256": "6b11a53017cdd8a52bed685d1b62ba8cf5185c44ee1d9dfe15c733a2f513792e",
+      "bytes": 7307
+    },
+    "local-acceptance/signed-in-assignments.png": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/signed-in-assignments.png",
+      "sha256": "97622a72acc0b22fd9b6ffd6a09dd031855e21f7f65fe04a14b88f50e17080f8",
+      "bytes": 158211
+    },
+    "local-acceptance/signed-in-dashboard.png": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/signed-in-dashboard.png",
+      "sha256": "d1026d08e9a162fbd67e4525d24cf856495e6417e62b5f35934787ab5a4f445a",
+      "bytes": 153283
     }
   },
   "live_research": {
@@ -4994,5 +5034,178 @@
     },
     "standing_send_permission": false,
     "note": "The single send qualification does not enable ordinary production sending. Deployment remains separately unauthorized."
+  },
+  "local_acceptance": {
+    "schema": "atom-local-acceptance-1",
+    "product": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+    "root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_local_acceptance",
+    "browser_auth": {
+      "schema": "atom-assignment-release-auth-smoke-1",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "fresh_context_login_form",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "normal_form_login",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "workspace_profile_visible",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "authenticated_workspace_access",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "existing_assignment_completed",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "artifact_listed",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "artifact_present_and_openable",
+          "ok": true,
+          "detail": {
+            "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_local_acceptance/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-20dcc1589a89/local-integrated-response-a943cef3.docx",
+            "sha256": "1fe39a9e4883b8c1d8346c68c60f607e19ff651e03cbd3ad30c385df738eea31"
+          }
+        },
+        {
+          "name": "logout_clears_storage",
+          "ok": true,
+          "detail": {
+            "auth": null,
+            "token": null
+          }
+        },
+        {
+          "name": "old_token_refused_after_logout",
+          "ok": true,
+          "detail": {
+            "status": 401
+          }
+        },
+        {
+          "name": "second_normal_form_login",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "second_session_workspace_access",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "session_injected": false,
+      "normal_login_form_used": true,
+      "screenshots": [
+        "assignment-open.png",
+        "signed-in-again.png",
+        "signed-in-assignments.png",
+        "signed-in-dashboard.png",
+        "signed-out.png"
+      ]
+    },
+    "integrated_assignment": {
+      "run_id": "5c08d5cd-9608-4c12-a7ae-78b2a9be8d3b",
+      "assignment_id": "asg-5313ea271c1c4a56",
+      "status": "completed",
+      "teaching_revision": "696f1e4ee7bafd48",
+      "steps": [
+        "source-1:applied",
+        "wait:applied",
+        "deliverable-1:applied",
+        "send:applied"
+      ],
+      "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_local_acceptance/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-20dcc1589a89/local-integrated-response-a943cef3.docx",
+      "artifact_sha256": "1fe39a9e4883b8c1d8346c68c60f607e19ff651e03cbd3ad30c385df738eea31",
+      "outbox_lines": 2
+    },
+    "restart": {
+      "checked_at": "2026-10-30T12:31:00Z",
+      "status": "completed",
+      "teaching_revision": "696f1e4ee7bafd48",
+      "artifact_sha256": "1fe39a9e4883b8c1d8346c68c60f607e19ff651e03cbd3ad30c385df738eea31",
+      "outbox_lines": 2,
+      "browser_auth_after_restart": true
+    },
+    "teaching_lesson": "local acceptance format applied; headings Summary/Findings/Sources",
+    "artifact_text": "Sum Price for the HARSLE press brake stock total for local acceptance\nSummary\nsum of Price: 216700.00\ncontrolled reply received: Currency unstated by source.\nFindings\nSources\noutlook_harsle_press_brake_stock_price_list\nHARSLE press brake stock price list.xlsx\n\u5e93\u5b58\u4ea7\u54c1\n00399616-42f7-4f7d-8867-822752b15a46\nHARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1\nObjective\nSum Price for the HARSLE press brake stock total for local acceptance\nHARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1",
+    "outbox": "{\"operation_id\": \"d319ff6d-da06-4663-bb4e-cc41c64bdeea\", \"to\": [\"local-acceptance@example.invalid\"], \"subject\": \"Local acceptance draft\", \"body\": \"Prepared local acceptance draft.\"}\n{\"operation_id\": \"91dcc5a8-b6ef-4ca2-bf3e-87080ee0393b\", \"to\": [\"local-acceptance@example.invalid\"], \"subject\": \"Local integrated draft\", \"body\": \"Prepared local integrated draft.\"}\n",
+    "tested_configuration": {
+      "product": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+      "root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_local_acceptance",
+      "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_local_acceptance/data",
+      "api_port": 8071,
+      "frontend_port": 3130,
+      "audience": "single_user",
+      "send_disabled": true,
+      "live_send_allowed": false,
+      "controlled_transport": true,
+      "production_approval_required": false,
+      "source_service_unchanged_pid": 19046
+    },
+    "ui_evidence": {
+      "screenshot": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/integrated-assignment-ui.png",
+      "assignment_detail": "completed; teaching 696f1e4ee7bafd48; steps source/wait/document/send; result 216700.00; currency unstated"
+    },
+    "sanitized_fresh_install": {
+      "schema": "atom-fresh-install-smoke-1",
+      "status": "passed",
+      "product": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+      "root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install",
+      "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install/data",
+      "admin_login": "normal browser form reached /dashboard",
+      "onboarding_modal": "present on fresh install (expected)",
+      "controlled_adapters": true,
+      "copied_secrets": false,
+      "private_paths_in_config": false,
+      "config_env": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install/config/env.release",
+      "screenshot": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install/run/after-login.png",
+      "health": {
+        "status": "healthy",
+        "version": "8.0.0",
+        "deployed_sha": "unknown",
+        "timestamp": "2026-10-30T12:35:59.230988+00:00",
+        "identity": {
+          "pid": 14357,
+          "started_at": "2026-10-30T12:35:19.770491+00:00",
+          "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install/releases/fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4/app/backend",
+          "git_commit": "fda4f2dc9376",
+          "source_id": "fda4f2dc9376",
+          "instance_id": "fda4f2dc9376.14357.1793363725",
+          "revision": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+          "dirty": false,
+          "dirty_digest": "e3b0c44298fc",
+          "dirty_paths": [],
+          "untracked_paths": [],
+          "captured_at": "2026-10-30T12:35:25.798585+00:00",
+          "port": 8071,
+          "error": null,
+          "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install/data/atom.db",
+          "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install/releases/fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4/app/backend/data/byok_keys.json"
+        },
+        "database": "operational",
+        "redis": "operational",
+        "vector_store": "operational",
+        "services": {
+          "database": "operational",
+          "redis": "operational",
+          "vector_store": "operational"
+        },
+        "memory_mb": 571.64
+      }
+    }
   }
 }
