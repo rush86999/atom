@@ -68,6 +68,15 @@ back to `901e5d773` against the refreshed data:
 - database not restored; no new interactive approval;
 - memory retrieval identical before/after restart.
 
+## Source service and recovery
+
+The only source writer is verified PID `19046` (`atom-c912375de`, CWD
+`atom-releases/c912375de/backend`, source DB `atom/backend/data/atom.db`, port
+`8001`, no supervisor). The complete operation verifies it before any stop,
+refreshes while quiescent, deploys, and on failure restores that exact service
+configuration as well as the code rollback. See
+`SOURCE_SERVICE_SHUTDOWN_SCOPE_242c9a01f.md`.
+
 ## Remaining external inputs
 
 1. `config/pilot_password` for the existing admin account.

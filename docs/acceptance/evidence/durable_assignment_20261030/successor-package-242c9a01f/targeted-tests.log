@@ -1,0 +1,354 @@
+
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor 
+-------------------------------- live log setup --------------------------------
+2026-10-29 22:03:12 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-10-29 22:03:12 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-10-29 22:03:12 [    INFO] EscalationManager initialized
+2026-10-29 22:03:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-29 22:03:12 [    INFO] EscalationManager initialized
+2026-10-29 22:03:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-29 22:03:12 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-29 22:03:12 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:12 [    INFO] runtime identity: source_id=66fb3b17bea0-dirty.4b36551f06ab revision=66fb3b17bea0 dirty=True (14 modified, 0 untracked)
+PASSED                                                                   [  0%]
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval PASSED [  1%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent PASSED [  2%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [  3%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [  3%]
+tests/test_assignment_executor.py::test_action_dispatched_alone_is_not_provider_acceptance PASSED [  4%]
+tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [  5%]
+tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [  6%]
+tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [  7%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [  7%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [  8%]
+tests/test_assignment_executor.py::test_ordinary_resume_leaves_healthy_running_operation_intact PASSED [  9%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 10%]
+tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 11%]
+tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 11%]
+tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 12%]
+tests/test_assignment_executor.py::test_send_prepare_binds_attachment_bytes_not_just_ids PASSED [ 13%]
+tests/test_assignment_executor.py::test_send_prepare_refuses_attachment_ids_without_hashes PASSED [ 14%]
+tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work PASSED [ 14%]
+tests/test_assignment_send_policy.py::test_live_send_is_refused_by_default PASSED [ 15%]
+tests/test_assignment_send_policy.py::test_controlled_outbox_remains_available_for_isolated_acceptance PASSED [ 16%]
+tests/test_assignment_send_policy.py::test_attachment_ids_without_sha_binding_are_refused PASSED [ 17%]
+tests/test_assignment_send_policy.py::test_attachment_sha_binding_is_carried_into_the_send_step PASSED [ 18%]
+tests/test_assignment_send_policy.py::test_attachment_sha_binding_must_name_exactly_the_sent_ids PASSED [ 18%]
+tests/test_email_canvas_attachments.py::test_staged_save_read_delete_roundtrip PASSED [ 19%]
+tests/test_email_canvas_attachments.py::test_staged_rejects_disallowed_extension PASSED [ 20%]
+tests/test_email_canvas_attachments.py::test_staged_rejects_oversized_upload PASSED [ 21%]
+tests/test_email_canvas_attachments.py::test_staged_per_canvas_cap PASSED [ 22%]
+tests/test_email_canvas_attachments.py::test_staged_ids_are_path_safe PASSED [ 22%]
+tests/test_email_canvas_attachments.py::test_orphan_sweep_removes_old_files 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:14 [    INFO] Swept 1 orphaned staged email attachments
+PASSED                                                                   [ 23%]
+tests/test_email_canvas_attachments.py::test_stage_list_remove_roundtrip 
+-------------------------------- live log setup --------------------------------
+2026-10-29 22:03:15 [    INFO] Created email canvas 4950f6ad-a074-4a4e-9c63-1d6622ccbc10: Q3 report
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:15 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:4950f6ad-a074-4a4e-9c63-1d6622ccbc10'. type='canvas:update'
+2026-10-29 22:03:15 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+2026-10-29 22:03:15 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:4950f6ad-a074-4a4e-9c63-1d6622ccbc10'. type='canvas:update'
+2026-10-29 22:03:15 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 24%]
+tests/test_email_canvas_attachments.py::test_stage_rejects_non_owner 
+-------------------------------- live log setup --------------------------------
+2026-10-29 22:03:16 [    INFO] Created email canvas 4bf14234-f23c-472e-9aed-0c900c5b0900: Q3 report
+PASSED                                                                   [ 25%]
+tests/test_email_canvas_attachments.py::test_stage_batch_fails_atomically 
+-------------------------------- live log setup --------------------------------
+2026-10-29 22:03:16 [    INFO] Created email canvas c9c38247-e7aa-447c-a7eb-39a89a5c013d: Q3 report
+PASSED                                                                   [ 25%]
+tests/test_email_canvas_attachments.py::test_send_with_attachments_passes_bytes_and_cleans_staged 
+-------------------------------- live log setup --------------------------------
+2026-10-29 22:03:17 [    INFO] Created email canvas 46933f41-583a-4cc4-9951-da23252127fe: Q3 report
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:17 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:46933f41-583a-4cc4-9951-da23252127fe'. type='canvas:update'
+2026-10-29 22:03:17 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+2026-10-29 22:03:17 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:46933f41-583a-4cc4-9951-da23252127fe'. type='canvas:update'
+2026-10-29 22:03:17 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 26%]
+tests/test_email_canvas_attachments.py::test_send_with_changed_attachment_hash_is_blocked_before_transport 
+-------------------------------- live log setup --------------------------------
+2026-10-29 22:03:18 [    INFO] Created email canvas 6cdf1d50-57de-4c2b-b6bf-6db1aef8941f: Q3 report
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:18 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:6cdf1d50-57de-4c2b-b6bf-6db1aef8941f'. type='canvas:update'
+2026-10-29 22:03:18 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 27%]
+tests/test_email_canvas_attachments.py::test_send_with_unknown_attachment_is_blocked 
+-------------------------------- live log setup --------------------------------
+2026-10-29 22:03:18 [    INFO] Created email canvas 368c345d-a83a-4d7a-bc27-a1261ff52066: Q3 report
+PASSED                                                                   [ 28%]
+tests/test_email_canvas_attachments.py::test_send_without_attachments_keeps_legacy_contract 
+-------------------------------- live log setup --------------------------------
+2026-10-29 22:03:19 [    INFO] Created email canvas 2375848e-5541-4849-9a28-245bc85f5988: Q3 report
+PASSED                                                                   [ 29%]
+tests/test_email_canvas_attachments.py::test_attachment_csv_text_rides_policy_scan 
+-------------------------------- live log setup --------------------------------
+2026-10-29 22:03:20 [    INFO] Created email canvas e58e1d09-2870-4607-833a-5b3906cf3518: Q3 report
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:20 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'canvas:e58e1d09-2870-4607-833a-5b3906cf3518'. type='canvas:update'
+2026-10-29 22:03:20 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-1'. type='canvas:update'
+PASSED                                                                   [ 29%]
+tests/test_artifact_teaching_context.py::test_equivalent_context_renamed_fields_transfer 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-f0811f94: status intern (not STUDENT)
+PASSED                                                                   [ 30%]
+tests/test_artifact_teaching_context.py::test_similar_topic_wrong_location_does_not_spread 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-9f7b6291: status intern (not STUDENT)
+PASSED                                                                   [ 31%]
+tests/test_artifact_teaching_context.py::test_missing_qualification_needs_targeted_context 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-11f404d6: status intern (not STUDENT)
+PASSED                                                                   [ 32%]
+tests/test_artifact_teaching_context.py::test_scoped_exception_overrides_only_inside_scope 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-2884215e: status intern (not STUDENT)
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-2884215e: status intern (not STUDENT)
+PASSED                                                                   [ 33%]
+tests/test_artifact_teaching_context.py::test_workspace_context_does_not_leak 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-99bfa809: status intern (not STUDENT)
+PASSED                                                                   [ 33%]
+tests/test_artifact_teaching_context.py::test_changed_source_version_is_stale 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-367400cd: status intern (not STUDENT)
+PASSED                                                                   [ 34%]
+tests/test_artifact_teaching_context.py::test_equal_specificity_conflict_is_surfaced 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-34fc0be4: status intern (not STUDENT)
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-34fc0be4: status intern (not STUDENT)
+PASSED                                                                   [ 35%]
+tests/test_artifact_teaching_context.py::test_explicit_replacement_removes_older_lesson 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-67689d7c: status intern (not STUDENT)
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-67689d7c: status intern (not STUDENT)
+PASSED                                                                   [ 36%]
+tests/test_artifact_teaching_context.py::test_effective_period_excludes_outside_dates 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-f6dbe626: status intern (not STUDENT)
+PASSED                                                                   [ 37%]
+tests/test_artifact_teaching_context.py::test_field_mapping_exact_rename_and_sheet_ambiguity PASSED [ 37%]
+tests/test_artifact_teaching_context.py::test_document_teaching_reorders_sections_and_columns PASSED [ 38%]
+tests/test_artifact_teaching_context.py::test_email_teaching_sets_protocol_and_rejects_internal_term PASSED [ 39%]
+tests/test_artifact_teaching_context.py::test_presentation_teaching_reorders_slides PASSED [ 40%]
+tests/test_artifact_teaching_context.py::test_long_instruction_keeps_trailing_exception PASSED [ 40%]
+tests/test_artifact_teaching_context.py::test_update_revision_preserves_unrelated_agent 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-2e1c8334: status intern (not STUDENT)
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-4d0af669: status intern (not STUDENT)
+PASSED                                                                   [ 41%]
+tests/test_artifact_teaching_context.py::test_mapping_only_lesson_resolves_and_confirmation_updates_it PASSED [ 42%]
+tests/test_artifact_teaching_context.py::test_teach_correct_different_task_and_restart_journey 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:20 [    INFO] Learning skipped for ctx-2aab8591: status intern (not STUDENT)
+PASSED                                                                   [ 43%]
+tests/test_artifact_renderers_teaching.py::test_word_renderer_applies_heading_table_and_font_spec PASSED [ 44%]
+tests/test_artifact_renderers_teaching.py::test_word_renderer_refuses_prohibited_internal_information PASSED [ 44%]
+tests/test_artifact_renderers_teaching.py::test_presentation_renderer_reorders_slides_and_applies_font PASSED [ 45%]
+tests/test_artifact_renderers_teaching.py::test_spreadsheet_renderer_applies_columns_header_and_freeze PASSED [ 46%]
+tests/test_canvas_capability_service.py::test_unknown_adapter_cannot_acquire_write_operations PASSED [ 47%]
+tests/test_canvas_capability_service.py::test_client_declared_permissions_cannot_widen_server_authority PASSED [ 48%]
+tests/test_canvas_capability_service.py::test_wrong_workspace_cannot_read_or_mutate PASSED [ 48%]
+tests/test_canvas_capability_service.py::test_stale_revision_cannot_overwrite_newer_state PASSED [ 49%]
+tests/test_canvas_capability_service.py::test_ambiguous_subject_mapping_clarifies PASSED [ 50%]
+tests/test_canvas_capability_service.py::test_changed_teaching_changes_policy_revision PASSED [ 51%]
+tests/test_canvas_capability_service.py::test_unsupported_formula_cannot_return_a_total PASSED [ 51%]
+tests/test_canvas_capability_service.py::test_total_uses_full_dataset_not_display_page PASSED [ 52%]
+tests/test_canvas_capability_service.py::test_repeated_edit_is_an_honest_noop PASSED [ 53%]
+tests/test_canvas_capability_service.py::test_manifest_and_binding_survive_new_session PASSED [ 54%]
+tests/test_canvas_capability_service.py::test_assessment_is_certified_from_authoritative_rows PASSED [ 55%]
+tests/test_canvas_capability_service.py::test_export_is_a_real_xlsx_with_readback PASSED [ 55%]
+tests/test_canvas_capability_service.py::test_edit_requires_an_explicit_revision PASSED [ 56%]
+tests/test_canvas_capability_service.py::test_manifest_revision_is_stable_across_resave PASSED [ 57%]
+tests/test_canvas_capability_service.py::test_client_file_sha_is_not_trusted_for_json_binding PASSED [ 58%]
+tests/test_canvas_capability_service.py::test_export_numeric_measure_is_numeric_and_formula_text_is_not_live PASSED [ 59%]
+tests/test_canvas_capability_service.py::test_fork_copy_drops_private_teaching_and_source_binding PASSED [ 59%]
+tests/test_canvas_capability_service.py::test_two_different_user_canvases_share_supported_operations PASSED [ 60%]
+tests/unit/test_sheet_dataset_service.py::test_materialize_roundtrip_and_sheet_row 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash e0486f3e91be)
+PASSED                                                                   [ 61%]
+tests/unit/test_sheet_dataset_service.py::test_hash_idempotency_no_reparse_no_duplicates 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash e0486f3e91be)
+PASSED                                                                   [ 62%]
+tests/unit/test_sheet_dataset_service.py::test_new_hash_supersedes_and_gc_keeps_two_versions 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash e0486f3e91be)
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash 270981430765)
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash 10fd740527a4)
+PASSED                                                                   [ 62%]
+tests/unit/test_sheet_dataset_service.py::test_multi_sheet_supersede_links_same_sheet_successor 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 2 sheet(s) of Consolidated Price List 2019.xlsx (hash 97db3d50d312)
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 2 sheet(s) of Consolidated Price List 2019.xlsx (hash d86c29f986b6)
+PASSED                                                                   [ 63%]
+tests/unit/test_sheet_dataset_service.py::test_per_sheet_idempotency_after_partial_failure 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 2 sheet(s) of Consolidated Price List 2019.xlsx (hash 97db3d50d312)
+PASSED                                                                   [ 64%]
+tests/unit/test_sheet_dataset_service.py::test_csv_materialization 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of stock.csv (hash 040c052c0250)
+PASSED                                                                   [ 65%]
+tests/unit/test_sheet_dataset_service.py::test_non_sheet_and_unparsable_files_skip_cleanly 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: pandas failed on broken.xlsx (BadZipFile); trying raw-XML grid
+2026-10-29 22:03:24 [    INFO] sheet datasets: pandas could not parse broken.xlsx (File is not a zip file); no dataset
+PASSED                                                                   [ 66%]
+tests/unit/test_sheet_dataset_service.py::test_kill_switch_disables_materialization PASSED [ 66%]
+tests/unit/test_sheet_dataset_service.py::test_secrets_never_reach_parquet_verbatim 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] Redacted 1 secrets/PII items from text
+2026-10-29 22:03:24 [    INFO] Redacted 1 secrets/PII items from text
+2026-10-29 22:03:24 [    INFO] sheet datasets: redacted cells in 'Settings' of Consolidated Price List 2019.xlsx
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash 3ecf8fad8013)
+PASSED                                                                   [ 67%]
+tests/unit/test_sheet_dataset_service.py::test_raw_xml_grid_fallback_when_pandas_rejects 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: pandas failed on Consolidated Price List 2019.xlsx (ValueError); trying raw-XML grid
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash e0486f3e91be)
+PASSED                                                                   [ 68%]
+tests/unit/test_sheet_dataset_service.py::test_raw_grid_frames_direct_formula_and_sparse_cells PASSED [ 69%]
+tests/unit/test_sheet_dataset_service.py::test_raw_grid_sectioned_sheet_repeated_header PASSED [ 70%]
+tests/unit/test_sheet_dataset_service.py::test_raw_grid_header_skips_title_banner PASSED [ 70%]
+tests/unit/test_sheet_dataset_service.py::test_multi_row_headers_materialize_combined_schema 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of stock.xlsx (hash fae7a9a1f05b)
+PASSED                                                                   [ 71%]
+tests/unit/test_sheet_dataset_service.py::test_header_normalization_blank_and_duplicate_names PASSED [ 72%]
+tests/unit/test_sheet_dataset_service.py::test_freshness_hint_mismatch_is_not_fresh 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash e0486f3e91be)
+PASSED                                                                   [ 73%]
+tests/unit/test_sheet_dataset_service.py::test_answer_from_datasets_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash e0486f3e91be)
+2026-10-29 22:03:24 [    INFO] sheet datasets: content probe answered 'price of WG-350DSAV' from zoho_workdrive_consolidated_price_list_2019__machine_pricing (1 hits for '350dsav')
+PASSED                                                                   [ 74%]
+tests/unit/test_sheet_dataset_service.py::test_answer_stale_copy_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash e0486f3e91be)
+PASSED                                                                   [ 74%]
+tests/unit/test_sheet_dataset_service.py::test_answer_rejects_non_select_sql 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash e0486f3e91be)
+PASSED                                                                   [ 75%]
+tests/unit/test_sheet_dataset_service.py::test_answer_no_llm_or_no_datasets_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:24 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash e0486f3e91be)
+PASSED                                                                   [ 76%]
+tests/unit/test_sheet_dataset_service.py::test_answer_bad_column_falls_back_to_none 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of Consolidated Price List 2019.xlsx (hash 37d46bb1e4c1)
+2026-10-29 22:03:25 [    INFO] sheet datasets: SQL execution failed after 0.0s (BinderException from zoho_workdrive_consolidated_price_list_2019__machine_pricing) — no sheets left
+PASSED                                                                   [ 77%]
+tests/unit/test_sheet_dataset_service.py::test_twenty_four_sheet_workbook_preserves_every_sheet_and_types 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 24 sheet(s) of twenty_four_regions.xlsx (hash 2ba534c9e384)
+PASSED                                                                   [ 77%]
+tests/unit/test_sheet_dataset_formulas.py::test_materialize_writes_formula_sidecar 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of quote.xlsx (hash 3739715063ab)
+PASSED                                                                   [ 78%]
+tests/unit/test_sheet_dataset_formulas.py::test_plain_workbook_gets_empty_sidecar 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of quote.xlsx (hash 2e6aa585c00f)
+PASSED                                                                   [ 79%]
+tests/unit/test_sheet_dataset_formulas.py::test_csv_has_no_formula_sidecar 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of stock.csv (hash bed6216c48cc)
+PASSED                                                                   [ 80%]
+tests/unit/test_sheet_dataset_formulas.py::test_reverted_version_self_heals_sidecar 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of quote.xlsx (hash 3739715063ab)
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of quote.xlsx (hash 3739715063ab)
+PASSED                                                                   [ 81%]
+tests/unit/test_sheet_dataset_formulas.py::test_stale_version_prune_removes_sidecar_with_parquet 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of quote.xlsx (hash 3739715063ab)
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of quote.xlsx (hash 31c56fbdec70)
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of quote.xlsx (hash cf89dc5a1f04)
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of quote.xlsx (hash 006ad0ce4eb7)
+PASSED                                                                   [ 81%]
+tests/unit/test_sheet_dataset_formulas.py::test_gc_evict_removes_sidecar_with_parquet 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of quote.xlsx (hash 3739715063ab)
+2026-10-29 22:03:25 [    INFO] sheet datasets: GC evicted 1 dataset(s) (+0 tmp artifacts) in ws-formula
+PASSED                                                                   [ 82%]
+tests/unit/test_sheet_dataset_formulas.py::test_identical_bytes_reverify_backfills_missing_sidecar 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of quote.xlsx (hash 3739715063ab)
+2026-10-29 22:03:25 [    INFO] sheet datasets: backfilled 1 formula sidecar(s) for quote.xlsx
+PASSED                                                                   [ 83%]
+tests/unit/test_sheet_dataset_formulas.py::test_identical_bytes_reverify_refreshes_freshness_stamp 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 1 sheet(s) of quote.xlsx (hash 3739715063ab)
+PASSED                                                                   [ 84%]
+tests/unit/test_sheet_dataset_formulas.py::test_render_dataset_answer_includes_formulas PASSED [ 85%]
+tests/unit/test_sheet_dataset_formulas.py::test_render_dataset_answer_without_formulas_omits_footer PASSED [ 85%]
+tests/unit/test_sheet_dataset_formulas.py::test_raw_xml_formula_fallback_scans_formula_cells PASSED [ 86%]
+tests/unit/test_sheet_dataset_formulas.py::test_cross_sheet_formula_dependency_text_is_preserved 
+-------------------------------- live log call ---------------------------------
+2026-10-29 22:03:25 [    INFO] sheet datasets: materialized 2 sheet(s) of cross_sheet.xlsx (hash 94ee9fd6ccbb)
+PASSED                                                                   [ 87%]
+tests/test_core_domain_independence.py::test_sum_operation_is_not_quantity_times_price PASSED [ 88%]
+tests/test_core_domain_independence.py::test_sum_operation_without_currency_column_is_unstated PASSED [ 88%]
+tests/test_core_domain_independence.py::test_count_operation_has_no_measure_assumption PASSED [ 89%]
+tests/test_core_domain_independence.py::test_spreadsheet_operation_classifier_is_vocabulary_neutral PASSED [ 90%]
+tests/test_core_domain_independence.py::test_decision_choices_belong_to_the_task_not_the_platform PASSED [ 91%]
+tests/test_core_domain_independence.py::test_subject_identity_is_not_a_fixed_record_id_shape PASSED [ 92%]
+tests/test_deterministic_aggregate_lane.py::test_captured_sum_ask_succeeds_with_model_planner_unavailable PASSED [ 92%]
+tests/test_deterministic_aggregate_lane.py::test_renamed_schema_twin_resolves_the_named_measure PASSED [ 93%]
+tests/test_deterministic_aggregate_lane.py::test_ambiguous_measure_refuses_without_choosing_by_position PASSED [ 94%]
+tests/test_deterministic_aggregate_lane.py::test_ambiguous_predicate_refuses_without_choosing_a_column PASSED [ 95%]
+tests/test_deterministic_aggregate_lane.py::test_missing_numeric_input_remains_a_named_gap PASSED [ 96%]
+tests/test_deterministic_aggregate_lane.py::test_total_covers_rows_beyond_the_display_cap PASSED [ 96%]
+tests/test_deterministic_aggregate_lane.py::test_count_uses_the_same_bound_rows PASSED [ 97%]
+tests/test_deterministic_aggregate_lane.py::test_ambiguous_sheet_and_version_are_clarifications PASSED [ 98%]
+tests/test_deterministic_aggregate_lane.py::test_production_named_file_lane_uses_the_deterministic_total PASSED [ 99%]
+tests/test_deterministic_aggregate_lane.py::test_unsupported_calculation_still_returns_to_the_planner PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 254 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_artifact_teaching_context.py: 12 warnings
+  /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/tests/conftest.py:489: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_user_management_monitoring.py: 0.054 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 127 passed, 272 warnings in 27.22s ======================

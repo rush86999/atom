@@ -309,3 +309,52 @@ def test_mismatched_production_approval_refuses(tmp_path):
         "scope": "single_user", "mode": "production"}, indent=2))
     result = _run_real_approval(root)
     assert result.returncode == 2
+
+
+def _write_source_scope(root: Path):
+    (root / "config" / "source_shutdown_scope.json").write_text(json.dumps({
+        "pid": 19046, "service": "atom-c912375de",
+        "commit": "c912375de81b55465e61fe468bf0bc2b405fd206",
+        "database": "/tmp/source/atom.db",
+        "restore_command": "python -m uvicorn main_api_app:app --port 8001",
+    }, indent=2))
+
+
+def _approval_record(scope: dict | None):
+    record = {
+        "approver": "test", "approved_at": "2026-10-30",
+        "release_tag": "assignment-successor-2026-10-29-a96484324",
+        "product_commit": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
+        "product_tree_sha256": "12060bee618e7a58a98324f682d39077c144c19a6fb7d22d77de8179237dbb9e",
+        "scope": "single_user", "mode": "production",
+    }
+    if scope is not None:
+        record["source_shutdown_scope"] = scope
+    return record
+
+
+def test_production_approval_binds_source_shutdown_scope(tmp_path):
+    root = tmp_path / "scope"
+    _real_root(root)
+    _write_source_scope(root)
+    scope = json.loads((root / "config" / "source_shutdown_scope.json").read_text())
+    (root / "config" / "APPROVED").write_text(json.dumps(
+        _approval_record(scope), indent=2))
+    result = subprocess.run(
+        [sys.executable, str(root / "current" / "scripts" / "release_tool.py"),
+         "--root", str(root), "approval-check", "--mode", "production"],
+        capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_production_approval_without_scope_is_refused(tmp_path):
+    root = tmp_path / "no-scope"
+    _real_root(root)
+    _write_source_scope(root)
+    (root / "config" / "APPROVED").write_text(json.dumps(
+        _approval_record(None), indent=2))
+    result = subprocess.run(
+        [sys.executable, str(root / "current" / "scripts" / "release_tool.py"),
+         "--root", str(root), "approval-check", "--mode", "production"],
+        capture_output=True, text=True, timeout=30)
+    assert result.returncode != 0

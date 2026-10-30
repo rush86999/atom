@@ -12,6 +12,12 @@ Start one supervised single-user pilot from the frozen successor candidate:
 - Release tag: `assignment-successor-2026-10-30-242c9a01f`
 - Product tree SHA-256:
   `c20bb599ff7ab65913f42cd14a5a93012b6817c93b6b0b5eddfb7c056e24c9b7`
+- Source shutdown scope: verified PID `19046` (`atom-c912375de`, CWD
+  `atom-releases/c912375de/backend`, source DB
+  `atom/backend/data/atom.db`, port `8001`, no supervisor). The approval record
+  must include the exact `source_shutdown_scope` from
+  `config/source_shutdown_scope.json`; see
+  `docs/acceptance/SOURCE_SERVICE_SHUTDOWN_SCOPE_242c9a01f.md`.
 - Previous release / rollback target: `901e5d773` (tag
   `assignment-successor-2026-10-29`), preserved unchanged.
 - Runtime: the prepared root built by
@@ -43,6 +49,15 @@ Start one supervised single-user pilot from the frozen successor candidate:
    reconciliation and restart/no-duplicate checks.
 3. No production deployment, credential change or source writeback is
    authorized here.
+
+## Complete operation
+
+This approval covers: verify PID `19046`; stop only that verified source
+service; prove quiescence; refresh data/memory while quiescent; deploy exact
+`242c9a01f`; run fresh authenticated work, restart agreement and rollback
+verification; and on failure restore the exact source service configuration
+(not merely start rollback code). The source stop is not authorized until the
+owner also approves the shutdown scope.
 
 ## Approval statement
 

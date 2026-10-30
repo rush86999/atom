@@ -19,7 +19,7 @@
     "product_tree_sha256": "c20bb599ff7ab65913f42cd14a5a93012b6817c93b6b0b5eddfb7c056e24c9b7",
     "product_tree_matches_tested": true,
     "source_manifest_sha256": "9a57a9af3d595fb0ca52672b90ec0b1aad1d16daf55eed39b79e6f1b43870208",
-    "deployment_kit_tree_sha256": "629f369dfc98472e786b0e9ba2499f95958ffdf6abfbd349401e1d220f061de5",
+    "deployment_kit_tree_sha256": "8fb429d2baa95b32fbf86494b27fe3cfe63c0bfb97195119d54822fcdcf46b2f",
     "frontend_build_id": "K3N6o-mTkpSVJ7sj00FLu",
     "frontend_api_origin": "http://127.0.0.1:8071",
     "api_port": 8071,
@@ -43,7 +43,7 @@
   "regression": {
     "release_affected": "578 passed, 2 skipped",
     "targeted": "127 passed",
-    "deployment_kit": "22 passed",
+    "deployment_kit": "24 passed",
     "logs": {
       "release_affected": {
         "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/release-affected.log",
@@ -57,7 +57,7 @@
       },
       "deployment_kit": {
         "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/kit-tests.log",
-        "sha256": "d460934ecba931426e88278c7a9728a4aa52ec66502024cca1909b0c4c033a7c",
+        "sha256": "f94278ad458fd188640573c6efcebf560e0af9e75dfc1400ce2b46448cec061e",
         "bytes": 1189
       }
     }
@@ -102,8 +102,8 @@
   "evidence": {
     "production_package": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/evidence-manifest.json",
-      "sha256": "aa0ef748affbf4d5698ac124a53dacf409f1c1b662d7e1c0121f97daa09813ab",
-      "bytes": 176302
+      "sha256": "38d5b91a3915023edc367ab6b7c7eaeb6e94143c5a5748ea60e97df9b13d1947",
+      "bytes": 178135
     },
     "preparation_report": "docs/acceptance/PRODUCTION_PACKAGE_PREPARATION_2026-10-30-242c9a01f.md",
     "deployment_decision": "docs/acceptance/DEPLOYMENT_DECISION_242c9a01f_2026-10-30.md",
@@ -127,7 +127,7 @@
       "product_tree_sha256": "c20bb599ff7ab65913f42cd14a5a93012b6817c93b6b0b5eddfb7c056e24c9b7",
       "product_tree_matches_tested": true,
       "source_manifest_sha256": "9a57a9af3d595fb0ca52672b90ec0b1aad1d16daf55eed39b79e6f1b43870208",
-      "deployment_kit_tree_sha256": "629f369dfc98472e786b0e9ba2499f95958ffdf6abfbd349401e1d220f061de5",
+      "deployment_kit_tree_sha256": "8fb429d2baa95b32fbf86494b27fe3cfe63c0bfb97195119d54822fcdcf46b2f",
       "frontend_build_id": "K3N6o-mTkpSVJ7sj00FLu",
       "frontend_api_origin": "http://127.0.0.1:8071",
       "api_port": 8071,
@@ -169,8 +169,8 @@
     },
     "evidence_manifest": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/evidence-manifest.json",
-      "sha256": "aa0ef748affbf4d5698ac124a53dacf409f1c1b662d7e1c0121f97daa09813ab",
-      "bytes": 176302
+      "sha256": "38d5b91a3915023edc367ab6b7c7eaeb6e94143c5a5748ea60e97df9b13d1947",
+      "bytes": 178135
     },
     "data_handoff": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/production-data-handoff.json",
@@ -194,8 +194,8 @@
     },
     "preflight_no_approval": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/preflight-no-approval.json",
-      "sha256": "9c37fdd2fbe2a20c3459203bc78387d92f0d4caa3a0ea5e6baed2fb02276c51f",
-      "bytes": 8367
+      "sha256": "bc799db70ca238059fe58ae400e6143fa101f03130f2093ff6214cabdb695c1e",
+      "bytes": 8507
     },
     "rollback_receipt": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/rollback-receipt.json",
@@ -241,6 +241,11 @@
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/freshness-blocker.txt",
       "sha256": "8a016e52f3f8134dfd43ecf8fcec4b33f59fc7703f69e3ce4e39c6ed32cba568",
       "bytes": 466
+    },
+    "source_shutdown_scope": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/source-shutdown-scope.json",
+      "sha256": "82ec6f21796a3eec9f701e610cfae0e2e057a3a14146f887b90f741f9ebba668",
+      "bytes": 1144
     }
   }
 }

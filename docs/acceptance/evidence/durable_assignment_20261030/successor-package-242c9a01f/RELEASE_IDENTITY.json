@@ -10,7 +10,7 @@
   "product_tree_sha256": "c20bb599ff7ab65913f42cd14a5a93012b6817c93b6b0b5eddfb7c056e24c9b7",
   "product_tree_matches_tested": true,
   "source_manifest_sha256": "9a57a9af3d595fb0ca52672b90ec0b1aad1d16daf55eed39b79e6f1b43870208",
-  "deployment_kit_tree_sha256": "629f369dfc98472e786b0e9ba2499f95958ffdf6abfbd349401e1d220f061de5",
+  "deployment_kit_tree_sha256": "8fb429d2baa95b32fbf86494b27fe3cfe63c0bfb97195119d54822fcdcf46b2f",
   "frontend_build_id": "K3N6o-mTkpSVJ7sj00FLu",
   "frontend_api_origin": "http://127.0.0.1:8071",
   "api_port": 8071,

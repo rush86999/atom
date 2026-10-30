@@ -119,8 +119,10 @@ def validate_approval(root: Path, mode: str) -> dict:
     identity = load_identity(root)
     filename = "APPROVED" if mode == "production" else "REHEARSAL_APPROVED"
     path = root / "config" / filename
-    required = ("approver", "approved_at", "release_tag", "product_commit",
-                "product_tree_sha256", "scope", "mode")
+    required = ["approver", "approved_at", "release_tag", "product_commit",
+                "product_tree_sha256", "scope", "mode"]
+    if mode == "production":
+        required.append("source_shutdown_scope")
     result = {"ok": False, "path": str(path), "mode": mode,
               "required_fields": list(required), "missing": [], "mismatches": {}}
     if not path.is_file():
@@ -150,6 +152,35 @@ def validate_approval(root: Path, mode: str) -> dict:
     if mode == "production" and str(record.get("mode") or "").strip() != "production":
         result["mismatches"]["mode"] = {
             "expected": "production", "actual": record.get("mode")}
+    if mode == "production":
+        scope_path = root / "config" / "source_shutdown_scope.json"
+        if not scope_path.is_file():
+            result["mismatches"]["source_shutdown_scope"] = {
+                "expected": "config/source_shutdown_scope.json",
+                "actual": "missing"}
+        else:
+            try:
+                expected_scope = json.loads(scope_path.read_text())
+            except Exception as exc:  # noqa: BLE001
+                result["mismatches"]["source_shutdown_scope"] = {
+                    "expected": "readable scope file",
+                    "actual": f"{type(exc).__name__}: {exc}"}
+            else:
+                actual_scope = record.get("source_shutdown_scope")
+                if not isinstance(actual_scope, dict):
+                    result["mismatches"]["source_shutdown_scope"] = {
+                        "expected": "object", "actual": type(actual_scope).__name__}
+                else:
+                    for key in ("pid", "service", "commit", "database",
+                                "restore_command"):
+                        expected_value = expected_scope.get(key)
+                        actual_value = actual_scope.get(key)
+                        if str(actual_value or "").strip() != str(
+                                expected_value or "").strip():
+                            result["mismatches"][
+                                f"source_shutdown_scope.{key}"] = {
+                                    "expected": expected_value,
+                                    "actual": actual_value}
     result["ok"] = not result["missing"] and not result["mismatches"]
     return result
 

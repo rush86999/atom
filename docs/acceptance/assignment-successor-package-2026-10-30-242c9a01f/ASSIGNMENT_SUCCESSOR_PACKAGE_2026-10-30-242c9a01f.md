@@ -60,6 +60,15 @@ connected source.
   same data/artifact world, 0 binding mismatches, no database restore and no
   new interactive approval. Memory retrieval identical before/after restart.
 
+## Source service and recovery scope
+
+The only source writer is verified PID `19046` (`atom-c912375de`, CWD
+`atom-releases/c912375de/backend`, source DB `atom/backend/data/atom.db`, port
+`8001`, no supervisor). The complete operation verifies it before any stop,
+refreshes while quiescent, deploys, and on failure restores that exact service
+configuration as well as the code rollback. See
+`SOURCE_SERVICE_SHUTDOWN_SCOPE_242c9a01f.md`.
+
 ## Cutover freshness boundary
 
 The prepared snapshot was logically current when captured. The latest check is
@@ -92,6 +101,11 @@ exact commands.
 - One worker per assignment is the verified topology; autonomous third-party
   research is not claimed.
 - Real-provider sending is not authorized by this package.
+- Autonomous third-party research is explicitly unclaimed; the owner must
+  authorize a bounded read-only workflow or agree to defer it
+  (`RESEARCH_SCOPE_DECISION_2026-10-30.md`).
+- Cross-sheet formula tests prove formula **text preservation**, not formula
+  evaluation. Evaluation is claimed only for the supported engine subset.
 
 ## Evidence
 
