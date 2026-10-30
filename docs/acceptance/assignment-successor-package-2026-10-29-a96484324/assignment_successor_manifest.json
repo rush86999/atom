@@ -355,8 +355,8 @@
     },
     "production_package": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/evidence-manifest.json",
-      "sha256": "e3e99adfe39763b9cdaf1db7e46a9d41083d9a4cc03c8ae97b7bb5e671b9ccb6",
-      "bytes": 145780
+      "sha256": "c35f2cac19f4a7de380c9c523a74172e379def501482d4bc8d4344a1f868ff8d",
+      "bytes": 147140
     },
     "preparation_report": "docs/acceptance/PRODUCTION_PACKAGE_PREPARATION_a96484324_2026-10-30.md"
   },
@@ -420,8 +420,8 @@
     },
     "evidence_manifest": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/evidence-manifest.json",
-      "sha256": "e3e99adfe39763b9cdaf1db7e46a9d41083d9a4cc03c8ae97b7bb5e671b9ccb6",
-      "bytes": 145780
+      "sha256": "c35f2cac19f4a7de380c9c523a74172e379def501482d4bc8d4344a1f868ff8d",
+      "bytes": 147140
     },
     "data_handoff": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/production-data-handoff.json",
@@ -450,8 +450,8 @@
     },
     "rollback_receipt": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-receipt.json",
-      "sha256": "18ef5a7144538ead963e055c1a0538500b0eeab1898dee580f256840af4aefb0",
-      "bytes": 2346
+      "sha256": "0aaaf4f208366bf7f9cc74035aaf51118b3c2ad7d07b622f1ef8df2bfc60d890",
+      "bytes": 3475
     },
     "rollback_before": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-before.json",

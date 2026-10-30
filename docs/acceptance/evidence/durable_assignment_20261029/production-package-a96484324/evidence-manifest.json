@@ -3683,15 +3683,70 @@
   },
   "rollback_receipt": {
     "schema": "atom-assignment-release-rollback-1",
-    "at": "2026-10-30T01:33:25.944034+00:00",
-    "from_release": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/releases/901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
-    "to_release": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/releases/a9648432495f4f75f59bf4667cac3cb997d7f229",
-    "to_release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
-    "start_rc": 0,
-    "start_stdout_tail": "{\n  \"schema\": \"atom-assignment-release-startup-1\",\n  \"started_at\": \"2026-10-30T01:33:25.933303+00:00\",\n  \"release_commit\": \"a9648432495f4f75f59bf4667cac3cb997d7f229\",\n  \"api_port\": 8071,\n  \"frontend_port\": 3130,\n  \"api_origin\": \"http://127.0.0.1:8071\",\n  \"backend_pid\": 64253,\n  \"frontend_pid\": 64254,\n  \"health_identity\": {\n    \"pid\": 64253,\n    \"started_at\": \"2026-10-30T01:33:21.215844+00:00\",\n    \"cwd\": \"/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/releases/a9648432495f4f75f59bf4667cac3cb997d7f229/app/backend\",\n    \"git_commit\": \"a9648432495f\",\n    \"source_id\": \"a9648432495f\",\n    \"instance_id\": \"a9648432495f.64253.1793324005\",\n    \"revision\": \"a9648432495f4f75f59bf4667cac3cb997d7f229\",\n    \"dirty\": false,\n    \"dirty_digest\": \"e3b0c44298fc\",\n    \"dirty_paths\": [],\n    \"untracked_paths\": [],\n    \"captured_at\": \"2026-10-30T01:33:25.537430+00:00\",\n    \"port\": 8071,\n    \"error\": null,\n    \"database\": \"/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data/atom.db\",\n    \"byok_key_store\": \"/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data/byok_keys.json\"\n  },\n  \"health_status\": \"healthy\",\n  \"audience\": \"single_user\",\n  \"pilot_email\": \"admin@example.com\",\n  \"outbound_scope\": \"draft_and_approval_only\",\n  \"controlled_transport\": \"<unset>\",\n  \"internal_paths\": \"0\",\n  \"topology\": \"one_worker_process_per_assignment\"\n}\n",
-    "start_stderr_tail": "",
+    "at": "2026-10-30T01:33:00.821097+00:00",
+    "from_release": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/releases/a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "to_release": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/releases/901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "to_release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "start_ok": true,
+    "startup": {
+      "schema": "atom-assignment-release-startup-1",
+      "started_at": "2026-10-30T01:33:00.820639+00:00",
+      "mode": "rollback",
+      "release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+      "release_tag": "assignment-successor-2026-10-29",
+      "api_port": 8071,
+      "frontend_port": 3130,
+      "api_origin": "http://127.0.0.1:8071",
+      "backend_pid": 64174,
+      "frontend_pid": 64175,
+      "health_identity": {
+        "pid": 64174,
+        "started_at": "2026-10-30T01:32:56.235998+00:00",
+        "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/releases/901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0/app/backend",
+        "git_commit": "901e5d77348e",
+        "source_id": "901e5d77348e",
+        "instance_id": "901e5d77348e.64174.1793323980",
+        "revision": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+        "dirty": false,
+        "dirty_digest": "e3b0c44298fc",
+        "dirty_paths": [],
+        "untracked_paths": [],
+        "captured_at": "2026-10-30T01:33:00.381021+00:00",
+        "port": 8071,
+        "error": null,
+        "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data/atom.db",
+        "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data/byok_keys.json"
+      },
+      "health_status": "healthy",
+      "audience": "single_user",
+      "pilot_email": "admin@example.com",
+      "outbound_scope": "draft_and_approval_only",
+      "controlled_transport": "<unset>",
+      "internal_paths": "0",
+      "topology": "one_worker_process_per_assignment"
+    },
+    "health_identity": {
+      "pid": 64174,
+      "started_at": "2026-10-30T01:32:56.235998+00:00",
+      "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/releases/901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0/app/backend",
+      "git_commit": "901e5d77348e",
+      "source_id": "901e5d77348e",
+      "instance_id": "901e5d77348e.64174.1793323980",
+      "revision": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-10-30T01:33:00.381021+00:00",
+      "port": 8071,
+      "error": null,
+      "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data/atom.db",
+      "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data/byok_keys.json"
+    },
     "database_restored": false,
-    "user_data_preserved": true
+    "user_data_preserved": true,
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data",
+    "new_interactive_approval_required": false
   },
   "rollback_before": {
     "counts": {
@@ -3848,8 +3903,9 @@
       "bytes": 1537
     },
     "rollback-receipt.json": {
-      "sha256": "18ef5a7144538ead963e055c1a0538500b0eeab1898dee580f256840af4aefb0",
-      "bytes": 2346
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-receipt.json",
+      "sha256": "0aaaf4f208366bf7f9cc74035aaf51118b3c2ad7d07b622f1ef8df2bfc60d890",
+      "bytes": 3475
     },
     "space.txt": {
       "sha256": "50ecb3f6ff42521c1a2e89c8bc7770582fe946d7a173af7de13f462f27b7727c",
