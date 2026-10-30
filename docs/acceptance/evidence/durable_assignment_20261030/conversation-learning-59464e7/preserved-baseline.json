@@ -1,0 +1,18 @@
+{
+  "schema": "atom-preserved-core-baseline-1",
+  "core_tag": {
+    "name": "local-core-2026-10-30-final",
+    "target": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d",
+    "source_commit": "fc46342ed77df624b8922a0fc4d834935fc4f481"
+  },
+  "preserved_evidence": [
+    "local-core-repro-5ce5f57/",
+    "composite-protocol-5ce5f57/",
+    "wait-value-e27ec63/",
+    "wait-value-fc46342/",
+    "conversation-learning-554b462/",
+    "final-local-closure-fc46342.json",
+    "manifest-fc46342.json"
+  ],
+  "note": "The successor phase is bound to 59464e742. It does not move the core tag, rewrite historical browser/live evidence, or claim a full application journey on the successor source."
+}

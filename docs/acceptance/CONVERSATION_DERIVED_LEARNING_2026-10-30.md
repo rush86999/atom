@@ -1,13 +1,13 @@
 # Conversation-derived, reference-bound learning
 
 Status: **bounded successor implementation complete; independent verifier
-review pending.** Source commit `554b46272` (tree `862cd064`). This is
+review pending.** Source commit `59464e742` (tree `1ea2b19f`). This is
 deliberately separate from the accepted local-core closure at `da9cc8b12` /
 tag `local-core-2026-10-30-final`. It does not relabel historical
 browser/live evidence or claim a full application journey on this source.
 
 Evidence:
-`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-554b462/`.
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-59464e7/`.
 
 ## 1. Why this phase exists
 

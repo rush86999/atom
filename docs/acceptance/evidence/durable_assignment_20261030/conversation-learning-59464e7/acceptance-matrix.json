@@ -1,0 +1,136 @@
+{
+  "schema": "atom-conversation-learning-acceptance-1",
+  "source_commit": "59464e7426462b4689fcab228d0cd053b281b418",
+  "source_tree": "1ea2b19fae64769cf7bd4d217a273c97aea05696",
+  "cases": [
+    {
+      "case": "explicit attachment reference resolves",
+      "test": "test_explicit_attachment_reference_resolves",
+      "result": "pass"
+    },
+    {
+      "case": "same-name attachments require clarification",
+      "test": "test_same_name_attachments_require_clarification",
+      "result": "pass"
+    },
+    {
+      "case": "previous workbook resolves only when unambiguous",
+      "test": "test_previous_workbook_resolves_only_when_unambiguous",
+      "result": "pass"
+    },
+    {
+      "case": "usual method remains unresolved until established",
+      "test": "test_usual_method_remains_unresolved_until_established",
+      "result": "pass"
+    },
+    {
+      "case": "conflicting examples do not fabricate a rule",
+      "test": "test_conflicting_examples_do_not_produce_a_fabricated_rule",
+      "result": "pass"
+    },
+    {
+      "case": "complete referenced method transfers to unfamiliar data",
+      "test": "test_complete_referenced_method_transfers_to_unfamiliar_data",
+      "result": "pass"
+    },
+    {
+      "case": "missing units block a numerical conclusion",
+      "test": "test_missing_units_block_a_numerical_conclusion",
+      "result": "pass"
+    },
+    {
+      "case": "version change invalidates relevant reuse",
+      "test": "test_version_change_invalidates_relevant_reuse",
+      "result": "pass"
+    },
+    {
+      "case": "version change marks promoted lesson stale",
+      "test": "test_version_change_marks_promoted_lesson_stale",
+      "result": "pass"
+    },
+    {
+      "case": "revoked access prevents source retrieval",
+      "test": "test_revoked_access_prevents_source_retrieval",
+      "result": "pass"
+    },
+    {
+      "case": "quoted instructions do not become new authority",
+      "test": "test_quoted_instructions_do_not_become_new_authority",
+      "result": "pass"
+    },
+    {
+      "case": "source permission request is not authority",
+      "test": "test_source_content_permission_request_is_not_authority",
+      "result": "pass"
+    },
+    {
+      "case": "restart preserves dependencies and confirmations",
+      "test": "test_restart_preserves_dependencies_and_confirmations",
+      "result": "pass"
+    },
+    {
+      "case": "changed candidate content invalidates old approval",
+      "test": "test_changed_candidate_content_invalidates_old_approval",
+      "result": "pass"
+    },
+    {
+      "case": "rejecting a proposal has no governing effect",
+      "test": "test_rejecting_a_proposal_has_no_governing_effect",
+      "result": "pass"
+    },
+    {
+      "case": "correction preserves unrelated teaching",
+      "test": "test_correction_preserves_unrelated_teaching",
+      "result": "pass"
+    }
+  ],
+  "additional": [
+    {
+      "case": "punctuation-sensitive identifiers do not collide",
+      "test": "test_punctuation_sensitive_identifiers_do_not_collide",
+      "result": "pass"
+    },
+    {
+      "case": "promoted lesson applies its method to new rows",
+      "test": "test_promoted_lesson_applies_its_method_to_new_rows",
+      "result": "pass"
+    },
+    {
+      "case": "local thread listing",
+      "test": "test_route_lists_local_email_threads",
+      "result": "pass"
+    },
+    {
+      "case": "public evidence route resolves attachment",
+      "test": "test_route_evidence_resolves_attachment",
+      "result": "pass"
+    },
+    {
+      "case": "public review/confirm/promote route",
+      "test": "test_route_candidate_review_confirm_promote",
+      "result": "pass"
+    },
+    {
+      "case": "public route refuses unreviewed promotion",
+      "test": "test_route_rejects_unreviewed_candidate",
+      "result": "pass"
+    },
+    {
+      "case": "public route hides foreign candidate",
+      "test": "test_route_scope_hides_foreign_candidate",
+      "result": "pass"
+    }
+  ],
+  "domains": [
+    "sales pricing",
+    "payroll-style units/rates"
+  ],
+  "expected_arithmetic": {
+    "sales": "20.00",
+    "payroll": "16.50"
+  },
+  "notes": [
+    "Assertions inspect resolved bindings, method inputs, dependency states, promotion through journal_standing_lesson_entry, stale-lesson exclusion, and the applied numeric result.",
+    "No live mailbox, provider token, real send or external lookup was used."
+  ]
+}
