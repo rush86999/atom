@@ -1,7 +1,7 @@
 # Long-running assignments and complex teaching — coverage
 
-Source: `e27ec63abcbd5accd8bc085f06ea2242d0930633`
-Tree: `dc67a86e89e95ea6df11561df14156c851a54f59`
+Source: `fc46342ed77df624b8922a0fc4d834935fc4f481`
+Tree: `38618c7bc806b741498eab539c14345bb1054efe`
 Protocol campaign source: `5ce5f571539ce6444fba696644cf9ddc8924e85b`
 Functional baseline: `fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4`
 Local tag: `local-core-2026-10-30-final`
@@ -133,7 +133,7 @@ Artifacts:
   exposes `Currency`: the assignment stayed `waiting`, the response was
   retained as `source_already_provides_fact`, and no artifact was created.
 
-## 5. Wait-value repair — e27ec63a
+## 5. Wait-value repair — e27ec63a to fc46342
 
 The earlier wait repair treated a column header as an established fact. That
 blocked legitimate blank-cell recovery and misclassified an agreeing reply as
@@ -151,12 +151,38 @@ a conflict. The corrected resolver reads the bound records' actual values:
 | `Currency=USD` on all rows | `Currency unstated...` | `established`; durable `source_fact_conflict`; assignment stayed waiting; no artifact |
 | `Currency=USD` and blank rows | `USD` | `mixed`; durable `source_fact_mixed`; record-specific blank subjects remain unresolved |
 
+### 5.1 One evidence contract for every representation — fc46342
+
+The verifier found two alternate paths that still bypassed the repaired
+contract: inline `result.rows` returned before coverage/population checks, and
+aggregate subtotal keys could establish an unrelated measure. `fc46342`
+validates coverage and accepted population before selecting a representation:
+
+| Evidence shape | Required validation | Failure status |
+|---|---|---|
+| Inline rows | Receipt not truncated; exact accepted `__sheet_row` identities; fact field present in every row | `incomplete` (absent field is not a blank cell) |
+| Parquet | Accepted identities complete and equal to `selected_count`; read filtered to those identities; never scan the whole frame without identities | `incomplete` / `unavailable` |
+| Aggregate | Explicit `measure`; explicit `group_by`/`grouping_dimension` equal to the requested fact | `unavailable` (subtotal key cannot establish an unrelated measure) |
+
+The applied result now persists `group_by` alongside `measure`, `values` and
+`subtotals`, so the aggregate binding survives the receipt boundary. The
+verifier's reproductions now return:
+
+- inline receipt with `truncated=true` → `incomplete`;
+- inline receipt accepting rows 2 and 3 but supplying only row 2 →
+  `incomplete`;
+- `subtotals={"USD": ...}` requested as `Price` → `unavailable`.
+
 The blank-currency assignment survived a real backend restart with the same
 artifact SHA-256 `b18c4874c644aff5c0a9cb65951b6d075c0df2f83a442ea8317a15d81a2b679f`
 and exactly one applied wait operation. The agreeing twin completed with
-`source_fact_confirmed`.
+`source_fact_confirmed`. Those UI twins and the contradictory negative control
+were generated against `e27ec63` and are preserved byte-for-byte in the new
+evidence directory; the resolver-only change is covered by the unit-level
+twins and the branch matrix on `fc46342`.
 
-Evidence: `wait-value-e27ec63/`.
+Evidence: `wait-value-fc46342/` (preserved `wait-value-e27ec63/` artifacts are
+recorded in `wait-value-fc46342/preserved-from.json`).
 
 ## 6. Failure and timing twins
 
@@ -166,8 +192,13 @@ The current source was tested with:
 - `backend/tests/test_assignment_executor.py`
 - `backend/tests/test_assignment_send_policy.py`
 - `backend/tests/test_assignment_resource_boundary.py`
+- `backend/tests/test_accepted_assignment_gate.py`
+- `backend/tests/test_deterministic_assignment_plan.py`
+- `backend/tests/test_assignment_launcher_guard.py`
 
-Result: **98 passed** (`backend-targeted-tests.log`).
+Result: **126 passed** (`wait-value-fc46342/backend-targeted-tests.log`).
+The executor file alone is **35 passed**; the branch matrix and the public-route
+incomplete-inline negative each pass separately.
 
 Teaching regressions:
 
@@ -177,7 +208,16 @@ Teaching regressions:
 - `test_teaching_point_editing.py`
 - `test_workbook_read_artifact.py`
 
-Result: **137 passed** (`teaching-targeted-tests.log`).
+Result: **137 passed** (`wait-value-fc46342/teaching-targeted-tests.log`).
+
+`test_teach_thread_reply.py` still has four failures in this environment; the
+same four fail identically on the clean `e27ec63` artifact. They are a
+pre-existing Outlook patch-boundary issue, unrelated to wait-fact resolution,
+and are recorded in
+`wait-value-fc46342/teaching-thread-reply-preexisting.log`.
+
+Frontend AssignmentPanel/TrainingPanel/AgentCard: **31 passed**
+(`wait-value-fc46342/frontend-targeted-tests.log`).
 
 Frontend surfaces:
 

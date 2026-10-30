@@ -24,7 +24,7 @@ Statuses: **Demonstrated**, **Partial**, **Deferred**, **Blocked**.
 | 9 | User-created canvases inherit capabilities | Demonstrated for supported table adapter; two canvas shapes current test | Versioned capability manifests, adapter registry, canvas routes | Historical capability evidence; C10 no change | Capability acceptance evidence | Only the supported table adapter is claimed; every future canvas component is not. |
 | 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart; bounded external research live-qualified on `rish@brennan.ca`; artifact-restart current test | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
 | 11 | Approval and eventual sending | **Demonstrated live** — payload-bound approval, provider acceptance, exact Sent Items message and attachment-hash match, restart no duplicate; recipient delivery not independently confirmed | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; controlled approval and live qualification separate | `send-qualification/` exact Sent Items receipt; composite controlled approval/outbox; C10 `send-denial.json` | The one authorized live send is final for this scope. No standing permission or new send. Production sending remains disabled by default; recipient delivery is unclaimed. |
-| 12 | Everyday usability, security and operational readiness | **Bounded local core complete for documented supported workflows** — clean install/startup, normal auth/UI, persistence, composite long-running job, restart/recovery, accurate docs; hosted deployment/public release/publication deferred | Normal auth, Assignments/Activity, durable storage, local UI entry points, backup/recovery docs | Final local source `e27ec63a` (tag `local-core-2026-10-30-final`); clean root on `8071/3130`; Python 3.11.16 / Node 20.19.6 | `local-core-repro-5ce5f57/`, `composite-protocol-5ce5f57/`, `wait-value-e27ec63/`, `LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md` | Local completion only. Hosted deployment, public release and publication are deferred. Compatibility limits remain explicit. |
+| 12 | Everyday usability, security and operational readiness | **Bounded local core complete for documented supported workflows** — clean install/startup, normal auth/UI, persistence, composite long-running job, restart/recovery, accurate docs; hosted deployment/public release/publication deferred | Normal auth, Assignments/Activity, durable storage, local UI entry points, backup/recovery docs | Final local source `fc46342e` (tag `local-core-2026-10-30-final`); clean root on `8071/3130`; Python 3.11.16 / Node 20.19.6 | `local-core-repro-5ce5f57/`, `composite-protocol-5ce5f57/`, `wait-value-fc46342/`, `LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md` | Local completion only. Hosted deployment, public release and publication are deferred. Compatibility limits remain explicit. |
 
 Mapping campaign identities: the canonical B baseline stays bound to harness
 `7399fe41e`; new B/C/correction/waiting-restart attempts are written under
@@ -99,6 +99,39 @@ Transition table: `docs/acceptance/LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30
 Hosted deployment, public release and publication remain deferred. No source
 service was stopped or replaced; the existing source service on `8001` was
 untouched.
+
+## Final wait-value representation closure — fc46342
+
+Final local source `fc46342ed77df624b8922a0fc4d834935fc4f481` (tree
+`38618c7bc806b741498eab539c14345bb1054efe`, tag
+`local-core-2026-10-30-final`) closes the verifier's two alternate-
+representation bypasses on top of the accepted `e27ec63` evidence.
+
+- Coverage and accepted population are validated before selecting inline
+  rows, Parquet or aggregate evidence.
+- Inline rows must cover the accepted `__sheet_row` identities exactly and
+  carry the fact field. A truncated receipt is `incomplete`; an absent field
+  is `incomplete`, not a verified blank cell.
+- Parquet reads are filtered to accepted identities and never scan the whole
+  frame without identities.
+- Aggregate receipts must name their `measure` and a matching
+  `group_by`/`grouping_dimension`; a subtotal key cannot establish an
+  unrelated measure. `group_by` is persisted with the applied result.
+- Verifier reproductions: truncated inline receipt → `incomplete`; accepted
+  rows 2 and 3 but only row 2 supplied → `incomplete`; subtotal `USD`
+  requested as `Price` → `unavailable`.
+- Current-source regressions: 35 executor tests, 126 assignment tests, 137
+  teaching/renderer tests and 31 frontend tests passed. The branch matrix and
+  the public-route incomplete-inline negative pass separately.
+- The accepted `e27ec63` positive twins and contradictory negative control
+  are preserved byte-for-byte in `wait-value-fc46342/preserved-from.json`.
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/wait-value-fc46342/`
+and
+`docs/acceptance/evidence/durable_assignment_20261030/final-local-closure-fc46342.json`.
+No deployment, real send, source shutdown or additional external action was
+performed.
 
 ## Real-provider send qualification — observed 2026-10-30
 

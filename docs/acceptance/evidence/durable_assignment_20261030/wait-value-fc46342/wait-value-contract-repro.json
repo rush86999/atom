@@ -1,0 +1,46 @@
+{
+  "aggregate_bound_dimension": {
+    "reason": null,
+    "status": "established",
+    "values": [
+      "USD"
+    ]
+  },
+  "aggregate_subtotal_wrong_fact": {
+    "reason": "aggregate_dimension_unbound",
+    "status": "unavailable",
+    "values": null
+  },
+  "aggregate_values_unbound_dimension": {
+    "reason": "aggregate_dimension_unbound",
+    "status": "unavailable",
+    "values": null
+  },
+  "inline_absent_field": {
+    "reason": "fact_field_absent_in_inline_rows",
+    "status": "incomplete",
+    "values": null
+  },
+  "inline_complete": {
+    "reason": null,
+    "status": "established",
+    "values": [
+      "USD"
+    ]
+  },
+  "inline_coverage_truncated": {
+    "reason": "accepted_coverage_incomplete",
+    "status": "incomplete",
+    "values": null
+  },
+  "inline_missing_accepted_row": {
+    "reason": "inline_rows_do_not_match_accepted_population",
+    "status": "incomplete",
+    "values": null
+  },
+  "inline_result_truncated": {
+    "reason": "accepted_coverage_incomplete",
+    "status": "incomplete",
+    "values": null
+  }
+}

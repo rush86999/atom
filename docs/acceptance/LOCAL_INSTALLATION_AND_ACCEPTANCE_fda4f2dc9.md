@@ -10,8 +10,8 @@ deployment launcher or source-service shutdown.
 | Item | Value |
 |---|---|
 | Final local source tag | `local-core-2026-10-30-final` |
-| Runtime source commit | `e27ec63abcbd5accd8bc085f06ea2242d0930633` |
-| Runtime source tree | `dc67a86e89e95ea6df11561df14156c851a54f59` |
+| Runtime source commit | `fc46342ed77df624b8922a0fc4d834935fc4f481` |
+| Runtime source tree | `38618c7bc806b741498eab539c14345bb1054efe` |
 | Functional baseline | `fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4` |
 | Frontend build (clean install) | `jDccLkCOwPIvfD8dW-mSz` |
 | Frontend build (controlled composite) | `DAyJPdxkcutCPtDNO1645` |
@@ -356,23 +356,33 @@ data root.
   a conflicting reply against established `USD` stayed waiting with no
   artifact. Exact comparison rejects `Not USD; use EUR`, `USDX` and `20` vs
   `120`; filtered rows and unreadable/incomplete evidence are handled
-  separately. The blank-currency assignment survived a real restart with the
-  same artifact hash and exactly one applied wait operation.
+  separately. The final `fc46342` contract validates coverage and accepted
+  population before choosing inline rows, Parquet or aggregate evidence:
+  truncated inline receipts and missing accepted rows are `incomplete`,
+  an absent inline field is not a blank cell, and an aggregate subtotal key
+  cannot establish an unrelated measure. The blank-currency assignment
+  survived a real restart with the same artifact hash and exactly one applied
+  wait operation.
 
-Clean-install evidence (executed on 5ce5f5715; the final source adds only wait-value/projection/test-id changes):
+Clean-install evidence (executed on 5ce5f5715; the final source adds only
+wait-value/projection/test-id changes):
 `docs/acceptance/evidence/durable_assignment_20261030/local-core-repro-5ce5f57/`
 
 Long-running and complex teaching evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/composite-protocol-5ce5f57/`
 
-Wait-value positive twins and negative control:
-`docs/acceptance/evidence/durable_assignment_20261030/wait-value-e27ec63/`
-and `docs/acceptance/LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md`.
+Wait-value representation contract, branch matrix and public-route negative:
+`docs/acceptance/evidence/durable_assignment_20261030/wait-value-fc46342/`.
+The accepted `e27ec63` positive twins and contradictory negative control are
+preserved byte-for-byte in that directory (see `preserved-from.json`); the
+earlier directory remains at
+`docs/acceptance/evidence/durable_assignment_20261030/wait-value-e27ec63/`.
+See also `docs/acceptance/LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md`.
 The earlier `composite-final-0efe3a9fb/` and `composite-long-running-0efe3a9fb/`
 directories are preserved as prior attempts, not the final campaign.
 
 Consolidated closure record:
-`docs/acceptance/evidence/durable_assignment_20261030/final-local-closure-e27ec63.json`.
+`docs/acceptance/evidence/durable_assignment_20261030/final-local-closure-fc46342.json`.
 
 ## Compatibility limits
 

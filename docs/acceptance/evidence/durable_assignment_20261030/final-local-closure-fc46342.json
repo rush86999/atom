@@ -1,0 +1,178 @@
+{
+  "schema": "atom-final-local-closure-4",
+  "source": {
+    "commit": "fc46342ed77df624b8922a0fc4d834935fc4f481",
+    "tree": "38618c7bc806b741498eab539c14345bb1054efe",
+    "tag": "local-core-2026-10-30-final",
+    "functional_baseline": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4"
+  },
+  "runtime": {
+    "python": "3.11.16",
+    "source_service": {
+      "port": 8001,
+      "pid": 19046
+    },
+    "acceptance_listeners": {
+      "8071": "none",
+      "3130": "none"
+    },
+    "deployment_package": {
+      "path": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9",
+      "approved_marker": false,
+      "executed": false
+    }
+  },
+  "clean_install": {
+    "source_commit": "5ce5f571539ce6444fba696644cf9ddc8924e85b",
+    "evidence": "local-core-repro-5ce5f57",
+    "operation": "Result: 2225.75 USD \u00b7 Net Amount",
+    "artifact_sha256": "25e5deb308506b68a757fe88c67a4360760730fe7282db3b6d5b26b26d530dff",
+    "after_restart_sha256": "25e5deb308506b68a757fe88c67a4360760730fe7282db3b6d5b26b26d530dff",
+    "page_errors": [],
+    "failed_assets": []
+  },
+  "composite_protocol": {
+    "source_commit": "5ce5f571539ce6444fba696644cf9ddc8924e85b",
+    "evidence": "composite-protocol-5ce5f57",
+    "active_run": "62588f60-7ee8-4454-8ba3-e98d769d516b",
+    "active_teaching_revision": "93e2706cbf20587b+e938ac4c979b4c10+map",
+    "active_artifact_sha256": "323f34314ff3bc00fba4bf60882bd1571bfe052d44dd4b0ab82d2d80421b4101",
+    "second_run": "b65a6d94-77ce-4784-a87f-c2ce7b8f0982",
+    "second_teaching_revision": "922186d7c93cd416+map",
+    "second_artifact_sha256": "6670ca2446c9304cf974a6352eb95f5fa80b74cb8f1f0c4b39f66a43e3b4906a",
+    "outbox_final_run_lines": 1,
+    "outbox_operation_id": "bc439dd7-61a4-4132-b969-aaf7608ad494",
+    "email_protocol_verified_in_outbox": true,
+    "verifier_negative_controls": "passed"
+  },
+  "wait_value_fix": {
+    "source_commit": "fc46342ed77df624b8922a0fc4d834935fc4f481",
+    "evidence": "wait-value-fc46342",
+    "contract": {
+      "coverage_checked_before_representation": true,
+      "receipt_truncated_checked": true,
+      "accepted_identity_count_checked": true,
+      "inline_requires_exact_accepted_rows": true,
+      "inline_absent_field_is_incomplete": true,
+      "parquet_filtered_to_accepted_rows": true,
+      "parquet_without_identities_never_scans_frame": true,
+      "aggregate_requires_measure": true,
+      "aggregate_requires_matching_grouping_dimension": true,
+      "aggregate_subtotal_cannot_establish_unrelated_measure": true,
+      "group_by_persisted_with_applied_result": true
+    },
+    "verifier_repro": {
+      "inline_coverage_truncated": {
+        "status": "incomplete",
+        "reason": "accepted_coverage_incomplete"
+      },
+      "inline_result_truncated": {
+        "status": "incomplete",
+        "reason": "accepted_coverage_incomplete"
+      },
+      "inline_missing_accepted_row": {
+        "status": "incomplete",
+        "reason": "inline_rows_do_not_match_accepted_population"
+      },
+      "inline_absent_field": {
+        "status": "incomplete",
+        "reason": "fact_field_absent_in_inline_rows"
+      },
+      "aggregate_subtotal_wrong_fact": {
+        "status": "unavailable",
+        "reason": "aggregate_dimension_unbound"
+      },
+      "aggregate_values_unbound_dimension": {
+        "status": "unavailable",
+        "reason": "aggregate_dimension_unbound"
+      },
+      "inline_complete_positive": {
+        "status": "established",
+        "values": [
+          "USD"
+        ]
+      },
+      "aggregate_bound_dimension_positive": {
+        "status": "established",
+        "values": [
+          "USD"
+        ]
+      }
+    },
+    "blank_currency": {
+      "fact_status": "missing",
+      "blank_subjects": [
+        "row 2",
+        "row 3"
+      ],
+      "assignment_status": "completed",
+      "artifact_sha256": "b18c4874c644aff5c0a9cb65951b6d075c0df2f83a442ea8317a15d81a2b679f",
+      "artifact_hash_matches_after_restart": true,
+      "applied_wait_operations": 1
+    },
+    "agreeing_currency": {
+      "fact_status": "established",
+      "values": [
+        "USD"
+      ],
+      "confirmation_reason": "source_fact_confirmed",
+      "assignment_status": "completed"
+    },
+    "conflicting_currency": {
+      "fact_status": "established",
+      "values": [
+        "USD"
+      ],
+      "assignment_status": "waiting",
+      "artifact_created": false,
+      "response_retained": true
+    },
+    "exact_comparison_negatives": [
+      "Not USD; use EUR",
+      "USDX",
+      "20 vs 120"
+    ],
+    "explicit_typed_value_accepted": true,
+    "ui_positive_twins_rerun": false,
+    "preserved_positive_twins": {
+      "origin_source_commit": "e27ec63abcbd5accd8bc085f06ea2242d0930633",
+      "origin_directory": "wait-value-e27ec63",
+      "reason": "resolver-only change; accepted UI artifacts preserved byte-for-byte"
+    },
+    "verifier_negative_controls": "passed"
+  },
+  "regressions": {
+    "backend_executor": "35 passed",
+    "backend_assignment": "126 passed",
+    "backend_teaching_five_files": "137 passed",
+    "backend_teaching_thread_reply": "4 failed, 12 passed; identical on clean e27ec63 artifact, unrelated pre-existing Outlook patch-boundary issue",
+    "frontend": "31 passed",
+    "logs": [
+      "wait-value-fc46342/executor-tests.log",
+      "wait-value-fc46342/backend-targeted-tests.log",
+      "wait-value-fc46342/teaching-targeted-tests.log",
+      "wait-value-fc46342/teaching-thread-reply-preexisting.log",
+      "wait-value-fc46342/frontend-targeted-tests.log",
+      "wait-value-fc46342/branch-matrix.log",
+      "wait-value-fc46342/public-route-negative.log",
+      "wait-value-fc46342/wait-value-contract-repro.json"
+    ]
+  },
+  "deferred": [
+    "hosted deployment",
+    "public release",
+    "publication",
+    "source shutdown",
+    "additional real sends"
+  ],
+  "limits": [
+    "arbitrary Excel compatibility",
+    "arbitrary schema understanding",
+    "embedded image/chart interpretation",
+    "every future canvas component",
+    "non-Microsoft connectors",
+    "multi-worker campaigns",
+    "unrestricted autonomous research"
+  ],
+  "conclusion": "Bounded local core complete for the documented supported workflows; the wait-value alternate-representation bypasses are closed."
+}

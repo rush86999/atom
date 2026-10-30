@@ -1,0 +1,49 @@
+{
+  "schema": "atom-composite-wait-negative-control-1",
+  "status": "passed",
+  "objective": "Negative control: exact conflict",
+  "run_id": "75dbf2bb-6fca-474d-b199-5b893aa57a25",
+  "assignment_status": "waiting",
+  "wait_step_status": "waiting",
+  "conflicts": [
+    {
+      "correlation_id": "negative-currency",
+      "fact": "currency",
+      "response": "Currency unstated by source; report the total without a currency.",
+      "source": "d51d3156-97ae-452d-9bfb-6b7ae92d1972",
+      "evidence": "",
+      "at": "2026-10-30T16:33:58.904227+00:00",
+      "reason": "source_fact_conflict",
+      "column": "Currency",
+      "established_values": [
+        "USD"
+      ],
+      "subjects": [
+        "row 2",
+        "row 3",
+        "row 4"
+      ],
+      "blank_subjects": [],
+      "source_ref": {
+        "resource_id": "aa402219-1dbb-4b60-8d8c-9afa42cd3c78",
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "file_name": "integrated_quote.csv",
+        "sheet": "integrated_quote",
+        "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "column": "Currency",
+        "coverage": {
+          "known": true,
+          "source_row_count": 3,
+          "materialized_row_count": 3,
+          "truncated": false,
+          "row_cap": 500000
+        }
+      },
+      "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+      "detail": null,
+      "resolution_reason": null
+    }
+  ],
+  "response_retained": true,
+  "artifact_created": false
+}

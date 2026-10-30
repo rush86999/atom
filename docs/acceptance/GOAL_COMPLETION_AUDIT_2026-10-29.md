@@ -147,6 +147,37 @@ No goal is marked fully complete where a promised behavior remains unqualified.
 - Current-source regressions: 98 assignment/executor/send/resource tests and
   137 teaching/renderer tests passed; 31 frontend tests passed.
 
+## Final wait-value representation closure — fc46342
+
+Final local source `fc46342ed77df624b8922a0fc4d834935fc4f481` (tree
+`38618c7bc806b741498eab539c14345bb1054efe`, tag
+`local-core-2026-10-30-final`) closes the verifier's alternate-representation
+bypasses.
+
+- Coverage and accepted population are validated before selecting inline
+  rows, Parquet or aggregate evidence.
+- Inline rows must cover the accepted `__sheet_row` identities exactly and
+  carry the fact field. A truncated receipt or missing accepted row is
+  `incomplete`; an absent field is not a verified blank cell.
+- Parquet reads are filtered to accepted identities and never scan the whole
+  frame without identities.
+- Aggregate receipts must name their `measure` and a matching
+  `group_by`/`grouping_dimension`; a subtotal key cannot establish an
+  unrelated measure. `group_by` is persisted with the applied result.
+- Verifier reproductions: truncated inline receipt → `incomplete`; accepted
+  rows 2 and 3 but only row 2 supplied → `incomplete`; subtotal `USD`
+  requested as `Price` → `unavailable`.
+- Current-source regressions: 35 executor tests, 126 assignment tests, 137
+  teaching/renderer tests and 31 frontend tests passed; the branch matrix and
+  public-route incomplete-inline negative pass separately.
+- The accepted `e27ec63` positive twins and contradictory negative control
+  are preserved byte-for-byte in `wait-value-fc46342/preserved-from.json`.
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/wait-value-fc46342/`
+and
+`docs/acceptance/evidence/durable_assignment_20261030/final-local-closure-fc46342.json`.
+
 Conclusion: **Bounded local core complete for the documented supported
 workflows.** Hosted deployment, public release and publication remain
 deferred. Compatibility limits remain explicit.
