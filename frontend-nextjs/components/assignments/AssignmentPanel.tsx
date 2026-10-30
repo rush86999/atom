@@ -37,7 +37,8 @@ import {
 
 function userFacingError(err: unknown, fallback: string): string {
   const anyErr = err as any;
-  const detail = anyErr?.response?.data?.detail;
+  const detail = anyErr?.response?.data?.detail
+    || anyErr?.technical?.response?.data?.detail;
   if (typeof detail === "string" && detail.trim()) return detail;
   if (detail && typeof detail === "object" && detail.message) {
     const conflicts = Array.isArray(detail.conflicts) ? detail.conflicts : [];
