@@ -52,6 +52,15 @@ Artifacts: `chat-matching.json`, `chat-wrong.json`, `chat-missing.json`,
 `assignment-matching.json`, `assignment-wrong.json`,
 `assignment-missing.json`, `assignment-matching-restart.json`.
 
+## Parallel consumers
+
+Canvas, review and derivation call sites continue to retrieve lessons
+without `task_context`, so context-bound conversation methods are not
+injected into those prompts. Artifact format/mapping lessons keep using
+`resolve_artifact_teaching`'s existing context resolver. The 14 wider-run
+canvas failures above are pre-existing authorization refusals, not a
+consequence of this wiring.
+
 ## Test evidence
 
 | Suite | Result |

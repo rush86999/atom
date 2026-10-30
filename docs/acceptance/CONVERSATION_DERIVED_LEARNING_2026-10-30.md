@@ -149,6 +149,10 @@ cannot write a lesson directly.
   `GET /api/assignments/{run_id}`.
 - Context-only conversation lessons no longer manufacture an artifact
   `format_spec` error.
+- Parallel canvas/review/derivation consumers still call
+  `get_agent_lessons` without task context, so context-bound conversation
+  methods stay out of those prompts; artifact format/mapping lessons keep
+  using `resolve_artifact_teaching`'s existing context resolver.
 
 ## 4. Acceptance matrix
 
