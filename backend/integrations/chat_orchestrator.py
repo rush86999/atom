@@ -21526,6 +21526,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # the actual retrieval source identities for the
                     # durable outcome's evidence refs.
                     _retrieval_observations: List[Dict[str, Any]] = []
+                    _task_context: Dict[str, Any] = {}
+                    for _ctx_key in ("task_context", "business_context"):
+                        if isinstance(context.get(_ctx_key), dict):
+                            _task_context.update(context[_ctx_key])
+                    for _ctx_key in ("customer", "qualification",
+                                     "task_scope", "recipient"):
+                        if context.get(_ctx_key) is not None:
+                            _task_context[_ctx_key] = context[_ctx_key]
                     memory_block = await assemble_memory_context(
                         message=_lesson_query,
                         workspace_id=user_workspace,
@@ -21541,6 +21549,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         canvas_type=(canvas_context or {}).get("canvas_type"),
                         source_observations_out=_retrieval_observations,
                         lessons_only=_lessons_only,
+                        task_context=_task_context or None,
                     )
                     # C4 (owner directive): observations are committed only
                     # when content reaches the answer context (memory_block
@@ -31582,6 +31591,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         limit: int = 5,
         *,
         include_workspace: bool = True,
+        task_context: Optional[Dict[str, Any]] = None,
+        workspace_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """The operating hire's PERMANENT taught lessons (TrainingPanel /teach,
         mentor lessons, observed human corrections) for the edit plan. Teaching
@@ -31626,7 +31637,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             with get_db_session() as db:
                 return get_agent_lessons(
                     db, agent_id, query=query, limit=limit,
-                    include_workspace=include_workspace)
+                    include_workspace=include_workspace,
+                    task_context=task_context, workspace_id=workspace_id)
         except Exception as e:
             logger.debug(f"agent lessons lookup skipped: {e}")
             return []

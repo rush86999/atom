@@ -1585,3 +1585,101 @@ def test_incomplete_inline_evidence_cannot_resume_route(route_env, monkeypatch):
     assert wait_step["status"] == "waiting"
     assert wait_step["waiting"]["conflicts"][-1]["reason"] == (
         "source_fact_incomplete")
+
+
+def test_assignment_consumes_contextual_conversation_method(
+        route_env, tmp_path, monkeypatch):
+    """Normal assignment start consumes a promoted method, not /apply."""
+    from decimal import Decimal
+
+    from core.conversation_learning import MethodInput, MethodSpec
+    from core.models import AgentRegistry
+    from core.student_learning_service import journal_standing_lesson_entry
+
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    db = route_env["db"]
+    agent = AgentRegistry(
+        id="agent-context-method", name="Context Method Employee",
+        category="operations", module_path="core.generic_agent",
+        class_name="GenericAgent", status="supervised",
+        confidence_score=0.6, configuration={}, capabilities=[],
+        workspace_id="ws-1", tenant_id="tenant-1",
+    )
+    db.add(agent)
+    db.commit()
+    method = MethodSpec(
+        intended_outcome="Price the order",
+        operation="multiply_sum",
+        inputs=[
+            MethodInput(concept="quantity", column="Quantity", unit="units"),
+            MethodInput(concept="unit_price", column="Unit Price", unit="USD"),
+        ],
+        output_unit="USD",
+        transformation="quantity * unit_price",
+        rounding={"places": 2, "stage": "final"},
+    )
+    lesson = journal_standing_lesson_entry(
+        db, agent.id, "Use the licensed customer pricing method",
+        source="teacher", topic="pricing",
+        context={"audience": "customer"},
+        details={"conversation_learning": {
+            "candidate_id": "lc-assignment-test",
+            "method": method.model_dump(mode="json"),
+        }},
+        workspace_id="ws-1",
+    )
+    assert lesson is not None
+
+    base_payload = {
+        "objective": "Use the pricing method for the customer order",
+        "agent_id": agent.id,
+        "sources": [{
+            "kind": "workbook",
+            "dataset_name": "scotch_parts_price_list",
+            "sheet": "US$ SCOTCH PARTS",
+            "columns": ["Quantity", "Unit Price"],
+        }],
+        "deliverables": [{
+            "kind": "document",
+            "description": "Priced order",
+        }],
+    }
+
+    wrong = route_env["client"].post(
+        "/api/assignments",
+        json={**base_payload, "task_context": {"audience": "other"}})
+    assert wrong.status_code == 409, wrong.text
+    assert wrong.json()["detail"]["error"] == "teaching_context_mismatch"
+
+    missing = route_env["client"].post(
+        "/api/assignments",
+        json={**base_payload, "task_context": {}})
+    assert missing.status_code == 409, missing.text
+    assert missing.json()["detail"]["error"] == "teaching_context_unresolved"
+    assert "audience" in missing.json()["detail"]["missing"]
+
+    matching = route_env["client"].post(
+        "/api/assignments",
+        json={**base_payload, "task_context": {"audience": "customer"}})
+    assert matching.status_code == 200, matching.text
+    assignment = matching.json()["assignment"]["assignment"]
+    assert assignment["status"] == "completed", {
+        "status": assignment.get("status"),
+        "steps": [
+            {"id": step.get("step_id"), "status": step.get("status"),
+             "adapter": step.get("adapter"),
+             "failure": step.get("failure"),
+             "waiting": step.get("waiting"),
+             "gap_ids": step.get("gap_ids"),
+             "result": step.get("result")}
+            for step in assignment.get("steps") or []
+        ],
+        "open_gaps": matching.json().get("open_gaps"),
+    }
+    formula = next(step for step in assignment["steps"]
+                   if step["adapter"] == "formula.calculate")
+    assert Decimal(str(formula["result_value"])) == Decimal("20")
+    record = route_env["lifecycle"].get_task(matching.json()["run_id"]) or {}
+    effective = ((record.get("assignment") or {}).get(
+        "teaching_snapshot") or {}).get("effective_lesson_ids") or []
+    assert any(item.get("id") == lesson["id"] for item in effective), effective

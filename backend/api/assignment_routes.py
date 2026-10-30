@@ -37,6 +37,7 @@ from core.assignment_resources import (
 import core.assignment_teaching  # noqa: F401,E402  (installs taught-calc schema)
 from core.assignment_teaching import (  # noqa: E402
     TaughtCalculationError,
+    build_conversation_calculation,
     build_taught_calculation,
 )
 from core.base_routes import BaseAPIRouter
@@ -318,6 +319,73 @@ async def start_assignment(
         raise HTTPException(
             status_code=422, detail="no authorized source resolved")
 
+    _method_lessons: List[Dict[str, Any]] = []
+    if body.calculation is None and body.agent_id:
+        from core.conversation_learning import applicable_method_lessons
+        from core.student_learning_service import lesson_context_requirements
+
+        _workspace = current_user.workspace_id or "default"
+        _method_resolution = applicable_method_lessons(
+            db, body.agent_id, body.task_context, workspace_id=_workspace)
+        if _method_resolution.get("status") == "conflict":
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "teaching_context_conflict",
+                    "message": (
+                        "Equally specific taught methods conflict for this "
+                        "context; confirm which scope governs."),
+                    "lessons": [
+                        {"lesson_id": item["entry"].get("id"),
+                         "topic": item["entry"].get("topic")}
+                        for item in _method_resolution.get("lessons") or []
+                    ],
+                },
+            )
+        if _method_resolution.get("status") == "applicable":
+            _method_lessons = list(_method_resolution.get("lessons") or [])
+            try:
+                body.calculation = build_conversation_calculation(
+                    _method_lessons[0]["entry"], resolved_sources)
+            except TaughtCalculationError as exc:
+                raise HTTPException(
+                    status_code=exc.status,
+                    detail={
+                        "error": exc.code,
+                        "message": str(exc),
+                        **dict(exc.detail or {}),
+                    },
+                )
+        else:
+            _requirements = lesson_context_requirements(
+                db, body.agent_id, body.task_context,
+                workspace_id=_workspace, query=body.objective)
+            if _requirements.get("mismatch"):
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "teaching_context_mismatch",
+                        "message": (
+                            "The established task context does not match the "
+                            "taught guidance for this assignment."),
+                        "conflicts": list(
+                            _requirements.get("conflicts") or []),
+                    },
+                )
+            if _requirements.get("needs_context"):
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "teaching_context_unresolved",
+                        "message": (
+                            "Taught guidance cannot govern this assignment "
+                            "until the missing context is confirmed."),
+                        "missing": list(_requirements.get("missing") or []),
+                        "lesson_ids": list(
+                            _requirements.get("lesson_ids") or []),
+                    },
+                )
+
     if body.calculation is None:
         try:
             body.calculation = derive_aggregate_spec(
@@ -359,6 +427,14 @@ async def start_assignment(
         task_scope=teaching_scope,
         now=datetime.now(timezone.utc).isoformat(),
     )
+    if _method_lessons:
+        _effective = list(teaching.get("effective_lesson_ids") or [])
+        for _item in _method_lessons:
+            _effective.append({
+                "id": _item["entry"].get("id"),
+                "revision": _item["entry"].get("revision") or 1,
+            })
+        teaching["effective_lesson_ids"] = _effective
     if body.calculation is None:
         try:
             body.calculation = build_taught_calculation(

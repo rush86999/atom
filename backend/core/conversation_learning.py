@@ -1707,7 +1707,6 @@ def promote_candidate(
         topic=f"conversation:{candidate.thread_id}",
         teacher_agent_id=str(reviewer or "human_supervisor"),
         details=details,
-        applies_to=list(candidate.applies_to),
         context=dict(candidate.context),
         workspace_id=candidate.workspace_id,
     )

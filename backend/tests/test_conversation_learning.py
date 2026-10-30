@@ -328,6 +328,119 @@ def test_context_survives_restart_and_still_blocks_wrong_use(db):
         db2.close()
 
 
+def test_lesson_context_requirements_clarifies_missing_and_mismatch(db):
+    from core.student_learning_service import lesson_context_requirements
+
+    _agent(db)
+    candidate = _candidate(
+        lesson="Use the Customer-A licensed pricing method.",
+        context={"customer": "Customer-A", "qualification": "licensed"},
+    )
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    promote_candidate(db, candidate, reviewer="owner", expected_revision=1)
+
+    missing = lesson_context_requirements(
+        db, "agent-1", {"customer": "Customer-A"},
+        workspace_id="ws-1", query="pricing method")
+    assert missing["needs_context"] is True
+    assert missing["missing"] == ["qualification"]
+
+    mismatch = lesson_context_requirements(
+        db, "agent-1",
+        {"customer": "Customer-B", "qualification": "unlicensed"},
+        workspace_id="ws-1", query="pricing method")
+    assert mismatch["mismatch"] is True
+    assert mismatch["conflicts"]
+
+    matched = lesson_context_requirements(
+        db, "agent-1",
+        {"customer": "Customer-A", "qualification": "licensed"},
+        workspace_id="ws-1", query="pricing method")
+    assert matched["needs_context"] is False
+    assert matched["mismatch"] is False
+
+
+def test_memory_lessons_leg_carries_context_and_clarifies(db, monkeypatch):
+    import asyncio
+
+    from core import memory_context_assembler
+
+    _agent(db)
+    candidate = _candidate(
+        lesson="Use the Customer-A licensed pricing method.",
+        context={"customer": "Customer-A", "qualification": "licensed"},
+    )
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    promoted = promote_candidate(
+        db, candidate, reviewer="owner", expected_revision=1)
+    bind = db.get_bind()
+    factory = sessionmaker(bind=bind, expire_on_commit=False)
+    monkeypatch.setattr("core.database.SessionLocal", factory)
+
+    matching = asyncio.run(memory_context_assembler._lessons_leg(
+        "pricing method for Customer-A",
+        "agent-1",
+        {"customer": "Customer-A", "qualification": "licensed"},
+        "ws-1",
+    ))
+    assert promoted["lesson_id"] in matching
+    assert "lesson id" in matching
+    assert "Customer-A" in matching
+    assert "multiply_sum" in matching
+
+    wrong = asyncio.run(memory_context_assembler._lessons_leg(
+        "pricing method for Customer-B",
+        "agent-1",
+        {"customer": "Customer-B", "qualification": "unlicensed"},
+        "ws-1",
+    ))
+    assert wrong == ""
+
+    missing = asyncio.run(memory_context_assembler._lessons_leg(
+        "pricing method for Customer-A",
+        "agent-1",
+        {"customer": "Customer-A"},
+        "ws-1",
+    ))
+    assert "TEACHING CONTEXT REQUIRED" in missing
+    assert "qualification" in missing
+
+
+def test_conversation_method_compiles_for_assignment():
+    from core.assignment_teaching import build_conversation_calculation
+
+    method = MethodSpec(
+        intended_outcome="Price the order",
+        operation="multiply_sum",
+        inputs=[
+            MethodInput(concept="quantity", column="Qty", unit="units"),
+            MethodInput(concept="unit_price", column="Price", unit="USD"),
+        ],
+        output_unit="USD",
+        transformation="quantity * unit_price",
+        rounding={"places": 2, "stage": "final"},
+    )
+    entry = {
+        "id": "lesson-1",
+        "revision": 2,
+        "details": {"conversation_learning": {
+            "method": method.model_dump(mode="json"),
+        }},
+    }
+    calculation = build_conversation_calculation(
+        entry,
+        [{"representation": "parquet_frame",
+          "columns": ["Qty", "Price"]}],
+    )
+    assert calculation["expression"] == "v1 * v2"
+    assert calculation["origin"]["lesson_id"] == "lesson-1"
+    assert calculation["origin"]["teaching_revision"] == "2"
+    assert calculation["bindings"]["v1"]["$ref"].endswith(".Qty")
+    assert calculation["bindings"]["v2"]["$ref"].endswith(".Price")
+
+
 def test_core_profile_exposes_learning_surface():
     from core.product_profile import route_capability, route_enabled
 

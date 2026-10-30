@@ -438,6 +438,75 @@ def _reference_bound_stale_ids(
     return stale
 
 
+
+def lesson_context_requirements(
+    db: Session,
+    agent_id: str,
+    task_context: Optional[Dict[str, Any]] = None,
+    *,
+    workspace_id: Optional[str] = None,
+    query: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Missing context keys for context-bound lessons relevant to this task.
+
+    This is the clarification half of work-time retrieval: when a lesson is
+    relevant but cannot be safely applied because the task has not established
+    its required context, the caller must ask rather than silently continue.
+    """
+    from core.artifact_teaching import evaluate_lesson_context
+
+    tokens = {
+        token for token in re.findall(r"[a-z0-9]{3,}", str(query or "").lower())
+        if token not in {
+            "the", "and", "for", "with", "this", "that", "please", "can",
+            "you", "your", "from", "into", "what", "when", "where", "which",
+        }
+    }
+    missing: set = set()
+    lesson_ids: List[str] = []
+    conflicts: List[Dict[str, Any]] = []
+    for entry in _permanent_lessons(db, agent_id):
+        lesson_context = entry.get("context") or {}
+        if not lesson_context:
+            continue
+        if tokens:
+            canvas = entry.get("canvas") if isinstance(
+                entry.get("canvas"), dict) else {}
+            haystack = " ".join((
+                str(entry.get("topic") or ""),
+                _lesson_text(entry),
+                str(canvas.get("name") or ""),
+                str(canvas.get("label") or ""),
+            )).lower()
+            if not any(token in haystack for token in tokens):
+                continue
+        evaluation = evaluate_lesson_context(
+            lesson_context,
+            task_context or {},
+            workspace_id=workspace_id or entry.get("workspace_id"),
+        )
+        if evaluation.get("status") == "not_applicable" and (
+                evaluation.get("reason") == "context_mismatch"):
+            conflicts.append({
+                "lesson_id": str(entry.get("id") or ""),
+                "conflicts": list(evaluation.get("conflicts") or []),
+            })
+            continue
+        if evaluation.get("status") != "needs_context":
+            continue
+        missing.update(str(key) for key in (evaluation.get("missing") or []))
+        lesson_id = str(entry.get("id") or "")
+        if lesson_id and lesson_id not in lesson_ids:
+            lesson_ids.append(lesson_id)
+    return {
+        "missing": sorted(missing),
+        "lesson_ids": lesson_ids,
+        "conflicts": conflicts,
+        "needs_context": bool(missing),
+        "mismatch": bool(conflicts),
+    }
+
+
 def _lesson_in_scope(entry: Dict[str, Any], goal_id: Optional[str]) -> bool:
     """True when this lesson applies while working ``goal_id``.
 
@@ -957,6 +1026,33 @@ def format_lessons_block(lessons: List[Dict[str, Any]]) -> str:
             )
             if context_text:
                 line += " [applies when: " + context_text + "]"
+        provenance = (
+            (entry.get("details") or {}).get("conversation_learning")
+            if isinstance(entry.get("details"), dict) else None
+        )
+        if isinstance(provenance, dict):
+            lesson_id = str(entry.get("id") or "")
+            if lesson_id:
+                line += (
+                    f" [lesson id {lesson_id} rev "
+                    f"{entry.get('revision') or 1}]")
+            candidate_id = str(provenance.get("candidate_id") or "")
+            if candidate_id:
+                line += f" [candidate {candidate_id}]"
+            method = provenance.get("method")
+            if isinstance(method, dict):
+                inputs = ", ".join(
+                    f"{item.get('concept')}={item.get('column')}"
+                    + (f" ({item.get('unit')})" if item.get("unit") else "")
+                    for item in (method.get("inputs") or [])
+                    if isinstance(item, dict)
+                )
+                line += (
+                    f" [method: {method.get('operation') or 'unresolved'}"
+                    f"({inputs})"
+                    + (f" -> {method.get('output_unit')}"
+                       if method.get("output_unit") else "")
+                    + "]")
         if entry.get("format_errors"):
             line += " [unsupported format: " + ", ".join(
                 str(item) for item in entry["format_errors"]) + "]"

@@ -561,7 +561,12 @@ async def _facts_leg(message: str, workspace_id: str) -> List[str]:
     return [str(getattr(f, "fact_text", "")).strip() for f in facts or [] if getattr(f, "fact_text", "")]
 
 
-async def _lessons_leg(message: str, agent_id: Optional[str]) -> str:
+async def _lessons_leg(
+    message: str,
+    agent_id: Optional[str],
+    task_context: Optional[Dict[str, Any]] = None,
+    workspace_id: Optional[str] = None,
+) -> str:
     """The operating agent's PERMANENT taught lessons (TrainingPanel /teach,
     mentor lessons, observed human corrections) as a rendered prompt block.
 
@@ -579,12 +584,28 @@ async def _lessons_leg(message: str, agent_id: Optional[str]) -> str:
         from core.student_learning_service import (
             format_lessons_block,
             get_agent_lessons,
+            lesson_context_requirements,
         )
 
         db = SessionLocal()
         try:
-            lessons = get_agent_lessons(db, agent_id, query=message, limit=5)
-            return format_lessons_block(lessons)
+            lessons = get_agent_lessons(
+                db, agent_id, query=message, limit=5,
+                task_context=task_context, workspace_id=workspace_id)
+            if lessons:
+                return format_lessons_block(lessons)
+            requirements = lesson_context_requirements(
+                db, agent_id, task_context,
+                workspace_id=workspace_id, query=message)
+            if requirements.get("needs_context"):
+                missing = ", ".join(requirements.get("missing") or [])
+                return (
+                    "TEACHING CONTEXT REQUIRED — this employee has scoped "
+                    f"guidance that cannot be applied until the user confirms: "
+                    f"{missing}. Ask for that context before proceeding. "
+                    f"(lessons: {', '.join(requirements.get('lesson_ids') or [])})"
+                )
+            return ""
         finally:
             db.close()
 
@@ -1234,6 +1255,7 @@ async def assemble_memory_context(
     canvas_type: Optional[str] = None,
     source_observations_out: Optional[List[Dict[str, Any]]] = None,
     lessons_only: bool = False,
+    task_context: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """Return a bounded `RELEVANT MEMORY` prompt block, or None if nothing
     relevant (or the flag is off). Never raises.
@@ -1255,7 +1277,8 @@ async def assemble_memory_context(
         return None
     if lessons_only:
         return await _safe(
-            _lessons_leg(message, agent_id), "lessons",
+            _lessons_leg(message, agent_id, task_context, workspace_id),
+            "lessons",
             timeout=float(os.getenv("ATOM_MEMORY_LESSONS_TIMEOUT", "5")),
         ) or None
     try:
@@ -1276,7 +1299,8 @@ async def assemble_memory_context(
             # budget with the heavy retrieval legs and timed out under
             # load, so handoff turns ran lesson-less ('I found 0
             # results'). Cheap leg, durable budget.
-            _safe(_lessons_leg(message, agent_id), "lessons",
+            _safe(_lessons_leg(
+                message, agent_id, task_context, workspace_id), "lessons",
                   timeout=float(os.getenv(
                       "ATOM_MEMORY_LESSONS_TIMEOUT", "5"))),
             _safe(_exchange_examples_leg(message, workspace_id), "exchange_examples"),
