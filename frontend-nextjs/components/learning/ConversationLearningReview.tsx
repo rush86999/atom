@@ -133,6 +133,7 @@ export function ConversationLearningReview({
   }, []);
 
   const review = payload?.review;
+  const selectedAgentId = draft.agentId || employees[0]?.id || "";
   const unresolved = review?.unresolved_questions || [];
 
   const resourceOptions = useMemo(() => {
@@ -175,7 +176,7 @@ export function ConversationLearningReview({
       ];
       const created = await createLearningCandidate({
         thread_id: threadId,
-        agent_id: draft.agentId,
+        agent_id: selectedAgentId,
         proposed_lesson: draft.lesson,
         applies_to: draft.appliesTo
           .split(",").map((item) => item.trim()).filter(Boolean),
@@ -319,7 +320,7 @@ export function ConversationLearningReview({
             <select
               className="mt-1 w-full rounded border p-1"
               data-testid="learning-employee-select"
-              value={draft.agentId}
+              value={selectedAgentId}
               onChange={(event) => setDraft({ ...draft, agentId: event.target.value })}
             >
               <option value="">Select an employee</option>
@@ -382,7 +383,7 @@ export function ConversationLearningReview({
             <input className="rounded border p-1" data-testid="learning-column-2" value={draft.column2} onChange={(e) => setDraft({ ...draft, column2: e.target.value })} placeholder="second column" />
             <input className="rounded border p-1" data-testid="learning-unit-2" value={draft.unit2} onChange={(e) => setDraft({ ...draft, unit2: e.target.value })} placeholder="second unit" />
           </div>
-          <Button data-testid="learning-draft-button" disabled={busy || !draft.agentId || !draft.lesson} onClick={create}>
+          <Button data-testid="learning-draft-button" disabled={busy || !selectedAgentId || !draft.lesson} onClick={create}>
             Draft candidate
           </Button>
         </div>
