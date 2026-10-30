@@ -38,6 +38,9 @@ if (!nextPublicApiUrl || (/localhost|127\.0\.0\.1/.test(nextPublicApiUrl) && !is
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Isolated dev/build output for acceptance instances. Two Next servers can
+  // share this source tree without clobbering each other's .next cache.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   env: {
     PYTHON_API_SERVICE_BASE_URL: nextPublicApiUrl,
     NEXT_PUBLIC_API_BASE_URL: nextPublicApiUrl,

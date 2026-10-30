@@ -1,0 +1,53 @@
+{
+  "ok": true,
+  "snapshot": {
+    "schema": "atom-assignment-release-representative-1",
+    "run_id": "1670cbca-da5a-4275-8af7-cd71d0f82da1",
+    "assignment_id": "asg-2bdfda46acf844ed",
+    "objective": "Sum the price of the HARSLE press brake stock price list",
+    "status": "completed",
+    "plan_revision": 1,
+    "teaching_revision": "untrained",
+    "deliverables": [
+      {
+        "kind": "document",
+        "status": "applied",
+        "required": true,
+        "artifact_path": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-713db064c84c/sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+        "sha256": "318a675acd0126be56f157404101fd81dbd40937985e472756542355830af21a"
+      },
+      {
+        "kind": "email",
+        "status": "applied",
+        "required": true,
+        "artifact_path": null,
+        "sha256": null
+      }
+    ],
+    "artifact_path": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-713db064c84c/sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+    "artifact_sha256": "318a675acd0126be56f157404101fd81dbd40937985e472756542355830af21a",
+    "artifact_contains_expected_sum": true,
+    "validation": {
+      "ok": true,
+      "errors": [],
+      "required_deliverables": 2,
+      "source_versions": [
+        "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e"
+      ]
+    },
+    "step_summaries": [
+      "sum of Price = 216700.00  across 8 row(s) from HARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1",
+      "rendered sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+      "controlled provider accepted"
+    ],
+    "source_versions": [
+      "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e"
+    ],
+    "user": {
+      "id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+      "email": "admin@example.com",
+      "workspace_id": null,
+      "tenant_id": null
+    }
+  }
+}

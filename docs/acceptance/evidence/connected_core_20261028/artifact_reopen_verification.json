@@ -1,0 +1,54 @@
+{
+ "docx": {
+  "canvas_id": "e7e878cb-db5c-4aab-bff8-6640b8fe2a82",
+  "canvas_type": "docs",
+  "office_file": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/connected_world/office/chat-Connected-price-review-certified-assessm-4b1d05a2.docx",
+  "exists": true,
+  "size": 38200,
+  "paragraphs": 20,
+  "tables": 2,
+  "table_rows": [
+   19,
+   23
+  ],
+  "headings": [
+   "Connected price review",
+   "Scope",
+   "Assessment 1 \u2014 18 fully covered rows",
+   "Correction and unfamiliar records",
+   "Sources"
+  ],
+  "has_correction": true,
+  "office_read_success": true,
+  "office_read_keys": [
+   "success",
+   "paragraphs",
+   "tables",
+   "metadata"
+  ]
+ },
+ "pptx": {
+  "canvas_id": "10ac491a-7bc7-4c86-824b-7fc2805e0a34",
+  "canvas_type": "presentation",
+  "office_file": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/connected_world/office/chat-Connected-price-review-deck-2447a5f2.pptx",
+  "exists": true,
+  "size": 36017,
+  "slides": 3,
+  "titles": [
+   "Connected price review",
+   "Certified assessment",
+   "Correction and unfamiliar records"
+  ],
+  "table_counts": [
+   0,
+   1,
+   1
+  ],
+  "office_read_success": true,
+  "office_read_keys": [
+   "success",
+   "slides",
+   "slide_count"
+  ]
+ }
+}

@@ -1,0 +1,176 @@
+{
+ "success": true,
+ "columns": [
+  "No.",
+  "Description",
+  "Unit Price"
+ ],
+ "row_count": 11219,
+ "source": {
+  "file_name": "Consolidated Price List 2019.xlsx",
+  "snapshot": {
+   "kind": "canvas_dataset_snapshot",
+   "label": "Connected price assessment",
+   "note": "Local snapshot. Edits do not write back to the connected source.",
+   "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+   "version": "b92aaf07eb1d219b",
+   "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+   "rows": 11219,
+   "columns": 3
+  },
+  "upstream": {
+   "provider": "onedrive",
+   "dataset_name": "onedrive_consolidated_price_list_2019__us_scotch_parts",
+   "file_name": "Consolidated Price List 2019.xlsx",
+   "external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+   "sheet_name": "US$ SCOTCH PARTS ",
+   "content_hash": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "source_modified_at": null,
+   "ingested_at": "2026-10-28T23:31:53.332728",
+   "workspace_id": "default",
+   "coverage": {
+    "known": true,
+    "source_row_count": 11219,
+    "materialized_row_count": 11219,
+    "truncated": false,
+    "row_cap": 500000
+   }
+  },
+  "writeback": {
+   "supported": false,
+   "upstream_mutated": false,
+   "performed": false
+  },
+  "source_access": {
+   "status": "active",
+   "provider": "onedrive",
+   "token_provider": "outlook",
+   "checked_at": "2026-10-28T23:52:11.554549+00:00"
+  },
+  "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+  "source_version": "b92aaf07eb1d219b",
+  "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2"
+ },
+ "revision": 1,
+ "manifest": {
+  "schema_version": 1,
+  "base_component": "table",
+  "operations": [
+   "read",
+   "select",
+   "calculate",
+   "assess",
+   "edit",
+   "export",
+   "bind"
+  ],
+  "data_binding": {
+   "subject_field": "No.",
+   "measure_field": "Unit Price",
+   "status_field": "",
+   "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+   "source_version": "b92aaf07eb1d219b"
+  },
+  "editable_fields": [
+   "Unit Price"
+  ],
+  "teaching_binding": {
+   "agent_id": "",
+   "scope_id": "connected-price-review"
+  },
+  "decision_options": [
+   "APPROVE",
+   "REVIEW",
+   "HOLD"
+  ],
+  "task_policy": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision.",
+  "outputs": [
+   "xlsx"
+  ],
+  "required_approvals": [],
+  "manifest_revision": "0454ca3be1ff6ac0"
+ },
+ "operations": {
+  "declared": [
+   "assess",
+   "bind",
+   "calculate",
+   "edit",
+   "export",
+   "read",
+   "select"
+  ],
+  "adapter": [
+   "assess",
+   "bind",
+   "calculate",
+   "edit",
+   "export",
+   "read",
+   "select"
+  ],
+  "resource": [
+   "assess",
+   "bind",
+   "calculate",
+   "edit",
+   "export",
+   "read",
+   "select"
+  ],
+  "effective": [
+   "assess",
+   "bind",
+   "calculate",
+   "edit",
+   "export",
+   "read",
+   "select"
+  ],
+  "manifest_revision": "0454ca3be1ff6ac0"
+ },
+ "upstream": {
+  "provider": "onedrive",
+  "dataset_name": "onedrive_consolidated_price_list_2019__us_scotch_parts",
+  "file_name": "Consolidated Price List 2019.xlsx",
+  "external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+  "sheet_name": "US$ SCOTCH PARTS ",
+  "content_hash": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+  "version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+  "source_modified_at": null,
+  "ingested_at": "2026-10-28T23:31:53.332728",
+  "workspace_id": "default",
+  "coverage": {
+   "known": true,
+   "source_row_count": 11219,
+   "materialized_row_count": 11219,
+   "truncated": false,
+   "row_cap": 500000
+  }
+ },
+ "snapshot": {
+  "kind": "canvas_dataset_snapshot",
+  "label": "Connected price assessment",
+  "note": "Local snapshot. Edits do not write back to the connected source.",
+  "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+  "version": "b92aaf07eb1d219b",
+  "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+  "rows": 11219,
+  "columns": 3
+ },
+ "coverage": {
+  "known": true,
+  "source_row_count": 11219,
+  "materialized_row_count": 11219,
+  "truncated": false,
+  "row_cap": 500000
+ },
+ "source_access": {
+  "status": "active",
+  "provider": "onedrive",
+  "token_provider": "outlook",
+  "checked_at": "2026-10-28T23:52:11.554549+00:00"
+ },
+ "requested_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+}

@@ -363,3 +363,64 @@ def test_fork_copy_drops_private_teaching_and_source_binding(db, canvas, user):
     assert "capability_revision" not in copied
     # The original row is untouched.
     assert canvas.content["capability_manifest"]["task_policy"]
+
+
+def test_two_different_user_canvases_share_supported_operations(
+    db, canvas, user, office_root
+):
+    """Same server operations, two different headers/identifiers/policies and
+    decision vocabularies. No developer setup or adapter fork per canvas."""
+    from core.canvas_capability_service import (
+        bind_dataset, calculate_operation, export_operation, set_manifest,
+    )
+
+    second = Canvas(
+        id="canvas_cap_2", tenant_id="default", workspace_id="ws-1",
+        created_by="user-1", name="Grant review", canvas_type="sheet",
+        content={}, status="active",
+    )
+    db.add(second)
+    db.commit()
+
+    _bind(db, canvas, user)
+    set_manifest(db, second, user, _manifest(
+        data_binding={
+            "subject_field": "Grant Ref", "measure_field": "Requested",
+            "status_field": "Stage",
+        },
+        editable_fields=["Requested", "Stage"],
+        decision_options=["FUND", "HOLD", "DECLINE"],
+        task_policy=(
+            "Fund Requested >= 30000 when Stage is Submitted. Hold 10000-29999. "
+            "Decline below 10000."
+        ),
+        teaching_binding={"agent_id": "agent-2", "scope_id": "task-2"},
+    ))
+    bind_dataset(
+        db, second, user, ["Grant Ref", "Requested", "Stage"],
+        [
+            ["GR-2026-014", 40000, "Submitted"],
+            ["GR-2026-021", 12500.5, "Submitted"],
+            ["GR-2026-033", 99000, "Withdrawn"],
+        ],
+        source={"file_name": "grants.csv", "sha256": "grants-sha"},
+    )
+
+    orders = calculate_operation(db, canvas, user, "sum Amount for Open rows")
+    grants = calculate_operation(
+        db, second, user, "sum Requested for Submitted rows")
+    assert orders["total_values"]["(unstated)"] == "290.00"
+    assert grants["total_values"]["(unstated)"] == "52500.50"
+    assert orders["selected_count"] == 3
+    assert grants["selected_count"] == 2
+
+    first_export = export_operation(db, canvas, user)
+    second_export = export_operation(db, second, user)
+    first_ws = openpyxl.load_workbook(
+        first_export["artifact"]["file_path"], data_only=True)["Data"]
+    second_ws = openpyxl.load_workbook(
+        second_export["artifact"]["file_path"], data_only=True)["Data"]
+    assert [c.value for c in first_ws[1]][:3] == ["Ref", "Amount", "Status"]
+    assert [c.value for c in second_ws[1]][:3] == [
+        "Grant Ref", "Requested", "Stage"]
+    assert db.query(Canvas).filter(Canvas.id == second.id).first() is not None

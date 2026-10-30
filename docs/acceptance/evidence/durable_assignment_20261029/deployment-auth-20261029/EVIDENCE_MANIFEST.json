@@ -1,0 +1,93 @@
+{
+  "schema": "atom-assignment-deployment-rehearsal-1",
+  "created_at": "2026-10-29",
+  "release_commit": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
+  "product_tree_sha256": "12060bee618e7a58a98324f682d39077c144c19a6fb7d22d77de8179237dbb9e",
+  "deployment_kit_tree_sha256": "261c8472be8411516925b0bbaf2e093553cc3112e12f002f501aa4f1817e70b5",
+  "files": {
+    "assignment-after-restart.json": {
+      "sha256": "146ee202b949fd0297cb35ba0532023ed538466f7874b28c4845a4c24fa7961f",
+      "bytes": 2239
+    },
+    "assignment-before-restart.json": {
+      "sha256": "57c81ccb4929d5ceb8cc569ca33b950f4268ab84b0540dd8af23cc6fe592dabd",
+      "bytes": 1854
+    },
+    "auth-smoke/assignment-open.png": {
+      "sha256": "8193406385e55dda11752495d0e17f3636fbc0ec4d5ac8edf61e3bfb87836ff8",
+      "bytes": 137054
+    },
+    "auth-smoke/auth-smoke.json": {
+      "sha256": "9b46342b83462c004d67dd273e0329656399f97146772fde4d544b328b97ecb7",
+      "bytes": 1787
+    },
+    "auth-smoke/signed-in-again.png": {
+      "sha256": "6ded0e4d0c6e1a74cba16ecd7e073d638c48d023528c75be9e400e7b3448bbb2",
+      "bytes": 114162
+    },
+    "auth-smoke/signed-in-assignments.png": {
+      "sha256": "5b2b33ef545cb15a7107f215c6eed083c75af7902bc063168f1c4106d89a3c88",
+      "bytes": 114200
+    },
+    "auth-smoke/signed-in-dashboard.png": {
+      "sha256": "f6b28bb6c2a14c026531e51e728110fde34cbdecf109601638fc7b986ac0ea0e",
+      "bytes": 151713
+    },
+    "auth-smoke/signed-out.png": {
+      "sha256": "4e234d503f008f7b3374b1728628515d46783d497b6bb3f9cb5a0db24590ca2f",
+      "bytes": 255654
+    },
+    "backup-manifest.json": {
+      "sha256": "3ccfcfd502505d3e36d974221e6fe29fdf313fd995afdc41347bf76dc0815a3d",
+      "bytes": 264755
+    },
+    "deployment-receipt.json": {
+      "sha256": "d0a9927b849e2968e414b5079d7613f344a573a6201a4727b016b9fb8887d544",
+      "bytes": 6957
+    },
+    "final-status.json": {
+      "sha256": "2cee8b29fae9ccf4f1f2925b5c6b3c04f577dc5f03cf712c707f1c27f251415c",
+      "bytes": 2842
+    },
+    "identity-agreement.json": {
+      "sha256": "617e1ed72de6871df166278ad3171a4a62eadc79547464a0f1550447993ab531",
+      "bytes": 773
+    },
+    "preflight.json": {
+      "sha256": "b52908bd8adf916b068826afe7373581a4aaad7e392f8dd386679e25437319ae",
+      "bytes": 5317
+    },
+    "rehearsal-seed.json": {
+      "sha256": "d2f14ec0838d88787552347e0dab4d08f7851f15ec4c006345cd6e58cd5f367f",
+      "bytes": 842
+    },
+    "release-identity.json": {
+      "sha256": "6504f910c5941a109581d92fd5b75e8c401466701054638f059910a74ffbad2d",
+      "bytes": 1122
+    },
+    "rollback-c4-to-c6.log": {
+      "sha256": "0566af94c9ca4b59f109ffdfb2a084ae2cbf6d21e59b672f6cba200042bb5bec",
+      "bytes": 2463
+    },
+    "rollback-c6-to-c4.log": {
+      "sha256": "dbbee257800ed7e8561fd6f626b0de9f18118d395dcb4821e5b4c0184071f75c",
+      "bytes": 2463
+    },
+    "rollback-receipt.json": {
+      "sha256": "f41d77fad986f5a813cdf690ec5311d48f9af7c800fd610165e93eaec1056350",
+      "bytes": 2143
+    },
+    "rollback-rehearsal.json": {
+      "sha256": "7e518f8e89c39265ab2a5dd66d86684dc06622496a959fa97e66f088bf19ba3e",
+      "bytes": 720
+    },
+    "startup-receipt.json": {
+      "sha256": "b6a8d7d77ffc1af6d9d24d921d742dd96e01877fad29eea76d8d51e8765f7658",
+      "bytes": 1416
+    },
+    "stop-receipt.json": {
+      "sha256": "bbb833835aabd93b1933278deac325635262b6fd6c1c201df4e18b260543c99f",
+      "bytes": 315
+    }
+  }
+}

@@ -1,0 +1,610 @@
+Cloning into '/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/releases/a9648432495f4f75f59bf4667cac3cb997d7f229/app'...
+Note: switching to 'a9648432495f4f75f59bf4667cac3cb997d7f229'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+Updating files:  74% (9042/12175)
+Updating files:  75% (9132/12175)
+Updating files:  76% (9253/12175)
+Updating files:  77% (9375/12175)
+Updating files:  78% (9497/12175)
+Updating files:  79% (9619/12175)
+Updating files:  80% (9740/12175)
+Updating files:  81% (9862/12175)
+Updating files:  82% (9984/12175)
+Updating files:  83% (10106/12175)
+Updating files:  84% (10227/12175)
+Updating files:  85% (10349/12175)
+Updating files:  86% (10471/12175)
+Updating files:  87% (10593/12175)
+Updating files:  88% (10714/12175)
+Updating files:  89% (10836/12175)
+Updating files:  90% (10958/12175)
+Updating files:  91% (11080/12175)
+Updating files:  92% (11201/12175)
+Updating files:  93% (11323/12175)
+Updating files:  94% (11445/12175)
+Updating files:  95% (11567/12175)
+Updating files:  96% (11688/12175)
+Updating files:  97% (11810/12175)
+Updating files:  98% (11932/12175)
+Updating files:  99% (12054/12175)
+Updating files: 100% (12175/12175)
+Updating files: 100% (12175/12175), done.
+HEAD is now at a964843 fix(assignments): keep a rejected mapping request open across restart
+
+> atomic-app@0.1.0-alpha.4 build
+> next build
+
+⚠ `eslint` configuration in next.config.js is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options
+⚠ Invalid next.config.js options detected:
+⚠     Unrecognized key(s) in object: 'eslint'
+⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+▲ Next.js 16.2.2 (Turbopack)
+- Experiments (use with caution):
+  ✓ externalDir
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Skipping validation of types
+  Finished TypeScript config validation in 11ms ...
+  Creating an optimized production build ...
+Browserslist: browsers data (caniuse-lite) is 7 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Turbopack build encountered 2 warnings:
+./pages/api/dev/desktop-bridge.ts:122:7
+Module not found: Can't resolve ('--version' | <dynamic>)
+  [90m120 |[0m       }
+  [90m121 |[0m
+[31m[1m>[0m [90m122 |[0m       execFile(allowedBinary, [[32m"--version"[0m], { cwd: [33mALLOWED_BASE_DIR[0m }, (error, stdout, s...
+  [90m    |[0m       [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m123 |[0m         [36mreturn[0m res.status([35m200[0m).json({
+  [90m    |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m124 |[0m           success: !error,
+  [90m    |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m125 |[0m           output: stdout + (stderr ? [32m`\nError: [0m${stderr[32m}`[0m : [32m""[0m),
+  [90m    |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m126 |[0m           exit_code: error ? error.code || [35m1[0m : [35m0[0m,
+  [90m    |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m127 |[0m           stdout,
+  [90m    |[0m [31m[1m^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m128 |[0m           stderr,
+  [90m    |[0m [31m[1m^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m129 |[0m         });
+  [90m    |[0m [31m[1m^^^^^^^^^^^[0m
+[31m[1m>[0m [90m130 |[0m       });
+  [90m    |[0m [31m[1m^^^^^^^^[0m
+  [90m131 |[0m       [36mreturn[0m;
+  [90m132 |[0m     }
+  [90m133 |[0m
+
+
+
+Import trace:
+  Route:
+    ./pages/api/dev/desktop-bridge.ts
+    ./pages/api/dev/desktop-bridge.ts
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./next.config.js
+Encountered unexpected file in NFT list
+A file was traced that indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
+- filesystem operations (like path.join, path.resolve or fs.readFile), or
+- very dynamic requires (like require('./' + foo)).
+To resolve this, you can
+- remove them if possible, or
+- only use them in development, or
+- make sure they are statically scoped to some subfolder: path.join(process.cwd(), 'data', bar), or
+- add ignore comments: path.join(/*turbopackIgnore: true*/ process.cwd(), bar)
+
+Import trace:
+  Route:
+    ./next.config.js
+    ./pages/api/dev/desktop-bridge.ts
+
+
+✓ Compiled successfully in 10.1s
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/140) ...
+  Generating static pages using 11 workers (35/140)
+  Generating static pages using 11 workers (70/140)
+  Generating static pages using 11 workers (105/140)
+✓ Generating static pages using 11 workers (140/140) in 519ms
+  Finalizing page optimization ...
+
+Route (pages)
+┌ ○ /
+├   /_app
+├ ƒ /404
+├ ○ /admin/bpe
+├ ○ /admin/business-facts
+├ ○ /admin/jit-verification
+├ ○ /admin/learning-verification
+├ ○ /admin/settings
+├ ○ /admin/skills/new
+├ ○ /admin/users
+├ ○ /agents
+├ ○ /analytics
+├ ƒ /api/accounting/[id]
+├ ƒ /api/accounting/action
+├ ƒ /api/accounting/all
+├ ƒ /api/accounting/chart-of-accounts
+├ ƒ /api/accounting/export
+├ ƒ /api/accounting/forecast
+├ ƒ /api/accounting/invoices
+├ ƒ /api/accounting/scenario
+├ ƒ /api/accounting/summary
+├ ƒ /api/accounting/transactions
+├ ƒ /api/agent-governance/[...path]
+├ ƒ /api/agent/desktop-proxy
+├ ƒ /api/agent/handler
+├ ƒ /api/agent/nlu
+├ ƒ /api/analytics
+├ ƒ /api/atom/auth/calendar/callback
+├ ƒ /api/atom/auth/calendar/disconnect
+├ ƒ /api/atom/auth/calendar/initiate
+├ ƒ /api/atom/auth/calendar/status
+├ ƒ /api/atom/auth/msteams/callback
+├ ƒ /api/atom/auth/msteams/initiate
+├ ƒ /api/atom/integrations/get-zapier-url
+├ ƒ /api/atom/integrations/save-zapier-url
+├ ƒ /api/atom/integrations/zapier
+├ ƒ /api/atom/message
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/auth/accounts
+├ ƒ /api/auth/forgot-password
+├ ƒ /api/auth/github/callback
+├ ƒ /api/auth/gmail/callback
+├ ƒ /api/auth/microsoft/callback
+├ ƒ /api/auth/nextjs/callback
+├ ƒ /api/auth/nextjs/start
+├ ƒ /api/auth/nextjs/status
+├ ƒ /api/auth/register
+├ ƒ /api/auth/reset-password
+├ ƒ /api/auth/send-verification-email
+├ ƒ /api/auth/sessions
+├ ƒ /api/auth/slack/callback
+├ ƒ /api/auth/verify-email
+├ ƒ /api/chat/enhanced
+├ ƒ /api/chat/orchestrate
+├ ƒ /api/chat/phase3-health
+├ ƒ /api/crm/data
+├ ƒ /api/dashboard
+├ ƒ /api/dashboard-dev
+├ ƒ /api/dev/bootstrap-session
+├ ƒ /api/dev/desktop-bridge
+├ ƒ /api/financial/budgets/summary
+├ ƒ /api/financial/goals
+├ ƒ /api/financial/transactions/search
+├ ƒ /api/gitlab/health
+├ ƒ /api/graphrag/[...path]
+├ ƒ /api/health
+├ ƒ /api/hello
+├ ƒ /api/hubspot/analytics
+├ ƒ /api/hubspot/campaigns
+├ ƒ /api/hubspot/companies
+├ ƒ /api/hubspot/contacts
+├ ƒ /api/hubspot/deals
+├ ƒ /api/hubspot/oauth/start
+├ ƒ /api/hubspot/pipelines
+├ ƒ /api/integrations/asana/health
+├ ƒ /api/integrations/asana/profile
+├ ƒ /api/integrations/asana/resources
+├ ƒ /api/integrations/azure/app-services
+├ ƒ /api/integrations/azure/app-services/deploy
+├ ƒ /api/integrations/azure/auth/callback
+├ ƒ /api/integrations/azure/auth/start
+├ ƒ /api/integrations/azure/costs/analysis
+├ ƒ /api/integrations/azure/health
+├ ƒ /api/integrations/azure/resource-groups
+├ ƒ /api/integrations/azure/storage-accounts
+├ ƒ /api/integrations/azure/storage/files
+├ ƒ /api/integrations/azure/virtual-machines
+├ ƒ /api/integrations/azure/virtual-machines/create
+├ ƒ /api/integrations/bitbucket/authorize
+├ ƒ /api/integrations/bitbucket/callback
+├ ƒ /api/integrations/bitbucket/health
+├ ƒ /api/integrations/box/health
+├ ƒ /api/integrations/box/profile
+├ ƒ /api/integrations/box/resources
+├ ƒ /api/integrations/credentials
+├ ƒ /api/integrations/discord/analytics
+├ ƒ /api/integrations/discord/channels
+├ ƒ /api/integrations/discord/guilds
+├ ƒ /api/integrations/discord/health
+├ ƒ /api/integrations/discord/messages
+├ ƒ /api/integrations/discord/profile
+├ ƒ /api/integrations/dropbox/callback
+├ ƒ /api/integrations/figma/analytics
+├ ƒ /api/integrations/figma/files
+├ ƒ /api/integrations/figma/health
+├ ƒ /api/integrations/figma/profile
+├ ƒ /api/integrations/figma/projects
+├ ƒ /api/integrations/figma/search
+├ ƒ /api/integrations/github/health
+├ ƒ /api/integrations/gitlab/authorize
+├ ƒ /api/integrations/gitlab/branches
+├ ƒ /api/integrations/gitlab/callback
+├ ƒ /api/integrations/gitlab/commits
+├ ƒ /api/integrations/gitlab/create-issue
+├ ƒ /api/integrations/gitlab/create-merge-request
+├ ƒ /api/integrations/gitlab/health
+├ ƒ /api/integrations/gitlab/issues
+├ ƒ /api/integrations/gitlab/merge-requests
+├ ƒ /api/integrations/gitlab/pipelines
+├ ƒ /api/integrations/gitlab/profile
+├ ƒ /api/integrations/gitlab/project
+├ ƒ /api/integrations/gitlab/projects
+├ ƒ /api/integrations/gitlab/resources
+├ ƒ /api/integrations/gitlab/status
+├ ƒ /api/integrations/gitlab/trigger-pipeline
+├ ƒ /api/integrations/gmail/authorize
+├ ƒ /api/integrations/gmail/callback
+├ ƒ /api/integrations/gmail/emails
+├ ƒ /api/integrations/gmail/events
+├ ƒ /api/integrations/gmail/memory/search
+├ ƒ /api/integrations/gmail/memory/stats
+├ ƒ /api/integrations/gmail/memory/sync
+├ ƒ /api/integrations/gmail/status
+├ ƒ /api/integrations/google-workspace/auth/callback
+├ ƒ /api/integrations/google-workspace/auth/start
+├ ƒ /api/integrations/google-workspace/docs
+├ ƒ /api/integrations/google-workspace/docs/create
+├ ƒ /api/integrations/google-workspace/health
+├ ƒ /api/integrations/google-workspace/keep/notes
+├ ƒ /api/integrations/google-workspace/tasks
+├ ƒ /api/integrations/google-workspace/tasks/create
+├ ƒ /api/integrations/google/health
+├ ƒ /api/integrations/google/profile
+├ ƒ /api/integrations/google/resources
+├ ƒ /api/integrations/hubspot/callback
+├ ƒ /api/integrations/hubspot/companies
+├ ƒ /api/integrations/hubspot/contacts
+├ ƒ /api/integrations/hubspot/deals
+├ ƒ /api/integrations/hubspot/health
+├ ƒ /api/integrations/hubspot/profile
+├ ƒ /api/integrations/hubspot/resources
+├ ƒ /api/integrations/hubspot/tickets
+├ ƒ /api/integrations/jira/auth/callback
+├ ƒ /api/integrations/jira/auth/start
+├ ƒ /api/integrations/jira/health
+├ ƒ /api/integrations/jira/issues
+├ ƒ /api/integrations/jira/profile
+├ ƒ /api/integrations/jira/projects
+├ ƒ /api/integrations/jira/resources
+├ ƒ /api/integrations/linear/auth/callback
+├ ƒ /api/integrations/linear/auth/start
+├ ƒ /api/integrations/linear/cycles
+├ ƒ /api/integrations/linear/health
+├ ƒ /api/integrations/linear/issues
+├ ƒ /api/integrations/linear/profile
+├ ƒ /api/integrations/linear/projects
+├ ƒ /api/integrations/linear/resources
+├ ƒ /api/integrations/linear/teams
+├ ƒ /api/integrations/microsoft/calendar/events
+├ ƒ /api/integrations/microsoft/health
+├ ƒ /api/integrations/microsoft/outlook/messages
+├ ƒ /api/integrations/microsoft/profile
+├ ƒ /api/integrations/microsoft/resources
+├ ƒ /api/integrations/microsoft/teams/messages
+├ ƒ /api/integrations/microsoft365/health
+├ ƒ /api/integrations/monday/authorize
+├ ƒ /api/integrations/monday/callback
+├ ƒ /api/integrations/monday/health
+├ ƒ /api/integrations/nextjs/analytics
+├ ƒ /api/integrations/nextjs/builds
+├ ƒ /api/integrations/nextjs/config
+├ ƒ /api/integrations/nextjs/deploy
+├ ƒ /api/integrations/nextjs/deployment-status
+├ ƒ /api/integrations/nextjs/env-vars
+├ ƒ /api/integrations/nextjs/project
+├ ƒ /api/integrations/nextjs/projects
+├ ƒ /api/integrations/notion/health
+├ ƒ /api/integrations/notion/profile
+├ ƒ /api/integrations/notion/resources
+├ ƒ /api/integrations/outlook/[...path]
+├ ƒ /api/integrations/quickbooks/health
+├ ƒ /api/integrations/salesforce/accounts
+├ ƒ /api/integrations/salesforce/auth/start
+├ ƒ /api/integrations/salesforce/callback
+├ ƒ /api/integrations/salesforce/contacts
+├ ƒ /api/integrations/salesforce/health
+├ ƒ /api/integrations/salesforce/leads
+├ ƒ /api/integrations/salesforce/opportunities
+├ ƒ /api/integrations/salesforce/profile
+├ ƒ /api/integrations/salesforce/resources
+├ ƒ /api/integrations/shopify/health
+├ ƒ /api/integrations/shopify/profile
+├ ƒ /api/integrations/shopify/resources
+├ ƒ /api/integrations/slack/auth/start
+├ ƒ /api/integrations/slack/callback
+├ ƒ /api/integrations/slack/channels
+├ ƒ /api/integrations/slack/channels/create
+├ ƒ /api/integrations/slack/channels/manage
+├ ƒ /api/integrations/slack/files
+├ ƒ /api/integrations/slack/files/upload
+├ ƒ /api/integrations/slack/health
+├ ƒ /api/integrations/slack/messages
+├ ƒ /api/integrations/slack/messages/edit
+├ ƒ /api/integrations/slack/messages/reactions
+├ ƒ /api/integrations/slack/messages/send
+├ ƒ /api/integrations/slack/search/files
+├ ƒ /api/integrations/slack/search/messages
+├ ƒ /api/integrations/slack/user/info
+├ ƒ /api/integrations/slack/users
+├ ƒ /api/integrations/stripe/health
+├ ƒ /api/integrations/stripe/profile
+├ ƒ /api/integrations/stripe/resources
+├ ƒ /api/integrations/tableau/data-sources
+├ ƒ /api/integrations/tableau/health
+├ ƒ /api/integrations/tableau/projects
+├ ƒ /api/integrations/tableau/projects/create
+├ ƒ /api/integrations/tableau/workbooks
+├ ƒ /api/integrations/teams/health
+├ ƒ /api/integrations/trello/health
+├ ƒ /api/integrations/trello/profile
+├ ƒ /api/integrations/trello/resources
+├ ƒ /api/integrations/whatsapp/authorize
+├ ƒ /api/integrations/xero/auth/callback
+├ ƒ /api/integrations/xero/auth/start
+├ ƒ /api/integrations/xero/bank_accounts
+├ ƒ /api/integrations/xero/contacts
+├ ƒ /api/integrations/xero/health
+├ ƒ /api/integrations/xero/invoices
+├ ƒ /api/integrations/xero/profile
+├ ƒ /api/integrations/xero/resources
+├ ƒ /api/integrations/zendesk/health
+├ ƒ /api/integrations/zoom/auth/start
+├ ƒ /api/integrations/zoom/health
+├ ƒ /api/integrations/zoom/profile
+├ ƒ /api/integrations/zoom/resources
+├ ƒ /api/lancedb-search/[...path]
+├ ƒ /api/meeting_attendance_status/[taskId]
+├ ƒ /api/messages/[id]/read
+├ ƒ /api/msteams/oauth/callback
+├ ƒ /api/msteams/oauth/start
+├ ƒ /api/nextjs/health
+├ ƒ /api/notion/callback
+├ ƒ /api/notion/start
+├ ƒ /api/pocket/oauth/callback
+├ ƒ /api/pocket/oauth/start
+├ ƒ /api/preferences
+├ ƒ /api/preferences/[key]
+├ ƒ /api/process-recorded-audio-note
+├ ƒ /api/projects/competitor-analysis
+├ ƒ /api/projects/data
+├ ƒ /api/projects/health
+├ ƒ /api/projects/learning-plan
+├ ƒ /api/quickbooks/accounts
+├ ƒ /api/quickbooks/auth/store-tokens
+├ ƒ /api/quickbooks/customers
+├ ƒ /api/quickbooks/expenses
+├ ƒ /api/quickbooks/health
+├ ƒ /api/quickbooks/invoices
+├ ƒ /api/quickbooks/oauth/callback
+├ ƒ /api/quickbooks/oauth/start
+├ ƒ /api/quickbooks/reports/[reportType]
+├ ƒ /api/search/[...path]
+├ ƒ /api/skills/list
+├ ƒ /api/slack/oauth/callback
+├ ƒ /api/slack/oauth/start
+├ ƒ /api/social/post
+├ ƒ /api/support/knowledge-base
+├ ƒ /api/tasks/[id]/complete
+├ ƒ /api/teams/callback
+├ ƒ /api/teams/start
+├ ƒ /api/v1/projects
+├ ƒ /api/v1/projects/[id]
+├ ƒ /api/v1/tasks
+├ ƒ /api/v1/tasks/[id]
+├ ƒ /api/workflows/optimize
+├ ƒ /api/workflows/test-step
+├ ƒ /api/zendesk/analytics
+├ ƒ /api/zendesk/oauth/callback
+├ ƒ /api/zendesk/oauth/start
+├ ƒ /api/zendesk/tickets
+├ ƒ /api/zendesk/users
+├ ƒ /api/zoom/oauth/callback
+├ ƒ /api/zoom/oauth/start
+├ ○ /approvals
+├ ○ /assignments
+├ ○ /audit-trail
+├ ○ /auth/error
+├ ○ /auth/forgot-password
+├ ○ /auth/reset-password
+├ ○ /auth/signin
+├ ○ /auth/signup
+├ ○ /auth/verification-sent
+├ ○ /auth/verify-email
+├ ○ /automations
+├ ○ /automations/tables
+├ ○ /automations/templates
+├ ○ /automations/versions
+├ ○ /boards
+├ ○ /boards/[boardId]
+├ ○ /calendar
+├ ○ /canvas
+├ ○ /canvas/[id]
+├ ○ /chat
+├ ○ /communication
+├ ○ /dashboard
+├ ○ /dashboard/communication
+├ ○ /dashboard/forensics
+├ ○ /dashboard/owner
+├ ○ /dashboard/risk
+├ ○ /dashboards/knowledge
+├ ○ /dashboards/projects
+├ ○ /dashboards/sales
+├ ○ /dashboards/support
+├ ○ /dev-status
+├ ○ /dev-studio
+├ ○ /documents
+├ ○ /documents/[docId]
+├ ○ /execution-history
+├ ○ /finance
+├ ○ /goal-runs
+├ ○ /goal-runs/[id]
+├ ○ /google-drive
+├ ○ /health
+├ ○ /integrations
+├ ○ /integrations/airtable
+├ ○ /integrations/asana
+├ ○ /integrations/asana_enhanced
+├ ○ /integrations/azure
+├ ○ /integrations/bitbucket
+├ ○ /integrations/box
+├ ○ /integrations/box_enhanced
+├ ○ /integrations/data
+├ ○ /integrations/discord
+├ ○ /integrations/dropbox
+├ ○ /integrations/freshdesk
+├ ○ /integrations/gdrive
+├ ○ /integrations/github
+├ ○ /integrations/gitlab
+├ ○ /integrations/gitlab_enhanced
+├ ○ /integrations/gmail
+├ ○ /integrations/google_enhanced
+├ ○ /integrations/google-workspace
+├ ○ /integrations/health
+├ ○ /integrations/hubspot
+├ ○ /integrations/hubspot_enhanced
+├ ○ /integrations/intercom
+├ ○ /integrations/jira
+├ ○ /integrations/jira_enhanced
+├ ○ /integrations/linear
+├ ○ /integrations/linear_enhanced
+├ ○ /integrations/mailchimp
+├ ○ /integrations/microsoft_enhanced
+├ ○ /integrations/microsoft365
+├ ○ /integrations/monday
+├ ○ /integrations/nextjs
+├ ○ /integrations/notion
+├ ○ /integrations/notion_enhanced
+├ ○ /integrations/onedrive
+├ ○ /integrations/outlook
+├ ○ /integrations/quickbooks
+├ ○ /integrations/salesforce
+├ ○ /integrations/salesforce_enhanced
+├ ○ /integrations/shopify
+├ ○ /integrations/shopify_enhanced
+├ ○ /integrations/slack
+├ ○ /integrations/stripe
+├ ○ /integrations/stripe_enhanced
+├ ○ /integrations/tableau
+├ ○ /integrations/teams
+├ ○ /integrations/telegram
+├ ○ /integrations/trello
+├ ○ /integrations/trello_enhanced
+├ ○ /integrations/whatsapp
+├ ○ /integrations/xero
+├ ○ /integrations/xero_enhanced
+├ ○ /integrations/zendesk
+├ ○ /integrations/zoho
+├ ○ /integrations/zoho-books
+├ ○ /integrations/zoho-crm
+├ ○ /integrations/zoho-flow
+├ ○ /integrations/zoho-forms
+├ ○ /integrations/zoho-inventory
+├ ○ /integrations/zoho-mail
+├ ○ /integrations/zoho-projects
+├ ○ /integrations/zoho-workdrive
+├ ○ /integrations/zoom
+├ ○ /integrations/zoom_enhanced
+├ ○ /intelligence/memory
+├ ○ /login
+├ ○ /marketing
+├ ƒ /marketplace
+├ ○ /oauth/error
+├ ○ /oauth/jira/callback
+├ ○ /oauth/jira/callback-fixed
+├ ○ /oauth/success
+├ ○ /onedrive
+├ ○ /sales
+├ ○ /scheduling
+├ ○ /search
+├ ○ /settings
+├ ○ /settings/account
+├ ○ /settings/ai
+├ ○ /settings/bpe
+├ ○ /settings/harness-evolution
+├ ○ /settings/local-models
+├ ○ /settings/routing
+├ ○ /settings/sessions
+├ ○ /system-status
+├ ○ /tasks
+├ ○ /team-chat
+├ ○ /voice
+├ ○ /workflows/builder
+├ ○ /workflows/editor/[id]
+└ ○ /workflows/schedule
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+HEAD is now at a964843 fix(assignments): keep a rejected mapping request open across restart
+{
+  "schema": "atom-rehearsal-seed-1",
+  "created_at": "2026-10-29T23:32:19.495932+00:00",
+  "source_data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_b_acceptance",
+  "rehearsal_data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+  "database_sha256": "dcbbc138b80f4c8750d86fbf7de9ff56ee74f32983d599b64dd667d7f51c1b2c",
+  "row_counts_source": {
+    "users": 1,
+    "dataset_entries": 1,
+    "goal_runs": 1,
+    "hitl_interventions": null
+  },
+  "row_counts_rehearsal": {
+    "users": 1,
+    "dataset_entries": 1,
+    "goal_runs": 1,
+    "hitl_interventions": null
+  },
+  "row_counts_preserved": true,
+  "password_file": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/config/rehearsal_admin_password",
+  "password_file_mode": "0o600",
+  "secrets_copied": false
+}
+{
+  "schema": "atom-assignment-successor-release-1",
+  "release_tag": "assignment-successor-2026-10-29-a96484324",
+  "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+  "tested_runtime_commit": "a96484324",
+  "product_paths": [
+    "backend",
+    "frontend-nextjs"
+  ],
+  "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+  "product_tree_matches_tested": true,
+  "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+  "deployment_kit_tree_sha256": "ec1a5c15a29cb2a91e30e124867b9419d106e4621ba88018ac51f5eacda69aca",
+  "frontend_build_id": "wYD-ZstCdGkCCoI5bPvmW",
+  "frontend_api_origin": "http://127.0.0.1:8071",
+  "api_port": 8071,
+  "frontend_port": 3130,
+  "audience": "single_user",
+  "pilot_email": "admin@example.com",
+  "outbound_scope": "draft_and_approval_only",
+  "send_authorized": false,
+  "topology": "one_worker_process_per_assignment",
+  "prepared_at": "2026-10-29T23:32:19.533261+00:00",
+  "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+  "seeded_rehearsal_data": true
+}

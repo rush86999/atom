@@ -1,0 +1,262 @@
+{
+  "slice": "connected-guided-start",
+  "scratch": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v3",
+  "source": "real DatasetEntry -> real Parquet -> real resolver/reader",
+  "internal_fixture_paths": false,
+  "provider_contacted": false,
+  "sum": {
+    "objective": "Sum the total for the scotch parts price list",
+    "kind": "document",
+    "start_status": "waiting",
+    "plan_revision": 1,
+    "teaching_revision": "13953f0cbfdf55cb",
+    "source_adapter": "dataset.aggregate",
+    "resource_binding": {
+      "resource_id": "acceptance-scotch-entry",
+      "dataset_name": "scotch_parts_price_list",
+      "source": "onedrive",
+      "source_kind": "file",
+      "external_id": "acceptance-scotch-drive-1",
+      "original_file_name": "scotch-parts.xlsx",
+      "representation": "parquet_frame",
+      "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sheet": "US$ SCOTCH PARTS",
+      "columns": [
+        "Item Number",
+        "Description",
+        "Quantity",
+        "Unit Price",
+        "Total",
+        "Currency",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Quantity",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 3,
+      "coverage": {
+        "known": true,
+        "source_row_count": 3,
+        "materialized_row_count": 3,
+        "truncated": false
+      },
+      "access_scope": {
+        "user_id": "acceptance-user",
+        "workspace_id": "acceptance-ws",
+        "tenant_id": "acceptance-tenant"
+      },
+      "workspace_id": "acceptance-ws",
+      "tenant_id": "acceptance-tenant",
+      "internal_fixture": false
+    },
+    "operation": "sum",
+    "measure": "Total",
+    "value": "85.00",
+    "unit": "USD",
+    "subtotals": {
+      "USD": {
+        "rows": 3,
+        "value": "85.00"
+      }
+    },
+    "selected_count": 3,
+    "rows": [
+      {
+        "identity": "SC-1",
+        "identity_source": "identity_column",
+        "row": 2,
+        "value": "20.00",
+        "currency": "USD",
+        "value_cell": "E2"
+      },
+      {
+        "identity": "SC-2",
+        "identity_source": "identity_column",
+        "row": 3,
+        "value": "60.00",
+        "currency": "USD",
+        "value_cell": "E3"
+      },
+      {
+        "identity": "SC-3",
+        "identity_source": "identity_column",
+        "row": 4,
+        "value": "5.00",
+        "currency": "USD",
+        "value_cell": "E4"
+      }
+    ],
+    "source": {
+      "resource_id": "acceptance-scotch-entry",
+      "dataset_name": "scotch_parts_price_list",
+      "file_name": "scotch-parts.xlsx",
+      "sheet": "US$ SCOTCH PARTS",
+      "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "representation": "parquet_frame",
+      "coverage": {
+        "known": true,
+        "source_row_count": 3,
+        "materialized_row_count": 3,
+        "truncated": false
+      },
+      "workspace_id": "acceptance-ws",
+      "tenant_id": "acceptance-tenant"
+    },
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v3/outputs/acceptance-ws/acceptance-user/draft-de4fdaa81c43/sum-the-total-for-the-scotch-parts-price-list-7d2f20bc.docx",
+    "artifact_sha256": "f4a60c7f9d90504dcac824263804df456f3a3326877221bdd3a05c5d88925931",
+    "artifact_text": "Sum the total for the scotch parts price list\nObjective\nSum the total for the scotch parts price list\nSummary\nsum of Total: 85.00 USD\nFindings\nSources\nscotch_parts_price_list\nscotch-parts.xlsx\nUS$ SCOTCH PARTS\nacceptance-scotch-entry\nscotch-parts.xlsx / US$ SCOTCH PARTS\nRow | identity | identity_source | row | value | currency | value_cell\n | SC-1 | identity_column | 2 | 20.00 | USD | E2\n | SC-2 | identity_column | 3 | 60.00 | USD | E3\n | SC-3 | identity_column | 4 | 5.00 | USD | E4",
+    "approved_status": "completed",
+    "outbox": [
+      {
+        "operation_id": "9c440043-1496-4a5f-9a45-14dcb903ad2f",
+        "to": [
+          "acceptance-reviewer@example.invalid"
+        ],
+        "subject": "Sum the total for the scotch parts price list",
+        "body": "Result:\n- sum of Total: 85.00 USD\nFindings:\n- SC-1 | identity_column | 2 | 20.00 | USD | E2\n- SC-2 | identity_column | 3 | 60.00 | USD | E3\n- SC-3 | identity_column | 4 | 5.00 | USD | E4\nSources:\n- scotch_parts_price_list\n- scotch-parts.xlsx\n- US$ SCOTCH PARTS\n- acceptance-scotch-entry\n- scotch-parts.xlsx / US$ SCOTCH PARTS"
+      }
+    ],
+    "stored_artifact": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/durable_assignment_20261029/connected-guided/sum-artifact.docx"
+  },
+  "count": {
+    "objective": "Count the records in the scotch parts price list",
+    "kind": "presentation",
+    "start_status": "completed",
+    "plan_revision": 1,
+    "teaching_revision": "dabc37803a52bab5",
+    "source_adapter": "dataset.aggregate",
+    "resource_binding": {
+      "resource_id": "acceptance-scotch-entry",
+      "dataset_name": "scotch_parts_price_list",
+      "source": "onedrive",
+      "source_kind": "file",
+      "external_id": "acceptance-scotch-drive-1",
+      "original_file_name": "scotch-parts.xlsx",
+      "representation": "parquet_frame",
+      "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sheet": "US$ SCOTCH PARTS",
+      "columns": [
+        "Item Number",
+        "Description",
+        "Quantity",
+        "Unit Price",
+        "Total",
+        "Currency",
+        "__sheet_row"
+      ],
+      "numeric_columns": [
+        "Quantity",
+        "Unit Price",
+        "Total"
+      ],
+      "row_count": 3,
+      "coverage": {
+        "known": true,
+        "source_row_count": 3,
+        "materialized_row_count": 3,
+        "truncated": false
+      },
+      "access_scope": {
+        "user_id": "acceptance-user",
+        "workspace_id": "acceptance-ws",
+        "tenant_id": "acceptance-tenant"
+      },
+      "workspace_id": "acceptance-ws",
+      "tenant_id": "acceptance-tenant",
+      "internal_fixture": false
+    },
+    "operation": "count",
+    "measure": "rows",
+    "value": "3",
+    "unit": "rows",
+    "subtotals": {
+      "USD": {
+        "rows": 3,
+        "value": "3.00"
+      }
+    },
+    "selected_count": 3,
+    "rows": [
+      {
+        "identity": "SC-1",
+        "identity_source": "identity_column",
+        "row": 2,
+        "value": "1",
+        "currency": "USD",
+        "value_cell": ""
+      },
+      {
+        "identity": "SC-2",
+        "identity_source": "identity_column",
+        "row": 3,
+        "value": "1",
+        "currency": "USD",
+        "value_cell": ""
+      },
+      {
+        "identity": "SC-3",
+        "identity_source": "identity_column",
+        "row": 4,
+        "value": "1",
+        "currency": "USD",
+        "value_cell": ""
+      }
+    ],
+    "source": {
+      "resource_id": "acceptance-scotch-entry",
+      "dataset_name": "scotch_parts_price_list",
+      "file_name": "scotch-parts.xlsx",
+      "sheet": "US$ SCOTCH PARTS",
+      "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "representation": "parquet_frame",
+      "coverage": {
+        "known": true,
+        "source_row_count": 3,
+        "materialized_row_count": 3,
+        "truncated": false
+      },
+      "workspace_id": "acceptance-ws",
+      "tenant_id": "acceptance-tenant"
+    },
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v3/outputs/acceptance-ws/acceptance-user/draft-367b49691b5f/count-the-records-in-the-scotch-parts-price-list-462beafe.pptx",
+    "artifact_sha256": "bb698f51c0d5363d5a59ba129d70cb6a031d61a43fbee623c9241a86ed8836d2",
+    "artifact_text": "Overview\n- Count the records in the scotch parts price list\nResult\n- count of rows: 3.00 USD\nFindings\n- SC-1 | identity_column | 2 | 1 | USD |\n- SC-2 | identity_column | 3 | 1 | USD |\n- SC-3 | identity_column | 4 | 1 | USD |\nSources\n- scotch_parts_price_list\n- scotch-parts.xlsx\n- US$ SCOTCH PARTS\n- acceptance-scotch-entry\n- scotch-parts.xlsx / US$ SCOTCH PARTS",
+    "stored_artifact": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/durable_assignment_20261029/connected-guided/count-artifact.pptx"
+  },
+  "reopened": {
+    "Sum the total for the scotch parts price list": {
+      "status": "completed",
+      "deliverables": [
+        {
+          "deliverable_id": "del-deliverable-1",
+          "kind": "document",
+          "description": "Sum the total for the scotch parts price list",
+          "required": true,
+          "step_id": "deliverable-1",
+          "status": "applied",
+          "artifact_revision": "f4a60c7f9d90504d",
+          "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v3/outputs/acceptance-ws/acceptance-user/draft-de4fdaa81c43/sum-the-total-for-the-scotch-parts-price-list-7d2f20bc.docx",
+          "sha256": "f4a60c7f9d90504dcac824263804df456f3a3326877221bdd3a05c5d88925931"
+        }
+      ]
+    },
+    "Count the records in the scotch parts price list": {
+      "status": "completed",
+      "deliverables": [
+        {
+          "deliverable_id": "del-deliverable-1",
+          "kind": "presentation",
+          "description": "Count the records in the scotch parts price list",
+          "required": true,
+          "step_id": "deliverable-1",
+          "status": "applied",
+          "artifact_revision": "bb698f51c0d5363d",
+          "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-connected-acceptance-v3/outputs/acceptance-ws/acceptance-user/draft-367b49691b5f/count-the-records-in-the-scotch-parts-price-list-462beafe.pptx",
+          "sha256": "bb698f51c0d5363d5a59ba129d70cb6a031d61a43fbee623c9241a86ed8836d2"
+        }
+      ]
+    }
+  }
+}

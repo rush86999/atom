@@ -1,0 +1,103 @@
+{
+  "schema": "atom-mapping-waiting-restart-browser-1",
+  "status": "passed",
+  "product": {
+    "commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tree": "ae8b96bba44df25915be38bce3679eab8901056a",
+    "dirty_paths": []
+  },
+  "frozen_release": {
+    "commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "tag": "assignment-successor-2026-10-29",
+    "tag_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "unchanged": true
+  },
+  "harness_sha256": "3bd8a2f2847a0a066189f7d33f5ff9ed4c53213994d34c171df7ec3c6d952daa",
+  "run_id": "a8b27ce5-ead8-4a9f-8b21-8069e088486e",
+  "assignment_id": "asg-a32409c8c11642a7",
+  "question_id": "a395e83e-c09d-45d8-b2fc-f90b7b903d91",
+  "objective": "Waiting restart price total",
+  "source_version": "1a94f6f0d652ecf5e0da1ca060074802d53a2bc7",
+  "teaching_revision": "7df0cdfdd13a009d",
+  "mapping_teaching_revision": "7df0cdfdd13a009d",
+  "required_unit": "USD",
+  "source_unit": "USD",
+  "fixture": "controlled acceptance workbook_b: Amount 35.00, Discount distractor; not live-connected",
+  "rejection": {
+    "same_question_id": true,
+    "same_candidates": true,
+    "durable_unchanged": true,
+    "teaching_unchanged": true,
+    "no_result": true
+  },
+  "restart": {
+    "same_assignment_id": true,
+    "same_question_id": true,
+    "same_candidates": true,
+    "same_source_version": true,
+    "same_teaching_revision": true,
+    "durable_unchanged": true
+  },
+  "confirmation": {
+    "question_id": "a395e83e-c09d-45d8-b2fc-f90b7b903d91",
+    "mapping": {
+      "concept": "Price",
+      "sheet": "Sheet1",
+      "column": "Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "USD",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "1a94f6f0d652ecf5e0da1ca060074802d53a2bc7",
+      "revision": 2,
+      "lesson_id": "e79e9664e8be448493a3268d0efe76f5"
+    },
+    "result": "35.00",
+    "unit": "USD",
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_waiting_restart_acceptance/office/assignments/default/map-user/draft-b83f4f986bbc/waiting-restart-total-d20b3132.docx",
+    "artifact_sha256": "732de22ef7c8e833013817f7884f1fdc4877228581c78f20482304392d1e0c1f",
+    "applied_calculation_operations": 1,
+    "superseded_calculation_operations": 1,
+    "question_status": "resolved",
+    "lesson_mapping": {
+      "concept": "Price",
+      "sheet": "Sheet1",
+      "column": "Amount",
+      "unit": "USD",
+      "source_version": "1a94f6f0d652ecf5e0da1ca060074802d53a2bc7",
+      "revision": 2,
+      "unit_authority": "source_evidence",
+      "required_unit": "USD",
+      "source_unit": "USD",
+      "source_unit_column": "Currency"
+    }
+  },
+  "reload": {
+    "status": "completed",
+    "mapping": {
+      "concept": "Price",
+      "sheet": "Sheet1",
+      "column": "Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "USD",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "1a94f6f0d652ecf5e0da1ca060074802d53a2bc7",
+      "revision": 2,
+      "lesson_id": "e79e9664e8be448493a3268d0efe76f5"
+    },
+    "result": "35.00",
+    "artifact_sha256": "732de22ef7c8e833013817f7884f1fdc4877228581c78f20482304392d1e0c1f",
+    "mapping_history": [],
+    "durable_unchanged": true
+  },
+  "screenshots": [
+    "unresolved-before-reject.png",
+    "rejected-still-open.png",
+    "reopened-after-restart.png",
+    "confirmed-after-restart.png",
+    "reloaded-after-confirm.png"
+  ]
+}

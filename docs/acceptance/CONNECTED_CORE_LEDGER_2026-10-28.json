@@ -1,0 +1,330 @@
+{
+ "schema_version": "connected-core-ledger-1",
+ "title": "Atom connected-data core ledger — 2026-10-28",
+ "functional_release": {
+  "tag": "expanded-core-2026-10-28-r3",
+  "release_commit": "68b949409b5af0d024a6e036f8eede9f788d1ef0",
+  "tested_app_code": "c04591909",
+  "status": "preserved; upload-based workflows only"
+ },
+ "configuration": {
+  "provider": "deepseek",
+  "recommended_model": "deepseek-flash",
+  "verified_alternative": "deepseek-v4-pro",
+  "review_structured": true,
+  "streaming": false,
+  "turn_budget_seconds": 180,
+  "request_deadline_seconds": 180,
+  "served_routes": [
+   {"provider": "deepseek", "model": "deepseek-flash", "assessment": "v1"},
+   {"provider": "deepseek", "model": "deepseek-flash", "assessment": "v2-corrected"},
+   {"provider": "deepseek", "model": "deepseek-flash", "assessment": "post-restart"}
+  ]
+ },
+ "oauth_renewal": {
+  "status": "local_pass_live_blocked",
+  "resolver": "core/integrations/token_store.py::resolve_integration_token",
+  "provider_callback": "integrations/onedrive_service.py::_refresh",
+  "replacement_refresh_token_persisted": true,
+  "omitted_replacement_preserves_old_token": true,
+  "failure_classification": {
+   "invalid_grant": "reconnect required",
+   "invalid_client": "client configuration; not revoked consent",
+   "refresh_rejected": "provider rejection; not revoked",
+   "transient": "retryable",
+   "refresh_unavailable": "reconnect required",
+   "no_grant": "legacy fallback allowed"
+  },
+  "live_check": {
+   "token_expired_at": "2026-10-29T00:27:28Z",
+   "state": "invalid_client",
+   "requires_reconnect": false,
+   "retryable": false,
+   "reason": "Microsoft client credentials are not configured in this runtime; no credential replacement or reconnect was performed",
+   "evidence": "oauth_live_status.json"
+  },
+  "evidence": ["oauth_renewal_controls.json", "docs/acceptance/OAUTH_RENEWAL_2026-10-29.md"]
+ },
+ "teaching_context": {
+  "status": "pass_demonstrated_scope",
+  "store": "existing AgentRegistry learning log; same teaching-point ids",
+  "typed_states": ["applicable", "not_applicable", "needs_context", "conflict"],
+  "acceptance": {
+   "equivalent_context": "document transfer applied",
+   "wrong_location": "not_applicable",
+   "missing_qualification": "409 targeted clarification",
+   "scoped_exception": "font 14 only inside scope",
+   "correction": "revision 1->2; font 11->12; unrelated teaching preserved",
+   "second_context": "service report Times New Roman 12",
+   "restart": "revision/font/artifact reopen retained",
+   "source_text_not_teaching": "lesson count unchanged"
+  },
+  "evidence": "docs/acceptance/TEACHING_CONTEXT_2026-10-29.md; docs/acceptance/evidence/teaching_context_20261029/"
+ },
+ "durable_assignment": {
+  "status": "pass_mocked_transport_two_domains",
+  "executor": "core/assignment_executor.py (same code for both domains)",
+  "storage": "existing GoalRun task_lifecycle record; no new workflow engine",
+  "controls": {
+   "operation_binding": "versioned action/workspace/account/arguments/artifacts/authorization/prerequisites; changed payload conflicts",
+   "registry_boundary": "action.registry adapter checks preconditions and dispatches through action_registry",
+   "receipts": ["confirmed", "provider_accepted", "failed_before_effect", "uncertain"],
+   "waits": "match_exact correlation ids; consumed-once conditional update; wake replay after crash",
+   "approvals": "workspace/tenant scoped; payload/artifact/authorization bound; cancellation revives nothing",
+   "reconciliation": "Outlook/canvas path records provider acceptance/unknown; no blind resend",
+   "recovery": "durable re-entry; uncertain effects require evidence"
+  },
+  "two_domain_proof": {
+   "commercial": "workbook read, deterministic calculation, DOCX, draft, approval, controlled send",
+   "eligibility": "document read, different decision vocabulary, DOCX, approval, controlled notice",
+   "restart": "waiting state and correction survived restart",
+   "duplicate_effect": "one outbox record per approved effect"
+  },
+  "evidence": "docs/acceptance/DURABLE_ASSIGNMENT_2026-10-29.md; docs/acceptance/evidence/durable_assignment_20261029/",
+  "limitations": [
+   "no live connected send",
+   "provider delivery confirmation not claimed",
+   "single-worker topology verified",
+   "frontend assignment panel not wired"
+  ]
+ },
+ "connected_sources": [
+  {
+   "provider": "microsoft_graph",
+   "services": ["outlook", "onedrive"],
+   "status": "active_during_campaign",
+   "evidence": "Graph /me and /me/drive/root/children returned 200; real OneDrive ingestion and Outlook MIME import completed",
+   "post_campaign_state": "access token expired at 2026-10-29T00:27:28Z; refresh reached the provider but was rejected as invalid_client because client credentials are not configured in this runtime. No credential replacement, rotation or reconnect was performed."
+  },
+  {
+   "provider": "zoho_workdrive",
+   "status": "blocked",
+   "reason": "refresh failed invalid_client; owner reauthorization required",
+   "bypassed": false
+  }
+ ],
+ "boundaries": {
+  "connected_file_ingestion": {
+   "status": "pass",
+   "file": "Consolidated Price List 2019.xlsx",
+   "onedrive_item_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+   "source_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "bytes": 11463449,
+   "sheets": 45,
+   "chars_ingested": 3222905,
+   "ingestion_seconds": 159,
+   "dataset_entries": 45,
+   "coverage": "complete; truncated=false"
+  },
+  "workbook_materialization": {
+   "status": "pass",
+   "sheet": "US$ SCOTCH PARTS",
+   "source_rows": 11219,
+   "materialized_rows": 11219,
+   "formula_cells_loaded": 733,
+   "direct_materialization_seconds": 3.5,
+   "peak_rss_mb": 898.3
+  },
+  "formula_evaluation": {
+   "status": "pass",
+   "same_sheet": {"cell": "#40 TOOLING!M5", "formula": "=SUM(1-K5/L5)", "value": "0.4", "dependencies": ["#40 TOOLING!K5", "#40 TOOLING!L5"]},
+   "cross_sheet": {"cell": "#40 TOOLING!N5", "value": "2.710353125000000497312500000000024", "dependencies": ["MULT SCOTCH TOOLING!D4", "Exchange-Index!H4", "MULT SCOTCH TOOLING!B5"]}
+  },
+  "agent_retrieval": {
+   "status": "pass",
+   "natural_language_ask": "In workbook Consolidated Price List 2019.xlsx only, on sheet US$ SCOTCH PARTS, what is the sum of Unit Price?",
+   "rows_used": 11219,
+   "total": "9958743.62",
+   "source_version": "2abb1bf40ec3",
+   "model": "deterministic",
+   "provider": "structured",
+   "manual_rows_supplied": false,
+   "latency_seconds": 43.59
+  },
+  "connected_email": {
+   "status": "pass",
+   "message_id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEJAADEtbYrrPLwTae3iXb78LoOAAAAAFX1AAA=",
+   "mime_bytes": 15617075,
+   "subject": "consolidated price lists",
+   "attachments": 1,
+   "canvas_id": "9c44465a-232d-440b-b66e-63d255c5ac76",
+   "draft_subject": "Re: consolidated price lists",
+   "draft_saved": true,
+   "draft_reopened": true,
+   "send_performed": false
+  },
+  "connected_binding": {
+   "status": "pass",
+   "canvas_id": "96b165e2-750b-45b5-ae00-b90968af9d97",
+   "dataset_name": "onedrive_consolidated_price_list_2019__us_scotch_parts",
+   "subject_field": "No.",
+   "measure_field": "Unit Price",
+   "canvas_snapshot_version": "b92aaf07eb1d219b",
+   "upstream_content_hash": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "rows": 11219,
+   "source_identity_separated": true,
+   "writeback_supported": false,
+   "evidence": "employee_bind_connected.json"
+  },
+  "taught_assessment": {
+   "status": "pass",
+   "v1": {
+    "status": "completed",
+    "certified": true,
+    "policy_revision": "2fb749d9c7309426",
+    "ask": "Assess rows where Unit Price is greater than 50000.",
+    "selected": 18,
+    "assessed": 18,
+    "unassessed": 0,
+    "decisions": {"APPROVE": 16, "REVIEW": 2, "HOLD": 0},
+    "latency_seconds": 12.81
+   },
+   "v2_corrected": {
+    "status": "completed",
+    "certified": true,
+    "policy_revision": "a54191685f9813e6",
+    "change": "CNC rows move from REVIEW to HOLD",
+    "ask": "Assess rows where Unit Price is greater than 40000.",
+    "selected": 22,
+    "assessed": 22,
+    "unassessed": 0,
+    "decisions": {"APPROVE": 20, "REVIEW": 0, "HOLD": 2},
+    "unfamiliar_subjects": ["089126", "089130", "1103", "1104"],
+    "latency_seconds": 12.03
+   },
+   "coverage_pilot": {
+    "status": "partial",
+    "selected": 285,
+    "assessed": 24,
+    "unassessed_named": 261,
+    "decisions": {"APPROVE": 8, "REVIEW": 16},
+    "note": "explicit bounded coverage, not the accepted task"
+   }
+  },
+  "calculation_and_export": {
+   "status": "pass",
+   "full_set_total": "9958743.62",
+   "rows": 11219,
+   "xlsx_rows": 11219,
+   "reopened_total": "9958743.62",
+   "download_hash_matches": true,
+   "evidence": ["employee_calculation.json", "employee_export.json"]
+  },
+  "deliverables": {
+   "status": "pass",
+   "docx_canvas_id": "e7e878cb-db5c-4aab-bff8-6640b8fe2a82",
+   "docx_bytes": 38200,
+   "docx_tables": 2,
+   "docx_table_rows": [19, 23],
+   "pptx_canvas_id": "10ac491a-7bc7-4c86-824b-7fc2805e0a34",
+   "pptx_bytes": 36017,
+   "pptx_slides": 3,
+   "pptx_table_present": true,
+   "pptx_notes_present": true,
+   "reopen_download": "python-docx/python-pptx plus office read/download; downloaded bytes match saved files"
+  },
+  "repeat_sync": {
+   "status": "pass",
+   "result": "completed unchanged=True skipped",
+   "duplicate_logical_records": "none observed for the selected file",
+   "evidence": "employee_repeat_sync_job.json"
+  },
+  "restart_retrieval": {
+   "status": "pass",
+   "same_total": "9958743.62",
+   "same_source_version": "2abb1bf40ec3",
+   "fresh_assessment": {
+    "ask": "Assess rows where Unit Price is greater than 55000.",
+    "selected": 5,
+    "assessed": 5,
+    "certified": true,
+    "decisions": {"APPROVE": 5},
+    "model": "deepseek-flash"
+   },
+   "artifacts_reopened": true,
+   "email_reopened": true
+  },
+  "data_settings_ui": {
+   "status": "pass",
+   "browser": "http://localhost:3003/settings -> Data Pipelines",
+   "connected": true,
+   "last_success": "Consolidated Price List 2019.xlsx",
+   "failure_shown": "Failed to download file",
+   "retry_created_new_job": true,
+   "unchanged_retry": true,
+   "disconnected_state": "Disconnected / stale",
+   "restored_state": "Connected",
+   "screenshots": [
+    "browser/data_settings_connected.png",
+    "browser/data_settings_retry.png",
+    "browser/data_settings_disconnected.png",
+    "browser/data_settings_restored.png"
+   ]
+  },
+  "negative_controls": {
+   "status": "pass",
+   "api": {
+    "guessed_dataset": "source_not_found (404)",
+    "stale_version": "stale_source_version (409)",
+    "client_file_path": "422 extra_forbidden",
+    "client_sha256": "422 extra_forbidden",
+    "client_rows": "422 extra_forbidden",
+    "revoked_grant": "source_permission_revoked (403)"
+   },
+   "revoked_chat_retrieval": {
+    "status": "pass",
+    "named_ask": "no cached total; connected-source grant inactive message",
+    "generic_ask": "no cached total; grant revoked message",
+    "evidence": "employee_revoked_retrieval.json"
+   },
+   "unit": [
+    "missing workspace scope",
+    "wrong workspace",
+    "inactive/superseded source",
+    "disconnected source",
+    "incomplete/truncated materialization",
+    "blank subject",
+    "duplicate subject",
+    "snapshot edit does not write upstream"
+   ],
+   "evidence": "employee_negative_controls.json; employee_revoked_retrieval.json; backend/tests/test_canvas_connected_binding.py"
+  },
+  "refresh": {
+   "status": "partial",
+   "explicit_rebind": {
+    "status": "pass",
+    "replaced": true,
+    "prior_snapshot_version": "b92aaf07eb1d219b",
+    "prior_upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+    "new_upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+    "assessment_reuse_invalidated": true,
+    "previous_bindings_retained": true
+   },
+   "live_changed_source": {
+    "status": "blocked",
+    "reason": "awaiting owner-provided disposable OneDrive item and restored Microsoft refresh configuration; the historical production price list is not to be modified",
+    "owner_action": "change the disposable workbook manually; agent remains read-only",
+    "protocol": "docs/acceptance/CHANGED_SOURCE_REFRESH_PROTOCOL.md",
+    "local_changed_version_control": "unit test materializes changed bytes under the same source identity, supersedes the old version, rebinds, and records prior provenance"
+   }
+  },
+  "authorization": {
+   "status": "partial",
+   "existing": "R3 canvas/office owner checks, server-side capability intersection, single-user deployment guard, and revoked-grant blocking for canvas, chat named/generic catalog retrieval and dataset loading",
+   "missing": "per-file multi-user Office authorization and a cross-user revoked-provider control"
+  }
+ },
+ "exit_condition_met": false,
+ "exit_condition_detail": "Connected ingestion, binding, full-set calculation, certified taught assessment, correction, unfamiliar records, restart, artifacts, browser status and negative controls passed. OAuth replacement-token persistence and failure classification pass locally; live renewal is blocked by missing Microsoft client credentials (invalid_client, not revoked consent). A live changed-byte refresh was not performed because source writeback is prohibited and the live refresh path is unavailable; the rebind/invalidation path and a local changed-version control pass. The durable assignment executor passes mocked-transport two-domain, wait/restart, approval-binding, cancellation and uncertain-outcome controls; a live connected send remains unauthorized and unrun.",
+ "release_package_prepared": false,
+ "deployment_authorized": false,
+ "email_send_authorized": false,
+ "credential_rotation_performed": false,
+ "known_failures": [
+  "Zoho WorkDrive refresh invalid_client",
+  "Microsoft Graph live refresh is blocked by missing Microsoft client credentials (invalid_client, not revoked consent); local renewal controls pass",
+  "Live changed-byte OneDrive refresh not exercised because the live refresh path is unavailable and a disposable source item still needs owner authorization",
+  "Structured review route does not persist token cost; no cost figure is claimed",
+  "Multi-user per-file Office authorization remains unsupported"
+ ]
+}

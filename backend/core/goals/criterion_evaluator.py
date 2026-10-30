@@ -298,6 +298,8 @@ class CriterionEvaluator:
                 CanvasAudit.action_type == "goal_run_action_dispatched")
             if c.get("canvas_id"):
                 q = q.filter(CanvasAudit.canvas_id == str(c["canvas_id"]))
+            if c.get("tenant_id"):
+                q = q.filter(CanvasAudit.tenant_id == str(c["tenant_id"]))
             rows = q.order_by(CanvasAudit.id.desc()).limit(1000).all()
         for _, details in rows:
             if not want_run or (details or {}).get("goal_run_id") == want_run:

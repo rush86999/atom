@@ -1,0 +1,9 @@
+{
+ "success": false,
+ "error": {
+  "code": "ambiguous_subject_mapping",
+  "message": "Row None has no value in subject field 'No.'. Bind a populated subject field before assessing."
+ },
+ "_http_status": 400,
+ "_elapsed_seconds": 0.4
+}

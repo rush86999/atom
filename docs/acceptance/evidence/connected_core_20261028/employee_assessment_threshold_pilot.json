@@ -1,0 +1,3256 @@
+{
+ "success": false,
+ "operation": "assess",
+ "canvas_id": "96b165e2-750b-45b5-ae00-b90968af9d97",
+ "execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+ "status": "partial",
+ "certified": false,
+ "assessments": [
+  {
+   "subject_id": "007608",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 18590.0 is below 20000, and Description '6509-24M 208V/5/3/60 IW' does not contain SEE or blank, so policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:007608:1437",
+     "subject_id": "007608",
+     "row_ref": "row 1437",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='007608'",
+      "Description='6509-24M 208V/5/3/60 IW'",
+      "Unit Price=18590.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "007610",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 18590.0 is below 20000, and Description '6509-24M 230V/5/3/60 IW' does not contain SEE or blank, so policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:007610:1438",
+     "subject_id": "007610",
+     "row_ref": "row 1438",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='007610'",
+      "Description='6509-24M 230V/5/3/60 IW'",
+      "Unit Price=18590.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "007620",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 18990.0 is below 20000, and Description '6509-24M 230V-5-1-60 IW' does not contain SEE or blank, so policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:007620:1439",
+     "subject_id": "007620",
+     "row_ref": "row 1439",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='007620'",
+      "Description='6509-24M 230V-5-1-60 IW'",
+      "Unit Price=18990.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "007628",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 18590.0 is below 20000, and Description '6509-24M 380V-5-3-50 IW' does not contain SEE or blank, so policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:007628:1440",
+     "subject_id": "007628",
+     "row_ref": "row 1440",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='007628'",
+      "Description='6509-24M 380V-5-3-50 IW'",
+      "Unit Price=18590.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "007630",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 18590.0 is below 20000, and Description '6509-24M 400V/5/3/50 IW' does not contain SEE or blank, so policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:007630:1441",
+     "subject_id": "007630",
+     "row_ref": "row 1441",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='007630'",
+      "Description='6509-24M 400V/5/3/50 IW'",
+      "Unit Price=18590.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "007632",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 18590.0 is below 20000, and Description '6509-24M 415V/5/3/50 IW' does not contain SEE or blank, so policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:007632:1442",
+     "subject_id": "007632",
+     "row_ref": "row 1442",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='007632'",
+      "Description='6509-24M 415V/5/3/50 IW'",
+      "Unit Price=18590.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "007635",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 18590.0 is below 20000, and Description '6509-24M 460V-5-3-60 IW' does not contain SEE or blank, so policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:007635:1443",
+     "subject_id": "007635",
+     "row_ref": "row 1443",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='007635'",
+      "Description='6509-24M 460V-5-3-60 IW'",
+      "Unit Price=18590.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "007645",
+   "decision": "APPROVE",
+   "basis": [
+    "Unit Price 18590.0 is below 20000, and Description '6509-24M 575V-5-3-60 IW' does not contain SEE or blank, so policy requires APPROVE."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:007645:1444",
+     "subject_id": "007645",
+     "row_ref": "row 1444",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='007645'",
+      "Description='6509-24M 575V-5-3-60 IW'",
+      "Unit Price=18590.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "013908",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 208V/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:013908:2848",
+     "subject_id": "013908",
+     "row_ref": "row 2848",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='013908'",
+      "Description='D.O. 70-24M 208V/3/60 IW'",
+      "Unit Price=25190.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "013910",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 230V/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:013910:2849",
+     "subject_id": "013910",
+     "row_ref": "row 2849",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='013910'",
+      "Description='D.O. 70-24M 230V/3/60 IW'",
+      "Unit Price=25190.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "013920",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 26190.0 is at least 20000, and Description 'D.O. 70-24M 230V-10-1-60' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:013920:2851",
+     "subject_id": "013920",
+     "row_ref": "row 2851",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='013920'",
+      "Description='D.O. 70-24M 230V-10-1-60'",
+      "Unit Price=26190.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "013928",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 380V-10-3-50' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:013928:2852",
+     "subject_id": "013928",
+     "row_ref": "row 2852",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='013928'",
+      "Description='D.O. 70-24M 380V-10-3-50'",
+      "Unit Price=25190.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "013930",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 400V/3/50 IW' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:013930:2853",
+     "subject_id": "013930",
+     "row_ref": "row 2853",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='013930'",
+      "Description='D.O. 70-24M 400V/3/50 IW'",
+      "Unit Price=25190.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "013932",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 415V/3/50 IW' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:013932:2854",
+     "subject_id": "013932",
+     "row_ref": "row 2854",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='013932'",
+      "Description='D.O. 70-24M 415V/3/50 IW'",
+      "Unit Price=25190.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "013935",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 460V-10-3-60' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:013935:2855",
+     "subject_id": "013935",
+     "row_ref": "row 2855",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='013935'",
+      "Description='D.O. 70-24M 460V-10-3-60'",
+      "Unit Price=25190.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "013945",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 575V-10-3-60' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:013945:2856",
+     "subject_id": "013945",
+     "row_ref": "row 2856",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='013945'",
+      "Description='D.O. 70-24M 575V-10-3-60'",
+      "Unit Price=25190.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "014708",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 26990.0 is at least 20000, and Description 'D.O. 95-24M 208V/10/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:014708:2909",
+     "subject_id": "014708",
+     "row_ref": "row 2909",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='014708'",
+      "Description='D.O. 95-24M 208V/10/3/60 IW'",
+      "Unit Price=26990.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "014710",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 26990.0 is at least 20000, and Description 'D.O. 95-24M 230V/10/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:014710:2910",
+     "subject_id": "014710",
+     "row_ref": "row 2910",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='014710'",
+      "Description='D.O. 95-24M 230V/10/3/60 IW'",
+      "Unit Price=26990.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "014720",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 27990.0 is at least 20000, and Description 'D.O. 95-24M 230V/10/1/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:014720:2911",
+     "subject_id": "014720",
+     "row_ref": "row 2911",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='014720'",
+      "Description='D.O. 95-24M 230V/10/1/60 IW'",
+      "Unit Price=27990.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "014732",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 26990.0 is at least 20000, and Description 'D.O. 95-24M 415V/10/3/50 IW' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:014732:2912",
+     "subject_id": "014732",
+     "row_ref": "row 2912",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='014732'",
+      "Description='D.O. 95-24M 415V/10/3/50 IW'",
+      "Unit Price=26990.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "014735",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 26990.0 is at least 20000, and Description 'D.O. 95-24M 460V/10/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:014735:2913",
+     "subject_id": "014735",
+     "row_ref": "row 2913",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='014735'",
+      "Description='D.O. 95-24M 460V/10/3/60 IW'",
+      "Unit Price=26990.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "014745",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 26990.0 is at least 20000, and Description 'D.O. 95-24M 575V/10/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:014745:2914",
+     "subject_id": "014745",
+     "row_ref": "row 2914",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='014745'",
+      "Description='D.O. 95-24M 575V/10/3/60 IW'",
+      "Unit Price=26990.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "015608",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 25490.0 is at least 20000, and Description 'FI 8510-20M 208V/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:015608:3078",
+     "subject_id": "015608",
+     "row_ref": "row 3078",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='015608'",
+      "Description='FI 8510-20M 208V/3/60 IW'",
+      "Unit Price=25490.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  },
+  {
+   "subject_id": "015610",
+   "decision": "REVIEW",
+   "basis": [
+    "Unit Price 25490.0 is at least 20000, and Description 'FI 8510-20M 230V/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+   ],
+   "evidence_refs": [
+    {
+     "evidence_id": "ev:015610:3079",
+     "subject_id": "015610",
+     "row_ref": "row 3079",
+     "source_identity": {
+      "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+      "file_name": "Consolidated Price List 2019.xlsx",
+      "source_version": "b92aaf07eb1d219b",
+      "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+      "snapshot_version": "b92aaf07eb1d219b",
+      "upstream_provider": "onedrive",
+      "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+      "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+     },
+     "retrieval_operation": "canvas_table_read",
+     "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+     "values": [
+      "No.='015610'",
+      "Description='FI 8510-20M 230V/3/60 IW'",
+      "Unit Price=25490.0"
+     ]
+    }
+   ],
+   "policy_refs": [
+    {
+     "policy_id": "policy:8d20d247a8f137c0",
+     "topic": "task policy",
+     "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+    }
+   ],
+   "unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "reported_unresolved_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "accepted_unresolved_requirements": [],
+   "basis_supported_requirements": [],
+   "unclassified_requirements": [
+    "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+   ],
+   "source_execution_ids": [
+    "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+   ],
+   "resumed_read": false
+  }
+ ],
+ "errors": [],
+ "review": {
+  "schema_version": "review-result-2",
+  "execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+  "requested_subjects": [
+   "007608",
+   "007610",
+   "007620",
+   "007628",
+   "007630",
+   "007632",
+   "007635",
+   "007645",
+   "013908",
+   "013910",
+   "013920",
+   "013928",
+   "013930",
+   "013932",
+   "013935",
+   "013945",
+   "014708",
+   "014710",
+   "014720",
+   "014732",
+   "014735",
+   "014745",
+   "015608",
+   "015610"
+  ],
+  "allowed_decisions": [
+   "APPROVE",
+   "REVIEW",
+   "HOLD"
+  ],
+  "source_execution_ids": [
+   "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+  ],
+  "assessments": [
+   {
+    "subject_id": "007608",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 18590.0 is below 20000, and Description '6509-24M 208V/5/3/60 IW' does not contain SEE or blank, so policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:007608:1437",
+      "subject_id": "007608",
+      "row_ref": "row 1437",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='007608'",
+       "Description='6509-24M 208V/5/3/60 IW'",
+       "Unit Price=18590.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "007610",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 18590.0 is below 20000, and Description '6509-24M 230V/5/3/60 IW' does not contain SEE or blank, so policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:007610:1438",
+      "subject_id": "007610",
+      "row_ref": "row 1438",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='007610'",
+       "Description='6509-24M 230V/5/3/60 IW'",
+       "Unit Price=18590.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "007620",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 18990.0 is below 20000, and Description '6509-24M 230V-5-1-60 IW' does not contain SEE or blank, so policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:007620:1439",
+      "subject_id": "007620",
+      "row_ref": "row 1439",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='007620'",
+       "Description='6509-24M 230V-5-1-60 IW'",
+       "Unit Price=18990.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "007628",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 18590.0 is below 20000, and Description '6509-24M 380V-5-3-50 IW' does not contain SEE or blank, so policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:007628:1440",
+      "subject_id": "007628",
+      "row_ref": "row 1440",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='007628'",
+       "Description='6509-24M 380V-5-3-50 IW'",
+       "Unit Price=18590.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "007630",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 18590.0 is below 20000, and Description '6509-24M 400V/5/3/50 IW' does not contain SEE or blank, so policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:007630:1441",
+      "subject_id": "007630",
+      "row_ref": "row 1441",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='007630'",
+       "Description='6509-24M 400V/5/3/50 IW'",
+       "Unit Price=18590.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "007632",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 18590.0 is below 20000, and Description '6509-24M 415V/5/3/50 IW' does not contain SEE or blank, so policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:007632:1442",
+      "subject_id": "007632",
+      "row_ref": "row 1442",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='007632'",
+       "Description='6509-24M 415V/5/3/50 IW'",
+       "Unit Price=18590.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "007635",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 18590.0 is below 20000, and Description '6509-24M 460V-5-3-60 IW' does not contain SEE or blank, so policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:007635:1443",
+      "subject_id": "007635",
+      "row_ref": "row 1443",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='007635'",
+       "Description='6509-24M 460V-5-3-60 IW'",
+       "Unit Price=18590.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "007645",
+    "decision": "APPROVE",
+    "basis": [
+     "Unit Price 18590.0 is below 20000, and Description '6509-24M 575V-5-3-60 IW' does not contain SEE or blank, so policy requires APPROVE."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:007645:1444",
+      "subject_id": "007645",
+      "row_ref": "row 1444",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='007645'",
+       "Description='6509-24M 575V-5-3-60 IW'",
+       "Unit Price=18590.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "013908",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 208V/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:013908:2848",
+      "subject_id": "013908",
+      "row_ref": "row 2848",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='013908'",
+       "Description='D.O. 70-24M 208V/3/60 IW'",
+       "Unit Price=25190.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "013910",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 230V/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:013910:2849",
+      "subject_id": "013910",
+      "row_ref": "row 2849",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='013910'",
+       "Description='D.O. 70-24M 230V/3/60 IW'",
+       "Unit Price=25190.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "013920",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 26190.0 is at least 20000, and Description 'D.O. 70-24M 230V-10-1-60' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:013920:2851",
+      "subject_id": "013920",
+      "row_ref": "row 2851",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='013920'",
+       "Description='D.O. 70-24M 230V-10-1-60'",
+       "Unit Price=26190.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "013928",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 380V-10-3-50' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:013928:2852",
+      "subject_id": "013928",
+      "row_ref": "row 2852",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='013928'",
+       "Description='D.O. 70-24M 380V-10-3-50'",
+       "Unit Price=25190.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "013930",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 400V/3/50 IW' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:013930:2853",
+      "subject_id": "013930",
+      "row_ref": "row 2853",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='013930'",
+       "Description='D.O. 70-24M 400V/3/50 IW'",
+       "Unit Price=25190.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "013932",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 415V/3/50 IW' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:013932:2854",
+      "subject_id": "013932",
+      "row_ref": "row 2854",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='013932'",
+       "Description='D.O. 70-24M 415V/3/50 IW'",
+       "Unit Price=25190.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "013935",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 460V-10-3-60' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:013935:2855",
+      "subject_id": "013935",
+      "row_ref": "row 2855",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='013935'",
+       "Description='D.O. 70-24M 460V-10-3-60'",
+       "Unit Price=25190.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "013945",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 25190.0 is at least 20000, and Description 'D.O. 70-24M 575V-10-3-60' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:013945:2856",
+      "subject_id": "013945",
+      "row_ref": "row 2856",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='013945'",
+       "Description='D.O. 70-24M 575V-10-3-60'",
+       "Unit Price=25190.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "014708",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 26990.0 is at least 20000, and Description 'D.O. 95-24M 208V/10/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:014708:2909",
+      "subject_id": "014708",
+      "row_ref": "row 2909",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='014708'",
+       "Description='D.O. 95-24M 208V/10/3/60 IW'",
+       "Unit Price=26990.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "014710",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 26990.0 is at least 20000, and Description 'D.O. 95-24M 230V/10/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:014710:2910",
+      "subject_id": "014710",
+      "row_ref": "row 2910",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='014710'",
+       "Description='D.O. 95-24M 230V/10/3/60 IW'",
+       "Unit Price=26990.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "014720",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 27990.0 is at least 20000, and Description 'D.O. 95-24M 230V/10/1/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:014720:2911",
+      "subject_id": "014720",
+      "row_ref": "row 2911",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='014720'",
+       "Description='D.O. 95-24M 230V/10/1/60 IW'",
+       "Unit Price=27990.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "014732",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 26990.0 is at least 20000, and Description 'D.O. 95-24M 415V/10/3/50 IW' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:014732:2912",
+      "subject_id": "014732",
+      "row_ref": "row 2912",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='014732'",
+       "Description='D.O. 95-24M 415V/10/3/50 IW'",
+       "Unit Price=26990.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "014735",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 26990.0 is at least 20000, and Description 'D.O. 95-24M 460V/10/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:014735:2913",
+      "subject_id": "014735",
+      "row_ref": "row 2913",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='014735'",
+       "Description='D.O. 95-24M 460V/10/3/60 IW'",
+       "Unit Price=26990.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "014745",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 26990.0 is at least 20000, and Description 'D.O. 95-24M 575V/10/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:014745:2914",
+      "subject_id": "014745",
+      "row_ref": "row 2914",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='014745'",
+       "Description='D.O. 95-24M 575V/10/3/60 IW'",
+       "Unit Price=26990.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "015608",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 25490.0 is at least 20000, and Description 'FI 8510-20M 208V/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:015608:3078",
+      "subject_id": "015608",
+      "row_ref": "row 3078",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='015608'",
+       "Description='FI 8510-20M 208V/3/60 IW'",
+       "Unit Price=25490.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   },
+   {
+    "subject_id": "015610",
+    "decision": "REVIEW",
+    "basis": [
+     "Unit Price 25490.0 is at least 20000, and Description 'FI 8510-20M 230V/3/60 IW' does not contain SEE or blank, so policy requires REVIEW."
+    ],
+    "evidence_refs": [
+     {
+      "evidence_id": "ev:015610:3079",
+      "subject_id": "015610",
+      "row_ref": "row 3079",
+      "source_identity": {
+       "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+       "file_name": "Consolidated Price List 2019.xlsx",
+       "source_version": "b92aaf07eb1d219b",
+       "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+       "snapshot_version": "b92aaf07eb1d219b",
+       "upstream_provider": "onedrive",
+       "upstream_external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+       "upstream_version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7"
+      },
+      "retrieval_operation": "canvas_table_read",
+      "retrieval_execution_id": "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47",
+      "values": [
+       "No.='015610'",
+       "Description='FI 8510-20M 230V/3/60 IW'",
+       "Unit Price=25490.0"
+      ]
+     }
+    ],
+    "policy_refs": [
+     {
+      "policy_id": "policy:8d20d247a8f137c0",
+      "topic": "task policy",
+      "lesson": "For this price review, use REVIEW when Unit Price is at least 20000 and APPROVE when it is below 20000. Use HOLD when the Description contains SEE or is blank. Do not infer any other decision."
+     }
+    ],
+    "unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "reported_unresolved_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "accepted_unresolved_requirements": [],
+    "basis_supported_requirements": [],
+    "unclassified_requirements": [
+     "The remaining 261 selected rows are unassessed because the assessment cap was 24."
+    ],
+    "source_execution_ids": [
+     "canvas-96b165e2-750b-45b5-ae00-b90968af9d97-7e8acecd4e47"
+    ],
+    "resumed_read": false
+   }
+  ],
+  "candidate_assessments": [],
+  "errors": [],
+  "ok": true,
+  "required_actions": [],
+  "action_receipts": [],
+  "completion": "partial"
+ },
+ "rendered": "",
+ "route": {
+  "ok": true,
+  "request_sha256": "c6c5634dcef3b9ce994ce564bcd1860856fe5d71384553b8c666c42688e5b6b1",
+  "message_count": 2,
+  "failure_kind": null,
+  "failure_stage": null,
+  "dispatched": true,
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "output_mode": "json",
+  "pin": {
+   "provider_model": [
+    "deepseek",
+    "deepseek-flash"
+   ]
+  },
+  "served_provider": "deepseek",
+  "served_model": "deepseek-flash",
+  "payload_type": "ReviewPayloadModel"
+ },
+ "source": {
+  "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+  "file_name": "Consolidated Price List 2019.xlsx",
+  "source_version": "b92aaf07eb1d219b",
+  "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+  "snapshot": {
+   "kind": "canvas_dataset_snapshot",
+   "label": "Connected price assessment",
+   "note": "Local snapshot. Edits do not write back to the connected source.",
+   "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+   "version": "b92aaf07eb1d219b",
+   "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+   "rows": 11219,
+   "columns": 3
+  },
+  "upstream": {
+   "provider": "onedrive",
+   "dataset_name": "onedrive_consolidated_price_list_2019__us_scotch_parts",
+   "file_name": "Consolidated Price List 2019.xlsx",
+   "external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+   "sheet_name": "US$ SCOTCH PARTS ",
+   "content_hash": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "source_modified_at": null,
+   "ingested_at": "2026-10-28T23:31:53.332728",
+   "workspace_id": "default",
+   "coverage": {
+    "known": true,
+    "source_row_count": 11219,
+    "materialized_row_count": 11219,
+    "truncated": false,
+    "row_cap": 500000
+   }
+  },
+  "writeback": {
+   "supported": false,
+   "upstream_mutated": false,
+   "performed": false
+  }
+ },
+ "source_revision": "b92aaf07eb1d219b",
+ "upstream_revision": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+ "manifest_revision": "f227db493c722298",
+ "policy_revision": "8d20d247a8f137c0",
+ "subjects": [
+  "007608",
+  "007610",
+  "007620",
+  "007628",
+  "007630",
+  "007632",
+  "007635",
+  "007645",
+  "013908",
+  "013910",
+  "013920",
+  "013928",
+  "013930",
+  "013932",
+  "013935",
+  "013945",
+  "014708",
+  "014710",
+  "014720",
+  "014732",
+  "014735",
+  "014745",
+  "015608",
+  "015610"
+ ],
+ "unassessed_subjects": [
+  "015620",
+  "015628",
+  "015630",
+  "015632",
+  "015635",
+  "015645",
+  "017908",
+  "017910",
+  "017920",
+  "017928",
+  "017935",
+  "017945",
+  "017958",
+  "017960",
+  "017970",
+  "017985",
+  "025908",
+  "025910",
+  "025920",
+  "025928",
+  "025931",
+  "025932",
+  "025935",
+  "025945",
+  "028525",
+  "028535",
+  "028540",
+  "028545",
+  "028550",
+  "028555",
+  "028560",
+  "028565",
+  "028580",
+  "028585",
+  "028590",
+  "028595",
+  "028680",
+  "028685",
+  "028687",
+  "028690",
+  "028692",
+  "030000",
+  "030008",
+  "030010",
+  "030015",
+  "030020",
+  "030025",
+  "030028",
+  "030030",
+  "030032",
+  "030035",
+  "030040",
+  "030045",
+  "033908",
+  "033910",
+  "033920",
+  "033928",
+  "033930",
+  "033932",
+  "033935",
+  "033945",
+  "037908",
+  "037910",
+  "037920",
+  "037928",
+  "037930",
+  "037932",
+  "037935",
+  "037945",
+  "039908",
+  "039910",
+  "039920",
+  "039928",
+  "039935",
+  "039945",
+  "044999",
+  "045000",
+  "045012",
+  "045015",
+  "045021",
+  "045024",
+  "045026",
+  "045028",
+  "045035",
+  "046005",
+  "046010",
+  "046026",
+  "046040",
+  "046060",
+  "046100",
+  "046310",
+  "046326",
+  "046340",
+  "046360",
+  "046370",
+  "046410",
+  "046426",
+  "046440",
+  "046460",
+  "046470",
+  "047000",
+  "047010",
+  "049006",
+  "072001",
+  "072002",
+  "072003",
+  "072004",
+  "072006",
+  "072007",
+  "072008",
+  "072009",
+  "072011",
+  "072012",
+  "072013",
+  "072014",
+  "076027",
+  "076028",
+  "076043",
+  "076124",
+  "076125",
+  "076126",
+  "076127",
+  "076140",
+  "076141",
+  "076142",
+  "076143",
+  "076224",
+  "076225",
+  "076226",
+  "076227",
+  "076240",
+  "076241",
+  "076242",
+  "076243",
+  "076456",
+  "076457",
+  "076458",
+  "076459",
+  "076460",
+  "076461",
+  "076476",
+  "076822",
+  "076823",
+  "076827",
+  "076830",
+  "080708",
+  "080710",
+  "080720",
+  "080728",
+  "080730",
+  "080732",
+  "080735",
+  "080745",
+  "088912",
+  "088914",
+  "088916",
+  "088918",
+  "088920",
+  "088924",
+  "088926",
+  "088930",
+  "089008",
+  "089010",
+  "089012",
+  "089014",
+  "089016",
+  "089018",
+  "089020",
+  "089024",
+  "089026",
+  "089030",
+  "089108",
+  "089110",
+  "089112",
+  "089114",
+  "089116",
+  "089118",
+  "089120",
+  "089124",
+  "089126",
+  "089130",
+  "089508",
+  "089510",
+  "089512",
+  "089514",
+  "089516",
+  "089518",
+  "089520",
+  "089524",
+  "089530",
+  "089608",
+  "089610",
+  "089612",
+  "089614",
+  "089616",
+  "089618",
+  "089620",
+  "089624",
+  "089626",
+  "089630",
+  "1054",
+  "1054AM",
+  "1056",
+  "1056AM",
+  "1103",
+  "1104",
+  "1105",
+  "1106",
+  "1848",
+  "1848AM",
+  "1849",
+  "1849AM",
+  "2023",
+  "348012",
+  "348014",
+  "348015",
+  "348016",
+  "348017",
+  "348018",
+  "348019",
+  "348020",
+  "348022",
+  "348024",
+  "348025",
+  "348026",
+  "348027",
+  "348028",
+  "348029",
+  "348030",
+  "349012",
+  "349014",
+  "349015",
+  "349016",
+  "349017",
+  "349018",
+  "349019",
+  "349020",
+  "560052",
+  "560054",
+  "560055",
+  "560056",
+  "560057",
+  "560058",
+  "560059",
+  "560060",
+  "590152",
+  "590154",
+  "590155",
+  "590156",
+  "590157",
+  "590158",
+  "590159",
+  "590160",
+  "679",
+  "694",
+  "694AM",
+  "909",
+  "909AM",
+  "910",
+  "944",
+  "955"
+ ],
+ "coverage": {
+  "selected_count": 285,
+  "assessed_count": 24,
+  "unassessed_count": 261,
+  "assessment_truncated": true,
+  "max_subjects": 24,
+  "limit_source": "request",
+  "assessed_subjects": [
+   "007608",
+   "007610",
+   "007620",
+   "007628",
+   "007630",
+   "007632",
+   "007635",
+   "007645",
+   "013908",
+   "013910",
+   "013920",
+   "013928",
+   "013930",
+   "013932",
+   "013935",
+   "013945",
+   "014708",
+   "014710",
+   "014720",
+   "014732",
+   "014735",
+   "014745",
+   "015608",
+   "015610"
+  ],
+  "unassessed_subjects": [
+   "015620",
+   "015628",
+   "015630",
+   "015632",
+   "015635",
+   "015645",
+   "017908",
+   "017910",
+   "017920",
+   "017928",
+   "017935",
+   "017945",
+   "017958",
+   "017960",
+   "017970",
+   "017985",
+   "025908",
+   "025910",
+   "025920",
+   "025928",
+   "025931",
+   "025932",
+   "025935",
+   "025945",
+   "028525",
+   "028535",
+   "028540",
+   "028545",
+   "028550",
+   "028555",
+   "028560",
+   "028565",
+   "028580",
+   "028585",
+   "028590",
+   "028595",
+   "028680",
+   "028685",
+   "028687",
+   "028690",
+   "028692",
+   "030000",
+   "030008",
+   "030010",
+   "030015",
+   "030020",
+   "030025",
+   "030028",
+   "030030",
+   "030032",
+   "030035",
+   "030040",
+   "030045",
+   "033908",
+   "033910",
+   "033920",
+   "033928",
+   "033930",
+   "033932",
+   "033935",
+   "033945",
+   "037908",
+   "037910",
+   "037920",
+   "037928",
+   "037930",
+   "037932",
+   "037935",
+   "037945",
+   "039908",
+   "039910",
+   "039920",
+   "039928",
+   "039935",
+   "039945",
+   "044999",
+   "045000",
+   "045012",
+   "045015",
+   "045021",
+   "045024",
+   "045026",
+   "045028",
+   "045035",
+   "046005",
+   "046010",
+   "046026",
+   "046040",
+   "046060",
+   "046100",
+   "046310",
+   "046326",
+   "046340",
+   "046360",
+   "046370",
+   "046410",
+   "046426",
+   "046440",
+   "046460",
+   "046470",
+   "047000",
+   "047010",
+   "049006",
+   "072001",
+   "072002",
+   "072003",
+   "072004",
+   "072006",
+   "072007",
+   "072008",
+   "072009",
+   "072011",
+   "072012",
+   "072013",
+   "072014",
+   "076027",
+   "076028",
+   "076043",
+   "076124",
+   "076125",
+   "076126",
+   "076127",
+   "076140",
+   "076141",
+   "076142",
+   "076143",
+   "076224",
+   "076225",
+   "076226",
+   "076227",
+   "076240",
+   "076241",
+   "076242",
+   "076243",
+   "076456",
+   "076457",
+   "076458",
+   "076459",
+   "076460",
+   "076461",
+   "076476",
+   "076822",
+   "076823",
+   "076827",
+   "076830",
+   "080708",
+   "080710",
+   "080720",
+   "080728",
+   "080730",
+   "080732",
+   "080735",
+   "080745",
+   "088912",
+   "088914",
+   "088916",
+   "088918",
+   "088920",
+   "088924",
+   "088926",
+   "088930",
+   "089008",
+   "089010",
+   "089012",
+   "089014",
+   "089016",
+   "089018",
+   "089020",
+   "089024",
+   "089026",
+   "089030",
+   "089108",
+   "089110",
+   "089112",
+   "089114",
+   "089116",
+   "089118",
+   "089120",
+   "089124",
+   "089126",
+   "089130",
+   "089508",
+   "089510",
+   "089512",
+   "089514",
+   "089516",
+   "089518",
+   "089520",
+   "089524",
+   "089530",
+   "089608",
+   "089610",
+   "089612",
+   "089614",
+   "089616",
+   "089618",
+   "089620",
+   "089624",
+   "089626",
+   "089630",
+   "1054",
+   "1054AM",
+   "1056",
+   "1056AM",
+   "1103",
+   "1104",
+   "1105",
+   "1106",
+   "1848",
+   "1848AM",
+   "1849",
+   "1849AM",
+   "2023",
+   "348012",
+   "348014",
+   "348015",
+   "348016",
+   "348017",
+   "348018",
+   "348019",
+   "348020",
+   "348022",
+   "348024",
+   "348025",
+   "348026",
+   "348027",
+   "348028",
+   "348029",
+   "348030",
+   "349012",
+   "349014",
+   "349015",
+   "349016",
+   "349017",
+   "349018",
+   "349019",
+   "349020",
+   "560052",
+   "560054",
+   "560055",
+   "560056",
+   "560057",
+   "560058",
+   "560059",
+   "560060",
+   "590152",
+   "590154",
+   "590155",
+   "590156",
+   "590157",
+   "590158",
+   "590159",
+   "590160",
+   "679",
+   "694",
+   "694AM",
+   "909",
+   "909AM",
+   "910",
+   "944",
+   "955"
+  ],
+  "selection_source_row_count": 11219
+ },
+ "evidence_count": 24,
+ "_http_status": 200,
+ "_elapsed_seconds": 25.68
+}

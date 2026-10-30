@@ -1,0 +1,18 @@
+{
+ "policy_v1": {
+  "policy_revision": "2fb749d9c7309426",
+  "manifest_revision": "1bd207659bf43549",
+  "policy": "For this price review, use REVIEW when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+ },
+ "policy_v2_corrected": {
+  "policy_revision": "a54191685f9813e6",
+  "manifest_revision": "3916e8b2fd7e541c",
+  "policy": "For this price review, use HOLD when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision."
+ },
+ "assessments": {
+  "v1": "2fb749d9c7309426",
+  "v2": "a54191685f9813e6",
+  "post_restart": "a54191685f9813e6"
+ },
+ "revisions_unchanged_across_restart": true
+}

@@ -1,0 +1,27 @@
+{
+ "success": true,
+ "data": {
+  "job_id": "274352ea152a",
+  "status": "completed",
+  "integration": "onedrive",
+  "kind": "file",
+  "folder_ids": null,
+  "file_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+  "started_at": "2026-10-29T00:08:29.715209+00:00",
+  "finished_at": "2026-10-29T00:08:34.883918+00:00",
+  "result": {
+   "success": true,
+   "unchanged": true,
+   "error": null,
+   "result": {
+    "status": "skipped",
+    "reason": "unchanged",
+    "file_name": "Consolidated Price List 2019.xlsx",
+    "chars_ingested": 0,
+    "source": "onedrive",
+    "doc_id": "ext_831a02e408f85f88249b5358"
+   }
+  },
+  "error": null
+ }
+}

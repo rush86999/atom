@@ -1,0 +1,1232 @@
+{
+ "run_id": "5cac7230-93a6-4a02-86e9-31c252aaff5d",
+ "status": {
+  "run_id": "5cac7230-93a6-4a02-86e9-31c252aaff5d",
+  "assignment": {
+   "assignment_id": "asg-851404b515084604",
+   "objective": "Prepare the eligibility assessment",
+   "employee_id": "user-1",
+   "workspace_id": "ws_assign",
+   "plan_revision": 1,
+   "status": "completed",
+   "teaching_revision": "teach-b1",
+   "teaching_fingerprint": "2f948b857c51c41fb9ece9aa48d88f2c",
+   "deliverables": [
+    {
+     "deliverable_id": "del-doc",
+     "kind": "document",
+     "description": "Assessment package",
+     "required": true,
+     "step_id": "doc",
+     "status": "applied",
+     "artifact_revision": "948f4f5a7df7e94e",
+     "artifact_path": "../docs/acceptance/evidence/durable_assignment_20261029/eligibility/eligibility.docx",
+     "sha256": "948f4f5a7df7e94e179d6a71f6e74aa2f30514bce7c744f6a259b0abddc1b17a"
+    },
+    {
+     "deliverable_id": "del-notice",
+     "kind": "email",
+     "description": "Assessment notice",
+     "required": true,
+     "step_id": "notify",
+     "status": "applied",
+     "artifact_revision": null,
+     "artifact_path": null,
+     "sha256": null
+    }
+   ],
+   "sources": [],
+   "authorized_actions": [
+    "retrieve",
+    "calculate",
+    "present",
+    "outbound"
+   ],
+   "budget": {
+    "max_steps": 40,
+    "max_attempts_per_step": 3,
+    "max_wall_seconds": 600.0,
+    "max_cost_usd": 0.0,
+    "steps_started": 5,
+    "started_at": "2026-10-29T02:54:56.547608+00:00",
+    "elapsed_seconds": 0.0,
+    "cost_usd": 0.0
+   },
+   "steps": [
+    {
+     "step_id": "read",
+     "title": "Read the qualification record",
+     "operation_type": "retrieve",
+     "adapter": "document.read",
+     "depends_on": [],
+     "required": true,
+     "effect": "read_only",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "6e20f6f3-16d5-4f90-9fd3-8e671dba5573",
+     "attempts": 0,
+     "result_summary": "read 91 characters from qualification.txt",
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "failure": {}
+    },
+    {
+     "step_id": "assess",
+     "title": "Apply the qualification rules",
+     "operation_type": "calculate",
+     "adapter": "test.assess",
+     "depends_on": [
+      "read"
+     ],
+     "required": true,
+     "effect": "local",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "79545596-bf06-4c72-b9c0-d947f6fbcd17",
+     "attempts": 1,
+     "result_summary": "decision CLEAR",
+     "artifact_revision": null,
+     "gap_ids": [
+      "aa21d362-f872-4730-899d-22e1641f6b3a"
+     ],
+     "waiting": {},
+     "failure": {}
+    },
+    {
+     "step_id": "doc",
+     "title": "Render the assessment package",
+     "operation_type": "present",
+     "adapter": "artifact.document",
+     "depends_on": [
+      "assess"
+     ],
+     "required": true,
+     "effect": "local",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "fb47b01d-8ea9-477e-9da6-ec48ae0ab747",
+     "attempts": 0,
+     "result_summary": "rendered eligibility.docx",
+     "artifact_revision": "948f4f5a7df7e94e",
+     "gap_ids": [],
+     "waiting": {},
+     "failure": {}
+    },
+    {
+     "step_id": "notify",
+     "title": "Send the assessment notice",
+     "operation_type": "outbound",
+     "adapter": "test.outbox.send",
+     "depends_on": [
+      "doc"
+     ],
+     "required": true,
+     "effect": "external",
+     "status": "applied",
+     "recovery_class": "terminal",
+     "operation_id": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+     "attempts": 0,
+     "result_summary": "provider accepted",
+     "artifact_revision": null,
+     "gap_ids": [],
+     "waiting": {},
+     "failure": {}
+    }
+   ],
+   "created_at": "2026-10-29T02:54:56.542261+00:00",
+   "updated_at": "2026-10-29T02:54:56.636255+00:00",
+   "completed_at": "2026-10-29T02:54:56.636256+00:00"
+  },
+  "open_gaps": [],
+  "operations": [
+   {
+    "operation_id": "6e20f6f3-16d5-4f90-9fd3-8e671dba5573",
+    "step_id": "read",
+    "type": "retrieve",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null
+   },
+   {
+    "operation_id": "9ae0cdfc-42de-49bb-85c9-e04e50717329",
+    "step_id": "assess",
+    "type": "calculate",
+    "status": "superseded",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null
+   },
+   {
+    "operation_id": "79545596-bf06-4c72-b9c0-d947f6fbcd17",
+    "step_id": "assess",
+    "type": "calculate",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null
+   },
+   {
+    "operation_id": "fb47b01d-8ea9-477e-9da6-ec48ae0ab747",
+    "step_id": "doc",
+    "type": "present",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {},
+    "uncertainty_reason": null
+   },
+   {
+    "operation_id": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+    "step_id": "notify",
+    "type": "outbound",
+    "status": "applied",
+    "needs_reconciliation": false,
+    "approval": {
+     "payload_sha256": "b6e02d98ce85d5c7ca5d67c14316e378af9a9619934242f57003993cbddf5ed7",
+     "artifact_revision": null,
+     "authorization_revision": "ad3f458896f1209b05ada7eb321ec8ea",
+     "requested_by": "user-1",
+     "purpose": "Notify the reviewer of the assessment",
+     "requested_at": "2026-10-29T02:54:56.615206+00:00"
+    },
+    "uncertainty_reason": null
+   }
+  ]
+ },
+ "task_revision": {
+  "schema_version": 1,
+  "objective_id": "9e318b40-790f-444c-8705-6a1fc63a1a5e",
+  "revision": 3,
+  "supersedes_revision": 2,
+  "goal_text": "Prepare the eligibility assessment",
+  "entities": [],
+  "requested_fields": [],
+  "source_requirements": {},
+  "output_preferences": {
+   "style": "default",
+   "field": null
+  },
+  "authorized_actions": [
+   "retrieve",
+   "calculate",
+   "present",
+   "outbound"
+  ],
+  "completion_criteria": [
+   {
+    "kind": "artifact_verified"
+   }
+  ],
+  "clarifications": [],
+  "unresolved": [
+   {
+    "question_id": "aa21d362-f872-4730-899d-22e1641f6b3a",
+    "item": "Apply the qualification rules",
+    "question": "What expiry date applies to this qualification?",
+    "kind": "missing_evidence",
+    "evidence": "",
+    "next_action": "ask the qualification owner",
+    "decision_owner": null,
+    "inputs": {},
+    "concept": "expiry",
+    "reason": "the document does not state an expiry",
+    "affected_subjects": [
+     "record-1"
+    ],
+    "checked_evidence": [
+     "document:qualification"
+    ],
+    "next_retrieval": "ask the qualification owner",
+    "resolver": "qualification owner",
+    "step_id": "assess",
+    "waiting": {
+     "state": "waiting_for_person",
+     "party": "qualification owner",
+     "correlation_id": "corr-2",
+     "resume_on": "answer",
+     "deadline": null,
+     "since": null,
+     "detail": "qualification expiry"
+    },
+    "status": "resolved",
+    "attempts": 0,
+    "opened_at": "2026-10-29T02:54:56.565446+00:00",
+    "resolved_at": "2026-10-29T02:54:56.572092+00:00",
+    "resolution": "2027-01-01 [by qualification owner]",
+    "source_operation": "9ae0cdfc-42de-49bb-85c9-e04e50717329"
+   }
+  ],
+  "evidence": [],
+  "new_attempt_required": false,
+  "provenance": {
+   "assignment_id": "asg-851404b515084604",
+   "teaching_revision": "teach-b1"
+  },
+  "last_transition": {
+   "kind": "record_unresolved",
+   "requested_change": "resolved aa21d362-f872-4730-899d-22e1641f6b3a"
+  }
+ },
+ "operations": [
+  {
+   "schema_version": 1,
+   "operation_id": "6e20f6f3-16d5-4f90-9fd3-8e671dba5573",
+   "objective_id": "9e318b40-790f-444c-8705-6a1fc63a1a5e",
+   "objective_revision": 1,
+   "execution_id": "asg-851404b515084604:read:1",
+   "operation_type": "retrieve",
+   "requested_change": "Read the qualification record",
+   "idempotency_key": "assignment:asg-851404b515084604:read:r1:a1",
+   "parent_operation_id": null,
+   "evidence_revision": null,
+   "status": "applied",
+   "authorization": "authorized",
+   "operation_binding": {
+    "binding_version": 1,
+    "action_name": "document.read",
+    "workspace_id": "ws_assign",
+    "account_id": "user-1",
+    "task_revision": 1,
+    "arguments": {
+     "path": "../docs/acceptance/evidence/durable_assignment_20261029/eligibility/qualification.txt"
+    },
+    "artifact_refs": [],
+    "authorization_ref": "",
+    "prerequisite_operation_ids": [],
+    "prerequisite_evidence_revisions": []
+   },
+   "binding_sha256": "59b6a27213874cbda46feceb8066646d6f24741fbbea8cb91a026722e7858a94",
+   "assignment_id": "asg-851404b515084604",
+   "step_id": "read",
+   "plan_revision": 1,
+   "adapter": "document.read",
+   "effect": "read_only",
+   "teaching_fingerprint": "2f948b857c51c41fb9ece9aa48d88f2c",
+   "authorization_revision": "ad3f458896f1209b05ada7eb321ec8ea",
+   "claimed_by": "instance_id:999b28afc38d-dirty.ae06d8f1a256.37296.1793242496",
+   "claimed_at": "2026-10-29T02:54:56.553733+00:00",
+   "receipt": {
+    "receipt_version": 1,
+    "operation_id": "6e20f6f3-16d5-4f90-9fd3-8e671dba5573",
+    "execution_id": null,
+    "action": "document.read",
+    "binding_sha256": "59b6a27213874cbda46feceb8066646d6f24741fbbea8cb91a026722e7858a94",
+    "observed_status": "confirmed",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-10-29T02:54:56.555902+00:00",
+    "source": {
+     "kind": null,
+     "path": null,
+     "revision": null,
+     "sha256": null,
+     "source_version": "375864736ad0a802672733636c4d6cc4c32bd09595ac22a88ab75fdc56392353",
+     "coverage": null
+    },
+    "calculation": null,
+    "outbound": null,
+    "readback": null,
+    "summary": "read 91 characters from qualification.txt",
+    "evidence": [
+     {
+      "kind": "document",
+      "path": "../docs/acceptance/evidence/durable_assignment_20261029/eligibility/qualification.txt",
+      "content_hash": "375864736ad0a802672733636c4d6cc4c32bd09595ac22a88ab75fdc56392353"
+     }
+    ]
+   },
+   "execution": {
+    "summary": "read 91 characters from qualification.txt",
+    "evidence": [
+     {
+      "kind": "document",
+      "path": "../docs/acceptance/evidence/durable_assignment_20261029/eligibility/qualification.txt",
+      "content_hash": "375864736ad0a802672733636c4d6cc4c32bd09595ac22a88ab75fdc56392353"
+     }
+    ],
+    "artifact": null,
+    "artifact_revision": null,
+    "value": null,
+    "unit": null,
+    "source_version": "375864736ad0a802672733636c4d6cc4c32bd09595ac22a88ab75fdc56392353",
+    "provider_ref": null,
+    "rows": null,
+    "schema": null,
+    "text": "Subject: record-1\nStatus: Active\nQualification: Q-2\nThe subject meets the active standard.\n",
+    "decision": null,
+    "draft": null,
+    "data": null,
+    "at": "2026-10-29T02:54:56.554771+00:00",
+    "receipt": {
+     "receipt_version": 1,
+     "operation_id": "6e20f6f3-16d5-4f90-9fd3-8e671dba5573",
+     "execution_id": null,
+     "action": "document.read",
+     "binding_sha256": "59b6a27213874cbda46feceb8066646d6f24741fbbea8cb91a026722e7858a94",
+     "observed_status": "confirmed",
+     "error_class": null,
+     "reconciliation_required": false,
+     "at": "2026-10-29T02:54:56.555902+00:00",
+     "source": {
+      "kind": null,
+      "path": null,
+      "revision": null,
+      "sha256": null,
+      "source_version": "375864736ad0a802672733636c4d6cc4c32bd09595ac22a88ab75fdc56392353",
+      "coverage": null
+     },
+     "calculation": null,
+     "outbound": null,
+     "readback": null,
+     "summary": "read 91 characters from qualification.txt",
+     "evidence": [
+      {
+       "kind": "document",
+       "path": "../docs/acceptance/evidence/durable_assignment_20261029/eligibility/qualification.txt",
+       "content_hash": "375864736ad0a802672733636c4d6cc4c32bd09595ac22a88ab75fdc56392353"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "schema_version": 1,
+   "operation_id": "9ae0cdfc-42de-49bb-85c9-e04e50717329",
+   "objective_id": "9e318b40-790f-444c-8705-6a1fc63a1a5e",
+   "objective_revision": 1,
+   "execution_id": "asg-851404b515084604:assess:1",
+   "operation_type": "calculate",
+   "requested_change": "Apply the qualification rules",
+   "idempotency_key": "assignment:asg-851404b515084604:assess:r1:a1",
+   "parent_operation_id": null,
+   "evidence_revision": null,
+   "status": "superseded",
+   "authorization": "authorized",
+   "operation_binding": {
+    "binding_version": 1,
+    "action_name": "test.assess",
+    "workspace_id": "ws_assign",
+    "account_id": "user-1",
+    "task_revision": 1,
+    "arguments": {
+     "text": "Subject: record-1\nStatus: Active\nQualification: Q-2\nThe subject meets the active standard.\n"
+    },
+    "artifact_refs": [],
+    "authorization_ref": "",
+    "prerequisite_operation_ids": [
+     "6e20f6f3-16d5-4f90-9fd3-8e671dba5573"
+    ],
+    "prerequisite_evidence_revisions": [
+     "375864736ad0a802672733636c4d6cc4c32bd09595ac22a88ab75fdc56392353"
+    ]
+   },
+   "binding_sha256": "dfab756f0891a22ce1001dde996d99dd1b8b5887263ae38e4507f8a7cace4ebf",
+   "assignment_id": "asg-851404b515084604",
+   "step_id": "assess",
+   "plan_revision": 1,
+   "adapter": "test.assess",
+   "effect": "local",
+   "teaching_fingerprint": "2f948b857c51c41fb9ece9aa48d88f2c",
+   "authorization_revision": "ad3f458896f1209b05ada7eb321ec8ea",
+   "claimed_by": "instance_id:999b28afc38d-dirty.ae06d8f1a256.37296.1793242496",
+   "claimed_at": "2026-10-29T02:54:56.564220+00:00",
+   "waiting": {
+    "state": "waiting_for_person",
+    "party": "qualification owner",
+    "correlation_id": "corr-2",
+    "resume_on": "answer",
+    "detail": "qualification expiry",
+    "gap_question_id": "aa21d362-f872-4730-899d-22e1641f6b3a"
+   }
+  },
+  {
+   "schema_version": 1,
+   "operation_id": "79545596-bf06-4c72-b9c0-d947f6fbcd17",
+   "objective_id": "9e318b40-790f-444c-8705-6a1fc63a1a5e",
+   "objective_revision": 3,
+   "execution_id": "asg-851404b515084604:assess:2",
+   "operation_type": "calculate",
+   "requested_change": "Apply the qualification rules",
+   "idempotency_key": "assignment:asg-851404b515084604:assess:r1:a2",
+   "parent_operation_id": null,
+   "evidence_revision": null,
+   "status": "applied",
+   "authorization": "authorized",
+   "operation_binding": {
+    "binding_version": 1,
+    "action_name": "test.assess",
+    "workspace_id": "ws_assign",
+    "account_id": "user-1",
+    "task_revision": 3,
+    "arguments": {
+     "text": "Subject: record-1\nStatus: Active\nQualification: Q-2\nThe subject meets the active standard.\n"
+    },
+    "artifact_refs": [],
+    "authorization_ref": "",
+    "prerequisite_operation_ids": [
+     "6e20f6f3-16d5-4f90-9fd3-8e671dba5573"
+    ],
+    "prerequisite_evidence_revisions": [
+     "375864736ad0a802672733636c4d6cc4c32bd09595ac22a88ab75fdc56392353"
+    ]
+   },
+   "binding_sha256": "d27bc0d2e4424729c47ee42ba2549a14c7ca6997f3e393d879e2217f3f666c14",
+   "assignment_id": "asg-851404b515084604",
+   "step_id": "assess",
+   "plan_revision": 1,
+   "adapter": "test.assess",
+   "effect": "local",
+   "teaching_fingerprint": "2f948b857c51c41fb9ece9aa48d88f2c",
+   "authorization_revision": "ad3f458896f1209b05ada7eb321ec8ea",
+   "claimed_by": "instance_id:999b28afc38d-dirty.ae06d8f1a256.37296.1793242496",
+   "claimed_at": "2026-10-29T02:54:56.581791+00:00",
+   "receipt": {
+    "receipt_version": 1,
+    "operation_id": "79545596-bf06-4c72-b9c0-d947f6fbcd17",
+    "execution_id": null,
+    "action": "test.assess",
+    "binding_sha256": "d27bc0d2e4424729c47ee42ba2549a14c7ca6997f3e393d879e2217f3f666c14",
+    "observed_status": "confirmed",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-10-29T02:54:56.584130+00:00",
+    "source": {
+     "kind": null,
+     "path": null,
+     "revision": null,
+     "sha256": null,
+     "source_version": null,
+     "coverage": null
+    },
+    "calculation": {
+     "expression": null,
+     "value": "CLEAR",
+     "unit": null,
+     "steps": null
+    },
+    "outbound": null,
+    "readback": null,
+    "summary": "decision CLEAR",
+    "evidence": []
+   },
+   "execution": {
+    "summary": "decision CLEAR",
+    "evidence": [],
+    "artifact": null,
+    "artifact_revision": null,
+    "value": "CLEAR",
+    "unit": null,
+    "source_version": null,
+    "provider_ref": null,
+    "rows": null,
+    "schema": null,
+    "text": null,
+    "decision": "CLEAR",
+    "draft": null,
+    "data": null,
+    "at": "2026-10-29T02:54:56.582868+00:00",
+    "receipt": {
+     "receipt_version": 1,
+     "operation_id": "79545596-bf06-4c72-b9c0-d947f6fbcd17",
+     "execution_id": null,
+     "action": "test.assess",
+     "binding_sha256": "d27bc0d2e4424729c47ee42ba2549a14c7ca6997f3e393d879e2217f3f666c14",
+     "observed_status": "confirmed",
+     "error_class": null,
+     "reconciliation_required": false,
+     "at": "2026-10-29T02:54:56.584130+00:00",
+     "source": {
+      "kind": null,
+      "path": null,
+      "revision": null,
+      "sha256": null,
+      "source_version": null,
+      "coverage": null
+     },
+     "calculation": {
+      "expression": null,
+      "value": "CLEAR",
+      "unit": null,
+      "steps": null
+     },
+     "outbound": null,
+     "readback": null,
+     "summary": "decision CLEAR",
+     "evidence": []
+    }
+   }
+  },
+  {
+   "schema_version": 1,
+   "operation_id": "fb47b01d-8ea9-477e-9da6-ec48ae0ab747",
+   "objective_id": "9e318b40-790f-444c-8705-6a1fc63a1a5e",
+   "objective_revision": 3,
+   "execution_id": "asg-851404b515084604:doc:1",
+   "operation_type": "present",
+   "requested_change": "Render the assessment package",
+   "idempotency_key": "assignment:asg-851404b515084604:doc:r1:a1",
+   "parent_operation_id": null,
+   "evidence_revision": null,
+   "status": "applied",
+   "authorization": "authorized",
+   "operation_binding": {
+    "binding_version": 1,
+    "action_name": "artifact.document",
+    "workspace_id": "ws_assign",
+    "account_id": "user-1",
+    "task_revision": 3,
+    "arguments": {
+     "path": "../docs/acceptance/evidence/durable_assignment_20261029/eligibility/eligibility.docx",
+     "title": "Eligibility Assessment",
+     "content": "## Sources\n\n- Qualification record\n\n## Summary\n\nDecision: CLEAR"
+    },
+    "artifact_refs": [],
+    "authorization_ref": "",
+    "prerequisite_operation_ids": [
+     "79545596-bf06-4c72-b9c0-d947f6fbcd17"
+    ],
+    "prerequisite_evidence_revisions": []
+   },
+   "binding_sha256": "4550a1644e8c4266d5a1ab426542e313e3993115b9bc1aac8decf7c67ca57388",
+   "assignment_id": "asg-851404b515084604",
+   "step_id": "doc",
+   "plan_revision": 1,
+   "adapter": "artifact.document",
+   "effect": "local",
+   "teaching_fingerprint": "2f948b857c51c41fb9ece9aa48d88f2c",
+   "authorization_revision": "ad3f458896f1209b05ada7eb321ec8ea",
+   "claimed_by": "instance_id:999b28afc38d-dirty.ae06d8f1a256.37296.1793242496",
+   "claimed_at": "2026-10-29T02:54:56.593295+00:00",
+   "receipt": {
+    "receipt_version": 1,
+    "operation_id": "fb47b01d-8ea9-477e-9da6-ec48ae0ab747",
+    "execution_id": null,
+    "action": "artifact.document",
+    "binding_sha256": "4550a1644e8c4266d5a1ab426542e313e3993115b9bc1aac8decf7c67ca57388",
+    "observed_status": "confirmed",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-10-29T02:54:56.604841+00:00",
+    "source": {
+     "kind": "document",
+     "path": "../docs/acceptance/evidence/durable_assignment_20261029/eligibility/eligibility.docx",
+     "revision": "948f4f5a7df7e94e",
+     "sha256": "948f4f5a7df7e94e179d6a71f6e74aa2f30514bce7c744f6a259b0abddc1b17a",
+     "source_version": null,
+     "coverage": null
+    },
+    "calculation": null,
+    "outbound": null,
+    "readback": {
+     "revision": "948f4f5a7df7e94e",
+     "sha256": "948f4f5a7df7e94e179d6a71f6e74aa2f30514bce7c744f6a259b0abddc1b17a"
+    },
+    "summary": "rendered eligibility.docx",
+    "evidence": []
+   },
+   "execution": {
+    "summary": "rendered eligibility.docx",
+    "evidence": [],
+    "artifact": {
+     "kind": "document",
+     "path": "../docs/acceptance/evidence/durable_assignment_20261029/eligibility/eligibility.docx",
+     "sha256": "948f4f5a7df7e94e179d6a71f6e74aa2f30514bce7c744f6a259b0abddc1b17a",
+     "revision": "948f4f5a7df7e94e"
+    },
+    "artifact_revision": "948f4f5a7df7e94e",
+    "value": null,
+    "unit": null,
+    "source_version": null,
+    "provider_ref": null,
+    "rows": null,
+    "schema": null,
+    "text": null,
+    "decision": null,
+    "draft": null,
+    "data": null,
+    "at": "2026-10-29T02:54:56.603351+00:00",
+    "receipt": {
+     "receipt_version": 1,
+     "operation_id": "fb47b01d-8ea9-477e-9da6-ec48ae0ab747",
+     "execution_id": null,
+     "action": "artifact.document",
+     "binding_sha256": "4550a1644e8c4266d5a1ab426542e313e3993115b9bc1aac8decf7c67ca57388",
+     "observed_status": "confirmed",
+     "error_class": null,
+     "reconciliation_required": false,
+     "at": "2026-10-29T02:54:56.604841+00:00",
+     "source": {
+      "kind": "document",
+      "path": "../docs/acceptance/evidence/durable_assignment_20261029/eligibility/eligibility.docx",
+      "revision": "948f4f5a7df7e94e",
+      "sha256": "948f4f5a7df7e94e179d6a71f6e74aa2f30514bce7c744f6a259b0abddc1b17a",
+      "source_version": null,
+      "coverage": null
+     },
+     "calculation": null,
+     "outbound": null,
+     "readback": {
+      "revision": "948f4f5a7df7e94e",
+      "sha256": "948f4f5a7df7e94e179d6a71f6e74aa2f30514bce7c744f6a259b0abddc1b17a"
+     },
+     "summary": "rendered eligibility.docx",
+     "evidence": []
+    }
+   }
+  },
+  {
+   "schema_version": 1,
+   "operation_id": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+   "objective_id": "9e318b40-790f-444c-8705-6a1fc63a1a5e",
+   "objective_revision": 3,
+   "execution_id": "asg-851404b515084604:notify:1",
+   "operation_type": "outbound",
+   "requested_change": "Send the assessment notice",
+   "idempotency_key": "assignment:asg-851404b515084604:notify:r1:a1",
+   "parent_operation_id": null,
+   "evidence_revision": null,
+   "status": "applied",
+   "authorization": "pending_approval",
+   "operation_binding": {
+    "binding_version": 1,
+    "action_name": "test.outbox.send",
+    "workspace_id": "ws_assign",
+    "account_id": "user-1",
+    "task_revision": 3,
+    "arguments": {
+     "to": [
+      "reviewer@example.invalid"
+     ],
+     "subject": "Assessment ready",
+     "body": "Decision: CLEAR",
+     "deliverable_id": "del-notice"
+    },
+    "artifact_refs": [
+     {
+      "artifact_id": "../docs/acceptance/evidence/durable_assignment_20261029/eligibility/eligibility.docx",
+      "revision": "948f4f5a7df7e94e",
+      "sha256": "948f4f5a7df7e94e179d6a71f6e74aa2f30514bce7c744f6a259b0abddc1b17a"
+     }
+    ],
+    "authorization_ref": "Notify the reviewer of the assessment",
+    "prerequisite_operation_ids": [
+     "fb47b01d-8ea9-477e-9da6-ec48ae0ab747"
+    ],
+    "prerequisite_evidence_revisions": []
+   },
+   "binding_sha256": "305479ea5a8ed46ebe8b2363add04b32c1113b435666172d5ce04bb916f909f3",
+   "assignment_id": "asg-851404b515084604",
+   "step_id": "notify",
+   "plan_revision": 1,
+   "adapter": "test.outbox.send",
+   "effect": "external",
+   "teaching_fingerprint": "2f948b857c51c41fb9ece9aa48d88f2c",
+   "authorization_revision": "ad3f458896f1209b05ada7eb321ec8ea",
+   "approval_history": [],
+   "approval_request": {
+    "payload_sha256": "b6e02d98ce85d5c7ca5d67c14316e378af9a9619934242f57003993cbddf5ed7",
+    "artifact_revision": null,
+    "authorization_revision": "ad3f458896f1209b05ada7eb321ec8ea",
+    "requested_by": "user-1",
+    "purpose": "Notify the reviewer of the assessment",
+    "requested_at": "2026-10-29T02:54:56.615206+00:00"
+   },
+   "approval": {
+    "payload_sha256": "b6e02d98ce85d5c7ca5d67c14316e378af9a9619934242f57003993cbddf5ed7",
+    "artifact_revision": null,
+    "authorization_revision": "ad3f458896f1209b05ada7eb321ec8ea",
+    "approved_by": "reviewer",
+    "approved_at": "2026-10-29T02:54:56.623309+00:00",
+    "note": null
+   },
+   "approved_payload_sha256": "b6e02d98ce85d5c7ca5d67c14316e378af9a9619934242f57003993cbddf5ed7",
+   "approved_artifact_revision": null,
+   "approved_authorization_revision": "ad3f458896f1209b05ada7eb321ec8ea",
+   "claimed_by": "instance_id:999b28afc38d-dirty.ae06d8f1a256.37296.1793242496",
+   "claimed_at": "2026-10-29T02:54:56.628941+00:00",
+   "receipt": {
+    "receipt_version": 1,
+    "operation_id": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+    "execution_id": null,
+    "action": "test.outbox.send",
+    "binding_sha256": "305479ea5a8ed46ebe8b2363add04b32c1113b435666172d5ce04bb916f909f3",
+    "observed_status": "provider_accepted",
+    "error_class": null,
+    "reconciliation_required": false,
+    "at": "2026-10-29T02:54:56.631801+00:00",
+    "source": {
+     "kind": null,
+     "path": null,
+     "revision": null,
+     "sha256": null,
+     "source_version": null,
+     "coverage": null
+    },
+    "calculation": null,
+    "outbound": {
+     "provider_state": "sent",
+     "provider_ref": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4"
+    },
+    "readback": null,
+    "summary": "provider accepted",
+    "evidence": []
+   },
+   "execution": {
+    "summary": "provider accepted",
+    "evidence": [],
+    "artifact": null,
+    "artifact_revision": null,
+    "value": null,
+    "unit": null,
+    "source_version": null,
+    "provider_ref": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+    "rows": null,
+    "schema": null,
+    "text": null,
+    "decision": null,
+    "draft": null,
+    "data": null,
+    "at": "2026-10-29T02:54:56.630340+00:00",
+    "receipt": {
+     "receipt_version": 1,
+     "operation_id": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+     "execution_id": null,
+     "action": "test.outbox.send",
+     "binding_sha256": "305479ea5a8ed46ebe8b2363add04b32c1113b435666172d5ce04bb916f909f3",
+     "observed_status": "provider_accepted",
+     "error_class": null,
+     "reconciliation_required": false,
+     "at": "2026-10-29T02:54:56.631801+00:00",
+     "source": {
+      "kind": null,
+      "path": null,
+      "revision": null,
+      "sha256": null,
+      "source_version": null,
+      "coverage": null
+     },
+     "calculation": null,
+     "outbound": {
+      "provider_state": "sent",
+      "provider_ref": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4"
+     },
+     "readback": null,
+     "summary": "provider accepted",
+     "evidence": []
+    }
+   }
+  }
+ ],
+ "deliveries": [],
+ "decisions": [
+  {
+   "ts": "2026-10-29T02:54:56.544911+00:00",
+   "kind": "task_created",
+   "rationale": "Prepare the eligibility assessment",
+   "revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.545669+00:00",
+   "kind": "assignment",
+   "rationale": "assignment planned",
+   "assignment_id": "asg-851404b515084604",
+   "state": "planned",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.548175+00:00",
+   "kind": "assignment",
+   "rationale": "assignment started",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.549623+00:00",
+   "kind": "assignment",
+   "rationale": "step read started",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.551834+00:00",
+   "kind": "operation",
+   "rationale": "Read the qualification record",
+   "operation_id": "6e20f6f3-16d5-4f90-9fd3-8e671dba5573",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.553164+00:00",
+   "kind": "assignment",
+   "rationale": "step read operation bound",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.554149+00:00",
+   "kind": "operation",
+   "rationale": "execution claimed",
+   "operation_id": "6e20f6f3-16d5-4f90-9fd3-8e671dba5573",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.555336+00:00",
+   "kind": "operation",
+   "rationale": "running -> applied",
+   "operation_id": "6e20f6f3-16d5-4f90-9fd3-8e671dba5573",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.556334+00:00",
+   "kind": "operation",
+   "rationale": "attached receipt",
+   "operation_id": "6e20f6f3-16d5-4f90-9fd3-8e671dba5573",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.557259+00:00",
+   "kind": "operation",
+   "rationale": "attached execution",
+   "operation_id": "6e20f6f3-16d5-4f90-9fd3-8e671dba5573",
+   "operation_type": "retrieve"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.558555+00:00",
+   "kind": "assignment",
+   "rationale": "step read applied",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.560126+00:00",
+   "kind": "assignment",
+   "rationale": "step assess started",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.562398+00:00",
+   "kind": "operation",
+   "rationale": "Apply the qualification rules",
+   "operation_id": "9ae0cdfc-42de-49bb-85c9-e04e50717329",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.563665+00:00",
+   "kind": "assignment",
+   "rationale": "step assess operation bound",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.564638+00:00",
+   "kind": "operation",
+   "rationale": "execution claimed",
+   "operation_id": "9ae0cdfc-42de-49bb-85c9-e04e50717329",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.565630+00:00",
+   "kind": "task_revision",
+   "rationale": "What expiry date applies to this qualification?",
+   "revision": 2,
+   "transition": "record_unresolved"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.566781+00:00",
+   "kind": "operation",
+   "rationale": "waiting: waiting_for_person",
+   "operation_id": "9ae0cdfc-42de-49bb-85c9-e04e50717329",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.568850+00:00",
+   "kind": "assignment",
+   "rationale": "step waiting for context",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.570531+00:00",
+   "kind": "assignment",
+   "rationale": "assignment waiting",
+   "assignment_id": "asg-851404b515084604",
+   "state": "waiting",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.572280+00:00",
+   "kind": "task_revision",
+   "rationale": "resolved aa21d362-f872-4730-899d-22e1641f6b3a",
+   "revision": 3,
+   "transition": "record_unresolved"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.573258+00:00",
+   "kind": "operation",
+   "rationale": "waiting -> superseded",
+   "operation_id": "9ae0cdfc-42de-49bb-85c9-e04e50717329",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.574266+00:00",
+   "kind": "assignment",
+   "rationale": "gap aa21d362-f872-4730-899d-22e1641f6b3a resolved",
+   "assignment_id": "asg-851404b515084604",
+   "state": "planned",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.574929+00:00",
+   "kind": "wake",
+   "event_id": "",
+   "event": {
+    "event": "human_input",
+    "correlation_id": "corr-2",
+    "source": "assignment_gap_resolution"
+   },
+   "matched_by": "match:correlation_id"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.576716+00:00",
+   "kind": "assignment",
+   "rationale": "step assess started",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.579768+00:00",
+   "kind": "operation",
+   "rationale": "Apply the qualification rules",
+   "operation_id": "79545596-bf06-4c72-b9c0-d947f6fbcd17",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.581181+00:00",
+   "kind": "assignment",
+   "rationale": "step assess operation bound",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.582243+00:00",
+   "kind": "operation",
+   "rationale": "execution claimed",
+   "operation_id": "79545596-bf06-4c72-b9c0-d947f6fbcd17",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.583528+00:00",
+   "kind": "operation",
+   "rationale": "running -> applied",
+   "operation_id": "79545596-bf06-4c72-b9c0-d947f6fbcd17",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.584566+00:00",
+   "kind": "operation",
+   "rationale": "attached receipt",
+   "operation_id": "79545596-bf06-4c72-b9c0-d947f6fbcd17",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.585605+00:00",
+   "kind": "operation",
+   "rationale": "attached execution",
+   "operation_id": "79545596-bf06-4c72-b9c0-d947f6fbcd17",
+   "operation_type": "calculate"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.587119+00:00",
+   "kind": "assignment",
+   "rationale": "step assess applied",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.588902+00:00",
+   "kind": "assignment",
+   "rationale": "step doc started",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.591293+00:00",
+   "kind": "operation",
+   "rationale": "Render the assessment package",
+   "operation_id": "fb47b01d-8ea9-477e-9da6-ec48ae0ab747",
+   "operation_type": "present"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.592703+00:00",
+   "kind": "assignment",
+   "rationale": "step doc operation bound",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.593742+00:00",
+   "kind": "operation",
+   "rationale": "execution claimed",
+   "operation_id": "fb47b01d-8ea9-477e-9da6-ec48ae0ab747",
+   "operation_type": "present"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.604153+00:00",
+   "kind": "operation",
+   "rationale": "running -> applied",
+   "operation_id": "fb47b01d-8ea9-477e-9da6-ec48ae0ab747",
+   "operation_type": "present"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.605301+00:00",
+   "kind": "operation",
+   "rationale": "attached receipt",
+   "operation_id": "fb47b01d-8ea9-477e-9da6-ec48ae0ab747",
+   "operation_type": "present"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.606387+00:00",
+   "kind": "operation",
+   "rationale": "attached execution",
+   "operation_id": "fb47b01d-8ea9-477e-9da6-ec48ae0ab747",
+   "operation_type": "present"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.607927+00:00",
+   "kind": "assignment",
+   "rationale": "step doc applied",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.609849+00:00",
+   "kind": "assignment",
+   "rationale": "step notify started",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.612494+00:00",
+   "kind": "operation",
+   "rationale": "Send the assessment notice",
+   "operation_id": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.614126+00:00",
+   "kind": "assignment",
+   "rationale": "step notify operation bound",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.615696+00:00",
+   "kind": "approval_request",
+   "rationale": "Notify the reviewer of the assessment",
+   "operation_id": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+   "operation_type": "outbound",
+   "payload_sha256": "b6e02d98ce85d5c7ca5d67c14316e378af9a9619934242f57003993cbddf5ed7"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.618904+00:00",
+   "kind": "assignment",
+   "rationale": "step awaiting approval",
+   "assignment_id": "asg-851404b515084604",
+   "state": "running",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.620876+00:00",
+   "kind": "assignment",
+   "rationale": "assignment waiting",
+   "assignment_id": "asg-851404b515084604",
+   "state": "waiting",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.623564+00:00",
+   "kind": "approval",
+   "rationale": "Notify the reviewer of the assessment",
+   "operation_id": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+   "operation_type": "outbound",
+   "approved_by": "reviewer",
+   "payload_sha256": "b6e02d98ce85d5c7ca5d67c14316e378af9a9619934242f57003993cbddf5ed7"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.625901+00:00",
+   "kind": "assignment",
+   "rationale": "step notify approved",
+   "assignment_id": "asg-851404b515084604",
+   "state": "waiting",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.627838+00:00",
+   "kind": "assignment",
+   "rationale": "step notify operation bound",
+   "assignment_id": "asg-851404b515084604",
+   "state": "waiting",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.629436+00:00",
+   "kind": "operation",
+   "rationale": "execution claimed",
+   "operation_id": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.631154+00:00",
+   "kind": "operation",
+   "rationale": "running -> applied",
+   "operation_id": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.632314+00:00",
+   "kind": "operation",
+   "rationale": "attached receipt",
+   "operation_id": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.633505+00:00",
+   "kind": "operation",
+   "rationale": "attached execution",
+   "operation_id": "ec4448a2-b439-4383-8dcf-2fd77f6c81e4",
+   "operation_type": "outbound"
+  },
+  {
+   "ts": "2026-10-29T02:54:56.635116+00:00",
+   "kind": "assignment",
+   "rationale": "step notify applied",
+   "assignment_id": "asg-851404b515084604",
+   "state": "waiting",
+   "plan_revision": 1
+  },
+  {
+   "ts": "2026-10-29T02:54:56.637307+00:00",
+   "kind": "assignment",
+   "rationale": "assignment terminal",
+   "assignment_id": "asg-851404b515084604",
+   "state": "completed",
+   "plan_revision": 1
+  }
+ ]
+}

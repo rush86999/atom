@@ -1,0 +1,58 @@
+{
+ "success": true,
+ "canvas_id": "9c44465a-232d-440b-b66e-63d255c5ac76",
+ "canvas_type": "email",
+ "content": {
+  "to": "rish@brennan.ca",
+  "cc": "",
+  "subject": "Re: consolidated price lists",
+  "body": "<p></p><hr/><p><strong>From:</strong> rish@brennan.ca<br/><strong>Sent:</strong> 2024-10-18T12:07:49+00:00<br/><strong>Subject:</strong> consolidated price lists</p><blockquote>Consolidated price lists</blockquote><p>Connected reply draft: Unit Price total 9,958,743.62 across 11,219 rows.</p><p>Connected review complete for US$ SCOTCH PARTS.</p><p>Workbook: Consolidated Price List 2019.xlsx (version 2abb1bf40ec3).</p><p>Certified assessment 1: 18/18 rows; 16 APPROVE, 2 REVIEW.</p><p>Corrected assessment 2: 22/22 rows; 20 APPROVE, 2 HOLD, including four unfamiliar records.</p><p>Local canvas snapshot b92aaf07eb1d219b; no OneDrive writeback.</p>",
+  "thread_id": "<YT1PR01MB29079AC36C97189C541A3925AC402@YT1PR01MB2907.CANPRD01.PROD.OUTLOOK.COM>",
+  "in_reply_to": "",
+  "references": "",
+  "source_message_id": "<YT1PR01MB29079AC36C97189C541A3925AC402@YT1PR01MB2907.CANPRD01.PROD.OUTLOOK.COM>",
+  "source_identity": {
+   "file_name": "connected_email.eml",
+   "sha256": "50eecadc17f9fd327a80866e34835d309d2a34cdf8a36403474e59e45ab04c86",
+   "size": 15617075,
+   "message_id": "<YT1PR01MB29079AC36C97189C541A3925AC402@YT1PR01MB2907.CANPRD01.PROD.OUTLOOK.COM>",
+   "references": "",
+   "in_reply_to": ""
+  },
+  "attachments": [
+   {
+    "attachment_id": "staged_fb124c971ae445fab62701bc51c75c26",
+    "message_id": "<YT1PR01MB29079AC36C97189C541A3925AC402@YT1PR01MB2907.CANPRD01.PROD.OUTLOOK.COM>",
+    "provider": "local",
+    "filename": "Consolidated Price List 2019.xlsx",
+    "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "size": 11410200,
+    "is_inline": false,
+    "origin": "received",
+    "direction": "received",
+    "sendable": false,
+    "ingestion": null,
+    "added_by": {
+     "actor": "import",
+     "user_id": "1e3b6cdb-ab8b-4ad2-ac08-233058ff230d",
+     "agent_id": null
+    },
+    "created_at": "2026-10-28T23:31:30.780575+00:00",
+    "staged": true
+   }
+  ],
+  "imported_from": "rish@brennan.ca",
+  "imported_to": [
+   "rish@brennan.ca"
+  ],
+  "imported_cc": [],
+  "imported_subject": "consolidated price lists",
+  "imported_sent_at": "2024-10-18T12:07:49+00:00"
+ },
+ "title": null,
+ "action_type": "update",
+ "audit_id": "50c1038f-b9ac-4221-8d29-cb474b8f9342",
+ "operation_id": null,
+ "review_status": "accepted",
+ "created_at": "2026-10-28T23:58:24.370130"
+}

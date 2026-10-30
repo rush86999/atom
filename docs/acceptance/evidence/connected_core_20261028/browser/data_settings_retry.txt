@@ -1,0 +1,80 @@
+Connected data
+
+Real OneDrive connection, ingestion jobs and materialized coverage. No upload rows are used here.
+
+Refresh status
+Connection
+
+Microsoft Graph / OneDrive
+
+Connected
+
+admin@example.com
+
+Scope: profile openid email https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Contacts.Read https://graph.microsoft.com/Files.ReadWrite https://graph.microsoft.com/Files.ReadWrite.All https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read
+
+Token family: outlook
+
+Last successful sync
+
+Durable ingestion receipt
+
+Consolidated Price List 2019.xlsx
+
+10/28/2026, 8:11:54 PM · unchanged repeat
+
+0 characters
+
+Ingested coverage
+
+Documents and materialized sheets
+
+10 indexed document(s)
+
+case_boundaries.csv, support_boundaries_small.csv, grant_boundaries_small.csv
+
+Unsupported files are reported by the job result, never counted as ingested.
+
+1 ingestion failure(s)
+
+Failed to download file
+
+Retry failed sync
+Recent ingestion jobs
+
+Server-side jobs survive page navigation. A 159-second workbook ingest stays pollable here.
+
+completed
+unchanged
+Consolidated Price List 2019.xlsx
+6s
+Sync again
+
+unchanged
+
+0 chars ingested · status: skipped
+completed
+unchanged
+Consolidated Price List 2019.xlsx
+6s
+Sync again
+
+unchanged
+
+0 chars ingested · status: skipped
+failed
+invalid-connected-item-id
+0s
+Sync again
+
+Failed to download file
+
+completed
+unchanged
+Consolidated Price List 2019.xlsx
+5s
+Sync again
+
+unchanged
+
+0 chars ingested · status: skipped

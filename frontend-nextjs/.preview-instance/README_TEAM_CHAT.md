@@ -1,1 +1,0 @@
-/Users/rushiparikh/projects/atom/frontend-nextjs/README_TEAM_CHAT.md

@@ -1,0 +1,33 @@
+{
+  "schema": "atom-mapping-unit-server-control-1",
+  "status": "passed",
+  "product_commit": "ae53e7e413f9391897bea5928760183083aba783",
+  "product_tree": "a7f627fdf7705a26b361c0d1b1e7e17abadc13d3",
+  "product_dirty_paths": [],
+  "frozen_release": {
+    "commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "tag": "assignment-successor-2026-10-29",
+    "unchanged": true
+  },
+  "tests": [
+    "tests/test_assignment_resource_boundary.py::test_mapping_gap_confirmation_resumes_same_assignment",
+    "tests/test_assignment_resource_boundary.py::test_mapping_unit_without_source_evidence_requires_explicit_confirmation"
+  ],
+  "controls": [
+    "forged column refused without snapshot or result mutation",
+    "unit conflicting with source evidence refused without mutation",
+    "missing unit refused when the taught method requires one and no source unit exists",
+    "incompatible unit refused without conversion or mutation",
+    "valid explicit unit resumes the same assignment",
+    "persisted authority is source_evidence when the source establishes the unit",
+    "persisted authority is user_confirmed when only the user supplies it"
+  ],
+  "pytest_summary": "2 passed, 31 deselected",
+  "regression_suites": {
+    "command": "pytest tests/test_artifact_teaching_context.py tests/test_assignment_resource_boundary.py tests/test_outlook_ingestion_field_mapping.py -q",
+    "summary": "56 passed",
+    "log": "regression.log"
+  },
+  "raw_log": "pytest.log",
+  "note": "The browser C attempt separately exercises the API route refusals and the Assignments panel confirmation."
+}

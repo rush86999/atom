@@ -1,0 +1,2 @@
+{"operation_id": "06f50fd8-cde4-4994-9bd4-f9bd754120f4", "to": ["customer@example.invalid"], "subject": "Browser commercial response", "body": "Decision: APPROVE"}
+{"operation_id": "47101962-06d1-4c8e-b1c0-d7dcc1bd000b", "to": ["reviewer@example.invalid"], "subject": "Browser eligibility package", "body": "Decision: CLEAR"}

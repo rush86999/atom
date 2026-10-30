@@ -1,0 +1,14 @@
+{
+  "schema": "atom-production-freshness-check-2",
+  "checked_at": "2026-10-30T01:36:53.433170+00:00",
+  "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324",
+  "fresh": true,
+  "changes": [],
+  "source_tables_fingerprinted": 389,
+  "source_table_changes": 0,
+  "memory_unchanged": true,
+  "referenced_files_checked": 461,
+  "baseline": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/run/freshness_baseline.json",
+  "baseline_created_at": "2026-10-30T01:30:34.060025+00:00",
+  "comparison": "logical SQLite table content + LanceDB table versions/rows + referenced artifact/dataset hashes; WAL byte churn excluded"
+}

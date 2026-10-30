@@ -1,0 +1,38 @@
+{
+  "schema": "atom-production-config-compatibility-1",
+  "secrets_env": {
+    "exists": true,
+    "mode": "0o600",
+    "key_names": [
+      "MICROSOFT_CLIENT_ID",
+      "MICROSOFT_CLIENT_SECRET",
+      "MICROSOFT_REDIRECT_URI",
+      "MICROSOFT_TENANT_ID"
+    ]
+  },
+  "byok_files": {
+    "byok_config.json": {
+      "exists": true,
+      "mode": "0o600"
+    },
+    "byok_keys.json": {
+      "exists": true,
+      "mode": "0o600"
+    },
+    "byok_encryption_key": {
+      "exists": true,
+      "mode": "0o600"
+    }
+  },
+  "oauth_token_record_present": true,
+  "oauth_token_decrypts": true,
+  "oauth_token_error": null,
+  "provider_policy": "{\"mode\":\"selected\",\"allowed_providers\":[\"deepseek\"],\"preferred\":{\"provider\":\"deepseek\",\"model\":\"deepseek-flash\"}}",
+  "audience": "single_user",
+  "pilot_email": "admin@example.com",
+  "send_disabled": "1",
+  "live_send_allowed": "0",
+  "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-242c9a01f/data",
+  "lancedb_uri_base": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-242c9a01f/data/atom_memory",
+  "secret_values_included": false
+}

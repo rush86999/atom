@@ -1,0 +1,1 @@
+{"sheet": "Calc", "formulas": {"A2": "=Inputs!A2", "B2": "=Inputs!B2", "C2": "=Inputs!C2", "D2": "=Inputs!B2*Inputs!C2", "A3": "=Inputs!A3", "B3": "=Inputs!B3", "C3": "=Inputs!C3", "D3": "=Inputs!B3*Inputs!C3"}}

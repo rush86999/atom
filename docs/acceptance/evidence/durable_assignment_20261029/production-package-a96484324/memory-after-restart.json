@@ -1,0 +1,15 @@
+{
+  "teaching_agent_id": "9837ec71-4f1b-41db-b014-119862362d44",
+  "teaching_lesson_id": null,
+  "teaching_topic": "inventory check",
+  "teaching_text": "do not use pdf sources for inventory check",
+  "teaching_mapping_count": 0,
+  "teaching_mapping_concepts": [],
+  "document_count_listed": 50,
+  "document_with_text_found": true,
+  "document_id": "file_1787509191.498114",
+  "document_source": null,
+  "document_text_prefix": "--- Sheet: Sheet1 ---\n     Item  Qty\n0  Widget   10",
+  "document_detail_retrieved": true,
+  "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data"
+}

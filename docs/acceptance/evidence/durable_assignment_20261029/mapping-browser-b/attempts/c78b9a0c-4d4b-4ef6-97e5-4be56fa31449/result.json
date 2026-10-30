@@ -1,0 +1,139 @@
+{
+  "schema": "atom-mapping-browser-b-1",
+  "status": "passed",
+  "product": {
+    "commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tree": "ae8b96bba44df25915be38bce3679eab8901056a",
+    "dirty_paths": []
+  },
+  "frozen_release": {
+    "commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "tag": "assignment-successor-2026-10-29",
+    "tag_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "unchanged": true
+  },
+  "harness_sha256": "917c8353104dd748085a3c2d6a0601e36e21a9462f3522adda70bde4c695baab",
+  "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+  "assignment_id": "asg-787c5e9954dc46cc",
+  "result": "35.00",
+  "currency": "USD",
+  "source_version": "31533335b40b2a0a90a5b23de7e85c185cdaf7bb",
+  "mapping_revision": 2,
+  "unit_authority": "source_evidence",
+  "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_b_acceptance/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+  "artifact_sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
+  "first_gap": {
+    "question_id": "c6276a34-d978-4033-a3a9-dfaf9cc432a2",
+    "item": "Aggregate workbook source",
+    "question": "Which column should be summed?",
+    "kind": "missing_evidence",
+    "evidence": "",
+    "next_action": "select the matching column from the current schema and confirm",
+    "decision_owner": null,
+    "inputs": {
+      "mapping": {
+        "concept": "Price",
+        "required_unit": "USD",
+        "source_unit": "USD",
+        "source_unit_column": "Currency",
+        "missing_column": "Price",
+        "source": "outlook",
+        "external_id": "fixture-b",
+        "dataset_name": "outlook_workbook_b__sheet1",
+        "resource_id": "6494998e-c310-4861-8b5e-8bb981f32567",
+        "sheet": "Sheet1",
+        "source_version": "31533335b40b2a0a90a5b23de7e85c185cdaf7bb",
+        "teaching_revision": "3dce63cc9aa4ef14",
+        "mapping_source": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "Unit Price",
+          "unit": "USD",
+          "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revision": 1,
+          "lesson_id": "bff523b152f145dfa292c89c82a8bce1",
+          "lesson_revision": 1
+        },
+        "candidates": [
+          {
+            "column": "SKU",
+            "sample_values": [
+              "B-1",
+              "B-2"
+            ],
+            "inferred_type": "text"
+          },
+          {
+            "column": "Quantity",
+            "sample_values": [
+              "2",
+              "3"
+            ],
+            "inferred_type": "number"
+          },
+          {
+            "column": "Amount",
+            "sample_values": [
+              "15",
+              "20"
+            ],
+            "inferred_type": "number"
+          },
+          {
+            "column": "Discount",
+            "sample_values": [
+              "1",
+              "2"
+            ],
+            "inferred_type": "number"
+          },
+          {
+            "column": "Currency",
+            "sample_values": [
+              "USD",
+              "USD"
+            ],
+            "inferred_type": "text"
+          },
+          {
+            "column": "Note",
+            "sample_values": [
+              "renamed"
+            ],
+            "inferred_type": "text"
+          }
+        ]
+      }
+    },
+    "concept": "value_column",
+    "reason": "the named measure 'Price' is not in the frame",
+    "affected_subjects": [],
+    "checked_evidence": [
+      "columns=['SKU', 'Quantity', 'Amount', 'Discount', 'Currency', 'Note', '__sheet_row']"
+    ],
+    "next_retrieval": "select the matching column from the current schema and confirm",
+    "resolver": null,
+    "step_id": "source-1",
+    "waiting": {
+      "state": "waiting_for_person",
+      "party": "owner",
+      "correlation_id": null,
+      "resume_on": "answer",
+      "deadline": null,
+      "since": "2026-10-29T23:10:34.567943+00:00",
+      "detail": null
+    },
+    "status": "open",
+    "attempts": 0,
+    "opened_at": "2026-10-29T23:10:34.568836+00:00",
+    "resolved_at": null,
+    "resolution": null,
+    "source_operation": "7eb89b97-3d2d-4d2f-a76e-6386912f58e6"
+  },
+  "screenshots": [
+    "mapping-candidates.png",
+    "mapping-completed.png"
+  ],
+  "fixture": "controlled acceptance workbook_b (not live-connected)",
+  "canonical_baseline": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/result.json"
+}

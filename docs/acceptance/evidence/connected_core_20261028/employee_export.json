@@ -1,0 +1,59 @@
+{
+ "success": true,
+ "operation": "export",
+ "canvas_id": "96b165e2-750b-45b5-ae00-b90968af9d97",
+ "artifact": {
+  "file_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/connected_world/office/Connected-price-assessment-96b165e2.xlsx",
+  "file_name": "Connected-price-assessment-96b165e2.xlsx",
+  "format": "xlsx",
+  "rows": 11219,
+  "columns": [
+   "No.",
+   "Description",
+   "Unit Price"
+  ],
+  "sha256": "a03bf62c401fe8d65afb4323d88eafc2f6c9dd18d27366d21ac5a020c0252374"
+ },
+ "source": {
+  "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+  "file_name": "Consolidated Price List 2019.xlsx",
+  "source_version": "b92aaf07eb1d219b",
+  "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+  "snapshot": {
+   "kind": "canvas_dataset_snapshot",
+   "label": "Connected price assessment",
+   "note": "Local snapshot. Edits do not write back to the connected source.",
+   "resource_id": "canvas:96b165e2-750b-45b5-ae00-b90968af9d97",
+   "version": "b92aaf07eb1d219b",
+   "sha256": "b92aaf07eb1d219b6eb2833e440a1464d2982c4713da62a5d2304e14b04540c2",
+   "rows": 11219,
+   "columns": 3
+  },
+  "upstream": {
+   "provider": "onedrive",
+   "dataset_name": "onedrive_consolidated_price_list_2019__us_scotch_parts",
+   "file_name": "Consolidated Price List 2019.xlsx",
+   "external_id": "01P3INOW7U35MJ76UHXZFLQBL4A2WXP5CG",
+   "sheet_name": "US$ SCOTCH PARTS ",
+   "content_hash": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "version": "2abb1bf40ec31d131e5ae96abb173ac463426ef7",
+   "source_modified_at": null,
+   "ingested_at": "2026-10-28T23:31:53.332728",
+   "workspace_id": "default",
+   "coverage": {
+    "known": true,
+    "source_row_count": 11219,
+    "materialized_row_count": 11219,
+    "truncated": false,
+    "row_cap": 500000
+   }
+  },
+  "writeback": {
+   "supported": false,
+   "upstream_mutated": false,
+   "performed": false
+  }
+ },
+ "manifest_revision": "3916e8b2fd7e541c",
+ "download_url": "/api/v1/office/download?file_path=/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/connected_world/office/Connected-price-assessment-96b165e2.xlsx&canvas_id=96b165e2-750b-45b5-ae00-b90968af9d97"
+}

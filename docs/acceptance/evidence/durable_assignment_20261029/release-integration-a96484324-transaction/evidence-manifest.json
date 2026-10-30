@@ -1,0 +1,615 @@
+{
+  "schema": "atom-release-integration-evidence-2",
+  "created_at": "2026-10-30T00:13:09.290523+00:00",
+  "product_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+  "release_tag": "assignment-successor-2026-10-29-a96484324",
+  "package_root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+  "package_identity": {
+    "schema": "atom-assignment-successor-release-1",
+    "release_tag": "assignment-successor-2026-10-29-a96484324",
+    "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tested_runtime_commit": "a96484324",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+    "product_tree_matches_tested": true,
+    "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+    "deployment_kit_tree_sha256": "2582ae3421a3f25a02accda73712f4bf404d6e92c5bcd5a07ecf49138cea89c6",
+    "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
+    "frontend_api_origin": "http://127.0.0.1:8071",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "prepared_at": "2026-10-29T23:43:56.891207+00:00",
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+    "seeded_rehearsal_data": true
+  },
+  "deployment_receipt": {
+    "schema": "atom-assignment-release-deployment-1",
+    "deployed_at": "2026-10-30T00:12:37.956681+00:00",
+    "mode": "rehearsal",
+    "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "release_tag": "assignment-successor-2026-10-29-a96484324",
+    "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+    "tested_runtime_commit": "a96484324",
+    "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "auth_smoke": {
+      "schema": "atom-assignment-release-auth-smoke-1",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "fresh_context_login_form",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "normal_form_login",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "workspace_profile_visible",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "authenticated_workspace_access",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "existing_assignment_completed",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "artifact_listed",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "artifact_present_and_openable",
+          "ok": true,
+          "detail": {
+            "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+            "sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854"
+          }
+        },
+        {
+          "name": "logout_clears_storage",
+          "ok": true,
+          "detail": {
+            "auth": null,
+            "token": null
+          }
+        },
+        {
+          "name": "old_token_refused_after_logout",
+          "ok": true,
+          "detail": {
+            "status": 401
+          }
+        },
+        {
+          "name": "second_normal_form_login",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "second_session_workspace_access",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "session_injected": false,
+      "normal_login_form_used": true,
+      "screenshots": [
+        "assignment-open.png",
+        "signed-in-again.png",
+        "signed-in-assignments.png",
+        "signed-in-dashboard.png",
+        "signed-out.png"
+      ]
+    },
+    "assignment_before_restart": {
+      "ok": true,
+      "snapshot": {
+        "schema": "atom-assignment-release-representative-1",
+        "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+        "assignment_id": "asg-787c5e9954dc46cc",
+        "objective": "Mapping B sum Price",
+        "status": "completed",
+        "plan_revision": 1,
+        "teaching_revision": "3dce63cc9aa4ef14+map",
+        "deliverables": [
+          {
+            "kind": "document",
+            "status": "applied",
+            "required": true,
+            "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+            "sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854"
+          }
+        ],
+        "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+        "artifact_sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
+        "artifact_contains_expected_sum": true,
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "required_deliverables": 1,
+          "source_versions": [
+            "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+          ]
+        },
+        "step_summaries": [
+          "sum of Amount = 35.00 USD across 2 row(s) from workbook_b.xlsx / Sheet1",
+          "rendered mapping-b-total-0f76048f.docx"
+        ],
+        "source_versions": [
+          "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+        ],
+        "user": {
+          "id": "map-user",
+          "email": "admin@example.com",
+          "workspace_id": "default",
+          "tenant_id": null
+        }
+      }
+    },
+    "assignment_after_restart": {
+      "ok": true,
+      "snapshot": {
+        "schema": "atom-assignment-release-representative-1",
+        "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+        "assignment_id": "asg-787c5e9954dc46cc",
+        "objective": "Mapping B sum Price",
+        "status": "completed",
+        "plan_revision": 1,
+        "teaching_revision": "3dce63cc9aa4ef14+map",
+        "deliverables": [
+          {
+            "kind": "document",
+            "status": "applied",
+            "required": true,
+            "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+            "sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854"
+          }
+        ],
+        "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+        "artifact_sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
+        "artifact_contains_expected_sum": true,
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "required_deliverables": 1,
+          "source_versions": [
+            "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+          ]
+        },
+        "step_summaries": [
+          "sum of Amount = 35.00 USD across 2 row(s) from workbook_b.xlsx / Sheet1",
+          "rendered mapping-b-total-0f76048f.docx"
+        ],
+        "source_versions": [
+          "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+        ],
+        "user": {
+          "id": "map-user",
+          "email": "admin@example.com",
+          "workspace_id": "default",
+          "tenant_id": null
+        }
+      },
+      "restart_agreement": {
+        "before": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/run/before-restart.json",
+        "fields": [
+          "run_id",
+          "assignment_id",
+          "status",
+          "plan_revision",
+          "teaching_revision",
+          "artifact_path",
+          "artifact_sha256",
+          "source_versions"
+        ],
+        "mismatches": {},
+        "ok": true
+      }
+    },
+    "fresh_before_restart": {
+      "ok": true,
+      "fresh": {
+        "schema": "atom-assignment-fresh-smoke-1",
+        "run_id": "c0c975c9-15ff-4175-b091-9464b29e90b9",
+        "assignment_id": "asg-2c86b005a82049aa",
+        "objective": "Release smoke f884f7523c: sum Amount",
+        "status": "completed",
+        "plan_revision": 1,
+        "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-30f4cca87c7f/release-smoke-f884f7523c-sum-amount-455feb1b.docx",
+        "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+        "artifact_contains_expected_sum": true,
+        "source_versions": [
+          "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+        ],
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "artifact_text": "Release smoke f884f7523c: sum Amount\nObjective\nRelease smoke f884f7523c: sum Amount\nSummary\nsum of Amount: 35.00 USD\nFindings\nworkbook_b.xlsx / Sheet1\nSources\noutlook_workbook_b__sheet1\nworkbook_b.xlsx\nSheet1\n6494998e-c310-4861-8b5e-8bb981f32567\nworkbook_b.xlsx / Sheet1\nRow | identity | identity_source | row | value | currency | value_cell\n | B-1 | identity_column | 2 | 15.00 | USD | C2\n | B-2 | identity_column | 3 | 20.00 | USD | C3",
+          "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+          "recorded_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33"
+        }
+      },
+      "objective": "Release smoke f884f7523c: sum Amount",
+      "provider_policy": {
+        "mode": "selected",
+        "allowed_providers": [
+          "deepseek"
+        ],
+        "preferred": {
+          "provider": "deepseek",
+          "model": "deepseek-flash"
+        },
+        "ok": true
+      },
+      "send_denial": {
+        "http_status": 422,
+        "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter",
+        "runs_before": 3,
+        "runs_after": 3,
+        "run_created": false,
+        "send_allowed": false
+      },
+      "database_delta": {
+        "assignments_before": 3,
+        "assignments_after": 4,
+        "delta": 1,
+        "intentional_new_run_id": "c0c975c9-15ff-4175-b091-9464b29e90b9"
+      }
+    },
+    "fresh_after_restart": {
+      "ok": true,
+      "fresh": {
+        "schema": "atom-assignment-fresh-smoke-1",
+        "run_id": "c0c975c9-15ff-4175-b091-9464b29e90b9",
+        "assignment_id": "asg-2c86b005a82049aa",
+        "objective": "Release smoke f884f7523c: sum Amount",
+        "status": "completed",
+        "plan_revision": 1,
+        "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-30f4cca87c7f/release-smoke-f884f7523c-sum-amount-455feb1b.docx",
+        "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+        "artifact_contains_expected_sum": true,
+        "source_versions": [
+          "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+        ],
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "artifact_text": "Release smoke f884f7523c: sum Amount\nObjective\nRelease smoke f884f7523c: sum Amount\nSummary\nsum of Amount: 35.00 USD\nFindings\nworkbook_b.xlsx / Sheet1\nSources\noutlook_workbook_b__sheet1\nworkbook_b.xlsx\nSheet1\n6494998e-c310-4861-8b5e-8bb981f32567\nworkbook_b.xlsx / Sheet1\nRow | identity | identity_source | row | value | currency | value_cell\n | B-1 | identity_column | 2 | 15.00 | USD | C2\n | B-2 | identity_column | 3 | 20.00 | USD | C3",
+          "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+          "recorded_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33"
+        }
+      },
+      "provider_policy": {
+        "mode": "selected",
+        "allowed_providers": [
+          "deepseek"
+        ],
+        "preferred": {
+          "provider": "deepseek",
+          "model": "deepseek-flash"
+        },
+        "ok": true
+      },
+      "send_denial": {
+        "http_status": 422,
+        "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter",
+        "runs_before": 4,
+        "runs_after": 4,
+        "run_created": false,
+        "send_allowed": false
+      },
+      "restart_agreement": {
+        "mismatches": {},
+        "ok": true
+      }
+    },
+    "rollback_available": false,
+    "database_restored": false,
+    "user_data_preserved": true
+  },
+  "failed_attempt": {
+    "schema": "atom-assignment-release-failure-1",
+    "failed_at": "2026-10-30T00:11:16.481074+00:00",
+    "mode": "rehearsal",
+    "exit_status": 1,
+    "rollback_start_rc": 1,
+    "database_restored": false,
+    "user_data_preserved": true
+  },
+  "auth_smoke": {
+    "schema": "atom-assignment-release-auth-smoke-1",
+    "status": "passed",
+    "checks": [
+      {
+        "name": "fresh_context_login_form",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "normal_form_login",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "workspace_profile_visible",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "authenticated_workspace_access",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "existing_assignment_completed",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "artifact_listed",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "artifact_present_and_openable",
+        "ok": true,
+        "detail": {
+          "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+          "sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854"
+        }
+      },
+      {
+        "name": "logout_clears_storage",
+        "ok": true,
+        "detail": {
+          "auth": null,
+          "token": null
+        }
+      },
+      {
+        "name": "old_token_refused_after_logout",
+        "ok": true,
+        "detail": {
+          "status": 401
+        }
+      },
+      {
+        "name": "second_normal_form_login",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "second_session_workspace_access",
+        "ok": true,
+        "detail": null
+      }
+    ],
+    "session_injected": false,
+    "normal_login_form_used": true,
+    "screenshots": [
+      "assignment-open.png",
+      "signed-in-again.png",
+      "signed-in-assignments.png",
+      "signed-in-dashboard.png",
+      "signed-out.png"
+    ]
+  },
+  "fresh_before_restart": {
+    "ok": true,
+    "fresh": {
+      "schema": "atom-assignment-fresh-smoke-1",
+      "run_id": "c0c975c9-15ff-4175-b091-9464b29e90b9",
+      "assignment_id": "asg-2c86b005a82049aa",
+      "objective": "Release smoke f884f7523c: sum Amount",
+      "status": "completed",
+      "plan_revision": 1,
+      "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-30f4cca87c7f/release-smoke-f884f7523c-sum-amount-455feb1b.docx",
+      "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+      "artifact_contains_expected_sum": true,
+      "source_versions": [
+        "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+      ],
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "artifact_text": "Release smoke f884f7523c: sum Amount\nObjective\nRelease smoke f884f7523c: sum Amount\nSummary\nsum of Amount: 35.00 USD\nFindings\nworkbook_b.xlsx / Sheet1\nSources\noutlook_workbook_b__sheet1\nworkbook_b.xlsx\nSheet1\n6494998e-c310-4861-8b5e-8bb981f32567\nworkbook_b.xlsx / Sheet1\nRow | identity | identity_source | row | value | currency | value_cell\n | B-1 | identity_column | 2 | 15.00 | USD | C2\n | B-2 | identity_column | 3 | 20.00 | USD | C3",
+        "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+        "recorded_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33"
+      }
+    },
+    "objective": "Release smoke f884f7523c: sum Amount",
+    "provider_policy": {
+      "mode": "selected",
+      "allowed_providers": [
+        "deepseek"
+      ],
+      "preferred": {
+        "provider": "deepseek",
+        "model": "deepseek-flash"
+      },
+      "ok": true
+    },
+    "send_denial": {
+      "http_status": 422,
+      "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter",
+      "runs_before": 3,
+      "runs_after": 3,
+      "run_created": false,
+      "send_allowed": false
+    },
+    "database_delta": {
+      "assignments_before": 3,
+      "assignments_after": 4,
+      "delta": 1,
+      "intentional_new_run_id": "c0c975c9-15ff-4175-b091-9464b29e90b9"
+    }
+  },
+  "fresh_after_restart": {
+    "ok": true,
+    "fresh": {
+      "schema": "atom-assignment-fresh-smoke-1",
+      "run_id": "c0c975c9-15ff-4175-b091-9464b29e90b9",
+      "assignment_id": "asg-2c86b005a82049aa",
+      "objective": "Release smoke f884f7523c: sum Amount",
+      "status": "completed",
+      "plan_revision": 1,
+      "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-30f4cca87c7f/release-smoke-f884f7523c-sum-amount-455feb1b.docx",
+      "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+      "artifact_contains_expected_sum": true,
+      "source_versions": [
+        "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+      ],
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "artifact_text": "Release smoke f884f7523c: sum Amount\nObjective\nRelease smoke f884f7523c: sum Amount\nSummary\nsum of Amount: 35.00 USD\nFindings\nworkbook_b.xlsx / Sheet1\nSources\noutlook_workbook_b__sheet1\nworkbook_b.xlsx\nSheet1\n6494998e-c310-4861-8b5e-8bb981f32567\nworkbook_b.xlsx / Sheet1\nRow | identity | identity_source | row | value | currency | value_cell\n | B-1 | identity_column | 2 | 15.00 | USD | C2\n | B-2 | identity_column | 3 | 20.00 | USD | C3",
+        "artifact_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33",
+        "recorded_sha256": "ce05d37b5aacc88cf2acfc78e9227a100f95c779a0da089659285402e9667e33"
+      }
+    },
+    "provider_policy": {
+      "mode": "selected",
+      "allowed_providers": [
+        "deepseek"
+      ],
+      "preferred": {
+        "provider": "deepseek",
+        "model": "deepseek-flash"
+      },
+      "ok": true
+    },
+    "send_denial": {
+      "http_status": 422,
+      "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter",
+      "runs_before": 4,
+      "runs_after": 4,
+      "run_created": false,
+      "send_allowed": false
+    },
+    "restart_agreement": {
+      "mismatches": {},
+      "ok": true
+    }
+  },
+  "files": {
+    "RELEASE_IDENTITY.json": {
+      "sha256": "40bdf34117ef848aa2885a75c0bf4947f8233a7c6bbd11aa0a3209623a7ede71",
+      "bytes": 1162
+    },
+    "assignment-after-restart.json": {
+      "sha256": "6fae5363f3e7c37ac408c78e0d0f3fc9a4c7b10033574220c2d32c81965c488d",
+      "bytes": 2106
+    },
+    "assignment-before-restart.json": {
+      "sha256": "d134c824bf72b60a30106eca779205b63dad504fd454516a9d694bc66ff2bef9",
+      "bytes": 1691
+    },
+    "auth-smoke/assignment-open.png": {
+      "sha256": "1b2d9604e8ee5fe872a60358b9dc73f658cc035caaace358757fa0d4baa92272",
+      "bytes": 131552
+    },
+    "auth-smoke/auth-smoke.json": {
+      "sha256": "23bacadd5719bd33b4b0aa6a6694de5c2d089b093d2c71c64694a42531d34860",
+      "bytes": 1748
+    },
+    "auth-smoke/signed-in-again.png": {
+      "sha256": "fa9f949286b6d7fe2e857c84a94ebbed569919242415392d20ea52da654c0baf",
+      "bytes": 131603
+    },
+    "auth-smoke/signed-in-assignments.png": {
+      "sha256": "fa9f949286b6d7fe2e857c84a94ebbed569919242415392d20ea52da654c0baf",
+      "bytes": 131603
+    },
+    "auth-smoke/signed-in-dashboard.png": {
+      "sha256": "59787cee11125e017c31524aaf0e5f2c789f77c070318aff06aaa572944a3d7f",
+      "bytes": 158758
+    },
+    "auth-smoke/signed-out.png": {
+      "sha256": "96d56e8927d709286b82eb89787093380857a6883b7db0964456e9551f7fa006",
+      "bytes": 44095
+    },
+    "backup-manifest.json": {
+      "sha256": "50f3be2c20aae3a251f373f0f7c5b04eaaa91b770157626eb981a0f9bcece598",
+      "bytes": 2980
+    },
+    "backup.log": {
+      "sha256": "370909635bb0128858becf6cf28a8ba70b661e865ec11ceb44f62b1b7832b73c",
+      "bytes": 2869
+    },
+    "deployment-receipt.json": {
+      "sha256": "7e98e91a4f2b59dc3ce330869bd3fe483b6b9997470d2c8ca32c3336dcebed92",
+      "bytes": 11133
+    },
+    "deployment-transaction-failed.log": {
+      "sha256": "84515b22e446c643275275faf751d18bb54fe33fe96162391cc3400450bfbcd3",
+      "bytes": 21221
+    },
+    "deployment-transaction-passed.log": {
+      "sha256": "afcfb06da4ea2ca267fe5d8109f92a590fcffc88f65d4b0a020029cd6814b7d0",
+      "bytes": 29364
+    },
+    "failed-attempt.json": {
+      "sha256": "19cd3a11562784e75c214c90aa417d616c4353899fe2a943c1389fd5be712a24",
+      "bytes": 233
+    },
+    "final-status.json": {
+      "sha256": "1e34915e1f226d59f5b062c79b090aded286996757b0f770cd71068979cf9792",
+      "bytes": 3028
+    },
+    "fresh-after-restart.json": {
+      "sha256": "174649eddabaf4cbb34dbdc642bae9ce2fe5030eb2f7448d1d978aad71695c86",
+      "bytes": 2046
+    },
+    "fresh-before-restart.json": {
+      "sha256": "935693395af5a087f518fbff750e809667a768735b9ebf364b3757ac35359755",
+      "bytes": 2203
+    },
+    "kit-tests.log": {
+      "sha256": "c2724c99aa68516d62231c44d92b74e9695949b574ca7624df0c919866f00c1e",
+      "bytes": 1189
+    },
+    "preflight.json": {
+      "sha256": "1f782512b5d5f7dc52659ca2f3d4152d5dde39f9cd7b5476d85ead0b2eea77a0",
+      "bytes": 6128
+    },
+    "preflight.log": {
+      "sha256": "f940d03d0119f5b9b554c6fb868377d4d08cf0510260b2a41e0939fde996d674",
+      "bytes": 5955
+    },
+    "prepare-release.log": {
+      "sha256": "38b35316d9533549d941099eccdcdab23d980a5601430edadc60a1632a2a402d",
+      "bytes": 22505
+    },
+    "rehearsal-seed.json": {
+      "sha256": "5ae2bce7b4fb1c66d61cc3e54a265c1f72d7e890f4919e5e7440a95e6f3bfc32",
+      "bytes": 933
+    },
+    "startup-receipt.json": {
+      "sha256": "91453fea7af62e395bb6c417de978ecdc7553ac0b91e5b1e14b52dede03f7a36",
+      "bytes": 1510
+    },
+    "stop-receipt.json": {
+      "sha256": "c08bfd84ed864984998c97bb4ec783aec93c3a4af1194bf0815292c533c2f945",
+      "bytes": 317
+    }
+  }
+}

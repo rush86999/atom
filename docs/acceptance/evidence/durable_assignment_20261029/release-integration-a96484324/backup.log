@@ -1,0 +1,60 @@
+{
+  "ok": true,
+  "backup": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/backups/predeploy-rehearsal-20261029T233229Z",
+  "manifest": {
+    "schema": "atom-assignment-release-backup-1",
+    "created_at": "2026-10-29T23:32:29.514415+00:00",
+    "source_data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+    "label": "predeploy-rehearsal",
+    "sqlite_backup_api": true,
+    "sqlite_integrity_check": true,
+    "row_counts": {
+      "users": 1,
+      "dataset_entries": 1,
+      "goal_runs": 1,
+      "hitl_interventions": null
+    },
+    "config_copied_mode_600": true,
+    "memory_included": false,
+    "memory_note": "atom_memory excluded by default because it is large; pass --include-memory when a full vector-store snapshot is required",
+    "files": {
+      "atom.db": {
+        "sha256": "115a3df409ecb128c8f150704dab81eacec4b3d9a886f8c02d89a68a629102e0",
+        "bytes": 8597504
+      },
+      "atom.db-shm": {
+        "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+        "bytes": 32768
+      },
+      "atom.db-wal": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "config/RELEASE_IDENTITY.json": {
+        "sha256": "9c661b53e8e9dcff4af3fd7111517eb22423a879dd853ce9074231ddc5320156",
+        "bytes": 1162
+      },
+      "config/env.release": {
+        "sha256": "dc2d7cc5303136540685e5e051a306d0f29abb9be2693870051921e6523c7048",
+        "bytes": 2190
+      },
+      "config/secrets.env": {
+        "sha256": "7e934e982aad831ffdd40758b7ed7848db6d9f2381058391da6ec1ad355cc5bb",
+        "bytes": 92
+      },
+      "office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx": {
+        "sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
+        "bytes": 37088
+      },
+      "sheet_datasets/default/31533335b40b/outlook_workbook_b__sheet1.parquet": {
+        "sha256": "1e91ad10ef0a64ab376a3dacca9efce45ff70d5d5945908c5afdcd73f630c154",
+        "bytes": 4880
+      },
+      "sheet_datasets/default/31533335b40b/outlook_workbook_b__sheet1.parquet.formulas.json": {
+        "sha256": "521ee0d6e08296ac26457f2d0bd2363a8cdf408b927513fdd08683914c9f411f",
+        "bytes": 35
+      }
+    },
+    "newer_user_data_preserved": true
+  }
+}

@@ -1,0 +1,97 @@
+{
+ "schema": "connected-refresh-probe-1",
+ "test_only": true,
+ "safe_to_delete": true,
+ "onedrive_destination": {
+  "folder": "AtomAcceptance/connected-refresh-20261029-0120Z",
+  "file": "refresh_probe_f5f_20261029.xlsx"
+ },
+ "sheets": [
+  "Inputs",
+  "Calc"
+ ],
+ "baseline_file": "refresh_probe_f5f_baseline.xlsx",
+ "changed_expected_file": "refresh_probe_f5f_changed_expected.xlsx",
+ "baseline": {
+  "rows": [
+   {
+    "subject": "PROBE-001",
+    "qty": 2,
+    "unit_price": 10.0,
+    "line_total": 20.0,
+    "decision": "APPROVE"
+   },
+   {
+    "subject": "PROBE-002",
+    "qty": 3,
+    "unit_price": 10.0,
+    "line_total": 30.0,
+    "decision": "REVIEW"
+   }
+  ],
+  "total": 50.0,
+  "decisions": {
+   "APPROVE": 1,
+   "REVIEW": 1
+  }
+ },
+ "change": {
+  "cell": "Inputs!B2",
+  "from": 2,
+  "to": 3,
+  "only_input_changed": true
+ },
+ "changed_expected": {
+  "rows": [
+   {
+    "subject": "PROBE-001",
+    "qty": 3,
+    "unit_price": 10.0,
+    "line_total": 30.0,
+    "decision": "REVIEW"
+   },
+   {
+    "subject": "PROBE-002",
+    "qty": 3,
+    "unit_price": 10.0,
+    "line_total": 30.0,
+    "decision": "REVIEW"
+   }
+  ],
+  "total": 60.0,
+  "decisions": {
+   "APPROVE": 0,
+   "REVIEW": 2
+  }
+ },
+ "formula_cells": {
+  "Calc!D2": "=Inputs!B2*Inputs!C2",
+  "Calc!D3": "=Inputs!B3*Inputs!C3"
+ },
+ "assessment": {
+  "subject_field": "Item",
+  "measure_field": "Line Total",
+  "policy": "Use REVIEW when Line Total is at least 25. Use APPROVE otherwise. Do not infer any other decision.",
+  "decision_options": [
+   "APPROVE",
+   "REVIEW"
+  ],
+  "baseline_expected": {
+   "APPROVE": 1,
+   "REVIEW": 1
+  },
+  "changed_expected": {
+   "APPROVE": 0,
+   "REVIEW": 2
+  }
+ },
+ "expected_totals": {
+  "baseline": 50.0,
+  "changed": 60.0
+ },
+ "stale_on_change": [
+  "baseline calculation receipt",
+  "baseline assessment receipt",
+  "any export or document generated from the baseline canvas revision"
+ ]
+}

@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 
 from core.database import get_db
 from core.auth import get_current_user
+from core.deployment_audience import require_pilot_user
 from core.models import User
 from core.base_routes import BaseAPIRouter
 from core.service_factory import ServiceFactory
@@ -21,7 +22,7 @@ from core.agent_governance_service import AgentGovernanceService
 logger = logging.getLogger(__name__)
 
 # Note: Using BaseAPIRouter for consistency with atom-upstream's enhanced JSON responses
-router = BaseAPIRouter(prefix="/api/canvas", tags=["Canvas"])
+router = BaseAPIRouter(prefix="/api/canvas", tags=["Canvas"], dependencies=[Depends(require_pilot_user)])
 
 
 # ============================================================================

@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ✓  1 e2e/assignment-durable-reopen.spec.ts:8:5 › completed assignments survive a backend restart (339ms)
+
+  1 passed (921ms)

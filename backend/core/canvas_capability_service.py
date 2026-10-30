@@ -45,6 +45,13 @@ TABLE_OPERATIONS = {
 _SUPPORTED_OPERATIONS = TABLE_OPERATIONS
 _SUPPORTED_BASE_COMPONENTS = {"table"}
 _MAX_BIND_BYTES = int(os.getenv("ATOM_CANVAS_BIND_MAX_BYTES", str(20 * 1024 * 1024)))
+_MAX_ASSESS_SUBJECTS = int(os.getenv("ATOM_ASSESS_MAX_SUBJECTS", "50") or 50)
+
+# A connected catalog row names a provider. These are the token families the
+# existing journey services already resolve; adding a provider here does not
+# grant access, it only lets the binding ask the existing token store whether
+# the authenticated user still has an active grant.
+from core.integrations.token_store import SOURCE_PROVIDER_ALIASES as _CONNECTED_PROVIDER_ALIASES
 
 
 class CapabilityError(Exception):
@@ -75,6 +82,10 @@ def policy_revision(manifest: Dict[str, Any]) -> str:
     policy = {
         "task_policy": manifest.get("task_policy") or "",
         "decision_options": manifest.get("decision_options") or [],
+        # Applicability metadata changes what the policy governs, so it is
+        # part of the effective revision. Existing manifests without it keep
+        # their old hash.
+        "teaching_context": manifest.get("teaching_context") or {},
     }
     return _sha256_json(policy)[:16]
 
@@ -307,15 +318,22 @@ def _frame(canvas: Canvas) -> pd.DataFrame:
     dataset = get_dataset(canvas)
     columns = [str(c) for c in (dataset.get("columns") or [])]
     rows = dataset.get("rows") or []
+    sheet_rows = dataset.get("sheet_rows") or []
     if not columns:
         raise CapabilityError("dataset_not_bound", "No dataset is bound to this canvas.")
     records = []
     for idx, row in enumerate(rows):
         if not isinstance(row, (list, tuple)):
             raise CapabilityError("dataset_corrupt", "Dataset rows must be arrays.")
+        try:
+            row_ref = int(sheet_rows[idx]) if idx < len(sheet_rows) else idx + 2
+        except (TypeError, ValueError):
+            raise CapabilityError(
+                "dataset_corrupt", "Dataset source row references are invalid."
+            )
         records.append({
             **{columns[i]: (row[i] if i < len(row) else None) for i in range(len(columns))},
-            "__sheet_row": idx + 2,
+            "__sheet_row": row_ref,
         })
     return pd.DataFrame(records, columns=columns + ["__sheet_row"])
 
@@ -334,12 +352,24 @@ def _subject_values(columns: Sequence[str], row: Dict[str, Any], subject_field: 
 def _dataset_source(canvas: Canvas) -> Dict[str, Any]:
     dataset = get_dataset(canvas)
     source = dataset.get("source") or {}
-    return {
+    result = {
         "resource_id": str(source.get("resource_id") or canvas.id),
         "file_name": str(source.get("file_name") or ""),
         "source_version": str(source.get("source_version") or dataset.get("source_version") or ""),
         "sha256": str(source.get("sha256") or ""),
     }
+    # Connected bindings carry two identities: the local canvas snapshot and
+    # the upstream provider/file/sheet/version. A local edit updates the
+    # snapshot revision but never the upstream version.
+    if isinstance(source.get("snapshot"), dict):
+        result["snapshot"] = dict(source["snapshot"])
+    if isinstance(source.get("upstream"), dict):
+        result["upstream"] = dict(source["upstream"])
+    result["writeback"] = dict(
+        source.get("writeback")
+        or {"supported": False, "upstream_mutated": False, "performed": False}
+    )
+    return result
 
 
 def _audit(
@@ -399,11 +429,53 @@ def set_manifest(db, canvas: Canvas, user: Any, manifest: Dict[str, Any]) -> Dic
     }
 
 
-def bind_dataset(
-    db, canvas: Canvas, user: Any, columns: Sequence[str], rows: Sequence[Sequence[Any]],
-    source: Optional[Dict[str, Any]] = None, title: Optional[str] = None,
+def _json_cell(value: Any) -> Any:
+    """Convert one materialized cell to a JSON-safe scalar without inventing
+    values. NaN/NaT are blanks, not zeroes or strings."""
+    if value is None:
+        return None
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+    if hasattr(value, "item"):
+        try:
+            return value.item()
+        except (TypeError, ValueError):
+            pass
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
+
+
+def _snapshot_digest(
+    columns: Sequence[str], rows: Sequence[Sequence[Any]],
+    sheet_rows: Optional[Sequence[int]] = None,
+) -> str:
+    payload = [list(columns), [list(row) for row in rows], list(sheet_rows or [])]
+    return hashlib.sha256(
+        json.dumps(payload, default=str).encode()
+    ).hexdigest()
+
+
+def _persist_dataset(
+    db, canvas: Canvas, user: Any, columns: Sequence[str],
+    rows: Sequence[Sequence[Any]], *,
+    source: Optional[Dict[str, Any]] = None,
+    title: Optional[str] = None,
     verified_file_sha256: Optional[str] = None,
+    sheet_rows: Optional[Sequence[int]] = None,
 ) -> Dict[str, Any]:
+    """Store one authoritative dataset snapshot on the canvas.
+
+    Both the upload path and the connected-catalog path land here so identity
+    handling, revision bumps and audit receipts stay identical. The canvas
+    snapshot is always the local resource; connected callers add a separate
+    ``upstream`` block that this function never rewrites.
+    """
     clean_columns = [str(c).strip() for c in columns]
     if not clean_columns or any(not c for c in clean_columns):
         raise CapabilityError("invalid_dataset", "Columns must be non-empty strings.")
@@ -416,27 +488,62 @@ def bind_dataset(
         clean_rows.append(list(row[: len(clean_columns)]))
     if not clean_rows:
         raise CapabilityError("invalid_dataset", "Dataset has no data rows.")
+
+    clean_sheet_rows: Optional[List[int]] = None
+    if sheet_rows is not None:
+        if len(sheet_rows) != len(clean_rows):
+            raise CapabilityError(
+                "invalid_dataset",
+                "sheet_rows must name exactly one source row per data row.",
+            )
+        try:
+            clean_sheet_rows = [int(value) for value in sheet_rows]
+        except (TypeError, ValueError):
+            raise CapabilityError(
+                "invalid_dataset", "sheet_rows must contain worksheet row numbers."
+            )
+        if any(value < 2 for value in clean_sheet_rows):
+            raise CapabilityError(
+                "invalid_dataset", "sheet_rows must be >= 2 (row 1 is the header)."
+            )
+
     source = dict(source or {})
     # Resource identity is the canvas, never a client-supplied id.
     source["resource_id"] = f"canvas:{canvas.id}"
     source.setdefault("file_name", title or "canvas dataset")
-    dataset_hash = hashlib.sha256(
-        json.dumps([clean_columns, clean_rows], default=str).encode()
-    ).hexdigest()
+    dataset_hash = _snapshot_digest(clean_columns, clean_rows, clean_sheet_rows)
     source["source_version"] = dataset_hash[:16]
     # A client-supplied sha is not authority. Preserve a verified file hash
     # only when the file-upload path supplied one explicitly.
     # The verified file hash is a server-side parameter, never a source-dict
     # key a JSON client could supply.
     source["sha256"] = str(verified_file_sha256 or dataset_hash)
+    snapshot = dict(source.get("snapshot") or {})
+    snapshot.update({
+        "kind": snapshot.get("kind") or "canvas_dataset_snapshot",
+        "resource_id": f"canvas:{canvas.id}",
+        "version": source["source_version"],
+        "sha256": source["sha256"],
+        "rows": len(clean_rows),
+        "columns": len(clean_columns),
+    })
+    source["snapshot"] = snapshot
+    source.setdefault(
+        "writeback",
+        {"supported": False, "upstream_mutated": False, "performed": False},
+    )
+
     content = _canvas_content(canvas)
     manifest = get_manifest(canvas) or default_manifest()
-    content["dataset"] = {
+    dataset = {
         "columns": clean_columns,
         "rows": clean_rows,
         "source": source,
         "bound_at": _now().isoformat(),
     }
+    if clean_sheet_rows is not None:
+        dataset["sheet_rows"] = clean_sheet_rows
+    content["dataset"] = dataset
     content["capability_revision"] = current_revision(canvas) + 1
     manifest.setdefault("data_binding", {})
     manifest["data_binding"]["resource_id"] = source["resource_id"]
@@ -462,6 +569,424 @@ def bind_dataset(
         "manifest": manifest,
         "operations": effective_operations(canvas, manifest),
     }
+
+
+def bind_dataset(
+    db, canvas: Canvas, user: Any, columns: Sequence[str], rows: Sequence[Sequence[Any]],
+    source: Optional[Dict[str, Any]] = None, title: Optional[str] = None,
+    verified_file_sha256: Optional[str] = None,
+) -> Dict[str, Any]:
+    return _persist_dataset(
+        db, canvas, user, columns, rows,
+        source=source, title=title,
+        verified_file_sha256=verified_file_sha256,
+    )
+
+
+def _assert_connected_source_access(
+    db, provider: str, user: Any,
+) -> Dict[str, Any]:
+    """Ask the existing token store whether this user still has a grant.
+
+    A missing grant and a revoked grant are different states. The binding
+    never treats cached rows as proof that upstream access still exists.
+    """
+    from core.models import IntegrationToken
+
+    source = str(provider or "").strip().lower()
+    aliases = _CONNECTED_PROVIDER_ALIASES.get(source)
+    if not aliases:
+        raise CapabilityError(
+            "source_access_unverified",
+            f"Source '{source or 'unknown'}' has no connected token family; "
+            "a cached catalog row alone is not source access.",
+            409,
+        )
+    user_id = str(getattr(user, "id", "") or "")
+    if not user_id:
+        raise CapabilityError("unauthenticated", "Authentication required.", 401)
+    rows = (
+        db.query(IntegrationToken)
+        .filter(
+            IntegrationToken.user_id == user_id,
+            IntegrationToken.provider.in_(list(aliases)),
+        )
+        .order_by(IntegrationToken.updated_at.desc())
+        .all()
+    )
+    active = []
+    expired = []
+    now = _now()
+    for row in rows:
+        if str(row.status or "").lower() != "active" or not row.access_token:
+            continue
+        expires = getattr(row, "expires_at", None)
+        if expires is not None:
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+            if expires <= now:
+                expired.append(row)
+                continue
+        active.append(row)
+    if active:
+        return {
+            "status": "active",
+            "provider": source,
+            "token_provider": active[0].provider,
+            "checked_at": now.isoformat(),
+        }
+    if expired:
+        raise CapabilityError(
+            "source_access_expired",
+            "The connected source access token is expired. Refresh or "
+            "reconnect the source; the cached snapshot is not treated as "
+            "current access.",
+            409,
+        )
+    if rows:
+        raise CapabilityError(
+            "source_permission_revoked",
+            "The connected source grant is revoked or inactive. Reconnect the "
+            "source; the cached snapshot is not treated as authorised.",
+            403,
+        )
+    raise CapabilityError(
+        "source_disconnected",
+        "No connected grant exists for this source and user. Reconnect before "
+        "binding; no cached rows were used.",
+        409,
+    )
+
+
+def _assert_bound_source_access(db, canvas: Canvas, user: Any) -> None:
+    source = get_dataset(canvas).get("source") or {}
+    upstream = source.get("upstream") if isinstance(source, dict) else None
+    if not isinstance(upstream, dict):
+        return
+    _assert_connected_source_access(
+        db, str(upstream.get("provider") or ""), user,
+    )
+
+
+def _validate_connected_coverage(entry: Dict[str, Any]) -> Dict[str, Any]:
+    coverage = dict(entry.get("coverage") or {})
+    if not coverage.get("known"):
+        raise CapabilityError(
+            "materialization_incomplete",
+            "The catalog entry does not have known materialization coverage; "
+            "binding it could certify a partial sheet.",
+            409,
+        )
+    if coverage.get("truncated"):
+        raise CapabilityError(
+            "materialization_incomplete",
+            "The materialized sheet is truncated; a complete result cannot be "
+            "certified from this copy.",
+            409,
+        )
+    source_rows = coverage.get("source_row_count")
+    materialized = coverage.get("materialized_row_count")
+    if source_rows is None or materialized is None:
+        raise CapabilityError(
+            "materialization_incomplete",
+            "The catalog entry is missing source/materialized row counts.",
+            409,
+        )
+    if int(source_rows) != int(materialized):
+        raise CapabilityError(
+            "materialization_incomplete",
+            f"Only {materialized} of {source_rows} source rows were "
+            "materialized; no connected snapshot was bound.",
+            409,
+        )
+    if int(entry.get("row_count") or 0) != int(materialized):
+        raise CapabilityError(
+            "materialization_incomplete",
+            "The catalog row count disagrees with its coverage record.",
+            409,
+        )
+    return coverage
+
+
+def bind_connected_dataset(
+    db, canvas: Canvas, user: Any, *,
+    dataset_name: Optional[str] = None,
+    source: Optional[str] = None,
+    external_id: Optional[str] = None,
+    sheet_name: Optional[str] = None,
+    expected_version: Optional[str] = None,
+    subject_field: Optional[str] = None,
+    measure_field: Optional[str] = None,
+    title: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Bind a server-resolved connected catalog sheet to this canvas.
+
+    The request names a catalog reference only. The server authorizes the
+    canvas, resolves the entry inside the authenticated workspace, verifies
+    the source grant and exact version, reads the authoritative Parquet
+    frame, and stores a labelled local snapshot with both identities.
+    No body field can supply rows, a path or a hash.
+    """
+    from core.sheet_dataset_service import (
+        DatasetScopeError,
+        connected_parquet_path,
+        resolve_dataset_entry_scoped_sync,
+    )
+
+    authorize_canvas(db, canvas, user)
+    manifest = _require_effective(canvas, "bind")
+    workspace_id = str(getattr(canvas, "workspace_id", "") or "").strip()
+    try:
+        resolution = resolve_dataset_entry_scoped_sync(
+            dataset_name,
+            workspace_id=workspace_id,
+            source=source,
+            external_id=external_id,
+            sheet_name=sheet_name,
+        )
+    except DatasetScopeError as exc:
+        raise CapabilityError("workspace_scope_required", str(exc), 400)
+
+    state = resolution.get("state")
+    if state == "workspace_mismatch":
+        raise CapabilityError(
+            "workspace_mismatch",
+            "That dataset belongs to a different workspace.",
+            403,
+        )
+    if state == "inactive":
+        raise CapabilityError(
+            "source_inactive",
+            "The source version is superseded or inactive; it cannot be "
+            "bound as the authoritative frame.",
+            409,
+        )
+    if state == "ambiguous":
+        raise CapabilityError(
+            "ambiguous_source",
+            "More than one active catalog version matches this reference; "
+            "name the exact dataset and version before binding.",
+            409,
+            candidates=resolution.get("candidates") or [],
+        )
+    if state != "active" or not resolution.get("entry"):
+        raise CapabilityError(
+            "source_not_found",
+            "No active dataset matches that catalog reference in this "
+            "workspace. A guessed name or a deleted source cannot be bound.",
+            404,
+        )
+
+    entry = resolution["entry"]
+    if str(entry.get("source_kind") or "") != "file":
+        raise CapabilityError(
+            "unsupported_source_kind",
+            "Connected binding requires a file-backed dataset entry.",
+            409,
+        )
+    # Catalog rows are workspace-scoped derived data; the authenticated
+    # grant check below is per user. ``created_by`` is not an ACL: ingestion
+    # workers stamp a workspace/service identity on some rows, so treating it
+    # as a user id would reject legitimate connected copies. Multi-user file
+    # ACLs remain explicitly unsupported (single-user restrictions stay).
+    access = _assert_connected_source_access(
+        db, str(entry.get("source") or ""), user,
+    )
+
+    actual_version = str(entry.get("content_hash") or "")
+    requested_version = str(expected_version or "").strip()
+    if requested_version:
+        if len(requested_version) < 6 or not (
+            actual_version == requested_version
+            or actual_version.startswith(requested_version)
+        ):
+            raise CapabilityError(
+                "stale_source_version",
+                f"Requested source version '{requested_version}' is not the "
+                f"active version '{actual_version[:12]}'. Refresh or bind the "
+                "active version explicitly.",
+                409,
+                active_version=actual_version,
+            )
+
+    coverage = _validate_connected_coverage(entry)
+    parquet_path = connected_parquet_path(entry)
+    if parquet_path is None or not parquet_path.exists():
+        raise CapabilityError(
+            "materialization_incomplete",
+            "The catalog entry points outside the dataset store or its "
+            "Parquet copy is missing; no snapshot was bound.",
+            409,
+        )
+    try:
+        frame = pd.read_parquet(parquet_path)
+    except Exception as exc:  # noqa: BLE001 — corrupt copy is a refusal
+        raise CapabilityError(
+            "materialization_incomplete",
+            f"The materialized copy could not be read ({type(exc).__name__}).",
+            409,
+        )
+    if len(frame) != int(coverage.get("materialized_row_count") or 0):
+        raise CapabilityError(
+            "materialization_incomplete",
+            "The Parquet row count disagrees with the catalog coverage record.",
+            409,
+        )
+
+    physical_columns = [str(c) for c in frame.columns if str(c) != "__sheet_row"]
+    if not physical_columns:
+        raise CapabilityError(
+            "materialization_incomplete",
+            "The materialized sheet has no data columns.",
+            409,
+        )
+    raw_rows = frame[physical_columns].to_dict(orient="records")
+    rows = [
+        [_json_cell(record.get(column)) for column in physical_columns]
+        for record in raw_rows
+    ]
+    if "__sheet_row" in frame.columns:
+        try:
+            sheet_rows = [int(value) for value in frame["__sheet_row"].tolist()]
+        except (TypeError, ValueError):
+            raise CapabilityError(
+                "materialization_incomplete",
+                "The materialized sheet lost its source row references.",
+                409,
+            )
+    else:
+        sheet_rows = list(range(2, len(rows) + 2))
+
+    binding = dict(manifest.get("data_binding") or {})
+    configured_subject = str(binding.get("subject_field") or "").strip()
+    requested_subject = str(subject_field or "").strip()
+    if requested_subject and configured_subject and requested_subject != configured_subject:
+        raise CapabilityError(
+            "subject_mapping_conflict",
+            f"Manifest subject '{configured_subject}' differs from requested "
+            f"subject '{requested_subject}'. Change the manifest explicitly.",
+            409,
+        )
+    resolved_subject = requested_subject or configured_subject
+    if not resolved_subject:
+        raise CapabilityError(
+            "subject_field_required",
+            "Name the subject field (or set data_binding.subject_field) before "
+            "binding connected rows; no column was guessed.",
+            400,
+            columns=physical_columns,
+        )
+    if resolved_subject not in physical_columns:
+        raise CapabilityError(
+            "ambiguous_subject_mapping",
+            f"Subject field '{resolved_subject}' is not a column of "
+            f"'{entry.get('entity_name')}'.",
+            409,
+            columns=physical_columns,
+        )
+
+    configured_measure = str(binding.get("measure_field") or "").strip()
+    requested_measure = str(measure_field or "").strip()
+    if requested_measure and configured_measure and requested_measure != configured_measure:
+        raise CapabilityError(
+            "measure_mapping_conflict",
+            f"Manifest measure '{configured_measure}' differs from requested "
+            f"measure '{requested_measure}'. Change the manifest explicitly.",
+            409,
+        )
+    resolved_measure = requested_measure or configured_measure
+    if resolved_measure and resolved_measure not in physical_columns:
+        raise CapabilityError(
+            "unknown_measure_field",
+            f"Measure field '{resolved_measure}' is not a column of "
+            f"'{entry.get('entity_name')}'.",
+            409,
+            columns=physical_columns,
+        )
+
+    upstream = {
+        "provider": str(entry.get("source") or ""),
+        "dataset_name": str(entry.get("dataset_name") or ""),
+        "file_name": str(entry.get("file_name") or ""),
+        "external_id": str(entry.get("external_id") or ""),
+        "sheet_name": str(entry.get("entity_name") or ""),
+        "content_hash": actual_version,
+        "version": actual_version,
+        "source_modified_at": entry.get("source_modified_at"),
+        "ingested_at": entry.get("ingested_at"),
+        "workspace_id": workspace_id,
+        "coverage": coverage,
+    }
+    snapshot_label = (
+        title
+        or f"{entry.get('file_name') or 'connected workbook'} — "
+           f"{entry.get('entity_name') or 'sheet'}"
+    )
+    prior_dataset = get_dataset(canvas)
+    prior_source = prior_dataset.get("source") or {}
+    prior_upstream = (
+        prior_source.get("upstream")
+        if isinstance(prior_source.get("upstream"), dict) else None
+    )
+    previous_bindings = list(prior_source.get("previous_bindings") or [])
+    if prior_dataset:
+        previous_bindings.append({
+            "snapshot": prior_source.get("snapshot"),
+            "upstream": prior_upstream,
+            "replaced_at": _now().isoformat(),
+        })
+    refresh = {
+        "replaced": bool(prior_dataset),
+        "prior_snapshot_version": (
+            (prior_source.get("snapshot") or {}).get("version")
+            if isinstance(prior_source.get("snapshot"), dict) else None
+        ),
+        "prior_upstream_version": (
+            prior_upstream.get("content_hash") if prior_upstream else None
+        ),
+        "assessment_reuse_invalidated": bool(prior_dataset),
+        "new_upstream_version": actual_version,
+    }
+    source_meta = {
+        "file_name": str(entry.get("file_name") or ""),
+        "snapshot": {
+            "kind": "canvas_dataset_snapshot",
+            "label": snapshot_label,
+            "note": "Local snapshot. Edits do not write back to the connected source.",
+        },
+        "upstream": upstream,
+        "writeback": {
+            "supported": False,
+            "upstream_mutated": False,
+            "performed": False,
+        },
+        "source_access": access,
+        "previous_bindings": previous_bindings[-5:],
+        "refresh": refresh,
+    }
+    manifest = dict(manifest)
+    binding.update({
+        "resource_id": f"canvas:{canvas.id}",
+        "subject_field": resolved_subject,
+        "measure_field": resolved_measure,
+        "source_version": actual_version,
+    })
+    manifest["data_binding"] = binding
+    content = _canvas_content(canvas)
+    content["capability_manifest"] = validate_manifest(manifest)
+    canvas.content = content
+
+    result = _persist_dataset(
+        db, canvas, user, physical_columns, rows,
+        source=source_meta, title=snapshot_label, sheet_rows=sheet_rows,
+    )
+    result["upstream"] = upstream
+    result["snapshot"] = result["source"].get("snapshot") or {}
+    result["coverage"] = coverage
+    result["source_access"] = access
+    result["requested_version"] = requested_version or None
+    result["refresh"] = refresh
+    return result
 
 
 def parse_tabular_upload(filename: str, content: bytes) -> Tuple[List[str], List[List[Any]]]:
@@ -500,6 +1025,7 @@ def parse_tabular_upload(filename: str, content: bytes) -> Tuple[List[str], List
 def _select(
     df: pd.DataFrame, columns: List[str], ask: str,
     max_rows: Optional[int] = None,
+    required_columns: Optional[Sequence[str]] = None,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     from core.table_selection import resolve_selection, select_rows
 
@@ -512,6 +1038,12 @@ def _select(
             candidates=resolved.get("candidates") or [],
         )
     chosen = [c for c in resolved.get("columns") or physical if c in physical]
+    if required_columns:
+        # Assessment evidence needs the subject/measure/status columns even
+        # when the ask only named the predicate column. Selection semantics
+        # stay unchanged for the other operations.
+        required = [c for c in physical if c in set(required_columns)]
+        chosen = [c for c in physical if c in set(chosen) | set(required)]
     predicate = resolved.get("predicate")
     result = select_rows(
         df, chosen, predicate,
@@ -528,6 +1060,7 @@ def _select(
 
 def select_operation(db, canvas: Canvas, user: Any, ask: str) -> Dict[str, Any]:
     manifest = _require_effective(canvas, "select")
+    _assert_bound_source_access(db, canvas, user)
     dataset = get_dataset(canvas)
     columns = list(dataset.get("columns") or [])
     df = _frame(canvas)
@@ -576,6 +1109,7 @@ def calculate_operation(db, canvas: Canvas, user: Any, ask: str) -> Dict[str, An
     )
 
     manifest = _require_effective(canvas, "calculate")
+    _assert_bound_source_access(db, canvas, user)
     dataset = get_dataset(canvas)
     columns = list(dataset.get("columns") or [])
     df = _frame(canvas)
@@ -617,22 +1151,49 @@ def calculate_operation(db, canvas: Canvas, user: Any, ask: str) -> Dict[str, An
         "currency_column": str(binding.get("currency_field") or ""),
     }
     source = _dataset_source(canvas)
+    upstream = source.get("upstream") or {}
+    # The authoritative workbook version is the upstream content hash. The
+    # derived canvas snapshot revision is reported separately; it is never
+    # presented as the workbook's version.
+    version = str(
+        upstream.get("content_hash")
+        or source.get("source_version")
+        or ""
+    )
+    coverage = {
+        "complete_dataset": True,
+        "selected_count": selected.get("selected_count"),
+        "source_row_count": selected.get("source_row_count"),
+    }
+    if source.get("snapshot"):
+        coverage["snapshot_version"] = source["snapshot"].get("version")
+    if upstream:
+        coverage["upstream_version"] = upstream.get("content_hash")
+        coverage["upstream_provider"] = upstream.get("provider")
+        coverage["upstream_external_id"] = upstream.get("external_id")
     result = aggregate_selected_rows(
         records,
         physical,
         roles,
         sheet=str(source.get("file_name") or "canvas"),
         file_name=str(source.get("file_name") or "canvas dataset"),
-        version=str(source.get("source_version") or ""),
+        version=version,
         source_row_count=selected.get("source_row_count"),
-        coverage={
-            "complete_dataset": True,
-            "selected_count": selected.get("selected_count"),
-            "source_row_count": selected.get("source_row_count"),
-        },
+        coverage=coverage,
         operation="count" if is_count else "sum",
         value_column="" if is_count else str(measure),
     )
+    if source.get("snapshot") and upstream:
+        note = (
+            f"Canvas snapshot: `{str(source['snapshot'].get('version') or '')[:12]}` "
+            "(local; edits do not write back). "
+            f"Upstream: `{upstream.get('provider')}` "
+            f"`{upstream.get('external_id')}` "
+            f"version `{str(upstream.get('content_hash') or '')[:12]}`."
+        )
+        result["block"] = note + "\n" + str(result.get("block") or "")
+        if result.get("answer"):
+            result["answer"] = note + "\n" + str(result["answer"])
     total_values = {
         key: bucket.get("value")
         for key, bucket in (result.get("subtotals") or {}).items()
@@ -687,6 +1248,14 @@ def _evidence_index(
                 "file_name": source.get("file_name"),
                 "source_version": source.get("source_version"),
                 "sha256": source.get("sha256"),
+                "snapshot_version": (
+                    source.get("snapshot") or {}).get("version"),
+                "upstream_provider": (
+                    source.get("upstream") or {}).get("provider"),
+                "upstream_external_id": (
+                    source.get("upstream") or {}).get("external_id"),
+                "upstream_version": (
+                    source.get("upstream") or {}).get("content_hash"),
             },
             "retrieval_operation": "canvas_table_read",
             "retrieval_execution_id": execution_id,
@@ -701,6 +1270,7 @@ def _evidence_index(
 async def assess_operation(
     db, canvas: Canvas, user: Any, ask: str,
     llm_service: Any = None,
+    max_subjects: Optional[int] = None,
 ) -> Dict[str, Any]:
     from core.review_result import (
         LAST_STRUCTURED_REVIEW,
@@ -713,6 +1283,7 @@ async def assess_operation(
 
     manifest = _require_effective(canvas, "assess")
     _require_approval(canvas, manifest, "assess", user)
+    _assert_bound_source_access(db, canvas, user)
     columns = list(get_dataset(canvas).get("columns") or [])
     subject_field = str((manifest.get("data_binding") or {}).get("subject_field") or "")
     if subject_field not in columns:
@@ -721,17 +1292,54 @@ async def assess_operation(
             f"Subject field '{subject_field}' is not a bound column.",
         )
     df = _frame(canvas)
+    physical = [c for c in columns if c != "__sheet_row"]
     selected, _resolved = _select(
-        df, columns, ask or "all rows", max_rows=len(df))
+        df, columns, ask or "all rows", max_rows=len(df),
+        required_columns=physical,
+    )
     rows = selected.get("rows") or []
     if not rows:
         raise CapabilityError("no_rows", "The assessment selection returned no rows.")
     execution_id = f"canvas-{canvas.id}-{uuid.uuid4().hex[:12]}"
     source = _dataset_source(canvas)
-    evidence, subjects = _evidence_index(
-        rows, subject_field, source, execution_id,
-        [c for c in columns if c != "__sheet_row"],
+
+    # Bounded assessment: the deterministic selection may name thousands of
+    # subjects. Never dispatch them all. Subjects beyond the cap are named in
+    # the receipt rather than silently dropped.
+    all_subjects: List[str] = []
+    seen_subjects = set()
+    for row in rows:
+        subject = _subject_values(physical, row.get("cells") or {}, subject_field)
+        if subject in seen_subjects:
+            raise CapabilityError(
+                "duplicate_subject_mapping",
+                f"Subject '{subject}' appears on more than one selected row; "
+                "bind a unique subject field before assessing.",
+            )
+        seen_subjects.add(subject)
+        all_subjects.append(subject)
+    cap = int(max_subjects if max_subjects is not None else _MAX_ASSESS_SUBJECTS)
+    if cap < 1:
+        raise CapabilityError(
+            "invalid_assessment_scope", "max_subjects must be at least 1."
+        )
+    assessed_rows = rows[:cap]
+    subjects = all_subjects[:cap]
+    unassessed_subjects = all_subjects[cap:]
+    evidence, _ = _evidence_index(
+        assessed_rows, subject_field, source, execution_id, physical,
     )
+    coverage = {
+        "selected_count": len(rows),
+        "assessed_count": len(subjects),
+        "unassessed_count": len(unassessed_subjects),
+        "assessment_truncated": bool(unassessed_subjects),
+        "max_subjects": cap,
+        "limit_source": "request" if max_subjects is not None else "default",
+        "assessed_subjects": subjects,
+        "unassessed_subjects": unassessed_subjects,
+        "selection_source_row_count": selected.get("source_row_count"),
+    }
     decisions = list(manifest.get("decision_options") or [])
     policy_text = str(manifest.get("task_policy") or "").strip()
     policy_id = f"policy:{policy_revision(manifest)}"
@@ -758,11 +1366,36 @@ async def assess_operation(
         + " | ".join(entry["values"])
         for entry in evidence
     )
+    upstream = source.get("upstream") or {}
+    snapshot = source.get("snapshot") or {}
+    if upstream:
+        identity_text = (
+            "Local canvas snapshot: "
+            f"version {snapshot.get('version') or source.get('source_version')} "
+            "(edits are local; no source writeback).\n"
+            f"Upstream: provider {upstream.get('provider')}; "
+            f"item {upstream.get('external_id')}; "
+            f"file {upstream.get('file_name')}; "
+            f"sheet {upstream.get('sheet_name')}; "
+            f"version {upstream.get('content_hash')}.\n"
+        )
+    else:
+        identity_text = (
+            f"Local canvas dataset: {source.get('file_name')}; "
+            f"version {source.get('source_version')}.\n"
+        )
+    coverage_text = (
+        f"Assessment coverage: {len(subjects)} assessed, "
+        f"{len(unassessed_subjects)} selected but unassessed "
+        f"(cap {cap}, {coverage['limit_source']})."
+    )
     system = (
         "You assess authoritative canvas rows under the task policy below. "
         "Use only the supplied rows and policy. Do not invent rows, columns, "
         "sources or decisions.\n\n"
         + review_output_instruction(contract, evidence, policies)
+        + "\n\nSOURCE IDENTITY\n" + identity_text
+        + "\n" + coverage_text
         + "\n\nSOURCE ROWS\n" + source_rows
         + "\n\nPOLICY TEXT\n" + policy_text
     )
@@ -808,6 +1441,9 @@ async def assess_operation(
             }],
             "route": route,
             "source": source,
+            "coverage": coverage,
+            "subjects": subjects,
+            "unassessed_subjects": unassessed_subjects,
             "manifest_revision": manifest.get("manifest_revision"),
             "policy_revision": policy_revision(manifest),
         }
@@ -820,11 +1456,22 @@ async def assess_operation(
         policy_index=policies,
     )
     certified = bool(review.get("ok")) and review.get("completion") == "completed"
+    execution_fingerprint = _sha256_json({
+        "policy_revision": policy_revision(manifest),
+        "teaching_context": manifest.get("teaching_context") or {},
+        "source_version": source.get("source_version"),
+        "upstream_version": (source.get("upstream") or {}).get("content_hash"),
+        "ask": str(ask or ""),
+        "max_subjects": cap,
+        "assessed_subjects": subjects,
+        "decisions": decisions,
+    })[:24]
     return {
         "success": certified,
         "operation": "assess",
         "canvas_id": canvas.id,
         "execution_id": execution_id,
+        "execution_fingerprint": execution_fingerprint,
         "status": review.get("completion"),
         "certified": certified,
         "assessments": review.get("assessments") or [],
@@ -834,9 +1481,22 @@ async def assess_operation(
         "route": route,
         "source": source,
         "source_revision": source.get("source_version"),
+        "upstream_revision": (source.get("upstream") or {}).get("content_hash"),
         "manifest_revision": manifest.get("manifest_revision"),
         "policy_revision": policy_revision(manifest),
+        "teaching_snapshot": {
+            "policy_revision": policy_revision(manifest),
+            "task_policy": str(manifest.get("task_policy") or ""),
+            "decision_options": list(manifest.get("decision_options") or []),
+            "teaching_context": dict(manifest.get("teaching_context") or {}),
+            "source_snapshot_version": source.get("source_version"),
+            "source_upstream_version": (
+                source.get("upstream") or {}).get("content_hash"),
+            "execution_id": execution_id,
+        },
         "subjects": subjects,
+        "unassessed_subjects": unassessed_subjects,
+        "coverage": coverage,
         "evidence_count": len(evidence),
     }
 
@@ -847,10 +1507,12 @@ def edit_operation(
 ) -> Dict[str, Any]:
     manifest = _require_effective(canvas, "edit")
     _require_approval(canvas, manifest, "edit", user)
+    _assert_bound_source_access(db, canvas, user)
     content = _canvas_content(canvas)
     dataset = get_dataset(canvas)
     columns = list(dataset.get("columns") or [])
     rows = [list(row) for row in (dataset.get("rows") or [])]
+    sheet_rows = dataset.get("sheet_rows") or []
     editable = set(manifest.get("editable_fields") or [])
     if not editable:
         raise CapabilityError(
@@ -885,7 +1547,16 @@ def edit_operation(
                 "edit_not_allowed",
                 f"Column '{column}' is not declared editable.",
             )
-        idx = row_number - 2
+        if sheet_rows:
+            try:
+                idx = sheet_rows.index(row_number)
+            except ValueError:
+                raise CapabilityError(
+                    "row_not_found",
+                    f"Row {row_number} is not a source row in this snapshot.",
+                )
+        else:
+            idx = row_number - 2
         if idx < 0 or idx >= len(rows):
             raise CapabilityError("row_not_found", f"Row {row_number} is outside the dataset.")
         before = rows[idx][columns.index(column)] if columns.index(column) < len(rows[idx]) else None
@@ -905,10 +1576,22 @@ def edit_operation(
             "after": after, "changed": True, "already_satisfied": False,
         })
     dataset["rows"] = rows
-    dataset["source"] = dict(dataset.get("source") or {})
-    dataset["source"]["source_version"] = hashlib.sha256(
-        json.dumps([columns, rows], default=str).encode()
-    ).hexdigest()[:16]
+    source = dict(dataset.get("source") or {})
+    snapshot_hash = _snapshot_digest(columns, rows, sheet_rows)
+    source["source_version"] = snapshot_hash[:16]
+    source["sha256"] = snapshot_hash
+    snapshot = dict(source.get("snapshot") or {})
+    if snapshot:
+        snapshot["version"] = source["source_version"]
+        snapshot["sha256"] = snapshot_hash
+        snapshot["rows"] = len(rows)
+        source["snapshot"] = snapshot
+    source["writeback"] = {
+        "supported": False,
+        "upstream_mutated": False,
+        "performed": False,
+    }
+    dataset["source"] = source
     content["dataset"] = dataset
     content["capability_revision"] = current_revision(canvas) + (1 if changed else 0)
     canvas.content = content
@@ -923,13 +1606,22 @@ def edit_operation(
     db.commit()
     # Read back from the authoritative row, not the in-memory request.
     fresh = db.query(Canvas).filter(Canvas.id == canvas.id).first() or canvas
-    fresh_rows = (get_dataset(fresh).get("rows") or [])
+    fresh_dataset = get_dataset(fresh)
+    fresh_rows = fresh_dataset.get("rows") or []
+    fresh_sheet_rows = fresh_dataset.get("sheet_rows") or []
     for item in readback:
-        idx = int(item["row"]) - 2
+        if fresh_sheet_rows:
+            try:
+                idx = fresh_sheet_rows.index(int(item["row"]))
+            except ValueError:
+                idx = -1
+        else:
+            idx = int(item["row"]) - 2
         col = columns.index(item["column"])
-        observed = fresh_rows[idx][col] if idx < len(fresh_rows) and col < len(fresh_rows[idx]) else None
+        observed = fresh_rows[idx][col] if 0 <= idx < len(fresh_rows) and col < len(fresh_rows[idx]) else None
         item["readback"] = observed
         item["readback_matches"] = observed == item["after"]
+    fresh_source = _dataset_source(fresh)
     return {
         "success": all(item["readback_matches"] for item in readback),
         "operation": "edit",
@@ -937,7 +1629,10 @@ def edit_operation(
         "changed_count": changed,
         "edits": readback,
         "revision": current_revision(fresh),
-        "source_version": (get_dataset(fresh).get("source") or {}).get("source_version"),
+        "source_version": fresh_source.get("source_version"),
+        "upstream_revision": (fresh_source.get("upstream") or {}).get("content_hash"),
+        "source": fresh_source,
+        "writeback": fresh_source.get("writeback"),
         "manifest_revision": manifest.get("manifest_revision"),
     }
 
@@ -948,6 +1643,7 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
 
     manifest = _require_effective(canvas, "export")
     _require_approval(canvas, manifest, "export", user)
+    _assert_bound_source_access(db, canvas, user)
     outputs = manifest.get("outputs") or ["xlsx"]
     if "xlsx" not in outputs:
         raise CapabilityError("unsupported_output", "Only xlsx export is declared.")
@@ -955,6 +1651,49 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
     columns = list(dataset.get("columns") or [])
     rows = dataset.get("rows") or []
     source = _dataset_source(canvas)
+    binding = manifest.get("teaching_binding") or {}
+    teaching = {}
+    if binding.get("agent_id"):
+        from core.artifact_teaching import resolve_artifact_teaching
+
+        teaching = resolve_artifact_teaching(
+            db, str(binding.get("agent_id")), "spreadsheet",
+            goal_id=str(binding.get("goal_id") or "") or None,
+            task_context=dict(manifest.get("teaching_context") or {}),
+            workspace_id=str(canvas.workspace_id or "") or None,
+        )
+        if teaching.get("status") in {"needs_context", "conflict"}:
+            raise CapabilityError(
+                "teaching_context_unresolved",
+                teaching.get("explanation")
+                or "Spreadsheet teaching context needs confirmation.",
+                409,
+                teaching=teaching,
+            )
+        spec = teaching.get("spec") or {}
+        wanted = [str(item) for item in (spec.get("table_columns") or [])]
+        if wanted:
+            normalized = {
+                " ".join(str(column).lower().split()): column
+                for column in columns
+            }
+            missing = [item for item in wanted
+                       if " ".join(item.lower().split()) not in normalized]
+            if missing:
+                raise CapabilityError(
+                    "unsupported_formatting",
+                    f"Required spreadsheet columns are missing: {', '.join(missing)}",
+                    409,
+                    teaching=teaching,
+                )
+            ordered = [normalized[" ".join(item.lower().split())] for item in wanted]
+            ordered += [column for column in columns if column not in ordered]
+            indexes = [columns.index(column) for column in ordered]
+            columns = ordered
+            rows = [
+                [row[index] if index < len(row) else None for index in indexes]
+                for row in rows
+            ]
     office_dir = Path(os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))).resolve()
     office_dir.mkdir(parents=True, exist_ok=True)
     safe = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in canvas.name)[:50] or "canvas"
@@ -983,6 +1722,24 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
                     cell.value = int(text)
                 elif _re.fullmatch(r"-?\d*\.\d+", text):
                     cell.value = float(text)
+    spreadsheet_spec = (teaching or {}).get("spec") or {}
+    if spreadsheet_spec:
+        from openpyxl.styles import Font
+
+        font_name = str(spreadsheet_spec.get("font_name") or "")
+        font_size = spreadsheet_spec.get("font_size")
+        header_bold = bool(spreadsheet_spec.get("header_bold", True))
+        for row_cells in ws.iter_rows():
+            for cell in row_cells:
+                if font_name or font_size or (
+                        header_bold and cell.row == 1):
+                    cell.font = Font(
+                        name=font_name or cell.font.name,
+                        size=float(font_size or cell.font.sz or 11),
+                        bold=header_bold if cell.row == 1 else cell.font.bold,
+                    )
+        if spreadsheet_spec.get("freeze_header"):
+            ws.freeze_panes = "A2"
     meta = wb.create_sheet("Provenance")
     meta.append(["canvas_id", canvas.id])
     meta.append(["source_resource_id", source.get("resource_id")])
@@ -1002,6 +1759,7 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
         "artifact": target,
         "source_version": source.get("source_version"),
         "rows": len(rows),
+        "teaching": teaching,
     })
     db.commit()
     return {
@@ -1018,5 +1776,6 @@ def export_operation(db, canvas: Canvas, user: Any) -> Dict[str, Any]:
         },
         "source": source,
         "manifest_revision": manifest.get("manifest_revision"),
+        "teaching": teaching,
         "download_url": f"/api/v1/office/download?file_path={target}&canvas_id={canvas.id}",
     }

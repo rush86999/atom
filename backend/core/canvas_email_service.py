@@ -4,6 +4,7 @@ Email Canvas Service
 Backend service for email canvas with threaded conversations,
 compose interface, and attachment management.
 """
+import hashlib
 import re
 import time as _time
 from datetime import datetime, timezone
@@ -1031,6 +1032,7 @@ class EmailCanvasService:
         canvas_id: str,
         user_id: str,
         attachment_ids: List[str],
+        expected_attachment_hashes: Optional[Dict[str, str]] = None,
     ) -> List[Dict[str, Any]]:
         """Resolve attachment ids to send payloads against a CAPTURED metadata
         snapshot (the send audit row written later doesn't carry canvas
@@ -1059,15 +1061,33 @@ class EmailCanvasService:
                 data = resolved.get("bytes") if resolved else None
             if data is None:
                 raise ValueError(f"Attachment content unavailable: {filename}")
+            digest = hashlib.sha256(data).hexdigest()
+            if expected_attachment_hashes is not None:
+                expected = str(expected_attachment_hashes.get(aid) or "")
+                if not expected:
+                    raise ValueError(
+                        f"Attachment has no approved sha256 binding: {filename}")
+                if digest != expected:
+                    raise ValueError(
+                        "Attachment changed after approval: "
+                        f"{filename} (expected {expected[:12]}, got {digest[:12]})")
             payloads.append(
                 {
+                    "attachment_id": aid,
                     "filename": filename,
                     "content_type": record.get("content_type")
                     or "application/octet-stream",
                     "content_bytes": data,
+                    "sha256": digest,
                     "policy_text": self._attachment_policy_text(data, filename),
                 }
             )
+        if expected_attachment_hashes is not None:
+            unknown = sorted(set(expected_attachment_hashes) - set(attachment_ids))
+            if unknown:
+                raise ValueError(
+                    "Approved attachment binding names attachments not sent: "
+                    + ", ".join(unknown))
         return payloads
 
     def _finalize_sent_attachments(
@@ -1107,12 +1127,16 @@ class EmailCanvasService:
         agent_id: Optional[str] = None,
         tenant_id: str = "default",
         attachment_ids: Optional[List[str]] = None,
+        expected_attachment_hashes: Optional[Dict[str, str]] = None,
         override_grounding: bool = False,
         # Mixed-thread leak guard override (internal_thread_quote) — a
         # supervisor's explicit decision, recorded on the send audit row.
         override_internal_quote: bool = False,
         thread_id: Optional[str] = None,
         reply_all: bool = False,
+        run_id: Optional[str] = None,
+        operation_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Send the composed email through the deterministic email policy.
 
@@ -1138,6 +1162,12 @@ class EmailCanvasService:
         """
         if canvas_id and self._canvas_owner_id(canvas_id) != str(user_id):
             return {"success": False, "error": "Not the canvas owner"}
+        from core.email_send_policy import (
+            disabled_result,
+            live_email_send_disabled,
+        )
+        if live_email_send_disabled():
+            return disabled_result()
         from core.email_policy import evaluate_email_action
 
         # Grounded send gate (Installation Adaptation Plan Phase 4): the
@@ -1232,7 +1262,8 @@ class EmailCanvasService:
             canvas_meta = self._latest_email_metadata(canvas_id) or {}
             try:
                 send_attachments = await self._resolve_send_attachments(
-                    canvas_meta, canvas_id, user_id, attachment_ids
+                    canvas_meta, canvas_id, user_id, attachment_ids,
+                    expected_attachment_hashes=expected_attachment_hashes,
                 )
             except ValueError as e:
                 decision = {
@@ -1256,7 +1287,9 @@ class EmailCanvasService:
                 {"user_id": user_id, "agent_id": agent_id},
             )
             payload["attachments"] = [
-                {"filename": a["filename"], "size": len(a["content_bytes"])}
+                {"attachment_id": a["attachment_id"],
+                 "filename": a["filename"], "size": len(a["content_bytes"]),
+                 "sha256": a["sha256"]}
                 for a in send_attachments
             ]
 
@@ -1322,12 +1355,23 @@ class EmailCanvasService:
                 self.record_send(canvas_id, user_id, agent_id, payload, "failed", decision, tenant_id)
                 return {"success": False, "error": "Outlook reply failed", "status": "failed"}
             self.record_send(canvas_id, user_id, agent_id, payload, "sent" if sent else "failed", decision, tenant_id)
+            send_detail = dict(getattr(svc, "last_send_error", None) or {})
+            provider_state = (
+                "sent" if sent
+                else ("unknown" if send_detail.get("outcome_uncertain")
+                      else "not_sent"))
+            self._reconcile_outbound_effect(
+                run_id=run_id, operation_id=operation_id,
+                provider_state=provider_state, tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                evidence=str(send_detail.get("transport_error") or ""))
             if not sent:
-                send_detail = dict(getattr(svc, "last_send_error", None) or {})
                 return {
                     "success": False,
                     "error": send_detail.get("error", "Outlook reply failed"),
                     "status": "failed",
+                    "outcome_uncertain": bool(
+                        send_detail.get("outcome_uncertain")),
                     **({"needs_reconnect": True} if send_detail.get("needs_reconnect") else {}),
                 }
             return {
@@ -1338,6 +1382,7 @@ class EmailCanvasService:
                 "grounding": grounding,
                 "reply_to_message_id": reply_message_id,
                 "thread_id": thread_id,
+                "provider_state": "sent",
             }
 
         svc = None
@@ -1380,6 +1425,15 @@ class EmailCanvasService:
                 if decision.get("reason") else send_detail["error"]
             )
         self.record_send(canvas_id, user_id, agent_id, payload, "sent" if ok else "failed", decision, tenant_id)
+        provider_state = (
+            "sent" if ok
+            else ("unknown" if send_detail.get("outcome_uncertain")
+                  else "not_sent"))
+        self._reconcile_outbound_effect(
+            run_id=run_id, operation_id=operation_id,
+            provider_state=provider_state, tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            evidence=str(send_detail.get("transport_error") or ""))
         if ok and send_attachments and canvas_meta is not None:
             self._finalize_sent_attachments(
                 canvas_id, user_id, agent_id, canvas_meta, attachment_ids or []
@@ -1396,6 +1450,8 @@ class EmailCanvasService:
                 "success": False,
                 "error": send_detail.get("error", "Outlook send failed"),
                 "status": "failed",
+                "outcome_uncertain": bool(
+                    send_detail.get("outcome_uncertain")),
                 **({"needs_reconnect": True} if send_detail.get("needs_reconnect") else {}),
             }
         return {
@@ -1404,7 +1460,42 @@ class EmailCanvasService:
             "decision": decision["decision"],
             "policy": decision["policy"],
             "grounding": grounding,
+            "provider_state": "sent",
         }
+
+    def _reconcile_outbound_effect(
+        self,
+        *,
+        run_id: Optional[str],
+        operation_id: Optional[str],
+        provider_state: str,
+        tenant_id: str,
+        workspace_id: Optional[str],
+        evidence: str = "",
+    ) -> None:
+        """Bind the real provider outcome to the task operation ledger.
+
+        The local reservation proves an attempt was authorized; it does not
+        prove the provider accepted it. ``sent`` here means provider
+        acceptance (Graph 2xx), not recipient delivery. An ambiguous
+        transport outcome stays ``unknown`` and is never retried blindly.
+        """
+        if not run_id or not operation_id:
+            return
+        try:
+            from core.goals.goal_run_service import GoalRunService
+            from core.task_lifecycle import TaskLifecycle
+
+            svc = GoalRunService(
+                workspace_id=workspace_id or "default",
+                tenant_id=tenant_id or "default",
+            )
+            TaskLifecycle(svc).reconcile_outbound(
+                run_id, operation_id, provider_state)
+        except Exception as exc:  # noqa: BLE001 — send already attempted
+            logger.warning(
+                "email send reconciliation skipped for run=%s op=%s: %s",
+                run_id, operation_id, exc)
 
     async def suggest_contacts(
         self,

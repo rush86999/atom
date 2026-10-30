@@ -365,6 +365,22 @@ class TeachRequest(BaseModel):
         None, max_length=20,
         description="Task-defined decision labels (e.g. approve/deny/request-more-info)",
     )
+    applies_to: Optional[List[str]] = Field(
+        None, max_length=8,
+        description="Artifact outputs this lesson governs: email/document/presentation/spreadsheet",
+    )
+    format_spec: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Validated output-specific formatting requirements (not inferred from references)",
+    )
+    conditions: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Optional recipient/task_scope conditions for an artifact-specific exception",
+    )
+    context: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Declared task context for applicability (topic, location, population, source version, ...)",
+    )
     # The canvas the lesson was taught from (TrainingPanel on /canvas/{id}).
     # When present the endpoint snapshots the canvas (name, app, content
     # digest) into the lesson entry, so every later retrieval — chat turn,
@@ -478,6 +494,11 @@ async def teach_agent(
         scope="goal" if req.scope == "goal" and req.goal_id else "global",
         goal_id=req.goal_id,
         decision_options=req.decision_options,
+        applies_to=req.applies_to,
+        format_spec=req.format_spec,
+        conditions=req.conditions,
+        context=req.context,
+        workspace_id=workspace_id,
     )
     delivery_status = delivery.get("status")
 
@@ -497,6 +518,19 @@ async def teach_agent(
     _scope_payload = (
         {"scope": (_entry.get("scope") or "global"),
          "goal_id": _entry.get("goal_id")}
+        if isinstance(_entry, dict) else {}
+    )
+    _format_payload = (
+        {
+            "applies_to": list(_entry.get("applies_to") or []),
+            "format_spec": dict(_entry.get("format_spec") or {}),
+            "conditions": dict(_entry.get("conditions") or {}),
+            "context": dict(_entry.get("context") or {}),
+            "teaching_revision": _entry.get("revision") or 1,
+            "unsupported_format_keys": list(
+                _entry.get("unsupported_format_keys") or []),
+            "format_errors": list(_entry.get("format_errors") or []),
+        }
         if isinstance(_entry, dict) else {}
     )
 

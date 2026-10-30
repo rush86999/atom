@@ -1,0 +1,63 @@
+{
+  "slice": "clean-source-reproduction",
+  "candidate_commit": "058e38ddb",
+  "runtime_tested_commit": "e4c11c354",
+  "runtime_delta": "e4c11c354 adds the expired-token authority repair; 058e38ddb is that runtime plus live-boundary evidence/docs",
+  "clean_worktree": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-clean-058e38ddb",
+  "clean_status": "clean",
+  "source_manifest": {
+    "path": "docs/acceptance/assignment-successor-package-2026-10-29/source_manifest.json",
+    "sha256": "022c108fe2ea684fa65b5917c94fafa0fb773aea57f3d668c61188e3958767bd"
+  },
+  "package_manifest": {
+    "path": "docs/acceptance/assignment-successor-package-2026-10-29/assignment_successor_manifest.json",
+    "sha256": "bcd49ab9a602f2b55aca80e6cdb32d5266783440ae96c5a48c1baf490958a20d"
+  },
+  "runtime_start_boundary_manifest": {
+    "path": "docs/acceptance/evidence/durable_assignment_20261029/START_BOUNDARY_MANIFEST.json",
+    "sha256": "4d66702a894bb4fb1cc7c575f97b8160074c338f7a61c6e2c202dff206abd11b"
+  },
+  "runtime_import": {
+    "main_api_app": "ATOM API",
+    "artifact_teaching": true,
+    "taught_calculation_schema": true,
+    "microsoft_config": {
+      "configured": true,
+      "missing": []
+    }
+  },
+  "self_containment": {
+    "absolute_symlinks": [],
+    "relative_internal_symlinks": [
+      "frontend-nextjs/src-tauri/src-types/api-generated.ts -> ../../src/types/api-generated.ts",
+      "frontend-nextjs/src-tauri/tests/shared_fixtures -> ../../shared/test-utils/fixtures",
+      "mobile/src/shared -> ../../frontend-nextjs/shared",
+      "mobile/src/types/api-generated.ts -> ../../../frontend-nextjs/src/types/api-generated.ts"
+    ],
+    "env_files_in_source": [],
+    "database_files_in_source": [],
+    "node_modules": "absent from clean worktree",
+    "removed_non_self_contained": "frontend-nextjs/.preview-instance (67 absolute symlinks)",
+    "credential_values_found_in_candidate_diff": false
+  },
+  "verification": {
+    "focused_backend": "135 passed on 058e38ddb",
+    "owner_delta_tests": "25 passed",
+    "bounded_taught_job": "1 passed on 058e38ddb",
+    "connected_scratch_acceptance": "85.00 and 3, both reopened on 058e38ddb",
+    "frontend_source_equivalence": "byte-identical to the previously tested 9a89471cc frontend; no separate clean node_modules install was performed"
+  },
+  "live_gates": {
+    "microsoft_config_restored": true,
+    "preflight_configured": true,
+    "oauth_state": "valid",
+    "token_available": true,
+    "requires_reconnect": false,
+    "live_guided_start_run": false,
+    "changed_source_refresh_run": false,
+    "first_broken_boundary": "resource/source authority",
+    "observed": "Named price-list rows are zoho_workdrive with an expired token; no Microsoft/OneDrive catalog entry exists",
+    "cached_rows_used": false,
+    "replacement_catalog_or_grant_seeded": false
+  }
+}

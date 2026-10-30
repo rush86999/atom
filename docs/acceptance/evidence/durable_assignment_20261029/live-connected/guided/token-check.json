@@ -1,0 +1,14 @@
+{
+  "token_present": true,
+  "status": {
+    "state": "valid",
+    "token_available": true,
+    "refresh_attempted": false,
+    "refresh_succeeded": false,
+    "refresh_token_replaced": false,
+    "requires_reconnect": false,
+    "retryable": false,
+    "detail": ""
+  },
+  "check": "OneDriveService.get_access_token_resolution immediately before the final live checks"
+}

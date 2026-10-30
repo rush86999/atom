@@ -279,6 +279,9 @@ async def login_for_access_token(
 
 @router.post("/register", response_model=Token)
 async def register_user(user_data: UserCreate, db: Session = Depends(get_db), _rl=Depends(register_rate_limit)):
+    from core.deployment_audience import is_single_user
+    if is_single_user():
+        raise HTTPException(status_code=403, detail="Self-registration is disabled for this single-user pilot.")
     # Check if user exists
     # BUG FIX: compare emails case-insensitively — "USER@example.com" could
     # previously bypass the duplicate check and register a second account for

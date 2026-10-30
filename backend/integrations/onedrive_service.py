@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from core.connection_service import connection_service
 from core.integration_service import IntegrationService
-from core.integrations.token_store import resolve_integration_token
+from core.integrations.token_store import TokenRefreshError, resolve_integration_token
 
 logger = logging.getLogger(__name__)
 
@@ -94,53 +94,122 @@ class OneDriveService(IntegrationService):
     # OAuth / token resolution
     # -------------------------------------------------------------------------
 
-    async def get_access_token(self, user_id: str) -> Optional[str]:
-        """Resolve a usable Graph access token from IntegrationToken or stored connections.
+    async def get_access_token_resolution(
+        self, user_id: str,
+    ) -> tuple[Optional[str], Dict[str, Any]]:
+        """Resolve a Graph token plus the non-secret refresh resolution state.
 
-        1. IntegrationToken (providers onedrive, microsoft, outlook, microsoft365; auto-refreshed).
-        2. ConnectionService (UserConnection) — legacy in-app connections.
+        The legacy ConnectionService fallback is allowed ONLY when there is no
+        IntegrationToken grant at all (``no_grant``). Revoked, invalid_grant,
+        invalid_client, refresh_unavailable and transient failures must not be
+        masked by older credentials.
+        """
+        status: Dict[str, Any] = {}
+        token = await resolve_integration_token(
+            user_id,
+            ("onedrive", "microsoft", "outlook", "microsoft365"),
+            self._refresh,
+            status_out=status,
+        )
+        if token:
+            status["token_available"] = True
+            return token, status
+        if status.get("state") == "no_grant":
+            for integration_id in ("onedrive", "microsoft365", "microsoft", "outlook"):
+                connections = connection_service.get_connections(user_id, integration_id)
+                if not connections:
+                    continue
+                conn_id = connections[0]["id"]
+                creds = await connection_service.get_connection_credentials(conn_id, user_id)
+                if creds and creds.get("access_token"):
+                    status.update({
+                        "state": "legacy",
+                        "token_available": True,
+                        "legacy_connection": True,
+                        "requires_reconnect": False,
+                        "retryable": False,
+                    })
+                    return creds["access_token"], status
+        return None, status
+
+    async def get_access_token(self, user_id: str) -> Optional[str]:
+        """Resolve a usable Graph access token or return None.
 
         Deliberately NO process-wide env fallback: a shared
         ONEDRIVE/MICROSOFT_ACCESS_TOKEN would let any authenticated user without
         their own grant operate on the env-owner's OneDrive (user isolation).
         """
-        token = await resolve_integration_token(
-            user_id, ("onedrive", "microsoft", "outlook", "microsoft365"), self._refresh
-        )
-        if token:
-            return token
-        for integration_id in ("onedrive", "microsoft365", "microsoft", "outlook"):
-            connections = connection_service.get_connections(user_id, integration_id)
-            if not connections:
-                continue
-            conn_id = connections[0]["id"]
-            creds = await connection_service.get_connection_credentials(conn_id, user_id)
-            if creds and creds.get("access_token"):
-                return creds["access_token"]
-        return None
+        token, _status = await self.get_access_token_resolution(user_id)
+        return token
 
     async def _refresh(self, refresh_token: Optional[str]) -> Optional[Dict[str, Any]]:
-        """Exchange a refresh token for a fresh Microsoft Graph access token."""
+        """Exchange a refresh token for a fresh Microsoft Graph access token.
+
+        Raises :class:`TokenRefreshError` with a stable kind so the shared
+        resolver can distinguish ordinary expiry from revoked consent,
+        client-configuration rejection and transient provider failure.
+        """
         if not refresh_token:
-            return None
+            raise TokenRefreshError("refresh_unavailable", "no refresh token")
+        tenant = os.getenv("MICROSOFT_TENANT_ID") or "common"
+        client_id = os.getenv("MICROSOFT_CLIENT_ID")
+        client_secret = os.getenv("MICROSOFT_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            # This app is a confidential client (the provider requires a
+            # client secret for the exchange). Missing configuration is not a
+            # revoked user grant and must not demand interactive reconnection.
+            raise TokenRefreshError(
+                "invalid_client",
+                "Microsoft client credentials are not configured",
+            )
         try:
-            tenant = os.getenv("MICROSOFT_TENANT_ID") or "common"
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
                     data={
                         "grant_type": "refresh_token",
                         "refresh_token": refresh_token,
-                        "client_id": os.getenv("MICROSOFT_CLIENT_ID"),
-                        "client_secret": os.getenv("MICROSOFT_CLIENT_SECRET"),
+                        "client_id": client_id,
+                        "client_secret": client_secret,
                         "scope": " ".join(self.required_scopes),
                     },
                 )
-                response.raise_for_status()
-                return response.json()
-        except Exception as e:
-            logger.error(f"Failed to refresh OneDrive token: {e}")
-            return None
+        except httpx.TimeoutException as exc:
+            raise TokenRefreshError("transient", "refresh timeout") from exc
+        except httpx.RequestError as exc:
+            raise TokenRefreshError(
+                "transient", type(exc).__name__) from exc
+        except Exception as exc:  # noqa: BLE001 — unknown transport failure
+            raise TokenRefreshError(
+                "transient", type(exc).__name__) from exc
+
+        if response.status_code >= 400:
+            try:
+                payload = response.json()
+            except Exception:  # noqa: BLE001 — non-JSON provider error
+                payload = {}
+            provider_error = str(payload.get("error") or "")
+            if provider_error == "invalid_grant":
+                raise TokenRefreshError(
+                    "invalid_grant",
+                    "provider rejected the refresh grant (consent expired or revoked)",
+                )
+            if provider_error == "invalid_client":
+                raise TokenRefreshError(
+                    "invalid_client",
+                    "provider rejected the client configuration (not a user consent state)",
+                )
+            if response.status_code == 429 or response.status_code >= 500:
+                raise TokenRefreshError(
+                    "transient", f"provider HTTP {response.status_code}")
+            raise TokenRefreshError(
+                "refresh_rejected",
+                f"provider HTTP {response.status_code} {provider_error}".strip(),
+            )
+        try:
+            return response.json()
+        except Exception as exc:  # noqa: BLE001 — malformed success body
+            raise TokenRefreshError("transient", "invalid token response") from exc
 
     async def authenticate(self, user_id: str) -> Dict[str, Any]:
         """Generate the Microsoft OAuth authorization URL for OneDrive."""

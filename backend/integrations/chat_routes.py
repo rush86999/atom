@@ -2690,7 +2690,40 @@ async def get_routing_stats(
         return {"enabled": enabled, "ema_enabled": ema_enabled, "stats": {"error": str(e)}}
 
 
-def _office_draft(content: str, kind: str, title: str) -> Optional[tuple]:
+def _resolve_artifact_teaching_or_error(
+    db: Any, agent_id: Optional[str], output_type: str,
+    task_context: Optional[Dict[str, Any]], workspace_id: Optional[str],
+) -> Dict[str, Any]:
+    if not agent_id:
+        return {
+            "spec": {}, "sources": [], "revision": "",
+            "status": "not_applicable",
+            "explanation": "No agent teaching was applicable.",
+            "applicability": [], "clarifications": [], "conflicts": [],
+        }
+    from core.artifact_teaching import resolve_artifact_teaching
+
+    resolution = resolve_artifact_teaching(
+        db, str(agent_id), output_type,
+        task_context=task_context or {},
+        workspace_id=str(workspace_id or "default"),
+    )
+    if resolution.get("status") in {"needs_context", "conflict"}:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "teaching_context_unresolved",
+                "message": resolution.get("explanation"),
+                "teaching": resolution,
+            },
+        )
+    return resolution
+
+
+def _office_draft(
+    content: str, kind: str, title: str,
+    format_spec: Optional[Dict[str, Any]] = None,
+) -> Optional[tuple]:
     """Materialize an office draft (excel table / slide outline / document)
     as a real file under ATOM_OFFICE_DIR and return the typed canvas
     payload ``(canvas_type, content, title)``; None when the kind has no
@@ -2731,7 +2764,8 @@ def _office_draft(content: str, kind: str, title: str) -> Optional[tuple]:
             rows = markdown_table_rows(content) or []
             if not rows:
                 return None
-            res = office.excel.create_spreadsheet(file_path, rows)
+            res = office.excel.create_spreadsheet(
+                file_path, rows, format_spec=format_spec)
         elif kind == "slides":
             # A forced PPTX with no `Slide N:` outline must NOT return a
             # binding to a file that was never written (the old loop left
@@ -2741,11 +2775,26 @@ def _office_draft(content: str, kind: str, title: str) -> Optional[tuple]:
                 logger.warning("Office draft creation refused: no slide outline")
                 return None
             res = office.pptx.create_from_markdown(
-                file_path, content, title=title, sources=sources)
+                file_path, content, title=title, sources=sources,
+                format_spec=format_spec)
         else:  # doc
             res = office.word.create_from_markdown(
-                file_path, content, title=title, sources=sources)
+                file_path, content, title=title, sources=sources,
+                format_spec=format_spec)
         if not res.get("success"):
+            findings = res.get("teaching_findings") or []
+            if any(
+                item.get("code") == "prohibited_internal_information"
+                for item in findings
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": "prohibited_internal_information",
+                        "message": res.get("error"),
+                        "findings": findings,
+                    },
+                )
             logger.warning(f"Office draft creation failed ({kind}): {res.get('error')}")
             return None
     except Exception as e:
@@ -2815,6 +2864,7 @@ async def chat_draft_to_canvas(
         "orchestration", "office_word", "office_excel", "office_pptx",
     }
     requested_type = (body.get("canvas_type") or "auto").strip().lower()
+    task_context = dict(body.get("task_context") or {})
     office_fallback_warning: Optional[str] = None
     if requested_type and requested_type != "auto" and requested_type not in CHAT_DRAFT_CANVAS_TYPES:
         raise HTTPException(
@@ -2838,6 +2888,37 @@ async def chat_draft_to_canvas(
                 "body": content,
             },
         )[1]
+        email_teaching = _resolve_artifact_teaching_or_error(
+            db, agent_id, "email", task_context,
+            getattr(current_user, "workspace_id", None),
+        )
+        from core.artifact_teaching import apply_email_teaching
+
+        canvas_content, email_findings = apply_email_teaching(
+            canvas_content,
+            {**(email_teaching.get("spec") or {}),
+             "_revision": email_teaching.get("revision") or ""},
+        )
+        if any(
+            item.get("code") == "prohibited_internal_information"
+            for item in email_findings
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "prohibited_internal_information",
+                    "message": "The draft contains internal-only information.",
+                    "findings": email_findings,
+                },
+            )
+        canvas_content["teaching"] = {
+            "revision": email_teaching.get("revision"),
+            "sources": email_teaching.get("sources") or [],
+            "explanation": email_teaching.get("explanation"),
+            "applicability": email_teaching.get("applicability") or [],
+            "spec": email_teaching.get("spec") or {},
+            "status": email_teaching.get("status"),
+        }
     elif requested_type in ("office_word", "office_excel", "office_pptx"):
         # Office apps need a REAL generated file. Run the same materializer
         # the auto path uses, with the kind the user picked (word→doc,
@@ -2846,9 +2927,26 @@ async def chat_draft_to_canvas(
         # office component.
         office_kind = {"office_word": "doc", "office_excel": "table",
                        "office_pptx": "slides"}[requested_type]
-        office = await asyncio.to_thread(_office_draft, content, office_kind, title)
+        output_type = {"doc": "document", "table": "spreadsheet",
+                       "slides": "presentation"}[office_kind]
+        teaching = _resolve_artifact_teaching_or_error(
+            db, agent_id, output_type, task_context,
+            getattr(current_user, "workspace_id", None),
+        )
+        office = await asyncio.to_thread(
+            _office_draft, content, office_kind, title,
+            dict(teaching.get("spec") or {}),
+        )
         if office:
             canvas_type, canvas_content, title = office
+            canvas_content["teaching"] = {
+                "revision": teaching.get("revision"),
+                "sources": teaching.get("sources") or [],
+                "explanation": teaching.get("explanation"),
+                "applicability": teaching.get("applicability") or [],
+                "spec": teaching.get("spec") or {},
+                "status": teaching.get("status"),
+            }
         else:
             canvas_type = "document"
             canvas_content = {"content": content}
@@ -2869,9 +2967,30 @@ async def chat_draft_to_canvas(
     # markdown document path — the draft must still open. (Skipped when the
     # owner forced a type — their choice outranks the classifier.)
     if selected and requested_type == "auto" and canvas_type == "document":
-        office = await asyncio.to_thread(_office_draft, content, selected["kind"], title)
+        selected_kind = selected["kind"]
+        selected_output = {"doc": "document", "table": "spreadsheet",
+                           "slides": "presentation"}.get(selected_kind)
+        selected_spec = {}
+        selected_teaching = {}
+        if selected_output:
+            selected_teaching = _resolve_artifact_teaching_or_error(
+                db, agent_id, selected_output, task_context,
+                getattr(current_user, "workspace_id", None),
+            )
+            selected_spec = dict(selected_teaching.get("spec") or {})
+        office = await asyncio.to_thread(
+            _office_draft, content, selected_kind, title, selected_spec)
         if office:
             canvas_type, canvas_content, title = office
+            if selected_teaching:
+                canvas_content["teaching"] = {
+                    "revision": selected_teaching.get("revision"),
+                    "sources": selected_teaching.get("sources") or [],
+                    "explanation": selected_teaching.get("explanation"),
+                    "applicability": selected_teaching.get("applicability") or [],
+                    "spec": selected_teaching.get("spec") or {},
+                    "status": selected_teaching.get("status"),
+                }
         elif selected["kind"] == "code":
             canvas_type = "code"
             canvas_content = {"content": content}

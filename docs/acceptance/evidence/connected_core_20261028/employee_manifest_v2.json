@@ -1,0 +1,80 @@
+{
+ "success": true,
+ "manifest": {
+  "schema_version": 1,
+  "base_component": "table",
+  "operations": [
+   "read",
+   "select",
+   "calculate",
+   "assess",
+   "edit",
+   "export",
+   "bind"
+  ],
+  "data_binding": {
+   "subject_field": "No.",
+   "measure_field": "Unit Price",
+   "status_field": ""
+  },
+  "editable_fields": [
+   "Unit Price"
+  ],
+  "teaching_binding": {
+   "agent_id": "",
+   "scope_id": "connected-price-review"
+  },
+  "decision_options": [
+   "APPROVE",
+   "REVIEW",
+   "HOLD"
+  ],
+  "task_policy": "For this price review, use REVIEW when Description contains CNC. Use APPROVE otherwise. Use HOLD when Description contains SEE or is blank. Do not infer any other decision.",
+  "outputs": [
+   "xlsx"
+  ],
+  "required_approvals": [],
+  "manifest_revision": "1bd207659bf43549"
+ },
+ "operations": {
+  "declared": [
+   "assess",
+   "bind",
+   "calculate",
+   "edit",
+   "export",
+   "read",
+   "select"
+  ],
+  "adapter": [
+   "assess",
+   "bind",
+   "calculate",
+   "edit",
+   "export",
+   "read",
+   "select"
+  ],
+  "resource": [
+   "assess",
+   "bind",
+   "calculate",
+   "edit",
+   "export",
+   "read",
+   "select"
+  ],
+  "effective": [
+   "assess",
+   "bind",
+   "calculate",
+   "edit",
+   "export",
+   "read",
+   "select"
+  ],
+  "manifest_revision": "1bd207659bf43549"
+ },
+ "policy_revision": "2fb749d9c7309426",
+ "revision": 1
+}

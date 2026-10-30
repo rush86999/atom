@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ✓  1 e2e/assignment-guided.spec.ts:14:5 › guided objective discovers a real scoped catalog resource and survives reload (2.4s)
+
+  1 passed (3.3s)

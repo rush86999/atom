@@ -62,6 +62,43 @@ def _stale_active_minutes() -> float:
     return DEFAULT_STALE_ACTIVE_MINUTES
 
 
+async def _resume_woken_run(svc, run_id: str, event: Dict[str, Any]) -> Dict[str, Any]:
+    """Resume the durable work a wake event unblocked.
+
+    Runs carrying an assignment plan resume through the assignment executor
+    (same run id, same operation ledger). Ordinary GoalRuns keep the existing
+    router advance path. The event's correlation id is authoritative; its
+    prose is evidence only and never becomes teaching.
+    """
+    try:
+        from core.assignment_executor import AssignmentExecutor
+        from core.task_lifecycle import TaskLifecycle
+
+        lifecycle = TaskLifecycle(svc)
+        record = lifecycle.get_task(run_id)
+        if record and record.get("assignment"):
+            executor = AssignmentExecutor(lifecycle)
+            correlation = str(
+                event.get("correlation_id")
+                or (event.get("match") or {}).get("correlation_id")
+                or ""
+            )
+            if correlation:
+                executor.record_external_response(
+                    run_id, correlation,
+                    response=str(
+                        event.get("summary") or event.get("body")
+                        or event.get("response") or ""),
+                    source=str(event.get("source") or event.get("from") or ""),
+                    evidence=str(event.get("message_id") or event.get("id") or ""),
+                )
+            return await executor.resume(run_id)
+    except Exception as exc:  # noqa: BLE001 — fall back to the existing loop
+        logger.warning(
+            f"goal run {run_id}: assignment wake resume failed: {exc}")
+    return await svc.advance(run_id, event=event)
+
+
 async def ingest_event(event: Dict[str, Any],
                        workspace_id: str = "default",
                        tenant_id: str = "default",
@@ -80,7 +117,7 @@ async def ingest_event(event: Dict[str, Any],
                 skipped += 1
                 continue
             woke.append(run["id"])
-            await svc.advance(run["id"], event=event)
+            await _resume_woken_run(svc, run["id"], event)
         except Exception as exc:
             skipped += 1
             logger.warning(f"goal run {run['id']}: event advance failed: {exc}")
@@ -127,7 +164,7 @@ async def check_due_waits(workspace_id: str = "default",
             })
             if wake.get("consumed"):
                 woke.append(run["id"])
-                await svc.advance(run["id"], event={
+                await _resume_woken_run(svc, run["id"], {
                     "event": "timer", "source": "deadline",
                     "summary": f"wait deadline reached ({deadline})",
                 })
@@ -191,7 +228,7 @@ async def check_due_watchdog_wakes(workspace_id: str = "default",
                 "kind": "wait_deadline_reached",
                 "rationale": event["summary"],
             })
-            await svc.advance(run["id"], event=event)
+            await _resume_woken_run(svc, run["id"], event)
         except Exception as exc:
             logger.warning(f"goal run {run['id']}: watchdog wake failed: {exc}")
     return {"woke": woke}

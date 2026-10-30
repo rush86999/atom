@@ -1,0 +1,43 @@
+{
+  "provider": "outlook",
+  "resource_kind": "outlook_attachment",
+  "microsoft_account": {
+    "id": "2927f127-c837-4f4b-beac-5c7b723bf887",
+    "userPrincipalName": "rish@brennan.ca",
+    "mail": "rish@brennan.ca",
+    "displayName": "Rish Maniar"
+  },
+  "catalog_entry_id": "00399616-42f7-4f7d-8867-822752b15a46",
+  "file_name": "HARSLE press brake stock price list.xlsx",
+  "sheet": "\u5e93\u5b58\u4ea7\u54c1",
+  "attachment_name": "HARSLE press brake stock price list.xlsx",
+  "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "size_metadata": 10765,
+  "fetched_bytes": 10249,
+  "last_modified": "2026-10-23T06:13:03Z",
+  "content_hash_algorithm": "sha1",
+  "content_hash_sha1": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+  "content_hash_sha256": "5cd746af2c46dfe3979b1881cb8623dff149958b4cadd97bd69da1e489c9dcb4",
+  "catalog_content_hash": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+  "catalog_hash_matches": true,
+  "rows": 8,
+  "price_column": "Price",
+  "price_values": [
+    "24000",
+    "27500",
+    "24000",
+    "27500",
+    "25000",
+    "31800",
+    "27900",
+    "29000"
+  ],
+  "sum": "216700",
+  "token": {
+    "resolver": "OneDriveService.get_access_token_resolution",
+    "state": "valid",
+    "token_available": true,
+    "requires_reconnect": false
+  },
+  "note": "Direct read-only Graph fetch of the declared message attachment, then the same bytes were passed to materialize_sheet_bytes_sync, which returned status=current for the existing catalog hash. No source write."
+}

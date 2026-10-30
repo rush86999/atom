@@ -1,0 +1,93 @@
+{
+  "schema": "atom-mapping-browser-c-1",
+  "status": "passed",
+  "product": {
+    "commit": "ae53e7e413f9391897bea5928760183083aba783",
+    "tree": "a7f627fdf7705a26b361c0d1b1e7e17abadc13d3",
+    "dirty_paths": []
+  },
+  "frozen_release": {
+    "commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "tag": "assignment-successor-2026-10-29",
+    "tag_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "unchanged": true
+  },
+  "harness_sha256": "5ffd11fdb115e1a022851fc031faae27c1f9b1f12d202f433707edead7fdecb7",
+  "run_id": "24c819d8-807f-4578-9b8e-872367367a6e",
+  "assignment_id": "asg-0a376d2362e64a7b",
+  "fixture": "controlled acceptance workbook_c: columns Product,Qty,Value,Note; no source unit; not live-connected",
+  "expected": "75.00",
+  "result": "75.00",
+  "currency": "USD",
+  "unit_authority": "user_confirmed",
+  "source_version": "fdd1415cc09c870346120d1286d1b2d52ea66174",
+  "mapping": {
+    "concept": "Price",
+    "sheet": "Sheet1",
+    "column": "Value",
+    "unit": "USD",
+    "source_version": "fdd1415cc09c870346120d1286d1b2d52ea66174",
+    "revision": 2,
+    "unit_authority": "user_confirmed",
+    "lesson_id": "a325d5327e36466fa781ac380afac9a9"
+  },
+  "teaching_persisted": {
+    "concept": "Price",
+    "sheet": "Sheet1",
+    "column": "Value",
+    "unit": "USD",
+    "source_version": "fdd1415cc09c870346120d1286d1b2d52ea66174",
+    "revision": 2,
+    "unit_authority": "user_confirmed"
+  },
+  "gap": {
+    "question_id": "66c12070-7b4c-4628-9046-6930cfb8d078",
+    "required_unit": "USD",
+    "source_unit": "",
+    "source_unit_column": "",
+    "candidates": [
+      "Product",
+      "Qty",
+      "Value",
+      "Note"
+    ]
+  },
+  "refusals": [
+    {
+      "kind": "missing_unit",
+      "http_status": 409,
+      "detail": "the taught method requires an explicit unit confirmation"
+    },
+    {
+      "kind": "incompatible_unit",
+      "unit": "EUR",
+      "http_status": 409,
+      "detail": "the confirmed unit 'EUR' does not match the taught unit 'USD'; no conversion is authorized"
+    }
+  ],
+  "no_mutation": {
+    "durable_parameters_identical": true,
+    "mapping_before": {
+      "concept": "Price",
+      "sheet": "Sheet1",
+      "column": "Unit Price",
+      "unit": "USD",
+      "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": 1,
+      "lesson_id": "a325d5327e36466fa781ac380afac9a9",
+      "lesson_revision": 1
+    },
+    "result_before_confirmation": null
+  },
+  "confirmation": {
+    "surface": "Assignments panel",
+    "column": "Value",
+    "unit": "USD"
+  },
+  "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/mapping_c_acceptance/office/assignments/default/map-user/draft-7fb9587917b3/mapping-c-total-26b7f877.docx",
+  "artifact_sha256": "d7d4add3debb4e53c6f541043d8c6f3ea28c535ad7dfd05879e6c2076011c3f5",
+  "screenshots": [
+    "unit-unresolved.png",
+    "unit-confirmed.png"
+  ]
+}

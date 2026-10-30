@@ -1,0 +1,195 @@
+{
+  "schema": "atom-assignment-release-deployment-1",
+  "deployed_at": "2026-10-29T16:13:30.732691+00:00",
+  "mode": "rehearsal",
+  "release_commit": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
+  "release_tag": "assignment-successor-2026-10-29",
+  "product_tree_sha256": "12060bee618e7a58a98324f682d39077c144c19a6fb7d22d77de8179237dbb9e",
+  "tested_runtime_commit": "001f93472",
+  "frontend_build_id": "i_Co6JD6WAcOXWZyMudPw",
+  "outbound_scope": "draft_and_approval_only",
+  "send_authorized": false,
+  "topology": "one_worker_process_per_assignment",
+  "auth_smoke": {
+    "schema": "atom-assignment-release-auth-smoke-1",
+    "status": "passed",
+    "checks": [
+      {
+        "name": "fresh_context_login_form",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "normal_form_login",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "workspace_profile_visible",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "authenticated_workspace_access",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "existing_assignment_completed",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "artifact_listed",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "artifact_present_and_openable",
+        "ok": true,
+        "detail": {
+          "path": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-713db064c84c/sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+          "sha256": "318a675acd0126be56f157404101fd81dbd40937985e472756542355830af21a"
+        }
+      },
+      {
+        "name": "logout_clears_storage",
+        "ok": true,
+        "detail": {
+          "auth": null,
+          "token": null
+        }
+      },
+      {
+        "name": "old_token_refused_after_logout",
+        "ok": true,
+        "detail": {
+          "status": 401
+        }
+      },
+      {
+        "name": "second_normal_form_login",
+        "ok": true,
+        "detail": null
+      },
+      {
+        "name": "second_session_workspace_access",
+        "ok": true,
+        "detail": null
+      }
+    ],
+    "session_injected": false,
+    "normal_login_form_used": true,
+    "screenshots": [
+      "assignment-open.png",
+      "signed-in-again.png",
+      "signed-in-assignments.png",
+      "signed-in-dashboard.png",
+      "signed-out.png"
+    ]
+  },
+  "assignment_before_restart": {
+    "ok": true,
+    "snapshot": {
+      "schema": "atom-assignment-release-representative-1",
+      "run_id": "1670cbca-da5a-4275-8af7-cd71d0f82da1",
+      "assignment_id": "asg-2bdfda46acf844ed",
+      "objective": "Sum the price of the HARSLE press brake stock price list",
+      "status": "completed",
+      "plan_revision": 1,
+      "teaching_revision": "untrained",
+      "deliverables": [
+        {
+          "kind": "document",
+          "status": "applied",
+          "artifact_path": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-713db064c84c/sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+          "sha256": "318a675acd0126be56f157404101fd81dbd40937985e472756542355830af21a"
+        },
+        {
+          "kind": "email",
+          "status": "applied",
+          "artifact_path": null,
+          "sha256": null
+        }
+      ],
+      "artifact_path": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-713db064c84c/sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+      "artifact_sha256": "318a675acd0126be56f157404101fd81dbd40937985e472756542355830af21a",
+      "artifact_contains_expected_sum": true,
+      "step_summaries": [
+        "sum of Price = 216700.00  across 8 row(s) from HARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1",
+        "rendered sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+        "controlled provider accepted"
+      ],
+      "source_versions": [
+        "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e"
+      ],
+      "user": {
+        "id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "email": "admin@example.com",
+        "workspace_id": null,
+        "tenant_id": null
+      }
+    }
+  },
+  "assignment_after_restart": {
+    "ok": true,
+    "snapshot": {
+      "schema": "atom-assignment-release-representative-1",
+      "run_id": "1670cbca-da5a-4275-8af7-cd71d0f82da1",
+      "assignment_id": "asg-2bdfda46acf844ed",
+      "objective": "Sum the price of the HARSLE press brake stock price list",
+      "status": "completed",
+      "plan_revision": 1,
+      "teaching_revision": "untrained",
+      "deliverables": [
+        {
+          "kind": "document",
+          "status": "applied",
+          "artifact_path": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-713db064c84c/sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+          "sha256": "318a675acd0126be56f157404101fd81dbd40937985e472756542355830af21a"
+        },
+        {
+          "kind": "email",
+          "status": "applied",
+          "artifact_path": null,
+          "sha256": null
+        }
+      ],
+      "artifact_path": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-713db064c84c/sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+      "artifact_sha256": "318a675acd0126be56f157404101fd81dbd40937985e472756542355830af21a",
+      "artifact_contains_expected_sum": true,
+      "step_summaries": [
+        "sum of Price = 216700.00  across 8 row(s) from HARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1",
+        "rendered sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+        "controlled provider accepted"
+      ],
+      "source_versions": [
+        "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e"
+      ],
+      "user": {
+        "id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+        "email": "admin@example.com",
+        "workspace_id": null,
+        "tenant_id": null
+      }
+    },
+    "restart_agreement": {
+      "before": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/run/before-restart.json",
+      "fields": [
+        "run_id",
+        "assignment_id",
+        "status",
+        "plan_revision",
+        "teaching_revision",
+        "artifact_path",
+        "artifact_sha256",
+        "source_versions"
+      ],
+      "mismatches": {},
+      "ok": true
+    }
+  },
+  "rollback_available": true,
+  "database_restored": false,
+  "user_data_preserved": true
+}

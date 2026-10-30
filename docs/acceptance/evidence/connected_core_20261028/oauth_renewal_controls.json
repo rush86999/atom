@@ -1,0 +1,33 @@
+{
+ "checked_at": "2026-10-29T01:05:00Z",
+ "live": {
+  "token_expired_at": "2026-10-29T00:27:28Z",
+  "refresh_attempted": true,
+  "refresh_succeeded": false,
+  "token_state": "invalid_client",
+  "requires_reconnect": false,
+  "retryable": false,
+  "interpretation": "Microsoft client configuration missing; not a revoked user grant",
+  "credential_replacement_performed": false,
+  "interactive_reconnect_performed": false
+ },
+ "local_controls": {
+  "expired_access_refresh_then_authorized_graph_read": "pass",
+  "replacement_refresh_token_persisted_across_resolver_session": "pass",
+  "omitted_replacement_preserves_existing_refresh_token": "pass",
+  "invalid_grant_does_not_fall_through_to_legacy": "pass",
+  "invalid_client_does_not_fall_through_to_legacy": "pass",
+  "transient_failure_is_retryable_not_revoked": "pass",
+  "missing_refresh_token_is_refresh_unavailable": "pass",
+  "no_token_values_in_classification_or_status": "pass"
+ },
+ "test_files": [
+  "backend/tests/unit/test_token_store.py",
+  "backend/tests/unit/test_token_store_persistence.py",
+  "backend/tests/unit/test_onedrive_refresh_classification.py"
+ ],
+ "changed_source_refresh": {
+  "status": "blocked",
+  "reason": "live Microsoft refresh cannot complete until the existing client configuration is restored; a disposable source item also needs owner authorization"
+ }
+}

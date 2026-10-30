@@ -98,3 +98,4 @@ def test_route_capability_uses_longest_prefix():
     assert pp.route_capability("/settings/ai") == "settings"
     assert pp.route_capability("/dashboard/forensics") == "governance"
     assert pp.route_capability("/dashboard") == "chat"
+    assert pp.route_capability("/assignments") == "activity"

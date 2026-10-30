@@ -120,13 +120,86 @@ def _normalize_item(item: Dict[str, Any]) -> Dict[str, Any]:
 
 @router.get("/connection-status")
 async def connection_status(current_user: User = Depends(get_current_user)):
-    """Report whether a usable OneDrive connection exists for the user."""
-    token = await _service.get_access_token(str(current_user.id))
+    """Report whether a usable OneDrive connection exists for the user.
+
+    ``scope`` is the OAuth grant actually present in the token store, not a
+    client-declared scope. It is display metadata only; every read still
+    resolves and checks the token server-side.
+    """
+    token, resolution = await _service.get_access_token_resolution(
+        str(current_user.id))
+    scope = None
+    token_provider = None
+    if token:
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationToken
+
+            with SessionLocal() as db:
+                row = (
+                    db.query(IntegrationToken)
+                    .filter(
+                        IntegrationToken.user_id == str(current_user.id),
+                        IntegrationToken.provider.in_(
+                            ["onedrive", "microsoft", "outlook", "microsoft365"]
+                        ),
+                        IntegrationToken.status == "active",
+                    )
+                    .order_by(IntegrationToken.updated_at.desc())
+                    .first()
+                )
+                if row is not None:
+                    scope = row.scope
+                    token_provider = row.provider
+        except Exception:  # noqa: BLE001 — status must not fail the page
+            scope = None
+
+    from core.oauth_config_preflight import microsoft_client_config_state
+
+    config_state = microsoft_client_config_state()
+    state = str(resolution.get("state") or "unknown")
+    if token:
+        reason = None
+    elif state == "invalid_grant":
+        reason = "Microsoft consent expired or was revoked; reconnect is required."
+    elif state == "invalid_client":
+        reason = (
+            "Microsoft rejected the refresh client configuration. This is not "
+            "a revoked user grant; restore the configured client credentials."
+        )
+    elif state == "transient":
+        reason = "Microsoft refresh failed temporarily; retry before reconnecting."
+    elif state == "refresh_unavailable":
+        reason = "No usable refresh token is stored; reconnect is required."
+    elif state == "refresh_rejected":
+        reason = (
+            "Microsoft rejected the refresh request. Verify the configured "
+            "client/scope before reconnecting."
+        )
+    elif state == "no_grant":
+        reason = "No OneDrive/Microsoft connection found. Connect the integration first."
+    else:
+        reason = "No OneDrive/Microsoft connection found. Connect the integration first."
+
     return {
         "is_connected": bool(token),
-        "reason": None if token else "No OneDrive/Microsoft connection found. Connect the integration first.",
+        "reason": reason,
         "user_id": str(current_user.id),
         "email": current_user.email if token else None,
+        "scope": scope,
+        "token_provider": token_provider,
+        "token_state": state,
+        "refresh_attempted": bool(resolution.get("refresh_attempted")),
+        "refresh_succeeded": bool(resolution.get("refresh_succeeded")),
+        "refresh_token_replaced": bool(resolution.get("refresh_token_replaced")),
+        "requires_reconnect": bool(resolution.get("requires_reconnect")),
+        "retryable": bool(resolution.get("retryable")),
+        "legacy_connection": bool(resolution.get("legacy_connection")),
+        "client_config_state": config_state,
+        "admin_action_required": bool(
+            not config_state.get("configured")
+            or state == "invalid_client"
+        ),
     }
 
 

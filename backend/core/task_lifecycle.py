@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import copy
 import functools
+import json
 import logging
 import os
 import re
@@ -191,8 +192,8 @@ OPERATION_TYPES = (
 )
 
 OPERATION_STATUSES = (
-    "pending", "running", "waiting", "awaiting_approval", "applied",
-    "failed", "cancelled", "superseded", "conflict", "rejected",
+    "pending", "running", "waiting", "awaiting_approval", "approved",
+    "applied", "failed", "cancelled", "superseded", "conflict", "rejected",
     "uncertain",
 )
 # ``uncertain`` is the honest terminal state for an operation whose worker
@@ -203,13 +204,15 @@ OPERATION_STATUSES = (
 # already have landed is exactly the duplicate this whole mechanism
 # exists to prevent.
 OPERATION_TRANSITIONS: Dict[str, set] = {
-    "pending": {"running", "cancelled", "superseded"},
+    "pending": {"running", "awaiting_approval", "cancelled", "superseded"},
     "running": {"waiting", "awaiting_approval", "applied", "conflict",
                 "failed", "cancelled", "superseded", "uncertain"},
     "uncertain": {"applied", "failed", "cancelled", "superseded",
                   "conflict", "rejected"},
     "waiting": {"running", "failed", "cancelled", "superseded"},
-    "awaiting_approval": {"applied", "rejected", "cancelled", "superseded"},
+    "awaiting_approval": {"approved", "rejected", "cancelled", "superseded"},
+    "approved": {"running", "awaiting_approval", "cancelled", "superseded",
+                 "failed"},
     "rejected": {"cancelled", "superseded"},
     "applied": set(),
     "conflict": set(),
@@ -524,16 +527,29 @@ def new_operation(
     requested_change: str,
     idempotency_key: Optional[str] = None,
     parent_operation_id: Optional[str] = None,
+    binding: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Create one operation bound to a task revision. Retries are new
     operations linked by ``parent_operation_id`` — completed operations
     are never mutated. Mutations (``outbound``) require an idempotency
-    key; it is generated when the caller does not supply one."""
+    key; it is generated when the caller does not supply one.
+
+    ``binding`` is the complete external-effect identity for registry-
+    dispatched operations (action, workspace/account, arguments, artifact
+    revisions, authorization and prerequisites). Legacy callers omit it and
+    keep the original identity.
+    """
     if op_type not in OPERATION_TYPES:
         raise TaskLifecycleError(f"unknown operation type '{op_type}'")
     if op_type == "outbound" and not idempotency_key:
         idempotency_key = str(uuid.uuid4())
-    return {
+    normalized_binding = normalize_operation_binding(
+        binding,
+        workspace_id=task.get("workspace_id"),
+        task_revision=task.get("revision"),
+    )
+    binding_sha256 = operation_binding_sha256(normalized_binding)
+    operation = {
         "schema_version": SCHEMA_VERSION,
         "operation_id": str(uuid.uuid4()),
         "objective_id": task.get("objective_id"),
@@ -548,6 +564,10 @@ def new_operation(
         "authorization": "authorized" if op_type != "outbound"
         else "pending_approval",
     }
+    if normalized_binding is not None:
+        operation["operation_binding"] = normalized_binding
+        operation["binding_sha256"] = binding_sha256
+    return operation
 
 
 def transition_operation(
@@ -621,21 +641,176 @@ def new_delivery(
     }
 
 
-def _operation_payload_hash(*, op_type: str, requested_change: str,
-                            parent_operation_id: Optional[str]) -> str:
+OPERATION_BINDING_VERSION = 1
+_OPERATION_BINDING_MAX_BYTES = 32768
+_OPERATION_BINDING_KEYS = (
+    "action_name",
+    "workspace_id",
+    "account_id",
+    "task_revision",
+    "arguments",
+    "artifact_refs",
+    "authorization_ref",
+    "prerequisite_operation_ids",
+    "prerequisite_evidence_revisions",
+)
+
+
+def _validate_binding_value(value: Any, *, depth: int = 0) -> None:
+    """Accept only deterministic JSON types; reject rather than truncate."""
+    if depth > 6:
+        raise TaskLifecycleError("operation binding nesting is too deep")
+    if value is None or isinstance(value, (bool, int, float)):
+        return
+    if isinstance(value, str):
+        if len(value) > 8000:
+            raise TaskLifecycleError(
+                "operation binding string exceeds the 8000 character limit")
+        return
+    if isinstance(value, list):
+        if len(value) > 200:
+            raise TaskLifecycleError(
+                "operation binding list exceeds 200 entries")
+        for item in value:
+            _validate_binding_value(item, depth=depth + 1)
+        return
+    if isinstance(value, dict):
+        if len(value) > 100:
+            raise TaskLifecycleError(
+                "operation binding object exceeds 100 keys")
+        for key, item in value.items():
+            if not isinstance(key, str) or not key.strip():
+                raise TaskLifecycleError(
+                    "operation binding keys must be non-empty strings")
+            _validate_binding_value(item, depth=depth + 1)
+        return
+    raise TaskLifecycleError(
+        f"unsupported operation binding value type "
+        f"{type(value).__name__}")
+
+
+def normalize_operation_binding(
+    binding: Optional[Dict[str, Any]],
+    *,
+    workspace_id: Optional[str] = None,
+    task_revision: Optional[int] = None,
+) -> Optional[Dict[str, Any]]:
+    """Validate and canonicalize the complete external-effect binding.
+
+    The binding names the registered action, authenticated scope, exact
+    arguments, artifact identities and authorization reference. Credentials
+    are never accepted here. Existing operations without a binding keep
+    their old identity; new operations bind the actual payload.
+    """
+    if binding is None:
+        return None
+    if not isinstance(binding, dict):
+        raise TaskLifecycleError("operation binding must be a dict")
+    unknown = set(binding) - set(_OPERATION_BINDING_KEYS)
+    if unknown:
+        raise TaskLifecycleError(
+            f"unknown operation binding keys: {sorted(unknown)}")
+    normalized = {
+        "binding_version": OPERATION_BINDING_VERSION,
+        "action_name": _bounded_text(binding.get("action_name"), 120),
+        "workspace_id": _bounded_text(
+            binding.get("workspace_id") or workspace_id, 120),
+        "account_id": _bounded_text(binding.get("account_id"), 200),
+        "task_revision": (
+            int(binding.get("task_revision", task_revision))
+            if binding.get("task_revision", task_revision) is not None
+            else None),
+        "arguments": copy.deepcopy(binding.get("arguments") or {}),
+        "artifact_refs": [
+            {
+                "artifact_id": _bounded_text(item.get("artifact_id"), 200),
+                "revision": _bounded_text(item.get("revision"), 120),
+                "sha256": _bounded_text(item.get("sha256"), 128),
+            }
+            for item in (binding.get("artifact_refs") or [])
+            if isinstance(item, dict)
+        ][:40],
+        "authorization_ref": _bounded_text(
+            binding.get("authorization_ref"), 200),
+        "prerequisite_operation_ids": [
+            _bounded_text(item, 120)
+            for item in (binding.get("prerequisite_operation_ids") or [])
+            if str(item).strip()
+        ][:40],
+        "prerequisite_evidence_revisions": [
+            _bounded_text(item, 120)
+            for item in (binding.get(
+                "prerequisite_evidence_revisions") or [])
+            if str(item).strip()
+        ][:40],
+    }
+    if not normalized["action_name"]:
+        raise TaskLifecycleError(
+            "operation binding requires the registered action name")
+    if not normalized["workspace_id"]:
+        raise TaskLifecycleError(
+            "operation binding requires the authenticated workspace")
+    _validate_binding_value(normalized)
+    blob = json.dumps(normalized, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True, default=str)
+    if len(blob.encode("utf-8")) > _OPERATION_BINDING_MAX_BYTES:
+        raise TaskLifecycleError(
+            "operation binding exceeds the 32 KiB limit")
+    return normalized
+
+
+def operation_binding_sha256(binding: Optional[Dict[str, Any]]) -> Optional[str]:
+    if binding is None:
+        return None
+    import hashlib as _hashlib
+    import json as _json
+
+    _validate_binding_value(binding)
+    blob = _json.dumps(binding, sort_keys=True, separators=(",", ":"),
+                       ensure_ascii=True, default=None)
+    return _hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def _operation_payload_hash(
+    *, op_type: str, requested_change: str,
+    parent_operation_id: Optional[str],
+    binding_sha256: Optional[str] = None,
+) -> str:
     """Canonical hash of what an operation MEANS.
 
-    Bound to the idempotency key so a key can never be reused for a
-    different effect. Canonical by construction: the three fields that
-    define the operation's identity, length-prefixed so no combination
-    of values can produce the same digest as a different combination.
+    Legacy operations (no binding) keep the original three-field identity.
+    New operations append the complete binding digest, so the same
+    idempotency key with a changed recipient/body/attachment conflicts
+    instead of replaying.
     """
     import hashlib as _hashlib
 
     parts = [str(op_type or ""), str(requested_change or ""),
              str(parent_operation_id or "")]
+    if binding_sha256:
+        parts.append(f"binding:{binding_sha256}")
     blob = "".join(f"{len(part)}:{part}\x1f" for part in parts)
     return _hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def _approval_payload_hash(payload: Any) -> str:
+    """Stable hash of the actual proposed effect payload.
+
+    The complete validated payload is hashed. Unsupported values are
+    rejected rather than stringified, so two different objects cannot share
+    an approval digest through ``repr`` or a lossy fallback.
+    """
+    import hashlib as _hashlib
+    import json as _json
+
+    _validate_binding_value(payload)
+    blob = _json.dumps(payload or {}, sort_keys=True, separators=(",", ":"),
+                       ensure_ascii=True, default=None)
+    return _hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+class TaskApprovalInvalidated(TaskLifecycleError):
+    """An approval no longer matches the effect it would authorize."""
 
 
 def validate_task_revision(task: Dict[str, Any]) -> None:
@@ -693,6 +868,27 @@ def _normalize_question(question: Dict[str, Any],
         "inputs": (
             dict(question["inputs"])
             if isinstance(question.get("inputs"), dict) else None),
+        # DURABLE GAP FACTS (assignment slice). These are optional and
+        # generic: a business supplies the concept names and values.
+        # ``waiting`` is a sub-state of an OPEN question, so existing
+        # open-question selection and completion checks keep working.
+        "concept": _bounded_text(question.get("concept"), 120) or None,
+        "reason": _bounded_text(question.get("reason"), 500) or None,
+        "affected_subjects": [
+            _bounded_text(subject, 200)
+            for subject in (question.get("affected_subjects") or [])[:40]
+            if str(subject).strip()
+        ],
+        "checked_evidence": [
+            _bounded_text(item, 400)
+            for item in (question.get("checked_evidence") or [])[:40]
+            if str(item).strip()
+        ],
+        "next_retrieval": (
+            _bounded_text(question.get("next_retrieval"), 400) or None),
+        "resolver": _bounded_text(question.get("resolver"), 200) or None,
+        "step_id": _bounded_text(question.get("step_id"), 80) or None,
+        "waiting": _normalize_gap_waiting(question.get("waiting")),
         "status": "open",
         "attempts": attempts,
         "opened_at": _utc_now_iso(),
@@ -700,6 +896,37 @@ def _normalize_question(question: Dict[str, Any],
         "resolution": None,
         "source_operation": (
             str(operation)[:64] if operation else None),
+    }
+
+
+def _normalize_gap_waiting(value: Any) -> Optional[Dict[str, Any]]:
+    """Validate the durable waiting/correlation block on a gap.
+
+    States distinguish what the system actually knows: a lookup not yet
+    run, one that ran without a match, an unavailable source, expired
+    authorization, conflicting values, an unsupported interpretation, and
+    a person/external reply being awaited.
+    """
+    if not isinstance(value, dict) or not value:
+        return None
+    state = str(value.get("state") or "").strip()
+    if state not in (
+        "not_searched", "searched_no_match", "source_unavailable",
+        "authorization_expired", "conflicting_values",
+        "unsupported_interpretation", "waiting_for_person",
+        "waiting_for_external", "timer",
+    ):
+        return None
+    return {
+        "state": state,
+        "party": _bounded_text(value.get("party"), 200) or None,
+        "correlation_id": (
+            _bounded_text(value.get("correlation_id"), 120) or None),
+        "resume_on": (
+            _bounded_text(value.get("resume_on"), 40) or None),
+        "deadline": _bounded_text(value.get("deadline"), 60) or None,
+        "since": _bounded_text(value.get("since"), 60) or None,
+        "detail": _bounded_text(value.get("detail"), 500) or None,
     }
 
 
@@ -993,6 +1220,7 @@ class TaskLifecycle:
             "task_revision": revision,
             "operations": list(lifecycle.get("operations") or []),
             "deliveries": list(lifecycle.get("deliveries") or []),
+            "assignment": copy.deepcopy(lifecycle.get("assignment")),
             "conversation_id": lifecycle.get("conversation_id"),
             "run_status": run.get("status"),
             "task_version": lifecycle.get("task_version") or 1,
@@ -1130,6 +1358,13 @@ class TaskLifecycle:
             # rather than in every mutation site.
             lifecycle.setdefault("deliveries",
                                  list(record.get("deliveries") or []))
+            # The assignment plan is orchestration state beside the task
+            # revision and operations. Every transition that rebuilds the
+            # lifecycle carries it forward here; a mutation that intends to
+            # change it writes the new value explicitly.
+            if record.get("assignment") is not None:
+                lifecycle.setdefault(
+                    "assignment", copy.deepcopy(record.get("assignment")))
             if self._cas_write(run_id, int(expected), lifecycle, decision):
                 return result
             last_conflict = TaskLifecycleConcurrencyError(
@@ -1287,6 +1522,7 @@ class TaskLifecycle:
         op_type: str,
         requested_change: str,
         parent_operation_id: Optional[str],
+        binding: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Materialize an operation whose key another process claimed.
 
@@ -1306,7 +1542,8 @@ class TaskLifecycle:
                 task=record["task_revision"], op_type=op_type,
                 requested_change=requested_change,
                 idempotency_key=claim.get("idempotency_key"),
-                parent_operation_id=parent_operation_id)
+                parent_operation_id=parent_operation_id,
+                binding=binding)
             operation["operation_id"] = claim["operation_id"]
             validate_operation(operation)
             lifecycle = {
@@ -1349,6 +1586,7 @@ class TaskLifecycle:
         idempotency_key: Optional[str] = None,
         parent_operation_id: Optional[str] = None,
         extra: Optional[Dict[str, Any]] = None,
+        binding: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Persist one new operation on the task's current revision.
 
@@ -1369,9 +1607,21 @@ class TaskLifecycle:
         same key produce one operation and one effect — the loser replays
         the winner's operation instead of creating a second one.
         """
+        # Normalize with the CURRENT task revision so the binding digest
+        # computed here is exactly the digest new_operation() persists.
+        existing_record = self.get_task(run_id) or {}
+        task_revision = (existing_record.get("task_revision") or {}).get(
+            "revision")
+        normalized_binding = normalize_operation_binding(
+            binding,
+            workspace_id=getattr(self.runs, "workspace_id", None),
+            task_revision=task_revision,
+        ) if binding is not None else None
+        binding_sha256 = operation_binding_sha256(normalized_binding)
         payload_sha256 = _operation_payload_hash(
             op_type=op_type, requested_change=requested_change,
-            parent_operation_id=parent_operation_id)
+            parent_operation_id=parent_operation_id,
+            binding_sha256=binding_sha256)
         # Mint the operation's identity ONCE, before the claim, so the
         # claim row and the task JSON can never disagree about which
         # operation this key names.
@@ -1386,7 +1636,8 @@ class TaskLifecycle:
                     continue
                 if (existing.get("operation_type") != op_type
                         or existing.get("requested_change")
-                        != requested_change):
+                        != requested_change
+                        or existing.get("binding_sha256") != binding_sha256):
                     raise TaskLifecycleError(
                         f"idempotency key {idempotency_key!r} already used "
                         f"for a different operation payload")
@@ -1408,7 +1659,7 @@ class TaskLifecycle:
                         return copy.deepcopy(existing)
                 return self._adopt_claimed_operation(
                     run_id, claim, op_type, requested_change,
-                    parent_operation_id)
+                    parent_operation_id, binding=binding)
 
         def compute(record):
             ops = list(record["operations"])
@@ -1417,7 +1668,9 @@ class TaskLifecycle:
                     if existing.get("idempotency_key") == idempotency_key:
                         if (existing.get("operation_type") != op_type
                                 or existing.get("requested_change")
-                                != requested_change):
+                                != requested_change
+                                or existing.get("binding_sha256")
+                                != binding_sha256):
                             raise TaskLifecycleError(
                                 f"idempotency key {idempotency_key!r} "
                                 f"already used for a different operation "
@@ -1428,6 +1681,7 @@ class TaskLifecycle:
                 requested_change=requested_change,
                 idempotency_key=idempotency_key,
                 parent_operation_id=parent_operation_id,
+                binding=binding,
             )
             operation["operation_id"] = operation_id
             if extra:
@@ -1469,7 +1723,8 @@ class TaskLifecycle:
         """
         reserved = ("operation_id", "objective_id", "operation_type",
                     "status", "authorization", "idempotency_key",
-                    "schema_version", "execution_id", "objective_revision")
+                    "schema_version", "execution_id", "objective_revision",
+                    "operation_binding", "binding_sha256")
         if key in reserved:
             raise TaskLifecycleError(
                 f"'{key}' is a core operation field and cannot be attached")
@@ -1491,6 +1746,432 @@ class TaskLifecycle:
                         "operation_type": op.get("operation_type"),
                     }
                     return ops[index], lifecycle, decision
+            raise TaskLifecycleError(f"operation {operation_id} not found")
+
+        with self._lock:
+            return self._mutate(run_id, compute)
+
+    # ------------------------------------------------- assignment plan
+    # The plan is orchestration state stored beside the task revision and
+    # operations. Effect truth remains on the operation records; a step only
+    # points at its operation. Every method below is domain-neutral.
+
+    def get_assignment(self, run_id: str) -> Optional[Dict[str, Any]]:
+        record = self.get_task(run_id)
+        if not record:
+            return None
+        return record.get("assignment")
+
+    def put_assignment(
+        self,
+        run_id: str,
+        assignment: Dict[str, Any],
+        *,
+        rationale: str = "",
+    ) -> Dict[str, Any]:
+        """Persist a whole assignment plan (validated before writing)."""
+        from core.assignment_plan import validate_assignment
+
+        validate_assignment(assignment)
+
+        def compute(record):
+            lifecycle = {
+                "task_revision": record["task_revision"],
+                "operations": record["operations"],
+                "conversation_id": record.get("conversation_id"),
+                "assignment": copy.deepcopy(assignment),
+            }
+            decision = {
+                "kind": "assignment",
+                "rationale": _bounded_text(rationale, 500),
+                "assignment_id": assignment.get("assignment_id"),
+                "state": assignment.get("status"),
+                "plan_revision": assignment.get("plan_revision"),
+            }
+            return copy.deepcopy(assignment), lifecycle, decision
+
+        with self._lock:
+            return self._mutate(run_id, compute)
+
+    def mutate_assignment(
+        self,
+        run_id: str,
+        compute,
+        *,
+        rationale: str = "",
+    ) -> Any:
+        """Atomically read-modify-write the assignment plan.
+
+        ``compute(record, assignment) -> (new_assignment, result)``. The
+        callback sees the fresh record and plan under the same CAS write, so
+        two workers cannot fork plan state silently.
+        """
+        from core.assignment_plan import validate_assignment
+
+        def run(record):
+            current = copy.deepcopy(record.get("assignment"))
+            if current is None:
+                raise TaskLifecycleError("task has no assignment plan")
+            new_assignment, result = compute(record, current)
+            validate_assignment(new_assignment)
+            lifecycle = {
+                "task_revision": record["task_revision"],
+                "operations": record["operations"],
+                "conversation_id": record.get("conversation_id"),
+                "assignment": new_assignment,
+            }
+            decision = {
+                "kind": "assignment",
+                "rationale": _bounded_text(rationale, 500),
+                "assignment_id": new_assignment.get("assignment_id"),
+                "state": new_assignment.get("status"),
+                "plan_revision": new_assignment.get("plan_revision"),
+            }
+            return result, lifecycle, decision
+
+        with self._lock:
+            return self._mutate(run_id, run)
+
+    # ------------------------------------------------- approval binding
+
+    def request_operation_approval(
+        self,
+        run_id: str,
+        operation_id: str,
+        *,
+        payload: Any,
+        artifact_revision: Optional[str] = None,
+        authorization_revision: Optional[str] = None,
+        requested_by: str = "",
+        purpose: str = "",
+    ) -> Dict[str, Any]:
+        """Record one concrete approval request bound to the exact payload.
+
+        The operation moves to ``awaiting_approval``. Re-requesting the SAME
+        payload is an idempotent replay. A different payload invalidates any
+        existing approval and records a new request under the same operation
+        (the effect has not run yet).
+        """
+        payload_sha256 = _approval_payload_hash(payload)
+        request = {
+            "payload_sha256": payload_sha256,
+            "artifact_revision": _bounded_text(artifact_revision, 120) or None,
+            "authorization_revision": (
+                _bounded_text(authorization_revision, 120) or None),
+            "requested_by": _bounded_text(requested_by, 200) or None,
+            "purpose": _bounded_text(purpose, 300) or None,
+            "requested_at": _utc_now_iso(),
+        }
+
+        def compute(record):
+            ops = list(record["operations"])
+            for index, op in enumerate(ops):
+                if op.get("operation_id") != operation_id:
+                    continue
+                status = op.get("status")
+                if status in ("applied", "failed", "cancelled", "superseded",
+                              "conflict", "rejected", "uncertain"):
+                    raise TaskLifecycleError(
+                        f"operation {operation_id} is {status}; approval "
+                        f"cannot be requested for a terminal operation")
+                existing = op.get("approval_request") or {}
+                existing_approval = op.get("approval") or {}
+                same_request = (
+                    existing.get("payload_sha256") == payload_sha256
+                    and existing.get("artifact_revision")
+                    == request["artifact_revision"]
+                    and existing.get("authorization_revision")
+                    == request["authorization_revision"]
+                )
+                if status == "approved" and same_request and existing_approval:
+                    return copy.deepcopy(op), None, None
+                if status == "awaiting_approval" and same_request:
+                    return copy.deepcopy(op), None, None
+                updated = copy.deepcopy(op)
+                history = list(updated.get("approval_history") or [])
+                if existing_approval:
+                    history.append({
+                        **copy.deepcopy(existing_approval),
+                        "invalidated_at": _utc_now_iso(),
+                        "invalidated_reason": "payload_or_revision_changed",
+                    })
+                updated["approval_history"] = history[-10:]
+                updated["approval_request"] = request
+                updated["approval"] = None
+                updated.pop("approved_payload_sha256", None)
+                updated.pop("approved_artifact_revision", None)
+                updated.pop("approved_authorization_revision", None)
+                if status in ("pending", "running", "approved"):
+                    updated = transition_operation(
+                        updated, "awaiting_approval")
+                ops[index] = updated
+                lifecycle = {
+                    "task_revision": record["task_revision"],
+                    "operations": ops,
+                    "conversation_id": record.get("conversation_id"),
+                }
+                decision = {
+                    "kind": "approval_request",
+                    "rationale": _bounded_text(purpose, 500),
+                    "operation_id": operation_id,
+                    "operation_type": op.get("operation_type"),
+                    "payload_sha256": payload_sha256,
+                }
+                return copy.deepcopy(updated), lifecycle, decision
+            raise TaskLifecycleError(f"operation {operation_id} not found")
+
+        with self._lock:
+            return self._mutate(run_id, compute)
+
+    def approve_operation(
+        self,
+        run_id: str,
+        operation_id: str,
+        *,
+        approved_by: str,
+        payload_sha256: Optional[str] = None,
+        artifact_revision: Optional[str] = None,
+        authorization_revision: Optional[str] = None,
+        note: str = "",
+    ) -> Dict[str, Any]:
+        """Approve the exact requested effect; the operation becomes runnable.
+
+        The approval is refused when the payload digest or artifact revision
+        differs from the request, and when the caller's authorization
+        revision is stale. Repeating the same approval is an idempotent
+        replay, not a second authorization.
+        """
+        if not str(approved_by or "").strip():
+            raise TaskLifecycleError("an approval must name who approved it")
+
+        def compute(record):
+            ops = list(record["operations"])
+            for index, op in enumerate(ops):
+                if op.get("operation_id") != operation_id:
+                    continue
+                status = op.get("status")
+                request = op.get("approval_request") or {}
+                if not request:
+                    raise TaskLifecycleError(
+                        f"operation {operation_id} has no approval request")
+                expected_payload = request.get("payload_sha256")
+                if payload_sha256 and payload_sha256 != expected_payload:
+                    raise TaskApprovalInvalidated(
+                        "approval payload does not match the requested "
+                        "effect")
+                if (artifact_revision is not None
+                        and str(artifact_revision or "")
+                        != str(request.get("artifact_revision") or "")):
+                    raise TaskApprovalInvalidated(
+                        "the artifact changed after approval was requested")
+                if (authorization_revision is not None
+                        and str(authorization_revision or "")
+                        != str(request.get("authorization_revision") or "")):
+                    raise TaskApprovalInvalidated(
+                        "authorization changed after approval was requested")
+                if status == "approved":
+                    existing = op.get("approval") or {}
+                    if (existing.get("payload_sha256") == expected_payload
+                            and str(existing.get("approved_by") or "")
+                            == str(approved_by)):
+                        return copy.deepcopy(op), None, None
+                    raise TaskApprovalInvalidated(
+                        "operation is already approved for a different "
+                        "approval identity")
+                if status != "awaiting_approval":
+                    raise TaskLifecycleError(
+                        f"operation {operation_id} is {status}, not "
+                        f"awaiting_approval")
+                approval = {
+                    "payload_sha256": expected_payload,
+                    "artifact_revision": request.get("artifact_revision"),
+                    "authorization_revision": request.get(
+                        "authorization_revision"),
+                    "approved_by": _bounded_text(approved_by, 200),
+                    "approved_at": _utc_now_iso(),
+                    "note": _bounded_text(note, 500) or None,
+                }
+                updated = transition_operation(op, "approved")
+                updated["approval"] = approval
+                updated["approved_payload_sha256"] = expected_payload
+                updated["approved_artifact_revision"] = request.get(
+                    "artifact_revision")
+                updated["approved_authorization_revision"] = request.get(
+                    "authorization_revision")
+                ops[index] = updated
+                lifecycle = {
+                    "task_revision": record["task_revision"],
+                    "operations": ops,
+                    "conversation_id": record.get("conversation_id"),
+                }
+                decision = {
+                    "kind": "approval",
+                    "rationale": _bounded_text(
+                        note or (request.get("purpose") or ""), 500),
+                    "operation_id": operation_id,
+                    "operation_type": op.get("operation_type"),
+                    "approved_by": approved_by,
+                    "payload_sha256": expected_payload,
+                }
+                return copy.deepcopy(updated), lifecycle, decision
+            raise TaskLifecycleError(f"operation {operation_id} not found")
+
+        with self._lock:
+            return self._mutate(run_id, compute)
+
+    def invalidate_approval(
+        self,
+        run_id: str,
+        operation_id: str,
+        *,
+        reason: str,
+    ) -> Dict[str, Any]:
+        """Return an approved/prepared effect to awaiting_approval."""
+        def compute(record):
+            ops = list(record["operations"])
+            for index, op in enumerate(ops):
+                if op.get("operation_id") != operation_id:
+                    continue
+                if op.get("status") not in (
+                        "approved", "awaiting_approval", "running", "pending"):
+                    raise TaskLifecycleError(
+                        f"operation {operation_id} is {op.get('status')}; "
+                        f"its approval cannot be invalidated")
+                updated = copy.deepcopy(op)
+                existing_approval = updated.get("approval") or {}
+                history = list(updated.get("approval_history") or [])
+                if existing_approval:
+                    history.append({
+                        **copy.deepcopy(existing_approval),
+                        "invalidated_at": _utc_now_iso(),
+                        "invalidated_reason": _bounded_text(reason, 300),
+                    })
+                updated["approval_history"] = history[-10:]
+                updated["approval"] = None
+                updated["approval_invalidated"] = {
+                    "reason": _bounded_text(reason, 300),
+                    "at": _utc_now_iso(),
+                }
+                if updated.get("status") != "awaiting_approval":
+                    updated = transition_operation(
+                        updated, "awaiting_approval")
+                ops[index] = updated
+                lifecycle = {
+                    "task_revision": record["task_revision"],
+                    "operations": ops,
+                    "conversation_id": record.get("conversation_id"),
+                }
+                decision = {
+                    "kind": "approval_invalidated",
+                    "rationale": _bounded_text(reason, 500),
+                    "operation_id": operation_id,
+                    "operation_type": op.get("operation_type"),
+                }
+                return copy.deepcopy(updated), lifecycle, decision
+            raise TaskLifecycleError(f"operation {operation_id} not found")
+
+        with self._lock:
+            return self._mutate(run_id, compute)
+
+    def record_uncertain_outcome(
+        self,
+        run_id: str,
+        operation_id: str,
+        *,
+        reason: str,
+        evidence: str = "",
+        observed_by: str = "",
+    ) -> Dict[str, Any]:
+        """Mark an in-flight effect whose provider outcome is unknown.
+
+        This is the adapter-facing arm of the same honest ``uncertain``
+        state used for confirmed worker loss. It never guesses sent or
+        not-sent and never returns the operation to ``pending``.
+        """
+        if not str(reason or "").strip():
+            raise TaskLifecycleError(
+                "an uncertain outcome requires a reason")
+
+        def compute(record):
+            ops = list(record["operations"])
+            for index, op in enumerate(ops):
+                if op.get("operation_id") != operation_id:
+                    continue
+                if op.get("status") == "uncertain":
+                    return copy.deepcopy(op), None, None
+                if op.get("status") != "running":
+                    raise TaskLifecycleError(
+                        f"operation {operation_id} is {op.get('status')}, "
+                        f"not running; only an in-flight effect can become "
+                        f"uncertain")
+                updated = transition_operation(op, "uncertain")
+                updated["outcome"] = "unknown"
+                updated["needs_reconciliation"] = True
+                updated["uncertainty_reason"] = _bounded_text(reason, 300)
+                updated["uncertainty_evidence"] = _bounded_text(
+                    evidence, 500)
+                updated["uncertainty_observed_by"] = _bounded_text(
+                    observed_by, 200)
+                ops[index] = updated
+                lifecycle = {
+                    "task_revision": record["task_revision"],
+                    "operations": ops,
+                    "conversation_id": record.get("conversation_id"),
+                }
+                decision = {
+                    "kind": "operation_uncertain",
+                    "rationale": _bounded_text(reason, 500),
+                    "operation_id": operation_id,
+                    "operation_type": op.get("operation_type"),
+                }
+                return copy.deepcopy(updated), lifecycle, decision
+            raise TaskLifecycleError(f"operation {operation_id} not found")
+
+        with self._lock:
+            return self._mutate(run_id, compute)
+
+    def set_operation_waiting(
+        self,
+        run_id: str,
+        operation_id: str,
+        *,
+        waiting: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Move a running operation into its durable waiting state."""
+        def compute(record):
+            ops = list(record["operations"])
+            for index, op in enumerate(ops):
+                if op.get("operation_id") != operation_id:
+                    continue
+                if op.get("status") == "waiting":
+                    updated = copy.deepcopy(op)
+                    updated["waiting"] = copy.deepcopy(waiting)
+                    ops[index] = updated
+                    return copy.deepcopy(updated), {
+                        "task_revision": record["task_revision"],
+                        "operations": ops,
+                        "conversation_id": record.get("conversation_id"),
+                    }, None
+                if op.get("status") != "running":
+                    raise TaskLifecycleError(
+                        f"operation {operation_id} is {op.get('status')}, "
+                        f"not running; it cannot start waiting")
+                updated = transition_operation(op, "waiting")
+                updated["waiting"] = copy.deepcopy(waiting)
+                ops[index] = updated
+                lifecycle = {
+                    "task_revision": record["task_revision"],
+                    "operations": ops,
+                    "conversation_id": record.get("conversation_id"),
+                }
+                decision = {
+                    "kind": "operation",
+                    "rationale": "waiting: " + _bounded_text(
+                        (waiting or {}).get("state"), 200),
+                    "operation_id": operation_id,
+                    "operation_type": op.get("operation_type"),
+                }
+                return copy.deepcopy(updated), lifecycle, decision
             raise TaskLifecycleError(f"operation {operation_id} not found")
 
         with self._lock:
@@ -1594,11 +2275,18 @@ class TaskLifecycle:
                 if op.get("operation_id") != operation_id:
                     continue
                 status = op.get("status")
-                if status == "pending":
+                if status in ("pending", "approved"):
                     updated = transition_operation(
                         op, "running", execution_id=execution_id)
                     updated["claimed_by"] = owner
                     updated["claimed_at"] = claimed_at
+                    # Bind the claim to the durable revisions it was taken
+                    # under. Recovery uses identity, never a timeout alone,
+                    # to decide whether the owner may still be alive.
+                    updated["claimed_task_revision"] = (
+                        record["task_revision"].get("revision"))
+                    updated["claimed_operation_revision"] = op.get(
+                        "objective_revision")
                     ops[index] = updated
                     lifecycle = {
                         "task_revision": record["task_revision"],
@@ -3394,6 +4082,12 @@ def task_snapshot(record: Dict[str, Any]) -> Dict[str, Any]:
             1 for e in (revision.get("unresolved") or [])
             if isinstance(e, dict) and e.get("status") == "resolved"),
         "next_work": next_unfinished_work(record),
+        "assignment": (
+            (record.get("assignment") or {}).get("assignment_id")
+            if isinstance(record.get("assignment"), dict) else None),
+        "assignment_status": (
+            (record.get("assignment") or {}).get("status")
+            if isinstance(record.get("assignment"), dict) else None),
         "operations": operations,
     }
 

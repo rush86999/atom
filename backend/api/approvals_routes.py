@@ -42,6 +42,36 @@ class ApprovalDecision(BaseModel):
     reason: Optional[str] = None
 
 
+_ASSIGNMENT_BINDING_KEYS = (
+    "run_id", "step_id", "operation_id", "payload_sha256",
+    "artifact_revision", "authorization_revision",
+)
+
+
+def _validate_assignment_approval_payload(
+    action: HITLAction, modified_params: Optional[Dict[str, Any]],
+) -> None:
+    """An approval of one effect must not silently approve another.
+
+    For an assignment approval, the bound identity/payload keys are
+    immutable through the edit-before-approve flow. A changed recipient,
+    body/artifact or authorization must go back through preparation and
+    request a fresh approval rather than riding this row.
+    """
+    if action.action_type != "assignment_approval" or not modified_params:
+        return
+    original = dict(action.params or {})
+    for key in _ASSIGNMENT_BINDING_KEYS:
+        if key in modified_params and str(modified_params[key]) != str(
+                original.get(key)):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Approval binding '{key}' cannot be changed through "
+                    f"this decision; prepare and approve the new effect."),
+            )
+
+
 @router.get("/pending")
 async def list_pending_approvals(
     current_user: User = Depends(get_current_user),
@@ -49,8 +79,15 @@ async def list_pending_approvals(
     """
     Pending HITL actions as a plain array — the shape the Approvals page
     and chat widget have always expected.
+
+    Scoped to the authenticated user's workspace/tenant: a pending action
+    from another workspace must not be listable, and a guessed id must not
+    be decidable.
     """
-    return intervention_service.get_pending_interventions()
+    return intervention_service.get_pending_interventions(
+        workspace_id=current_user.workspace_id,
+        tenant_id=current_user.tenant_id,
+    )
 
 
 @router.post("/{approval_id}")
@@ -82,11 +119,22 @@ async def decide_approval(
         raise HTTPException(status_code=422, detail="decision must be 'approved' or 'rejected'")
 
     # Surface a per-action required_role denial as 403 (not a generic 400).
-    action = db.query(HITLAction).filter(HITLAction.id == approval_id).first()
-    if action:
-        denial = intervention_service._required_role_denial(db, action, user.id)
-        if denial:
-            raise HTTPException(status_code=403, detail=denial)
+    # Scope the lookup to the authenticated workspace/tenant: an id from
+    # another workspace must 404 before any role/ownership decision.
+    action_query = db.query(HITLAction).filter(HITLAction.id == approval_id)
+    if current_user.workspace_id:
+        action_query = action_query.filter(
+            HITLAction.workspace_id == current_user.workspace_id)
+    if current_user.tenant_id:
+        action_query = action_query.filter(
+            HITLAction.tenant_id == current_user.tenant_id)
+    action = action_query.first()
+    if action is None:
+        raise HTTPException(status_code=404, detail="Approval not found")
+    _validate_assignment_approval_payload(action, body.modified_params)
+    denial = intervention_service._required_role_denial(db, action, user.id)
+    if denial:
+        raise HTTPException(status_code=403, detail=denial)
 
     if decision == "approved":
         result = await intervention_service.approve_intervention(

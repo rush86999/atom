@@ -56,7 +56,10 @@ class TestMatchedRowFormulas:
         out = render_dataset_answer(
             _result(self.SHEET, [{SHEET_ROW_COL: 235, "LIST": 7519.0}])
         )
-        matched_line = [l for l in out.splitlines() if l.startswith("FORMULAS FOR")][0]
+        matched_line = [
+            line for line in out.splitlines()
+            if "FORMULAS FOR THE MATCHED ROW(S)" in line
+        ][0]
         assert "G235" in matched_line
         assert "G2=" not in matched_line
 

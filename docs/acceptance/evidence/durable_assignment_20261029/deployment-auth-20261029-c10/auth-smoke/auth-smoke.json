@@ -1,0 +1,78 @@
+{
+  "schema": "atom-assignment-release-auth-smoke-1",
+  "status": "passed",
+  "checks": [
+    {
+      "name": "fresh_context_login_form",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "normal_form_login",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "workspace_profile_visible",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "authenticated_workspace_access",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "existing_assignment_completed",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "artifact_listed",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "artifact_present_and_openable",
+      "ok": true,
+      "detail": {
+        "path": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-713db064c84c/sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+        "sha256": "318a675acd0126be56f157404101fd81dbd40937985e472756542355830af21a"
+      }
+    },
+    {
+      "name": "logout_clears_storage",
+      "ok": true,
+      "detail": {
+        "auth": null,
+        "token": null
+      }
+    },
+    {
+      "name": "old_token_refused_after_logout",
+      "ok": true,
+      "detail": {
+        "status": 401
+      }
+    },
+    {
+      "name": "second_normal_form_login",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "second_session_workspace_access",
+      "ok": true,
+      "detail": null
+    }
+  ],
+  "session_injected": false,
+  "normal_login_form_used": true,
+  "screenshots": [
+    "assignment-open.png",
+    "signed-in-again.png",
+    "signed-in-assignments.png",
+    "signed-in-dashboard.png",
+    "signed-out.png"
+  ]
+}

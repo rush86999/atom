@@ -1,0 +1,8 @@
+Earlier handoffs were preserved, not deleted, because the live source kept committing:
+/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/backups/production-data-v1-20261030T010000Z
+/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/backups/production-data-v2-20261030T012623Z
+/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/backups/production-data-v3-20261030T013017Z
+v2: telemetry rows advanced after the snapshot.
+v3: the hourly ingestion sync updated ingestion_settings at 01:27:57, after the snapshot;
+    the freshness gate detected the table change and refused.
+v4: current handoff, includes that sync, checks fresh (0 table changes).

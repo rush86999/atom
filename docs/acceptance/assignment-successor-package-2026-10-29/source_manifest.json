@@ -1,0 +1,307 @@
+{
+  "schema": "atom-assignment-source-manifest-1",
+  "candidate_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+  "package_commit": "058e38ddb",
+  "created": "2026-10-29",
+  "files": [
+    {
+      "path": "backend/api/assignment_routes.py",
+      "category": "backend_runtime",
+      "sha256": "c49d5f883ef8c9d7bb177823d761721ac09cc00198d3fed0785f2a7fd8b92907"
+    },
+    {
+      "path": "backend/api/agent_maturity_routes.py",
+      "category": "backend_runtime",
+      "sha256": "f928bb1664c4529cb69750bc455aebb13d649e48b0cf14963076b49bd893fda1"
+    },
+    {
+      "path": "backend/api/agent_onboarding_routes.py",
+      "category": "backend_runtime",
+      "sha256": "76f131318591e3d3db528b18569cfb329458db6844973a74e406446bd3445829"
+    },
+    {
+      "path": "backend/core/assignment_plan.py",
+      "category": "backend_runtime",
+      "sha256": "14d2a5b8ab824010301248d0d313cf2cc2e1be223cd7644ca12f736b194df3c2"
+    },
+    {
+      "path": "backend/core/assignment_planner.py",
+      "category": "backend_runtime",
+      "sha256": "8420a686852427232830dcc166239d73dac1eaf64b4068427e127de4067d6288"
+    },
+    {
+      "path": "backend/core/assignment_resources.py",
+      "category": "backend_runtime",
+      "sha256": "00bb2bfa2f47e7ed871d97ec9a0d020d6429394669feeca541e4c15aa437943a"
+    },
+    {
+      "path": "backend/core/assignment_executor.py",
+      "category": "backend_runtime",
+      "sha256": "9c19d5518367d43ddc44462434c856d02d2c84cdcd2d0ad4b16c4e17ba081702"
+    },
+    {
+      "path": "backend/core/assignment_controlled_transport.py",
+      "category": "backend_runtime",
+      "sha256": "ad55e8e9754801cf6d7f3e14599965395da48cf7b46aba2d6cb53da776790444"
+    },
+    {
+      "path": "backend/core/assignment_teaching.py",
+      "category": "backend_runtime",
+      "sha256": "34043cacd5c957d28d879e86c262cb15f7b5afd00e31abfc50f3ddbcacaf81e7"
+    },
+    {
+      "path": "backend/core/artifact_teaching.py",
+      "category": "backend_runtime",
+      "sha256": "8cb7bbb7713eba9f6033fd6e74feaf9e4c46e2bc614be07121a7ff347a4426d5"
+    },
+    {
+      "path": "backend/core/student_learning_service.py",
+      "category": "backend_runtime",
+      "sha256": "b4759958253ab5ed898b1e1a017504adcd7ce6778ef61a7d15fcda29e37f644a"
+    },
+    {
+      "path": "backend/core/office_service.py",
+      "category": "backend_runtime",
+      "sha256": "d01be9f1d9076bc4cc83386a39ec4964d6715cea145f3213dcfe4f5fa554eae6"
+    },
+    {
+      "path": "backend/core/canvas_capability_service.py",
+      "category": "backend_runtime",
+      "sha256": "b81012e99ba7643a821ec0d97aeee5d2b7e4812bd36949125296e55af005e663"
+    },
+    {
+      "path": "backend/core/oauth_config_preflight.py",
+      "category": "backend_runtime",
+      "sha256": "fc48a7bf5209ada8ee9a3f4ad3dd733ef2302ab0296af21333087870ab8fe260"
+    },
+    {
+      "path": "backend/core/models.py",
+      "category": "backend_runtime",
+      "sha256": "9255cde3ab7ea3dae76ea7201aeb06ff890a89e19b27b5ba2a710367339d3b4c"
+    },
+    {
+      "path": "backend/core/sheet_dataset_service.py",
+      "category": "backend_runtime",
+      "sha256": "2bc67fdc4f2a3aa6be36e2229cfaee22725d0178bb4ed2efdf801bbeb6cb50ba"
+    },
+    {
+      "path": "backend/core/dataset_aggregation.py",
+      "category": "backend_runtime",
+      "sha256": "02145acc5cc70df9212c73abadda30720fa02860b37e89f0f8f66e22dccdc33d"
+    },
+    {
+      "path": "backend/core/formula_engine.py",
+      "category": "backend_runtime",
+      "sha256": "70372c92c18720023aac69c76c67aa7727cad3d56d1a69afc78b7432969da2cb"
+    },
+    {
+      "path": "backend/integrations/chat_routes.py",
+      "category": "backend_runtime",
+      "sha256": "6dcdb884f70a5e44a73e8c3d014479adba935a29a67c16be0e47503d603046c6"
+    },
+    {
+      "path": "backend/integrations/onedrive_journey_routes.py",
+      "category": "backend_runtime",
+      "sha256": "552420b6c4f44dc5d1dccafe2db1e9a61c36a664d29d18bed3e6d9caa3d2ff97"
+    },
+    {
+      "path": "backend/main_api_app.py",
+      "category": "backend_runtime",
+      "sha256": "fa8c8b474551c8dbac88f59121511c27fa8204c97dd5f1b2156014be0685aeb5"
+    },
+    {
+      "path": "backend/scripts/assignment_connected_acceptance.py",
+      "category": "acceptance_harnesses",
+      "sha256": "1d4e6100e0e13c1745238b2057d29affb3b4ed64d98e4b0e221d4a8f37419ee0"
+    },
+    {
+      "path": "backend/scripts/assignment_browser_acceptance_server.py",
+      "category": "acceptance_harnesses",
+      "sha256": "f4b999df9fc47e8f027988fcb1c90bc6a5c3965a0fbe041764a0aedf4eb80fcf"
+    },
+    {
+      "path": "scripts/acceptance/restore_private_microsoft_config.py",
+      "category": "acceptance_harnesses",
+      "sha256": "9124572c5c3b61ad467f63f017a103621504615efb56606cba2b39f4b58268e8"
+    },
+    {
+      "path": "backend/tests/test_assignment_routes.py",
+      "category": "tests_and_harnesses",
+      "sha256": "48ea51f52760741925ab53cda8ffa76cf837e328958812aae9a638b134a33397"
+    },
+    {
+      "path": "backend/tests/test_assignment_resource_boundary.py",
+      "category": "tests_and_harnesses",
+      "sha256": "bf0262e442fe4d2085297d1dc2b6c92dcc7f70f0c6ba87f6f16b465f753bf988"
+    },
+    {
+      "path": "backend/tests/test_assignment_executor.py",
+      "category": "tests_and_harnesses",
+      "sha256": "91fb69f82ed13d8af7134c6008f0da57b5636aa5b8d4223dacf99d8388829e0f"
+    },
+    {
+      "path": "backend/tests/test_artifact_teaching_context.py",
+      "category": "tests_and_harnesses",
+      "sha256": "a242ba877c149304325c1decae796b54d10189957ffe1998fc4070df22cebf69"
+    },
+    {
+      "path": "backend/tests/test_artifact_renderers_teaching.py",
+      "category": "tests_and_harnesses",
+      "sha256": "ac55965da000ca77cbfc8f9884393546cc3d924be03e2e5bc1d49b04336c3c83"
+    },
+    {
+      "path": "backend/tests/test_deployment_audience.py",
+      "category": "tests_and_harnesses",
+      "sha256": "b8cda7f516af0dc8fcbee59031a2342a450c2780ab2b45b9e71ed148aea693c7"
+    },
+    {
+      "path": "backend/tests/unit/test_oauth_config_preflight.py",
+      "category": "tests_and_harnesses",
+      "sha256": "2d73f285813b04c84b0236769101589d410cfa4175b32e57a8db83e44db4f59a"
+    },
+    {
+      "path": "backend/tests/test_assignment_launcher_guard.py",
+      "category": "tests_and_harnesses",
+      "sha256": "aab977c915a790447c575b9558a4f6b06095c4c662de86f090e8b45443fa4107"
+    },
+    {
+      "path": "backend/tests/test_fingerprint_identity.py",
+      "category": "tests_and_harnesses",
+      "sha256": "7592b4406c58fede7a6ec727e2c059448ddbb933d38a5edb441a780bbd2b5ea3"
+    },
+    {
+      "path": "backend/tests/test_operation_binding.py",
+      "category": "tests_and_harnesses",
+      "sha256": "49b10b9f7b4732b3cdab678a3c700c68a3d110c46a58d08fe7b6b6defd71046a"
+    },
+    {
+      "path": "backend/tests/test_hitl_resume.py",
+      "category": "tests_and_harnesses",
+      "sha256": "1dc6172b2f9f7ecbed5b84e2df861032a5ff5f7698e0e2a5c2baa053f2dd8fcd"
+    },
+    {
+      "path": "backend/tests/test_hitl_approvals_journey.py",
+      "category": "tests_and_harnesses",
+      "sha256": "8dd522dd99a3b4e2ea95a5af705dc37e7e39e37518ed201b51349c14dcc8ebef"
+    },
+    {
+      "path": "frontend-nextjs/components/assignments/AssignmentPanel.tsx",
+      "category": "frontend",
+      "sha256": "bc5dd1e6ca4de060e3b5dcd35d9eb82ce37d4ba2b9c710717d0aa125b9917865"
+    },
+    {
+      "path": "frontend-nextjs/lib/assignment-api.ts",
+      "category": "frontend",
+      "sha256": "1a9a015ebfab91660a3823120a72d16fedfd6ade80dd7b62e00868be424e57b1"
+    },
+    {
+      "path": "frontend-nextjs/pages/assignments.tsx",
+      "category": "frontend",
+      "sha256": "2883b71cc13374cd1293cb890d546109c5e925d8a51a21adfc8201822e37504e"
+    },
+    {
+      "path": "frontend-nextjs/components/chat/AgentWorkspace.tsx",
+      "category": "frontend",
+      "sha256": "5a94fa49dee5135c0c8f4a58ea172b51083c45ef574ba7c39999da1cff072b5a"
+    },
+    {
+      "path": "frontend-nextjs/components/canvas/TrainingPanel.tsx",
+      "category": "frontend",
+      "sha256": "4d24e67663c2341e13ad6847fb87571f6116b8520ef0a261f9bcf55a6d6cd467"
+    },
+    {
+      "path": "frontend-nextjs/components/Settings/ConnectedDataStatus.tsx",
+      "category": "frontend",
+      "sha256": "c0b4dc902c3395fea70768dcf6daad366ab7f48aba5fa90ce28b306cfe5e16ab"
+    },
+    {
+      "path": "frontend-nextjs/lib/maturity-api.ts",
+      "category": "frontend",
+      "sha256": "bb61afe1b612cf4915ec0a347811bca21615e7e6b276947e0d0873eea2d907ad"
+    },
+    {
+      "path": "frontend-nextjs/e2e/assignment-durable.spec.ts",
+      "category": "tests_and_harnesses",
+      "sha256": "116c092a57cb8a2ee2e20610982462f9aaf33e1af7326da7aa96858fe1aa8bc0"
+    },
+    {
+      "path": "frontend-nextjs/e2e/assignment-guided.spec.ts",
+      "category": "tests_and_harnesses",
+      "sha256": "9228ce00c4f4d7691b5ab0d6048ffe47860a9bda443ee762ea93df7a86fcc556"
+    },
+    {
+      "path": "frontend-nextjs/e2e/assignment-guided-reopen.spec.ts",
+      "category": "tests_and_harnesses",
+      "sha256": "09c1b312ee05e1a7c0d01f6afa601c0f006577ca62f9cc54d355613903a3dfcb"
+    },
+    {
+      "path": "frontend-nextjs/e2e/assignment-durable-reopen.spec.ts",
+      "category": "tests_and_harnesses",
+      "sha256": "55813b458e30055df32690dd806b563c649d945e364c4fb01c088498b767f306"
+    },
+    {
+      "path": ".env.oauth.template",
+      "category": "configuration_template",
+      "sha256": "7bc25919fc1287d3cf70e91757f2aea45d089825d900c8f0b1933cb779dbab9f"
+    },
+    {
+      "path": "backend/tests/unit/test_sheet_dataset_service.py",
+      "category": "tests_and_harnesses",
+      "sha256": "99500fbfb6af9c046997d081ff9aa4427014c20869cac7db42cf84afaf94dcc3"
+    },
+    {
+      "path": "backend/tests/test_product_profile.py",
+      "category": "tests_and_harnesses",
+      "sha256": "e6ce282a234cccd170f60e54c191b53633dfe63f469026ad39a53fc7abf077bf"
+    },
+    {
+      "path": "backend/core/product_profile.py",
+      "category": "backend_runtime",
+      "sha256": "4f05280c580001d71aa29e4ba9ee7a8139d046b6bbbc7c20ade299001f5eb5f7"
+    },
+    {
+      "path": "frontend-nextjs/components/layout/Sidebar.tsx",
+      "category": "frontend",
+      "sha256": "db7fc9f481b0b196e49d75a3bec03c6fae9e4fe00ac31693b73cd52e330419bf"
+    },
+    {
+      "path": "backend/core/email_send_policy.py",
+      "category": "backend_runtime",
+      "sha256": "573fb3db675f1875152932d6c1cf7fd86928042f7fea9a9cb7d20b0aa4bde7dd"
+    },
+    {
+      "path": "backend/core/canvas_email_service.py",
+      "category": "backend_runtime",
+      "sha256": "1f30bcf2ca6c7d4ce4769c9a48348fcf06f8d28419b18a5b55ee8c7adcd2da9f"
+    },
+    {
+      "path": "backend/integrations/outlook_service.py",
+      "category": "backend_runtime",
+      "sha256": "0515e01fee8ac8b0c232bf2ce7ad68b62d574cecc974e568fcf3c40691c0a7b0"
+    },
+    {
+      "path": "backend/tests/test_assignment_send_policy.py",
+      "category": "tests_and_harnesses",
+      "sha256": "4819dee9352c4511a1072ff14bac193c9b65c2c4b26faa198cb8a589bacec292"
+    },
+    {
+      "path": "backend/tests/test_email_send_policy.py",
+      "category": "tests_and_harnesses",
+      "sha256": "0a15b900fcfb5ed3a4144b153501ff9eccf8ad2427ce8c8f1a9070b68b056caa"
+    }
+  ],
+  "migrations": [],
+  "artifact_templates": [],
+  "notes": [
+    "Assignment state remains in GoalRun task_lifecycle JSON; no new schema migration.",
+    "Artifacts are rendered by the existing OfficeService; no checked-in artifact template files.",
+    "Evidence is packaged separately under docs/acceptance/evidence/.",
+    "Runtime .env, databases, caches, node_modules and generated test worlds are excluded."
+  ],
+  "live_fix_commit_note": "901e5d773 is the freeze plus /assignments release-profile mapping and backend token revocation on sign-out; deployment kit is an overlay and is not part of this product tree.",
+  "clean_source_base_commit": "e4c11c354",
+  "live_gate_commit": "001f93472",
+  "release_tag": "assignment-successor-2026-10-29",
+  "tested_live_runtime_commit": "001f93472",
+  "product_tree_sha256": "92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c"
+}

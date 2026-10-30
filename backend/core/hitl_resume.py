@@ -23,6 +23,7 @@ from core.models import HITLAction
 logger = logging.getLogger(__name__)
 
 _GOAL_RUN_ACTIONS = {"goal_run_decision", "goal_run_checkpoint"}
+_ASSIGNMENT_ACTIONS = {"assignment_approval"}
 
 
 def _load_action(action_id: str) -> Optional[Dict[str, Any]]:
@@ -92,6 +93,64 @@ async def _resume_goal_run(action: Dict[str, Any], approved: bool,
     return {"handled": True, "kind": "decision", **result}
 
 
+async def _resume_assignment(
+    action: Dict[str, Any], approved: bool,
+    reviewer_id: Optional[str], guidance: Optional[str],
+) -> Dict[str, Any]:
+    """Resume the assignment whose concrete effect was approved/rejected.
+
+    The HITL row is only the authorization event. The operation payload,
+    artifact revision and assignment plan are re-checked through the same
+    durable run identity; a changed payload cannot ride an old approval.
+    """
+    from core.assignment_executor import AssignmentExecutor
+    from core.goals.goal_run_service import GoalRunService
+    from core.task_lifecycle import TaskLifecycle
+
+    params = action.get("params") or {}
+    run_id = str(params.get("run_id") or "")
+    step_id = str(params.get("step_id") or "")
+    if not run_id or not step_id:
+        return {"handled": False, "reason": "assignment action has no run/step"}
+    svc = GoalRunService(
+        workspace_id=action.get("workspace_id") or "default",
+        tenant_id=action.get("tenant_id") or "default",
+    )
+    lifecycle = TaskLifecycle(svc)
+    executor = AssignmentExecutor(lifecycle)
+    if not approved:
+        try:
+            svc.consume_wake(run_id, {
+                "event": "human_checkpoint",
+                "hitl_id": action["id"],
+                "approved": False,
+            })
+        except Exception:
+            pass
+        result = executor.reject_step(
+            run_id, step_id,
+            rejected_by=reviewer_id or "approver",
+            reason=guidance or action.get("reason") or "rejected by approver",
+        )
+        return {"handled": True, "resumed": False, "kind": "assignment",
+                **result}
+    approval = executor.approve_step(
+        run_id, step_id,
+        approved_by=reviewer_id or "approver",
+        note=guidance or "",
+    )
+    if approval.get("status") != "approved":
+        return {
+            "handled": True, "resumed": False, "kind": "assignment",
+            "reason": (
+                "the prepared effect changed; a fresh approval is required"),
+            "approval": approval,
+        }
+    loop = await executor.resume(run_id)
+    return {"handled": True, "resumed": True, "kind": "assignment",
+            "assignment": loop}
+
+
 async def _resume_workflow(action: Dict[str, Any], approved: bool,
                             guidance: Optional[str]) -> Dict[str, Any]:
     params = action.get("params") or {}
@@ -157,6 +216,9 @@ async def resume_after_hitl_decision(
     try:
         if action["action_type"] in _GOAL_RUN_ACTIONS:
             result = await _resume_goal_run(action, approved, reviewer_id, guidance)
+        elif action["action_type"] in _ASSIGNMENT_ACTIONS:
+            result = await _resume_assignment(
+                action, approved, reviewer_id, guidance)
         elif (action.get("params") or {}).get("execution_id"):
             result = await _resume_workflow(action, approved, guidance)
         else:

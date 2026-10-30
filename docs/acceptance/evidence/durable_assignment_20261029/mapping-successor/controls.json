@@ -1,0 +1,50 @@
+{
+  "schema": "atom-assignment-mapping-successor-controls-1",
+  "product_commit": "f57fdb800",
+  "status": "partial_backend_controls_passed_browser_pending",
+  "controls": [
+    {
+      "name": "mapping_only_teaching_resolves_and_updates",
+      "passed": true
+    },
+    {
+      "name": "missing_measure_gap_has_candidates_and_samples",
+      "passed": true
+    },
+    {
+      "name": "confirm_total_resumes_same_assignment",
+      "passed": true,
+      "result": "85.00"
+    },
+    {
+      "name": "forged_column_refused",
+      "passed": true
+    },
+    {
+      "name": "stale_source_version_refused",
+      "passed": true
+    },
+    {
+      "name": "incompatible_unit_refused",
+      "passed": true
+    },
+    {
+      "name": "teaching_snapshot_mapping_updated",
+      "passed": true
+    }
+  ],
+  "test_run": {
+    "command": "pytest tests/test_artifact_teaching_context.py tests/test_assignment_resource_boundary.py -q",
+    "passed": 48,
+    "failed": 0
+  },
+  "browser_campaign": {
+    "run": false,
+    "reason": "not completed; no claim"
+  },
+  "limitations": [
+    "taught workbook -> differently shaped workbook browser flow not run",
+    "correction/restart/third workbook browser flow not run",
+    "source bytes/writeback not independently rechecked"
+  ]
+}

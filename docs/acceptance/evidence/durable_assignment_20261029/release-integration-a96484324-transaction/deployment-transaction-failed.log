@@ -1,0 +1,617 @@
+{
+  "ok": true,
+  "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/config/REHEARSAL_APPROVED",
+  "mode": "rehearsal",
+  "required_fields": [
+    "approver",
+    "approved_at",
+    "release_tag",
+    "product_commit",
+    "product_tree_sha256",
+    "scope",
+    "mode"
+  ],
+  "missing": [],
+  "mismatches": {}
+}
+{
+  "schema": "atom-assignment-release-preflight-1",
+  "ok": true,
+  "checked_at": "2026-10-30T00:10:32.108573+00:00",
+  "root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+  "checks": [
+    {
+      "name": "identity.release_commit",
+      "ok": true,
+      "detail": {
+        "expected": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+        "actual": "a9648432495f4f75f59bf4667cac3cb997d7f229"
+      }
+    },
+    {
+      "name": "identity.tested_runtime",
+      "ok": true,
+      "detail": "a96484324"
+    },
+    {
+      "name": "identity.product_tree_sha256",
+      "ok": true,
+      "detail": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6"
+    },
+    {
+      "name": "app.present",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/app"
+    },
+    {
+      "name": "app.head_matches_release",
+      "ok": true,
+      "detail": "a9648432495f4f75f59bf4667cac3cb997d7f229"
+    },
+    {
+      "name": "app.clean",
+      "ok": true,
+      "detail": "clean"
+    },
+    {
+      "name": "app.product_tree_matches",
+      "ok": true,
+      "detail": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6"
+    },
+    {
+      "name": "source_manifest.hashes",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "checked": 62,
+        "mismatches": []
+      }
+    },
+    {
+      "name": "audience.single_user",
+      "ok": true,
+      "detail": "single_user"
+    },
+    {
+      "name": "audience.pilot_declared",
+      "ok": true,
+      "detail": "admin@example.com"
+    },
+    {
+      "name": "assignment.internal_paths_disabled",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "name": "assignment.controlled_transport_disabled",
+      "ok": true,
+      "detail": "<unset>"
+    },
+    {
+      "name": "email.server_send_disabled",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "assignment.live_send_not_authorized",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "name": "scheduler.disabled",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "name": "ingestion_sync.disabled",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "name": "microsoft.client_id_present",
+      "ok": true,
+      "detail": "<presence-only>"
+    },
+    {
+      "name": "microsoft.client_secret_present",
+      "ok": true,
+      "detail": "<presence-only>"
+    },
+    {
+      "name": "provider_policy.selected_and_valid",
+      "ok": true,
+      "detail": {
+        "mode": "selected",
+        "allowed_providers": [
+          "deepseek"
+        ],
+        "preferred": {
+          "provider": "deepseek",
+          "model": "deepseek-flash"
+        }
+      }
+    },
+    {
+      "name": "data.absolute_under_root",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data"
+    },
+    {
+      "name": "office.absolute_under_root",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office"
+    },
+    {
+      "name": "data.writable",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data"
+    },
+    {
+      "name": "office.writable",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office"
+    },
+    {
+      "name": "deployment.outbound_scope",
+      "ok": true,
+      "detail": "draft_and_approval_only"
+    },
+    {
+      "name": "deployment.send_not_authorized",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "name": "deployment.topology",
+      "ok": true,
+      "detail": "one_worker_process_per_assignment"
+    },
+    {
+      "name": "approval.record",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/config/REHEARSAL_APPROVED",
+        "mode": "rehearsal",
+        "required_fields": [
+          "approver",
+          "approved_at",
+          "release_tag",
+          "product_commit",
+          "product_tree_sha256",
+          "scope",
+          "mode"
+        ],
+        "missing": [],
+        "mismatches": {}
+      }
+    },
+    {
+      "name": "frontend.server_present",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/frontend/server.js"
+    }
+  ],
+  "identity": {
+    "schema": "atom-assignment-successor-release-1",
+    "release_tag": "assignment-successor-2026-10-29-a96484324",
+    "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tested_runtime_commit": "a96484324",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+    "product_tree_matches_tested": true,
+    "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+    "deployment_kit_tree_sha256": "f228ea1a41a4527d92808c52eda2ca6da078bd5c8bb727d8b2b969fca4095160",
+    "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
+    "frontend_api_origin": "http://127.0.0.1:8071",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "prepared_at": "2026-10-29T23:43:56.891207+00:00",
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+    "seeded_rehearsal_data": true
+  }
+}
+{
+  "ok": true,
+  "backup": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/backups/predeploy-rehearsal-20261030T001032Z",
+  "manifest": {
+    "schema": "atom-assignment-release-backup-1",
+    "created_at": "2026-10-30T00:10:32.341486+00:00",
+    "source_data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+    "label": "predeploy-rehearsal",
+    "sqlite_backup_api": true,
+    "sqlite_integrity_check": true,
+    "row_counts": {
+      "users": 1,
+      "dataset_entries": 1,
+      "goal_runs": 3,
+      "hitl_interventions": null
+    },
+    "config_copied_mode_600": true,
+    "memory_included": false,
+    "memory_note": "atom_memory excluded by default because it is large; pass --include-memory when a full vector-store snapshot is required",
+    "files": {
+      "atom.db": {
+        "sha256": "261bc3402857e9c197dc467e6d4bfa60d29610fb8abaab6991b712ccd8f8cb05",
+        "bytes": 8986624
+      },
+      "atom.db-shm": {
+        "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+        "bytes": 32768
+      },
+      "atom.db-wal": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "byok_config.json": {
+        "sha256": "a89176861f51f9a73537297d91c2583e7e519cd8894b80a1db03d2a70c8d9331",
+        "bytes": 21282
+      },
+      "byok_encryption_key": {
+        "sha256": "2b7fbf36e86e9d79c975c07265dd3845e61b81ac7efc068b833a6ca8fda73f50",
+        "bytes": 44
+      },
+      "byok_keys.json": {
+        "sha256": "755b6f135a7892adf30fad3ee287c568bd1a031f6dbe171a8117af8af16762bc",
+        "bytes": 17
+      },
+      "config/RELEASE_IDENTITY.json": {
+        "sha256": "73330f1e33a519e7a3d856b3790a5600ce914c673847828f97fe279229d209a2",
+        "bytes": 1162
+      },
+      "config/env.release": {
+        "sha256": "dc2d7cc5303136540685e5e051a306d0f29abb9be2693870051921e6523c7048",
+        "bytes": 2190
+      },
+      "config/secrets.env": {
+        "sha256": "7e934e982aad831ffdd40758b7ed7848db6d9f2381058391da6ec1ad355cc5bb",
+        "bytes": 92
+      },
+      "office/assignments/default/map-user/draft-6f7aa548d584/release-smoke-2b1caa6773-sum-amount-9b9e8aa5.docx": {
+        "sha256": "e4c02cad9e05e9e6d355c2a0c242d5b883c99331072e9c09dbfc541629f71a54",
+        "bytes": 37111
+      },
+      "office/assignments/default/map-user/draft-77b35319817a/release-mapping-smoke-total-48af1f42.docx": {
+        "sha256": "a137f411a27d4fe0e5b48937effd4111e5ef068f8f94d2fd5e94c285fd383a91",
+        "bytes": 37124
+      },
+      "office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx": {
+        "sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
+        "bytes": 37088
+      },
+      "sheet_datasets/default/31533335b40b/outlook_workbook_b__sheet1.parquet": {
+        "sha256": "1e91ad10ef0a64ab376a3dacca9efce45ff70d5d5945908c5afdcd73f630c154",
+        "bytes": 4880
+      },
+      "sheet_datasets/default/31533335b40b/outlook_workbook_b__sheet1.parquet.formulas.json": {
+        "sha256": "521ee0d6e08296ac26457f2d0bd2363a8cdf408b927513fdd08683914c9f411f",
+        "bytes": 35
+      }
+    },
+    "newer_user_data_preserved": true
+  }
+}
+{
+  "schema": "atom-assignment-release-stop-1",
+  "stopped_at": "2026-10-30T00:10:32.710538+00:00",
+  "results": [
+    {
+      "label": "backend",
+      "stopped": true,
+      "detail": "no_pidfile"
+    },
+    {
+      "label": "frontend",
+      "stopped": true,
+      "detail": "no_pidfile"
+    }
+  ],
+  "reaped_release_listeners": []
+}
+{
+  "schema": "atom-assignment-release-preflight-1",
+  "ok": true,
+  "checked_at": "2026-10-30T00:10:33.281651+00:00",
+  "root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+  "checks": [
+    {
+      "name": "identity.release_commit",
+      "ok": true,
+      "detail": {
+        "expected": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+        "actual": "a9648432495f4f75f59bf4667cac3cb997d7f229"
+      }
+    },
+    {
+      "name": "identity.tested_runtime",
+      "ok": true,
+      "detail": "a96484324"
+    },
+    {
+      "name": "identity.product_tree_sha256",
+      "ok": true,
+      "detail": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6"
+    },
+    {
+      "name": "app.present",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/app"
+    },
+    {
+      "name": "app.head_matches_release",
+      "ok": true,
+      "detail": "a9648432495f4f75f59bf4667cac3cb997d7f229"
+    },
+    {
+      "name": "app.clean",
+      "ok": true,
+      "detail": "clean"
+    },
+    {
+      "name": "app.product_tree_matches",
+      "ok": true,
+      "detail": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6"
+    },
+    {
+      "name": "source_manifest.hashes",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "checked": 62,
+        "mismatches": []
+      }
+    },
+    {
+      "name": "audience.single_user",
+      "ok": true,
+      "detail": "single_user"
+    },
+    {
+      "name": "audience.pilot_declared",
+      "ok": true,
+      "detail": "admin@example.com"
+    },
+    {
+      "name": "assignment.internal_paths_disabled",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "name": "assignment.controlled_transport_disabled",
+      "ok": true,
+      "detail": "<unset>"
+    },
+    {
+      "name": "email.server_send_disabled",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "assignment.live_send_not_authorized",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "name": "scheduler.disabled",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "name": "ingestion_sync.disabled",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "name": "microsoft.client_id_present",
+      "ok": true,
+      "detail": "<presence-only>"
+    },
+    {
+      "name": "microsoft.client_secret_present",
+      "ok": true,
+      "detail": "<presence-only>"
+    },
+    {
+      "name": "provider_policy.selected_and_valid",
+      "ok": true,
+      "detail": {
+        "mode": "selected",
+        "allowed_providers": [
+          "deepseek"
+        ],
+        "preferred": {
+          "provider": "deepseek",
+          "model": "deepseek-flash"
+        }
+      }
+    },
+    {
+      "name": "data.absolute_under_root",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data"
+    },
+    {
+      "name": "office.absolute_under_root",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office"
+    },
+    {
+      "name": "data.writable",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data"
+    },
+    {
+      "name": "office.writable",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office"
+    },
+    {
+      "name": "deployment.outbound_scope",
+      "ok": true,
+      "detail": "draft_and_approval_only"
+    },
+    {
+      "name": "deployment.send_not_authorized",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "name": "deployment.topology",
+      "ok": true,
+      "detail": "one_worker_process_per_assignment"
+    },
+    {
+      "name": "approval.record",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/config/REHEARSAL_APPROVED",
+        "mode": "rehearsal",
+        "required_fields": [
+          "approver",
+          "approved_at",
+          "release_tag",
+          "product_commit",
+          "product_tree_sha256",
+          "scope",
+          "mode"
+        ],
+        "missing": [],
+        "mismatches": {}
+      }
+    },
+    {
+      "name": "ports.api_free",
+      "ok": true,
+      "detail": 8071
+    },
+    {
+      "name": "ports.frontend_free",
+      "ok": true,
+      "detail": 3130
+    },
+    {
+      "name": "frontend.server_present",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/frontend/server.js"
+    }
+  ],
+  "identity": {
+    "schema": "atom-assignment-successor-release-1",
+    "release_tag": "assignment-successor-2026-10-29-a96484324",
+    "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tested_runtime_commit": "a96484324",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+    "product_tree_matches_tested": true,
+    "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+    "deployment_kit_tree_sha256": "f228ea1a41a4527d92808c52eda2ca6da078bd5c8bb727d8b2b969fca4095160",
+    "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
+    "frontend_api_origin": "http://127.0.0.1:8071",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "prepared_at": "2026-10-29T23:43:56.891207+00:00",
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+    "seeded_rehearsal_data": true
+  }
+}
+{
+  "schema": "atom-assignment-release-startup-1",
+  "started_at": "2026-10-30T00:10:42.278681+00:00",
+  "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+  "api_port": 8071,
+  "frontend_port": 3130,
+  "api_origin": "http://127.0.0.1:8071",
+  "backend_pid": 50442,
+  "frontend_pid": 50443,
+  "health_identity": {
+    "pid": 50442,
+    "started_at": "2026-10-30T00:10:38.002987+00:00",
+    "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/releases/a9648432495f4f75f59bf4667cac3cb997d7f229/app/backend",
+    "git_commit": "a9648432495f",
+    "source_id": "a9648432495f",
+    "instance_id": "a9648432495f.50442.1793319042",
+    "revision": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "dirty": false,
+    "dirty_digest": "e3b0c44298fc",
+    "dirty_paths": [],
+    "untracked_paths": [],
+    "captured_at": "2026-10-30T00:10:41.872298+00:00",
+    "port": 8071,
+    "error": null,
+    "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/atom.db",
+    "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/byok_keys.json"
+  },
+  "health_status": "healthy",
+  "audience": "single_user",
+  "pilot_email": "admin@example.com",
+  "outbound_scope": "draft_and_approval_only",
+  "controlled_transport": "<unset>",
+  "internal_paths": "0",
+  "topology": "one_worker_process_per_assignment"
+}
+Traceback (most recent call last):
+  File "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/scripts/smoke_auth.py", line 152, in <module>
+    main()
+  File "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/scripts/smoke_auth.py", line 72, in main
+    page.get_by_role("button").filter(has_text=args.objective).first.click()
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/playwright/sync_api/_generated.py", line 15631, in click
+    self._sync(
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/playwright/_impl/_locator.py", line 162, in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/playwright/_impl/_frame.py", line 566, in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for get_by_role("button").filter(has_text="Mapping B sum Price").first
+    - locator resolved to <button type="button" class="w-full rounded border px-2 py-1.5 text-left ">…</button>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex-col-reverse sm:flex-row sm:space-x-2 flex justify-between sm:justify-between w-full">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center p-4">…</div> subtree intercepts pointer events
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="flex-col-reverse sm:flex-row sm:space-x-2 flex justify-between sm:justify-between w-full">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center p-4">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    58 × waiting for element to be visible, enabled and stable
+       - element is visible, enabled and stable
+       - scrolling into view if needed
+       - done scrolling
+       - <div class="flex-col-reverse sm:flex-row sm:space-x-2 flex justify-between sm:justify-between w-full">…</div> from <div class="fixed inset-0 z-50 flex items-center justify-center p-4">…</div> subtree intercepts pointer events
+     - retrying click action
+       - waiting 500ms
+
+DEPLOYMENT FAILED rc=1 after shutdown; attempting verified code rollback (data untouched)
+ROLLBACK FAILED rc=1 after deployment failure rc=1

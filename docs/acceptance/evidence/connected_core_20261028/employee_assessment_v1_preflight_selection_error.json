@@ -1,0 +1,10 @@
+{
+ "success": false,
+ "error": {
+  "code": "selection_failed",
+  "message": "Selection failed: selection_failed.",
+  "detail": "ConversionException: Conversion Error: Could not convert string 'greater' to DOUBLE\n\nLINE 1: ... \"__sheet_row\", \"Unit Price\" FROM df WHERE \"Unit Price\" = 'greater') AS _sel_rows LIMIT 11220\n                                                                     ^"
+ },
+ "_http_status": 400,
+ "_elapsed_seconds": 0.03
+}

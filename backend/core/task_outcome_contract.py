@@ -193,6 +193,7 @@ def _normalise_action(value: Any) -> Dict[str, Any]:
         "status": _bounded_text(action.get("status") or "unknown", 120),
         "authorized": action.get("authorized") is True,
         "applied": action.get("applied") is True,
+        "required": bool(action.get("required", True)),
         "evidence_refs": [
             _copy_ref(ref)
             for ref in (
@@ -599,6 +600,99 @@ def _calculation_verifier(outcome: Dict[str, Any]) -> "bool | None":
 
 
 register_criteria_verifier("calculation", _calculation_verifier)
+
+
+def _artifact_verified_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    """The required saved artifact was re-read and its identity recorded."""
+    delivery = outcome.get("delivery") or {}
+    if not isinstance(delivery, dict):
+        return None
+    if delivery.get("artifact_verified") is True:
+        return bool(delivery.get("artifact_revision")
+                    and delivery.get("artifact_sha256"))
+    if delivery.get("artifact_verified") is False:
+        return False
+    return None
+
+
+def _draft_saved_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    delivery = outcome.get("delivery") or {}
+    if not isinstance(delivery, dict):
+        return None
+    if delivery.get("draft_saved") is True:
+        return bool(delivery.get("draft_revision") or
+                    delivery.get("draft_id"))
+    if delivery.get("draft_saved") is False:
+        return False
+    mutation = outcome.get("mutation") or {}
+    if mutation.get("readback_matched") is True and mutation.get("draft_id"):
+        return True
+    return None
+
+
+def _provider_accepted_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    """Provider acceptance — not recipient delivery and not merely a local
+    dispatch attempt. The provider reference is required."""
+    delivery = outcome.get("delivery") or {}
+    if not isinstance(delivery, dict):
+        return None
+    if delivery.get("provider_accepted") is True:
+        return bool(delivery.get("provider_ref"))
+    if delivery.get("provider_accepted") is False:
+        return False
+    return None
+
+
+def _sent_record_confirmed_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    delivery = outcome.get("delivery") or {}
+    if not isinstance(delivery, dict):
+        return None
+    if delivery.get("sent_record_confirmed") is True:
+        return True
+    if delivery.get("sent_record_confirmed") is False:
+        return False
+    return None
+
+
+def _delivery_confirmed_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    delivery = outcome.get("delivery") or {}
+    if not isinstance(delivery, dict):
+        return None
+    if delivery.get("delivery_confirmed") is True:
+        return True
+    if delivery.get("delivery_confirmed") is False:
+        return False
+    return None
+
+
+register_criteria_verifier("artifact_verified", _artifact_verified_verifier)
+register_criteria_verifier("draft_saved", _draft_saved_verifier)
+register_criteria_verifier("provider_accepted", _provider_accepted_verifier)
+register_criteria_verifier("sent_record_confirmed",
+                           _sent_record_confirmed_verifier)
+register_criteria_verifier("delivery_confirmed", _delivery_confirmed_verifier)
+
+
+def _required_work_complete_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    actions = [item for item in (outcome.get("actions") or [])
+               if isinstance(item, dict) and item.get("required", True)]
+    if not actions:
+        return None
+    return all(item.get("applied") is True for item in actions)
+
+
+def _no_open_gaps_verifier(outcome: Dict[str, Any]) -> "bool | None":
+    gaps = [item for item in (outcome.get("gaps") or [])
+            if isinstance(item, dict)]
+    if not gaps:
+        return None
+    return all(str(item.get("status") or "").lower() in (
+        "resolved", "closed", "applied") for item in gaps)
+
+
+register_criteria_verifier("required_work_complete",
+                           _required_work_complete_verifier)
+register_criteria_verifier("no_open_gaps", _no_open_gaps_verifier)
 
 
 def _source_comparison_verifier(outcome: Dict[str, Any]) -> "bool | None":

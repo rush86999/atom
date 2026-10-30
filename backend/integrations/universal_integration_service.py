@@ -2285,6 +2285,9 @@ class UniversalIntegrationService:
                 and query and context.get("llm_service")
             ):
                 try:
+                    from core.integrations.token_store import (
+                        connected_source_grant_state,
+                    )
                     from core.sheet_dataset_service import (
                         answer_from_datasets,
                         entries_for_file_sync,
@@ -2292,6 +2295,29 @@ class UniversalIntegrationService:
                         render_dataset_answer,
                         sheet_datasets_enabled,
                     )
+
+                    # A materialized catalog copy is not a permission grant.
+                    # Check the user's current grant before serving cached
+                    # rows; revoked and disconnected stay distinguishable.
+                    grant_state = connected_source_grant_state(
+                        service, context.get("user_id"),
+                    )
+                    if grant_state in {"revoked", "disconnected"}:
+                        return {"status": "success", "data": {
+                            "found": False,
+                            "served": False,
+                            "identity_verified": False,
+                            "coverage_complete": False,
+                            "source_access": grant_state,
+                            "source_permission_revoked": grant_state == "revoked",
+                            "source_disconnected": grant_state == "disconnected",
+                            "message": (
+                                "The connected grant for "
+                                f"{service} is {grant_state}. Reconnect the "
+                                "source before retrieving cached rows; no "
+                                "catalog answer was served."
+                            ),
+                        }}
 
                     if sheet_datasets_enabled():
                         requested_names: List[str] = []
@@ -2589,11 +2615,35 @@ class UniversalIntegrationService:
             # 13MB-download/10s-parse round trip, never degrade an answer.
             if identity_verified and query and context.get("llm_service"):
                 try:
+                    from core.integrations.token_store import (
+                        connected_source_grant_state,
+                    )
                     from core.sheet_dataset_service import (
                         answer_from_datasets,
                         render_dataset_answer,
                         sheet_datasets_enabled,
                     )
+
+                    grant_state = connected_source_grant_state(
+                        service, context.get("user_id"),
+                    )
+                    if grant_state in {"revoked", "disconnected"}:
+                        return {"status": "success", "data": {
+                            "found": False,
+                            "served": False,
+                            "identity_verified": False,
+                            "coverage_complete": False,
+                            "source_access": grant_state,
+                            "source_permission_revoked": grant_state == "revoked",
+                            "source_disconnected": grant_state == "disconnected",
+                            "resource_id": str(file_id),
+                            "message": (
+                                "The connected grant for "
+                                f"{service} is {grant_state}. Reconnect the "
+                                "source before retrieving cached rows; no "
+                                "catalog answer was served."
+                            ),
+                        }}
 
                     if sheet_datasets_enabled():
                         ds_result = await answer_from_datasets(

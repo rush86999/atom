@@ -1,0 +1,17 @@
+{
+  "schema": "atom-source-shutdown-scope-1",
+  "pid": 19046,
+  "service": "atom-c912375de",
+  "commit": "c912375de81b55465e61fe468bf0bc2b405fd206",
+  "command": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 75",
+  "cwd": "/Users/rushiparikh/projects/atom-releases/c912375de/backend",
+  "database": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+  "port": 8001,
+  "supervisor": "none detected (PPID 1; no launchd job)",
+  "other_source_db_holders": [],
+  "restore_command": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 75",
+  "restore_cwd": "/Users/rushiparikh/projects/atom-releases/c912375de/backend",
+  "restore_env_source": "/Users/rushiparikh/projects/atom/backend/.env",
+  "restore_venv": "/Users/rushiparikh/projects/atom/backend/venv314",
+  "note": "Stop only this verified process after owner authorization. On failure, restore this exact service command/cwd/environment, not merely the rollback release. No secret values are stored here."
+}

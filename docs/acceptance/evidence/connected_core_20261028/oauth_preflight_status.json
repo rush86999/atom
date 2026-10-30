@@ -1,0 +1,29 @@
+{
+ "is_connected": false,
+ "reason": "Microsoft rejected the refresh client configuration. This is not a revoked user grant; restore the configured client credentials.",
+ "user_id": "1e3b6cdb-ab8b-4ad2-ac08-233058ff230d",
+ "email": null,
+ "scope": null,
+ "token_provider": null,
+ "token_state": "invalid_client",
+ "refresh_attempted": true,
+ "refresh_succeeded": false,
+ "refresh_token_replaced": false,
+ "requires_reconnect": false,
+ "retryable": false,
+ "legacy_connection": false,
+ "client_config_state": {
+  "configured": false,
+  "missing": [
+   "MICROSOFT_CLIENT_ID",
+   "MICROSOFT_CLIENT_SECRET"
+  ],
+  "placeholders": [],
+  "checked_keys": [
+   "MICROSOFT_CLIENT_ID",
+   "MICROSOFT_CLIENT_SECRET"
+  ],
+  "source": "process_environment_after_dotenv"
+ },
+ "admin_action_required": true
+}

@@ -453,6 +453,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.debug(f"startup db wipe check skipped: {e}")
 
+    # OAuth configuration preflight: presence-only. Missing Microsoft client
+    # settings are an administrator repair, never "revoked consent".
+    try:
+        from core.oauth_config_preflight import run_oauth_config_preflight
+
+        run_oauth_config_preflight(logger)
+    except Exception as e:
+        logger.debug(f"OAuth config preflight skipped: {e}")
+
     # 0. Initialize Database
     try:
         logger.info("Initializing database tables...")
@@ -1311,6 +1320,15 @@ try:
     # Some tools (e.g. schemathesis) don't recognize OpenAPI 3.1.0 as valid;
     # emit a 3.0.3 schema since the API avoids 3.1-only features.
     app.openapi_version = "3.0.3"
+    if os.getenv("ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT") == "1":
+        try:
+            import core.assignment_controlled_transport  # noqa: F401
+
+            startup_logger.info(
+                "✓ Controlled assignment transport registered (acceptance)")
+        except Exception as exc:  # noqa: BLE001
+            startup_logger.warning(
+                f"Controlled assignment transport unavailable: {exc}")
     startup_logger.info("✓ FastAPI app instance created")
 
     # Initialize connection leak detector
@@ -3588,6 +3606,16 @@ try:
         logger.info("✓ HITL Approvals Alias Routes Loaded (/api/agents/approvals)")
     except (ImportError, TypeError) as e:
         logger.warning(f"Approvals alias routes not found: {e}")
+
+    # Durable assignment status/resume/approval/cancel surface. The UI reads
+    # this projection; it never reconstructs progress from chat text.
+    try:
+        from api.assignment_routes import router as assignment_router
+
+        app.include_router(assignment_router)
+        logger.info("✓ Durable Assignment Routes Loaded (/api/assignments)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Assignment routes not found: {e}")
 
     # 2026-09-08 role-journey pass: the REAL user/workspace/team management
     # router was only reachable via the on-demand loader, whose name heuristic

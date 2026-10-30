@@ -130,6 +130,23 @@ def test_new_hash_supersedes_and_gc_keeps_two_versions():
     assert active.status == "active" and all(r.superseded_by for r in rows if r.status != "active")
 
 
+def test_multi_sheet_supersede_links_same_sheet_successor():
+    content = _xlsx_bytes({"A": _price_df(), "B": _price_df()})
+    first = _materialize(content=content)
+    assert first["status"] == "materialized"
+    changed = _xlsx_bytes({"A": _price_df(price=15000.0), "B": _price_df(price=16000.0)})
+    second = _materialize(content=changed)
+    assert second["status"] == "materialized"
+
+    rows = _entries()
+    active = {r.entity_name: r for r in rows if r.status == "active"}
+    superseded = [r for r in rows if r.status == "superseded"]
+    assert set(active) == {"A", "B"}
+    assert len(superseded) == 2
+    for old in superseded:
+        assert old.superseded_by == active[old.entity_name].id
+
+
 def test_per_sheet_idempotency_after_partial_failure():
     content = _xlsx_bytes({"A": _price_df(), "B": _price_df()})
     first = _materialize(content=content)
@@ -392,3 +409,30 @@ def test_answer_bad_column_falls_back_to_none():
         'SELECT "No Such Column" FROM df',
     )
     assert _answer("any", llm) is None
+
+
+def test_twenty_four_sheet_workbook_preserves_every_sheet_and_types():
+    """Representative 24-sheet workbook: no 5-sheet cap, leading zeros stay
+    text, blanks stay blanks, and every sheet gets its own catalog entry."""
+    sheets = {}
+    for index in range(24):
+        sheets[f"Region {index + 1:02d}"] = pd.DataFrame({
+            "Code": [f"{index:04d}", f"{index:04d}-B"],
+            "Amount": [100.0 + index, None if index % 3 == 0 else 50.0],
+            "Note": ["first", "second"],
+        })
+    result = _materialize(
+        content=_xlsx_bytes(sheets),
+        file_name="twenty_four_regions.xlsx",
+        external_id="large-24",
+    )
+    assert result["status"] == "materialized"
+    assert len(result["datasets"]) == 24
+    entries = {entry.entity_name: entry for entry in _entries()}
+    assert set(entries) == set(sheets)
+    first = pd.read_parquet(entries["Region 01"].parquet_path)
+    assert first["Code"].iloc[0] == "0000"
+    assert first["Amount"].iloc[1] is None or pd.isna(first["Amount"].iloc[1])
+    assert len(first) == 2
+    last = pd.read_parquet(entries["Region 24"].parquet_path)
+    assert last["Code"].iloc[0] == "0023"

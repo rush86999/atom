@@ -22,8 +22,13 @@ from core.database import get_db_session
 from core.office_service import OfficeService, _validate_office_path
 from core.office_sync_service import OfficeSyncService
 from core.auth import get_current_user, User
+from core.deployment_audience import require_pilot_user, validate_audience_config
 
 logger = logging.getLogger(__name__)
+
+# Fail closed before serving if a multi-user audience is declared without
+# per-file office authorization.
+validate_audience_config()
 
 
 def get_db_session_dep() -> Session:
@@ -163,7 +168,7 @@ def _require_canvas_owner(db: Session, canvas_id: str, user: User) -> None:
 # content — they MUST be authenticated. Previously NONE of the 14 endpoints had
 # a get_current_user dependency, allowing unauthenticated arbitrary file
 # read/write (path traversal) via the process's filesystem permissions.
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter(dependencies=[Depends(get_current_user), Depends(require_pilot_user)])
 office_service = OfficeService()
 
 

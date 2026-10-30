@@ -1,0 +1,187 @@
+{
+  "slice": "live-connected-guided-start-microsoft-attachment",
+  "status": "passed",
+  "replacement_predeclared": true,
+  "source": {
+    "reason": "Named Zoho WorkDrive price list is inaccessible (expired token); no Microsoft/OneDrive catalog entry exists for it.",
+    "provider": "outlook",
+    "resource_kind": "outlook_attachment",
+    "catalog_entry_id": "00399616-42f7-4f7d-8867-822752b15a46",
+    "external_id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAA=:AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAABEgAQANdlswFjNGRFjGrTB3LgbWY=",
+    "external_id_sha256": "8fd36c30a2cc5b16fa508fab7a77627c3636f5902f415c483e66e854c896432f",
+    "file_name": "HARSLE press brake stock price list.xlsx",
+    "dataset_name": "outlook_harsle_press_brake_stock_price_list",
+    "sheet": "\u5e93\u5b58\u4ea7\u54c1",
+    "workspace_id": "default",
+    "created_by": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+    "content_hash": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+    "row_count": 8,
+    "price_column": "Price",
+    "rows": [
+      {
+        "sheet_row": 2,
+        "Series": "FlexBend",
+        "Model": "110T3200",
+        "Serial Number": "26143",
+        "QTY": 1,
+        "Price": "24000"
+      },
+      {
+        "sheet_row": 3,
+        "Series": "FlexBend",
+        "Model": "170T3200",
+        "Serial Number": "26123",
+        "QTY": 1,
+        "Price": "27500"
+      },
+      {
+        "sheet_row": 4,
+        "Series": "FlexBend",
+        "Model": "110T3200",
+        "Serial Number": "26111",
+        "QTY": 1,
+        "Price": "24000"
+      },
+      {
+        "sheet_row": 5,
+        "Series": "FlexBend",
+        "Model": "170T3200",
+        "Serial Number": "25358",
+        "QTY": 1,
+        "Price": "27500"
+      },
+      {
+        "sheet_row": 6,
+        "Series": "FlexBend",
+        "Model": "130T3200",
+        "Serial Number": "25194",
+        "QTY": 1,
+        "Price": "25000"
+      },
+      {
+        "sheet_row": 7,
+        "Series": "FlexBend",
+        "Model": "170T3200",
+        "Serial Number": "25206",
+        "QTY": 1,
+        "Price": "31800"
+      },
+      {
+        "sheet_row": 8,
+        "Series": "FlexBend",
+        "Model": "130T3200",
+        "Serial Number": "25204",
+        "QTY": 1,
+        "Price": "27900"
+      },
+      {
+        "sheet_row": 9,
+        "Series": "FlexBend",
+        "Model": "200T3200",
+        "Serial Number": "25121",
+        "QTY": 1,
+        "Price": "29000"
+      }
+    ],
+    "expected_sum": "216700",
+    "expected_sum_normalized": "216700",
+    "source_values_verified": true
+  },
+  "assignment": {
+    "run_id": "1670cbca-da5a-4275-8af7-cd71d0f82da1",
+    "objective": "Sum the price of the HARSLE press brake stock price list",
+    "scope": "HARSLE press brake stock price list",
+    "status_after_browser_approval": "completed",
+    "plan_revision": 1,
+    "teaching_revision": "untrained",
+    "artifact_path": "/Users/rushiparikh/projects/atom/backend/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-713db064c84c/sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+    "stored_artifact": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/guided/harsle-artifact.docx",
+    "artifact_sha256": "318a675acd0126be56f157404101fd81dbd40937985e472756542355830af21a",
+    "artifact_exists": true
+  },
+  "calculation": {
+    "operation": "sum",
+    "measure": "Price",
+    "value": "216700.00",
+    "rows": 8,
+    "sheet_rows": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ]
+  },
+  "approval": {
+    "controlled": true,
+    "browser_approved": true,
+    "outbox_count": 2,
+    "outbox_tail": {
+      "operation_id": "729ceb66-bb5d-42d7-afea-5613618e3b61",
+      "to": [
+        "live-acceptance@example.invalid"
+      ],
+      "subject": "Sum the price of the HARSLE press brake stock price list",
+      "body": "Result:\n- sum of Price: 216700.00\nFindings:\n- HARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1\n  - row 2 | sheet_row | 2 | 24000.00 |  | G2\n  - row 3 | sheet_row | 3 | 27500.00 |  | G3\n  - row 4 | sheet_row | 4 | 24000.00 |  | G4\n  - row 5 | sheet_row | 5 | 27500.00 |  | G5\n  - row 6 | sheet_row | 6 | 25000.00 |  | G6\n  - row 7 | sheet_row | 7 | 31800.00 |  | G7\n  - row 8 | sheet_row | 8 | 27900.00 |  | G8\n  - row 9 | sheet_row | 9 | 29000.00 |  | G9\nSources:\n- outlook_harsle_press_brake_stock_price_list\n- HARSLE press brake stock price list.xlsx\n- \u5e93\u5b58\u4ea7\u54c1\n- 00399616-42f7-4f7d-8867-822752b15a46\n- HARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1"
+    }
+  },
+  "restart": {
+    "status": "completed",
+    "plan_revision": 1,
+    "artifact_path": "/Users/rushiparikh/projects/atom/backend/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-713db064c84c/sum-the-price-of-the-harsle-press-brake-stock-price-list-d61d5875.docx",
+    "artifact_exists": true
+  },
+  "token": {
+    "resolver": "OneDriveService.get_access_token_resolution",
+    "state": "valid",
+    "token_available": true,
+    "requires_reconnect": false,
+    "expiry_relabelled_revoked": false,
+    "resolver_check": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/guided/token-check.json",
+    "checked_state": "valid",
+    "checked_token_available": true
+  },
+  "browser": {
+    "real_signed_session": true,
+    "login_form_exercised": false,
+    "screenshots": [
+      "browser-started.png",
+      "browser-approval.png",
+      "browser-completed.png",
+      "browser-reopened.png"
+    ]
+  },
+  "no_production_source_modification": true,
+  "no_live_send": true,
+  "live_source_fetch": {
+    "path": "docs/acceptance/evidence/durable_assignment_20261029/live-connected/guided/live-source-fetch.json",
+    "provider": "outlook",
+    "resource_kind": "outlook_attachment",
+    "microsoft_account": {
+      "id": "2927f127-c837-4f4b-beac-5c7b723bf887",
+      "userPrincipalName": "rish@brennan.ca",
+      "mail": "rish@brennan.ca",
+      "displayName": "Rish Maniar"
+    },
+    "content_hash_algorithm": "sha1",
+    "content_hash_sha1": "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e",
+    "content_hash_sha256": "5cd746af2c46dfe3979b1881cb8623dff149958b4cadd97bd69da1e489c9dcb4",
+    "catalog_hash_matches": true,
+    "fetched_bytes": 10249,
+    "rows": 8,
+    "price_values": [
+      "24000",
+      "27500",
+      "24000",
+      "27500",
+      "25000",
+      "31800",
+      "27900",
+      "29000"
+    ],
+    "sum": "216700"
+  }
+}

@@ -1,0 +1,205 @@
+{
+  "schema": "atom-assignment-release-preflight-1",
+  "ok": true,
+  "checked_at": "2026-10-30T00:09:01.928923+00:00",
+  "root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal",
+  "checks": [
+    {
+      "name": "identity.release_commit",
+      "ok": true,
+      "detail": {
+        "expected": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+        "actual": "a9648432495f4f75f59bf4667cac3cb997d7f229"
+      }
+    },
+    {
+      "name": "identity.tested_runtime",
+      "ok": true,
+      "detail": "a96484324"
+    },
+    {
+      "name": "identity.product_tree_sha256",
+      "ok": true,
+      "detail": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6"
+    },
+    {
+      "name": "app.present",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/app"
+    },
+    {
+      "name": "app.head_matches_release",
+      "ok": true,
+      "detail": "a9648432495f4f75f59bf4667cac3cb997d7f229"
+    },
+    {
+      "name": "app.clean",
+      "ok": true,
+      "detail": "clean"
+    },
+    {
+      "name": "app.product_tree_matches",
+      "ok": true,
+      "detail": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6"
+    },
+    {
+      "name": "source_manifest.hashes",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "checked": 62,
+        "mismatches": []
+      }
+    },
+    {
+      "name": "audience.single_user",
+      "ok": true,
+      "detail": "single_user"
+    },
+    {
+      "name": "audience.pilot_declared",
+      "ok": true,
+      "detail": "admin@example.com"
+    },
+    {
+      "name": "assignment.internal_paths_disabled",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "name": "assignment.controlled_transport_disabled",
+      "ok": true,
+      "detail": "<unset>"
+    },
+    {
+      "name": "email.server_send_disabled",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "assignment.live_send_not_authorized",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "name": "scheduler.disabled",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "name": "ingestion_sync.disabled",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "name": "microsoft.client_id_present",
+      "ok": true,
+      "detail": "<presence-only>"
+    },
+    {
+      "name": "microsoft.client_secret_present",
+      "ok": true,
+      "detail": "<presence-only>"
+    },
+    {
+      "name": "provider_policy.selected_and_valid",
+      "ok": true,
+      "detail": {
+        "mode": "selected",
+        "allowed_providers": [
+          "deepseek"
+        ],
+        "preferred": {
+          "provider": "deepseek",
+          "model": "deepseek-flash"
+        }
+      }
+    },
+    {
+      "name": "data.absolute_under_root",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data"
+    },
+    {
+      "name": "office.absolute_under_root",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office"
+    },
+    {
+      "name": "data.writable",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data"
+    },
+    {
+      "name": "office.writable",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office"
+    },
+    {
+      "name": "deployment.outbound_scope",
+      "ok": true,
+      "detail": "draft_and_approval_only"
+    },
+    {
+      "name": "deployment.send_not_authorized",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "name": "deployment.topology",
+      "ok": true,
+      "detail": "one_worker_process_per_assignment"
+    },
+    {
+      "name": "approval.record",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/config/REHEARSAL_APPROVED",
+        "mode": "rehearsal",
+        "required_fields": [
+          "approver",
+          "approved_at",
+          "release_tag",
+          "product_commit",
+          "product_tree_sha256",
+          "scope",
+          "mode"
+        ],
+        "missing": [],
+        "mismatches": {}
+      }
+    },
+    {
+      "name": "frontend.server_present",
+      "ok": true,
+      "detail": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/current/frontend/server.js"
+    }
+  ],
+  "identity": {
+    "schema": "atom-assignment-successor-release-1",
+    "release_tag": "assignment-successor-2026-10-29-a96484324",
+    "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tested_runtime_commit": "a96484324",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+    "product_tree_matches_tested": true,
+    "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+    "deployment_kit_tree_sha256": "9f89542fcfb9cb976ad4b6746ee0a41b3b3c8aeb1a618b8ad67ac7dcfd17a9cc",
+    "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
+    "frontend_api_origin": "http://127.0.0.1:8071",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "prepared_at": "2026-10-29T23:43:56.891207+00:00",
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+    "seeded_rehearsal_data": true
+  }
+}

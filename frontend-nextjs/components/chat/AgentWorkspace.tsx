@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { ArtifactSidebar } from "./ArtifactSidebar";
 import { CanvasHost } from "./canvas-host";
+import { AssignmentPanel } from "@/components/assignments/AssignmentPanel";
 import { useActionProposals } from "@/hooks/useActionProposals";
 import {
     fetchSessionTrace, submitStepFeedback, TraceRun,
@@ -786,8 +787,9 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
                 <div className="px-4 pt-2">
-                    <TabsList className="w-full grid grid-cols-3 bg-slate-800">
+                    <TabsList className="w-full grid grid-cols-4 bg-slate-800">
                         <TabsTrigger value="tasks" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white uppercase text-[10px] font-bold">Tasks</TabsTrigger>
+                        <TabsTrigger value="assignments" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white uppercase text-[10px] font-bold">Assignments</TabsTrigger>
                         <TabsTrigger value="artifacts" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white uppercase text-[10px] font-bold">Artifacts</TabsTrigger>
                         <TabsTrigger value="browser" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white uppercase text-[10px] font-bold">Browser View</TabsTrigger>
                     </TabsList>
@@ -933,6 +935,10 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                             })}
                         </div>
                     )}
+                </TabsContent>
+
+                <TabsContent value="assignments" className="flex-1 min-h-0 p-4 overflow-y-auto">
+                    <AssignmentPanel agentId={activeAgentId} />
                 </TabsContent>
 
                 <TabsContent value="artifacts" className="flex-1 min-h-0 p-0 overflow-hidden relative">

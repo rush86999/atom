@@ -1,0 +1,163 @@
+{
+  "schema": "atom-mapping-unit-campaign-manifest-1",
+  "generated_at": "2026-10-29T20:18:06.162178+00:00",
+  "product": {
+    "commit": "ae53e7e413f9391897bea5928760183083aba783",
+    "tree": "a7f627fdf7705a26b361c0d1b1e7e17abadc13d3",
+    "dirty_paths": []
+  },
+  "frozen_release": {
+    "commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "tag": "assignment-successor-2026-10-29",
+    "tag_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "unchanged": true
+  },
+  "canonical_b_baseline": {
+    "commit": "7399fe41e",
+    "immutable": true,
+    "verified_no_diff": true,
+    "result": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/result.json",
+      "sha256": "0f3af9e098e487926b1ae0f42059fd0fda2776b8a9037e845a2a71b577c27f00",
+      "bytes": 3773
+    }
+  },
+  "runs": {
+    "workbook_b_latest": {
+      "run_id": "0a2896cd-9b97-474a-9323-3d0440019976",
+      "assignment_id": "asg-2ba062b112ce44be",
+      "result": "35.00",
+      "unit_authority": "source_evidence",
+      "directory": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/attempts/0a2896cd-9b97-474a-9323-3d0440019976"
+    },
+    "workbook_c_latest": {
+      "run_id": "d7a30d18-4371-432d-8422-042247c2da6c",
+      "assignment_id": "asg-6685d55903be4ae6",
+      "result": "75.00",
+      "unit_authority": "user_confirmed",
+      "directory": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/d7a30d18-4371-432d-8422-042247c2da6c"
+    },
+    "workbook_c_prior_complete": {
+      "run_id": "24c819d8-807f-4578-9b8e-872367367a6e",
+      "directory": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/24c819d8-807f-4578-9b8e-872367367a6e",
+      "note": "Complete run before the final harness identity/bytes checks; preserved, not overwritten."
+    },
+    "workbook_c_failed_first_attempt": {
+      "directory": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/failures",
+      "note": "Failed before browser launch; see README.txt and log."
+    },
+    "server_control": {
+      "directory": "docs/acceptance/evidence/durable_assignment_20261029/mapping-unit-server-control",
+      "summary": "2 passed, 31 deselected",
+      "regression": "56 passed"
+    }
+  },
+  "commands": {
+    "workbook_b": "python tests/mapping_acceptance/test_mapping_browser_b.py",
+    "workbook_c": "python tests/mapping_acceptance/test_mapping_browser_c.py",
+    "server_control": "pytest tests/test_assignment_resource_boundary.py -q -k 'mapping_gap_confirmation or mapping_unit_without_source'",
+    "regression": "pytest tests/test_artifact_teaching_context.py tests/test_assignment_resource_boundary.py tests/test_outlook_ingestion_field_mapping.py -q"
+  },
+  "files": [
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/attempts/0a2896cd-9b97-474a-9323-3d0440019976/execution.log",
+      "sha256": "02892702d09385951a8ee6806eea4161c7a3614c939d24088043dde9e8a49028",
+      "bytes": 170
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/attempts/0a2896cd-9b97-474a-9323-3d0440019976/mapping-candidates.png",
+      "sha256": "f63ecbf925f5fa260e8f9e0f9121024ea62d2b1972177c67d4be0c41f1ee1a82",
+      "bytes": 138780
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/attempts/0a2896cd-9b97-474a-9323-3d0440019976/mapping-completed.png",
+      "sha256": "2885b5f591670dc3731e8900ef66ba5150eae37954d054188226d7e6e0de5566",
+      "bytes": 114680
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/attempts/0a2896cd-9b97-474a-9323-3d0440019976/result.json",
+      "sha256": "9553cc7f53af16c595ff2f834fd4454f5069b8637707f7c8f4dccd77a4d785d7",
+      "bytes": 4566
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/d7a30d18-4371-432d-8422-042247c2da6c/execution.log",
+      "sha256": "0e3efd43761906b9530a64c5a24d7e5b5496acaac2c3d0834085e33c1cda6882",
+      "bytes": 170
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/d7a30d18-4371-432d-8422-042247c2da6c/result.json",
+      "sha256": "39ebfda402f1bfca57c3fe9ff6154fb8de5275caf11b1d32a2ecb4d990c9d379",
+      "bytes": 3067
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/d7a30d18-4371-432d-8422-042247c2da6c/unit-confirmed.png",
+      "sha256": "22d2938161c2b5dc028012d46ad5a71534699182ffd7ee7c3aeae27f07380bd9",
+      "bytes": 115113
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/d7a30d18-4371-432d-8422-042247c2da6c/unit-unresolved.png",
+      "sha256": "906ac4fdbe15b4325161e82daa86538588a3fe1c8f6ead379d67525429c60adb",
+      "bytes": 142202
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/24c819d8-807f-4578-9b8e-872367367a6e/result.json",
+      "sha256": "62adbabb906d50ede417d9d202d8baf04eb919f1b2f7d598245066b380aae073",
+      "bytes": 2911
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/24c819d8-807f-4578-9b8e-872367367a6e/unit-confirmed.png",
+      "sha256": "4193dcdac630847e74343458f752c682b9f5d4b65307fd875598d408e11284c0",
+      "bytes": 115279
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/24c819d8-807f-4578-9b8e-872367367a6e/unit-unresolved.png",
+      "sha256": "51d0dbc40dd8475ad5790c6dcbe0df9e6b92d7c9e831da462d0ab22538d2ea46",
+      "bytes": 143015
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/failures/20261029-first-attempt.log",
+      "sha256": "807ad614c1315c277fc458f05d6b5c755cd42c2944aeb51c72ddb8f43e4383af",
+      "bytes": 801
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/failures/README.txt",
+      "sha256": "055fbe2496d300e81dd60583a4d6f2f85cf3790da75cc277840015417d005d8e",
+      "bytes": 580
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-unit-server-control/product-dirty-paths.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-unit-server-control/pytest.log",
+      "sha256": "7b6dbc8ff9e6ccf45a52f4e2c571ee02848377132cd48843323f35d5623b9f4e",
+      "bytes": 4153
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-unit-server-control/regression.log",
+      "sha256": "128d5dc8d7a0aae0fa31a33a34637594fd2fbe7932326730557c5218f193826c",
+      "bytes": 14535
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-unit-server-control/result.json",
+      "sha256": "a41d970517f854fdd159d7ea19b46e1d7da8ab1a97ccac21bfc02d91b5da78d9",
+      "bytes": 1588
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/result.json",
+      "sha256": "0f3af9e098e487926b1ae0f42059fd0fda2776b8a9037e845a2a71b577c27f00",
+      "bytes": 3773
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/mapping-candidates.png",
+      "sha256": "1907b58555c304a9ff5329d0870ba9897e32415cf4bce7d035e141fea5caeb88",
+      "bytes": 137295
+    },
+    {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/mapping-completed.png",
+      "sha256": "94670f79f1d31391fc9715d260258bc66d2853de78ebd2fe6c3c4ca1f790052b",
+      "bytes": 114744
+    }
+  ]
+}

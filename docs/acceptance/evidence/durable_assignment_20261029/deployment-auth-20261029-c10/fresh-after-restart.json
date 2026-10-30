@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "fresh": {
+    "schema": "atom-assignment-fresh-smoke-1",
+    "run_id": "16376968-d0fb-4b38-91af-6077ff43533e",
+    "assignment_id": "asg-174dc4e8ccb94cd1",
+    "objective": "Release smoke 52133f7f3c: sum Price",
+    "status": "completed",
+    "plan_revision": 1,
+    "artifact_path": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-581af7b477cb/release-smoke-52133f7f3c-sum-price-2eb161c1.docx",
+    "artifact_sha256": "95db68c4f764b51d465d4d69e2d2cbadf6f28998b6761bd8f94f863779e5298b",
+    "artifact_contains_expected_sum": true,
+    "source_versions": [
+      "e0a7fb8a1b4757b7f6bef882b19cc4588d66246e"
+    ],
+    "validation": {
+      "ok": true,
+      "errors": [],
+      "artifact_text": "Release smoke 52133f7f3c: sum Price\nObjective\nRelease smoke 52133f7f3c: sum Price\nSummary\nsum of Price: 216700.00\nFindings\nHARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1\nSources\noutlook_harsle_press_brake_stock_price_list\nHARSLE press brake stock price list.xlsx\n\u5e93\u5b58\u4ea7\u54c1\n00399616-42f7-4f7d-8867-822752b15a46\nHARSLE press brake stock price list.xlsx / \u5e93\u5b58\u4ea7\u54c1\nRow | identity | identity_source | row | value | currency | value_cell\n | row 2 | sheet_row | 2 | 24000.00 |  | G2\n | row 3 | sheet_row | 3 | 27500.00 |  | G3\n | row 4 | sheet_row | 4 | 24000.00 |  | G4\n | row 5 | sheet_row | 5 | 27500.00 |  | G5\n | row 6 | sheet_row | 6 | 25000.00 |  | G6\n | row 7 | sheet_row | 7 | 31800.00 |  | G7\n | row 8 | sheet_row | 8 | 27900.00 |  | G8\n | row 9 | sheet_row | 9 | 29000.00 |  | G9",
+      "artifact_sha256": "95db68c4f764b51d465d4d69e2d2cbadf6f28998b6761bd8f94f863779e5298b",
+      "recorded_sha256": "95db68c4f764b51d465d4d69e2d2cbadf6f28998b6761bd8f94f863779e5298b"
+    }
+  },
+  "restart_agreement": {
+    "mismatches": {},
+    "ok": true
+  }
+}

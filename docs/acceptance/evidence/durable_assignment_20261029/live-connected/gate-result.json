@@ -1,0 +1,49 @@
+{
+  "slice": "live-connected-assignment-gate",
+  "candidate_commit": "e4c11c354",
+  "checked_at": "2026-10-29T13:57:00Z",
+  "configuration_restore": {
+    "destination": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/backend/.env",
+    "backup_outside_repo": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/live-config-backup/.env.pre-oauth-restore-20261029T095627Z",
+    "microsoft_config_configured": true,
+    "missing": [],
+    "placeholders": [],
+    "secret_values_recorded": false
+  },
+  "oauth_resolution": {
+    "state": "valid",
+    "token_available": true,
+    "refresh_attempted": false,
+    "refresh_succeeded": false,
+    "refresh_token_replaced": false,
+    "requires_reconnect": false,
+    "user_id": "b83eb105-d9e7-41a5-83e3-a632b15b9ee3",
+    "token_provider": "microsoft/outlook family",
+    "expires_at": "2026-10-29T14:11:45Z"
+  },
+  "named_workbook": {
+    "file_name": "Consolidated Price List 2019.xlsx",
+    "sheet": "US$ SCOTCH PARTS",
+    "catalog_source": "zoho_workdrive",
+    "active_row_counts": [11231, 11128, 11119],
+    "microsoft_or_onedrive_catalog_entry": false,
+    "zoho_access_state": "expired",
+    "zoho_access_expires_at": "2026-10-24T01:41:37Z",
+    "zoho_repair_authorized": false
+  },
+  "gate": {
+    "live_guided_start_run": false,
+    "changed_source_refresh_run": false,
+    "first_broken_boundary": "resource/source authority",
+    "classification": "authority",
+    "observed": "The named price-list catalog rows belong to zoho_workdrive, whose access token expired on 2026-10-24. No Microsoft/OneDrive catalog entry for the workbook exists. Cached Parquet rows are not current source access.",
+    "repair": "Expired access tokens are now refused with source_access_expired; control added.",
+    "next_permitted_actions": [
+      "Authorize Zoho WorkDrive renewal/reconnect for the named workbook, or",
+      "Name an accessible genuine Microsoft/OneDrive-connected workbook and expected result"
+    ],
+    "replacement_catalog_or_grant_seeded": false,
+    "production_price_list_modified": false,
+    "live_send": false
+  }
+}

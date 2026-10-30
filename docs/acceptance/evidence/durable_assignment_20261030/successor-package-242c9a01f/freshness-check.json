@@ -1,0 +1,86 @@
+{
+  "schema": "atom-production-freshness-check-2",
+  "checked_at": "2026-10-30T02:29:01.329606+00:00",
+  "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-242c9a01f",
+  "fresh": false,
+  "changes": [
+    {
+      "item": "source_quiescence",
+      "reason": "source writers remain active; stop them with operational authorization before cutover",
+      "processes": [
+        {
+          "pid": 19046,
+          "command": "python3.14"
+        }
+      ]
+    },
+    {
+      "item": "source_db_fingerprint",
+      "changed_tables": [
+        {
+          "table": "ingestion_settings",
+          "baseline": {
+            "rows": 4,
+            "sha256": "d41852e7c420c4229ee2861eded740a610db02d0715a9812ee795c180a779682"
+          },
+          "current": {
+            "rows": 4,
+            "sha256": "dca0c071203c3bfd556e947d337870a3ae60d33368ddc22e29ce3d8c7a6054c3"
+          }
+        },
+        {
+          "table": "knowledge_patterns",
+          "baseline": {
+            "rows": 5552,
+            "sha256": "a74b142f47c7b657f19ce42f340a8399e8fd701bf15f40750a52c0c7461b9c7b"
+          },
+          "current": {
+            "rows": 5555,
+            "sha256": "232b2cd51ee1dd96b726d805bae2ea1b96a78f74ec1bb0e1271da9a5998dbe20"
+          }
+        },
+        {
+          "table": "llm_routing_feedback",
+          "baseline": {
+            "rows": 311722,
+            "sha256": "c5c63a92343db2c2ed7e4880690e4cda53b9d1448187df779eb333165eade7c3"
+          },
+          "current": {
+            "rows": 311723,
+            "sha256": "2243eb57df34f736f5bf0b310936d3eea19d59649d3e8adac289fb6eb9e34ff0"
+          }
+        },
+        {
+          "table": "rate_usage_records",
+          "baseline": {
+            "rows": 58049,
+            "sha256": "0a286daaae4601ac9341d427b13f9fe9a549803c93e89f8df7999e952a8d4142"
+          },
+          "current": {
+            "rows": 58050,
+            "sha256": "b21286be3577e0c148c7eca82fdd49bb5136810f43514782c905cb17dbb36627"
+          }
+        }
+      ],
+      "changed_table_count": 4
+    }
+  ],
+  "phase": "preflight",
+  "require_quiescent_source": true,
+  "source_writers": {
+    "available": true,
+    "processes": [
+      {
+        "pid": 19046,
+        "command": "python3.14"
+      }
+    ]
+  },
+  "source_tables_fingerprinted": 389,
+  "source_table_changes": 4,
+  "memory_unchanged": true,
+  "referenced_files_checked": 461,
+  "baseline": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-242c9a01f/run/freshness_baseline.json",
+  "baseline_created_at": "2026-10-30T02:14:10.994652+00:00",
+  "comparison": "logical SQLite table content + LanceDB table versions/rows + referenced artifact/dataset hashes; WAL byte churn excluded"
+}

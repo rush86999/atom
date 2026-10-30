@@ -1,0 +1,18 @@
+{
+  "schema": "atom-assignment-identity-agreement-1",
+  "checks": {
+    "launch_constant_commit": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
+    "manifest_product_commit": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
+    "manifest_product_tree": "12060bee618e7a58a98324f682d39077c144c19a6fb7d22d77de8179237dbb9e",
+    "runtime_product_commit": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
+    "runtime_product_tree": "12060bee618e7a58a98324f682d39077c144c19a6fb7d22d77de8179237dbb9e",
+    "health_revision": "ef95ceb3194ec92c51e64941d7bb364c0b8b0e75",
+    "health_dirty": false,
+    "runbook_names_commit": true,
+    "runbook_names_tree": true,
+    "all_commit_sources_agree": true,
+    "all_tree_sources_agree": true,
+    "health_clean": true,
+    "status": "passed"
+  }
+}

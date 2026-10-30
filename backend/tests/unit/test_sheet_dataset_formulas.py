@@ -271,3 +271,30 @@ def test_raw_xml_formula_fallback_scans_formula_cells():
     real cell refs and sheet names — run here on a valid package."""
     formulas = _formula_map_raw_xml(_formula_xlsx())
     assert formulas == {"Sheet1": {"C2": "=B2+5000", "D2": "=C2/0.74"}}
+
+
+def test_cross_sheet_formula_dependency_text_is_preserved():
+    """Same-sheet and cross-sheet formula expressions survive materialization
+    as cell-addressed text; the platform does not silently drop the dependency
+    when only values are materialized."""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    inputs = wb.active
+    inputs.title = "Inputs"
+    inputs["A1"] = "Rate"
+    inputs["A2"] = 100
+    calc = wb.create_sheet("Calc")
+    calc["A1"] = "Base"
+    calc["A2"] = "=Inputs!A2*2"
+    calc["B2"] = "=A2+5"
+    buf = io.BytesIO()
+    wb.save(buf)
+    result = _materialize(buf.getvalue(), file_name="cross_sheet.xlsx",
+                          external_id="cross-sheet-1")
+    assert result["status"] == "materialized"
+    datasets = {ds["dataset_name"]: ds for ds in result["datasets"]}
+    calc_ds = next(ds for name, ds in datasets.items() if name.endswith("__calc"))
+    formulas = load_formulas_for_parquet(str(calc_ds["parquet_path"]))
+    assert formulas["A2"] == "=Inputs!A2*2"
+    assert formulas["B2"] == "=A2+5"

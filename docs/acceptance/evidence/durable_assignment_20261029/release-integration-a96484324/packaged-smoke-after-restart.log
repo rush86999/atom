@@ -1,0 +1,96 @@
+{
+  "schema": "atom-assignment-packaged-mapping-taught-smoke-1",
+  "ok": true,
+  "existing_taught_assignment": {
+    "assignment_id": "asg-787c5e9954dc46cc",
+    "status": "completed",
+    "plan_revision": 1,
+    "teaching_revision": "3dce63cc9aa4ef14+map",
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+    "artifact_sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
+    "artifact_contains_expected_sum": true,
+    "deliverable_status": "applied",
+    "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+    "objective": "Mapping B sum Price"
+  },
+  "mapping": {
+    "run_id": "373f7658-c940-4937-bf06-4174daa0603f",
+    "assignment_id": "asg-88d0404ac6f24997",
+    "objective": "Release mapping smoke b71158d60d: sum Price",
+    "status": "completed",
+    "mapping": {
+      "concept": "Price",
+      "sheet": "Sheet1",
+      "column": "Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "USD",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "31533335b40b2a0a90a5b23de7e85c185cdaf7bb",
+      "revision": 3,
+      "lesson_id": "bff523b152f145dfa292c89c82a8bce1",
+      "lesson_revision": null,
+      "teaching_revision": "8703545e6af8ecb7+map",
+      "source": "outlook",
+      "dataset_name": "outlook_workbook_b__sheet1",
+      "external_id": "fixture-b",
+      "available_columns": [
+        "SKU",
+        "Quantity",
+        "Amount",
+        "Discount",
+        "Currency",
+        "Note"
+      ],
+      "numeric_columns": [
+        "Quantity",
+        "Amount",
+        "Discount"
+      ],
+      "correctable": true
+    },
+    "result": "35.00",
+    "unit": "USD",
+    "artifact": {
+      "assignment_id": "asg-88d0404ac6f24997",
+      "status": "completed",
+      "plan_revision": 1,
+      "teaching_revision": "8703545e6af8ecb7+map",
+      "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-1ce2f242fbd2/release-mapping-smoke-total-966159ef.docx",
+      "artifact_sha256": "9b0f537f456a40975cea8b5d46178caab9697bdac8f304866fc0355ebc60a975",
+      "artifact_contains_expected_sum": true,
+      "deliverable_status": "applied"
+    },
+    "gap": {
+      "question_id": "c3919ecc-7716-4b60-8a94-ec16d9233ea9",
+      "source_version": "31533335b40b2a0a90a5b23de7e85c185cdaf7bb",
+      "teaching_revision": "8703545e6af8ecb7",
+      "candidates": [
+        "SKU",
+        "Quantity",
+        "Amount",
+        "Discount",
+        "Currency",
+        "Note"
+      ],
+      "required_unit": "USD",
+      "source_unit": "USD"
+    }
+  },
+  "provider_policy": {
+    "mode": "selected",
+    "allowed_providers": [
+      "deepseek"
+    ],
+    "preferred": {
+      "provider": "deepseek",
+      "model": "deepseek-flash"
+    },
+    "ok": true
+  },
+  "restart_agreement": {
+    "ok": true,
+    "mismatches": {}
+  }
+}

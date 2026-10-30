@@ -265,6 +265,10 @@ class OutlookService(IntegrationService):
         # scope). Callers surface it so users see "reconnect Outlook"
         # instead of a bare Graph 403.
         self.last_send_error: Optional[Dict[str, Any]] = None
+        # Set when the transport failed before any HTTP response arrived.
+        # For a send this means the provider MAY have accepted the effect;
+        # it is not proof of failure and must not trigger a blind resend.
+        self.last_transport_error: Optional[str] = None
         # Status of the LAST _handle_response'd Graph call (None while no
         # call ran / the call failed before a response): lets retrying
         # callers (the search_emails KQL ladder) abort immediately on
@@ -472,6 +476,7 @@ class OutlookService(IntegrationService):
 
         url = endpoint if full_url else f"{self.base_url}{endpoint}"
         self.last_graph_status = None
+        self.last_transport_error = None
 
         try:
             timeout = aiohttp.ClientTimeout(total=_GRAPH_HTTP_TIMEOUT_SECONDS)
@@ -497,6 +502,9 @@ class OutlookService(IntegrationService):
                     return None
         except Exception as e:
             logger.error(f"Graph API request failed: {e}")
+            # No HTTP response was observed. For a mutating send this is an
+            # AMBIGUOUS outcome, not a confirmed failure.
+            self.last_transport_error = str(e)[:300]
             return None
 
     async def _handle_response(self, response) -> Optional[Dict[str, Any]]:
@@ -653,6 +661,13 @@ class OutlookService(IntegrationService):
     ) -> Optional[Dict[str, Any]]:
         """Send email via Outlook"""
         self.last_send_error = None
+        from core.email_send_policy import (
+            disabled_result,
+            live_email_send_disabled,
+        )
+        if live_email_send_disabled():
+            self.last_send_error = disabled_result()
+            return None
         try:
             # Consent check before the wire call: /me/sendMail needs the
             # Mail.Send delegated permission, which is SEPARATE from
@@ -725,9 +740,24 @@ class OutlookService(IntegrationService):
             result = await self._make_graph_request(
                 user_id, "/me/sendMail", "POST", email_data, access_token=token
             )
+            if result is None and self.last_transport_error:
+                self.last_send_error = {
+                    "error": (
+                        "The connection failed after the send was attempted; "
+                        "the provider may have accepted it."),
+                    "outcome_uncertain": True,
+                    "transport_error": self.last_transport_error,
+                }
             return result
         except Exception as e:
             logger.error(f"Error sending email: {e}")
+            self.last_send_error = {
+                "error": (
+                    "The send failed before a provider confirmation was "
+                    "observed. Check the Sent folder before retrying."),
+                "outcome_uncertain": True,
+                "transport_error": str(e)[:300],
+            }
             return None
 
     # /me/sendMail with inline attachments is rejected by Graph above ~3 MB
@@ -893,7 +923,11 @@ class OutlookService(IntegrationService):
             user_id, f"/me/messages/{draft_id}/send", "POST", {}, access_token=access_token
         )
         if not sent:
-            self.last_send_error = {"error": "Outlook send failed after attaching files."}
+            self.last_send_error = {
+                "error": "Outlook send failed after attaching files.",
+                "outcome_uncertain": bool(self.last_transport_error),
+                "transport_error": self.last_transport_error,
+            }
         return sent
 
     async def get_latest_conversation_message_id(

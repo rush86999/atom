@@ -1,0 +1,502 @@
+{
+  "schema": "atom-assignment-successor-package-2",
+  "created": "2026-10-29",
+  "package_doc": "docs/acceptance/assignment-successor-package-2026-10-29-a96484324/ASSIGNMENT_SUCCESSOR_PACKAGE_2026-10-29-a96484324.md",
+  "package_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+  "release_tag": "assignment-successor-2026-10-29-a96484324",
+  "candidate": {
+    "branch": "whole-app/successor-f5f",
+    "source_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tested_runtime_commit": "a96484324",
+    "previous_release": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "previous_release_tag": "assignment-successor-2026-10-29",
+    "release_tag": "assignment-successor-2026-10-29-a96484324"
+  },
+  "source_manifest": "docs/acceptance/assignment-successor-package-2026-10-29-a96484324/source_manifest.json",
+  "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+  "release_identity": {
+    "schema": "atom-assignment-successor-release-1",
+    "release_tag": "assignment-successor-2026-10-29-a96484324",
+    "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tested_runtime_commit": "a96484324",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+    "product_tree_matches_tested": true,
+    "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+    "deployment_kit_tree_sha256": "3113326779621dd8201062ab8fd820cf0d5d335dba32df00b8d8347baf874f34",
+    "frontend_build_id": "9XAkf6w6bcGinpRtHpj8X",
+    "frontend_api_origin": "http://127.0.0.1:8071",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "prepared_at": "2026-10-30T00:46:24.009048+00:00",
+    "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/data",
+    "seeded_rehearsal_data": false
+  },
+  "authorization_status": "deployment requested; not granted",
+  "goal_3_status": "Demonstrated for tested mapping/confirmation/correction/restart workflows",
+  "browser_runs": {
+    "workbook_b": {
+      "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+      "assignment_id": "asg-787c5e9954dc46cc",
+      "result": "35.00",
+      "currency": "USD",
+      "mapping_revision": 2,
+      "result_file": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-b/attempts/c78b9a0c-4d4b-4ef6-97e5-4be56fa31449/result.json",
+        "sha256": "bc9cac1ba9ebb1a9ff67ba754892e7975754a23d5b430d69282b02cc49ec22e0",
+        "bytes": 4566
+      }
+    },
+    "workbook_c": {
+      "run_id": "a228e80a-1980-4d9c-8489-6295ca38abce",
+      "assignment_id": "asg-0fd041a25a0a4f78",
+      "result": "75.00",
+      "currency": "USD",
+      "mapping_revision": 2,
+      "unit_authority": "user_confirmed",
+      "result_file": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-c/attempts/a228e80a-1980-4d9c-8489-6295ca38abce/result.json",
+        "sha256": "9832bf41d821c9cb83d897af698fb79a39201c7aea6a1ee42f009c43f6142a65",
+        "bytes": 3176
+      }
+    },
+    "correction": {
+      "run_id": "0f8db7bb-f3d2-4d5f-8ec5-768dd677843e",
+      "assignment_id": "asg-43178542de424137",
+      "initial_result": "100.00",
+      "corrected_result": "80.00",
+      "mapping_revision": 3,
+      "result_file": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-correction/attempts/0f8db7bb-f3d2-4d5f-8ec5-768dd677843e/result.json",
+        "sha256": "e80c016478b7a22569e39d2f2fe5ac3572f477ed3eac6037b8f2c63055c8106f",
+        "bytes": 12042
+      }
+    },
+    "waiting_restart": {
+      "run_id": "a8b27ce5-ead8-4a9f-8b21-8069e088486e",
+      "assignment_id": "asg-a32409c8c11642a7",
+      "question_id": "a395e83e-c09d-45d8-b2fc-f90b7b903d91",
+      "source_version": "1a94f6f0d652ecf5e0da1ca060074802d53a2bc7",
+      "teaching_revision": "7df0cdfdd13a009d",
+      "result": "35.00",
+      "mapping_revision": 2,
+      "rejection": {
+        "same_question_id": true,
+        "same_candidates": true,
+        "durable_unchanged": true,
+        "teaching_unchanged": true,
+        "no_result": true
+      },
+      "restart": {
+        "same_assignment_id": true,
+        "same_question_id": true,
+        "same_candidates": true,
+        "same_source_version": true,
+        "same_teaching_revision": true,
+        "durable_unchanged": true
+      },
+      "reload": {
+        "status": "completed",
+        "mapping": {
+          "concept": "Price",
+          "sheet": "Sheet1",
+          "column": "Amount",
+          "unit": "USD",
+          "unit_authority": "source_evidence",
+          "required_unit": "USD",
+          "source_unit": "USD",
+          "source_unit_column": "Currency",
+          "source_version": "1a94f6f0d652ecf5e0da1ca060074802d53a2bc7",
+          "revision": 2,
+          "lesson_id": "e79e9664e8be448493a3268d0efe76f5"
+        },
+        "result": "35.00",
+        "artifact_sha256": "732de22ef7c8e833013817f7884f1fdc4877228581c78f20482304392d1e0c1f",
+        "mapping_history": [],
+        "durable_unchanged": true
+      },
+      "result_file": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-browser-waiting-restart/attempts/a8b27ce5-ead8-4a9f-8b21-8069e088486e/result.json",
+        "sha256": "30e1a250de038e00770b1ceebd14f4810aa998b73913024f0946bcfe59ff46a9",
+        "bytes": 3556
+      }
+    }
+  },
+  "regression": {
+    "affected_suites": "98 passed",
+    "authority_controls": "5 passed",
+    "workbook_b": "passed",
+    "workbook_c": "passed",
+    "correction_browser": "passed",
+    "waiting_restart_browser": "passed",
+    "logs": {
+      "affected": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/regression-a96484324/affected-suites.log",
+        "sha256": "0b4bc887779c6d4817f49bdd6ddf9236745326cf7126a82f72d034a7997682fb",
+        "bytes": 29369
+      },
+      "authority": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/regression-a96484324/authority-controls.log",
+        "sha256": "0821a5c851f2d20d5120f2bab4af5aeba581685791b6815607d51588aed66192",
+        "bytes": 8837
+      },
+      "deployment_kit": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/kit-tests.log",
+        "sha256": "c2724c99aa68516d62231c44d92b74e9695949b574ca7624df0c919866f00c1e",
+        "bytes": 1189
+      },
+      "release_affected": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/release-affected-final.log",
+        "sha256": "5874be9419c2a257916256f2ee7b43b9ab69b300300a88bf7f537e07c11f2724",
+        "bytes": 194552
+      }
+    },
+    "deployment_kit_controls": "19 passed",
+    "release_affected": "508 passed, 2 skipped"
+  },
+  "packaged_smoke": {
+    "status": "passed",
+    "mode": "isolated rehearsal deployment transaction",
+    "release_identity": {
+      "schema": "atom-assignment-successor-release-1",
+      "release_tag": "assignment-successor-2026-10-29-a96484324",
+      "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+      "tested_runtime_commit": "a96484324",
+      "product_paths": [
+        "backend",
+        "frontend-nextjs"
+      ],
+      "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+      "product_tree_matches_tested": true,
+      "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+      "deployment_kit_tree_sha256": "2582ae3421a3f25a02accda73712f4bf404d6e92c5bcd5a07ecf49138cea89c6",
+      "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
+      "frontend_api_origin": "http://127.0.0.1:8071",
+      "api_port": 8071,
+      "frontend_port": 3130,
+      "audience": "single_user",
+      "pilot_email": "admin@example.com",
+      "outbound_scope": "draft_and_approval_only",
+      "send_authorized": false,
+      "topology": "one_worker_process_per_assignment",
+      "prepared_at": "2026-10-29T23:43:56.891207+00:00",
+      "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+      "seeded_rehearsal_data": true
+    },
+    "evidence_manifest": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/evidence-manifest.json",
+      "sha256": "1bebad62573d4aec6972189a5dbe14931612baf7e27fc03eba62caad98e9ee49",
+      "bytes": 23656
+    },
+    "deployment_receipt": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/deployment-receipt.json",
+      "sha256": "7e98e91a4f2b59dc3ce330869bd3fe483b6b9997470d2c8ca32c3336dcebed92",
+      "bytes": 11133
+    },
+    "auth_smoke": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/auth-smoke/auth-smoke.json",
+      "sha256": "23bacadd5719bd33b4b0aa6a6694de5c2d089b093d2c71c64694a42531d34860",
+      "bytes": 1748
+    },
+    "assignment_before_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/assignment-before-restart.json",
+      "sha256": "d134c824bf72b60a30106eca779205b63dad504fd454516a9d694bc66ff2bef9",
+      "bytes": 1691
+    },
+    "assignment_after_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/assignment-after-restart.json",
+      "sha256": "6fae5363f3e7c37ac408c78e0d0f3fc9a4c7b10033574220c2d32c81965c488d",
+      "bytes": 2106
+    },
+    "fresh_before_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/fresh-before-restart.json",
+      "sha256": "935693395af5a087f518fbff750e809667a768735b9ebf364b3757ac35359755",
+      "bytes": 2203
+    },
+    "fresh_after_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/fresh-after-restart.json",
+      "sha256": "174649eddabaf4cbb34dbdc642bae9ce2fe5030eb2f7448d1d978aad71695c86",
+      "bytes": 2046
+    },
+    "failed_attempt": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/failed-attempt.json",
+      "sha256": "19cd3a11562784e75c214c90aa417d616c4353899fe2a943c1389fd5be712a24",
+      "bytes": 233
+    },
+    "failed_attempt_log": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/deployment-transaction-failed.log",
+      "sha256": "84515b22e446c643275275faf751d18bb54fe33fe96162391cc3400450bfbcd3",
+      "bytes": 21221
+    },
+    "provider_policy": {
+      "mode": "selected",
+      "allowed_providers": [
+        "deepseek"
+      ],
+      "preferred": {
+        "provider": "deepseek",
+        "model": "deepseek-flash"
+      },
+      "ok": true
+    },
+    "send_denial": {
+      "http_status": 422,
+      "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter",
+      "runs_before": 3,
+      "runs_after": 3,
+      "run_created": false,
+      "send_allowed": false
+    },
+    "restart_agreement": {
+      "before": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/run/before-restart.json",
+      "fields": [
+        "run_id",
+        "assignment_id",
+        "status",
+        "plan_revision",
+        "teaching_revision",
+        "artifact_path",
+        "artifact_sha256",
+        "source_versions"
+      ],
+      "mismatches": {},
+      "ok": true
+    },
+    "fresh_restart_agreement": {
+      "mismatches": {},
+      "ok": true
+    },
+    "rollback_available_in_rehearsal_root": false,
+    "rollback_note": "First-release rehearsal root had no previous release link; automatic rollback was not exercised in this transaction. Kit controls cover the failure path; the prior full C6->C4->C6 rehearsal was on 901e5d773, not production.",
+    "isolated_rehearsal_identity": {
+      "schema": "atom-assignment-successor-release-1",
+      "release_tag": "assignment-successor-2026-10-29-a96484324",
+      "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+      "tested_runtime_commit": "a96484324",
+      "product_paths": [
+        "backend",
+        "frontend-nextjs"
+      ],
+      "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+      "product_tree_matches_tested": true,
+      "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+      "deployment_kit_tree_sha256": "2582ae3421a3f25a02accda73712f4bf404d6e92c5bcd5a07ecf49138cea89c6",
+      "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
+      "frontend_api_origin": "http://127.0.0.1:8071",
+      "api_port": 8071,
+      "frontend_port": 3130,
+      "audience": "single_user",
+      "pilot_email": "admin@example.com",
+      "outbound_scope": "draft_and_approval_only",
+      "send_authorized": false,
+      "topology": "one_worker_process_per_assignment",
+      "prepared_at": "2026-10-29T23:43:56.891207+00:00",
+      "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+      "seeded_rehearsal_data": true
+    }
+  },
+  "supported_claims": {
+    "mapping_confirmation": true,
+    "explicit_unit_authority": true,
+    "mapping_correction": true,
+    "mapping_rejection_same_request_after_restart": true,
+    "authority_controls": true,
+    "packaged_mapping_plus_taught_assignment_smoke": true,
+    "artifact_reopen_after_packaged_restart": true,
+    "provider_policy_deepseek_selected": true,
+    "draft_only_send_denial": true,
+    "deployment_package_prepared": true,
+    "deployment_authorized": false,
+    "production_email_send": false,
+    "arbitrary_schema_understanding": false,
+    "production_data_handoff_prepared": true,
+    "required_memory_exported": true,
+    "actual_rollback_to_901_verified_in_isolation": true,
+    "production_freshness_guard": true,
+    "known_missing_historical_datasets_visible": true,
+    "omitted_memory_explicit": true,
+    "production_freshness_gate_logical": true,
+    "production_rollback_verified_with_refreshed_data": true
+  },
+  "blockers": [
+    "Deployment authorization is not granted; config/APPROVED is absent.",
+    "The owner must supply config/pilot_password for the existing admin account; production authentication smoke cannot run without it.",
+    "Real-provider email sending remains open and unauthorized; the release refuses it before transport.",
+    "The 7.23 GiB atom_communications archive and 29.5 GiB default_shared workspace are not in the production copy; their historical email/context is not searchable there. Both remain preserved at source.",
+    "21 pre-existing missing historical dataset paths remain visible as retrieval gaps with affected resources and honest retrieval consequences; none is referenced by a current assignment.",
+    "The source is a live instance. The freshness gate refuses if it advances before cutover; a final refresh or quiescent source is required immediately before the transaction.",
+    "Automatic understanding of arbitrary schemas and every possible authority surface are not claimed."
+  ],
+  "evidence": {
+    "release_integration": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/evidence-manifest.json",
+      "sha256": "1bebad62573d4aec6972189a5dbe14931612baf7e27fc03eba62caad98e9ee49",
+      "bytes": 23656
+    },
+    "goal_ledger": "docs/acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md",
+    "deployment_runbook": "docs/deployment/assignment_successor_2026-10-29_a96484324/DEPLOYMENT_RUNBOOK.md",
+    "approval_request": "docs/deployment/assignment_successor_2026-10-29_a96484324/APPROVAL_REQUEST.md",
+    "deployment_kit": "scripts/deployment/assignment_successor_2026-10-29_a96484324",
+    "goal_audit": "docs/acceptance/GOAL_COMPLETION_AUDIT_2026-10-29.md",
+    "deployment_decision": "docs/acceptance/DEPLOYMENT_DECISION_a96484324_2026-10-29.md",
+    "send_qualification": "docs/acceptance/REAL_PROVIDER_SEND_QUALIFICATION_2026-10-29.md",
+    "release_integration_component_smoke": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/evidence-manifest.json",
+      "sha256": "7614bb08bfebd0632626bfb7bc9a46dc1468c10d78bbd25aa7e505e9cfd11cc2",
+      "bytes": 19393
+    },
+    "production_package": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/evidence-manifest.json",
+      "sha256": "c35f2cac19f4a7de380c9c523a74172e379def501482d4bc8d4344a1f868ff8d",
+      "bytes": 147140
+    },
+    "preparation_report": "docs/acceptance/PRODUCTION_PACKAGE_PREPARATION_a96484324_2026-10-30.md"
+  },
+  "no_deployment": true,
+  "no_real_sending": true,
+  "no_credential_change": true,
+  "no_source_writeback": true,
+  "production_package": {
+    "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324",
+    "release_identity": {
+      "schema": "atom-assignment-successor-release-1",
+      "release_tag": "assignment-successor-2026-10-29-a96484324",
+      "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+      "tested_runtime_commit": "a96484324",
+      "product_paths": [
+        "backend",
+        "frontend-nextjs"
+      ],
+      "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+      "product_tree_matches_tested": true,
+      "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+      "deployment_kit_tree_sha256": "3113326779621dd8201062ab8fd820cf0d5d335dba32df00b8d8347baf874f34",
+      "frontend_build_id": "9XAkf6w6bcGinpRtHpj8X",
+      "frontend_api_origin": "http://127.0.0.1:8071",
+      "api_port": 8071,
+      "frontend_port": 3130,
+      "audience": "single_user",
+      "pilot_email": "admin@example.com",
+      "outbound_scope": "draft_and_approval_only",
+      "send_authorized": false,
+      "topology": "one_worker_process_per_assignment",
+      "prepared_at": "2026-10-30T00:46:24.009048+00:00",
+      "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/data",
+      "seeded_rehearsal_data": false
+    },
+    "previous_identity": {
+      "schema": "atom-assignment-successor-release-1",
+      "release_tag": "assignment-successor-2026-10-29",
+      "release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+      "tested_runtime_commit": "001f93472",
+      "product_paths": [
+        "backend",
+        "frontend-nextjs"
+      ],
+      "product_tree_sha256": "92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c",
+      "product_tree_matches_tested": true,
+      "source_manifest_sha256": "d62d34537079e6f63d1efffc8165d3c4f6fe552304157ff5acf934574e4e97c2",
+      "deployment_kit_tree_sha256": "8e98d96551ccff59a0f4187f895a368fe3af54ba2a4858f41760cc3b6aa828f4",
+      "frontend_build_id": "QqBNj-ytvaFAwwCWX2M5F",
+      "frontend_api_origin": "http://127.0.0.1:8071",
+      "api_port": 8071,
+      "frontend_port": 3130,
+      "audience": "single_user",
+      "pilot_email": "admin@example.com",
+      "outbound_scope": "draft_and_approval_only",
+      "send_authorized": false,
+      "topology": "one_worker_process_per_assignment",
+      "prepared_at": "2026-10-29T16:58:20.973885+00:00",
+      "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data",
+      "seeded_rehearsal_data": true
+    },
+    "evidence_manifest": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/evidence-manifest.json",
+      "sha256": "c35f2cac19f4a7de380c9c523a74172e379def501482d4bc8d4344a1f868ff8d",
+      "bytes": 147140
+    },
+    "data_handoff": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/production-data-handoff.json",
+      "sha256": "5ed5dab86f80917b87fb1f1a8a91314c20ab4bb31035b0948b1477370b8990a2",
+      "bytes": 55962
+    },
+    "memory_handoff": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/memory-handoff.json",
+      "sha256": "524eb3aeeca6c9a18b298fd8ae2c6e21d276ad53c3cd67870d7aa1a03142069f",
+      "bytes": 3111
+    },
+    "handoff_verification": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/production-handoff-verification.json",
+      "sha256": "de844ab3e35474ba46d8f7e93a2f295031ea8a18a606f23f474b6a1e01c9d69b",
+      "bytes": 10856
+    },
+    "config_compatibility": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/config-compatibility.json",
+      "sha256": "909bb783ca8eecf27dc365db8ee6a2c0b64b59cc192fe86b3ba6a20e223db889",
+      "bytes": 1170
+    },
+    "preflight_no_approval": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/preflight-no-approval.json",
+      "sha256": "9abf2b1495db8affb1b562b420445b2cfa19df8b6d886863c06af4b17dee697b",
+      "bytes": 8367
+    },
+    "rollback_receipt": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-receipt.json",
+      "sha256": "0aaaf4f208366bf7f9cc74035aaf51118b3c2ad7d07b622f1ef8df2bfc60d890",
+      "bytes": 3475
+    },
+    "rollback_before": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-before.json",
+      "sha256": "ca1a3981fac560788df69ac50fc95a3e338d8e36798a1ea5adb0558cdc34a270",
+      "bytes": 629
+    },
+    "rollback_after_901": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-after-901.json",
+      "sha256": "ca1a3981fac560788df69ac50fc95a3e338d8e36798a1ea5adb0558cdc34a270",
+      "bytes": 629
+    },
+    "memory_before_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/memory-before-restart.json",
+      "sha256": "534e52b727ac5fbeddf1a23a4b42dea0559c1c75d59432c6c521aa7a3ebbb640",
+      "bytes": 661
+    },
+    "memory_after_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/memory-after-restart.json",
+      "sha256": "534e52b727ac5fbeddf1a23a4b42dea0559c1c75d59432c6c521aa7a3ebbb640",
+      "bytes": 661
+    },
+    "rollback_auth_901": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-auth-901.json",
+      "sha256": "fdd725ff13cd93a4fe821642b756367b9879ee7415879d47f4b95868cf11c0bb",
+      "bytes": 161
+    },
+    "rollback_auth_candidate": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-auth-candidate.json",
+      "sha256": "bc83dba672f105a95f00bb520c680f5a26766ca665af7f6879d030ea610fe9b6",
+      "bytes": 161
+    },
+    "freshness_baseline": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/freshness-baseline.json",
+      "sha256": "1e932fa1c2dc6f8c5391ae98d2d2c3a99fd389fff8e0b559d2ac0a9780848a86",
+      "bytes": 54408
+    },
+    "freshness_check": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/freshness-check.json",
+      "sha256": "e494f31c2fe0b726574ed13a384fe5dda1a136b081a032dfea979d3ad01d540c",
+      "bytes": 701
+    },
+    "rollback_candidate_start": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-candidate-start.json",
+      "sha256": "75edce1355127e193a069f451b2e313931d7ef86a719723c5d0a3410a97ee5b9",
+      "bytes": 1537
+    }
+  }
+}
