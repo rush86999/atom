@@ -14,11 +14,11 @@ Authorize one supervised deployment of the frozen candidate:
 | Release tag | `assignment-successor-2026-10-29-a96484324` |
 | Product tree SHA-256 | `937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6` |
 | Rollback target | `901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0` (tag `assignment-successor-2026-10-29`) |
-| Intended root | `/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324` |
+| Prepared root (exists) | `/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324` |
 | API / UI ports | `127.0.0.1:8071` / `127.0.0.1:3130` |
 | Account | `admin@example.com` only |
 | Data / artifacts | `<root>/data/atom.db`, `<root>/data/office`, `<root>/data/sheet_datasets`, `<root>/data/email_attachments` |
-| Frontend build | `LZy8An7y4FAIM7H5yyRJD` (prepared package; see `RELEASE_IDENTITY.json`) |
+| Frontend build | `9XAkf6w6bcGinpRtHpj8X` (prepared production root; see `RELEASE_IDENTITY.json`) |
 | Audience / mode | `single_user` / `production` |
 | Outbound scope | draft-and-approval only; send **not** authorized |
 
@@ -42,8 +42,8 @@ that file.
 
 ## Exact command authorization would permit
 
-After review and after the owner creates `config/APPROVED` and supplies the
-pilot password file:
+After review and after the owner creates `config/APPROVED` and supplies
+`config/pilot_password` for the existing admin account:
 
 ```bash
 RELEASE_ROOT=/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324 \
@@ -75,11 +75,17 @@ modal, was preserved, and the repaired harness passed on the next run.
 - The database is **never** restored automatically; newer user data is
   preserved.
 - The final deployment receipt is published atomically only after all checks.
-- **No production rollback has occurred.** The isolated transaction root was a
-  first release with no `previous` link, so that transaction did not exercise
-  automatic rollback. The rollback path is covered by isolated kit controls; a
-  full isolated C6→C4→C6 rollback was previously demonstrated for `901e5d773`,
-  not for this candidate in production.
+- **No production rollback has occurred.** The production root now has a real
+  `previous` link to the prepared `901e5d773` release and production preflight
+  requires that exact identity before shutdown. In a disposable copy of the
+  production data/artifact/memory world, the actual candidate-failure →
+  rollback-start path was exercised: `901e5d773` started healthy, the same
+  database/artifact world was preserved, all 16,305 operation bindings still
+  matched, and no new interactive approval was required. Normal login and
+  `/api/auth/me` were verified on both releases in the disposable copy with a
+  temporary test password; the production password was untouched. The final
+  production login smoke still requires the owner-supplied
+  `config/pilot_password`.
 
 ## Separate sending qualification
 
@@ -102,9 +108,14 @@ not recipient delivery.
 
 ## Evidence and ledger
 
+- Preparation report:
+  `docs/acceptance/PRODUCTION_PACKAGE_PREPARATION_a96484324_2026-10-30.md`
 - Package manifest:
   `docs/acceptance/assignment-successor-package-2026-10-29-a96484324/assignment_successor_manifest.json`
-- Full isolated deployment transaction and restart/backup receipts:
+- Production package preparation (data handoff, memory export, config and
+  rollback qualification):
+  `docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/`
+- Isolated deployment-transaction and restart/backup receipts:
   `docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/`
 - Goal audit: `docs/acceptance/GOAL_COMPLETION_AUDIT_2026-10-29.md`
 - Durable ledger: `docs/acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md`

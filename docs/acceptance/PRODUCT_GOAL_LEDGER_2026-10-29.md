@@ -65,7 +65,12 @@ Deployment kit:
 `docs/deployment/assignment_successor_2026-10-29_a96484324/DEPLOYMENT_RUNBOOK.md`;
 approval request:
 `docs/deployment/assignment_successor_2026-10-29_a96484324/APPROVAL_REQUEST.md`.
-Deployment is **not authorized**. The one reviewable deployment decision is
+The production root now exists at
+`/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324`
+with the authoritative data/artifact handoff, required memory export and a real
+`901e5d773` previous link. Actual candidate-failure → rollback-start was
+verified in an isolated copy; authentication smoke awaits the owner pilot
+password. Deployment is **not authorized**. The one reviewable deployment decision is
 `docs/acceptance/DEPLOYMENT_DECISION_a96484324_2026-10-29.md`; the goal-by-goal
 audit is `docs/acceptance/GOAL_COMPLETION_AUDIT_2026-10-29.md`. Real-provider
 sending remains explicitly open, is refused before transport by this release,

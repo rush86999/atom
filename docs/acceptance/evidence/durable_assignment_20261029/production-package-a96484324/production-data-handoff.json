@@ -1,0 +1,59 @@
+{
+  "schema": "atom-production-data-handoff-2",
+  "created_at": "2026-10-30T01:00:08.167564+00:00",
+  "source_data_dir": "/Users/rushiparikh/projects/atom/backend/data",
+  "target_data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/data",
+  "database_sha256": "1d8726ec55353ae407e38deb09e61a3fb929045d0bb6d703f6366d1832bc9e48",
+  "row_counts": {
+    "users": 50,
+    "dataset_entries": 481,
+    "goal_runs": 557
+  },
+  "admin_password_hash_preserved": true,
+  "pilot_password_file_supplied": false,
+  "pilot_password_requirement": "The owner must supply config/pilot_password for the existing admin account. This handoff never generates or changes it.",
+  "artifact_files": 1205,
+  "artifact_files_checked": 4,
+  "artifact_hash_mismatches": [],
+  "secrets_env_copied": true,
+  "memory_included": false,
+  "rehearsal_fixture_used": false,
+  "schema_migration": {
+    "required": {
+      "dataset_entries.parquet_path": "updated"
+    },
+    "optional": {
+      "ingested_documents.file_path": "updated",
+      "accounting_documents.file_path": "updated"
+    },
+    "rewritten_rows": {
+      "dataset_entries.parquet_path": 457,
+      "ingested_documents.file_path": 0,
+      "accounting_documents.file_path": 0
+    },
+    "assignment_paths_changed": 12,
+    "historical_source_reference_count": 54,
+    "remaining_source_reference_counts": {
+      "dataset_entries.parquet_path": 0,
+      "ingested_documents.file_path": 0,
+      "accounting_documents.file_path": 0
+    }
+  },
+  "source_consistency": {
+    "database_snapshot": "sqlite_backup_api",
+    "source_opened_read_only": true,
+    "source_hash_before": "19e26d6f5cd7e57659f3eaff08e4bf50cc5bd5b16967b775fb79c3cd4278c0fe",
+    "source_hash_after": "19e26d6f5cd7e57659f3eaff08e4bf50cc5bd5b16967b775fb79c3cd4278c0fe",
+    "source_changed_during_copy": false,
+    "provisional": false,
+    "final_cutover_required": false,
+    "note": "If source_changed_during_copy is true, refresh from a quiescent source before activation; do not imply this copy contains writes made after the snapshot."
+  },
+  "source_mutated": false,
+  "source_readonly_checks": [
+    "SQLite source opened with URI mode=ro for backup and admin-hash read",
+    "no write connection to the source data directory",
+    "source hash/stat compared before and after the copy",
+    "target operational paths checked for remaining source references"
+  ]
+}

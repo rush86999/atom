@@ -34,6 +34,11 @@ evidence bound to an earlier source, not automatically a successor pass;
   fresh calculation/artifact, DeepSeek policy, HTTP 422 send denial, restart
   agreement and atomic receipt. The first attempt failed at the onboarding
   modal and is preserved.
+- Production root prepared with authoritative data/artifacts and required
+  memory; actual rollback to `901e5d773` verified in an isolated copy with the
+  same database/artifact world and zero binding mismatches. Normal login and
+  `/api/auth/me` were verified on both releases in the disposable copy; the
+  production pilot password is still owner-supplied.
 - No production deployment, real send, credential change or source writeback.
 
 ## Remaining original-goal limitations

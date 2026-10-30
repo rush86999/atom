@@ -168,6 +168,7 @@ def main() -> None:
         "ATOM_DATA_DIR": str(data),
         "DATABASE_URL": f"sqlite:///{data / 'atom.db'}",
         "LANCEDB_URI": str(data / "atom_memory"),
+        "LANCEDB_URI_BASE": str(data / "atom_memory"),
         "ATOM_OFFICE_DIR": str(data / "office"),
         "ATOM_ASSIGNMENT_OUTPUT_DIR": str(data / "office" / "assignments"),
         "ATOM_EMAIL_ATTACHMENT_DIR": str(data / "email_attachments"),

@@ -31,6 +31,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from release_identity import (  # noqa: E402
     EXPECTED_PRODUCT_TREE_SHA256,
     RELEASE_COMMIT,
+    ROLLBACK_COMMIT,
+    ROLLBACK_PRODUCT_TREE_SHA256,
+    ROLLBACK_TAG,
     TESTED_RUNTIME_COMMIT,
     atomic_write_json,
     load_identity,
@@ -190,6 +193,39 @@ def release_checks(root: Path, *, require_approval: bool, allow_rehearsal: bool,
         add("app.clean", False, "app missing")
         add("app.product_tree_matches", False, "app missing")
         add("source_manifest.hashes", False, "app missing")
+
+    # A production deployment must have a real, prepared rollback target.
+    # Rehearsal may be a first release, so this is production-only.
+    if not allow_rehearsal:
+        previous = root / "previous"
+        add("rollback.previous_present", previous.is_symlink(), str(previous))
+        if previous.is_symlink():
+            target = previous.resolve()
+            rollback_identity = {}
+            try:
+                rollback_identity = json.loads(
+                    (target / "RELEASE_IDENTITY.json").read_text())
+            except Exception as exc:  # noqa: BLE001
+                add("rollback.identity_readable", False, str(exc))
+            else:
+                add("rollback.identity_readable", True, str(target))
+            add("rollback.release_commit",
+                rollback_identity.get("release_commit") == ROLLBACK_COMMIT,
+                {"expected": ROLLBACK_COMMIT,
+                 "actual": rollback_identity.get("release_commit")})
+            add("rollback.release_tag",
+                rollback_identity.get("release_tag") == ROLLBACK_TAG,
+                rollback_identity.get("release_tag"))
+            add("rollback.product_tree_sha256",
+                rollback_identity.get("product_tree_sha256")
+                == ROLLBACK_PRODUCT_TREE_SHA256,
+                rollback_identity.get("product_tree_sha256"))
+            add("rollback.app_present", (target / "app").is_dir(), str(target / "app"))
+            add("rollback.frontend_present",
+                (target / "frontend" / "server.js").is_file(),
+                str(target / "frontend" / "server.js"))
+            add("rollback.distinct_from_current",
+                target != (root / "current").resolve(), str(target))
 
     env = runtime_env(root)
     audience = env.get("ATOM_DEPLOYMENT_AUDIENCE", "")
@@ -577,6 +613,84 @@ def cmd_status(args) -> int:
     return 0 if health.get("status") in ("healthy", "ok", "degraded") else 1
 
 
+def start_release_services(root: Path, release: Path, identity: dict,
+                           env: dict, *, mode: str) -> tuple[bool, dict]:
+    """Start one prepared release directly, without a second approval prompt.
+
+    Used only by rollback after the caller validated the target identity and
+    the deployment root already holds the approved candidate. The database
+    and artifact root are unchanged.
+    """
+    app = release / "app"
+    backend = app / "backend"
+    frontend = release / "frontend"
+    if not backend.is_dir() or not (frontend / "server.js").is_file():
+        return False, {"error": "rollback_release_incomplete",
+                       "release": str(release)}
+    api_port = int(env.get("API_PORT", identity.get("api_port", 8071)))
+    fe_port = int(env.get("FE_PORT", identity.get("frontend_port", 3130)))
+    python_bin = env.get("PYTHON_BIN", sys.executable)
+    logs = root / "logs"; logs.mkdir(parents=True, exist_ok=True)
+    run = root / "run"; run.mkdir(parents=True, exist_ok=True)
+    backend_log = open(logs / "backend.log", "ab", buffering=0)
+    backend_proc = subprocess.Popen(
+        [python_bin, "-m", "uvicorn", "main_api_app:app",
+         "--host", "127.0.0.1", "--port", str(api_port)],
+        cwd=backend, env=env, stdout=backend_log, stderr=subprocess.STDOUT,
+        start_new_session=True)
+    (run / "backend.pid").write_text(str(backend_proc.pid) + "\n")
+    frontend_log = open(logs / "frontend.log", "ab", buffering=0)
+    fe_env = dict(env)
+    fe_env.update({"PORT": str(fe_port), "HOSTNAME": "127.0.0.1"})
+    frontend_proc = subprocess.Popen(
+        ["node", "server.js"], cwd=frontend, env=fe_env,
+        stdout=frontend_log, stderr=subprocess.STDOUT, start_new_session=True)
+    (run / "frontend.pid").write_text(str(frontend_proc.pid) + "\n")
+    try:
+        health = wait_health(
+            f"http://127.0.0.1:{api_port}", identity["release_commit"])
+        api_listeners = listener_pids(api_port)
+        fe_listeners = listener_pids(fe_port)
+        if backend_proc.pid not in api_listeners:
+            raise RuntimeError(
+                f"backend pid {backend_proc.pid} is not listening on {api_port}")
+        if not fe_listeners:
+            raise RuntimeError(f"no frontend listener on {fe_port}")
+        (run / "backend.pid").write_text(str(api_listeners[0]) + "\n")
+        (run / "frontend.pid").write_text(str(fe_listeners[0]) + "\n")
+        receipt = {
+            "schema": "atom-assignment-release-startup-1",
+            "started_at": now(),
+            "mode": mode,
+            "release_commit": identity["release_commit"],
+            "release_tag": identity.get("release_tag"),
+            "api_port": api_port,
+            "frontend_port": fe_port,
+            "api_origin": f"http://127.0.0.1:{api_port}",
+            "backend_pid": api_listeners[0],
+            "frontend_pid": fe_listeners[0],
+            "health_identity": health.get("identity"),
+            "health_status": health.get("status"),
+            "audience": env.get("ATOM_DEPLOYMENT_AUDIENCE"),
+            "pilot_email": env.get("ATOM_PILOT_USER_EMAIL"),
+            "outbound_scope": identity.get("outbound_scope"),
+            "controlled_transport": env.get(
+                "ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT", "<unset>"),
+            "internal_paths": env.get(
+                "ATOM_ASSIGNMENT_ALLOW_INTERNAL_PATHS", "<unset>"),
+            "topology": identity.get("topology"),
+        }
+        atomic_write_json(run / "startup_receipt.json", receipt)
+        return True, receipt
+    except Exception as exc:  # noqa: BLE001 — rollback start failed loudly
+        for proc in (frontend_proc, backend_proc):
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            except Exception:
+                pass
+        return False, {"error": f"{type(exc).__name__}: {exc}"}
+
+
 def cmd_rollback(args) -> int:
     root = Path(args.root).resolve()
     previous = root / "previous"
@@ -584,6 +698,21 @@ def cmd_rollback(args) -> int:
         raise SystemExit("REFUSED: no previous release link")
     target = previous.resolve()
     previous_identity = json.loads((target / "RELEASE_IDENTITY.json").read_text())
+    allowed = {
+        ROLLBACK_COMMIT: ROLLBACK_PRODUCT_TREE_SHA256,
+        RELEASE_COMMIT: EXPECTED_PRODUCT_TREE_SHA256,
+    }
+    commit = str(previous_identity.get("release_commit") or "")
+    if commit not in allowed:
+        raise SystemExit(
+            f"REFUSED: rollback target commit {commit!r} is not the expected "
+            f"rollback {ROLLBACK_COMMIT} or candidate {RELEASE_COMMIT}")
+    if str(previous_identity.get("product_tree_sha256") or "") != allowed[commit]:
+        raise SystemExit(
+            "REFUSED: rollback target product tree does not match its commit")
+    if not (target / "app" / "backend").is_dir() or not (
+            target / "frontend" / "server.js").is_file():
+        raise SystemExit("REFUSED: rollback target release is incomplete")
     cmd_stop(args)
     current = root / "current"
     old = current.resolve()
@@ -592,31 +721,26 @@ def cmd_rollback(args) -> int:
     previous.unlink()
     previous.symlink_to(old)
     atomic_write_json(root / "RELEASE_IDENTITY.json", previous_identity)
-    # Run the TARGET release's kit so validation uses that release's commit
-    # and product-tree checksum. The current kit belongs to the newer release.
-    target_tool = target / "scripts" / "release_tool.py"
-    start_env = dict(os.environ)
-    start_env["RELEASE_PYTHON"] = sys.executable
-    proc = subprocess.run(
-        [sys.executable, str(target_tool), "--root", str(root),
-         "start", "--rehearsal"],
-        capture_output=True, text=True, env=start_env)
-    rc = proc.returncode
+    env = runtime_env(root)
+    ok, startup = start_release_services(
+        root, target, previous_identity, env, mode="rollback")
     receipt = {
         "schema": "atom-assignment-release-rollback-1",
         "at": now(),
         "from_release": str(old),
         "to_release": str(target),
-        "to_release_commit": previous_identity.get("release_commit"),
-        "start_rc": rc,
-        "start_stdout_tail": proc.stdout[-4000:],
-        "start_stderr_tail": proc.stderr[-4000:],
+        "to_release_commit": commit,
+        "start_ok": bool(ok),
+        "startup": startup,
+        "health_identity": startup.get("health_identity"),
         "database_restored": False,
         "user_data_preserved": True,
+        "data_dir": env.get("ATOM_DATA_DIR"),
+        "new_interactive_approval_required": False,
     }
     atomic_write_json(root / "run" / "rollback_receipt.json", receipt)
     print(json.dumps(receipt, indent=2))
-    return rc
+    return 0 if ok else 1
 
 
 def main() -> None:

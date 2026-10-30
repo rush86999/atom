@@ -1,0 +1,2 @@
+The first handoff (v1) was superseded because broad path replacement invalidated six operation binding digests. It was preserved, not deleted, at:
+/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/backups/production-data-v1-20261030T010000Z

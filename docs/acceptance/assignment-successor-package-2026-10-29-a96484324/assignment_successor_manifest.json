@@ -26,8 +26,8 @@
     "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
     "product_tree_matches_tested": true,
     "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
-    "deployment_kit_tree_sha256": "2582ae3421a3f25a02accda73712f4bf404d6e92c5bcd5a07ecf49138cea89c6",
-    "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
+    "deployment_kit_tree_sha256": "fe977ea866173fe7e8446427bf851ac8b7835ac96df151d456f51b5fe285b8d3",
+    "frontend_build_id": "9XAkf6w6bcGinpRtHpj8X",
     "frontend_api_origin": "http://127.0.0.1:8071",
     "api_port": 8071,
     "frontend_port": 3130,
@@ -36,9 +36,9 @@
     "outbound_scope": "draft_and_approval_only",
     "send_authorized": false,
     "topology": "one_worker_process_per_assignment",
-    "prepared_at": "2026-10-29T23:43:56.891207+00:00",
-    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
-    "seeded_rehearsal_data": true
+    "prepared_at": "2026-10-30T00:46:24.009048+00:00",
+    "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/data",
+    "seeded_rehearsal_data": false
   },
   "authorization_status": "deployment requested; not granted",
   "goal_3_status": "Demonstrated for tested mapping/confirmation/correction/restart workflows",
@@ -275,7 +275,33 @@
       "ok": true
     },
     "rollback_available_in_rehearsal_root": false,
-    "rollback_note": "First-release rehearsal root had no previous release link; automatic rollback was not exercised in this transaction. Kit controls cover the failure path; the prior full C6->C4->C6 rehearsal was on 901e5d773, not production."
+    "rollback_note": "First-release rehearsal root had no previous release link; automatic rollback was not exercised in this transaction. Kit controls cover the failure path; the prior full C6->C4->C6 rehearsal was on 901e5d773, not production.",
+    "isolated_rehearsal_identity": {
+      "schema": "atom-assignment-successor-release-1",
+      "release_tag": "assignment-successor-2026-10-29-a96484324",
+      "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+      "tested_runtime_commit": "a96484324",
+      "product_paths": [
+        "backend",
+        "frontend-nextjs"
+      ],
+      "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+      "product_tree_matches_tested": true,
+      "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+      "deployment_kit_tree_sha256": "2582ae3421a3f25a02accda73712f4bf404d6e92c5bcd5a07ecf49138cea89c6",
+      "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
+      "frontend_api_origin": "http://127.0.0.1:8071",
+      "api_port": 8071,
+      "frontend_port": 3130,
+      "audience": "single_user",
+      "pilot_email": "admin@example.com",
+      "outbound_scope": "draft_and_approval_only",
+      "send_authorized": false,
+      "topology": "one_worker_process_per_assignment",
+      "prepared_at": "2026-10-29T23:43:56.891207+00:00",
+      "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+      "seeded_rehearsal_data": true
+    }
   },
   "supported_claims": {
     "mapping_confirmation": true,
@@ -290,11 +316,16 @@
     "deployment_package_prepared": true,
     "deployment_authorized": false,
     "production_email_send": false,
-    "arbitrary_schema_understanding": false
+    "arbitrary_schema_understanding": false,
+    "production_data_handoff_prepared": true,
+    "required_memory_exported": true,
+    "actual_rollback_to_901_verified_in_isolation": true
   },
   "blockers": [
-    "Deployment authorization is not granted; the prepared approval record is in the deployment docs and config/APPROVED is intentionally absent.",
+    "Deployment authorization is not granted; config/APPROVED is absent.",
+    "The owner must supply config/pilot_password for the existing admin account; normal authentication smoke cannot run without it.",
     "Real-provider email sending remains open and unauthorized; the release refuses it before transport.",
+    "The 7.2 GiB atom_communications archive and 30 GiB default_shared workspace were not migrated; they remain preserved at the source for an explicit later migration.",
     "Automatic understanding of arbitrary schemas and every possible authority surface are not claimed."
   ],
   "evidence": {
@@ -314,10 +345,136 @@
       "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/evidence-manifest.json",
       "sha256": "7614bb08bfebd0632626bfb7bc9a46dc1468c10d78bbd25aa7e505e9cfd11cc2",
       "bytes": 19393
-    }
+    },
+    "production_package": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/evidence-manifest.json",
+      "sha256": "a6577385b57bdfd0f3c1bd438d9399650a5179c55000bc185d768c23365d04d9",
+      "bytes": 21298
+    },
+    "preparation_report": "docs/acceptance/PRODUCTION_PACKAGE_PREPARATION_a96484324_2026-10-30.md"
   },
   "no_deployment": true,
   "no_real_sending": true,
   "no_credential_change": true,
-  "no_source_writeback": true
+  "no_source_writeback": true,
+  "production_package": {
+    "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324",
+    "release_identity": {
+      "schema": "atom-assignment-successor-release-1",
+      "release_tag": "assignment-successor-2026-10-29-a96484324",
+      "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+      "tested_runtime_commit": "a96484324",
+      "product_paths": [
+        "backend",
+        "frontend-nextjs"
+      ],
+      "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+      "product_tree_matches_tested": true,
+      "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+      "deployment_kit_tree_sha256": "fe977ea866173fe7e8446427bf851ac8b7835ac96df151d456f51b5fe285b8d3",
+      "frontend_build_id": "9XAkf6w6bcGinpRtHpj8X",
+      "frontend_api_origin": "http://127.0.0.1:8071",
+      "api_port": 8071,
+      "frontend_port": 3130,
+      "audience": "single_user",
+      "pilot_email": "admin@example.com",
+      "outbound_scope": "draft_and_approval_only",
+      "send_authorized": false,
+      "topology": "one_worker_process_per_assignment",
+      "prepared_at": "2026-10-30T00:46:24.009048+00:00",
+      "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/data",
+      "seeded_rehearsal_data": false
+    },
+    "previous_identity": {
+      "schema": "atom-assignment-successor-release-1",
+      "release_tag": "assignment-successor-2026-10-29",
+      "release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+      "tested_runtime_commit": "001f93472",
+      "product_paths": [
+        "backend",
+        "frontend-nextjs"
+      ],
+      "product_tree_sha256": "92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c",
+      "product_tree_matches_tested": true,
+      "source_manifest_sha256": "d62d34537079e6f63d1efffc8165d3c4f6fe552304157ff5acf934574e4e97c2",
+      "deployment_kit_tree_sha256": "8e98d96551ccff59a0f4187f895a368fe3af54ba2a4858f41760cc3b6aa828f4",
+      "frontend_build_id": "QqBNj-ytvaFAwwCWX2M5F",
+      "frontend_api_origin": "http://127.0.0.1:8071",
+      "api_port": 8071,
+      "frontend_port": 3130,
+      "audience": "single_user",
+      "pilot_email": "admin@example.com",
+      "outbound_scope": "draft_and_approval_only",
+      "send_authorized": false,
+      "topology": "one_worker_process_per_assignment",
+      "prepared_at": "2026-10-29T16:58:20.973885+00:00",
+      "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data",
+      "seeded_rehearsal_data": true
+    },
+    "evidence_manifest": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/evidence-manifest.json",
+      "sha256": "2c48aed4bf465c1bba51d74a67a0f975222af2f1b5397ae8028e2914c80ea5ba",
+      "bytes": 22238
+    },
+    "data_handoff": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/production-data-handoff.json",
+      "sha256": "8b2596ef9a406f639f11c45e175eabf339bb0a53180f53c772f1b018812b8fd5",
+      "bytes": 2420
+    },
+    "memory_handoff": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/memory-handoff.json",
+      "sha256": "5ceaba0e37a9c0224118a4e56018aa079cba016171c21703b08aafcdcddd5b24",
+      "bytes": 3111
+    },
+    "handoff_verification": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/production-handoff-verification.json",
+      "sha256": "4967048465c2e8ce02447f123531da9c8d2b55c1f816124f4426e9d0d44fb7d9",
+      "bytes": 2912
+    },
+    "config_compatibility": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/config-compatibility.json",
+      "sha256": "909bb783ca8eecf27dc365db8ee6a2c0b64b59cc192fe86b3ba6a20e223db889",
+      "bytes": 1170
+    },
+    "preflight_no_approval": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/preflight-no-approval.json",
+      "sha256": "31100f17a264f3f08a5f4409eb0997ea5fa9f98ef20c5bab6077a926fd6f0561",
+      "bytes": 8367
+    },
+    "rollback_receipt": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-receipt.json",
+      "sha256": "f78277831e8f4681c098c45bb54858ec33fc72aa25c75e58348ca67ea7acab14",
+      "bytes": 3475
+    },
+    "rollback_before": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-before.json",
+      "sha256": "ca1a3981fac560788df69ac50fc95a3e338d8e36798a1ea5adb0558cdc34a270",
+      "bytes": 629
+    },
+    "rollback_after_901": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-after-901.json",
+      "sha256": "ca1a3981fac560788df69ac50fc95a3e338d8e36798a1ea5adb0558cdc34a270",
+      "bytes": 629
+    },
+    "memory_before_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/memory-before-restart.json",
+      "sha256": "534e52b727ac5fbeddf1a23a4b42dea0559c1c75d59432c6c521aa7a3ebbb640",
+      "bytes": 661
+    },
+    "memory_after_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/memory-after-restart.json",
+      "sha256": "534e52b727ac5fbeddf1a23a4b42dea0559c1c75d59432c6c521aa7a3ebbb640",
+      "bytes": 661
+    },
+    "rollback_auth_901": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-auth-901.json",
+      "sha256": "fdd725ff13cd93a4fe821642b756367b9879ee7415879d47f4b95868cf11c0bb",
+      "bytes": 161
+    },
+    "rollback_auth_candidate": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-auth-candidate.json",
+      "sha256": "bc83dba672f105a95f00bb520c680f5a26766ca665af7f6879d030ea610fe9b6",
+      "bytes": 161
+    }
+  }
 }

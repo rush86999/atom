@@ -1,0 +1,527 @@
+{
+  "schema": "atom-production-package-preparation-1",
+  "created_at": "2026-10-30T01:06:55.346889+00:00",
+  "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324",
+  "release_identity": {
+    "schema": "atom-assignment-successor-release-1",
+    "release_tag": "assignment-successor-2026-10-29-a96484324",
+    "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "tested_runtime_commit": "a96484324",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+    "product_tree_matches_tested": true,
+    "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+    "deployment_kit_tree_sha256": "fe977ea866173fe7e8446427bf851ac8b7835ac96df151d456f51b5fe285b8d3",
+    "frontend_build_id": "9XAkf6w6bcGinpRtHpj8X",
+    "frontend_api_origin": "http://127.0.0.1:8071",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "prepared_at": "2026-10-30T00:46:24.009048+00:00",
+    "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/data",
+    "seeded_rehearsal_data": false
+  },
+  "previous_identity": {
+    "schema": "atom-assignment-successor-release-1",
+    "release_tag": "assignment-successor-2026-10-29",
+    "release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "tested_runtime_commit": "001f93472",
+    "product_paths": [
+      "backend",
+      "frontend-nextjs"
+    ],
+    "product_tree_sha256": "92d794b20400aa013019a602fc6dccfa2c3b53240ff63905dc40d80340d3937c",
+    "product_tree_matches_tested": true,
+    "source_manifest_sha256": "d62d34537079e6f63d1efffc8165d3c4f6fe552304157ff5acf934574e4e97c2",
+    "deployment_kit_tree_sha256": "8e98d96551ccff59a0f4187f895a368fe3af54ba2a4858f41760cc3b6aa828f4",
+    "frontend_build_id": "QqBNj-ytvaFAwwCWX2M5F",
+    "frontend_api_origin": "http://127.0.0.1:8071",
+    "api_port": 8071,
+    "frontend_port": 3130,
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "outbound_scope": "draft_and_approval_only",
+    "send_authorized": false,
+    "topology": "one_worker_process_per_assignment",
+    "prepared_at": "2026-10-29T16:58:20.973885+00:00",
+    "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29/data",
+    "seeded_rehearsal_data": true
+  },
+  "data_handoff": {
+    "schema": "atom-production-data-handoff-2",
+    "created_at": "2026-10-30T01:00:08.167564+00:00",
+    "source_data_dir": "/Users/rushiparikh/projects/atom/backend/data",
+    "target_data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/data",
+    "database_sha256": "1d8726ec55353ae407e38deb09e61a3fb929045d0bb6d703f6366d1832bc9e48",
+    "row_counts": {
+      "users": 50,
+      "dataset_entries": 481,
+      "goal_runs": 557
+    },
+    "admin_password_hash_preserved": true,
+    "pilot_password_file_supplied": false,
+    "pilot_password_requirement": "The owner must supply config/pilot_password for the existing admin account. This handoff never generates or changes it.",
+    "artifact_files": 1205,
+    "artifact_files_checked": 4,
+    "artifact_hash_mismatches": [],
+    "secrets_env_copied": true,
+    "memory_included": false,
+    "rehearsal_fixture_used": false,
+    "schema_migration": {
+      "required": {
+        "dataset_entries.parquet_path": "updated"
+      },
+      "optional": {
+        "ingested_documents.file_path": "updated",
+        "accounting_documents.file_path": "updated"
+      },
+      "rewritten_rows": {
+        "dataset_entries.parquet_path": 457,
+        "ingested_documents.file_path": 0,
+        "accounting_documents.file_path": 0
+      },
+      "assignment_paths_changed": 12,
+      "historical_source_reference_count": 54,
+      "remaining_source_reference_counts": {
+        "dataset_entries.parquet_path": 0,
+        "ingested_documents.file_path": 0,
+        "accounting_documents.file_path": 0
+      }
+    },
+    "source_consistency": {
+      "database_snapshot": "sqlite_backup_api",
+      "source_opened_read_only": true,
+      "source_hash_before": "19e26d6f5cd7e57659f3eaff08e4bf50cc5bd5b16967b775fb79c3cd4278c0fe",
+      "source_hash_after": "19e26d6f5cd7e57659f3eaff08e4bf50cc5bd5b16967b775fb79c3cd4278c0fe",
+      "source_changed_during_copy": false,
+      "provisional": false,
+      "final_cutover_required": false,
+      "note": "If source_changed_during_copy is true, refresh from a quiescent source before activation; do not imply this copy contains writes made after the snapshot."
+    },
+    "source_mutated": false,
+    "source_readonly_checks": [
+      "SQLite source opened with URI mode=ro for backup and admin-hash read",
+      "no write connection to the source data directory",
+      "source hash/stat compared before and after the copy",
+      "target operational paths checked for remaining source references"
+    ]
+  },
+  "memory_handoff": {
+    "schema": "atom-memory-handoff-1",
+    "created_at": "2026-10-30T01:00:37.406254+00:00",
+    "source_memory_dir": "/Users/rushiparikh/projects/atom/backend/data/atom_memory",
+    "target_memory_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/data/atom_memory",
+    "workspace_migrated": "default",
+    "strategy": "read-only-logical-export-required-tables",
+    "workspace_tables": {
+      "documents": {
+        "version": 26802,
+        "rows": 44908
+      },
+      "business_facts": {
+        "version": 31452,
+        "rows": 31415
+      },
+      "agent_experience": {
+        "version": 290,
+        "rows": 289
+      },
+      "chat_messages": {
+        "version": 1727,
+        "rows": 1726
+      },
+      "ingestion_metadata": {
+        "version": 20313,
+        "rows": 4
+      },
+      "integration_zoho": {
+        "version": 7744,
+        "rows": 2331
+      },
+      "formula_cards": {
+        "version": 1,
+        "rows": 0
+      }
+    },
+    "root_tables": {
+      "documents": {
+        "version": 45,
+        "rows": 45
+      },
+      "chat_messages": {
+        "version": 37,
+        "rows": 26
+      },
+      "atom_communications": {
+        "version": 18,
+        "rows": 7
+      },
+      "ingestion_metadata": {
+        "version": 18,
+        "rows": 5
+      },
+      "turn_facts": {
+        "version": 12,
+        "rows": 11
+      },
+      "exchange_examples": {
+        "version": 4,
+        "rows": 2
+      },
+      "knowledge_graph": {
+        "version": 1,
+        "rows": 0
+      }
+    },
+    "omitted": {
+      "workspace/atom_communications": {
+        "bytes": 7762174979,
+        "reason": "large communication archive; not required for document/assignment retrieval"
+      },
+      "workspace/default_shared": {
+        "bytes": 31680309480,
+        "reason": "legacy shared workspace not used by the declared admin workspace"
+      }
+    },
+    "required_bytes": 921085831,
+    "free_bytes_before": 50741317632,
+    "free_bytes_after_estimate": 49820231801,
+    "min_free_gib": 20.0,
+    "active_writer_processes_seen": [
+      "12625 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8082",
+      "19046 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 75",
+      "30289 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8084",
+      "61581 /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/Resources/Python.app/Contents/MacOS/Python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8107 --timeout-keep-alive 75",
+      "72728 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8105 --timeout-keep-alive 300",
+      "93252 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8121"
+    ],
+    "source_access": "read-only LanceDB table export at recorded versions",
+    "source_mutated": false,
+    "indexes": "Data rows are preserved. LanceDB ANN/FTS indexes are rebuildable from the exported rows and are not copied as mutable index files."
+  },
+  "handoff_verification": {
+    "schema": "atom-production-handoff-verification-1",
+    "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324",
+    "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/data",
+    "row_counts": {
+      "users": 50,
+      "dataset_entries": 481,
+      "goal_runs": 557
+    },
+    "admin_password_hash_present": true,
+    "operations_checked": 16305,
+    "operation_binding_mismatches": 0,
+    "artifact_checks": 4,
+    "artifact_checks_ok": true,
+    "dataset_paths_checked": 481,
+    "dataset_paths_ok": true,
+    "referenced_dataset_names": 2,
+    "referenced_dataset_paths_ok": true,
+    "pre_existing_missing_dataset_paths": 21,
+    "pre_existing_missing_dataset_samples": [
+      "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/3bd033eef729/outlook_canada_trigger_report_cml_usa_15_sept_26_to_15_sept_26__visitor_list.parquet",
+      "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/1d31dda11985/outlook_260827_2026_brennan_machinery_inc__premium.parquet",
+      "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/1d31dda11985/outlook_260827_2026_brennan_machinery_inc__cgl.parquet",
+      "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/48dc003ddf1a/outlook_business_incometax_july_26_1___business_income_tax_25_26.parquet",
+      "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/48dc003ddf1a/outlook_business_incometax_july_26_1___july_26_oct25.parquet"
+    ],
+    "operational_source_references": 0,
+    "historical_source_reference_count": 42,
+    "representative_assignments": {
+      "completed": {
+        "run_id": "a8b59e81-6a8f-46a9-aa88-e42b4b44ee1d",
+        "assignment_id": "asg-e045bfd791f74a57",
+        "status": "completed",
+        "plan_revision": 1,
+        "deliverables": 2,
+        "mappings": 0
+      },
+      "waiting": null
+    },
+    "memory_handoff": {
+      "manifest": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/run/memory_handoff.json",
+      "workspace_tables": {
+        "documents": {
+          "version": 26802,
+          "rows": 44908
+        },
+        "business_facts": {
+          "version": 31452,
+          "rows": 31415
+        },
+        "agent_experience": {
+          "version": 290,
+          "rows": 289
+        },
+        "chat_messages": {
+          "version": 1727,
+          "rows": 1726
+        },
+        "ingestion_metadata": {
+          "version": 20313,
+          "rows": 4
+        },
+        "integration_zoho": {
+          "version": 7744,
+          "rows": 2331
+        },
+        "formula_cards": {
+          "version": 1,
+          "rows": 0
+        }
+      },
+      "strategy": "read-only-logical-export-required-tables",
+      "ok": true
+    },
+    "authentication_smoke": "blocked_missing_pilot_password",
+    "authentication_note": "No config/pilot_password is present. The admin password hash was preserved; actual login must be run after the owner supplies the pilot password file."
+  },
+  "config_compatibility": {
+    "schema": "atom-production-config-compatibility-1",
+    "secrets_env": {
+      "exists": true,
+      "mode": "0o600",
+      "key_names": [
+        "MICROSOFT_CLIENT_ID",
+        "MICROSOFT_CLIENT_SECRET",
+        "MICROSOFT_REDIRECT_URI",
+        "MICROSOFT_TENANT_ID"
+      ]
+    },
+    "byok_files": {
+      "byok_config.json": {
+        "exists": true,
+        "mode": "0o600"
+      },
+      "byok_keys.json": {
+        "exists": true,
+        "mode": "0o600"
+      },
+      "byok_encryption_key": {
+        "exists": true,
+        "mode": "0o600"
+      }
+    },
+    "oauth_token_record_present": true,
+    "oauth_token_decrypts": true,
+    "oauth_token_error": null,
+    "provider_policy": "{\"mode\":\"selected\",\"allowed_providers\":[\"deepseek\"],\"preferred\":{\"provider\":\"deepseek\",\"model\":\"deepseek-flash\"}}",
+    "audience": "single_user",
+    "pilot_email": "admin@example.com",
+    "send_disabled": "1",
+    "live_send_allowed": "0",
+    "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/data",
+    "lancedb_uri_base": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324/data/atom_memory",
+    "secret_values_included": false
+  },
+  "rollback_receipt": {
+    "schema": "atom-assignment-release-rollback-1",
+    "at": "2026-10-30T01:02:57.950371+00:00",
+    "from_release": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/releases/a9648432495f4f75f59bf4667cac3cb997d7f229",
+    "to_release": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/releases/901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "to_release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+    "start_ok": true,
+    "startup": {
+      "schema": "atom-assignment-release-startup-1",
+      "started_at": "2026-10-30T01:02:57.949846+00:00",
+      "mode": "rollback",
+      "release_commit": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+      "release_tag": "assignment-successor-2026-10-29",
+      "api_port": 8071,
+      "frontend_port": 3130,
+      "api_origin": "http://127.0.0.1:8071",
+      "backend_pid": 59754,
+      "frontend_pid": 59755,
+      "health_identity": {
+        "pid": 59754,
+        "started_at": "2026-10-30T01:02:53.296963+00:00",
+        "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/releases/901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0/app/backend",
+        "git_commit": "901e5d77348e",
+        "source_id": "901e5d77348e",
+        "instance_id": "901e5d77348e.59754.1793322177",
+        "revision": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+        "dirty": false,
+        "dirty_digest": "e3b0c44298fc",
+        "dirty_paths": [],
+        "untracked_paths": [],
+        "captured_at": "2026-10-30T01:02:57.608419+00:00",
+        "port": 8071,
+        "error": null,
+        "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data/atom.db",
+        "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data/byok_keys.json"
+      },
+      "health_status": "healthy",
+      "audience": "single_user",
+      "pilot_email": "admin@example.com",
+      "outbound_scope": "draft_and_approval_only",
+      "controlled_transport": "<unset>",
+      "internal_paths": "0",
+      "topology": "one_worker_process_per_assignment"
+    },
+    "health_identity": {
+      "pid": 59754,
+      "started_at": "2026-10-30T01:02:53.296963+00:00",
+      "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/releases/901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0/app/backend",
+      "git_commit": "901e5d77348e",
+      "source_id": "901e5d77348e",
+      "instance_id": "901e5d77348e.59754.1793322177",
+      "revision": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-10-30T01:02:57.608419+00:00",
+      "port": 8071,
+      "error": null,
+      "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data/atom.db",
+      "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data/byok_keys.json"
+    },
+    "database_restored": false,
+    "user_data_preserved": true,
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data",
+    "new_interactive_approval_required": false
+  },
+  "rollback_before": {
+    "counts": {
+      "users": 50,
+      "dataset_entries": 481,
+      "goal_runs": 557
+    },
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-3d906339cbe3/harsle-live-price-total-6c095beb.docx",
+    "artifact_sha256": "e59d99141654c8a30047c80e62b19c57d946dfb5fb027d59f236a04e783d19f5",
+    "operations": 16305,
+    "binding_mismatches": 0,
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data"
+  },
+  "rollback_after_901": {
+    "counts": {
+      "users": 50,
+      "dataset_entries": 481,
+      "goal_runs": 557
+    },
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-3d906339cbe3/harsle-live-price-total-6c095beb.docx",
+    "artifact_sha256": "e59d99141654c8a30047c80e62b19c57d946dfb5fb027d59f236a04e783d19f5",
+    "operations": 16305,
+    "binding_mismatches": 0,
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data"
+  },
+  "memory_before_restart": {
+    "teaching_agent_id": "9837ec71-4f1b-41db-b014-119862362d44",
+    "teaching_lesson_id": null,
+    "teaching_topic": "inventory check",
+    "teaching_text": "do not use pdf sources for inventory check",
+    "teaching_mapping_count": 0,
+    "teaching_mapping_concepts": [],
+    "document_count_listed": 50,
+    "document_with_text_found": true,
+    "document_id": "file_1787509191.498114",
+    "document_source": null,
+    "document_text_prefix": "--- Sheet: Sheet1 ---\n     Item  Qty\n0  Widget   10",
+    "document_detail_retrieved": true,
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data"
+  },
+  "memory_after_restart": {
+    "teaching_agent_id": "9837ec71-4f1b-41db-b014-119862362d44",
+    "teaching_lesson_id": null,
+    "teaching_topic": "inventory check",
+    "teaching_text": "do not use pdf sources for inventory check",
+    "teaching_mapping_count": 0,
+    "teaching_mapping_concepts": [],
+    "document_count_listed": 50,
+    "document_with_text_found": true,
+    "document_id": "file_1787509191.498114",
+    "document_source": null,
+    "document_text_prefix": "--- Sheet: Sheet1 ---\n     Item  Qty\n0  Widget   10",
+    "document_detail_retrieved": true,
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rollback-rehearsal/data"
+  },
+  "files": {
+    "RELEASE_IDENTITY.json": {
+      "sha256": "9877eec213eb883c085ad0cdd11c50b04bee78ae68e245374090daa1807f8597",
+      "bytes": 1143
+    },
+    "config-compatibility.json": {
+      "sha256": "909bb783ca8eecf27dc365db8ee6a2c0b64b59cc192fe86b3ba6a20e223db889",
+      "bytes": 1170
+    },
+    "memory-after-restart.json": {
+      "sha256": "534e52b727ac5fbeddf1a23a4b42dea0559c1c75d59432c6c521aa7a3ebbb640",
+      "bytes": 661
+    },
+    "memory-before-restart.json": {
+      "sha256": "534e52b727ac5fbeddf1a23a4b42dea0559c1c75d59432c6c521aa7a3ebbb640",
+      "bytes": 661
+    },
+    "memory-handoff.json": {
+      "sha256": "5ceaba0e37a9c0224118a4e56018aa079cba016171c21703b08aafcdcddd5b24",
+      "bytes": 3111
+    },
+    "preflight-no-approval.json": {
+      "sha256": "31100f17a264f3f08a5f4409eb0997ea5fa9f98ef20c5bab6077a926fd6f0561",
+      "bytes": 8367
+    },
+    "previous-identity.json": {
+      "sha256": "945ac34c867e4dd00e6d5e015cad2e3e8edd75fc41dab2b9f59f886c32657ae5",
+      "bytes": 1122
+    },
+    "production-data-handoff.json": {
+      "sha256": "8b2596ef9a406f639f11c45e175eabf339bb0a53180f53c772f1b018812b8fd5",
+      "bytes": 2420
+    },
+    "production-handoff-verification.json": {
+      "sha256": "4967048465c2e8ce02447f123531da9c8d2b55c1f816124f4426e9d0d44fb7d9",
+      "bytes": 2912
+    },
+    "rollback-after-901.json": {
+      "sha256": "ca1a3981fac560788df69ac50fc95a3e338d8e36798a1ea5adb0558cdc34a270",
+      "bytes": 629
+    },
+    "rollback-before.json": {
+      "sha256": "ca1a3981fac560788df69ac50fc95a3e338d8e36798a1ea5adb0558cdc34a270",
+      "bytes": 629
+    },
+    "rollback-receipt.json": {
+      "sha256": "f78277831e8f4681c098c45bb54858ec33fc72aa25c75e58348ca67ea7acab14",
+      "bytes": 3475
+    },
+    "space.txt": {
+      "sha256": "56e30ababe4751fb22f33a18e275f4cf5ff162d809e6c10363f579123a4224cd",
+      "bytes": 164
+    },
+    "superseded-handoff-note.txt": {
+      "sha256": "da51e8abf05c64a4668f510d456f3aeaf33dd9c2d5172db8d6c0028da3bf081c",
+      "bytes": 278
+    },
+    "rollback-auth-901.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-auth-901.json",
+      "sha256": "fdd725ff13cd93a4fe821642b756367b9879ee7415879d47f4b95868cf11c0bb",
+      "bytes": 161
+    },
+    "rollback-auth-candidate.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/rollback-auth-candidate.json",
+      "sha256": "bc83dba672f105a95f00bb520c680f5a26766ca665af7f6879d030ea610fe9b6",
+      "bytes": 161
+    }
+  },
+  "rollback_auth_901": {
+    "login": true,
+    "me_status": 200,
+    "email": "admin@example.com",
+    "workspace_id": null,
+    "health_revision": "901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0"
+  },
+  "rollback_auth_candidate": {
+    "login": true,
+    "me_status": 200,
+    "email": "admin@example.com",
+    "workspace_id": null,
+    "health_revision": "a9648432495f4f75f59bf4667cac3cb997d7f229"
+  }
+}

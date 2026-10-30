@@ -1,8 +1,10 @@
 # Assignment successor release package — a96484324
 
-Status: **frozen successor candidate; four mapping browser flows passed; 98
-mapping regressions and 508 release-affected regressions passed; full isolated
-deployment transaction passed; deployment requested, not authorized.** The previous frozen release `901e5d773` and all prior evidence
+Status: **frozen successor candidate; production root prepared with data and
+required memory; rollback target prepared and actually started in isolation;
+four mapping browser flows and 508 release-affected regressions passed;
+deployment requested, not authorized. `config/APPROVED` and
+`config/pilot_password` are still absent.** The previous frozen release `901e5d773` and all prior evidence
 remain unchanged. Nothing was deployed, sent through a real provider, or written
 back to a source.
 
@@ -76,6 +78,18 @@ Receipts:
 `fresh-before/after-restart.json`, `failed-attempt.json`, `evidence-manifest.json`).
 Component-level mapping/fresh receipts remain under
 `release-integration-a96484324-final/`.
+
+## Production root and memory handoff
+
+The prepared production root now exists at
+`/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324`.
+It contains the exact product release, the real `901e5d773` rollback release,
+the authoritative SQLite/artifact handoff, and a read-only logical export of the
+required LanceDB tables. The 7.2 GiB communication archive and 30 GiB legacy
+`default_shared` workspace remain at the source and are explicitly omitted.
+
+Preparation report:
+`docs/acceptance/PRODUCTION_PACKAGE_PREPARATION_a96484324_2026-10-30.md`.
 
 ## Release and rollback package
 
