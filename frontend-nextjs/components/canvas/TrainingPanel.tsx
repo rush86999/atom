@@ -104,6 +104,23 @@ export function TrainingPanel({
   const [lesson, setLesson] = useState("");
   const [topic, setTopic] = useState("");
   const [teachBusy, setTeachBusy] = useState(false);
+  // Optional structured scope/format guidance. The lesson text carries the
+  // method; these fields make applicability and output formatting explicit
+  // instead of relying on prose the renderer cannot verify.
+  const [appliesTo, setAppliesTo] = useState<string[]>([]);
+  const [formatFont, setFormatFont] = useState("");
+  const [formatSize, setFormatSize] = useState("");
+  const [formatHeadings, setFormatHeadings] = useState("");
+  const [formatColumns, setFormatColumns] = useState("");
+  const [formatGreeting, setFormatGreeting] = useState("");
+  const [formatSignature, setFormatSignature] = useState("");
+  const [formatSubjectPrefix, setFormatSubjectPrefix] = useState("");
+  const [teachContext, setTeachContext] = useState("");
+  const [taskScope, setTaskScope] = useState("");
+  const [recipientCondition, setRecipientCondition] = useState("");
+  const [qualification, setQualification] = useState("");
+  const [effectiveFrom, setEffectiveFrom] = useState("");
+  const [effectiveTo, setEffectiveTo] = useState("");
   // P2: ALSO capture the lesson as a structured playbook draft.
   const [asPlaybook, setAsPlaybook] = useState(false);
   // Bumped when a teach actually drafted a rule — PlaybookSection re-reads so
@@ -222,9 +239,43 @@ export function TrainingPanel({
     try {
       // canvasId rides along so the lesson stores WHAT it was taught on —
       // retrieval later shows the agent the canvas context, not just the rule.
+      const formatSpec: Record<string, unknown> = {};
+      if (formatFont.trim()) formatSpec.font_name = formatFont.trim();
+      if (formatSize.trim()) formatSpec.font_size = Number(formatSize.trim());
+      if (formatHeadings.trim()) {
+        formatSpec.heading_order = formatHeadings
+          .split(",").map((item) => item.trim()).filter(Boolean);
+      }
+      if (formatColumns.trim()) {
+        formatSpec.table_columns = formatColumns
+          .split(",").map((item) => item.trim()).filter(Boolean);
+      }
+      if (formatGreeting.trim()) formatSpec.greeting = formatGreeting.trim();
+      if (formatSignature.trim()) formatSpec.signature = formatSignature.trim();
+      if (formatSubjectPrefix.trim()) {
+        formatSpec.subject_prefix = formatSubjectPrefix.trim();
+      }
+      const conditions: Record<string, string> = {};
+      if (taskScope.trim()) conditions.task_scope = taskScope.trim();
+      if (recipientCondition.trim()) {
+        conditions.recipient = recipientCondition.trim();
+      }
+      const context: Record<string, string> = {};
+      if (teachContext.trim()) context.business_category = teachContext.trim();
+      if (qualification.trim()) context.qualification = qualification.trim();
+      // A task-scoped lesson is more specific than a general lesson. Keeping
+      // the scope in context (as well as the condition) lets the resolver
+      // override the general rule instead of treating the two as a tie.
+      if (taskScope.trim()) context.task_scope = taskScope.trim();
+      if (effectiveFrom.trim()) context.effective_from = effectiveFrom.trim();
+      if (effectiveTo.trim()) context.effective_to = effectiveTo.trim();
       const result = await teachAgent(agent.id, lesson.trim(), topic.trim() || undefined, canvasId, {
         asPlaybook,
         playbookCanvasType: asPlaybook ? canvasType : undefined,
+        appliesTo: appliesTo.length ? appliesTo : undefined,
+        formatSpec: Object.keys(formatSpec).length ? formatSpec : undefined,
+        conditions: Object.keys(conditions).length ? conditions : undefined,
+        context: Object.keys(context).length ? context : undefined,
       });
       const status = String((result as Record<string, unknown>).status ?? "ok");
       const draftedPlaybook = Boolean((result as Record<string, unknown>).playbook_id);
@@ -239,6 +290,20 @@ export function TrainingPanel({
       );
       setLesson("");
       setTopic("");
+      setAppliesTo([]);
+      setFormatFont("");
+      setFormatSize("");
+      setFormatHeadings("");
+      setFormatColumns("");
+      setFormatGreeting("");
+      setFormatSignature("");
+      setFormatSubjectPrefix("");
+      setTeachContext("");
+      setTaskScope("");
+      setRecipientCondition("");
+      setQualification("");
+      setEffectiveFrom("");
+      setEffectiveTo("");
       setAsPlaybook(false);
       // The journal below should show the point just taught — refresh.
       if (status === "ok") await load();
@@ -729,6 +794,149 @@ export function TrainingPanel({
                 {teachBusy ? "Teaching…" : "Teach"}
               </Button>
             </div>
+            <details className="rounded border bg-muted/20 p-1.5" data-testid="teach-structured-fields">
+              <summary className="cursor-pointer text-[10px] font-medium">
+                Applies to and output format (optional)
+              </summary>
+              <div className="mt-1 space-y-1.5">
+                <div className="flex flex-wrap gap-2 text-[10px]">
+                  {[
+                    ["document", "Document"],
+                    ["presentation", "Presentation"],
+                    ["email", "Email"],
+                    ["spreadsheet", "Spreadsheet"],
+                  ].map(([value, label]) => (
+                    <label key={value} className="flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={appliesTo.includes(value)}
+                        onChange={(e) =>
+                          setAppliesTo((current) =>
+                            e.target.checked
+                              ? [...current, value]
+                              : current.filter((item) => item !== value)
+                          )
+                        }
+                        data-testid={`teach-applies-${value}`}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  <Input
+                    value={formatFont}
+                    onChange={(e) => setFormatFont(e.target.value)}
+                    placeholder="Font (for example Arial)"
+                    className="h-8 text-xs"
+                    aria-label="Taught font"
+                    data-testid="teach-format-font"
+                  />
+                  <Input
+                    value={formatSize}
+                    onChange={(e) => setFormatSize(e.target.value)}
+                    placeholder="Size (for example 11)"
+                    className="h-8 text-xs"
+                    aria-label="Taught font size"
+                    data-testid="teach-format-size"
+                  />
+                </div>
+                <Input
+                  value={formatHeadings}
+                  onChange={(e) => setFormatHeadings(e.target.value)}
+                  placeholder="Heading order, comma separated"
+                  className="h-8 text-xs"
+                  aria-label="Taught heading order"
+                  data-testid="teach-format-headings"
+                />
+                <Input
+                  value={formatColumns}
+                  onChange={(e) => setFormatColumns(e.target.value)}
+                  placeholder="Table columns, comma separated"
+                  className="h-8 text-xs"
+                  aria-label="Taught table columns"
+                  data-testid="teach-format-columns"
+                />
+                <Input
+                  value={teachContext}
+                  onChange={(e) => setTeachContext(e.target.value)}
+                  placeholder="Business context (for example sales)"
+                  className="h-8 text-xs"
+                  aria-label="Taught business context"
+                  data-testid="teach-context"
+                />
+                <div className="grid grid-cols-2 gap-1">
+                  <Input
+                    value={qualification}
+                    onChange={(e) => setQualification(e.target.value)}
+                    placeholder="Required qualification"
+                    className="h-8 text-xs"
+                    aria-label="Required qualification"
+                    data-testid="teach-qualification"
+                  />
+                  <Input
+                    value={taskScope}
+                    onChange={(e) => setTaskScope(e.target.value)}
+                    placeholder="Exception task scope"
+                    className="h-8 text-xs"
+                    aria-label="Exception task scope"
+                    data-testid="teach-task-scope"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  <Input
+                    value={effectiveFrom}
+                    onChange={(e) => setEffectiveFrom(e.target.value)}
+                    placeholder="Effective from (ISO date)"
+                    className="h-8 text-xs"
+                    aria-label="Effective from"
+                    data-testid="teach-effective-from"
+                  />
+                  <Input
+                    value={effectiveTo}
+                    onChange={(e) => setEffectiveTo(e.target.value)}
+                    placeholder="Effective to (ISO date)"
+                    className="h-8 text-xs"
+                    aria-label="Effective to"
+                    data-testid="teach-effective-to"
+                  />
+                </div>
+                <Input
+                  value={recipientCondition}
+                  onChange={(e) => setRecipientCondition(e.target.value)}
+                  placeholder="Recipient exception (email address or @domain)"
+                  className="h-8 text-xs"
+                  aria-label="Recipient condition"
+                  data-testid="teach-recipient-condition"
+                />
+                <div className="grid grid-cols-2 gap-1">
+                  <Input
+                    value={formatGreeting}
+                    onChange={(e) => setFormatGreeting(e.target.value)}
+                    placeholder="Email greeting"
+                    className="h-8 text-xs"
+                    aria-label="Email greeting"
+                    data-testid="teach-format-greeting"
+                  />
+                  <Input
+                    value={formatSignature}
+                    onChange={(e) => setFormatSignature(e.target.value)}
+                    placeholder="Email signature"
+                    className="h-8 text-xs"
+                    aria-label="Email signature"
+                    data-testid="teach-format-signature"
+                  />
+                </div>
+                <Input
+                  value={formatSubjectPrefix}
+                  onChange={(e) => setFormatSubjectPrefix(e.target.value)}
+                  placeholder="Email subject prefix"
+                  className="h-8 text-xs"
+                  aria-label="Email subject prefix"
+                  data-testid="teach-format-subject-prefix"
+                />
+              </div>
+            </details>
             <label
               className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
               data-testid="teach-as-playbook-toggle"

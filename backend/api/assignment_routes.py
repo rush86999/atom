@@ -7,11 +7,15 @@ run's own workspace binding.
 from __future__ import annotations
 
 import json
+import mimetypes
 import os
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -33,6 +37,7 @@ from core.assignment_resources import (
 import core.assignment_teaching  # noqa: F401,E402  (installs taught-calc schema)
 from core.assignment_teaching import (  # noqa: E402
     TaughtCalculationError,
+    build_conversation_calculation,
     build_taught_calculation,
 )
 from core.base_routes import BaseAPIRouter
@@ -76,6 +81,7 @@ class AssignmentExternalResponse(BaseModel):
     response: str
     source: str = ""
     evidence: str = ""
+    value: Optional[Any] = None
 
 
 class AssignmentStart(BaseModel):
@@ -126,6 +132,9 @@ def _teaching_snapshot_for_start(
     workspace_id: str,
     output_types: List[str],
     task_context: Dict[str, Any],
+    recipient: Optional[str] = None,
+    task_scope: Optional[str] = None,
+    now: Optional[str] = None,
 ) -> Dict[str, Any]:
     from core.artifact_teaching import resolve_artifact_teaching
 
@@ -138,8 +147,11 @@ def _teaching_snapshot_for_start(
     for output_type in sorted(set(output_types)):
         resolution = resolve_artifact_teaching(
             db, agent_id, output_type,
+            recipient=recipient,
+            task_scope=task_scope,
             task_context=task_context or {},
             workspace_id=workspace_id or "default",
+            now=now,
         )
         status = str(resolution.get("status") or "")
         if status in ("needs_context", "conflict"):
@@ -267,11 +279,16 @@ async def start_assignment(
             status_code=422,
             detail="at least one deliverable or outbound action is required")
     employee = current_user
+    # Bootstrap admin rows can carry NULL workspace/tenant columns while the
+    # rest of the app resolves them to "default". Compare against the same
+    # effective scope so the default employee is selectable on a fresh install.
+    workspace_id = current_user.workspace_id or "default"
+    tenant_id = current_user.tenant_id or "default"
     if body.employee_id and body.employee_id != current_user.id:
         employee = db.query(User).filter(
             User.id == body.employee_id,
-            User.workspace_id == current_user.workspace_id,
-            User.tenant_id == current_user.tenant_id,
+            User.workspace_id == workspace_id,
+            User.tenant_id == tenant_id,
         ).first()
         if employee is None:
             raise HTTPException(status_code=404, detail="Employee not found")
@@ -282,8 +299,8 @@ async def start_assignment(
     if body.agent_id:
         agent = db.query(AgentRegistry).filter(
             AgentRegistry.id == body.agent_id,
-            AgentRegistry.workspace_id == current_user.workspace_id,
-            AgentRegistry.tenant_id == current_user.tenant_id,
+            AgentRegistry.workspace_id == workspace_id,
+            AgentRegistry.tenant_id == tenant_id,
         ).first()
         if agent is None:
             raise HTTPException(status_code=404, detail="Employee agent not found")
@@ -301,6 +318,73 @@ async def start_assignment(
     if not resolved_sources:
         raise HTTPException(
             status_code=422, detail="no authorized source resolved")
+
+    _method_lessons: List[Dict[str, Any]] = []
+    if body.calculation is None and body.agent_id:
+        from core.conversation_learning import applicable_method_lessons
+        from core.student_learning_service import lesson_context_requirements
+
+        _workspace = current_user.workspace_id or "default"
+        _method_resolution = applicable_method_lessons(
+            db, body.agent_id, body.task_context, workspace_id=_workspace)
+        if _method_resolution.get("status") == "conflict":
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "teaching_context_conflict",
+                    "message": (
+                        "Equally specific taught methods conflict for this "
+                        "context; confirm which scope governs."),
+                    "lessons": [
+                        {"lesson_id": item["entry"].get("id"),
+                         "topic": item["entry"].get("topic")}
+                        for item in _method_resolution.get("lessons") or []
+                    ],
+                },
+            )
+        if _method_resolution.get("status") == "applicable":
+            _method_lessons = list(_method_resolution.get("lessons") or [])
+            try:
+                body.calculation = build_conversation_calculation(
+                    _method_lessons[0]["entry"], resolved_sources)
+            except TaughtCalculationError as exc:
+                raise HTTPException(
+                    status_code=exc.status,
+                    detail={
+                        "error": exc.code,
+                        "message": str(exc),
+                        **dict(exc.detail or {}),
+                    },
+                )
+        else:
+            _requirements = lesson_context_requirements(
+                db, body.agent_id, body.task_context,
+                workspace_id=_workspace, query=body.objective)
+            if _requirements.get("mismatch"):
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "teaching_context_mismatch",
+                        "message": (
+                            "The established task context does not match the "
+                            "taught guidance for this assignment."),
+                        "conflicts": list(
+                            _requirements.get("conflicts") or []),
+                    },
+                )
+            if _requirements.get("needs_context"):
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "teaching_context_unresolved",
+                        "message": (
+                            "Taught guidance cannot govern this assignment "
+                            "until the missing context is confirmed."),
+                        "missing": list(_requirements.get("missing") or []),
+                        "lesson_ids": list(
+                            _requirements.get("lesson_ids") or []),
+                    },
+                )
 
     if body.calculation is None:
         try:
@@ -327,13 +411,30 @@ async def start_assignment(
     ]
     if body.outbound:
         output_types.append("email")
+    outbound_recipients = list((body.outbound or {}).get("to") or [])
+    teaching_recipient = str(
+        (outbound_recipients[0] if outbound_recipients else "")
+        or (body.task_context or {}).get("recipient") or "") or None
+    teaching_scope = str(
+        (body.task_context or {}).get("task_scope") or "") or None
     teaching = _teaching_snapshot_for_start(
         db,
         agent_id=body.agent_id,
         workspace_id=current_user.workspace_id or "default",
         output_types=[item for item in output_types if item],
         task_context=body.task_context,
+        recipient=teaching_recipient,
+        task_scope=teaching_scope,
+        now=datetime.now(timezone.utc).isoformat(),
     )
+    if _method_lessons:
+        _effective = list(teaching.get("effective_lesson_ids") or [])
+        for _item in _method_lessons:
+            _effective.append({
+                "id": _item["entry"].get("id"),
+                "revision": _item["entry"].get("revision") or 1,
+            })
+        teaching["effective_lesson_ids"] = _effective
     if body.calculation is None:
         try:
             body.calculation = build_taught_calculation(
@@ -536,6 +637,55 @@ async def list_assignments(
     return results
 
 
+@router.get("/sources")
+async def list_assignment_sources(
+    query: str = "",
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+) -> List[Dict[str, Any]]:
+    """Authorized catalog sources the ordinary assignment form can name.
+
+    The assignment proposal never accepts a filesystem path. This projection
+    is deliberately smaller than the catalog row: no parquet path, no source
+    metadata, and only the workspace's active entries.
+    """
+    from core.assignment_resources import _parquet_schema
+    from core.sheet_dataset_service import find_entries_sync
+
+    workspace_id = current_user.workspace_id or "default"
+    entries = find_entries_sync(
+        query=query,
+        workspace_id=workspace_id,
+        limit=max(1, min(int(limit or 50), 100)),
+    )
+    rows: List[Dict[str, Any]] = []
+    for entry in entries:
+        if str(entry.get("workspace_id") or "") not in ("", workspace_id):
+            continue
+        parquet_path = str(entry.get("parquet_path") or "")
+        numeric_columns: List[str] = []
+        if parquet_path and Path(parquet_path).is_file():
+            _columns, numeric_columns = _parquet_schema(Path(parquet_path))
+        file_name = str(entry.get("file_name") or "")
+        kind = "workbook" if file_name.lower().endswith(
+            (".xlsx", ".xls", ".xlsm", ".csv")) else "document"
+        rows.append({
+            "dataset_name": entry.get("dataset_name"),
+            "sheet": entry.get("entity_name"),
+            "file_name": file_name,
+            "source": entry.get("source"),
+            "external_id": entry.get("external_id"),
+            "source_version": entry.get("content_hash"),
+            "kind": kind,
+            "columns": list(entry.get("columns") or []),
+            "numeric_columns": numeric_columns,
+            "row_count": int(entry.get("row_count") or 0),
+            "coverage": entry.get("coverage") or {},
+            "ingested_at": entry.get("ingested_at"),
+        })
+    return rows
+
+
 @router.get("/{run_id}")
 async def assignment_status(
     run_id: str,
@@ -543,6 +693,43 @@ async def assignment_status(
 ) -> Dict[str, Any]:
     run = _scoped_run(run_id, current_user)
     return _executor(run).status(run_id)
+
+
+@router.get("/{run_id}/deliverables/{deliverable_id}/download")
+async def download_assignment_deliverable(
+    run_id: str,
+    deliverable_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Download an artifact this run owns, without exposing a local path."""
+    run = _scoped_run(run_id, current_user)
+    detail = _executor(run).status(run_id)
+    assignment = detail.get("assignment") or {}
+    deliverable = next((
+        item for item in assignment.get("deliverables") or []
+        if str(item.get("deliverable_id") or "") == deliverable_id), None)
+    if deliverable is None:
+        raise HTTPException(status_code=404, detail="Deliverable not found")
+    raw_path = str(deliverable.get("artifact_path") or "").strip()
+    if not raw_path:
+        raise HTTPException(status_code=404, detail="Deliverable has no artifact")
+    root = Path(os.getenv("ATOM_ASSIGNMENT_OUTPUT_DIR")
+                or "data/office/assignments").resolve()
+    path = Path(raw_path).resolve()
+    if path != root and root not in path.parents:
+        raise HTTPException(
+            status_code=403,
+            detail="Artifact is outside the assignment output store",
+        )
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Artifact file is missing")
+    media = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    return FileResponse(
+        str(path),
+        media_type=media,
+        filename=path.name,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.post("/{run_id}/resume")
@@ -586,9 +773,16 @@ async def record_assignment_response(
         response=body.response,
         source=body.source or str(current_user.id),
         evidence=body.evidence,
+        value=body.value,
     )
     if result.get("status") == "unmatched":
         raise HTTPException(status_code=404, detail=result.get("message"))
+    if result.get("status") in (
+            "conflict", "partial", "unavailable", "incomplete"):
+        # The reply was retained as a durable conflict or record-specific
+        # partial answer and the wait remains open. Do not resume and do not
+        # turn it into a generic assignment projection the UI cannot explain.
+        return result
     return await executor.resume(run_id)
 
 

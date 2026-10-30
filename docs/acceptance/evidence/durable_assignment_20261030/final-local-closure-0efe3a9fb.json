@@ -1,0 +1,80 @@
+{
+  "schema": "atom-final-local-closure-1",
+  "source": {
+    "commit": "0efe3a9fbdc19414b0615ae033a3823e02d04d75",
+    "tree": "f1ef5e1faed79cdf974fad0f68269c026510ade3",
+    "tag": "local-core-2026-10-30-final",
+    "functional_baseline": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4"
+  },
+  "runtime": {
+    "python": "3.11.16",
+    "node": "v20.19.6",
+    "npm": "10.8.2",
+    "frontend_build": "gPz569sUaoRTx_JBxsPCA"
+  },
+  "clean_install": {
+    "evidence": "local-core-repro-0efe3a9fb",
+    "operation": "Result: 2225.75 USD \u00b7 Net Amount",
+    "artifact_sha256": "fc6e770be3489f99e3df3a6d8dccadb04d43fb1f744d8ff3996bf1e22aba47d3",
+    "after_restart_sha256": "fc6e770be3489f99e3df3a6d8dccadb04d43fb1f744d8ff3996bf1e22aba47d3",
+    "page_errors": [],
+    "failed_assets": [],
+    "first_start_pid": 28938,
+    "restart_pid": 29176
+  },
+  "composite": {
+    "evidence": "composite-final-0efe3a9fb",
+    "active_run": "860a8d81-f17b-4bb0-9e87-442d8abbbaa4",
+    "active_teaching_revision": "87d15fb70ae01762+bf5d58e747ff9cdf+map",
+    "active_artifact_sha256": "f0d902ddac32f38f8dd6bb1516eb3fbdfc371699537b1d8af7c540a516ded428",
+    "active_font": [
+      "Arial",
+      11.0
+    ],
+    "second_run": "c869aa2c-d562-4c3c-8d79-786ce5d88396",
+    "second_teaching_revision": "b9ea9fd7046d2776+map",
+    "second_artifact_sha256": "fb87716c3d20299a0e035b7c22e3d8a38b42dee008c88bd5160ae33d2564c241",
+    "second_font": [
+      "Calibri",
+      14.0
+    ],
+    "outbox_final_run_lines": 1,
+    "outbox_total_lines": 2,
+    "outbox_duplicate_final_run_operations": 0,
+    "restart": {
+      "old_pid": 30124,
+      "new_pid": 30602,
+      "same_data_root": true,
+      "browser_closed": true,
+      "status_after_restart": "waiting",
+      "status_after_completion": "completed"
+    },
+    "prior_attempt_preserved": "composite-long-running-0efe3a9fb"
+  },
+  "regressions": {
+    "backend": "86 passed",
+    "frontend": "31 passed",
+    "logs": [
+      "composite-final-0efe3a9fb/backend-targeted-tests.log",
+      "composite-final-0efe3a9fb/teaching-targeted-tests.log",
+      "composite-final-0efe3a9fb/frontend-targeted-tests.log"
+    ],
+    "backend_assignment": "86 passed",
+    "backend_teaching": "137 passed"
+  },
+  "deferred": [
+    "hosted deployment",
+    "public release",
+    "publication"
+  ],
+  "limits": [
+    "arbitrary Excel compatibility",
+    "arbitrary schema understanding",
+    "embedded image/chart interpretation",
+    "every future canvas component",
+    "non-Microsoft connectors",
+    "multi-worker campaigns",
+    "unrestricted autonomous research"
+  ],
+  "conclusion": "Bounded local core complete for the documented supported workflows."
+}

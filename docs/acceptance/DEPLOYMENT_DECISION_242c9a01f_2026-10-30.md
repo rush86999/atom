@@ -13,7 +13,7 @@ approval record, credential change or real send occurred.
 | Product tree | `c20bb599ff7ab65913f42cd14a5a93012b6817c93b6b0b5eddfb7c056e24c9b7` |
 | Rollback | `901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0` |
 | Frontend build | `K3N6o-mTkpSVJ7sj00FLu` |
-| Kit tree | `8fb429d2baa95b32fbf86494b27fe3cfe63c0bfb97195119d54822fcdcf46b2f` |
+| Kit tree | `d72546d36f20af1c780ca526635d8c1ee764d28eb46230a11d5b0563835157e5` |
 | Outbound | draft-and-approval only; `send_authorized=false` |
 
 ## Complete authorized operation
@@ -84,7 +84,7 @@ retrieval/calculation/artifact → provider policy → send denial → scoped re
 ## Why this is reviewable
 
 - 578 release-affected tests passed (2 skipped); 127 targeted core tests passed;
-  24 deployment-kit controls passed.
+  25 deployment-kit controls passed.
 - Four current mapping browser flows passed on this product: B `35.00`, C
   `75.00`, correction `100.00 -> 80.00`, waiting restart `35.00`.
 - Data: 50/481/557 rows; 1,205 files; 16,305 operations, 0 binding mismatches;

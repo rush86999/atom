@@ -22,9 +22,9 @@ Statuses: **Demonstrated**, **Partial**, **Deferred**, **Blocked**.
 | 7 | Grounded selection, calculations and assessments | Demonstrated for tested contracts | `core/table_selection.py`, `core/dataset_aggregation.py`, `core/review_result.py`, deterministic receipt/evidence binding | Clean-source and bounded tests; C10 unchanged except outbound policy | Assignment tests and cross-domain evidence; fresh C10 assignment produced `216700.00` with row/cell provenance | Structural validity is separate from substantive policy judgment; arbitrary policies and full assessment certification coverage remain bounded. |
 | 8 | Email, documents and presentations | Demonstrated for draft/format/reopen; send separate | `core/office_service.py`, email/canvas services, artifact renderers | Historical Office/email evidence; C10 draft smoke completed and survived restart | `deployment-auth-20261029-c10/draft-smoke.json`; historical DOCX/PPTX/email evidence | Image/chart understanding is excluded. Real-provider send is **Blocked** on the separate authorized test (goal 11). |
 | 9 | User-created canvases inherit capabilities | Demonstrated for supported table adapter; two canvas shapes current test | Versioned capability manifests, adapter registry, canvas routes | Historical capability evidence; C10 no change | Capability acceptance evidence | Only the supported table adapter is claimed; every future canvas component is not. |
-| 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart; artifact-restart current test | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
-| 11 | Approval and eventual sending | **Partial / Blocked** — local attachment-byte binding added; real send separate | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; server-side denial tested | C10 `send-denial.json`: HTTP 422 before run creation; draft smoke saved/reopened; no provider/outbox effect | Draft and approval preparation work; production send is refused before transport. **Remaining action:** separately authorized real-provider test with exact payload, provider receipt, reconciliation and restart/no-duplicate checks. |
-| 12 | Everyday usability, security and operational readiness | Pilot candidate; successor package prepared; deployment blocked on approval/password/quiescence | Normal auth, Assignments/Activity, durable storage, deployment kit and recovery guards | C10 packaged source plus successor packaged smoke on `a96484324` | C10 auth smoke, fresh assignment, restart agreement, deployment receipt, 19 kit controls, 41 product controls; successor packaged smoke, backup and restart receipts | Normal sign-in/logout/relogin and fresh packaged execution pass in isolation. The successor packaged smoke reopened an existing taught assignment, exercised the mapping flow and survived restart. Deployment authorization is requested but not granted. |
+| 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart; bounded external research live-qualified on `rish@brennan.ca`; artifact-restart current test | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
+| 11 | Approval and eventual sending | **Demonstrated live** — payload-bound approval, provider acceptance, exact Sent Items message and attachment-hash match, restart no duplicate; recipient delivery not independently confirmed | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; controlled approval and live qualification separate | `send-qualification/` exact Sent Items receipt; composite controlled approval/outbox; C10 `send-denial.json` | The one authorized live send is final for this scope. No standing permission or new send. Production sending remains disabled by default; recipient delivery is unclaimed. |
+| 12 | Everyday usability, security and operational readiness | **Bounded local core complete for documented supported workflows** — clean install/startup, normal auth/UI, persistence, composite long-running job, restart/recovery, accurate docs; hosted deployment/public release/publication deferred | Normal auth, Assignments/Activity, durable storage, local UI entry points, backup/recovery docs | Final local source `fc46342e` (tag `local-core-2026-10-30-final`); clean root on `8071/3130`; Python 3.11.16 / Node 20.19.6 | `local-core-repro-5ce5f57/`, `composite-protocol-5ce5f57/`, `wait-value-fc46342/`, `LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md` | Local completion only. Hosted deployment, public release and publication are deferred. Compatibility limits remain explicit. |
 
 Mapping campaign identities: the canonical B baseline stays bound to harness
 `7399fe41e`; new B/C/correction/waiting-restart attempts are written under
@@ -36,6 +36,219 @@ product `ae53e7e41` (tree `a7f627fdf7705a26b361c0d1b1e7e17abadc13d3`). Frozen
 release `901e5d773` is unchanged. The final manifest and file hashes are
 `docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/manifest-a96484324.json`;
 the prior manifests and attempt directories are preserved unchanged.
+
+## Local core acceptance — observed 2026-10-30
+
+- Exact product `fda4f2dc9` started in an isolated local root on `8071/3130`;
+  existing source service PID `19046` on `8001` was untouched.
+- Normal browser login/logout/relogin and dashboard/Assignments/artifact
+  surfaces passed.
+- One integrated employee job completed: connected HARSLE retrieval, taught
+  document format, `216700.00` calculation, durable missing-currency wait,
+  formatted DOCX, payload-bound approval and controlled local outbox.
+- Restart against the same data root preserved assignment status, teaching
+  revision, history, artifact hash and outbox count.
+- Sanitized fresh install in a separate empty root, with no copied secrets or
+  private paths and controlled adapters, passed startup and browser login.
+- Hosted deployment, public release and publication remain **deferred
+  separately**. No production approval file or source shutdown was used.
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/`.
+
+## Final local closure — e27ec63a
+
+Final local source `e27ec63abcbd5accd8bc085f06ea2242d0930633` (tree
+`dc67a86e89e95ea6df11561df14156c851a54f59`, tag
+`local-core-2026-10-30-final`) preserves the functional baseline
+`fda4f2dc9` and adds the usability/reproducibility repairs.
+
+- Clean install: new clone, new Python 3.11.16 venv,
+  `pip install --prefer-binary -r requirements.txt`, new `npm ci`, new
+  `next build` (build `jDccLkCOwPIvfD8dW-mSz`), new empty data root.
+- First start and restart without `ADMIN_PASSWORD`; normal browser login;
+  no failed JS/CSS/public assets and no page errors.
+- One supported operation through the UI: CSV upload, source selection,
+  `Net Amount` sum `2225.75 USD`, DOCX download. Restart preserved the
+  artifact SHA-256 `25e5deb3...`.
+- Composite long-running journey: complex teaching policy (method, contextual
+  exception, qualification, effective period, document format, email protocol,
+  conflict), conflict removal, missing-qualification clarification, mapping,
+  source result `400.00`, browser close, real backend restart (`34360` →
+  `35413`), waiting-state reopen, active teaching snapshot retention, new
+  Calibri lesson, correlated response, exact approval with the taught email protocol, one controlled outbox
+  line, the `delivery_term` wait and its contradictory-response negative
+  control, reload, and a revised-scope second run `2225.75` at Calibri 14.
+- Wait-value repair: blank `Currency` cells accept an authorized resolution;
+  an agreeing established value is a confirmation; a conflicting established
+  value is a durable conflict; mixed rows stay waiting with record-specific
+  unresolved subjects. The blank-currency assignment completed, survived a
+  real restart with the same artifact hash, and applied exactly one wait
+  operation. Evidence: `wait-value-e27ec63/`.
+- Current-source regressions: 98 assignment/executor/send/resource tests and
+  137 teaching/renderer tests passed; 31 frontend tests passed.
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/local-core-repro-5ce5f57/`
+and
+`docs/acceptance/evidence/durable_assignment_20261030/composite-protocol-5ce5f57/`
+and
+`docs/acceptance/evidence/durable_assignment_20261030/wait-value-e27ec63/`.
+Transition table: `docs/acceptance/LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md`.
+
+Hosted deployment, public release and publication remain deferred. No source
+service was stopped or replaced; the existing source service on `8001` was
+untouched.
+
+## Final wait-value representation closure — fc46342
+
+Final local source `fc46342ed77df624b8922a0fc4d834935fc4f481` (tree
+`38618c7bc806b741498eab539c14345bb1054efe`, tag
+`local-core-2026-10-30-final`) closes the verifier's two alternate-
+representation bypasses on top of the accepted `e27ec63` evidence.
+
+- Coverage and accepted population are validated before selecting inline
+  rows, Parquet or aggregate evidence.
+- Inline rows must cover the accepted `__sheet_row` identities exactly and
+  carry the fact field. A truncated receipt is `incomplete`; an absent field
+  is `incomplete`, not a verified blank cell.
+- Parquet reads are filtered to accepted identities and never scan the whole
+  frame without identities.
+- Aggregate receipts must name their `measure` and a matching
+  `group_by`/`grouping_dimension`; a subtotal key cannot establish an
+  unrelated measure. `group_by` is persisted with the applied result.
+- Verifier reproductions: truncated inline receipt → `incomplete`; accepted
+  rows 2 and 3 but only row 2 supplied → `incomplete`; subtotal `USD`
+  requested as `Price` → `unavailable`.
+- Current-source regressions: 35 executor tests, 126 assignment tests, 137
+  teaching/renderer tests and 31 frontend tests passed. The branch matrix and
+  the public-route incomplete-inline negative pass separately.
+- The accepted `e27ec63` positive twins and contradictory negative control
+  are preserved byte-for-byte in `wait-value-fc46342/preserved-from.json`.
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/wait-value-fc46342/`
+and
+`docs/acceptance/evidence/durable_assignment_20261030/final-local-closure-fc46342.json`.
+No deployment, real send, source shutdown or additional external action was
+performed.
+
+## Successor phase (separate) — conversation-derived learning
+
+This is a **separate successor**, not part of the local-core closure above.
+The accepted core tag `local-core-2026-10-30-final` remains at `da9cc8b12`;
+this phase does not relabel historical browser/live evidence.
+
+- Implemented reference/evidence/authority separation for lessons derived
+  from persisted email conversations.
+- Reuses `ConversationEvent` for candidates, `DatasetEntry` + assignment
+  resource bindings for identity/version/access, and
+  `journal_standing_lesson_entry` for accepted teaching. No second store.
+- Ambiguous, missing, access-denied, stale, incomplete and conflicting
+  dependencies block promotion. Same-name attachments and punctuation-
+  sensitive identifiers stay unresolved rather than first-match.
+- Aggregate/subtotal and quoted/source authority cannot become a lesson;
+  permission-expanding lessons require the authored authority excerpt itself
+  to state the expansion.
+- Confirmed methods are an allowlisted Decimal calculation (sum, count,
+  multiply_sum, percentage, ratio) with explicit units and rounding.
+- Security boundaries: empty-workspace evidence is empty; foreign employees
+  cannot be targeted; reviewer identity is authenticated; source changes
+  block work-time reuse and promotion.
+- Applicability: promoted context is stored top-level and enforced before
+  calculation; wrong/missing context and conflicting methods refuse; ordinary
+  work-time lesson retrieval is context-filtered.
+- Acceptance matrix: 37 backend service/route tests passed; frontend targeted
+  35 passed; assignment/teaching regressions 126 + 137 passed.
+- Full-app production-build browser journey passed: thread → employee →
+  review → promote → apply 15 USD → source change → reuse blocked → restart →
+  state preserved.
+- UI: `/learning` lists local threads and shows the evidence chain,
+  unresolved questions and confirm/promote/reject actions.
+
+Evidence: `docs/acceptance/CONVERSATION_DERIVED_LEARNING_2026-10-30.md`
+and
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-50b53be/`.
+
+Still deferred: live mailbox access, automatic teaching-cue extraction from
+every email, arbitrary URL/recursive reference traversal, publication and
+deployment. Independent verifier review of this successor is pending.
+
+## Real-provider send qualification — observed 2026-10-30
+
+- Sender `rish@brennan.ca`; recipient `rish.maniar@gmail.com`; subject
+  `HARSLE press brake stock total — approval draft`.
+- Exact approval payload SHA-256:
+  `4a91227a3bf1f896f807d1118e3ea5218318b7aa31d24e1dc8248bcc9bd3bf66`.
+- Attachment SHA-256:
+  `7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6`;
+  Sent Items attachment hash matched exactly.
+- Provider accepted at `2026-10-30T12:13:30Z`; Sent Items message
+  `<YQBPR0101MB47483FC0A197D506B4D7F1C1AC6D2@YQBPR0101MB4748.CANPRD01.PROD.OUTLOOK.COM>`.
+- Restart check: completed, one sent message before and after, no duplicate;
+  operation `applied`.
+- **Provider acceptance and Sent Items confirmation are not recipient
+  delivery.** `delivery_confirmed` remains false without independent recipient
+  evidence.
+- The first reconciliation query used an unsupported OData filter and failed
+  read-only; a simpler Sent Items listing reconciled the exact message. No
+  second send occurred.
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-qualification/`.
+
+Remaining: deployment only.
+
+## Live research qualification — observed 2026-10-30
+
+The bounded external research path was exercised against the existing Microsoft
+grant after authorization:
+
+- Authenticated mailbox: `rish@brennan.ca` (`Rish Maniar`), established via
+  read-only `/me`; token refreshed from the existing grant.
+- Message: `In-Stock Press Brakes Available for Fast Delivery From HARSLE`,
+  received `2026-09-01T03:17:14Z`, from `sales06@harsle.com`.
+- Attachment: `HARSLE press brake stock price list.xlsx`, SHA-256
+  `5cd746af2c46dfe3979b1881cb8623dff149958b4cadd97bd69da1e489c9dcb4`.
+- Independently parsed result: serial `25206`, model `170T3200`, Price
+  `31800`, QTY `1`, workbook QTY sum `8`, no currency column.
+- Missing control: `SERIAL-NOT-FOUND-999` returned zero messages and produced a
+  typed `external_research` obligation; resolving it resumed the **same**
+  assignment and completed the grounded document.
+- Conflicting control: two different prices for serial `25206` produced an
+  explicit `conflict`, not a silent choice.
+- The live evidence was consumed by a calculation and a product-rendered DOCX;
+  restart preserved the completed assignment and artifact.
+- Cross-source HARSLE retrieval also completed separately from the ingested
+  workbook.
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/`.
+
+Remaining: real-provider send qualification and deployment.
+
+## Core completion successor — fda4f2dc9
+
+Product `fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4` (tag
+`assignment-successor-2026-10-30-fda4f2dc9`, tree
+`92924cd8f8f3cffa8e884a9a7fecc5f820f4f5ce8acbba60fdd257975df614fa`)
+preserves all prior evidence and adds the bounded external-information
+workflow.
+
+- `external.research` dispatches only registered read-only actions through the
+  shared action registry, validates required result fields, and records
+  retrieved content as evidence with action/arguments/time provenance.
+- A missing result becomes a typed `external_research` obligation. Resolving it
+  resumes the same assignment; the raw answer is preserved separately from the
+  audit annotation, and it never changes teaching or authority.
+- Current tests cover successful retrieval, typed obligation/resume with the
+  same assignment identity, write-action refusal, and teaching preservation.
+- Release-affected suite: **581 passed, 2 skipped**; kit controls: **25
+  passed**; four mapping browser flows passed on this product.
+
+Remaining required external gates: deployment authorization/password/source
+quiescence, and one real-provider send qualification. Broader compatibility
+limits remain explicit and do not exclude the required employee workflows.
 
 ## Core completion successor — 242c9a01f
 

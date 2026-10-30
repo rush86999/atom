@@ -363,6 +363,9 @@ export default function CanvasDetailPage() {
     // Training panel state: the sidebar hosts the co-editor chat and the
     // agent training panel (approve, teach, score, graduate) side by side.
     const [sideTab, setSideTab] = useState<"chat" | "training" | "journey" | "autonomy">("chat");
+    useEffect(() => {
+        if (router.query.side === "training") setSideTab("training");
+    }, [router.query.side]);
     // Keep the co-editor transcript pinned to the newest message. sideTab is
     // a dependency because switching tabs UNMOUNTS the chat list — the end
     // anchor goes null with it, so returning to the Chat tab remounts the

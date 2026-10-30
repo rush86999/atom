@@ -1,0 +1,93 @@
+{
+  "schema": "atom-memory-handoff-1",
+  "created_at": "2026-10-30T03:48:48.355514+00:00",
+  "source_memory_dir": "/Users/rushiparikh/projects/atom/backend/data/atom_memory",
+  "target_memory_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/data/atom_memory",
+  "workspace_migrated": "default",
+  "strategy": "read-only-logical-export-required-tables",
+  "workspace_tables": {
+    "documents": {
+      "version": 26802,
+      "rows": 44908
+    },
+    "business_facts": {
+      "version": 31452,
+      "rows": 31415
+    },
+    "agent_experience": {
+      "version": 290,
+      "rows": 289
+    },
+    "chat_messages": {
+      "version": 1727,
+      "rows": 1726
+    },
+    "ingestion_metadata": {
+      "version": 20313,
+      "rows": 4
+    },
+    "integration_zoho": {
+      "version": 7744,
+      "rows": 2331
+    },
+    "formula_cards": {
+      "version": 1,
+      "rows": 0
+    }
+  },
+  "root_tables": {
+    "documents": {
+      "version": 45,
+      "rows": 45
+    },
+    "chat_messages": {
+      "version": 37,
+      "rows": 26
+    },
+    "atom_communications": {
+      "version": 18,
+      "rows": 7
+    },
+    "ingestion_metadata": {
+      "version": 18,
+      "rows": 5
+    },
+    "turn_facts": {
+      "version": 12,
+      "rows": 11
+    },
+    "exchange_examples": {
+      "version": 4,
+      "rows": 2
+    },
+    "knowledge_graph": {
+      "version": 1,
+      "rows": 0
+    }
+  },
+  "omitted": {
+    "workspace/atom_communications": {
+      "bytes": 7762174979,
+      "reason": "large communication archive; not required for document/assignment retrieval"
+    },
+    "workspace/default_shared": {
+      "bytes": 31680309480,
+      "reason": "legacy shared workspace not used by the declared admin workspace"
+    }
+  },
+  "required_bytes": 921085831,
+  "free_bytes_before": 29315006464,
+  "free_bytes_after_estimate": 28393920633,
+  "min_free_gib": 20.0,
+  "active_writer_processes_seen": [
+    "12625 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8082",
+    "19046 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 75",
+    "30289 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8084",
+    "61581 /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/Resources/Python.app/Contents/MacOS/Python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8107 --timeout-keep-alive 75",
+    "72728 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8105 --timeout-keep-alive 300",
+    "93252 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8121"
+  ],
+  "source_access": "read-only LanceDB table export at recorded versions",
+  "source_mutated": false,
+  "indexes": "Data rows are preserved. LanceDB ANN/FTS indexes are rebuildable from the exported rows and are not copied as mutable index files."
+}

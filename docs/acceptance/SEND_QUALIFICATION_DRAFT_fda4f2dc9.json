@@ -1,0 +1,51 @@
+{
+  "schema": "atom-send-qualification-draft-1",
+  "status": "prepared; not authorized; not sent",
+  "sender": "rish@brennan.ca",
+  "sender_identity_status": "established via read-only /me",
+  "sender_confirmation_required": true,
+  "recipient": null,
+  "recipient_requirement": "owner-supplied approved external recipient",
+  "subject": "HARSLE press brake stock total \u2014 approval draft",
+  "body": "Hello,\n\nThe HARSLE press brake stock price list totals 216,700.00 across 8 units.\n\nThe attached document records the itemized calculation and its source row. The source does not establish a currency; please confirm if one should be applied.\n\nRegards,\nAtom",
+  "currency_status": "not established by source; no USD claim",
+  "quantity_basis": "QTY column sum = 8",
+  "attachment": {
+    "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-whole-app/docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-review/harsle-live-price-total-currency-unstated.docx",
+    "sha256": "7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6",
+    "bytes": 37082,
+    "recheck_before_send": true,
+    "content_checks": {
+      "contains_currency_unstated": true,
+      "contains_USD": false,
+      "qty_sum": 8
+    }
+  },
+  "permission": "existing Microsoft Mail.Send scope; access token expired and must refresh or be re-consented",
+  "approval_window": null,
+  "provider_receipt_source": "Graph message id / Sent Items",
+  "reconciliation_window": null,
+  "send_performed": false,
+  "permission_verified": {
+    "mail_send": true,
+    "mail_readwrite_sent_items": true,
+    "access_token_valid_until": "2026-10-30T13:04:12Z"
+  },
+  "receipt": {
+    "mechanism": "Graph Sent Items exact message match",
+    "match_fields": [
+      "internetMessageId_or_message_id",
+      "subject",
+      "recipient",
+      "attachment_sha256"
+    ],
+    "sent_items_path": "/me/mailFolders/sentitems/messages",
+    "provider_acceptance_is_not_delivery": true
+  },
+  "reconciliation": {
+    "ambiguous_window_minutes": 10,
+    "max_read_only_checks": 3,
+    "on_no_match": "uncertain; stop for owner review; never resend automatically",
+    "restart_no_duplicate": true
+  }
+}

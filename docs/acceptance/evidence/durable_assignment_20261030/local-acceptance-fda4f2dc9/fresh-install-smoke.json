@@ -1,0 +1,47 @@
+{
+  "schema": "atom-fresh-install-smoke-1",
+  "status": "passed",
+  "product": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+  "root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install",
+  "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install/data",
+  "admin_login": "normal browser form reached /dashboard",
+  "onboarding_modal": "present on fresh install (expected)",
+  "controlled_adapters": true,
+  "copied_secrets": false,
+  "private_paths_in_config": false,
+  "config_env": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install/config/env.release",
+  "screenshot": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install/run/after-login.png",
+  "health": {
+    "status": "healthy",
+    "version": "8.0.0",
+    "deployed_sha": "unknown",
+    "timestamp": "2026-10-30T12:35:59.230988+00:00",
+    "identity": {
+      "pid": 14357,
+      "started_at": "2026-10-30T12:35:19.770491+00:00",
+      "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install/releases/fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4/app/backend",
+      "git_commit": "fda4f2dc9376",
+      "source_id": "fda4f2dc9376",
+      "instance_id": "fda4f2dc9376.14357.1793363725",
+      "revision": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+      "dirty": false,
+      "dirty_digest": "e3b0c44298fc",
+      "dirty_paths": [],
+      "untracked_paths": [],
+      "captured_at": "2026-10-30T12:35:25.798585+00:00",
+      "port": 8071,
+      "error": null,
+      "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install/data/atom.db",
+      "byok_key_store": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_fresh_install/releases/fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4/app/backend/data/byok_keys.json"
+    },
+    "database": "operational",
+    "redis": "operational",
+    "vector_store": "operational",
+    "services": {
+      "database": "operational",
+      "redis": "operational",
+      "vector_store": "operational"
+    },
+    "memory_mb": 571.64
+  }
+}

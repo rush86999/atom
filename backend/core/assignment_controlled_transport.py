@@ -13,8 +13,8 @@ from typing import Any, Dict
 
 from core.assignment_executor import (
     ExternalOutcomeUnknown,
-    NeedsContext,
     WaitingForExternal,
+    compose_outbound_content,
     default_adapter_registry,
 )
 
@@ -25,25 +25,16 @@ def _outbox_path() -> Path:
 
 
 async def _controlled_send(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-    body = inputs.get("body")
-    if not str(body or "").strip() and inputs.get("compose_from_results"):
-        from core.assignment_executor import _compose_evidence_text
-
-        body = _compose_evidence_text(inputs, context)
-    if not str(body or "").strip():
-        raise NeedsContext({
-            "concept": "outbound_content",
-            "reason": "the outbound effect has no grounded body",
-            "question": "What grounded result should the outbound message carry?",
-            "kind": "missing_evidence",
-        })
+    content = compose_outbound_content(inputs, context)
     outbox = _outbox_path()
     outbox.parent.mkdir(parents=True, exist_ok=True)
     record = {
         "operation_id": (context.get("step") or {}).get("operation_id"),
-        "to": inputs.get("to"),
-        "subject": inputs.get("subject"),
-        "body": body,
+        "to": content.get("to"),
+        "subject": content.get("subject"),
+        "body": content.get("body"),
+        "teaching_revision": (context.get("teaching") or {}).get(
+            "revision") or "",
     }
     existing = []
     if outbox.exists():
@@ -69,23 +60,14 @@ async def _controlled_send(inputs: Dict[str, Any], context: Dict[str, Any]) -> D
 
 
 def _controlled_prepare(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-    body = inputs.get("body")
-    if not str(body or "").strip() and inputs.get("compose_from_results"):
-        from core.assignment_executor import _compose_evidence_text
-
-        body = _compose_evidence_text(inputs, context)
-    if not str(body or "").strip():
-        raise NeedsContext({
-            "concept": "outbound_content",
-            "reason": "the outbound effect has no grounded body",
-            "question": "What grounded result should the outbound message carry?",
-            "kind": "missing_evidence",
-        })
+    content = compose_outbound_content(inputs, context)
     payload = {
-        "to": inputs.get("to"),
-        "subject": inputs.get("subject"),
-        "body": body,
+        "to": content.get("to"),
+        "subject": content.get("subject"),
+        "body": content.get("body"),
         "attachment": inputs.get("attachment"),
+        "teaching_revision": (context.get("teaching") or {}).get(
+            "revision") or "",
     }
     return {
         "payload": payload,
@@ -107,6 +89,7 @@ async def _controlled_wait(inputs: Dict[str, Any], context: Dict[str, Any]) -> D
         "correlation_id": inputs.get("correlation_id"),
         "resume_on": "response",
         "detail": inputs.get("detail") or "waiting for the controlled reply",
+        "fact": inputs.get("fact") or "",
     })
 
 

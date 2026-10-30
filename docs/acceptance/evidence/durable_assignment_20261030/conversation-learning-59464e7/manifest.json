@@ -1,0 +1,72 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "conversation-learning-59464e7",
+  "source_commit": "59464e7426462b4689fcab228d0cd053b281b418",
+  "source_tree": "1ea2b19fae64769cf7bd4d217a273c97aea05696",
+  "files": {
+    "SUMMARY.md": {
+      "sha256": "d8a8bc8c592e8ace438fd608864129ca04baf75ffeffc9a1be2877585e3e9e3b",
+      "bytes": 3374
+    },
+    "acceptance-matrix.json": {
+      "sha256": "aa4c122d1ce694b3951727145184bcfc68f7753acdbdbfada9a9d64d986bc8e7",
+      "bytes": 4396
+    },
+    "assignment-regressions.log": {
+      "sha256": "8b53d25455698cbbd35a9c67e2499fe4efa97843c1a2d75de87b0aacdab64036",
+      "bytes": 28806
+    },
+    "conversation-learning-repro.json": {
+      "sha256": "14e8041779ddc495cf0d3a146a945dbaf2ccf8d936135203e82c6c8e31dc7204",
+      "bytes": 519
+    },
+    "conversation-learning-repro.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "conversation-learning-repro.py": {
+      "sha256": "c2d9936cc5a0c5917e3188bc1b6b69bed84c04a84e4a26ac42dc6e493b9b094f",
+      "bytes": 4846
+    },
+    "conversation-learning-tests.log": {
+      "sha256": "9c2158fc4e468a13a33b2fbd48a44c9a034726d458c5a68a67ab363a98e84a07",
+      "bytes": 8242
+    },
+    "frontend-learning-tests.log": {
+      "sha256": "7b5ed338301cc1862ea514d72775a4b6f7c8110ca23353584d497b82c566487f",
+      "bytes": 1084
+    },
+    "frontend-targeted-tests.log": {
+      "sha256": "38839da4e6fb39602f4c4be514167c933bb054813f0940a9f84bbe35ec3b9f88",
+      "bytes": 1650
+    },
+    "git-status.txt": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "preserved-baseline.json": {
+      "sha256": "13b9ea597374156f6484ee3b5cb5c061f17174873c623a8df61ece818c784162",
+      "bytes": 684
+    },
+    "runtime.json": {
+      "sha256": "249c5df63224a3e99d704ea20e9e56fa2ebd72f46b3b880cc86fe4fa89e5694b",
+      "bytes": 1251
+    },
+    "source-commit.txt": {
+      "sha256": "e7ea577ff927f2cafd790e8441d17e406852a8b7fc0720b8c5aa882ecb9e1d5f",
+      "bytes": 41
+    },
+    "source-tree.txt": {
+      "sha256": "2bc577f7ba112562cedc0efa9ddb5bd2a61fa59106cf7b912909c0a710448244",
+      "bytes": 41
+    },
+    "teaching-regressions.log": {
+      "sha256": "7a7ff27994ef58d3685f5203c66bc13728d345df3411416bd0860d808fd0d2b9",
+      "bytes": 33654
+    },
+    "typescript-check.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  }
+}

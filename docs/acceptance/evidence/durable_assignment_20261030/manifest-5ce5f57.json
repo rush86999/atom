@@ -1,0 +1,32 @@
+{
+  "schema": "atom-final-local-closure-manifest-1",
+  "source_commit": "5ce5f571539ce6444fba696644cf9ddc8924e85b",
+  "source_tree": "f9f5b883ce5d971573c25b780e56a0ab1e16f9df",
+  "files": {
+    "final-local-closure-5ce5f57.json": {
+      "sha256": "0ef6fc297ec3e68c8b303ef5183c347e03481553721abb99ea39a03adb7c135e",
+      "bytes": 3402
+    },
+    "local-core-repro-5ce5f57/manifest.json": {
+      "sha256": "af31b76766d13e47dec07415662f9e1452965e33481a5810a7e90c80d048abec",
+      "bytes": 1772
+    },
+    "composite-protocol-5ce5f57/manifest.json": {
+      "sha256": "1619587afbec83ec2d92fec9d2607556a100578b4be15ed6e078b22ea321dd1f",
+      "bytes": 5076
+    },
+    "local-core-repro-0efe3a9fb/manifest.json": {
+      "sha256": "363e959e65fd75dea1de6b7f712b60892ee7e0f330d48fa16908cdfd1d787018",
+      "bytes": 1774
+    },
+    "composite-final-0efe3a9fb/manifest.json": {
+      "sha256": "c99284afe84162899a8e21cc30b3d7c7c36441e13add34bd18ef0046ccacf7af",
+      "bytes": 4654
+    },
+    "composite-long-running-0efe3a9fb/manifest.json": {
+      "sha256": "8a03fe72047eeec9106b658fc16543de610452792fde79ee5015cd2d009dc6ac",
+      "bytes": 4095
+    }
+  },
+  "note": "5ce5f57 is the final campaign; 0efe3a9fb and earlier composite attempts are preserved historical evidence."
+}

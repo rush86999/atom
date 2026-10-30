@@ -21,7 +21,11 @@ from sqlalchemy.orm import sessionmaker
 
 os.environ.setdefault("TESTING", "1")
 
-from core.assignment_executor import AssignmentExecutor, default_adapter_registry
+from core.assignment_executor import (
+    AssignmentExecutor,
+    WaitingForExternal,
+    default_adapter_registry,
+)
 from core.assignment_plan import new_assignment, new_step, new_teaching_snapshot
 from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
@@ -1510,3 +1514,172 @@ def test_mapping_gap_authority_controls_and_idempotent_replay(
     assert copy.deepcopy(
         route_env["lifecycle"].get_task(run_id)) == durable_after
     assert _agent_configuration(route_env, agent_id) == lesson_after
+
+
+def test_incomplete_inline_evidence_cannot_resume_route(route_env, monkeypatch):
+    """A public response cannot complete a wait when inline rows do not
+    cover the accepted identities exactly."""
+    async def source(inputs, context):
+        return {
+            "status": "applied",
+            "summary": "inline accepted rows 2 and 3",
+            "rows": [{"__sheet_row": 2, "Currency": "USD"}],
+            "selected_count": 2,
+            "evidence": [{
+                "sheet_rows": [2, 3],
+                "selected_count": 2,
+                "coverage": {"known": True, "source_row_count": 2,
+                             "truncated": False},
+            }],
+        }
+
+    async def wait_fact(inputs, context):
+        raise WaitingForExternal({
+            "event": "email",
+            "state": "waiting_for_external",
+            "party": "owner",
+            "correlation_id": "inline-corr",
+            "resume_on": "response",
+            "detail": "currency",
+            "fact": "currency",
+        })
+
+    route_env["executor"].adapters.register("test.inline.source", source)
+    route_env["executor"].adapters.register("test.inline.wait", wait_fact)
+    monkeypatch.setattr(
+        "api.assignment_routes._executor",
+        lambda run: route_env["executor"])
+    plan = new_assignment(
+        objective="Incomplete inline evidence",
+        employee_id="owner-1",
+        workspace_id="ws-1",
+        tenant_id="tenant-1",
+        teaching_snapshot=new_teaching_snapshot(revision="inline-r1"),
+        steps=[
+            new_step(
+                step_id="source", title="Read inline rows",
+                operation_type="retrieve", adapter="test.inline.source",
+                inputs={"resource_binding": {
+                    "columns": ["Currency", "__sheet_row"]}},
+                effect="read_only"),
+            new_step(
+                step_id="wait", title="Wait for currency",
+                operation_type="retrieve", adapter="test.inline.wait",
+                depends_on=["source"], effect="read_only"),
+        ],
+    )
+    record = route_env["executor"].create_assignment(
+        "conv-inline", "Incomplete inline evidence", assignment=plan)
+    run_id = record["run_id"]
+    _run(route_env["executor"].execute(run_id))
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/responses/inline-corr",
+        json={"response": "USD", "source": "owner"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "incomplete", body
+    detail = route_env["executor"].status(run_id)
+    assert detail["assignment"]["status"] == "waiting"
+    wait_step = next(step for step in detail["assignment"]["steps"]
+                     if step["step_id"] == "wait")
+    assert wait_step["status"] == "waiting"
+    assert wait_step["waiting"]["conflicts"][-1]["reason"] == (
+        "source_fact_incomplete")
+
+
+def test_assignment_consumes_contextual_conversation_method(
+        route_env, tmp_path, monkeypatch):
+    """Normal assignment start consumes a promoted method, not /apply."""
+    from decimal import Decimal
+
+    from core.conversation_learning import MethodInput, MethodSpec
+    from core.models import AgentRegistry
+    from core.student_learning_service import journal_standing_lesson_entry
+
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    db = route_env["db"]
+    agent = AgentRegistry(
+        id="agent-context-method", name="Context Method Employee",
+        category="operations", module_path="core.generic_agent",
+        class_name="GenericAgent", status="supervised",
+        confidence_score=0.6, configuration={}, capabilities=[],
+        workspace_id="ws-1", tenant_id="tenant-1",
+    )
+    db.add(agent)
+    db.commit()
+    method = MethodSpec(
+        intended_outcome="Price the order",
+        operation="multiply_sum",
+        inputs=[
+            MethodInput(concept="quantity", column="Quantity", unit="units"),
+            MethodInput(concept="unit_price", column="Unit Price", unit="USD"),
+        ],
+        output_unit="USD",
+        transformation="quantity * unit_price",
+        rounding={"places": 2, "stage": "final"},
+    )
+    lesson = journal_standing_lesson_entry(
+        db, agent.id, "Use the licensed customer pricing method",
+        source="teacher", topic="pricing",
+        context={"audience": "customer"},
+        details={"conversation_learning": {
+            "candidate_id": "lc-assignment-test",
+            "method": method.model_dump(mode="json"),
+        }},
+        workspace_id="ws-1",
+    )
+    assert lesson is not None
+
+    base_payload = {
+        "objective": "Use the pricing method for the customer order",
+        "agent_id": agent.id,
+        "sources": [{
+            "kind": "workbook",
+            "dataset_name": "scotch_parts_price_list",
+            "sheet": "US$ SCOTCH PARTS",
+            "columns": ["Quantity", "Unit Price"],
+        }],
+        "deliverables": [{
+            "kind": "document",
+            "description": "Priced order",
+        }],
+    }
+
+    wrong = route_env["client"].post(
+        "/api/assignments",
+        json={**base_payload, "task_context": {"audience": "other"}})
+    assert wrong.status_code == 409, wrong.text
+    assert wrong.json()["detail"]["error"] == "teaching_context_mismatch"
+
+    missing = route_env["client"].post(
+        "/api/assignments",
+        json={**base_payload, "task_context": {}})
+    assert missing.status_code == 409, missing.text
+    assert missing.json()["detail"]["error"] == "teaching_context_unresolved"
+    assert "audience" in missing.json()["detail"]["missing"]
+
+    matching = route_env["client"].post(
+        "/api/assignments",
+        json={**base_payload, "task_context": {"audience": "customer"}})
+    assert matching.status_code == 200, matching.text
+    assignment = matching.json()["assignment"]["assignment"]
+    assert assignment["status"] == "completed", {
+        "status": assignment.get("status"),
+        "steps": [
+            {"id": step.get("step_id"), "status": step.get("status"),
+             "adapter": step.get("adapter"),
+             "failure": step.get("failure"),
+             "waiting": step.get("waiting"),
+             "gap_ids": step.get("gap_ids"),
+             "result": step.get("result")}
+            for step in assignment.get("steps") or []
+        ],
+        "open_gaps": matching.json().get("open_gaps"),
+    }
+    formula = next(step for step in assignment["steps"]
+                   if step["adapter"] == "formula.calculate")
+    assert Decimal(str(formula["result_value"])) == Decimal("20")
+    record = route_env["lifecycle"].get_task(matching.json()["run_id"]) or {}
+    effective = ((record.get("assignment") or {}).get(
+        "teaching_snapshot") or {}).get("effective_lesson_ids") or []
+    assert any(item.get("id") == lesson["id"] for item in effective), effective

@@ -1,0 +1,42 @@
+{
+  "schema": "atom-wait-value-runtime-1",
+  "source_commit": "43f3dae58f2742a478614569c47b5a34ab1d2b2e",
+  "source_tree": "47af5d9197b6d70c2b7b4ee45817b0c4fb058788",
+  "python": "3.11.16",
+  "node": "v20.19.6",
+  "npm": "10.8.2",
+  "frontend_build": "AB_oVltzmTt3-xN98PxV5",
+  "backend_value_source_commit": "c28ef67c17309cf29a90aad8461f316b5c03ff3c",
+  "backend_projection_source_commit": "821180539255ca405346b297599c7581b9486d10",
+  "frontend_build_env": {
+    "NEXT_PUBLIC_API_URL": "http://127.0.0.1:8071",
+    "NEXT_PUBLIC_ALLOW_LOOPBACK": "1",
+    "NEXT_PUBLIC_ASSIGNMENT_TRANSPORT": "controlled"
+  },
+  "backend_env": {
+    "ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT": "1",
+    "ATOM_EMAIL_SEND_DISABLED": "1",
+    "ATOM_ASSIGNMENT_ALLOW_LIVE_SEND": "0"
+  },
+  "fixtures": {
+    "blank_currency.csv": "Currency column present, both values blank; expected 350.00",
+    "integrated_quote.csv": "Currency=USD on all rows; expected 400.00"
+  },
+  "restart": {
+    "positive_twins_old_pid": 41151,
+    "positive_twins_new_pid": 41326,
+    "composite_old_pid": 39444,
+    "composite_new_pid": 40748,
+    "same_data_root": true
+  },
+  "checks": {
+    "blank_currency_fact_status": "missing",
+    "blank_currency_completed": true,
+    "blank_currency_artifact_hash_matches_after_restart": true,
+    "blank_currency_applied_wait_operations": 1,
+    "agreeing_currency_fact_status": "established",
+    "agreeing_currency_confirmation_reason": "source_fact_confirmed",
+    "conflicting_currency_status": "waiting",
+    "conflicting_currency_artifact_created": false
+  }
+}

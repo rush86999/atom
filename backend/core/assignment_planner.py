@@ -345,6 +345,7 @@ def plan_assignment(
                 "correlation_id": correlation,
                 "party": wait.get("party") or "",
                 "detail": wait.get("detail") or "",
+                "fact": str(wait.get("fact") or "").strip(),
             },
             effect="read_only",
         )]

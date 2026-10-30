@@ -1016,3 +1016,820 @@ def test_restart_after_artifact_creation_does_not_recreate_work(
     assert completed["assignment"]["status"] == "completed"
     assert hashlib.sha256(artifact.read_bytes()).hexdigest() == before_hash
     assert len(outbox.read_text().strip().splitlines()) == 1
+
+
+def _research_steps(tmp_path, *, required_fields=None):
+    doc = tmp_path / "research-output.docx"
+    return [
+        new_step(
+            step_id="research", title="Retrieve the missing reference",
+            operation_type="retrieve", adapter="external.research",
+            inputs={
+                "action": "test.research.lookup",
+                "arguments": {"key": "REF-9"},
+                "required_fields": required_fields or ["value"],
+                "purpose": "Find the approved external reference",
+                "question": "What is the approved external reference?",
+            },
+            effect="read_only"),
+        new_step(
+            step_id="calc", title="Calculate from retrieved evidence",
+            operation_type="calculate", adapter="formula.calculate",
+            depends_on=["research"],
+            inputs={
+                "expression": "value * 2",
+                "bindings": {"value": {"$ref": "research.data.value"}},
+                "output_unit": "USD",
+            },
+            effect="local"),
+        new_step(
+            step_id="doc", title="Render the grounded response",
+            operation_type="present", adapter="artifact.document",
+            depends_on=["calc"],
+            inputs={
+                "path": str(doc), "title": "Research Response",
+                "content": "## Summary\n\nTotal: ${calc.value} ${calc.unit}",
+            },
+            effect="local"),
+    ], doc
+
+
+def test_external_research_reads_action_result_as_evidence(env, monkeypatch):
+    from core.action_registry import action_registry
+
+    async def lookup(args, context):
+        return {"value": 21, "source": "approved-readonly-source"}
+
+    action_registry.register(
+        "test.research.lookup", lookup, effects=[{"effect": "read"}])
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(env["tmp"]))
+    steps, doc = _research_steps(env["tmp"])
+    run_id, plan = _create(
+        env, objective="Research then calculate", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "calculate", "present"],
+        completion_criteria=[{"kind": "artifact_verified"}])
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] == "completed", result
+    text = "\n".join(p.text for p in docx.Document(str(doc)).paragraphs)
+    assert "42" in text and "USD" in text
+    research = step_by_id(env["lifecycle"].get_assignment(run_id), "research")
+    assert research["result"]["evidence"][0]["kind"] == "external_information"
+    assert research["result"]["evidence"][0]["source"] == "approved-readonly-source"
+    assert env["lifecycle"].get_task(run_id)["assignment"][
+        "teaching_snapshot"]["revision"] == "teach-r1"
+
+
+def test_external_research_missing_result_is_typed_obligation_and_resumes(
+        env, monkeypatch):
+    from core.action_registry import action_registry
+
+    async def lookup(args, context):
+        return {"value": None, "source": "approved-readonly-source"}
+
+    action_registry.register(
+        "test.research.lookup", lookup, effects=[{"effect": "read"}])
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(env["tmp"]))
+    steps, doc = _research_steps(env["tmp"])
+    run_id, plan = _create(
+        env, objective="Research missing reference", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "calculate", "present"],
+        completion_criteria=[{"kind": "artifact_verified"}])
+    first = _run(env["executor"].execute(run_id))
+    assert first["assignment"]["status"] == "waiting"
+    record = env["lifecycle"].get_task(run_id)
+    gap = next(item for item in record["task_revision"]["unresolved"]
+               if item["status"] == "open")
+    assert gap["kind"] == "external_research"
+    assert gap["concept"] == "external_research"
+    assignment_id = record["assignment"]["assignment_id"]
+
+    env["executor"].resolve_gap(
+        run_id, gap["question_id"], resolution="21",
+        resolved_by="owner", evidence="approved supplier record")
+    resumed = _run(env["executor"].execute(run_id))
+    assert resumed["assignment"]["status"] == "completed", resumed
+    assert resumed["assignment"]["assignment_id"] == assignment_id
+    research = step_by_id(env["lifecycle"].get_assignment(run_id), "research")
+    assert research["result"]["evidence"][0]["source"] == "resolved_obligation"
+    assert research["result"]["data"]["value"] == "21"
+    text = "\n".join(p.text for p in docx.Document(str(doc)).paragraphs)
+    assert "42" in text and "USD" in text
+
+
+def test_external_research_rejects_write_actions(env):
+    from core.action_registry import action_registry
+
+    async def write_action(args, context):
+        return {"value": 21}
+
+    action_registry.register(
+        "test.research.write", write_action, effects=[{"effect": "update"}])
+    steps, _doc = _research_steps(env["tmp"])
+    steps[0]["inputs"]["action"] = "test.research.write"
+    run_id, _ = _create(
+        env, objective="Reject write research", steps=steps,
+        teaching=_teaching(), authorized_actions=["retrieve", "calculate", "present"],
+        completion_criteria=[{"kind": "artifact_verified"}])
+    result = _run(env["executor"].execute(run_id))
+    assert result["assignment"]["status"] in ("failed", "partial")
+    research = step_by_id(env["lifecycle"].get_assignment(run_id), "research")
+    assert research["failure"]["reason"] == "failed"
+    assert "read-only" in research["failure"]["message"]
+
+
+def test_controlled_outbox_applies_taught_email_protocol(tmp_path, monkeypatch):
+    """The approved payload and the outbox bytes both carry the protocol."""
+    outbox = tmp_path / "protocol-outbox.jsonl"
+    monkeypatch.setenv("ATOM_ASSIGNMENT_OUTBOX", str(outbox))
+    from core.assignment_controlled_transport import (
+        _controlled_prepare,
+        _controlled_send,
+    )
+
+    teaching = _teaching(output_requirements={
+        "greeting": "Dear colleague,",
+        "signature": "Sales team",
+        "subject_prefix": "[Quote]",
+    })
+    inputs = {
+        "to": ["buyer@example.invalid"],
+        "subject": "Press brake total",
+        "body": "Result: 400.00 USD",
+    }
+    context = {"teaching": teaching, "step": {"operation_id": "op-1"}}
+    prepared = _controlled_prepare(inputs, context)
+    assert prepared["payload"]["subject"] == "[Quote] Press brake total"
+    assert prepared["payload"]["body"].startswith("Dear colleague,")
+    assert "Sales team" in prepared["payload"]["body"]
+
+    _run(_controlled_send(inputs, context))
+    line = json.loads(outbox.read_text().strip())
+    assert line["subject"] == "[Quote] Press brake total"
+    assert line["body"].startswith("Dear colleague,")
+    assert "Sales team" in line["body"]
+    assert line["teaching_revision"] == "teach-r1"
+
+
+def test_external_response_contradicting_source_fact_stays_waiting(env):
+    """A reply that denies a fact the source already has is a conflict."""
+    async def source(inputs, context):
+        return {"status": "applied", "summary": "source read",
+                "value": "400.00", "unit": "USD",
+                "measure": "Price", "group_by": "currency",
+                "values": [{"currency": "USD", "value": "400.00"}],
+                "subtotals": {"USD": {"rows": 1, "value": "400.00"}}}
+
+    async def wait_fact(inputs, context):
+        step = context.get("step") or {}
+        if step.get("external_response"):
+            return {"status": "applied", "summary": "reply received",
+                    "value": step["external_response"].get("response")}
+        raise WaitingForExternal({
+            "event": "email",
+            "state": "waiting_for_external",
+            "party": "owner",
+            "correlation_id": "corr-currency",
+            "resume_on": "response",
+            "detail": "currency confirmation",
+            "fact": "currency",
+        })
+
+    env["registry"].register("test.source", source)
+    env["registry"].register("test.wait_fact", wait_fact)
+    steps = [
+        new_step(
+            step_id="source", title="Read source",
+            operation_type="retrieve", adapter="test.source",
+            inputs={"resource_binding": {"columns": ["Currency", "Price"]}},
+            effect="read_only"),
+        new_step(
+            step_id="wait", title="Wait for currency",
+            operation_type="retrieve", adapter="test.wait_fact",
+            depends_on=["source"], effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Wait on currency", steps=steps, teaching=_teaching())
+    executor = env["executor"]
+    first = _run(executor.execute(run_id))
+    assert first["assignment"]["status"] == "waiting"
+
+    result = executor.record_external_response(
+        run_id, "corr-currency",
+        response="Currency unstated by source; report the total without a currency.")
+    assert result["status"] == "conflict"
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "waiting"
+    conflicts = (wait_step.get("waiting") or {}).get("conflicts") or []
+    assert conflicts and conflicts[-1]["reason"] == "source_fact_conflict"
+    assert "Currency unstated" in conflicts[-1]["response"]
+
+
+def test_external_response_for_genuinely_missing_fact_resumes(env):
+    """A missing fact that is absent from the source can close the wait."""
+    async def source(inputs, context):
+        return {"status": "applied", "summary": "source read",
+                "value": "400.00", "unit": "USD"}
+
+    async def wait_fact(inputs, context):
+        step = context.get("step") or {}
+        if step.get("external_response"):
+            return {"status": "applied", "summary": "reply received",
+                    "value": step["external_response"].get("response")}
+        raise WaitingForExternal({
+            "event": "email",
+            "state": "waiting_for_external",
+            "party": "owner",
+            "correlation_id": "corr-delivery",
+            "resume_on": "response",
+            "detail": "delivery term",
+            "fact": "delivery_term",
+        })
+
+    env["registry"].register("test.source", source)
+    env["registry"].register("test.wait_fact", wait_fact)
+    steps = [
+        new_step(
+            step_id="source", title="Read source",
+            operation_type="retrieve", adapter="test.source",
+            inputs={"resource_binding": {"columns": ["Currency", "Price"]}},
+            effect="read_only"),
+        new_step(
+            step_id="wait", title="Wait for delivery term",
+            operation_type="retrieve", adapter="test.wait_fact",
+            depends_on=["source"], effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Wait on delivery term", steps=steps,
+        teaching=_teaching())
+    executor = env["executor"]
+    first = _run(executor.execute(run_id))
+    assert first["assignment"]["status"] == "waiting"
+
+    result = executor.record_external_response(
+        run_id, "corr-delivery", response="FOB destination")
+    assert result["status"] == "resumed"
+    _run(executor.execute(run_id))
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "applied"
+    assert wait_step["external_response"]["fact"] == "delivery_term"
+
+
+def _wait_assignment(env, *, correlation: str, fact: str, source_values):
+    async def source(inputs, context):
+        return {"status": "applied", "summary": "source read",
+                "value": "400.00", "unit": "USD",
+                "measure": "Price", "group_by": "currency",
+                "values": source_values,
+                "subtotals": {
+                    str(item.get("currency") or ""): {"rows": 1,
+                                                      "value": item.get("value")}
+                    for item in source_values
+                }}
+
+    async def wait_fact(inputs, context):
+        step = context.get("step") or {}
+        if step.get("external_response"):
+            return {"status": "applied", "summary": "reply received",
+                    "value": step["external_response"].get("response")}
+        raise WaitingForExternal({
+            "event": "email",
+            "state": "waiting_for_external",
+            "party": "owner",
+            "correlation_id": correlation,
+            "resume_on": "response",
+            "detail": f"{fact} confirmation",
+            "fact": fact,
+        })
+
+    env["registry"].register("test.source", source)
+    env["registry"].register("test.wait_fact", wait_fact)
+    steps = [
+        new_step(
+            step_id="source", title="Read source",
+            operation_type="retrieve", adapter="test.source",
+            inputs={"resource_binding": {"columns": ["Currency", "Price"]}},
+            effect="read_only"),
+        new_step(
+            step_id="wait", title=f"Wait for {fact}",
+            operation_type="retrieve", adapter="test.wait_fact",
+            depends_on=["source"], effect="read_only"),
+    ]
+    return _create(
+        env, objective=f"Wait on {fact}", steps=steps, teaching=_teaching())
+
+
+def test_blank_currency_value_accepts_authorized_resolution_and_survives_restart(env):
+    run_id, _ = _wait_assignment(
+        env, correlation="corr-blank", fact="currency",
+        source_values=[{"currency": None, "value": "400.00"}])
+    executor = env["executor"]
+    first = _run(executor.execute(run_id))
+    assert first["assignment"]["status"] == "waiting"
+
+    result = executor.record_external_response(
+        run_id, "corr-blank", response="USD")
+    assert result["status"] == "resumed"
+    _run(executor.execute(run_id))
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "applied"
+    assert wait_step["external_response"]["fact_resolution"]["status"] == "missing"
+    assert "fact_confirmation" not in wait_step["external_response"]
+
+    # Restart: the same completed wait is not dispatched a second time.
+    before = len([
+        op for op in env["lifecycle"].get_task(run_id)["operations"]
+        if op.get("step_id") == "wait" and op.get("status") == "applied"
+    ])
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    _run(restarted.resume(run_id))
+    after = len([
+        op for op in env["lifecycle"].get_task(run_id)["operations"]
+        if op.get("step_id") == "wait" and op.get("status") == "applied"
+    ])
+    assert before == 1 and after == 1
+
+
+def test_agreeing_currency_response_is_confirmation_not_conflict(env):
+    run_id, _ = _wait_assignment(
+        env, correlation="corr-agree", fact="currency",
+        source_values=[{"currency": "USD", "value": "400.00"}])
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-agree", response="USD")
+    assert result["status"] == "resumed"
+    _run(executor.execute(run_id))
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "applied"
+    confirmation = wait_step["external_response"]["fact_confirmation"]
+    assert confirmation["reason"] == "source_fact_confirmed"
+    assert confirmation["values"] == ["USD"]
+
+
+def test_mixed_currency_values_require_record_specific_resolution(env):
+    run_id, _ = _wait_assignment(
+        env, correlation="corr-mixed", fact="currency",
+        source_values=[{"currency": "USD", "value": "400.00"},
+                       {"currency": None, "value": "100.00"}])
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-mixed", response="USD")
+    assert result["status"] == "partial"
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "waiting"
+    conflict = (wait_step["waiting"]["conflicts"] or [])[-1]
+    assert conflict["reason"] == "source_fact_mixed"
+    assert conflict["blank_subjects"]
+    assert conflict["established_values"] == ["USD"]
+
+
+def test_substring_replies_do_not_confirm_established_values(env):
+    run_id, _ = _wait_assignment(
+        env, correlation="corr-substring", fact="currency",
+        source_values=[{"currency": "USD", "value": "400.00"}])
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    for reply in ("Not USD; use EUR", "USDX"):
+        result = executor.record_external_response(
+            run_id, "corr-substring", response=reply)
+        assert result["status"] == "conflict", (reply, result)
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "waiting"
+    assert all(item["reason"] == "source_fact_conflict"
+               for item in wait_step["waiting"]["conflicts"])
+
+
+def test_numeric_substring_reply_is_not_agreement(env):
+    run_id, _ = _wait_assignment(
+        env, correlation="corr-number", fact="currency",
+        source_values=[{"currency": "120", "value": "400.00"}])
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-number", response="20")
+    assert result["status"] == "conflict"
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")["status"] == "waiting"
+
+
+def test_explicit_typed_value_can_confirm_with_explanatory_text(env):
+    run_id, _ = _wait_assignment(
+        env, correlation="corr-explicit", fact="currency",
+        source_values=[{"currency": "USD", "value": "400.00"}])
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-explicit", response="Use USD for this quote",
+        value="USD")
+    assert result["status"] == "resumed"
+    _run(executor.execute(run_id))
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "applied"
+    assert wait_step["external_response"]["fact_confirmation"][
+        "reason"] == "source_fact_confirmed"
+
+
+def _parquet_source(env, rows):
+    import pandas as pd
+
+    path = env["tmp"] / f"fact-{uuid.uuid4().hex[:8]}.parquet"
+    pd.DataFrame(rows).to_parquet(path, index=False)
+    return path
+
+
+def test_fact_resolution_uses_only_accepted_rows(env):
+    path = _parquet_source(env, {
+        "Currency": ["USD", "EUR"],
+        "__sheet_row": [2, 3],
+    })
+    accepted = {
+        "status": "applied", "summary": "accepted row 2",
+        "evidence": [{
+            "path": str(path),
+            "sheet_rows": [2],
+            "selected_count": 1,
+            "coverage": {"known": True, "source_row_count": 2,
+                         "truncated": False},
+        }],
+        "selected_count": 1,
+    }
+
+    async def source(inputs, context):
+        return accepted
+
+    async def wait_fact(inputs, context):
+        step = context.get("step") or {}
+        if step.get("external_response"):
+            return {"status": "applied", "summary": "reply received",
+                    "value": step["external_response"].get("response")}
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "party": "owner", "correlation_id": "corr-filtered",
+            "resume_on": "response", "detail": "currency", "fact": "currency",
+        })
+
+    env["registry"].register("test.source", source)
+    env["registry"].register("test.wait_fact", wait_fact)
+    steps = [
+        new_step(
+            step_id="source", title="Read accepted row",
+            operation_type="retrieve", adapter="test.source",
+            inputs={"resource_binding": {
+                "columns": ["Currency", "__sheet_row"]}},
+            effect="read_only"),
+        new_step(
+            step_id="wait", title="Wait for currency",
+            operation_type="retrieve", adapter="test.wait_fact",
+            depends_on=["source"], effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Filtered fact", steps=steps, teaching=_teaching())
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-filtered", response="EUR")
+    assert result["status"] == "conflict"
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    conflict = wait_step["waiting"]["conflicts"][-1]
+    assert conflict["established_values"] == ["USD"]
+    assert conflict["subjects"] == ["row 2"]
+    assert "EUR" not in conflict["established_values"]
+
+
+def test_unreadable_evidence_is_not_treated_as_missing(env):
+    async def source(inputs, context):
+        return {
+            "status": "applied", "summary": "source with missing file",
+            "evidence": [{
+                "path": str(env["tmp"] / "missing.parquet"),
+                "sheet_rows": [2],
+                "selected_count": 1,
+                "coverage": {"known": True, "source_row_count": 1,
+                             "truncated": False},
+            }],
+            "selected_count": 1,
+        }
+
+    async def wait_fact(inputs, context):
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "party": "owner", "correlation_id": "corr-unreadable",
+            "resume_on": "response", "detail": "currency", "fact": "currency",
+        })
+
+    env["registry"].register("test.source", source)
+    env["registry"].register("test.wait_fact", wait_fact)
+    steps = [
+        new_step(
+            step_id="source", title="Read source",
+            operation_type="retrieve", adapter="test.source",
+            inputs={"resource_binding": {
+                "columns": ["Currency", "__sheet_row"]}},
+            effect="read_only"),
+        new_step(
+            step_id="wait", title="Wait for currency",
+            operation_type="retrieve", adapter="test.wait_fact",
+            depends_on=["source"], effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Unreadable fact", steps=steps, teaching=_teaching())
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-unreadable", response="USD")
+    assert result["status"] == "unavailable"
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "waiting"
+    assert wait_step["waiting"]["conflicts"][-1]["reason"] == (
+        "source_fact_unavailable")
+
+
+def test_incomplete_coverage_does_not_allow_ordinary_resolution(env):
+    path = _parquet_source(env, {
+        "Currency": ["USD"], "__sheet_row": [2],
+    })
+
+    async def source(inputs, context):
+        return {
+            "status": "applied", "summary": "truncated source",
+            "evidence": [{
+                "path": str(path), "sheet_rows": [2], "selected_count": 1,
+                "coverage": {"known": True, "source_row_count": 500001,
+                             "truncated": True},
+            }],
+            "selected_count": 1,
+        }
+
+    async def wait_fact(inputs, context):
+        raise WaitingForExternal({
+            "event": "email", "state": "waiting_for_external",
+            "party": "owner", "correlation_id": "corr-incomplete",
+            "resume_on": "response", "detail": "currency", "fact": "currency",
+        })
+
+    env["registry"].register("test.source", source)
+    env["registry"].register("test.wait_fact", wait_fact)
+    steps = [
+        new_step(
+            step_id="source", title="Read source",
+            operation_type="retrieve", adapter="test.source",
+            inputs={"resource_binding": {
+                "columns": ["Currency", "__sheet_row"]}},
+            effect="read_only"),
+        new_step(
+            step_id="wait", title="Wait for currency",
+            operation_type="retrieve", adapter="test.wait_fact",
+            depends_on=["source"], effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Incomplete fact", steps=steps, teaching=_teaching())
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-incomplete", response="USD")
+    assert result["status"] == "incomplete"
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "waiting"
+    assert wait_step["waiting"]["conflicts"][-1]["reason"] == (
+        "source_fact_incomplete")
+
+
+def test_fact_evidence_branch_matrix(env):
+    """Complete/truncated/missing/blank/conflicting/wrong-dimension evidence
+    behaves consistently across inline, Parquet and aggregate receipts."""
+    from core.assignment_executor import _source_fact_resolution
+
+    def record(result, *, coverage=None, columns=None):
+        binding = {
+            "columns": columns or ["Currency", "__sheet_row"],
+            "coverage": coverage or {
+                "known": True, "source_row_count": 2, "truncated": False},
+        }
+        return {"assignment": {"steps": [{
+            "step_id": "source", "status": "applied",
+            "inputs": {"resource_binding": binding},
+            "result": result,
+        }]}}
+
+    def inline(rows, accepted, *, truncated=False):
+        return record({
+            "rows": rows, "selected_count": len(accepted),
+            "evidence": [{
+                "sheet_rows": accepted, "selected_count": len(accepted),
+                "coverage": {"known": True, "source_row_count": 2,
+                             "truncated": truncated},
+            }],
+        }, coverage={"known": True, "source_row_count": 2,
+                     "truncated": truncated})
+
+    assert _source_fact_resolution(
+        inline([{"__sheet_row": 2, "Currency": "USD"}], [2]),
+        "currency")["status"] == "established"
+    assert _source_fact_resolution(
+        inline([{"__sheet_row": 2, "Currency": "USD"}], [2],
+               truncated=True), "currency")["status"] == "incomplete"
+    assert _source_fact_resolution(
+        inline([{"__sheet_row": 2, "Currency": "USD"}], [2, 3]),
+        "currency")["status"] == "incomplete"
+    assert _source_fact_resolution(
+        inline([{"__sheet_row": 2, "Currency": "USD"},
+                {"__sheet_row": 3, "Currency": "EUR"}], [2]),
+        "currency")["status"] == "incomplete"
+    assert _source_fact_resolution(
+        inline([{"__sheet_row": 2, "Currency": None}], [2]),
+        "currency")["status"] == "missing"
+    assert _source_fact_resolution(
+        inline([{"__sheet_row": 2, "Currency": "USD"},
+                {"__sheet_row": 3, "Currency": None}], [2, 3]),
+        "currency")["status"] == "mixed"
+    assert _source_fact_resolution(
+        inline([{"__sheet_row": 2}], [2]), "currency")["status"] == (
+            "incomplete")
+    # Coverage may arrive only on the receipt evidence, not the binding.
+    inline_evidence_truncated = {
+        "assignment": {"steps": [{
+            "step_id": "source", "status": "applied",
+            "inputs": {"resource_binding": {
+                "columns": ["Currency", "__sheet_row"]}},
+            "result": {
+                "rows": [{"__sheet_row": 2, "Currency": "USD"}],
+                "selected_count": 1,
+                "evidence": [{
+                    "sheet_rows": [2], "selected_count": 1,
+                    "coverage": {"known": True, "source_row_count": 2,
+                                 "truncated": True},
+                }],
+            },
+        }]}}
+    assert _source_fact_resolution(
+        inline_evidence_truncated, "currency")["status"] == "incomplete"
+    inline_result_truncated = inline(
+        [{"__sheet_row": 2, "Currency": "USD"}], [2])
+    inline_result_truncated["assignment"]["steps"][0]["result"][
+        "truncated"] = True
+    assert _source_fact_resolution(
+        inline_result_truncated, "currency")["status"] == "incomplete"
+
+    path = _parquet_source(env, {
+        "Currency": ["USD", "EUR"], "__sheet_row": [2, 3]})
+    parquet = record({
+        "evidence": [{
+            "path": str(path), "sheet_rows": [2], "selected_count": 1,
+            "coverage": {"known": True, "source_row_count": 2,
+                         "truncated": False},
+        }],
+        "selected_count": 1,
+    })
+    assert _source_fact_resolution(parquet, "currency")["status"] == (
+        "established")
+    parquet_truncated = record({
+        "evidence": [{
+            "path": str(path), "sheet_rows": [2], "selected_count": 1,
+            "coverage": {"known": True, "source_row_count": 2,
+                         "truncated": True},
+        }],
+        "selected_count": 1,
+    }, coverage={"known": True, "source_row_count": 2, "truncated": True})
+    assert _source_fact_resolution(
+        parquet_truncated, "currency")["status"] == "incomplete"
+    missing_path = _parquet_source(env, {
+        "Currency": ["USD"], "__sheet_row": [2]})
+    parquet_missing = record({
+        "evidence": [{
+            "path": str(missing_path), "sheet_rows": [2, 3],
+            "selected_count": 2,
+            "coverage": {"known": True, "source_row_count": 3,
+                         "truncated": False},
+        }],
+        "selected_count": 2,
+    })
+    assert _source_fact_resolution(parquet_missing, "currency")["status"] == (
+        "incomplete")
+    blank_path = _parquet_source(env, {
+        "Currency": [None], "__sheet_row": [2]})
+    parquet_blank = record({
+        "evidence": [{
+            "path": str(blank_path), "sheet_rows": [2], "selected_count": 1,
+            "coverage": {"known": True, "source_row_count": 1,
+                         "truncated": False},
+        }],
+        "selected_count": 1,
+    })
+    assert _source_fact_resolution(parquet_blank, "currency")["status"] == (
+        "missing")
+    mixed_path = _parquet_source(env, {
+        "Currency": ["USD", None], "__sheet_row": [2, 3]})
+    parquet_mixed = record({
+        "evidence": [{
+            "path": str(mixed_path), "sheet_rows": [2, 3],
+            "selected_count": 2,
+            "coverage": {"known": True, "source_row_count": 2,
+                         "truncated": False},
+        }],
+        "selected_count": 2,
+    })
+    assert _source_fact_resolution(parquet_mixed, "currency")["status"] == (
+        "mixed")
+    parquet_unknown = record({
+        "evidence": [{
+            "path": str(path), "sheet_rows": [2], "selected_count": 1,
+            "coverage": {"known": False, "source_row_count": 2,
+                         "truncated": False},
+        }],
+        "selected_count": 1,
+    }, coverage={"known": False, "source_row_count": 2,
+                 "truncated": False})
+    assert _source_fact_resolution(
+        parquet_unknown, "currency")["status"] == "incomplete"
+    parquet_population_truncated = record({
+        "evidence": [{
+            "path": str(path), "sheet_rows": [2], "selected_count": 2,
+            "coverage": {"known": True, "source_row_count": 2,
+                         "truncated": False},
+        }],
+        "selected_count": 2,
+    })
+    assert _source_fact_resolution(
+        parquet_population_truncated, "currency")["status"] == "incomplete"
+
+    aggregate = record({
+        "measure": "Price", "group_by": "currency",
+        "values": [{"currency": "USD", "value": "400.00"}],
+    }, coverage={"known": True, "source_row_count": 1, "truncated": False})
+    assert _source_fact_resolution(aggregate, "currency")["status"] == (
+        "established")
+    aggregate_population_truncated = record({
+        "measure": "Price", "group_by": "currency",
+        "values": [{"currency": "USD", "value": "400.00"}],
+        "evidence": [{
+            "sheet_rows": [2], "selected_count": 2,
+            "coverage": {"known": True, "source_row_count": 2,
+                         "truncated": False},
+        }],
+        "selected_count": 2,
+    }, coverage={"known": True, "source_row_count": 2, "truncated": False})
+    assert _source_fact_resolution(
+        aggregate_population_truncated, "currency")["status"] == "incomplete"
+    aggregate_truncated = record({
+        "measure": "Price", "group_by": "currency",
+        "values": [{"currency": "USD", "value": "400.00"}],
+    }, coverage={"known": True, "source_row_count": 1, "truncated": True})
+    assert _source_fact_resolution(
+        aggregate_truncated, "currency")["status"] == "incomplete"
+    aggregate_blank = record({
+        "measure": "Price", "group_by": "currency",
+        "values": [{"currency": None, "value": "400.00"}],
+    }, coverage={"known": True, "source_row_count": 1, "truncated": False})
+    assert _source_fact_resolution(aggregate_blank, "currency")["status"] == (
+        "missing")
+    aggregate_mixed = record({
+        "measure": "Price", "group_by": "currency",
+        "values": [{"currency": "USD", "value": "400.00"},
+                   {"currency": None, "value": "100.00"}],
+    }, coverage={"known": True, "source_row_count": 2, "truncated": False})
+    assert _source_fact_resolution(aggregate_mixed, "currency")["status"] == (
+        "mixed")
+    aggregate_subtotals = record({
+        "measure": "Price", "group_by": "currency",
+        "subtotals": {"USD": {"value": "35.00"}},
+    }, coverage={"known": True, "source_row_count": 1, "truncated": False})
+    assert _source_fact_resolution(
+        aggregate_subtotals, "currency")["status"] == "established"
+    aggregate_values_unbound = record({
+        "measure": "Price",
+        "values": [{"currency": "USD", "value": "400.00"}],
+    }, coverage={"known": True, "source_row_count": 1, "truncated": False})
+    unbound = _source_fact_resolution(aggregate_values_unbound, "currency")
+    assert unbound["status"] == "unavailable"
+    assert unbound["reason"] == "aggregate_dimension_unbound"
+    aggregate_other_dimension = record({
+        "measure": "Price", "group_by": "Price",
+        "values": [{"currency": "USD", "value": "400.00"}],
+    }, coverage={"known": True, "source_row_count": 1, "truncated": False})
+    other = _source_fact_resolution(aggregate_other_dimension, "currency")
+    assert other["status"] == "unavailable"
+    assert other["reason"] == "aggregate_dimension_unbound"
+    aggregate_wrong_dimension = record({
+        "measure": "Price", "subtotals": {"USD": {"value": "35.00"}},
+    }, coverage={"known": True, "source_row_count": 1, "truncated": False},
+        columns=["Price", "Currency", "__sheet_row"])
+    wrong = _source_fact_resolution(aggregate_wrong_dimension, "price")
+    assert wrong["status"] == "unavailable"
+    assert wrong["reason"] == "aggregate_dimension_unbound"
+    aggregate_no_measure = record({
+        "values": [{"currency": "USD", "value": "400.00"}],
+    }, coverage={"known": True, "source_row_count": 1, "truncated": False})
+    no_measure = _source_fact_resolution(aggregate_no_measure, "currency")
+    assert no_measure["status"] == "unavailable"
+    assert no_measure["reason"] == "aggregate_measure_missing"

@@ -1,0 +1,25 @@
+{
+  "success_assignment": {
+    "run_id": "d7b23a90-e9c3-4d46-a75e-c30d6a0c0ebf",
+    "assignment_id": "asg-7057f1be43404808",
+    "status": "completed",
+    "artifact": "/tmp/fda_research_assignment/office/live.docx",
+    "artifact_sha256": "48fd4941a78a2b87b48702dd5828907837af052cc6e77994a106c223aec93a38",
+    "document_text": "Live Research Response\nSummary\nRetrieved live price: 31800\nSources\nrish@brennan.ca\nattachment 5cd746af2c46dfe3979b1881cb8623dff149958b4cadd97bd69da1e489c9dcb4"
+  },
+  "missing_control": {
+    "run_id": "605701b2-9f73-4321-8564-1507238be707",
+    "first_status": "waiting",
+    "gap_kind": "external_research",
+    "gap_concept": "external_research",
+    "assignment_id": "asg-22ec940bb9a34293",
+    "resumed_status": "completed",
+    "same_assignment_id": true,
+    "resumed_document_text": "Live Research Response\nSummary\nRetrieved live price: 31800\nSources\nresolved_obligation\nattachment"
+  },
+  "restart": {
+    "status": "completed",
+    "artifact_exists": true,
+    "artifact_sha256": "48fd4941a78a2b87b48702dd5828907837af052cc6e77994a106c223aec93a38"
+  }
+}

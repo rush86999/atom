@@ -1,0 +1,8 @@
+{
+  "run_id": "f15daf4d-2483-4253-bcb8-109e129e7832",
+  "assignment_id": "asg-b30d1d2c8267476d",
+  "status": "completed",
+  "artifact": "/tmp/fda_cross_source/office/cross.docx",
+  "artifact_sha256": "9568dc87a7107708184e25d155b817af854a419e9d6a41c1c760348c90326e1c",
+  "document_text": "Cross-Source Response\nSummary\nRetrieved price: 31800.0\nSources\ningested:HARSLE press brake stock price list.xlsx\ne0a7fb8a1b4757b7f6bef882b19cc4588d66246e"
+}

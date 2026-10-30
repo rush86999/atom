@@ -725,6 +725,399 @@ def _compose_evidence_rows(
     return list(evidence["row_sets"][0]["rows"])
 
 
+def _normalized_fact_name(value: Any) -> str:
+    return " ".join(
+        re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).split())
+
+
+def _is_blank_fact_value(value: Any) -> bool:
+    if value is None:
+        return True
+    text = str(value).strip().lower()
+    return text in {"", "nan", "none", "null", "n/a", "na", "unknown", "unstated"}
+
+
+def _fact_resolution_from_records(
+    records: Sequence[Dict[str, Any]],
+    *,
+    fact: str,
+    column: str,
+    source: Dict[str, Any],
+    selected_rows: Optional[Sequence[Any]] = None,
+) -> Dict[str, Any]:
+    values: List[str] = []
+    subjects: List[str] = []
+    blank_subjects: List[str] = []
+    per_record: List[Dict[str, Any]] = []
+    for record in records:
+        raw = record.get("value")
+        subject = str(record.get("subject") or "record")
+        if _is_blank_fact_value(raw):
+            blank_subjects.append(subject)
+            per_record.append({"subject": subject, "value": None,
+                               "blank": True})
+        else:
+            text = str(raw).strip()
+            if text not in values:
+                values.append(text)
+            subjects.append(subject)
+            per_record.append({"subject": subject, "value": text,
+                               "blank": False})
+    if values and blank_subjects:
+        status = "mixed"
+    elif values:
+        status = "established"
+    else:
+        status = "missing"
+    return {
+        "status": status,
+        "fact": fact,
+        "column": column,
+        "values": values,
+        "subjects": subjects,
+        "blank_subjects": blank_subjects,
+        "records": per_record,
+        "selected_rows": list(selected_rows or []),
+        "source": source,
+        "source_version": source.get("source_version"),
+    }
+
+
+def _source_fact_resolution(record: Dict[str, Any], fact: str) -> Dict[str, Any]:
+    """Resolve a wait fact through one validated evidence contract.
+
+    Coverage and accepted population are checked before any representation
+    is selected. Inline rows must cover the accepted identities exactly and
+    must actually carry the fact field. Parquet reads are filtered to the
+    accepted identities. Aggregate receipts must name their measure and the
+    grouping dimension explicitly; a subtotal key never satisfies an
+    unrelated measure. Status is ``missing`` (verified blanks),
+    ``established``, ``mixed``, ``incomplete`` or ``unavailable``.
+    """
+    wanted = _normalized_fact_name(fact)
+    if not wanted:
+        return {"status": "unknown", "reason": "no_fact", "fact": fact}
+    assignment = record.get("assignment") or {}
+    for step in assignment.get("steps") or []:
+        if str(step.get("status") or "") != "applied":
+            continue
+        inputs = step.get("inputs") or {}
+        binding = inputs.get("resource_binding") or {}
+        columns = list(binding.get("columns") or [])
+        columns += list(inputs.get("columns") or [])
+        result = step.get("result") or {}
+        columns += list(result.get("columns") or [])
+        column = next((
+            item for item in columns
+            if _normalized_fact_name(item) == wanted), None)
+        if not column:
+            continue
+        evidence = [
+            item for item in (result.get("evidence") or [])
+            if isinstance(item, dict)
+        ]
+        path = str(binding.get("path") or next(
+            (item.get("path") for item in evidence if item.get("path")),
+            "") or "")
+        coverage = dict(binding.get("coverage") or {})
+        if not coverage:
+            coverage = dict(next(
+                (item.get("coverage") for item in evidence
+                 if isinstance(item.get("coverage"), dict)), {}) or {})
+        source = {
+            "resource_id": binding.get("resource_id"),
+            "dataset_name": binding.get("dataset_name"),
+            "file_name": binding.get("original_file_name"),
+            "sheet": binding.get("sheet"),
+            "source_version": binding.get("source_version"),
+            "column": column,
+            "coverage": coverage,
+        }
+
+        # Validate coverage before choosing inline rows, Parquet or aggregate.
+        # A receipt that declares itself truncated is incomplete regardless
+        # of which representation it carries.
+        if (coverage.get("known") is False
+                or coverage.get("truncated") is True
+                or result.get("truncated") is True):
+            return {
+                "status": "incomplete",
+                "reason": "accepted_coverage_incomplete",
+                "fact": fact,
+                "column": column,
+                "source": source,
+                "source_version": source.get("source_version"),
+            }
+
+        selected_rows: List[Any] = []
+        selected_count = result.get("selected_count")
+        source_row_count = coverage.get("source_row_count")
+        for item in evidence:
+            selected_rows.extend(item.get("sheet_rows") or [])
+            if selected_count is None:
+                selected_count = item.get("selected_count")
+        selected_rows = list(dict.fromkeys(selected_rows))
+        if (selected_rows and selected_count is not None
+                and len(selected_rows) != int(selected_count)):
+            return {
+                "status": "incomplete",
+                "reason": "accepted_population_truncated",
+                "fact": fact,
+                "column": column,
+                "accepted_count": selected_count,
+                "identified_rows": len(selected_rows),
+                "source": source,
+                "source_version": source.get("source_version"),
+            }
+        all_rows_selected = (
+            not selected_rows
+            and selected_count is not None
+            and source_row_count is not None
+            and int(selected_count) == int(source_row_count)
+        )
+        accepted_known = bool(selected_rows) or all_rows_selected
+
+        # 1. Inline rows: exact accepted population, and the field must be
+        # present in every accepted row (absent is not blank).
+        raw_rows = result.get("rows")
+        inline_candidate = (
+            isinstance(raw_rows, list) and raw_rows
+            and any(isinstance(row, dict)
+                    and row.get("__sheet_row") is not None
+                    for row in raw_rows)
+        )
+        if inline_candidate:
+            if not accepted_known:
+                return {
+                    "status": "unavailable",
+                    "reason": "accepted_row_identities_missing",
+                    "fact": fact,
+                    "column": column,
+                    "source": source,
+                    "source_version": source.get("source_version"),
+                }
+            inline_rows = [row for row in raw_rows if isinstance(row, dict)]
+            if selected_rows:
+                inline_ids = [
+                    str(row.get("__sheet_row"))
+                    for row in inline_rows
+                    if row.get("__sheet_row") is not None
+                ]
+                wanted_ids = [str(item) for item in selected_rows]
+                if (len(inline_ids) != len(inline_rows)
+                        or len(inline_ids) != len(wanted_ids)
+                        or set(inline_ids) != set(wanted_ids)):
+                    return {
+                        "status": "incomplete",
+                        "reason": "inline_rows_do_not_match_accepted_population",
+                        "fact": fact,
+                        "column": column,
+                        "accepted_rows": wanted_ids,
+                        "inline_rows": inline_ids,
+                        "source": source,
+                        "source_version": source.get("source_version"),
+                    }
+            elif len(inline_rows) != int(selected_count or 0):
+                return {
+                    "status": "incomplete",
+                    "reason": "inline_rows_do_not_match_accepted_count",
+                    "fact": fact,
+                    "column": column,
+                    "accepted_count": selected_count,
+                    "inline_count": len(inline_rows),
+                    "source": source,
+                    "source_version": source.get("source_version"),
+                }
+            if any(column not in row for row in inline_rows):
+                return {
+                    "status": "incomplete",
+                    "reason": "fact_field_absent_in_inline_rows",
+                    "fact": fact,
+                    "column": column,
+                    "source": source,
+                    "source_version": source.get("source_version"),
+                }
+            records = []
+            for index, row in enumerate(inline_rows):
+                subject = (
+                    f"row {row.get('__sheet_row')}"
+                    if row.get("__sheet_row") is not None
+                    else f"row {index + 1}")
+                records.append({"subject": subject, "value": row.get(column)})
+            return _fact_resolution_from_records(
+                records, fact=fact, column=column, source=source)
+
+        # 2. Parquet: read only the accepted identities. Without identities,
+        # do not scan the whole frame.
+        if accepted_known:
+            if not path or not Path(path).is_file():
+                return {
+                    "status": "unavailable",
+                    "reason": "evidence_path_missing",
+                    "fact": fact,
+                    "column": column,
+                    "source": source,
+                    "source_version": source.get("source_version"),
+                }
+            try:
+                import pyarrow.parquet as pq
+
+                read_columns = [column]
+                if "__sheet_row" in columns:
+                    read_columns.append("__sheet_row")
+                table = pq.read_table(path, columns=read_columns)
+                frame = table.to_pylist()
+            except Exception as exc:  # noqa: BLE001 — unavailable, never blank
+                return {
+                    "status": "unavailable",
+                    "reason": "evidence_read_failed",
+                    "detail": str(exc)[:300],
+                    "fact": fact,
+                    "column": column,
+                    "source": source,
+                    "source_version": source.get("source_version"),
+                }
+            if not selected_rows:
+                records = []
+                for index, row in enumerate(frame):
+                    subject = (
+                        f"row {row.get('__sheet_row')}"
+                        if row.get("__sheet_row") is not None
+                        else f"row {index + 1}")
+                    records.append({"subject": subject,
+                                    "value": row.get(column)})
+                return _fact_resolution_from_records(
+                    records, fact=fact, column=column, source=source)
+            wanted_rows = {str(item) for item in selected_rows}
+            records = []
+            found_rows = set()
+            for index, row in enumerate(frame):
+                row_id = row.get("__sheet_row")
+                subject = (
+                    f"row {row_id}" if row_id is not None
+                    else f"row {index + 1}")
+                if row_id is None or str(row_id) not in wanted_rows:
+                    continue
+                found_rows.add(str(row_id))
+                records.append({"subject": subject, "value": row.get(column)})
+            missing_rows = sorted(wanted_rows - found_rows)
+            if missing_rows:
+                return {
+                    "status": "incomplete",
+                    "reason": "accepted_rows_not_found",
+                    "missing_subjects": [f"row {item}" for item in missing_rows],
+                    "fact": fact,
+                    "column": column,
+                    "source": source,
+                    "source_version": source.get("source_version"),
+                }
+            return _fact_resolution_from_records(
+                records, fact=fact, column=column, source=source,
+                selected_rows=selected_rows)
+
+        # 3. Aggregate: require an explicit measure and grouping dimension.
+        # A subtotal key alone is not evidence for an unrelated measure, and
+        # an aggregate can only establish the fact named by its declared
+        # grouping dimension — never an arbitrary matching key.
+        measure = str(result.get("measure") or "").strip()
+        group_by = str(
+            result.get("group_by")
+            or result.get("grouping_dimension") or "").strip()
+        if not measure:
+            return {
+                "status": "unavailable",
+                "reason": "aggregate_measure_missing",
+                "fact": fact,
+                "column": column,
+                "source": source,
+                "source_version": source.get("source_version"),
+            }
+        if not group_by or _normalized_fact_name(group_by) != wanted:
+            return {
+                "status": "unavailable",
+                "reason": "aggregate_dimension_unbound",
+                "fact": fact,
+                "column": column,
+                "source": source,
+                "source_version": source.get("source_version"),
+            }
+        aggregate_records: List[Dict[str, Any]] = []
+        for item in result.get("values") or []:
+            if not isinstance(item, dict):
+                continue
+            fact_key = next((
+                key for key in item
+                if _normalized_fact_name(key) == wanted), None)
+            if fact_key is None:
+                continue
+            aggregate_records.append({
+                "subject": "aggregate",
+                "value": item.get(fact_key),
+            })
+        if (not aggregate_records
+                and isinstance(result.get("subtotals"), dict)):
+            for key in result["subtotals"]:
+                aggregate_records.append({
+                    "subject": "aggregate",
+                    "value": key,
+                })
+        if not aggregate_records:
+            return {
+                "status": "unavailable",
+                "reason": "aggregate_dimension_values_missing",
+                "fact": fact,
+                "column": column,
+                "source": source,
+                "source_version": source.get("source_version"),
+            }
+        return _fact_resolution_from_records(
+            aggregate_records, fact=fact, column=column, source=source)
+    return {"status": "missing", "fact": fact, "reason": "no_bound_column"}
+
+
+def _canonical_fact_value(value: Any) -> str:
+    """Canonical comparison form for one typed or textual fact value."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float, Decimal)):
+        try:
+            return format(Decimal(str(value)).normalize(), "f")
+        except (InvalidOperation, ValueError):
+            return str(value).strip()
+    text = str(value).strip()
+    try:
+        return format(Decimal(text).normalize(), "f")
+    except (InvalidOperation, ValueError):
+        return text
+
+
+def _response_agrees_fact(
+    response: str,
+    values: Sequence[str],
+    explicit_value: Any = None,
+) -> bool:
+    """Only an exact typed/canonical value can confirm an established fact.
+
+    Free-form explanatory text is never scanned for a substring. A caller
+    that wants to confirm while also explaining must supply ``explicit_value``
+    separately; otherwise the whole response must equal one established value.
+    """
+    candidate = (
+        _canonical_fact_value(explicit_value)
+        if explicit_value is not None
+        else _canonical_fact_value(response)
+    )
+    if not candidate:
+        return False
+    established = {
+        _canonical_fact_value(value) for value in values
+        if _canonical_fact_value(value)
+    }
+    return candidate in established
+
+
 def _artifact_text(kind: str, path: str) -> str:
     if kind == "document":
         import docx
@@ -1844,6 +2237,7 @@ class AssignmentExecutor:
                     + (f" [by {resolved_by}]" if resolved_by else "")
                     + (f" [evidence: {evidence}]" if evidence else ""),
                     400),
+                "value": _bounded(resolution, 400),
             }],
         })
         # Close the waiting attempt honestly; the reopened step gets a NEW
@@ -2399,6 +2793,7 @@ class AssignmentExecutor:
         response: str,
         source: str = "",
         evidence: str = "",
+        value: Any = None,
     ) -> Dict[str, Any]:
         """Match an authorized external reply to the waiting question.
 
@@ -2424,11 +2819,114 @@ class AssignmentExecutor:
         # human question (e.g. a controlled reply). Match the step's durable
         # correlation id, never the message wording.
         assignment = record.get("assignment") or {}
+        fact_confirmation: Optional[Dict[str, Any]] = None
         for step in assignment.get("steps") or []:
             waiting = step.get("waiting") or {}
             if str(waiting.get("correlation_id") or "") != str(
                     correlation_id or ""):
                 continue
+            fact = str(waiting.get("fact") or "").strip()
+            fact_resolution = (
+                _source_fact_resolution(record, fact)
+                if fact else {"status": "unknown", "fact": fact})
+            fact_status = str(fact_resolution.get("status") or "unknown")
+            if fact and fact_status in (
+                    "established", "mixed", "unavailable", "incomplete"):
+                agrees = _response_agrees_fact(
+                    response, fact_resolution.get("values") or [],
+                    explicit_value=value)
+                if fact_status == "established" and agrees:
+                    fact_confirmation = {
+                        "correlation_id": correlation_id,
+                        "fact": fact,
+                        "response": _bounded(response, 2000),
+                        "source": fact_resolution.get("source") or {},
+                        "source_version": fact_resolution.get("source_version"),
+                        "values": fact_resolution.get("values") or [],
+                        "subjects": fact_resolution.get("subjects") or [],
+                        "at": _utc_now_iso(),
+                        "reason": "source_fact_confirmed",
+                    }
+                else:
+                    conflict_status = {
+                        "mixed": "partial",
+                        "unavailable": "unavailable",
+                        "incomplete": "incomplete",
+                    }.get(fact_status, "conflict")
+                    conflict_reason = {
+                        "mixed": "source_fact_mixed",
+                        "unavailable": "source_fact_unavailable",
+                        "incomplete": "source_fact_incomplete",
+                    }.get(fact_status, "source_fact_conflict")
+                    conflict = {
+                        "correlation_id": correlation_id,
+                        "fact": fact,
+                        "response": _bounded(response, 2000),
+                        "source": _bounded(source, 200),
+                        "evidence": _bounded(evidence, 500),
+                        "at": _utc_now_iso(),
+                        "reason": conflict_reason,
+                        "column": fact_resolution.get("column"),
+                        "established_values": (
+                            fact_resolution.get("values") or []),
+                        "subjects": fact_resolution.get("subjects") or [],
+                        "blank_subjects": (
+                            fact_resolution.get("blank_subjects") or []),
+                        "source_ref": fact_resolution.get("source") or {},
+                        "source_version": (
+                            fact_resolution.get("source_version")),
+                        "detail": fact_resolution.get("detail"),
+                        "resolution_reason": fact_resolution.get("reason"),
+                    }
+
+                    def record_conflict(record, current):
+                        new_plan = copy.deepcopy(current)
+                        item = step_by_id(new_plan, step["step_id"])
+                        if item is None:
+                            return new_plan, {}
+                        waiting_now = dict(item.get("waiting") or {})
+                        conflicts = [
+                            dict(entry) for entry in
+                            (waiting_now.get("conflicts") or [])
+                            if isinstance(entry, dict)
+                        ]
+                        conflicts.append(conflict)
+                        waiting_now["conflicts"] = conflicts[-10:]
+                        item["waiting"] = waiting_now
+                        item["updated_at"] = _utc_now_iso()
+                        new_plan["updated_at"] = _utc_now_iso()
+                        return new_plan, {"step_id": step["step_id"]}
+
+                    result = self.lifecycle.mutate_assignment(
+                        run_id, record_conflict,
+                        rationale=(
+                            f"external response did not resolve {fact}; "
+                            f"source fact status is {fact_status}"))
+                    if conflict_status == "conflict":
+                        message = (
+                            f"The source already establishes '{fact}' and the "
+                            "reply conflicts with it.")
+                    elif conflict_status == "partial":
+                        message = (
+                            f"The source has a partial '{fact}' value; some "
+                            "records still need a record-specific answer.")
+                    elif conflict_status == "unavailable":
+                        message = (
+                            f"The source evidence for '{fact}' is unavailable; "
+                            "the reply was recorded but did not complete the "
+                            "wait.")
+                    else:
+                        message = (
+                            f"The accepted selection for '{fact}' has "
+                            "incomplete coverage; the reply was recorded but "
+                            "did not complete the wait.")
+                    return {
+                        "status": conflict_status,
+                        "message": message,
+                        "fact": fact,
+                        "conflict": conflict,
+                        **result,
+                    }
             operation_id = _operation_id_for_step(record, step)
             if operation_id:
                 operation = _operation_by_id(record, operation_id) or {}
@@ -2450,11 +2948,16 @@ class AssignmentExecutor:
                 item["waiting"] = None
                 item["external_response"] = {
                     "correlation_id": correlation_id,
+                    "fact": fact,
                     "response": _bounded(response, 2000),
                     "source": _bounded(source, 200),
                     "evidence": _bounded(evidence, 500),
+                    "fact_resolution": fact_resolution,
                     "at": _utc_now_iso(),
                 }
+                if fact_confirmation:
+                    item["external_response"]["fact_confirmation"] = (
+                        fact_confirmation)
                 item["updated_at"] = _utc_now_iso()
                 new_plan["status"] = "planned"
                 new_plan["updated_at"] = _utc_now_iso()
@@ -3508,6 +4011,8 @@ class AssignmentExecutor:
             "expression": result.get("expression"),
             "operation": result.get("operation"),
             "measure": result.get("measure"),
+            "group_by": result.get("group_by"),
+            "grouping_dimension": result.get("grouping_dimension"),
             "values": result.get("values"),
             "subtotals": result.get("subtotals"),
             "source": result.get("source"),
@@ -3778,6 +4283,167 @@ async def _action_registry_adapter(
         "summary": f"registered action {name} completed",
         "data": _json_safe(result),
         "evidence": [{"kind": "action_registry", "action": name}],
+    }
+
+
+_READ_ONLY_RESEARCH_ACTIONS = {
+    "documents.search", "search_communications", "documents.ls",
+    "documents.cat", "documents.read",
+}
+
+
+@register_assignment_adapter(
+    "external.research",
+    description="Retrieve one missing fact through a bounded read-only action",
+    metadata={"effect": "read_only", "required_actions": ["retrieve"],
+              "allow_standing_authorization": False})
+async def _external_research_adapter(
+    inputs: Dict[str, Any], context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Bounded external-information retrieval through the shared registry.
+
+    The action must be registered and read-only. Its result is validated
+    before any downstream calculation or deliverable consumes it. A missing
+    result becomes a typed ``external_research`` obligation; resolving that
+    obligation supplies evidence, never teaching or authority.
+    """
+    from core.action_registry import action_registry
+
+    name = str(inputs.get("action") or "").strip()
+    arguments = inputs.get("arguments") or {}
+    required_fields = [
+        str(item).strip() for item in (inputs.get("required_fields") or [])
+        if str(item).strip()
+    ]
+    if not name:
+        raise NeedsContext({
+            "concept": "external_research",
+            "kind": "external_research",
+            "question": "Which approved read-only source should be searched?",
+            "reason": "the research step names no action",
+            "resolver": "owner",
+        })
+    action = action_registry.get_action(name)
+    if action is None:
+        return {
+            "status": "failed",
+            "message": f"registered action '{name}' is not available",
+            "error_class": "action_not_registered",
+        }
+    effects = [str((item or {}).get("effect") or "").lower()
+               for item in (action.effects or [])]
+    if any(effect not in ("", "read") for effect in effects):
+        return {
+            "status": "failed",
+            "message": f"action '{name}' is not read-only; research cannot use it",
+            "error_class": "research_action_not_read_only",
+        }
+    if not effects and name not in _READ_ONLY_RESEARCH_ACTIONS:
+        return {
+            "status": "failed",
+            "message": f"action '{name}' is not in the read-only research allowlist",
+            "error_class": "research_action_not_allowlisted",
+        }
+    if not required_fields:
+        raise NeedsContext({
+            "concept": "external_research",
+            "kind": "external_research",
+            "question": "Which fields must the retrieved evidence contain?",
+            "reason": "the research step declares no required result fields",
+            "resolver": "owner",
+        })
+    if not isinstance(arguments, dict):
+        return {
+            "status": "failed",
+            "message": "research arguments must be a mapping",
+            "error_class": "research_arguments_invalid",
+        }
+    dispatched = await _action_registry_adapter(
+        {"action": name, "arguments": arguments}, context)
+    if dispatched.get("status") != "applied":
+        return dispatched
+    data = dispatched.get("data")
+    if not isinstance(data, dict):
+        return {
+            "status": "failed",
+            "message": "research action returned no object",
+            "error_class": "research_result_invalid",
+        }
+    missing = [
+        field for field in required_fields
+        if data.get(field) in (None, "", [], {})
+    ]
+    if missing:
+        # A resolved obligation is evidence for this attempt. It never
+        # rewrites teaching, permissions or the action result.
+        gap_ids = set((context.get("step") or {}).get("gap_ids") or [])
+        resolution = next((
+            item for item in (context.get("resolved_gaps") or [])
+            if item.get("question_id") in gap_ids
+            and str(item.get("resolution") or "").strip()
+        ), None)
+        if resolution is not None:
+            value = str(
+                resolution.get("resolution_value")
+                or resolution.get("resolution") or "").strip()
+            return {
+                "status": "applied",
+                "summary": "missing information supplied as external evidence",
+                "data": {
+                    "value": value,
+                    "source": "resolved_obligation",
+                    "required_fields": required_fields,
+                },
+                "evidence": [{
+                    "kind": "external_information",
+                    "action": name,
+                    "source": "resolved_obligation",
+                    "value": _bounded(value, 2000),
+                    "question_id": resolution.get("question_id"),
+                    "resolved_by": resolution.get("resolved_by"),
+                }],
+                "provenance": {
+                    "action": name,
+                    "arguments": _json_safe(arguments),
+                    "retrieved_at": _utc_now_iso(),
+                    "required_fields": required_fields,
+                },
+            }
+        raise NeedsContext({
+            "concept": "external_research",
+            "kind": "external_research",
+            "question": str(inputs.get("question") or
+                           "What is the missing information?"),
+            "reason": (
+                "the approved read-only source returned no usable evidence "
+                f"for {', '.join(required_fields)}"),
+            "resolver": str(inputs.get("resolver") or "owner"),
+            "checked_evidence": [dispatched.get("evidence") or []],
+            "next_retrieval": f"{name} with the approved arguments",
+            "inputs": {
+                "action": name,
+                "arguments": _json_safe(arguments),
+                "required_fields": required_fields,
+                "purpose": str(inputs.get("purpose") or ""),
+            },
+        })
+    return {
+        "status": "applied",
+        "summary": f"retrieved {', '.join(required_fields)} from {name}",
+        "data": _json_safe(data),
+        "evidence": [{
+            "kind": "external_information",
+            "action": name,
+            "source": str(data.get("source") or name),
+            "required_fields": required_fields,
+            "retrieved_at": _utc_now_iso(),
+        }],
+        "provenance": {
+            "action": name,
+            "arguments": _json_safe(arguments),
+            "retrieved_at": _utc_now_iso(),
+            "required_fields": required_fields,
+        },
     }
 
 
@@ -4311,6 +4977,7 @@ async def _dataset_aggregate(
         "summary": summary,
         "operation": operation,
         "measure": measure,
+        "group_by": str(roles.get("currency_column") or ""),
         "value": value,
         "unit": unit,
         "values": values,
@@ -4736,6 +5403,48 @@ async def _artifact_presentation(inputs: Dict[str, Any], context: Dict[str, Any]
     }
 
 
+def compose_outbound_content(
+    inputs: Dict[str, Any], context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Compose one outbound email payload with the applicable teaching.
+
+    Both the approval preparation and the eventual send call this function,
+    so the approved payload and the outgoing payload cannot diverge on the
+    greeting, signature or subject prefix. The function is deterministic and
+    applies the protocol idempotently.
+    """
+    from core.artifact_teaching import apply_email_teaching
+
+    body = str(inputs.get("body") or "")
+    if not body.strip() and inputs.get("compose_from_results"):
+        body = _compose_evidence_text(inputs, context)
+    if not body.strip():
+        raise NeedsContext({
+            "concept": "email_content",
+            "reason": "the outbound message has no grounded body",
+            "question": "What grounded result should the outbound message carry?",
+            "kind": "missing_evidence",
+        })
+    content = {
+        "to": inputs.get("to") or [],
+        "cc": inputs.get("cc") or [],
+        "subject": str(inputs.get("subject") or ""),
+        "body": body,
+    }
+    if isinstance(content["to"], str):
+        content["to"] = [content["to"]]
+    content, findings = apply_email_teaching(
+        content, _office_format_spec(inputs, context))
+    blocked = [
+        finding for finding in findings
+        if finding.get("code") == "prohibited_internal_information"
+    ]
+    if blocked:
+        raise AssignmentError(
+            "the outbound message contains prohibited internal information")
+    return content
+
+
 def _email_draft_prepare(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     draft = _compose_email_draft(inputs, context)
     return {
@@ -4833,12 +5542,19 @@ def _outlook_send_prepare(inputs: Dict[str, Any], context: Dict[str, Any]) -> Di
             "question": "Which attachment sha256 binding authorizes this send?",
             "kind": "missing_evidence",
         })
+    content = (
+        compose_outbound_content(inputs, context)
+        if str(inputs.get("body") or "").strip()
+        or inputs.get("compose_from_results")
+        else None
+    )
     payload = {
         "canvas_id": inputs.get("canvas_id"),
-        "to": inputs.get("to") or [],
-        "cc": inputs.get("cc") or [],
-        "subject": inputs.get("subject") or "",
-        "body": inputs.get("body") or "",
+        "to": (content or {}).get("to") or inputs.get("to") or [],
+        "cc": (content or {}).get("cc") or inputs.get("cc") or [],
+        "subject": (content or {}).get("subject")
+        or inputs.get("subject") or "",
+        "body": (content or {}).get("body") or inputs.get("body") or "",
         "attachment_ids": attachment_ids,
         "attachment_hashes": attachment_hashes,
         "thread_id": inputs.get("thread_id"),
@@ -4878,19 +5594,28 @@ async def _outlook_send(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
             "question": "Which prepared draft should be sent?",
             "kind": "missing_evidence",
         })
-    recipients = inputs.get("to") or []
+    content = (
+        compose_outbound_content(inputs, context)
+        if str(inputs.get("body") or "").strip()
+        or inputs.get("compose_from_results")
+        else None
+    )
+    recipients = (content or {}).get("to") or inputs.get("to") or []
     if isinstance(recipients, str):
         recipients = [item.strip() for item in recipients.split(",")
                       if item.strip()]
+    subject = (content or {}).get("subject") or inputs.get("subject") or ""
+    body = (content or {}).get("body") or inputs.get("body") or ""
     with get_db_session() as db:
         service = EmailCanvasService(db)
         result = await service.send_email(
             canvas_id=canvas_id,
             user_id=str(context.get("employee_id") or ""),
             to_emails=list(recipients),
-            cc_emails=list(inputs.get("cc") or []),
-            subject=str(inputs.get("subject") or ""),
-            body=str(inputs.get("body") or ""),
+            cc_emails=list((content or {}).get("cc")
+                           or inputs.get("cc") or []),
+            subject=str(subject),
+            body=str(body),
             agent_id=str(context.get("agent_id") or "") or None,
             tenant_id=str(context.get("tenant_id") or "default"),
             attachment_ids=list(inputs.get("attachment_ids") or []) or None,

@@ -1,0 +1,219 @@
+{
+  "schema": "atom-production-handoff-verification-1",
+  "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9",
+  "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/data",
+  "row_counts": {
+    "users": 50,
+    "dataset_entries": 481,
+    "goal_runs": 557
+  },
+  "admin_password_hash_present": true,
+  "operations_checked": 16305,
+  "operation_binding_mismatches": 0,
+  "artifact_checks": 4,
+  "artifact_checks_ok": true,
+  "dataset_paths_checked": 481,
+  "dataset_paths_ok": true,
+  "referenced_dataset_names": 2,
+  "referenced_dataset_paths_ok": true,
+  "pre_existing_missing_dataset_paths": 21,
+  "pre_existing_missing_dataset_details": [
+    {
+      "dataset_name": "outlook_canada_trigger_report_cml_usa_15_sept_26_to_15_sept_26__visitor_list",
+      "status": "active",
+      "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/3bd033eef729/outlook_canada_trigger_report_cml_usa_15_sept_26_to_15_sept_26__visitor_list.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_260827_2026_brennan_machinery_inc__premium",
+      "status": "active",
+      "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/1d31dda11985/outlook_260827_2026_brennan_machinery_inc__premium.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_260827_2026_brennan_machinery_inc__cgl",
+      "status": "active",
+      "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/1d31dda11985/outlook_260827_2026_brennan_machinery_inc__cgl.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_business_incometax_july_26_1___business_income_tax_25_26",
+      "status": "active",
+      "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/48dc003ddf1a/outlook_business_incometax_july_26_1___business_income_tax_25_26.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_business_incometax_july_26_1___july_26_oct25",
+      "status": "active",
+      "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/48dc003ddf1a/outlook_business_incometax_july_26_1___july_26_oct25.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_business_incometax_july_26_1___sep25_oct24",
+      "status": "active",
+      "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/48dc003ddf1a/outlook_business_incometax_july_26_1___sep25_oct24.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_business_incometax_july_26_1___business_income_tax_24_25",
+      "status": "active",
+      "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/48dc003ddf1a/outlook_business_incometax_july_26_1___business_income_tax_24_25.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_reimb_vacation__sheet1",
+      "status": "active",
+      "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/111a55421bea/outlook_reimb_vacation__sheet1.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_canada_trigger_report_cml_usa_14_sept_26_to_14_sept_26__visitor_list",
+      "status": "active",
+      "path": "/private/tmp/atom-frozen/backend/data/sheet_datasets/default/200d2ea9c0f8/outlook_canada_trigger_report_cml_usa_14_sept_26_to_14_sept_26__visitor_list.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_canada_trigger_report_cml_usa_21_sept_26_to_21_sept_26__visitor_list",
+      "status": "active",
+      "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/d2bf0082b69c/outlook_canada_trigger_report_cml_usa_21_sept_26_to_21_sept_26__visitor_list.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_canada_trigger_report_cml_usa_26_sept_26_to_26_sept_26__visitor_list",
+      "status": "active",
+      "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/b455dbe5a59f/outlook_canada_trigger_report_cml_usa_26_sept_26_to_26_sept_26__visitor_list.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_canada_trigger_report_cml_usa_27_sept_26_to_27_sept_26__visitor_list",
+      "status": "active",
+      "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/08527c13df4c/outlook_canada_trigger_report_cml_usa_27_sept_26_to_27_sept_26__visitor_list.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_trial_balance_7_oct_2024_30_sep_2025__trial_balance",
+      "status": "active",
+      "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/f8cd9f041640/outlook_trial_balance_7_oct_2024_30_sep_2025__trial_balance.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_detailed_general_ledger_7_oct_2024_30sep2025__general_ledger",
+      "status": "active",
+      "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/1791b2d197a7/outlook_detailed_general_ledger_7_oct_2024_30sep2025__general_ledger.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_detailed_general_ledger_7_oct_2024_30sep2025__detailed_general_ledger",
+      "status": "active",
+      "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/1791b2d197a7/outlook_detailed_general_ledger_7_oct_2024_30sep2025__detailed_general_ledger.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_canada_trigger_report_cml_usa_28_sept_26_to_28_sept_26__visitor_list",
+      "status": "active",
+      "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/4cc8d902712e/outlook_canada_trigger_report_cml_usa_28_sept_26_to_28_sept_26__visitor_list.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_cogs_7oct_24_30sep_25__cogs",
+      "status": "active",
+      "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/4be36e9aa789/outlook_cogs_7oct_24_30sep_25__cogs.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_cogs_7oct_24_30sep_25__cost_of_goods_sold_7_oct_30sept",
+      "status": "active",
+      "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/4be36e9aa789/outlook_cogs_7oct_24_30sep_25__cost_of_goods_sold_7_oct_30sept.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_cogs_7oct_24_30sep_25__cost_of_item_7oct_30sep",
+      "status": "active",
+      "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/4be36e9aa789/outlook_cogs_7oct_24_30sep_25__cost_of_item_7oct_30sep.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_cogs_7oct_24_30sep_25__freight_in_charges",
+      "status": "active",
+      "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/4be36e9aa789/outlook_cogs_7oct_24_30sep_25__freight_in_charges.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    },
+    {
+      "dataset_name": "outlook_cogs_7oct_24_30sep_25__gary_s_inventory_previous_owner",
+      "status": "active",
+      "path": "/private/tmp/atom-r8-verify/backend/data/sheet_datasets/default/4be36e9aa789/outlook_cogs_7oct_24_30sep_25__gary_s_inventory_previous_owner.parquet",
+      "referenced_by": [],
+      "retrieval_consequence": "historical catalog row only; no current assignment references it"
+    }
+  ],
+  "operational_source_references": 0,
+  "historical_source_reference_count": 42,
+  "representative_assignments": {
+    "completed": {
+      "run_id": "a8b59e81-6a8f-46a9-aa88-e42b4b44ee1d",
+      "assignment_id": "asg-e045bfd791f74a57",
+      "status": "completed",
+      "plan_revision": 1,
+      "deliverables": 2,
+      "mappings": 0
+    },
+    "waiting": null
+  },
+  "memory_handoff": {
+    "manifest": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/run/memory_handoff.json",
+    "workspace_tables": {
+      "documents": {
+        "version": 26802,
+        "rows": 44908
+      },
+      "business_facts": {
+        "version": 31452,
+        "rows": 31415
+      },
+      "agent_experience": {
+        "version": 290,
+        "rows": 289
+      },
+      "chat_messages": {
+        "version": 1727,
+        "rows": 1726
+      },
+      "ingestion_metadata": {
+        "version": 20313,
+        "rows": 4
+      },
+      "integration_zoho": {
+        "version": 7744,
+        "rows": 2331
+      },
+      "formula_cards": {
+        "version": 1,
+        "rows": 0
+      }
+    },
+    "strategy": "read-only-logical-export-required-tables",
+    "ok": true
+  },
+  "authentication_smoke": "blocked_missing_pilot_password",
+  "authentication_note": "No config/pilot_password is present. The admin password hash was preserved; actual login must be run after the owner supplies the pilot password file."
+}

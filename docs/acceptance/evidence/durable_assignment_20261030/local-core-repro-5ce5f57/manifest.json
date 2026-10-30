@@ -1,0 +1,52 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "local-core-repro-5ce5f57",
+  "source_commit": "5ce5f571539ce6444fba696644cf9ddc8924e85b",
+  "source_tree": "f9f5b883ce5d971573c25b780e56a0ab1e16f9df",
+  "files": {
+    "clean-install-artifact-after-restart.docx": {
+      "sha256": "25e5deb308506b68a757fe88c67a4360760730fe7282db3b6d5b26b26d530dff",
+      "bytes": 37154
+    },
+    "clean-install-artifact.docx": {
+      "sha256": "25e5deb308506b68a757fe88c67a4360760730fe7282db3b6d5b26b26d530dff",
+      "bytes": 37154
+    },
+    "create-assignment.png": {
+      "sha256": "c1b395378f0074498ae0864e5600ac8d3f0ee1d2cb7c70b5e8c29413e8ba0b2d",
+      "bytes": 139204
+    },
+    "create.json": {
+      "sha256": "d49c7a07b77a97d07348fae5b42de268801a8cbc3974051149fdf6d7b7221144",
+      "bytes": 1814
+    },
+    "frontend-build.log": {
+      "sha256": "6774be6b5aecd16857127693594350646da02f25fed350863339165ce54652cc",
+      "bytes": 18402
+    },
+    "npm-ci.log": {
+      "sha256": "e9b0212bf14ae4468c49e3b217522ef26cf5c31fef57ed533a408904cce8ade7",
+      "bytes": 8070
+    },
+    "pip-install.log": {
+      "sha256": "7dae936279a29535e53b20905583ff05957a8537013d4dff8ba8b2d50a54f0ee",
+      "bytes": 80860
+    },
+    "startup.json": {
+      "sha256": "00c1dbad68085441c2dc069bf3d4f3ceec45005b786a226730fedc1547d8db67",
+      "bytes": 1160
+    },
+    "verify-assignment.png": {
+      "sha256": "8e6d245b2e228e7533bb818ce37c8f4ef5152b05a308bc7859a5badfe17b2001",
+      "bytes": 139197
+    },
+    "verify.json": {
+      "sha256": "bcfe0d7df84c24060ba61c03dd4c649d21737f11b6bb60e48e868efadd0384ca",
+      "bytes": 1814
+    },
+    "versions.json": {
+      "sha256": "a067a6b0c7a01c2eb351c5a9d40d7d9182cf5af9c232758c87d2f5b4b7c98ab2",
+      "bytes": 1127
+    }
+  }
+}

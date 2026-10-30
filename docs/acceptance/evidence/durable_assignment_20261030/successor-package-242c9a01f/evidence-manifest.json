@@ -14,7 +14,7 @@
     "product_tree_sha256": "c20bb599ff7ab65913f42cd14a5a93012b6817c93b6b0b5eddfb7c056e24c9b7",
     "product_tree_matches_tested": true,
     "source_manifest_sha256": "9a57a9af3d595fb0ca52672b90ec0b1aad1d16daf55eed39b79e6f1b43870208",
-    "deployment_kit_tree_sha256": "8fb429d2baa95b32fbf86494b27fe3cfe63c0bfb97195119d54822fcdcf46b2f",
+    "deployment_kit_tree_sha256": "d72546d36f20af1c780ca526635d8c1ee764d28eb46230a11d5b0563835157e5",
     "frontend_build_id": "K3N6o-mTkpSVJ7sj00FLu",
     "frontend_api_origin": "http://127.0.0.1:8071",
     "api_port": 8071,
@@ -4612,7 +4612,7 @@
   "files": {
     "RELEASE_IDENTITY.json": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/RELEASE_IDENTITY.json",
-      "sha256": "f7fcbadfbb80b4de06764426fb1734b89000da5862aca8c7eda3a635cac0107e",
+      "sha256": "921fac6591fb68d48b5db17919ad2f18de2ac437635c80fcdedc6c8985aa4ab3",
       "bytes": 1143
     },
     "config-compatibility.json": {
@@ -4635,7 +4635,7 @@
     },
     "kit-tests.log": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/kit-tests.log",
-      "sha256": "f94278ad458fd188640573c6efcebf560e0af9e75dfc1400ce2b46448cec061e",
+      "sha256": "6aed867f62ca2d6becbbad2c2792626ac68798d7cb7288878d6b10ebe6b86ed4",
       "bytes": 1189
     },
     "mapping-b-result.json": {
@@ -4668,7 +4668,7 @@
     },
     "preflight-no-approval.json": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/preflight-no-approval.json",
-      "sha256": "bc799db70ca238059fe58ae400e6143fa101f03130f2093ff6214cabdb695c1e",
+      "sha256": "ca01421dd6d43ad4db08acaf7073b343b6d2bf5468b4efc98db376f23348dd3d",
       "bytes": 8507
     },
     "previous-identity.json": {
@@ -4716,6 +4716,11 @@
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/source-shutdown-scope.json",
       "sha256": "82ec6f21796a3eec9f701e610cfae0e2e057a3a14146f887b90f741f9ebba668",
       "bytes": 1144
+    },
+    "source-verification.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/source-verification.json",
+      "sha256": "bf8da2c5b0dc25c8fe56ca47624917784097c5117eabfc928122adfa765ec846",
+      "bytes": 576
     }
   },
   "source_shutdown_scope": {
@@ -4734,5 +4739,18 @@
     "restore_env_source": "/Users/rushiparikh/projects/atom/backend/.env",
     "restore_venv": "/Users/rushiparikh/projects/atom/backend/venv314",
     "note": "Stop only this verified process after owner authorization. On failure, restore this exact service command/cwd/environment, not merely the rollback release. No secret values are stored here."
+  },
+  "source_verification": {
+    "schema": "atom-source-verification-1",
+    "checked_at": "2026-10-30T03:34:34.586647+00:00",
+    "pid": 19046,
+    "command": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 75",
+    "cwd": "/Users/rushiparikh/projects/atom-releases/c912375de/backend",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+    "port": 8001,
+    "scope_sha256": "82ec6f21796a3eec9f701e610cfae0e2e057a3a14146f887b90f741f9ebba668",
+    "ok": true,
+    "errors": [],
+    "other_source_db_holders": []
   }
 }

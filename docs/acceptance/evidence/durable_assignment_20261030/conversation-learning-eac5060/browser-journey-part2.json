@@ -1,0 +1,8 @@
+{
+  "candidate_status": "invalidated",
+  "lesson_stale": true,
+  "revalidation_required": true,
+  "apply_after_restart_http": 409,
+  "page_errors": [],
+  "screenshot": "/Users/rushiparikh/projects/atom-conversation-world/journey-after-restart.png"
+}

@@ -1,0 +1,12 @@
+{
+  "candidate_id": "lc-46d8522a2af246db",
+  "wrong_context_error": "Teaching does not apply to this context (customer: Customer-A vs Customer-B; qualification: licensed vs unlicensed).",
+  "matching_value": "15 USD",
+  "stale_status": "invalidated",
+  "apply_after_change_http": 409,
+  "top_level_context": {
+    "customer": "Customer-A",
+    "qualification": "licensed"
+  },
+  "page_errors": []
+}

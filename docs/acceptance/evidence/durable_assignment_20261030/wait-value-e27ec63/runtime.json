@@ -1,0 +1,34 @@
+{
+  "schema": "atom-wait-value-runtime-2",
+  "source_commit": "e27ec63abcbd5accd8bc085f06ea2242d0930633",
+  "source_tree": "dc67a86e89e95ea6df11561df14156c851a54f59",
+  "python": "3.11.16",
+  "node": "v20.19.6",
+  "npm": "10.8.2",
+  "frontend_build": "DAyJPdxkcutCPtDNO1645",
+  "prior_value_source_commit": "43f3dae58f2742a478614569c47b5a34ab1d2b2e",
+  "exact_comparison_source_commit": "97543fec0bc2e1f1e58673491116b72535944415",
+  "restart": {
+    "old_pid": 49087,
+    "new_pid": 49391,
+    "same_data_root": true
+  },
+  "fixtures": {
+    "blank_currency.csv": "Currency column present, values blank; expected 350.00",
+    "integrated_quote.csv": "Currency=USD; expected 400.00"
+  },
+  "checks": {
+    "blank_currency_fact_status": "missing",
+    "blank_currency_completed": true,
+    "blank_currency_artifact_hash_matches_after_restart": true,
+    "blank_currency_applied_wait_operations": 1,
+    "agreeing_currency_fact_status": "established",
+    "agreeing_currency_confirmation_reason": "source_fact_confirmed",
+    "conflicting_currency_status": "waiting",
+    "conflicting_currency_artifact_created": false,
+    "exact_comparison": "Not USD; use EUR / USDX / 20-vs-120 rejected; explicit typed value accepted",
+    "filtered_rows": "only accepted row identities inspected",
+    "unavailable_evidence": "source_fact_unavailable, not missing",
+    "incomplete_coverage": "source_fact_incomplete, not missing"
+  }
+}

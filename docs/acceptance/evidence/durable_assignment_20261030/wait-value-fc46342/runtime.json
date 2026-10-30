@@ -1,0 +1,23 @@
+{
+  "captured_at": "2026-10-30T17:14:14.779135+00:00",
+  "host": "MacBook-Pro",
+  "source_commit": "fc46342ed77df624b8922a0fc4d834935fc4f481",
+  "source_tree": "38618c7bc806b741498eab539c14345bb1054efe",
+  "listeners": {
+    "8001": [
+      "COMMAND     PID        USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME",
+      "python3.1 19046 rushiparikh   27u  IPv4 0x65b58b3741050949      0t0  TCP *:8001 (LISTEN)"
+    ],
+    "8071": [],
+    "3130": []
+  },
+  "process_19046": "19046     1 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 75",
+  "deployment_package": {
+    "path": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9",
+    "exists": true,
+    "approved_marker": false,
+    "executed": false
+  },
+  "test_python": "Python 3.11.16",
+  "clean_install_artifact": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/atom-local"
+}

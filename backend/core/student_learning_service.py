@@ -31,7 +31,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.models import AgentRegistry, AgentStatus
+from core.models import AgentRegistry, AgentStatus, DatasetEntry
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +185,10 @@ def get_agent_lessons(
     limit: int = WORK_TIME_LESSON_LIMIT,
     goal_id: Optional[str] = None,
     include_workspace: bool = True,
+    *,
+    task_context: Optional[Dict[str, Any]] = None,
+    workspace_id: Optional[str] = None,
+    include_context_bound: bool = False,
 ) -> List[Dict[str, Any]]:
     """The agent's permanent lessons, newest first, for injection at work time.
 
@@ -204,9 +208,13 @@ def get_agent_lessons(
     global lessons apply. Entries written before scope existed have none and
     are therefore global — the historical behaviour, unchanged.
     """
+    permanent = _permanent_lessons(db, agent_id)
+    stale_ids = _reference_bound_stale_ids(db, permanent)
     lessons = [
-        e for e in _permanent_lessons(db, agent_id)
+        e for e in permanent
         if _lesson_in_scope(e, goal_id)
+        and not _lesson_revalidation_required(e)
+        and str(e.get("id") or "") not in stale_ids
     ]
     # SIBLING LESSONS. Teaching is addressed to "the agent I am talking to", but
     # the knowledge usually is not: a pricing rule taught to the Sales Agent is
@@ -230,6 +238,28 @@ def get_agent_lessons(
                 continue
             if _lesson_in_scope(entry, goal_id):
                 lessons.append(entry)
+
+    if not include_context_bound:
+        from core.artifact_teaching import evaluate_lesson_context
+
+        applicable: List[Dict[str, Any]] = []
+        for entry in lessons:
+            lesson_context = entry.get("context") or {}
+            if not lesson_context:
+                applicable.append(entry)
+                continue
+            if task_context is None:
+                # A context-bound lesson cannot be safely generalized when
+                # the caller has not established the task context.
+                continue
+            evaluation = evaluate_lesson_context(
+                lesson_context,
+                task_context,
+                workspace_id=workspace_id or entry.get("workspace_id"),
+            )
+            if evaluation.get("status") == "applicable":
+                applicable.append(entry)
+        lessons = applicable
 
     if query:
         q_tokens = {
@@ -332,6 +362,149 @@ def _permanent_lessons(db: Session, agent_id: str) -> List[Dict[str, Any]]:
     lessons = [e for e in log if _is_permanent_lesson(e)]
     lessons.reverse()  # newest first (the log is append-ordered)
     return lessons
+
+
+def _lesson_revalidation_required(entry: Dict[str, Any]) -> bool:
+    """True when a reference-bound lesson's governing resource changed.
+
+    The entry stays in the raw journal with its provenance; work-time
+    injection skips it until the candidate is reviewed again.
+    """
+    details = entry.get("details") if isinstance(entry.get("details"),
+                                                dict) else {}
+    learning = details.get("conversation_learning") if isinstance(
+        details.get("conversation_learning"), dict) else {}
+    return bool(learning.get("revalidation_required"))
+
+
+def _reference_bound_stale_ids(
+    db: Session, lessons: Sequence[Dict[str, Any]]
+) -> set:
+    """Lesson ids whose governing dataset version is no longer current."""
+    refs: Dict[str, set] = {}
+    for entry in lessons:
+        details = entry.get("details") if isinstance(entry.get("details"),
+                                                    dict) else {}
+        learning = details.get("conversation_learning") if isinstance(
+            details.get("conversation_learning"), dict) else {}
+        for ref in learning.get("references") or []:
+            if not isinstance(ref, dict):
+                continue
+            resource_id = str(ref.get("resource_id") or "")
+            if resource_id:
+                refs.setdefault(resource_id, set()).add(
+                    str(ref.get("source_version") or ""))
+    if not refs:
+        return set()
+    try:
+        rows = (
+            db.query(
+                DatasetEntry.id,
+                DatasetEntry.content_hash,
+                DatasetEntry.status,
+            )
+            .filter(DatasetEntry.id.in_(sorted(refs)))
+            .all()
+        )
+    except Exception as exc:  # noqa: BLE001 — retrieval must not break
+        logger.debug("reference-bound lesson check skipped: %s", exc)
+        return set()
+    current = {
+        str(row.id): (
+            str(row.content_hash or ""),
+            str(row.status or "active"),
+        )
+        for row in rows
+    }
+    stale: set = set()
+    for entry in lessons:
+        entry_id = str(entry.get("id") or "")
+        details = entry.get("details") if isinstance(entry.get("details"),
+                                                    dict) else {}
+        learning = details.get("conversation_learning") if isinstance(
+            details.get("conversation_learning"), dict) else {}
+        for ref in learning.get("references") or []:
+            if not isinstance(ref, dict):
+                continue
+            resource_id = str(ref.get("resource_id") or "")
+            if not resource_id:
+                continue
+            version = str(ref.get("source_version") or "")
+            found = current.get(resource_id)
+            if (found is None or found[1] != "active"
+                    or not version or found[0] != version):
+                stale.add(entry_id)
+                break
+    return stale
+
+
+
+def lesson_context_requirements(
+    db: Session,
+    agent_id: str,
+    task_context: Optional[Dict[str, Any]] = None,
+    *,
+    workspace_id: Optional[str] = None,
+    query: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Missing context keys for context-bound lessons relevant to this task.
+
+    This is the clarification half of work-time retrieval: when a lesson is
+    relevant but cannot be safely applied because the task has not established
+    its required context, the caller must ask rather than silently continue.
+    """
+    from core.artifact_teaching import evaluate_lesson_context
+
+    tokens = {
+        token for token in re.findall(r"[a-z0-9]{3,}", str(query or "").lower())
+        if token not in {
+            "the", "and", "for", "with", "this", "that", "please", "can",
+            "you", "your", "from", "into", "what", "when", "where", "which",
+        }
+    }
+    missing: set = set()
+    lesson_ids: List[str] = []
+    conflicts: List[Dict[str, Any]] = []
+    for entry in _permanent_lessons(db, agent_id):
+        lesson_context = entry.get("context") or {}
+        if not lesson_context:
+            continue
+        if tokens:
+            canvas = entry.get("canvas") if isinstance(
+                entry.get("canvas"), dict) else {}
+            haystack = " ".join((
+                str(entry.get("topic") or ""),
+                _lesson_text(entry),
+                str(canvas.get("name") or ""),
+                str(canvas.get("label") or ""),
+            )).lower()
+            if not any(token in haystack for token in tokens):
+                continue
+        evaluation = evaluate_lesson_context(
+            lesson_context,
+            task_context or {},
+            workspace_id=workspace_id or entry.get("workspace_id"),
+        )
+        if evaluation.get("status") == "not_applicable" and (
+                evaluation.get("reason") == "context_mismatch"):
+            conflicts.append({
+                "lesson_id": str(entry.get("id") or ""),
+                "conflicts": list(evaluation.get("conflicts") or []),
+            })
+            continue
+        if evaluation.get("status") != "needs_context":
+            continue
+        missing.update(str(key) for key in (evaluation.get("missing") or []))
+        lesson_id = str(entry.get("id") or "")
+        if lesson_id and lesson_id not in lesson_ids:
+            lesson_ids.append(lesson_id)
+    return {
+        "missing": sorted(missing),
+        "lesson_ids": lesson_ids,
+        "conflicts": conflicts,
+        "needs_context": bool(missing),
+        "mismatch": bool(conflicts),
+    }
 
 
 def _lesson_in_scope(entry: Dict[str, Any], goal_id: Optional[str]) -> bool:
@@ -656,6 +829,12 @@ def journal_standing_lesson_entry(
                 "lesson": text[:2000],
                 "learned_at": datetime.now(timezone.utc).isoformat(),
             }
+            # Structured provenance is part of the lesson, not a second
+            # store: reference-bound candidates carry their method and
+            # resource versions here so work-time application can validate
+            # them. Ordinary teacher lessons simply omit it.
+            if details:
+                entry["details"] = dict(details)
         else:
             entry = {
                 "id": _new_entry_id(),
@@ -847,6 +1026,33 @@ def format_lessons_block(lessons: List[Dict[str, Any]]) -> str:
             )
             if context_text:
                 line += " [applies when: " + context_text + "]"
+        provenance = (
+            (entry.get("details") or {}).get("conversation_learning")
+            if isinstance(entry.get("details"), dict) else None
+        )
+        if isinstance(provenance, dict):
+            lesson_id = str(entry.get("id") or "")
+            if lesson_id:
+                line += (
+                    f" [lesson id {lesson_id} rev "
+                    f"{entry.get('revision') or 1}]")
+            candidate_id = str(provenance.get("candidate_id") or "")
+            if candidate_id:
+                line += f" [candidate {candidate_id}]"
+            method = provenance.get("method")
+            if isinstance(method, dict):
+                inputs = ", ".join(
+                    f"{item.get('concept')}={item.get('column')}"
+                    + (f" ({item.get('unit')})" if item.get("unit") else "")
+                    for item in (method.get("inputs") or [])
+                    if isinstance(item, dict)
+                )
+                line += (
+                    f" [method: {method.get('operation') or 'unresolved'}"
+                    f"({inputs})"
+                    + (f" -> {method.get('output_unit')}"
+                       if method.get("output_unit") else "")
+                    + "]")
         if entry.get("format_errors"):
             line += " [unsupported format: " + ", ".join(
                 str(item) for item in entry["format_errors"]) + "]"

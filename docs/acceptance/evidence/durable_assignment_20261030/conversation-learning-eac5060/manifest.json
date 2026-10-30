@@ -1,0 +1,100 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "conversation-learning-eac5060",
+  "source_commit": "eac50600eca46e668ca094e83c84f1f4208e1d88",
+  "source_tree": "063751cef0b54712cafa6e832e869eb22cedfe29",
+  "files": {
+    "SUMMARY.md": {
+      "sha256": "4c439726380b01a4ab8bba557fe7a245f090c89ffa4f1aff97b1fd7ac63aaed8",
+      "bytes": 3653
+    },
+    "acceptance-matrix.json": {
+      "sha256": "140550c08fdf8fb8652f4709615407a0d2f1866fff41d3ea54f5fc1cc097e1e2",
+      "bytes": 6663
+    },
+    "assignment-regressions.log": {
+      "sha256": "d9aa8262ec6dd000fd70f7fe0f850f9ee0f212e8568ee3dae0fb845731bbd63c",
+      "bytes": 28015
+    },
+    "backend-journey.log": {
+      "sha256": "0bbddcde1a419fc60c8de7576eb803d9545a490033140ed9ca177ea2657d9272",
+      "bytes": 39999
+    },
+    "backend-restart.log": {
+      "sha256": "d7835b675821bd695c3892cb9f1dec72dd4c8293061103aa35f863a307c9ce6a",
+      "bytes": 38002
+    },
+    "browser-journey-after-restart.png": {
+      "sha256": "381acbb772ff8a5b602873b5a996c46f25db20156d3e67f0544613e565f05613",
+      "bytes": 111945
+    },
+    "browser-journey-part1.json": {
+      "sha256": "2ff584850ac69357c48215375af459888b3a14b125a79dbff7b94e4884d08ef2",
+      "bytes": 340
+    },
+    "browser-journey-part1.py": {
+      "sha256": "0ae1d6b849930722fd369d65866aceea16cac32800f4e3bea2472199f0014439",
+      "bytes": 5585
+    },
+    "browser-journey-part2.json": {
+      "sha256": "2b50605fa6523e56599581f3a9540ac3bf1aae84c4a5c93b122e06a2590df171",
+      "bytes": 249
+    },
+    "browser-journey-part2.py": {
+      "sha256": "4f117f755cf137f4226ff5847eb5c540cd0b2181a795adcf8a20e847909010b2",
+      "bytes": 3754
+    },
+    "browser-journey-promoted.png": {
+      "sha256": "3cd1e789db49943d1f89130fa032f8bb384ae76b33b32792d512a56db181221a",
+      "bytes": 125633
+    },
+    "browser-journey-stale.png": {
+      "sha256": "e3b340de7d400b03cde76616e0defdedb110cda0d9283fc7bf03acea76c7a5ed",
+      "bytes": 111955
+    },
+    "conversation-learning-tests.log": {
+      "sha256": "004c5eb213c37302c8d4796ba4a3e9be76d1948d0836ce746af36fb0dc683b04",
+      "bytes": 11703
+    },
+    "frontend-build.log": {
+      "sha256": "aef884b032018d89db694a6563e31a1d5b2b0934196687e19fb686412afe20d5",
+      "bytes": 16026
+    },
+    "frontend-journey.log": {
+      "sha256": "2c71096e3f2424a35a8ed860182d5cdca31711fcadea1e3109a812b8007adf9c",
+      "bytes": 92729
+    },
+    "frontend-targeted-tests.log": {
+      "sha256": "ddd9e4936175787c2d65ec1bc74e553ddb3a08674273da30155285c851f81a36",
+      "bytes": 1425
+    },
+    "git-status.txt": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "preserved-baseline.json": {
+      "sha256": "506002a6bb1d706a60833eb3c9318e9c2858e2b09e60250aac495336027e96f3",
+      "bytes": 672
+    },
+    "runtime.json": {
+      "sha256": "51f3c47ff7cf51f189cd49c659d216b341e5e9f511864c9a55efc79db031b643",
+      "bytes": 1913
+    },
+    "source-commit.txt": {
+      "sha256": "541e4aa65c070bb984b07efe3ad82d5c3963afd8310032fb1dfd9c923ae518d3",
+      "bytes": 41
+    },
+    "source-tree.txt": {
+      "sha256": "4c0a0f8cbd04dfaceaf54b56b8810c732d17cf193e307ba7d29ea25e5868a685",
+      "bytes": 41
+    },
+    "teaching-regressions.log": {
+      "sha256": "de6528632af0f6306890fa4ff976c1d1e4a13ffbce54a3fece11b1100d01d277",
+      "bytes": 33111
+    },
+    "typescript-check.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  }
+}

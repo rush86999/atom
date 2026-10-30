@@ -1,0 +1,63 @@
+{
+  "schema": "atom-qualification-evidence-binding-1",
+  "bound_at": "2026-10-30",
+  "product": {
+    "commit": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4",
+    "tag": "assignment-successor-2026-10-30-fda4f2dc9",
+    "tree": "92924cd8f8f3cffa8e884a9a7fecc5f820f4f5ce8acbba60fdd257975df614fa",
+    "kit_tree": "5c58bdd36c109b11b14efb6ccf6d8f5410662beb930c7e08a8e2de24bea3ca26",
+    "frontend_build": "7Y8qAVXDNHG0Q9YDMKwb4"
+  },
+  "tested_configuration": {
+    "prepared_root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9",
+    "data_dir": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/data",
+    "source_snapshot_sha256": "fe394390f30f61c2c4ef9e801be7a5a15ae7d653fd33986822493c40a9419ea9",
+    "target_db_sha256": "b15d22135c7f69c7d303227a4018aef12f7284cf4622681b213dc1fed879c1d4",
+    "source_service": {
+      "pid": 19046,
+      "service": "atom-c912375de",
+      "cwd": "/Users/rushiparikh/projects/atom-releases/c912375de/backend",
+      "database": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+      "port": 8001
+    },
+    "provider_mailbox": "rish@brennan.ca",
+    "send_restrictions": {
+      "ATOM_EMAIL_SEND_DISABLED": "1",
+      "ATOM_ASSIGNMENT_ALLOW_LIVE_SEND": "0"
+    }
+  },
+  "research_evidence": {
+    "live_lookup": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/live-research-qualification.json",
+      "sha256": "1a9c3ad9e8dc3094bc2cc7518c5e1a5ec509cd53e63ee99d33fe14f24f14adb0",
+      "message_id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAA=",
+      "attachment_sha256": "5cd746af2c46dfe3979b1881cb8623dff149958b4cadd97bd69da1e489c9dcb4",
+      "retrieved_at": "2026-10-30T11:36:01.403493+00:00",
+      "price": 31800.0,
+      "qty_sum": 8,
+      "currency_columns": []
+    },
+    "assignment": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/research-assignment-qualification.json",
+      "sha256": "1e7c070365cbd84cbabcd8fa5985c31865717d8a4bbeab1caff33f08c3084a57"
+    },
+    "cross_source": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/cross-source-qualification.json",
+      "sha256": "10b737d4b939bc26cca68ade8b6884e97b8b191a676d407d59d7d3106d81cf10"
+    }
+  },
+  "send_evidence": {
+    "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-qualification/send-qualification.json",
+    "sha256": "224868fccd9a5d71facfda4d97e6f97d69b6caab4c0134c25bc0b3f47e9ae1d5",
+    "approval_payload_sha256": "4a91227a3bf1f896f807d1118e3ea5218318b7aa31d24e1dc8248bcc9bd3bf66",
+    "attachment_sha256": "7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6",
+    "provider_accepted": true,
+    "sent_record_confirmed": true,
+    "delivery_confirmed": false,
+    "sent_at": "2026-10-30T12:13:30Z",
+    "internet_message_id": "<YQBPR0101MB47483FC0A197D506B4D7F1C1AC6D2@YQBPR0101MB4748.CANPRD01.PROD.OUTLOOK.COM>",
+    "restart_no_duplicate": true
+  },
+  "standing_send_permission": false,
+  "note": "The single send qualification does not enable ordinary production sending. Deployment remains separately unauthorized."
+}

@@ -171,7 +171,7 @@ EXEC_SERVED_BASES = ("saved_copy", "refreshed", "live", "none")
 #: SURFACED, never auto-executed. ``verification`` and
 #: ``missing_evidence`` carry agent-runnable next actions and may be
 #: selected for continuation within the attempt budget.
-UNRESOLVED_KINDS = ("business_decision", "verification", "missing_evidence")
+UNRESOLVED_KINDS = ("business_decision", "verification", "missing_evidence", "external_research")
 UNRESOLVED_STATUSES = ("open", "resolved")
 
 #: How many times continuation may act on one open question before it is
@@ -456,6 +456,8 @@ def apply_transition(
                         "status": "resolved",
                         "resolved_at": _utc_now_iso(),
                         "resolution": resolution,
+                        "resolution_value": (
+                            _bounded_text(r.get("value"), 400) or resolution),
                     })
                     existing[index] = settled
         for cl in (transition.get("claims") or []):
@@ -847,7 +849,7 @@ def _normalize_question(question: Dict[str, Any],
     if not text.strip():
         raise TaskLifecycleError("an unresolved question requires text")
     next_action = _bounded_text(question.get("next_action"), 400)
-    if kind in ("verification", "missing_evidence") and not next_action.strip():
+    if kind in ("verification", "missing_evidence", "external_research") and not next_action.strip():
         raise TaskLifecycleError(
             f"a {kind} question requires the next action to run")
     attempts = question.get("attempts")

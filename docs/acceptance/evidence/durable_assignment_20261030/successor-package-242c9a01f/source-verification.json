@@ -1,0 +1,13 @@
+{
+  "schema": "atom-source-verification-1",
+  "checked_at": "2026-10-30T03:34:34.586647+00:00",
+  "pid": 19046,
+  "command": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 75",
+  "cwd": "/Users/rushiparikh/projects/atom-releases/c912375de/backend",
+  "database": "/Users/rushiparikh/projects/atom/backend/data/atom.db",
+  "port": 8001,
+  "scope_sha256": "82ec6f21796a3eec9f701e610cfae0e2e057a3a14146f887b90f741f9ebba668",
+  "ok": true,
+  "errors": [],
+  "other_source_db_holders": []
+}

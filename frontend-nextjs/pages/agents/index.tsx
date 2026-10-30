@@ -349,6 +349,26 @@ const AgentsDashboard = () => {
         routerPush(`/chat?agent_id=${id}`);
     };
 
+    const handleTeach = async (id: string) => {
+        try {
+            const { attachCanvasAgent, createBlankCanvas } = await import("@/lib/canvas-api");
+            const canvas = await createBlankCanvas({
+                title: "Teaching workspace",
+                description: "Teach this employee a method, context and output format.",
+            });
+            await attachCanvasAgent(canvas.canvas_id, id, "collaborator");
+            routerPush(
+                `/canvas/${canvas.canvas_id}?agent_id=${encodeURIComponent(id)}&side=training`
+            );
+        } catch (e) {
+            toast({
+                title: "Could not open teaching",
+                description: e instanceof Error ? e.message : String(e),
+                variant: "error",
+            });
+        }
+    };
+
     const handleEdit = (id: string) => {
         const agent = agents.find(a => a.id === id);
         if (agent) {
@@ -568,6 +588,7 @@ const AgentsDashboard = () => {
                                     onRun={handleRunAgent}
                                     onStop={handleStopAgent}
                                     onChat={handleChat}
+                                    onTeach={handleTeach}
                                     onEdit={handleEdit}
                                     onViewReasoning={handleViewReasoning}
                                     onDelete={handleDelete}

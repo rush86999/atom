@@ -225,12 +225,28 @@ def resolve_assignment_source(
             "unsupported_resource_kind",
             "Assignment sources require a file-backed catalog entry.",
             status=409)
-    try:
-        _assert_connected_source_access(db, entry.get("source"), user)
+    source_name = str(entry.get("source") or "").strip().lower()
+    if source_name == "upload":
+        # A local upload is authorized by its workspace/creator binding, not
+        # by an OAuth token family. The catalog lookup above already enforced
+        # the workspace scope; this extra check keeps a shared workspace from
+        # binding another user's private upload.
+        created_by = str(entry.get("created_by") or "")
+        user_id = str(getattr(user, "id", "") or "")
+        if created_by and created_by != user_id:
+            raise AssignmentResourceError(
+                "resource_workspace_mismatch",
+                "That uploaded source belongs to a different user.",
+                status=403,
+            )
         coverage = _validate_connected_coverage(entry)
-    except CapabilityError as exc:
-        raise AssignmentResourceError(
-            exc.code, str(exc), status=exc.status_code)
+    else:
+        try:
+            _assert_connected_source_access(db, entry.get("source"), user)
+            coverage = _validate_connected_coverage(entry)
+        except CapabilityError as exc:
+            raise AssignmentResourceError(
+                exc.code, str(exc), status=exc.status_code)
     actual_version = str(entry.get("content_hash") or "")
     if expected_version and actual_version != expected_version:
         raise AssignmentResourceError(

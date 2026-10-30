@@ -1,0 +1,45 @@
+{
+  "schema": "atom-preserved-evidence-1",
+  "origin_directory": "wait-value-e27ec63",
+  "origin_source_commit": "e27ec63abcbd5accd8bc085f06ea2242d0930633",
+  "origin_source_tree": "dc67a86e89e95ea6df11561df14156c851a54f59",
+  "reason": "Positive UI twins and the contradictory negative control were generated against e27ec63 and remain accepted. They are preserved byte-for-byte here; the new source is covered by the unit-level positive twins in executor-tests.log and the branch matrix.",
+  "files": {
+    "positive-twins.json": {
+      "origin_sha256": "a61bdbbb920e76854018e0655f45b17ebfc60199a27d0fb9469c319b9a2c4e76",
+      "copy_sha256": "a61bdbbb920e76854018e0655f45b17ebfc60199a27d0fb9469c319b9a2c4e76"
+    },
+    "positive-twins-verify.json": {
+      "origin_sha256": "6017b3bce754db06b861126c20c486c3245e21b1025d83690feeed100c7799ad",
+      "copy_sha256": "6017b3bce754db06b861126c20c486c3245e21b1025d83690feeed100c7799ad"
+    },
+    "positive-twins-create.log": {
+      "origin_sha256": "a61bdbbb920e76854018e0655f45b17ebfc60199a27d0fb9469c319b9a2c4e76",
+      "copy_sha256": "a61bdbbb920e76854018e0655f45b17ebfc60199a27d0fb9469c319b9a2c4e76"
+    },
+    "positive-twins-verify.log": {
+      "origin_sha256": "6017b3bce754db06b861126c20c486c3245e21b1025d83690feeed100c7799ad",
+      "copy_sha256": "6017b3bce754db06b861126c20c486c3245e21b1025d83690feeed100c7799ad"
+    },
+    "blank-currency-artifact.docx": {
+      "origin_sha256": "b18c4874c644aff5c0a9cb65951b6d075c0df2f83a442ea8317a15d81a2b679f",
+      "copy_sha256": "b18c4874c644aff5c0a9cb65951b6d075c0df2f83a442ea8317a15d81a2b679f"
+    },
+    "blank-currency-artifact-after-restart.docx": {
+      "origin_sha256": "b18c4874c644aff5c0a9cb65951b6d075c0df2f83a442ea8317a15d81a2b679f",
+      "copy_sha256": "b18c4874c644aff5c0a9cb65951b6d075c0df2f83a442ea8317a15d81a2b679f"
+    },
+    "wait-negative-control.json": {
+      "origin_sha256": "cf373630073cef3caa2ab6755feea8cd758d044b6f60580d339f7de4eb41e568",
+      "copy_sha256": "cf373630073cef3caa2ab6755feea8cd758d044b6f60580d339f7de4eb41e568"
+    },
+    "wait-negative-control.log": {
+      "origin_sha256": "cf373630073cef3caa2ab6755feea8cd758d044b6f60580d339f7de4eb41e568",
+      "copy_sha256": "cf373630073cef3caa2ab6755feea8cd758d044b6f60580d339f7de4eb41e568"
+    },
+    "wait-negative-control.png": {
+      "origin_sha256": "57d0a9a9cd30249707b74459dc1f662cf1b810a74f662f24a0a78aa1d71622a9",
+      "copy_sha256": "57d0a9a9cd30249707b74459dc1f662cf1b810a74f662f24a0a78aa1d71622a9"
+    }
+  }
+}

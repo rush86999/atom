@@ -1,0 +1,29 @@
+{
+  "dependencies": [],
+  "explicit_attachment": {
+    "basis": "provider_attachment_id",
+    "resource_id": "ds-1",
+    "status": "resolved"
+  },
+  "method_transfer": {
+    "payroll": {
+      "status": "applied",
+      "value": "16.5"
+    },
+    "sales": {
+      "status": "applied",
+      "value": "20"
+    }
+  },
+  "quoted_authority": {
+    "error": "authority_is_quoted"
+  },
+  "review_ready": true,
+  "same_name_attachments": {
+    "candidates": [
+      "ds-1",
+      "ds-2"
+    ],
+    "status": "ambiguous"
+  }
+}

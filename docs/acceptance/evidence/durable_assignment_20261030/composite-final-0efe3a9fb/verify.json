@@ -1,0 +1,94 @@
+{
+  "schema": "atom-composite-long-running-verify-1",
+  "status": "passed",
+  "active": {
+    "run_id": "860a8d81-f17b-4bb0-9e87-442d8abbbaa4",
+    "status": "completed",
+    "teaching_revision": "87d15fb70ae01762+bf5d58e747ff9cdf+map",
+    "mapping": [
+      {
+        "concept": "Price",
+        "sheet": "integrated_quote",
+        "column": "Gross Amount",
+        "unit": "USD",
+        "unit_authority": "source_evidence",
+        "required_unit": "",
+        "source_unit": "USD",
+        "source_unit_column": "Currency",
+        "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "revision": 2,
+        "lesson_id": null,
+        "lesson_revision": null,
+        "teaching_revision": "87d15fb70ae01762+bf5d58e747ff9cdf+map",
+        "source": "upload",
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "external_id": "sha1:abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "available_columns": [
+          "Item Code",
+          "Units",
+          "Gross Amount",
+          "Currency"
+        ],
+        "numeric_columns": [
+          "Units",
+          "Gross Amount"
+        ],
+        "correctable": true
+      }
+    ],
+    "artifact": {
+      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/run/composite-final/active-reload-assignment-artifact.docx",
+      "bytes": 37221,
+      "sha256": "f0d902ddac32f38f8dd6bb1516eb3fbdfc371699537b1d8af7c540a516ded428",
+      "normal_font": "Arial",
+      "normal_size": 11.0,
+      "text": "Sum Price for the final composite quote sheet 2026-10-30 v2\nSummary\nsum of Gross Amount: 400.00 USD\ncontrolled reply received: Currency unstated by source; report the total without a currency.\nFindings\nSources\nupload_integrated_quote__integrated_quote\nintegrated_quote.csv\nintegrated_quote\naa402219-1dbb-4b60-8d8c-9afa42cd3c78\nintegrated_quote.csv / integrated_quote\nObjective\nSum Price for the final composite quote sheet 2026-10-30 v2\nintegrated_quote.csv / integrated_quote"
+    }
+  },
+  "second": {
+    "run_id": "c869aa2c-d562-4c3c-8d79-786ce5d88396",
+    "status": "completed",
+    "teaching_revision": "b9ea9fd7046d2776+map",
+    "mapping": [
+      {
+        "concept": "Price",
+        "sheet": "clean_quote",
+        "column": "Net Amount",
+        "unit": "USD",
+        "unit_authority": "source_evidence",
+        "required_unit": "",
+        "source_unit": "USD",
+        "source_unit_column": "Currency",
+        "source_version": "07e5d4bad0b195d6898a4ce4fda0333853a83b80",
+        "revision": 2,
+        "lesson_id": null,
+        "lesson_revision": null,
+        "teaching_revision": "b9ea9fd7046d2776+map",
+        "source": "upload",
+        "dataset_name": "upload_clean_quote__clean_quote",
+        "external_id": "sha1:07e5d4bad0b195d6898a4ce4fda0333853a83b80",
+        "available_columns": [
+          "SKU",
+          "Quantity",
+          "Net Amount",
+          "Currency"
+        ],
+        "numeric_columns": [
+          "Quantity",
+          "Net Amount"
+        ],
+        "correctable": true
+      }
+    ],
+    "artifact": {
+      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/run/composite-final/revised-assignment-artifact.docx",
+      "bytes": 37181,
+      "sha256": "fb87716c3d20299a0e035b7c22e3d8a38b42dee008c88bd5160ae33d2564c241",
+      "normal_font": "Calibri",
+      "normal_size": 14.0,
+      "text": "Sum Price for the final revised composite quote sheet 2026-10-30 v2\nSummary\nsum of Net Amount: 2225.75 USD\nFindings\nSources\nupload_clean_quote__clean_quote\nclean_quote.csv\nclean_quote\n245b61b5-e64c-4ea1-b48b-beff410cbf47\nclean_quote.csv / clean_quote\nObjective\nSum Price for the final revised composite quote sheet 2026-10-30 v2\nclean_quote.csv / clean_quote"
+    }
+  },
+  "teaching_revision_changed_for_new_work": true,
+  "outbox_lines": 2
+}

@@ -1,0 +1,99 @@
+{
+  "schema": "atom-wait-positive-twins-verify-1",
+  "status": "passed",
+  "blank": {
+    "run_id": "ebc6f5eb-7d92-483f-9701-7337c25a6bb5",
+    "assignment_status": "completed",
+    "artifact_sha256": "b18c4874c644aff5c0a9cb65951b6d075c0df2f83a442ea8317a15d81a2b679f",
+    "artifact_hash_matches": true,
+    "applied_wait_operations": 1
+  },
+  "agreeing": {
+    "objective": "Agreeing currency confirmation exact2",
+    "run_id": "a21929d9-6765-4bd7-91ff-16c04e41ea41",
+    "status": "completed",
+    "fact_resolution": {
+      "status": "established",
+      "fact": "currency",
+      "column": "Currency",
+      "values": [
+        "USD"
+      ],
+      "subjects": [
+        "row 2",
+        "row 3",
+        "row 4"
+      ],
+      "blank_subjects": [],
+      "records": [
+        {
+          "subject": "row 2",
+          "value": "USD",
+          "blank": false
+        },
+        {
+          "subject": "row 3",
+          "value": "USD",
+          "blank": false
+        },
+        {
+          "subject": "row 4",
+          "value": "USD",
+          "blank": false
+        }
+      ],
+      "selected_rows": [
+        2,
+        3,
+        4
+      ],
+      "source": {
+        "resource_id": "aa402219-1dbb-4b60-8d8c-9afa42cd3c78",
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "file_name": "integrated_quote.csv",
+        "sheet": "integrated_quote",
+        "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "column": "Currency",
+        "coverage": {
+          "known": true,
+          "source_row_count": 3,
+          "materialized_row_count": 3,
+          "truncated": false,
+          "row_cap": 500000
+        }
+      },
+      "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61"
+    },
+    "fact_confirmation": {
+      "correlation_id": "agree-currency",
+      "fact": "currency",
+      "response": "USD",
+      "source": {
+        "resource_id": "aa402219-1dbb-4b60-8d8c-9afa42cd3c78",
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "file_name": "integrated_quote.csv",
+        "sheet": "integrated_quote",
+        "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "column": "Currency",
+        "coverage": {
+          "known": true,
+          "source_row_count": 3,
+          "materialized_row_count": 3,
+          "truncated": false,
+          "row_cap": 500000
+        }
+      },
+      "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+      "values": [
+        "USD"
+      ],
+      "subjects": [
+        "row 2",
+        "row 3",
+        "row 4"
+      ],
+      "at": "2026-10-30T16:31:46.964669+00:00",
+      "reason": "source_fact_confirmed"
+    }
+  }
+}

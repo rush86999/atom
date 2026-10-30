@@ -1,0 +1,24 @@
+{
+  "schema": "atom-composite-runtime-1",
+  "source_commit": "0efe3a9fbdc19414b0615ae033a3823e02d04d75",
+  "source_tree": "f1ef5e1faed79cdf974fad0f68269c026510ade3",
+  "python": "3.11.16",
+  "node": "v20.19.6",
+  "npm": "10.8.2",
+  "frontend_build": "GOrfSLmY6nKYw7TifnHaK",
+  "frontend_build_env": {
+    "NEXT_PUBLIC_API_URL": "http://127.0.0.1:8071",
+    "NEXT_PUBLIC_ALLOW_LOOPBACK": "1",
+    "NEXT_PUBLIC_ASSIGNMENT_TRANSPORT": "controlled"
+  },
+  "backend_env": {
+    "ATOM_ASSIGNMENT_CONTROLLED_TRANSPORT": "1",
+    "ATOM_ASSIGNMENT_OUTBOX": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/run/controlled-outbox.jsonl",
+    "ATOM_EMAIL_SEND_DISABLED": "1",
+    "ATOM_ASSIGNMENT_ALLOW_LIVE_SEND": "0"
+  },
+  "fixtures": {
+    "integrated_quote.csv": "controlled local upload; 3 rows; Price maps to Gross Amount; expected 400.00",
+    "clean_quote.csv": "controlled local upload; 3 rows; Price maps to Net Amount; expected 2225.75"
+  }
+}

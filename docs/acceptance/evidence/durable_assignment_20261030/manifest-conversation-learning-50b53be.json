@@ -1,0 +1,45 @@
+{
+  "schema": "atom-final-local-closure-manifest-6",
+  "source_commit": "50b53bef62242bdb8672dac9fbdc34c0ab7b8fcd",
+  "source_tree": "cf7d8d3ef867d054562fb063501b1d1c10779259",
+  "accepted_core_tag": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d",
+  "files": {
+    "conversation-learning-50b53be/manifest.json": {
+      "sha256": "cd2fc4082728f4c4c6227c063195c9fda6fc032d78bd85a9abbccc7d8e25be66",
+      "bytes": 3500
+    },
+    "conversation-learning-eac5060/manifest.json": {
+      "sha256": "3f338aec6551898b2961be424b7ee5bde90d177041322f77fba56a051d0d2f7c",
+      "bytes": 3524
+    },
+    "conversation-learning-59464e7/manifest.json": {
+      "sha256": "1f7f7d9df627a348a137d7c12fea16121e5932b4eed41c46d6525eb7441455d7",
+      "bytes": 2522
+    },
+    "conversation-learning-554b462/manifest.json": {
+      "sha256": "376408107678584dba9ba840d2125d04440bc54abe595e0b33fc194a56d684b6",
+      "bytes": 2522
+    },
+    "final-local-closure-fc46342.json": {
+      "sha256": "f7811df486aa62820ce3d0732619c32d9453069c39679a2afd0d8820df05d4f3",
+      "bytes": 6281
+    },
+    "wait-value-fc46342/manifest.json": {
+      "sha256": "49125a2e6d096fba0ba047a007b930b4d244ee45adc75c1e8a16bea844865ccf",
+      "bytes": 3840
+    },
+    "wait-value-e27ec63/manifest.json": {
+      "sha256": "db1da91f1afa80efb2bac1a048447331a34cab05cddad5456dbd8fd135398ed1",
+      "bytes": 2819
+    },
+    "local-core-repro-5ce5f57/manifest.json": {
+      "sha256": "af31b76766d13e47dec07415662f9e1452965e33481a5810a7e90c80d048abec",
+      "bytes": 1772
+    },
+    "composite-protocol-5ce5f57/manifest.json": {
+      "sha256": "1619587afbec83ec2d92fec9d2607556a100578b4be15ed6e078b22ea321dd1f",
+      "bytes": 5076
+    }
+  },
+  "note": "50b53bef6 is the applicability-enforced conversation-learning successor. Prior successor attempts and the accepted core tag remain unchanged."
+}

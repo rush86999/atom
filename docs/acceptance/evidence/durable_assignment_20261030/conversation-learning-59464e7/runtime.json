@@ -1,0 +1,36 @@
+{
+  "captured_at": "2026-10-30T18:09:54.209173+00:00",
+  "host": "MacBook-Pro",
+  "source_commit": "59464e7426462b4689fcab228d0cd053b281b418",
+  "source_tree": "1ea2b19fae64769cf7bd4d217a273c97aea05696",
+  "accepted_core_tag": {
+    "name": "local-core-2026-10-30-final",
+    "target": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d",
+    "unchanged": true
+  },
+  "listeners": {
+    "8001": [
+      "COMMAND     PID        USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME",
+      "python3.1 19046 rushiparikh   27u  IPv4 0x65b58b3741050949      0t0  TCP *:8001 (LISTEN)"
+    ],
+    "8071": [],
+    "3130": []
+  },
+  "process_19046": "19046     1 /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 75",
+  "deployment_package": {
+    "path": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9",
+    "exists": true,
+    "approved_marker": false,
+    "executed": false
+  },
+  "test_python": "Python 3.11.16",
+  "node": "v20.19.6",
+  "external_actions": {
+    "live_mailbox": false,
+    "real_send": false,
+    "token_refresh": false,
+    "credential_change": false,
+    "source_writeback": false,
+    "external_lookup": false
+  }
+}

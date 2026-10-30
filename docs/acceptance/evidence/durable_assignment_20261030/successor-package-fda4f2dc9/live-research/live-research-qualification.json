@@ -1,0 +1,55 @@
+{
+  "schema": "atom-live-research-qualification-1",
+  "retrieved_at": "2026-10-30T11:36:01.403493+00:00",
+  "source_identity": {
+    "mail": "rish@brennan.ca",
+    "user_principal_name": "rish@brennan.ca",
+    "display_name": "Rish Maniar",
+    "id": "2927f127-c837-4f4b-beac-5c7b723bf887"
+  },
+  "queries": [
+    "HARSLE press brake stock price list",
+    "25206"
+  ],
+  "message": {
+    "query": "HARSLE press brake stock price list",
+    "id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAA=",
+    "subject": "In-Stock Press Brakes Available for Fast Delivery From HARSLE",
+    "received": "2026-09-01T03:17:14Z",
+    "from": {
+      "emailAddress": {
+        "name": "Gretchen Li",
+        "address": "sales06@harsle.com"
+      }
+    },
+    "has_attachments": true
+  },
+  "attachment": {
+    "id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAABEgAQANdlswFjNGRFjGrTB3LgbWY=",
+    "name": "HARSLE press brake stock price list.xlsx",
+    "size": 10765,
+    "sha256": "5cd746af2c46dfe3979b1881cb8623dff149958b4cadd97bd69da1e489c9dcb4",
+    "retrieved_bytes": 10249
+  },
+  "workbook_check": {
+    "serial": "25206",
+    "price": 31800.0,
+    "qty": 1,
+    "model": "170T3200",
+    "row_count": 8,
+    "qty_sum": 8,
+    "currency_columns": []
+  },
+  "missing_control": {
+    "query": "SERIAL-NOT-FOUND-999",
+    "email_count": 0
+  },
+  "conflict_control": {
+    "serial": "25206",
+    "prices": [
+      31800.0,
+      99999.0
+    ],
+    "status": "conflict"
+  }
+}

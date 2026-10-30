@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Download,
   FileText,
   Pencil,
   Play,
@@ -16,18 +17,53 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   approveAssignmentStep,
+  AssignmentAgent,
   AssignmentDetail,
+  AssignmentSource,
   AssignmentStep,
   AssignmentSummary,
   cancelAssignment,
   correctAssignmentMapping,
   createAssignment,
+  downloadAssignmentDeliverable,
   getAssignment,
+  listAssignmentAgents,
   listAssignments,
+  listAssignmentSources,
   recordAssignmentResponse,
   resolveAssignmentGap,
   resumeAssignment,
 } from "@/lib/assignment-api";
+
+function userFacingError(err: unknown, fallback: string): string {
+  const anyErr = err as any;
+  const raw = anyErr?.response?.data
+    || anyErr?.technical?.response?.data;
+  const detail = raw?.detail || raw;
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (detail && typeof detail === "object" && detail.message) {
+    const conflicts = Array.isArray(detail.conflicts) ? detail.conflicts : [];
+    const conflictText = conflicts.flatMap((item: any) =>
+      (item?.conflicts || []).map((pair: any) =>
+        `${pair.key}: ${pair.required} vs ${pair.actual}`)
+    );
+    const clarifications = Array.isArray(detail.clarifications)
+      ? detail.clarifications : [];
+    const missingText = clarifications.flatMap((item: any) =>
+      (item?.missing || []).map((key: string) => `missing ${key}`)
+    );
+    const extra = [...conflictText, ...missingText];
+    return extra.length
+      ? `${detail.message} (${extra.join("; ")})`
+      : String(detail.message);
+  }
+  if (anyErr?.message) return String(anyErr.message);
+  return fallback;
+}
+
+function sourceKey(source: AssignmentSource): string {
+  return `${source.dataset_name || ""}::${source.sheet || ""}`;
+}
 
 const STATE_STYLES: Record<string, string> = {
   completed: "bg-emerald-100 text-emerald-800",
@@ -81,9 +117,20 @@ export function AssignmentPanel({
     unit: string;
   } | null>(null);
   const [responseDraft, setResponseDraft] = useState("");
+  const [resolutionValue, setResolutionValue] = useState("");
+  const [sources, setSources] = useState<AssignmentSource[]>([]);
+  const [agents, setAgents] = useState<AssignmentAgent[]>([]);
+  const [sourcesLoading, setSourcesLoading] = useState(true);
+  const [selectedSourceKey, setSelectedSourceKey] = useState("");
+  const [selectedAgentId, setSelectedAgentId] = useState("");
+  const [measure, setMeasure] = useState("");
+  const [customMeasure, setCustomMeasure] = useState("");
+  const [businessContext, setBusinessContext] = useState("");
+  const [qualification, setQualification] = useState("");
+  const [taskScope, setTaskScope] = useState("");
+  const [missingFact, setMissingFact] = useState("");
   const [startDraft, setStartDraft] = useState({
     objective: "",
-    sourcePath: "",
     deliverableKind: "document",
     content: "",
     recipient: "",
@@ -114,9 +161,39 @@ export function AssignmentPanel({
     }
   }, []);
 
+  const refreshSources = useCallback(async () => {
+    setSourcesLoading(true);
+    try {
+      const rows = await listAssignmentSources();
+      setSources(rows);
+      setSelectedSourceKey((current) => {
+        if (current && rows.some((row) => sourceKey(row) === current)) {
+          return current;
+        }
+        return rows[0] ? sourceKey(rows[0]) : "";
+      });
+    } catch (err) {
+      setError(userFacingError(err, "Could not load the data catalog"));
+    } finally {
+      setSourcesLoading(false);
+    }
+  }, []);
+
+  const refreshAgents = useCallback(async () => {
+    try {
+      const rows = await listAssignmentAgents();
+      setAgents(rows);
+      setSelectedAgentId((current) => current || rows[0]?.id || "");
+    } catch {
+      // The assignment still works without an employee binding.
+    }
+  }, []);
+
   useEffect(() => {
     refreshList();
-  }, [refreshList]);
+    refreshSources();
+    refreshAgents();
+  }, [refreshList, refreshSources, refreshAgents]);
 
   useEffect(() => {
     if (selected) refreshDetail(selected);
@@ -137,19 +214,27 @@ export function AssignmentPanel({
     }
   };
 
+  const selectedSource =
+    sources.find((source) => sourceKey(source) === selectedSourceKey) || null;
+
   const start = async () => {
     setBusy(true);
     setError(null);
     try {
-      const sourceKind = /\.xlsx?$/i.test(startDraft.sourcePath)
-        ? "workbook"
-        : "document";
+      const source = selectedSource;
       const payload: Parameters<typeof createAssignment>[0] = {
         objective: startDraft.objective,
-        agent_id: agentId || undefined,
-        sources: startDraft.discover
+        agent_id: selectedAgentId || agentId || undefined,
+        sources: startDraft.discover || !source
           ? []
-          : [{ kind: sourceKind, path: startDraft.sourcePath }],
+          : [{
+              kind: source.kind,
+              dataset_name: source.dataset_name,
+              source: source.source,
+              external_id: source.external_id,
+              source_version: source.source_version,
+              sheet: source.sheet,
+            }],
         discover: startDraft.discover,
         source_scope: startDraft.discover
           ? { query: startDraft.scopeQuery }
@@ -159,8 +244,26 @@ export function AssignmentPanel({
           description: startDraft.objective,
           content: startDraft.content.trim() || undefined,
         }],
+        task_context: {
+          ...(businessContext.trim()
+            ? { business_category: businessContext.trim() }
+            : {}),
+          ...(qualification.trim()
+            ? { qualification: qualification.trim() }
+            : {}),
+          ...(taskScope.trim() ? { task_scope: taskScope.trim() } : {}),
+        },
       };
-      if (startDraft.expression.trim()) {
+      const measureValue = measure === "__custom__"
+        ? customMeasure.trim()
+        : measure;
+      if (measureValue) {
+        payload.calculation = {
+          aggregate: measureValue === "__count__"
+            ? { operation: "count" }
+            : { operation: "sum", value_column: measureValue },
+        };
+      } else if (startDraft.expression.trim()) {
         payload.calculation = {
           expression: startDraft.expression.trim(),
           bindings: {},
@@ -171,6 +274,7 @@ export function AssignmentPanel({
           correlation_id: startDraft.correlation.trim(),
           party: "external responder",
           detail: "authorized external reply",
+          fact: missingFact.trim() || undefined,
         };
       }
       if (startDraft.recipient.trim()) {
@@ -185,7 +289,6 @@ export function AssignmentPanel({
       const result = await createAssignment(payload);
       setStartDraft({
         objective: "",
-        sourcePath: "",
         deliverableKind: "document",
         content: "",
         recipient: "",
@@ -194,11 +297,40 @@ export function AssignmentPanel({
         discover: false,
         scopeQuery: "",
       });
+      setMeasure("");
+      setCustomMeasure("");
+      setQualification("");
+      setTaskScope("");
+      setMissingFact("");
       setSelected(result.run_id);
       await refreshList();
       await refreshDetail(result.run_id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start assignment");
+      setError(userFacingError(err, "Could not start assignment"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const downloadArtifact = async (deliverableId: string) => {
+    if (!detail) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { blob, filename } = await downloadAssignmentDeliverable(
+        detail.run_id,
+        deliverableId
+      );
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(userFacingError(err, "Could not download the artifact"));
     } finally {
       setBusy(false);
     }
@@ -242,61 +374,79 @@ export function AssignmentPanel({
         </div>
       ) : null}
 
-      <div className="space-y-1 rounded border bg-slate-50 p-2" data-testid="assignment-start">
-        <p className="font-medium">Start durable work</p>
+      <div className="space-y-1.5 rounded border bg-slate-50 p-2" data-testid="assignment-start">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-medium">Start durable work</p>
+          <button
+            type="button"
+            className="text-[10px] text-indigo-600 underline"
+            onClick={refreshSources}
+            disabled={sourcesLoading}
+          >
+            {sourcesLoading ? "Refreshing data…" : "Refresh data"}
+          </button>
+        </div>
         <textarea
           value={startDraft.objective}
           onChange={(e) =>
             setStartDraft((d) => ({ ...d, objective: e.target.value }))
           }
-          placeholder="Objective"
+          placeholder="What should the employee do?"
           rows={2}
           className="w-full rounded border px-1.5 py-1"
           aria-label="Assignment objective"
+          data-testid="assignment-objective-input"
         />
-        <label className="flex items-center gap-1 text-[10px]">
-          <input
-            type="checkbox"
-            checked={startDraft.discover}
-            onChange={(e) =>
-              setStartDraft((d) => ({ ...d, discover: e.target.checked }))
-            }
-            aria-label="Discover resource from scope"
-          />
-          Discover an authorized resource from a scope (ordinary employee)
-        </label>
-        {startDraft.discover ? (
-          <input
-            value={startDraft.scopeQuery}
-            onChange={(e) =>
-              setStartDraft((d) => ({ ...d, scopeQuery: e.target.value }))
-            }
-            placeholder="Permitted source scope (for example: price list)"
-            className="w-full rounded border px-1.5 py-1"
-            aria-label="Permitted source scope"
-          />
-        ) : (
-          <input
-            value={startDraft.sourcePath}
-            onChange={(e) =>
-              setStartDraft((d) => ({ ...d, sourcePath: e.target.value }))
-            }
-            placeholder="Authorized source reference (advanced/controlled)"
-            className="w-full rounded border px-1.5 py-1"
-            aria-label="Authorized source path"
-          />
-        )}
-        {!startDraft.discover ? (
-          <textarea
-            value={startDraft.content}
-            onChange={(e) =>
-              setStartDraft((d) => ({ ...d, content: e.target.value }))
-            }
-            placeholder="Artifact content (optional when a calculation supplies the result)"
-            rows={2}
-            className="w-full rounded border px-1.5 py-1"
-            aria-label="Artifact content"
-          />
+        <select
+          value={selectedAgentId}
+          onChange={(e) => setSelectedAgentId(e.target.value)}
+          className="w-full rounded border px-1.5 py-1"
+          aria-label="Employee"
+          data-testid="assignment-agent-select"
+        >
+          <option value="">No employee binding</option>
+          {agents.map((agent) => (
+            <option key={agent.id} value={agent.id}>
+              {agent.name}{agent.category ? ` · ${agent.category}` : ""}
+            </option>
+          ))}
+        </select>
+        <select
+          value={selectedSourceKey}
+          onChange={(e) => {
+            setSelectedSourceKey(e.target.value);
+            setMeasure("");
+          }}
+          className="w-full rounded border px-1.5 py-1"
+          aria-label="Authorized data source"
+          data-testid="assignment-source-select"
+          disabled={startDraft.discover || sourcesLoading || !sources.length}
+        >
+          {!sources.length ? (
+            <option value="">
+              {sourcesLoading ? "Loading data…" : "No data available yet"}
+            </option>
+          ) : null}
+          {sources.map((source) => (
+            <option key={sourceKey(source)} value={sourceKey(source)}>
+              {source.file_name || source.dataset_name}
+              {source.sheet ? ` / ${source.sheet}` : ""}
+              {source.row_count ? ` · ${source.row_count} rows` : ""}
+            </option>
+          ))}
+        </select>
+        {!sourcesLoading && !sources.length ? (
+          <p className="text-[10px] text-muted-foreground">
+            Upload a CSV or workbook in{" "}
+            <a className="text-indigo-600 underline" href="/documents">
+              Data
+            </a>{" "}
+            first, or connect a source in{" "}
+            <a className="text-indigo-600 underline" href="/integrations">
+              Integrations
+            </a>
+            .
+          </p>
         ) : null}
         <div className="flex gap-1">
           <select
@@ -307,50 +457,160 @@ export function AssignmentPanel({
                 deliverableKind: e.target.value,
               }))
             }
-            className="rounded border px-1.5 py-1"
+            className="min-w-0 flex-1 rounded border px-1.5 py-1"
             aria-label="Deliverable kind"
+            data-testid="assignment-deliverable-kind"
           >
             <option value="document">Document</option>
             <option value="presentation">Presentation</option>
             <option value="email_draft">Email draft</option>
           </select>
-          <input
-            value={startDraft.expression}
-            onChange={(e) =>
-              setStartDraft((d) => ({ ...d, expression: e.target.value }))
-            }
-            placeholder="Calculation expression (optional)"
+          <select
+            value={measure}
+            onChange={(e) => setMeasure(e.target.value)}
             className="min-w-0 flex-1 rounded border px-1.5 py-1"
-            aria-label="Calculation expression"
+            aria-label="Calculation"
+            data-testid="assignment-measure-select"
+          >
+            <option value="">No calculation / infer</option>
+            <option value="__count__">Count rows</option>
+            {(selectedSource?.numeric_columns || []).map((column) => (
+              <option key={column} value={column}>
+                Sum {column}
+              </option>
+            ))}
+            <option value="__custom__">Other business concept…</option>
+          </select>
+        </div>
+        {measure === "__custom__" ? (
+          <input
+            value={customMeasure}
+            onChange={(e) => setCustomMeasure(e.target.value)}
+            placeholder="Name the measure the business uses (for example Price)"
+            className="w-full rounded border px-1.5 py-1"
+            aria-label="Custom measure concept"
+            data-testid="assignment-custom-measure-input"
+          />
+        ) : null}
+        <input
+          value={businessContext}
+          onChange={(e) => setBusinessContext(e.target.value)}
+          placeholder="Business context (optional, for example: sales)"
+          className="w-full rounded border px-1.5 py-1"
+          aria-label="Business context"
+          data-testid="assignment-context-input"
+        />
+        <div className="grid grid-cols-2 gap-1">
+          <input
+            value={qualification}
+            onChange={(e) => setQualification(e.target.value)}
+            placeholder="Required qualification"
+            className="w-full rounded border px-1.5 py-1"
+            aria-label="Required qualification"
+            data-testid="assignment-qualification-input"
+          />
+          <input
+            value={taskScope}
+            onChange={(e) => setTaskScope(e.target.value)}
+            placeholder="Task scope (exception match)"
+            className="w-full rounded border px-1.5 py-1"
+            aria-label="Task scope"
+            data-testid="assignment-task-scope-input"
           />
         </div>
-        <input
-          value={startDraft.recipient}
-          onChange={(e) =>
-            setStartDraft((d) => ({ ...d, recipient: e.target.value }))
-          }
-          placeholder="Test recipient (optional, controlled transport)"
-          className="w-full rounded border px-1.5 py-1"
-          aria-label="Test recipient"
-        />
-        <input
-          value={startDraft.correlation}
-          onChange={(e) =>
-            setStartDraft((d) => ({ ...d, correlation: e.target.value }))
-          }
-          placeholder="Correlation id (optional external-fact wait)"
-          className="w-full rounded border px-1.5 py-1"
-          aria-label="Correlation id"
-        />
+        <label className="flex items-center gap-1 text-[10px]">
+          <input
+            type="checkbox"
+            checked={startDraft.discover}
+            onChange={(e) =>
+              setStartDraft((d) => ({ ...d, discover: e.target.checked }))
+            }
+            aria-label="Discover resource from scope"
+            data-testid="assignment-discover-checkbox"
+          />
+          Let Atom choose from a permitted scope instead of the selected data
+        </label>
+        {startDraft.discover ? (
+          <input
+            value={startDraft.scopeQuery}
+            onChange={(e) =>
+              setStartDraft((d) => ({ ...d, scopeQuery: e.target.value }))
+            }
+            placeholder="Permitted source scope (for example: price list)"
+            className="w-full rounded border px-1.5 py-1"
+            aria-label="Permitted source scope"
+            data-testid="assignment-scope-input"
+          />
+        ) : null}
+        <details className="rounded border bg-white p-1.5">
+          <summary className="cursor-pointer text-[10px] font-medium">
+            Advanced (optional)
+          </summary>
+          <div className="mt-1 space-y-1">
+            <textarea
+              value={startDraft.content}
+              onChange={(e) =>
+                setStartDraft((d) => ({ ...d, content: e.target.value }))
+              }
+              placeholder="Artifact content (optional when results supply it)"
+              rows={2}
+              className="w-full rounded border px-1.5 py-1"
+              aria-label="Artifact content"
+            />
+            <input
+              value={startDraft.expression}
+              onChange={(e) =>
+                setStartDraft((d) => ({ ...d, expression: e.target.value }))
+              }
+              placeholder="Formula expression (advanced; ignored when a measure is selected)"
+              className="w-full rounded border px-1.5 py-1"
+              aria-label="Calculation expression"
+            />
+            <input
+              value={startDraft.recipient}
+              onChange={(e) =>
+                setStartDraft((d) => ({ ...d, recipient: e.target.value }))
+              }
+              placeholder="Prepare a send approval for this recipient (optional)"
+              className="w-full rounded border px-1.5 py-1"
+              aria-label="Send recipient"
+              data-testid="assignment-recipient-input"
+            />
+            <input
+              value={startDraft.correlation}
+              onChange={(e) =>
+                setStartDraft((d) => ({ ...d, correlation: e.target.value }))
+              }
+              placeholder="Correlation id for an external-fact wait (optional)"
+              className="w-full rounded border px-1.5 py-1"
+              aria-label="Correlation id"
+              data-testid="assignment-correlation-input"
+            />
+            <input
+              value={missingFact}
+              onChange={(e) => setMissingFact(e.target.value)}
+              placeholder="Missing fact (for example delivery_term)"
+              className="w-full rounded border px-1.5 py-1"
+              aria-label="Missing fact"
+              data-testid="assignment-missing-fact-input"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Sending stays disabled unless this local build enables the
+              controlled transport or a separate live-send authorization is in
+              force. Any send step still requires explicit approval.
+            </p>
+          </div>
+        </details>
         <Button
           size="sm"
           disabled={
             busy ||
             !startDraft.objective.trim() ||
-            (!startDraft.discover && !startDraft.sourcePath.trim()) ||
+            (!startDraft.discover && !selectedSource) ||
             (startDraft.discover && !startDraft.scopeQuery.trim())
           }
           onClick={start}
+          data-testid="assignment-start-button"
         >
           <Play className="h-3 w-3" /> Start assignment
         </Button>
@@ -364,6 +624,7 @@ export function AssignmentPanel({
             <button
               key={item.run_id}
               type="button"
+              data-testid={`assignment-summary-${item.run_id}`}
               onClick={() => setSelected(item.run_id)}
               className={`w-full rounded border px-2 py-1.5 text-left ${
                 selected === item.run_id ? "border-indigo-400 bg-indigo-50" : ""
@@ -412,6 +673,14 @@ export function AssignmentPanel({
                 ? ` · teaching ${detail.assignment.teaching_revision}`
                 : ""}
             </p>
+            <p
+              className="text-[10px] text-muted-foreground"
+              data-testid="teaching-snapshot-note"
+            >
+              Teaching is snapshotted at start. Later teaching changes apply to
+              new work; this assignment keeps its accepted revision until an
+              explicit reassessment.
+            </p>
           </div>
 
           {step ? (
@@ -437,34 +706,61 @@ export function AssignmentPanel({
               <p className="font-medium">Correlated response</p>
               <p className="text-[10px]">
                 Waiting for {waitingParty || "an external reply"} on{" "}
-                {String(step.waiting.correlation_id)}. Paste only the
-                authorized response; it is evidence, not teaching.
+                {String(step.waiting.correlation_id)}
+                {step.waiting.fact
+                  ? ` · missing fact: ${String(step.waiting.fact)}`
+                  : ""}. Paste only the authorized response; it is evidence,
+                not teaching.
               </p>
-              <div className="mt-1 flex gap-1">
+              <div className="mt-1 space-y-1">
                 <input
                   value={responseDraft}
                   onChange={(e) => setResponseDraft(e.target.value)}
                   placeholder="Authorized response"
-                  className="min-w-0 flex-1 rounded border px-1.5 py-1"
+                  className="w-full rounded border px-1.5 py-1"
                   aria-label="Correlated response"
+                />
+                <div className="flex gap-1">
+                <input
+                  value={resolutionValue}
+                  onChange={(e) => setResolutionValue(e.target.value)}
+                  placeholder="Exact value (optional, for agreeing with an established fact)"
+                  className="min-w-0 flex-1 rounded border px-1.5 py-1"
+                  aria-label="Exact resolution value"
+                  data-testid="assignment-resolution-value"
                 />
                 <Button
                   size="sm"
                   disabled={busy || !responseDraft.trim()}
                   onClick={() =>
-                    act(
-                      () =>
-                        recordAssignmentResponse(
-                          detail.run_id,
-                          String(step.waiting.correlation_id),
-                          responseDraft
-                        ),
-                      detail.run_id
-                    )
+                    act(async () => {
+                      const result = await recordAssignmentResponse(
+                        detail.run_id,
+                        String(step.waiting.correlation_id),
+                        responseDraft,
+                        "",
+                        resolutionValue.trim() || undefined
+                      );
+                      if (result?.status === "conflict"
+                          || result?.status === "partial"
+                          || result?.status === "unavailable"
+                          || result?.status === "incomplete") {
+                        setNotice(
+                          String(result.message || "The reply conflicts with "
+                            + "the source and did not complete the wait.")
+                        );
+                      } else if (result?.status === "unmatched") {
+                        setNotice(
+                          String(result.message || "The reply did not match "
+                            + "an open correlation.")
+                        );
+                      }
+                    }, detail.run_id)
                   }
                 >
                   <Send className="h-3 w-3" /> Deliver
                 </Button>
+                </div>
               </div>
             </div>
           ) : null}
@@ -521,6 +817,17 @@ export function AssignmentPanel({
                     <Badge variant="outline" className="text-[9px]">
                       {d.status}
                     </Badge>
+                    {d.artifact_path ? (
+                      <button
+                        type="button"
+                        className="ml-auto inline-flex items-center gap-1 text-[10px] text-indigo-600 underline"
+                        disabled={busy}
+                        onClick={() => downloadArtifact(d.deliverable_id)}
+                        data-testid={`assignment-download-${testIdPart(d.deliverable_id)}`}
+                      >
+                        <Download className="h-3 w-3" /> Download
+                      </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>

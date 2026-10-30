@@ -1,0 +1,12 @@
+{
+  "schema": "atom-controlled-outbox-scope-1",
+  "total_lines": 1,
+  "final_run_lines": 1,
+  "operation_ids": [
+    "bc439dd7-61a4-4132-b969-aaf7608ad494"
+  ],
+  "duplicate_operations": 0,
+  "subject": "[Quote] Sum Price for the protocol composite quote sheet 2026-10-30 v4",
+  "body_prefix": "Dear colleague,\n\nResult:\n- sum of Gross ",
+  "body_suffix": "ed_quote\n\nSales team"
+}

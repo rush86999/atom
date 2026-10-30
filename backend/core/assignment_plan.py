@@ -584,6 +584,8 @@ def assignment_projection(assignment: Dict[str, Any]) -> Dict[str, Any]:
             "artifact_revision": step.get("artifact_revision"),
             "gap_ids": list(step.get("gap_ids") or []),
             "waiting": copy.deepcopy(step.get("waiting") or {}),
+            "external_response": copy.deepcopy(
+                step.get("external_response") or {}),
             "approval_request": copy.deepcopy(
                 step.get("approval_request") or {}),
             "failure": copy.deepcopy(step.get("failure") or {}),

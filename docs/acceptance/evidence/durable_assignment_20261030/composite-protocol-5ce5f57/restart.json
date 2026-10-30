@@ -1,0 +1,22 @@
+{
+  "schema": "atom-composite-restart-1",
+  "browser": {
+    "part1_closed_before_restart": true,
+    "part2_new_browser_context": true
+  },
+  "backend": {
+    "old_pid": 34360,
+    "new_pid": 35413,
+    "stopped_before_restart": true,
+    "same_data_root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data",
+    "same_database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data/atom.db",
+    "same_frontend_build": true
+  },
+  "active_run": {
+    "run_id": "62588f60-7ee8-4454-8ba3-e98d769d516b",
+    "status_after_restart": "waiting",
+    "teaching_revision_before": "93e2706cbf20587b+e938ac4c979b4c10+map",
+    "teaching_revision_after_teach": "93e2706cbf20587b+e938ac4c979b4c10+map",
+    "status_after_completion": "completed"
+  }
+}

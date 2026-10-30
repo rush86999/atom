@@ -1,0 +1,116 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "wait-value-43f3dae5",
+  "source_commit": "43f3dae58f2742a478614569c47b5a34ab1d2b2e",
+  "source_tree": "47af5d9197b6d70c2b7b4ee45817b0c4fb058788",
+  "files": {
+    "active-artifact-after-reload.docx": {
+      "sha256": "f9004f72141c79b460b232b05a48f542d9474ab172dd25195c85509d8f994427",
+      "bytes": 37220
+    },
+    "active-artifact.docx": {
+      "sha256": "f9004f72141c79b460b232b05a48f542d9474ab172dd25195c85509d8f994427",
+      "bytes": 37220
+    },
+    "backend-targeted-tests.log": {
+      "sha256": "65ce7054b06f59e9a4aad850a6ed804cbb939463d656b1c5a790b79fb9facb4e",
+      "bytes": 24790
+    },
+    "blank-currency-artifact-after-restart.docx": {
+      "sha256": "8a0a5ccfca09a8209abbf9aca4ba7cdac70ff8944f8fe2acabf33faa477dd96e",
+      "bytes": 37115
+    },
+    "blank-currency-artifact.docx": {
+      "sha256": "8a0a5ccfca09a8209abbf9aca4ba7cdac70ff8944f8fe2acabf33faa477dd96e",
+      "bytes": 37115
+    },
+    "composite-part1.json": {
+      "sha256": "5b60a3670ec50622c8fe31bfce7ed0fbeecc4056a421f50fb51166a3303af37f",
+      "bytes": 6263
+    },
+    "composite-part1.log": {
+      "sha256": "a23d8974f3935b9c15a23347876107f6cc9e86686a3bad243d17789efa724ca6",
+      "bytes": 6326
+    },
+    "composite-part2.log": {
+      "sha256": "c6c427e6f30194a054fdfcbfe55fde33cef6a5b7b2816867f10589a3cb3486eb",
+      "bytes": 4418
+    },
+    "composite-verify.json": {
+      "sha256": "402cd5f537532f261a3db766704b8fd2c97128fa209977af4c5840f12d5ce866",
+      "bytes": 4805
+    },
+    "composite-verify.log": {
+      "sha256": "402cd5f537532f261a3db766704b8fd2c97128fa209977af4c5840f12d5ce866",
+      "bytes": 4805
+    },
+    "controlled-outbox.jsonl": {
+      "sha256": "1b8d44cbaf8c82f4c957c8af172907e0c20f8775ce91b0762f595ea91b15e5d6",
+      "bytes": 788
+    },
+    "frontend-build-id.txt": {
+      "sha256": "f85f3475f34ff23c88cb6129129add66b9ce986862a911ff04875aaebb51b4f8",
+      "bytes": 21
+    },
+    "frontend-targeted-tests.log": {
+      "sha256": "c5357d0989097144bb0a1f827dbac798391c371391eca431467184080dada988",
+      "bytes": 278
+    },
+    "git-status.txt": {
+      "sha256": "92c38df6dc028d696627a035f491ab2370c58da3b724da14d52857ae0db49008",
+      "bytes": 33
+    },
+    "positive-twins-create.log": {
+      "sha256": "eddd7ebcc564093db03d37e552120a651a87469545984382e21c842b219d26dc",
+      "bytes": 2637
+    },
+    "positive-twins-verify.json": {
+      "sha256": "702684014d8c75f606adbe546b431d75ea2d4500564a8a350e7dfd529b133e4c",
+      "bytes": 1913
+    },
+    "positive-twins-verify.log": {
+      "sha256": "702684014d8c75f606adbe546b431d75ea2d4500564a8a350e7dfd529b133e4c",
+      "bytes": 1913
+    },
+    "positive-twins.json": {
+      "sha256": "eddd7ebcc564093db03d37e552120a651a87469545984382e21c842b219d26dc",
+      "bytes": 2637
+    },
+    "revised-artifact.docx": {
+      "sha256": "0942c8b94259d5f2966bf48d64f49408ad98fd0a5fad53e84d03b2e30a9e4606",
+      "bytes": 37180
+    },
+    "runtime.json": {
+      "sha256": "a85ccb873a89d7efa32d1892c800f39b4578d4b7fd61c8ac17e76d8b25337ce6",
+      "bytes": 1565
+    },
+    "source-commit.txt": {
+      "sha256": "71a9ec74c10e55e2c6452b6cf01f57b9acb43e65fa83b4735b6661fbbea9d9f5",
+      "bytes": 41
+    },
+    "source-tree.txt": {
+      "sha256": "68d4022922a8984a67ad9e89416dac7d05447ffcec6133482c42d746a1acaa3a",
+      "bytes": 41
+    },
+    "teaching-targeted-tests.log": {
+      "sha256": "4804108242088d92ebdf20fa9c24a74661a3d369cfde30252e1099de04277904",
+      "bytes": 33244
+    },
+    "verifier-negative-controls.json": {
+      "sha256": "77ed5b26c412dfed3705b2e18a2f244eea9251e4f43c2deee441c3cf53d30ede",
+      "bytes": 676
+    },
+    "wait-negative-control.json": {
+      "sha256": "9bb3f682a801aa64c55dd56d81117e3bbaa1fa022dafe5b24828f030573ae985",
+      "bytes": 1267
+    },
+    "wait-negative-control.log": {
+      "sha256": "9bb3f682a801aa64c55dd56d81117e3bbaa1fa022dafe5b24828f030573ae985",
+      "bytes": 1267
+    },
+    "wait-negative-control.png": {
+      "sha256": "bfa51ecf9b9fe115266cda46b82bef270f7e54c898275d1ba2c9855dfdf0427e",
+      "bytes": 212253
+    }
+  }
+}

@@ -53,6 +53,12 @@ CAPABILITIES: Dict[str, Dict[str, Any]] = {
         "enabled": True,
         "job": "Create, teach and correct an agent.",
     },
+    "learning": {
+        "label": "Learning",
+        "enabled": True,
+        "job": "Review lessons learned from conversations before they become "
+               "standing guidance.",
+    },
     "activity": {
         "label": "Activity",
         "enabled": True,
@@ -136,6 +142,7 @@ ROUTE_CAPABILITY: Dict[str, str] = {
     "/documents": "documents",
     "/canvas": "canvas",
     "/agents": "agents",
+    "/learning": "learning",
     "/goal-runs": "activity",
     "/execution-history": "activity",
     "/activity": "activity",

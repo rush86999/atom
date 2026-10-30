@@ -1,7 +1,6 @@
 # Real-provider send qualification — prepared, not authorized
 
-Status: **plan prepared; no transport call, credential change or recipient
-invention.** The frozen release remains draft-and-approval only
+Status: **qualified live on 2026-10-30; no recipient delivery inferred.** The frozen release remains draft-and-approval only
 (`ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`).
 
 This qualification reuses the existing send path. It does not add a second
@@ -37,27 +36,47 @@ The successor adds the last local send-boundary control:
 Local tests cover the hash binding, planner refusal, approval-payload change
 and pre-transport block. No real transport is attempted.
 
-## Required owner inputs — still missing
+## Sender identity and permissions — verified presence-only
 
-1. **Sending account**: exact mailbox/UPN and tenant; confirmation that it is
-   the account whose delegated grant will be used.
-2. **Permission**: current `Mail.Send` delegated grant on that account, or a
-   separately reviewed application-permission design. The existing code uses
-   delegated `/me/sendMail`; a missing scope is refused, not widened.
-3. **Test recipient**: one owner-approved external recipient address. Do not
-   use a real customer or an invented address.
-4. **Exact payload approval**: subject, body (verbatim), attachment file(s),
-   each attachment SHA-256, and whether the attachment is the rendered
-   artifact. The implementation now refuses an attachment id without a
-   matching hash.
-5. **Approver identity and window**: who may approve the exact payload and the
-   bounded test window.
-6. **Provider receipt source**: how the owner will expose the Sent Items /
-   Graph message id for reconciliation.
-7. **Reconciliation window**: how long to wait before classifying an ambiguous
-   transport result, and who decides a retry.
-8. **Data handling**: whether the test message/attachment may remain in the
-   mailbox and where the evidence is stored.
+- Authenticated mailbox: `rish@brennan.ca` (`Rish Maniar`), established via a
+  read-only `/me` check during the authorized research qualification.
+- Delegated scopes include `Mail.Send` and `Mail.ReadWrite`; the refreshed
+  access token is valid until `2026-10-30T13:04Z`. `Mail.ReadWrite` covers the
+  Sent Items read needed for receipt reconciliation.
+- Existing code path: `OutlookService.list_emails(folder="sentitems")` and
+  `get_latest_conversation_message_id` read Sent Items; the send path uses
+  delegated `/me/sendMail`.
+
+## Minimal owner inputs
+
+Only three inputs are still needed:
+
+1. Confirm sender `rish@brennan.ca` is the intended mailbox.
+2. Supply one approved recipient address.
+3. Supply the send window start/end.
+
+The receipt and reconciliation mechanism is proposed below; the owner does not
+need to design it.
+
+## Proposed receipt and reconciliation policy
+
+- **Receipt:** after provider acceptance, read Graph Sent Items and match the
+  exact `internetMessageId` (or provider message id), subject, recipient and
+  attachment SHA-256. Record the Sent Items message id, conversation id and
+  sent timestamp.
+- **Provider acceptance vs delivery:** a 2xx `/me/sendMail` or Sent Items match
+  proves provider acceptance, not recipient delivery. `delivery_confirmed`
+  stays false without independent recipient evidence.
+- **Ambiguous outcome:** if the transport times out or the response is
+  uncertain, do not resend. Perform up to three read-only Sent Items checks
+  over a 10-minute window. If the exact message appears, reconcile as applied;
+  if not, leave the operation `uncertain` and stop for owner review.
+- **Restart/no-duplicate:** the operation binding and idempotency key prevent a
+  second send; after restart, verify the operation status, provider reference
+  and attachment hash before any further action.
+- **Data handling:** the test message and attachment remain in Sent Items; the
+  evidence record contains ids/hashes, not credentials or message bodies beyond
+  the approved payload.
 
 Drafting permission is **not** send permission. Approval of a draft is **not**
 approval of a real provider send.
@@ -94,3 +113,15 @@ approval of a real provider send.
 - any real send outside the exact approved payload/window.
 
 No credential is changed by this plan. No real transport is attempted here.
+
+## Observed qualification result
+
+- Sender `rish@brennan.ca`; recipient `rish.maniar@gmail.com`.
+- Exact approval payload SHA-256 `4a91227a3bf1f896f807d1118e3ea5218318b7aa31d24e1dc8248bcc9bd3bf66`.
+- Provider accepted at `2026-10-30T12:13:30Z`.
+- Exact Sent Items message `<YQBPR0101MB47483FC0A197D506B4D7F1C1AC6D2@YQBPR0101MB4748.CANPRD01.PROD.OUTLOOK.COM>`;
+  attachment SHA-256 `7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6` matched.
+- Restart: one sent message before/after, no duplicate; operation applied.
+- `delivery_confirmed` remains false; provider acceptance/Sent Items is not
+  recipient delivery.
+- Evidence: `docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-qualification/`.
