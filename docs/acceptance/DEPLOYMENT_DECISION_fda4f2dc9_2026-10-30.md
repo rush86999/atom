@@ -98,9 +98,10 @@ retrieval/calculation/artifact → provider policy → send denial → scoped re
 
 - **Real-provider sending**: separately unauthorized. Request:
   `REAL_PROVIDER_SEND_QUALIFICATION_2026-10-29.md`.
-- **Autonomous third-party research**: explicitly unclaimed. The owner must
-  either authorize a bounded read-only provider/tool workflow or explicitly
-  agree to defer it; see `RESEARCH_SCOPE_DECISION_2026-10-30.md`.
+- **Bounded external research**: implemented and controlled-tested through the
+  shared action registry. Live qualification needs one approved read-only
+  source; unrestricted autonomous browsing is not claimed. See
+  `RESEARCH_SCOPE_DECISION_2026-10-30.md`.
 - **Formula text**: the current cross-sheet test proves formula **text
   preservation**, not evaluation. Formula evaluation is claimed only for the
   supported engine subset; broader Excel compatibility remains unclaimed.

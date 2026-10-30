@@ -1,36 +1,31 @@
 # Autonomous third-party research — scope decision
 
-Status: **explicitly unclaimed; owner decision required.** This is not part of
-the 242c9a01f deployment request and no research provider/tool workflow is
-authorized or implemented.
+Status: **bounded workflow implemented and controlled-tested; live-source
+qualification requires one approved read-only source.** Unrestricted autonomous
+browsing remains unclaimed. No real external research call is authorized by
+this document.
 
 ## What is already demonstrated
 
+- `external.research` dispatches only registered read-only actions through the
+  shared action registry, validates required result fields, and records
+  retrieved content as evidence with action/arguments/time provenance.
+- A missing result becomes a typed `external_research` obligation. Resolving it
+  resumes the same assignment with raw evidence; teaching and authority are
+  unchanged.
+- Current tests cover successful retrieval, typed obligation/resume, write-action
+  refusal and teaching preservation.
 - Controlled external replies can wake a durable wait with exact correlation.
-- Multi-source assignments can use authorized retrieval, teaching, calculation,
-  artifacts, approvals and restart recovery.
-- No autonomous third-party investigation is inferred from a controlled reply.
 
-## Options
+## Live qualification request
 
-**A. Defer explicitly (recommended for this release)**
-- Keep the limitation visible in the ledger and package.
-- No new provider grant, tool scope or credential.
-- Revisit as a separate milestone.
+The implementation is complete; only an approved source is missing. Provide:
 
-**B. Authorize one bounded read-only research workflow**
-- Name one provider/tool and one read-only operation.
-- Define the exact query/subject boundary, allowed sources, time/call budget,
-  evidence retention and failure behavior.
-- Implement and qualify it under a successor identity.
-- No write, send, purchase or external account change.
+- one existing read-only source (e.g. an already-connected Microsoft mailbox,
+  OneDrive/SharePoint folder, or uploaded document set);
+- the exact missing fact/field and identifier/date scope;
+- permission to run up to five read-only retrieval queries within 10 minutes;
+- whether retrieved excerpts may remain in assignment evidence.
 
-## Smallest owner decision
-
-Reply with either:
-
-- “Defer autonomous third-party research for this release,” or
-- the exact bounded workflow in option B (provider, operation, scope, budget,
-  evidence handling).
-
-Until then, the release does not claim this capability.
+No new credential or write/send/purchase permission is requested. Unrestricted
+browsing is explicitly deferred.

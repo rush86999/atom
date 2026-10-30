@@ -87,8 +87,9 @@ evidence bound to an earlier source, not automatically a successor pass;
   separate and unauthorized.
 - **Goal 9**: supported table adapter only; every future canvas component is not
   claimed.
-- **Goal 10**: one worker per assignment; multi-worker campaigns and autonomous
-  third-party research are not claimed.
+- **Goal 10**: one worker per assignment; multi-worker campaigns and
+  unrestricted autonomous browsing are not claimed. Bounded external research
+  through the shared action registry is implemented and controlled-tested.
 - **Goal 11**: draft and payload-bound approval work; real-provider send is
   **Partial/Blocked** until the qualification in
   `REAL_PROVIDER_SEND_QUALIFICATION_2026-10-29.md` passes.
