@@ -61,9 +61,9 @@ Artifacts: `chat-matching.json`, `chat-wrong.json`, `chat-missing.json`,
 
 A wider run (`wider-canvas-regressions.log`, not the 303-pass set) shows 14
 `test_chat_canvas_editor.py` failures (`lane refused pre-planning: the turn's own words do not
-authorize a canvas mutation`). Those fail identically at the parent commit
-`55dddd6d4` in a clean worktree, so they are pre-existing and unrelated to
-this change; they are not counted in the 303-pass targeted set above.
+authorize a canvas mutation`). The same failure mode is present at the parent commit `55dddd6d4`
+(spot-checked in a clean worktree), so it is pre-existing and unrelated to
+this change; those 14 are not counted in the 303-pass targeted set above.
 
 ## Bounds
 

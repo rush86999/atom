@@ -192,8 +192,8 @@ evidence.
 
 The ordinary-consumer source adds the chat/assignment wiring. Its targeted
 backend set is **303 passed** and its frontend learning suites are **4
-passed**. Fourteen `test_chat_canvas_editor.py` tests fail identically at the
-parent commit `55dddd6d4` with `lane refused pre-planning: the turn's own
+passed**. Fourteen `test_chat_canvas_editor.py` tests fail in a wider run; the same
+failure mode is present at the parent commit `55dddd6d4` with `lane refused pre-planning: the turn's own
 words do not authorize a canvas mutation`; they are pre-existing and
 unrelated, and are not counted in the 303-pass set.
 
