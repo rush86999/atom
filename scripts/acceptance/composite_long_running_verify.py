@@ -43,9 +43,12 @@ def api(page, path: str):
         return json.loads(response.read().decode() or "{}")
 
 
-def open_assignment(page, frontend: str, objective: str):
+def open_assignment(page, frontend: str, objective: str, run_id: str = ""):
     page.goto(f"{frontend}/assignments", wait_until="domcontentloaded")
-    page.get_by_text(objective, exact=False).first.click()
+    if run_id:
+        page.get_by_test_id(f"assignment-summary-{run_id}").click()
+    else:
+        page.get_by_text(objective, exact=False).first.click()
     detail = page.get_by_test_id("assignment-detail")
     detail.wait_for(timeout=30000)
     detail.get_by_text("completed", exact=True).wait_for(timeout=120000)
@@ -238,7 +241,7 @@ def main() -> int:
         page = browser.new_page(viewport={"width": 1440, "height": 1200})
         login(page, args.frontend, password)
 
-        open_assignment(page, args.frontend, args.objective)
+        open_assignment(page, args.frontend, args.objective, part1["run_id"])
         active_artifact = download(page, out, "active-reload")
         active_state = api(page, f"/api/assignments/{part1['run_id']}")
         page.reload(wait_until="domcontentloaded")

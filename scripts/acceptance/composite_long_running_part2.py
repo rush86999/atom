@@ -65,9 +65,13 @@ def teach(page, *, lesson: str, topic: str, font: str, size: str,
     page.get_by_text("Lesson recorded", exact=False).wait_for(timeout=30000)
 
 
-def open_assignment(page, frontend: str, objective: str) -> None:
+def open_assignment(page, frontend: str, objective: str,
+                    run_id: str = "") -> None:
     page.goto(f"{frontend}/assignments", wait_until="domcontentloaded")
-    page.get_by_text(objective, exact=False).first.click()
+    if run_id:
+        page.get_by_test_id(f"assignment-summary-{run_id}").click()
+    else:
+        page.get_by_text(objective, exact=False).first.click()
     page.get_by_test_id("assignment-detail").wait_for(timeout=30000)
 
 
@@ -152,7 +156,7 @@ def main() -> int:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 1440, "height": 1200})
         login(page, args.frontend, password)
-        open_assignment(page, args.frontend, args.objective)
+        open_assignment(page, args.frontend, args.objective, run_id)
 
         before = api(page, f"/api/assignments/{run_id}")
         if before["assignment"]["status"] != "waiting":
@@ -182,7 +186,7 @@ def main() -> int:
                 "REFUSED: active assignment adopted a new teaching revision "
                 "without an explicit reassessment")
 
-        open_assignment(page, args.frontend, args.objective)
+        open_assignment(page, args.frontend, args.objective, run_id)
         detail = page.get_by_test_id("assignment-detail")
         detail.get_by_label("Correlated response").fill(args.response)
         detail.get_by_role("button", name="Deliver").click()

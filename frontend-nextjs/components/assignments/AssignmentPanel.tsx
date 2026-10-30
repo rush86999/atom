@@ -623,6 +623,7 @@ export function AssignmentPanel({
             <button
               key={item.run_id}
               type="button"
+              data-testid={`assignment-summary-${item.run_id}`}
               onClick={() => setSelected(item.run_id)}
               className={`w-full rounded border px-2 py-1.5 text-left ${
                 selected === item.run_id ? "border-indigo-400 bg-indigo-50" : ""
