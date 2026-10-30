@@ -3617,6 +3617,18 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Assignment routes not found: {e}")
 
+    # Reference-bound learning from conversations. Candidates are reviewed
+    # against resolved bindings before the one teaching journal is written.
+    try:
+        from api.conversation_learning_routes import router as learning_router
+
+        app.include_router(learning_router)
+        logger.info(
+            "✓ Conversation Learning Routes Loaded "
+            "(/api/conversation-learning)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Conversation learning routes not found: {e}")
+
     # 2026-09-08 role-journey pass: the REAL user/workspace/team management
     # router was only reachable via the on-demand loader, whose name heuristic
     # maps /api/enterprise/* to the status-only core.enterprise_endpoints —

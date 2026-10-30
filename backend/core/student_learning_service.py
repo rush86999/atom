@@ -656,6 +656,12 @@ def journal_standing_lesson_entry(
                 "lesson": text[:2000],
                 "learned_at": datetime.now(timezone.utc).isoformat(),
             }
+            # Structured provenance is part of the lesson, not a second
+            # store: reference-bound candidates carry their method and
+            # resource versions here so work-time application can validate
+            # them. Ordinary teacher lessons simply omit it.
+            if details:
+                entry["details"] = dict(details)
         else:
             entry = {
                 "id": _new_entry_id(),
