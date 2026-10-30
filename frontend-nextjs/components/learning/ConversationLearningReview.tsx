@@ -19,6 +19,31 @@ import {
   resolveLearningDependency,
 } from "@/lib/conversation-learning-api";
 
+function errorText(err: any, fallback: string): string {
+  const payload = err?.response?.data
+    || err?.technical?.response?.data
+    || err?.technical?.response;
+  const detail = payload?.detail ?? payload;
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (detail && typeof detail === "object") {
+    if (detail.error === "teaching_context_required"
+        || detail.reason === "teaching_context_required") {
+      const missing = detail.applicability?.missing || [];
+      return `Missing required context: ${missing.join(", ") || "unknown"}`;
+    }
+    if (detail.error === "teaching_context_mismatch"
+        || detail.reason === "teaching_context_mismatch") {
+      const conflicts = detail.applicability?.conflicts || [];
+      const text = conflicts.map((item: any) =>
+        `${item.key}: ${item.required} vs ${item.actual}`).join("; ");
+      return `Teaching does not apply to this context${text ? ` (${text})` : ""}.`;
+    }
+    return String(detail.message || detail.error || detail.reason
+      || JSON.stringify(detail));
+  }
+  return String(err?.message || fallback);
+}
+
 const STATUS_STYLES: Record<string, string> = {
   review_ready: "bg-emerald-100 text-emerald-800",
   confirmed: "bg-sky-100 text-sky-800",
@@ -112,7 +137,7 @@ export function ConversationLearningReview({
       const rows = await listLearningCandidates(threadId);
       setPayload(rows[0] || null);
     } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.message || "Could not load the learning review");
+      setError(errorText(err, "Could not load the learning review"));
     }
   }, [threadId, candidateId]);
 
@@ -205,7 +230,7 @@ export function ConversationLearningReview({
       setPayload(created);
       setNotice("Candidate drafted. Resolve the remaining questions before confirmation.");
     } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.message || "Could not draft the candidate");
+      setError(errorText(err, "Could not draft the candidate"));
     } finally {
       setBusy(false);
     }
@@ -231,7 +256,7 @@ export function ConversationLearningReview({
       setPayload(resolved);
       setNotice("Answer recorded. The candidate needs review again.");
     } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.message || "Could not resolve the question");
+      setError(errorText(err, "Could not resolve the question"));
     } finally {
       setBusy(false);
     }
@@ -247,7 +272,7 @@ export function ConversationLearningReview({
       setPayload(confirmed);
       setNotice("Review confirmed. Promotion will bind this exact revision and digest.");
     } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.message || "Could not confirm the review");
+      setError(errorText(err, "Could not confirm the review"));
     } finally {
       setBusy(false);
     }
@@ -264,7 +289,7 @@ export function ConversationLearningReview({
       setNotice(`Lesson promoted (${promoted.lesson_id}).`);
       await load();
     } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.message || "Could not promote the lesson");
+      setError(errorText(err, "Could not promote the lesson"));
     } finally {
       setBusy(false);
     }
@@ -293,8 +318,7 @@ export function ConversationLearningReview({
       setApplyResult(
         `${applied.result.value} ${applied.result.unit || ""}`.trim());
     } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.message
-        || "Could not apply the approved method");
+      setError(errorText(err, "Could not apply the approved method"));
     } finally {
       setBusy(false);
     }
@@ -310,7 +334,7 @@ export function ConversationLearningReview({
       setPayload(rejected);
       setNotice("Proposal rejected. No lesson was written.");
     } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.message || "Could not reject the proposal");
+      setError(errorText(err, "Could not reject the proposal"));
     } finally {
       setBusy(false);
     }
