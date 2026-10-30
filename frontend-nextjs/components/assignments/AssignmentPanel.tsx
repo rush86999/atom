@@ -45,8 +45,14 @@ function userFacingError(err: unknown, fallback: string): string {
       (item?.conflicts || []).map((pair: any) =>
         `${pair.key}: ${pair.required} vs ${pair.actual}`)
     );
-    return conflictText.length
-      ? `${detail.message} (${conflictText.join("; ")})`
+    const clarifications = Array.isArray(detail.clarifications)
+      ? detail.clarifications : [];
+    const missingText = clarifications.flatMap((item: any) =>
+      (item?.missing || []).map((key: string) => `missing ${key}`)
+    );
+    const extra = [...conflictText, ...missingText];
+    return extra.length
+      ? `${detail.message} (${extra.join("; ")})`
       : String(detail.message);
   }
   if (anyErr?.message) return String(anyErr.message);

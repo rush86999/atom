@@ -40,11 +40,15 @@ def api(page, path: str):
         return json.loads(response.read().decode() or "{}")
 
 
-def create_agent(page, frontend: str, name: str, goal: str) -> None:
+def agent_rows(page) -> list[dict]:
+    rows = api(page, "/api/agents/")
+    return rows if isinstance(rows, list) else rows.get("data", [])
+
+
+def create_agent(page, frontend: str, goal: str) -> str:
     page.goto(f"{frontend}/agents", wait_until="domcontentloaded")
     page.wait_for_timeout(2500)
-    if page.get_by_text(name, exact=False).count():
-        return
+    before = {row["id"] for row in agent_rows(page)}
     page.get_by_test_id("describe-job-button").click()
     page.get_by_test_id("guided-goal-input").fill(goal)
     page.get_by_test_id("guided-context-input").fill(
@@ -54,19 +58,26 @@ def create_agent(page, frontend: str, name: str, goal: str) -> None:
         page.get_by_test_id("guided-success").wait_for(timeout=60000)
         page.get_by_test_id("guided-done-button").click()
     except Exception:
-        # The onboarding host may cover the result dialog; the agent list
-        # refresh is the durable signal that creation completed.
+        # The onboarding host may cover the result dialog; the API diff below
+        # is the durable signal that creation completed.
         page.keyboard.press("Escape")
-    page.wait_for_timeout(1500)
-    if not page.get_by_text(name, exact=False).count():
-        raise SystemExit(f"REFUSED: guided creation did not produce {name!r}")
+    deadline = time.time() + 45
+    new_rows = []
+    while time.time() < deadline and not new_rows:
+        new_rows = [row for row in agent_rows(page) if row["id"] not in before]
+        if not new_rows:
+            page.wait_for_timeout(1000)
+    if not new_rows:
+        raise SystemExit("REFUSED: guided creation did not produce an agent")
+    return str(new_rows[-1]["id"])
 
 
-def open_teaching(page, frontend: str, name: str) -> str:
+def open_teaching(page, frontend: str, agent_id: str) -> str:
     page.goto(f"{frontend}/agents", wait_until="domcontentloaded")
-    card = page.get_by_test_id(f"agent-card-{name}")
-    card.wait_for(timeout=30000)
-    card.locator('[data-testid^="agent-teach-button-"]').click()
+    page.wait_for_timeout(2000)
+    button = page.get_by_test_id(f"agent-teach-button-{agent_id}")
+    button.wait_for(timeout=30000)
+    button.click()
     page.wait_for_url("**/canvas/**", timeout=30000)
     page.get_by_test_id("training-panel").wait_for(timeout=30000)
     return page.url
@@ -102,7 +113,7 @@ def teach(page, *, lesson: str, topic: str, applies: str | None = None,
     page.get_by_text("Lesson recorded", exact=False).wait_for(timeout=30000)
 
 
-def fill_start(page, *, frontend: str, agent: str, source_file: str,
+def fill_start(page, *, frontend: str, agent_id: str, source_file: str,
                objective: str, qualification: str, task_scope: str,
                correlation: str, recipient: str) -> str:
     page.goto(f"{frontend}/assignments", wait_until="domcontentloaded")
@@ -111,10 +122,7 @@ def fill_start(page, *, frontend: str, agent: str, source_file: str,
     page.wait_for_timeout(2000)
 
     agent_select = page.get_by_test_id("assignment-agent-select")
-    agent_label = next(
-        option for option in agent_select.locator("option").all_inner_texts()
-        if agent in option)
-    agent_select.select_option(label=agent_label)
+    agent_select.select_option(value=agent_id)
 
     source_select = page.get_by_test_id("assignment-source-select")
     deadline = time.time() + 60
@@ -164,12 +172,12 @@ def main() -> int:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 1440, "height": 1200})
         login(page, args.frontend, password)
-        create_agent(
-            page, args.frontend, args.agent_name,
+        agent_id = create_agent(
+            page, args.frontend,
             "Prepare sales quote documents from uploaded price sheets, "
             "calculate totals, and explain missing context.")
 
-        canvas_url = open_teaching(page, args.frontend, args.agent_name)
+        canvas_url = open_teaching(page, args.frontend, agent_id)
         teach(
             page,
             lesson=("Method: for sales quote work, use the selected authorized "
@@ -231,18 +239,18 @@ def main() -> int:
         page.set_input_files("#file-upload", args.csv)
         page.get_by_text("Successfully uploaded", exact=False).wait_for(timeout=90000)
 
-        # First attempt: qualification mismatch plus the font conflict. The
-        # error must name the conflicting keys, not silently choose one.
+        # First attempt: the two equally applicable document-format lessons
+        # conflict. The error must name the conflicting key, not choose one.
         first_error = fill_start(
-            page, frontend=args.frontend, agent=args.agent_name,
+            page, frontend=args.frontend, agent_id=agent_id,
             source_file=Path(args.csv).name, objective=args.objective,
-            qualification="trainee", task_scope="standard",
+            qualification="licensed", task_scope="standard",
             correlation=args.correlation,
             recipient="acceptance@example.invalid")
-        if "Teaching cannot govern" not in first_error:
+        if "Teaching cannot govern" not in first_error or "font_name" not in first_error:
             raise SystemExit(
-                "REFUSED: expected a teaching conflict, got: "
-                + first_error[:1000])
+                "REFUSED: expected a font_name teaching conflict, got: "
+                + first_error[:1200])
         (out / "first-conflict.txt").write_text(first_error)
         page.screenshot(path=str(out / "first-conflict.png"), full_page=True)
 
@@ -257,16 +265,33 @@ def main() -> int:
         page.get_by_text("Teaching point removed", exact=False).wait_for(
             timeout=30000)
 
-        # Second attempt with the matching qualification starts the run.
+        # Second attempt: the required qualification is absent. The resolver
+        # must ask for it, not silently drop the licensed instruction.
+        missing_error = fill_start(
+            page, frontend=args.frontend, agent_id=agent_id,
+            source_file=Path(args.csv).name, objective=args.objective,
+            qualification="", task_scope="standard",
+            correlation=args.correlation,
+            recipient="acceptance@example.invalid")
+        if "Teaching cannot govern" not in missing_error:
+            raise SystemExit(
+                "REFUSED: expected a missing-qualification clarification, got: "
+                + missing_error[:1200])
+        (out / "missing-qualification.txt").write_text(missing_error)
+        page.screenshot(path=str(out / "missing-qualification.png"),
+                        full_page=True)
+
+        # Third attempt with the matching qualification starts the run.
         second_error = fill_start(
-            page, frontend=args.frontend, agent=args.agent_name,
+            page, frontend=args.frontend, agent_id=agent_id,
             source_file=Path(args.csv).name, objective=args.objective,
             qualification="licensed", task_scope="standard",
             correlation=args.correlation,
             recipient="acceptance@example.invalid")
-        if page.get_by_test_id("assignment-detail").count() == 0:
+        page.get_by_test_id("assignment-detail-objective").wait_for(timeout=60000)
+        if page.get_by_test_id("assignment-detail-objective").inner_text() != args.objective:
             raise SystemExit(
-                "REFUSED: licensed start did not create a run: "
+                "REFUSED: licensed start did not select the new run: "
                 + second_error[:1500])
 
         page.get_by_test_id("mapping-candidates").wait_for(timeout=60000)
@@ -282,6 +307,7 @@ def main() -> int:
             "schema": "atom-composite-long-running-part1-1",
             "status": "waiting",
             "agent_name": args.agent_name,
+            "agent_id": agent_id,
             "canvas_url": canvas_url,
             "objective": args.objective,
             "correlation_id": args.correlation,

@@ -97,7 +97,7 @@ def download(page, out: Path, stem: str) -> dict:
     }
 
 
-def start_and_resolve(page, *, frontend: str, agent: str, source_file: str,
+def start_and_resolve(page, *, frontend: str, agent_id: str, source_file: str,
                       objective: str, task_scope: str, candidate: str,
                       measure: str = "Price") -> None:
     page.goto(f"{frontend}/assignments", wait_until="domcontentloaded")
@@ -105,9 +105,7 @@ def start_and_resolve(page, *, frontend: str, agent: str, source_file: str,
     page.get_by_text("Refresh data", exact=False).click()
     page.wait_for_timeout(2000)
     agent_select = page.get_by_test_id("assignment-agent-select")
-    label = next(option for option in agent_select.locator("option").all_inner_texts()
-                 if agent in option)
-    agent_select.select_option(label=label)
+    agent_select.select_option(value=agent_id)
     source_select = page.get_by_test_id("assignment-source-select")
     source_label = next(
         option for option in source_select.locator("option").all_inner_texts()
@@ -201,7 +199,7 @@ def main() -> int:
 
         # New work at revised scope uses the new lesson; the active run did not.
         start_and_resolve(
-            page, frontend=args.frontend, agent=args.agent_name,
+            page, frontend=args.frontend, agent_id=part1["agent_id"],
             source_file="clean_quote.csv", objective=args.second_objective,
             task_scope="revised", candidate="Net Amount")
         second = download(page, out, "revised")
