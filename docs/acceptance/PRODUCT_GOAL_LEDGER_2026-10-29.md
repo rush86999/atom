@@ -50,12 +50,14 @@ The four browser flows pass on that product: workbook B `35.00`, workbook C
 Authority controls: 5 focused route tests; mapping regressions: 98 passed;
 release-affected regressions: 508 passed, 2 skipped.
 
-The isolated packaged smoke reopened an existing taught assignment and artifact,
-created and completed a new mapping assignment at `35.00 USD`, created a second
-fresh read-only assignment with calculation and grounded artifact, confirmed
-the selected DeepSeek policy (`deepseek` / `deepseek-flash`), proved an outbound
-assignment is refused with HTTP 422 before run creation, and reopened both
-results after a packaged backend restart with no disagreement. Receipts:
+The full isolated deployment transaction reopened an existing taught assignment
+and artifact, created and completed a new mapping assignment at `35.00 USD`,
+created a second fresh read-only assignment with calculation and grounded
+artifact, confirmed the selected DeepSeek policy (`deepseek` / `deepseek-flash`),
+proved an outbound assignment is refused with HTTP 422 before run creation, and
+reopened both results after a packaged backend restart with no disagreement.
+The first transaction attempt failed at the onboarding modal and is preserved;
+the repaired harness passed. Receipts:
 `docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-transaction/`.
 
 Deployment kit:

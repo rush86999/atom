@@ -21,7 +21,20 @@ evidence bound to an earlier source, not automatically a successor pass;
 | 9 | User-created canvases inherit capabilities | Partial table adapter | Y | H | Y | Y | — | — |
 | 10 | Long-running employee work | Y controlled wait/approval/restart | Y | H | Y | Y | — | — |
 | 11 | Approval/eventual sending | Draft/approval Y; send gated | Y | H (draft) | Y | Y | — | — |
-| 12 | Usability/security/operations | Package prepared | Y (19 kit controls) | Y packaged smoke | Y | Y | — | Not deployed |
+| 12 | Usability/security/operations | Package prepared | Y (19 kit controls) | Y full isolated transaction | Y | Y | — | Not deployed |
+
+## Current verification on the frozen candidate
+
+- Mapping browser flows: B `35.00`, C `75.00`, correction `100.00 -> 80.00`,
+  waiting restart `35.00`.
+- Mapping regressions: 98 passed. Release-affected regressions: 508 passed,
+  2 skipped.
+- Full isolated deployment transaction passed: approval, preflight, verified
+  backup, scoped stop/start, fresh normal login, existing taught assignment,
+  fresh calculation/artifact, DeepSeek policy, HTTP 422 send denial, restart
+  agreement and atomic receipt. The first attempt failed at the onboarding
+  modal and is preserved.
+- No production deployment, real send, credential change or source writeback.
 
 ## Remaining original-goal limitations
 
