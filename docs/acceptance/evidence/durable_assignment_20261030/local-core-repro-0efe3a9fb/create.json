@@ -1,0 +1,41 @@
+{
+  "schema": "atom-local-clean-install-ui-1",
+  "status": "passed",
+  "mode": "create",
+  "frontend": "http://127.0.0.1:3130",
+  "objective": "Sum Net Amount for the final clean install quote",
+  "expected": "2225.75",
+  "result_text": "Result: 2225.75 USD \u00b7 Net Amount",
+  "artifact": {
+    "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_final/run/clean-ui/create-assignment-artifact.docx",
+    "bytes": 37144,
+    "sha256": "fc6e770be3489f99e3df3a6d8dccadb04d43fb1f744d8ff3996bf1e22aba47d3",
+    "text": "Sum Net Amount for the final clean install quote\nObjective\nSum Net Amount for the final clean install quote\nSummary\nsum of Net Amount: 2225.75 USD\nFindings\nclean_quote.csv / clean_quote\nSources\nupload_clean_quote__clean_quote\nclean_quote.csv\nclean_quote\ne8c7baed-88f3-49a0-9adb-9aa93336e544\nclean_quote.csv / clean_quote"
+  },
+  "console_errors": [
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 405 (Method Not Allowed)"
+  ],
+  "page_errors": [],
+  "failed_assets": [],
+  "failed_requests": [
+    {
+      "url": "http://127.0.0.1:8071/api/notifications?limit=10",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:8071/api/notifications?unread_only=true&type=agent_graduated&limit=5",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:3130/api/v1/preferences?user_id=me&workspace_id=default",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:3130/api/canvas",
+      "status": 405
+    }
+  ]
+}

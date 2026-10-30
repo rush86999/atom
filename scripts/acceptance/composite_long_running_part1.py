@@ -148,7 +148,9 @@ def fill_start(page, *, frontend: str, agent_id: str, source_file: str,
     page.get_by_text("Advanced (optional)", exact=False).click()
     page.get_by_test_id("assignment-recipient-input").fill(recipient)
     page.get_by_test_id("assignment-correlation-input").fill(correlation)
-    page.get_by_test_id("assignment-start-button").click()
+    button = page.get_by_test_id("assignment-start-button")
+    print("start.disabled", button.is_disabled(), flush=True)
+    button.click()
     page.wait_for_timeout(3000)
     return page.get_by_test_id("assignment-panel").inner_text()
 
@@ -171,6 +173,17 @@ def main() -> int:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 1440, "height": 1200})
+
+        def log_post(response):
+            if ("/api/assignments" in response.url
+                    and response.request.method == "POST"):
+                try:
+                    print("POST", response.status, response.text()[:800],
+                          flush=True)
+                except Exception:
+                    pass
+
+        page.on("response", log_post)
         login(page, args.frontend, password)
         agent_id = create_agent(
             page, args.frontend,

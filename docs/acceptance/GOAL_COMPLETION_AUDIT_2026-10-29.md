@@ -21,7 +21,7 @@ evidence bound to an earlier source, not automatically a successor pass;
 | 9 | User-created canvases inherit capabilities | Y table adapter; two shapes current | Y | H | Y | Y | — | — |
 | 10 | Long-running employee work | Y controlled wait/approval/restart | Y | H | Y | Y | — | — |
 | 11 | Approval/eventual sending | Live provider acceptance + exact Sent Items match Y; delivery not independently confirmed | Y | Y | Y | Y | Y | — |
-| 12 | Usability/security/operations | Local core demonstrated; hosted deployment deferred | Y | Y local UI + integrated job | Y | Y | — | Local only |
+| 12 | Usability/security/operations | **Bounded local core complete for documented supported workflows**; hosted deployment/public release deferred | Y | Y clean install + composite local UI | Y real process restart | Y | — | Local only |
 
 ### Live research qualification — observed
 
@@ -101,11 +101,13 @@ evidence bound to an earlier source, not automatically a successor pass;
 - **Goal 10**: one worker per assignment; multi-worker campaigns and
   unrestricted autonomous browsing are not claimed. Bounded external research
   through the shared action registry is implemented and controlled-tested.
-- **Goal 11**: draft and payload-bound approval work; real-provider send is
-  **Partial/Blocked** until the qualification in
-  `REAL_PROVIDER_SEND_QUALIFICATION_2026-10-29.md` passes.
-- **Goal 12**: package, isolated smoke and rollback controls are prepared;
-  production deployment is **not authorized** and therefore unverified.
+- **Goal 11**: payload-bound approval and one authorized real-provider send
+  are qualified to provider acceptance and exact Sent Items confirmation.
+  Recipient delivery is not independently confirmed. No standing permission
+  and no new send; normal sending remains disabled.
+- **Goal 12**: the bounded local core is complete for the documented supported
+  workflows. Hosted deployment, public release and publication are deferred
+  and not claimed.
 
 No goal is marked fully complete where a promised behavior remains unqualified.
 
@@ -122,3 +124,24 @@ No goal is marked fully complete where a promised behavior remains unqualified.
   teaching/calculation/missing-info/artifact/approval, restart persistence and
   sanitized fresh install passed.
 - Hosted deployment/public release/publication are deferred and not claimed.
+
+## Final local closure — 0efe3a9fb
+
+- New clean clone, new Python 3.11.16 venv, pinned wheel-backed install, new
+  `npm ci` and build; new empty data root.
+- First start and restart without `ADMIN_PASSWORD`; normal browser login; no
+  failed JS/CSS/public assets and no page errors.
+- One supported UI operation: CSV upload → source selection → `2225.75 USD`
+  sum → DOCX download; restart preserved the artifact hash.
+- Composite long-running journey: complex teaching policy, conflict and
+  missing-qualification refusals, mapping, source result `400.00`, browser
+  close, real backend process restart (`25444` → `25983`), waiting-state
+  reopen, active teaching snapshot retention, new Calibri lesson, correlated
+  response, exact approval, one controlled outbox line, reload, and a
+  revised-scope second run `2225.75` at Calibri 14.
+- Current-source regressions: 86 backend tests passed; 31 frontend tests
+  passed.
+
+Conclusion: **Bounded local core complete for the documented supported
+workflows.** Hosted deployment, public release and publication remain
+deferred. Compatibility limits remain explicit.

@@ -1,0 +1,88 @@
+{
+  "schema": "atom-final-local-closure-1",
+  "source": {
+    "commit": "0efe3a9fbdc19414b0615ae033a3823e02d04d75",
+    "tree": "f1ef5e1faed79cdf974fad0f68269c026510ade3",
+    "tag": "local-core-2026-10-30-final",
+    "functional_baseline": "fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4"
+  },
+  "runtime": {
+    "python": "3.11.16",
+    "node": "v20.19.6",
+    "npm": "10.8.2",
+    "frontend_build": "gPz569sUaoRTx_JBxsPCA"
+  },
+  "clean_install": {
+    "evidence": "local-core-repro-0efe3a9fb",
+    "operation": "Result: 2225.75 USD \u00b7 Net Amount",
+    "artifact_sha256": "fc6e770be3489f99e3df3a6d8dccadb04d43fb1f744d8ff3996bf1e22aba47d3",
+    "after_restart_sha256": "fc6e770be3489f99e3df3a6d8dccadb04d43fb1f744d8ff3996bf1e22aba47d3",
+    "page_errors": [],
+    "failed_assets": [],
+    "first_start_pid": 28938,
+    "restart_pid": 29176
+  },
+  "composite": {
+    "evidence": "composite-long-running-0efe3a9fb",
+    "active_run": "006faa87-a3d4-4e77-9e23-e08b16b37957",
+    "active_teaching_revision": "43dc08b733bed2c2+4c250e1562b36890+map",
+    "active_artifact_sha256": "4d449702513e531c5b68c4d0aa516ce6f72648392ba838c5b91241aabd7d9993",
+    "active_font": [
+      "Arial",
+      11.0
+    ],
+    "second_run": "f5823b2a-8f49-46f7-8787-2609fe5b8cbd",
+    "second_teaching_revision": "3082d64a5e096533+map",
+    "second_artifact_sha256": "c9a728a261e4837084840635d80947625b2023d1e5cb4e4c5265bc15ee68b00a",
+    "second_font": [
+      "Calibri",
+      14.0
+    ],
+    "outbox_lines": 1,
+    "restart": {
+      "schema": "atom-composite-restart-1",
+      "browser": {
+        "part1_closed_before_restart": true,
+        "part2_new_browser_context": true
+      },
+      "backend": {
+        "old_pid": 25444,
+        "new_pid": 25983,
+        "stopped_before_restart": true,
+        "same_data_root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data",
+        "same_database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data/atom.db",
+        "same_frontend_build": true
+      },
+      "active_run": {
+        "run_id": "006faa87-a3d4-4e77-9e23-e08b16b37957",
+        "status_after_restart": "waiting",
+        "teaching_revision_before": "43dc08b733bed2c2+4c250e1562b36890+map",
+        "teaching_revision_after_teach": "43dc08b733bed2c2+4c250e1562b36890+map",
+        "status_after_completion": "completed"
+      }
+    }
+  },
+  "regressions": {
+    "backend": "86 passed",
+    "frontend": "31 passed",
+    "logs": [
+      "composite-long-running-0efe3a9fb/backend-targeted-tests.log",
+      "composite-long-running-0efe3a9fb/frontend-targeted-tests.log"
+    ]
+  },
+  "deferred": [
+    "hosted deployment",
+    "public release",
+    "publication"
+  ],
+  "limits": [
+    "arbitrary Excel compatibility",
+    "arbitrary schema understanding",
+    "embedded image/chart interpretation",
+    "every future canvas component",
+    "non-Microsoft connectors",
+    "multi-worker campaigns",
+    "unrestricted autonomous research"
+  ],
+  "conclusion": "Bounded local core complete for the documented supported workflows."
+}
