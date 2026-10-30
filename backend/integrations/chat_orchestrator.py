@@ -17770,6 +17770,15 @@ class ChatOrchestrator:
                     if _execution_id:
                         self._budget_exceeded_runs.add(_execution_id)
                 else:
+                    _lesson_task_context: Dict[str, Any] = {}
+                    for _ctx_key in ("task_context", "business_context"):
+                        if isinstance((context or {}).get(_ctx_key), dict):
+                            _lesson_task_context.update(context[_ctx_key])
+                    for _ctx_key in ("customer", "qualification",
+                                     "task_scope", "recipient"):
+                        if (context or {}).get(_ctx_key) is not None:
+                            _lesson_task_context[_ctx_key] = context[_ctx_key]
+
                     async def _reply_leg():
                         ai_response = await self._get_qwen_response(
                             message, history, routing_overrides,
@@ -17814,6 +17823,7 @@ class ChatOrchestrator:
                             canvas_provenance=(context or {}).get("canvas_provenance"),
                             images=images,
                             review_objective=(_review_objective_hint or None),
+                            task_context=_lesson_task_context or None,
                         )
                         return ai_response
                     if _reply_leg_budget is not None:
@@ -21186,6 +21196,7 @@ class ChatOrchestrator:
         miss_handoff_block: Optional[str] = None,
         shared_tool_state: Optional[Dict[str, Any]] = None,
         review_objective: Optional[str] = None,
+        task_context: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -21232,6 +21243,10 @@ class ChatOrchestrator:
         """
         if not self.llm_service:
             return None
+
+        # A scoped lesson that lacks required context produces a prompt
+        # block; the reply is replaced with a deterministic ask below.
+        _teaching_clarification_block = ""
 
         # THE REQUEST'S LLM DISPATCH SCOPE (J2 user-boundary,
         # 2026-10-12): the authenticated user's own workspace/tenant,
@@ -21511,6 +21526,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # carries policy.
                 _lessons_only = bool(
                     _file_scoped_request and not miss_handoff)
+                _teaching_clarification_block = ""
                 if assembly_enabled():
                     # The integral AI-employee contract: memory must be
                     # retrieved from the USER's workspace, the same workspace
@@ -21526,14 +21542,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # the actual retrieval source identities for the
                     # durable outcome's evidence refs.
                     _retrieval_observations: List[Dict[str, Any]] = []
-                    _task_context: Dict[str, Any] = {}
-                    for _ctx_key in ("task_context", "business_context"):
-                        if isinstance(context.get(_ctx_key), dict):
-                            _task_context.update(context[_ctx_key])
-                    for _ctx_key in ("customer", "qualification",
-                                     "task_scope", "recipient"):
-                        if context.get(_ctx_key) is not None:
-                            _task_context[_ctx_key] = context[_ctx_key]
+                    _task_context: Dict[str, Any] = dict(task_context or {})
                     memory_block = await assemble_memory_context(
                         message=_lesson_query,
                         workspace_id=user_workspace,
@@ -21551,6 +21560,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         lessons_only=_lessons_only,
                         task_context=_task_context or None,
                     )
+                    if (memory_block
+                            and "TEACHING CONTEXT REQUIRED" in memory_block):
+                        # Deterministic guard: a scoped lesson that cannot be
+                        # applied must ask for the missing context instead of
+                        # letting the reply model improvise a substitute.
+                        _teaching_clarification_block = memory_block
                     # C4 (owner directive): observations are committed only
                     # when content reaches the answer context (memory_block
                     # exists) — a failed assembly must not certify sources
@@ -24460,8 +24475,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             # = not found, 'multiple'/'ambiguous' = needs
                             # the user's pick).
                             _rc_outcomes = _rc_ds.active_item_outcomes(
-                                str((context or {}).get(
-                                    "conversation_id") or ""),
+                                str(session_id or ""),
                                 statuses=("none", "absent", "multiple",
                                           "ambiguous"))
                             _rc_open = sorted(
@@ -30111,11 +30125,29 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         logger.warning(
                             "[review-result] render skipped: %r",
                             _review_err)
+                _final_content = str(_claimed_content or "").strip()
+                _teaching_clarification = _teaching_clarification_block
+                if _teaching_clarification:
+                    # Deterministic gate: a scoped lesson whose required
+                    # context the user has not supplied must ask for it.
+                    # The memory block carries the instruction, but the
+                    # reply model can ignore it and invent a substitute
+                    # rate (observed live 2026-10-30).
+                    _missing_match = re.search(
+                        r"until the user confirms: ([^.]+)\.",
+                        str(_teaching_clarification))
+                    _missing_context = (
+                        _missing_match.group(1).strip()
+                        if _missing_match else "the required context")
+                    _final_content = (
+                        "Before I can apply the taught method, I need to "
+                        f"confirm: {_missing_context}. Could you confirm "
+                        "that before I continue?")
                 return {
                     # STRIPPED (restored 2026-10-01): leading/trailing
                     # whitespace on the model's reply leaked to the user
                     # verbatim — pinned by the w115 contract tests.
-                    "content": str(_claimed_content or "").strip(),
+                    "content": _final_content,
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
                     "memory_context": memory_block,

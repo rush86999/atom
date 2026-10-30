@@ -649,6 +649,15 @@ def assignment_projection(assignment: Dict[str, Any]) -> Dict[str, Any]:
             (assignment.get("teaching_snapshot") or {}).get("revision")),
         "teaching_fingerprint": (
             (assignment.get("teaching_snapshot") or {}).get("fingerprint")),
+        "effective_lesson_ids": [
+            {
+                "id": str(item.get("id") or ""),
+                "revision": int(item.get("revision") or 1),
+            }
+            for item in (assignment.get("teaching_snapshot") or {}).get(
+                "effective_lesson_ids") or []
+            if isinstance(item, dict) and item.get("id")
+        ][:40],
         "mappings": mappings,
         "mapping_history": copy.deepcopy(
             assignment.get("mapping_history") or []),

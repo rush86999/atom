@@ -408,6 +408,39 @@ def test_memory_lessons_leg_carries_context_and_clarifies(db, monkeypatch):
     assert "qualification" in missing
 
 
+@pytest.mark.asyncio
+async def test_chat_reply_asks_for_missing_teaching_context():
+    """A scoped lesson without required context must ask, not improvise."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    orch = ChatOrchestrator()
+    orch.ai_engines = {}
+    orch.llm_service = MagicMock()
+    orch.llm_service.generate_completion = AsyncMock(return_value={
+        "success": True, "content": "The price is $18.75.",
+        "model": "m", "provider": "p",
+    })
+    clarification = (
+        "TEACHING CONTEXT REQUIRED — this employee has scoped guidance "
+        "that cannot be applied until the user confirms: qualification. "
+        "Ask for that context before proceeding. (lessons: lesson-1)")
+    with patch(
+            "core.memory_context_assembler.assemble_memory_context",
+            new=AsyncMock(return_value=clarification)) as assemble:
+        result = await orch._get_qwen_response(
+            "price the Customer-A order", [],
+            user_id="u1", agent_id="agent-1",
+            task_context={"customer": "Customer-A"})
+
+    assert assemble.await_args.kwargs["task_context"] == {
+        "customer": "Customer-A"}
+    assert result is not None
+    assert "confirm: qualification" in result["content"]
+    assert "$18.75" not in result["content"]
+
+
 def test_conversation_method_compiles_for_assignment():
     from core.assignment_teaching import build_conversation_calculation
 

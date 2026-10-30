@@ -107,6 +107,13 @@ def _artifact_lesson_fields(
         normalize_lesson_context,
     )
 
+    if not format_spec and not applies_to:
+        # Context-only lessons (conversation learning) do not declare an
+        # artifact format; do not manufacture a "format_spec is required"
+        # error for them.
+        lesson_context = normalize_lesson_context(context or {})
+        return {"revision": 1, "context": lesson_context} if lesson_context else {}
+
     normalized = normalize_artifact_teaching(
         applies_to, format_spec or {}, conditions or {})
     fields: Dict[str, Any] = {
