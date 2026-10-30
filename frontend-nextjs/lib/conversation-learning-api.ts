@@ -73,6 +73,21 @@ export interface LearningThread {
   last_at: string;
 }
 
+export interface LearningEmployee {
+  id: string;
+  name: string;
+  status: string;
+  category: string;
+  role: string;
+}
+
+export async function listLearningEmployees(): Promise<LearningEmployee[]> {
+  const { data } = await apiClient.get(
+    "/api/conversation-learning/employees"
+  );
+  return data?.employees || [];
+}
+
 export async function listLearningThreads(): Promise<LearningThread[]> {
   const { data } = await apiClient.get(
     "/api/conversation-learning/threads"
@@ -178,6 +193,23 @@ export async function promoteLearningCandidate(
       reviewer,
       expected_revision: expectedRevision,
       expected_digest: expectedDigest,
+    }
+  );
+  return data;
+}
+
+export async function applyLearningCandidate(
+  threadId: string,
+  candidateId: string,
+  rows: Array<Record<string, unknown>>,
+  fieldMapping: Record<string, string> = {}
+): Promise<{ lesson_id: string; result: Record<string, any> }> {
+  const { data } = await apiClient.post(
+    `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}/apply`,
+    {
+      thread_id: threadId,
+      rows,
+      field_mapping: fieldMapping,
     }
   );
   return data;

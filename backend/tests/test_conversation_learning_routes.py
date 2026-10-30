@@ -10,13 +10,12 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from types import SimpleNamespace
 
 from api.conversation_learning_routes import router
 from core.auth import get_current_user
 from core.database import get_db
 from core.models import (
-    AgentRegistry, Base, Canvas, CanvasAudit, DatasetEntry,
+    AgentRegistry, Base, Canvas, CanvasAudit, DatasetEntry, User,
 )
 
 
@@ -26,15 +25,31 @@ def route_env(tmp_path):
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     db = factory()
-    user = SimpleNamespace(
-        id="user-1", workspace_id="ws-1", tenant_id="t-1",
-        email="owner@example.com", role="team_lead")
+    user = User(
+        id="user-1", email="member@example.com", hashed_password="x",
+        first_name="M", last_name="One", role="member", status="active",
+        workspace_id="ws-1", tenant_id="t-1", is_active=True)
+    empty_user = User(
+        id="user-empty", email="empty@example.com", hashed_password="x",
+        first_name="E", last_name="Empty", role="member", status="active",
+        workspace_id="ws-empty", tenant_id="t-1", is_active=True)
+    viewer = User(
+        id="user-viewer", email="viewer@example.com", hashed_password="x",
+        first_name="V", last_name="Viewer", role="viewer", status="active",
+        workspace_id="ws-1", tenant_id="t-1", is_active=True)
     agent = AgentRegistry(
         id="agent-1", name="Learning Agent", category="sales",
         role="sales_assistant", type="worker", capabilities=[],
         module_path="x", class_name="X", status="supervised",
         confidence_score=0.6, configuration={},
         workspace_id="ws-1", tenant_id="t-1",
+    )
+    foreign_agent = AgentRegistry(
+        id="agent-foreign", name="Foreign Agent", category="sales",
+        role="sales_assistant", type="worker", capabilities=[],
+        module_path="x", class_name="X", status="supervised",
+        confidence_score=0.6, configuration={},
+        workspace_id="ws-2", tenant_id="t-1",
     )
     canvas = Canvas(
         id="canvas-1", tenant_id="t-1", workspace_id="ws-1",
@@ -75,7 +90,10 @@ def route_env(tmp_path):
         columns_json=["Price", "Quantity", "Region"],
         status="active",
     )
-    db.add_all([agent, canvas, audit, dataset])
+    db.add_all([
+        user, empty_user, viewer, agent, foreign_agent,
+        canvas, audit, dataset,
+    ])
     db.commit()
 
     app = FastAPI()
@@ -88,7 +106,10 @@ def route_env(tmp_path):
             "db": db,
             "client": client,
             "user": user,
+            "empty_user": empty_user,
+            "viewer": viewer,
             "agent": agent,
+            "foreign_agent": foreign_agent,
         }
     finally:
         db.close()
@@ -122,6 +143,160 @@ def _create_candidate(env, *, lesson="Use the confirmed rates workbook."):
     )
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def test_empty_workspace_sees_no_threads_or_evidence(route_env):
+    route_env["client"].app.dependency_overrides[get_current_user] = (
+        lambda: route_env["empty_user"])
+    threads = route_env["client"].get(
+        "/api/conversation-learning/threads")
+    assert threads.status_code == 200, threads.text
+    assert threads.json()["threads"] == []
+
+    evidence = route_env["client"].post(
+        "/api/conversation-learning/evidence",
+        json={"thread_id": "thread-1"},
+    )
+    assert evidence.status_code == 200, evidence.text
+    body = evidence.json()
+    assert body["messages"] == []
+    assert body["resources"] == []
+    assert body["coverage"]["source_access"] == "access_denied"
+
+    direct = route_env["client"].get(
+        "/api/conversation-learning/threads/thread-1/evidence")
+    assert direct.status_code == 200, direct.text
+    assert direct.json()["messages"] == []
+    assert direct.json()["resources"] == []
+
+    candidates = route_env["client"].get(
+        "/api/conversation-learning/threads/thread-1/candidates")
+    assert candidates.status_code == 200, candidates.text
+    assert candidates.json()["candidates"] == []
+
+
+def test_foreign_employee_cannot_be_targeted(route_env):
+    response = route_env["client"].post(
+        "/api/conversation-learning/candidates",
+        json={
+            "thread_id": "thread-1",
+            "agent_id": "agent-foreign",
+            "proposed_lesson": "Teach the foreign employee.",
+            "method_status": "unresolved",
+            "applies_to": ["pricing"],
+        },
+    )
+    assert response.status_code == 404, response.text
+
+    created = _create_candidate(route_env)
+    candidate_id = created["candidate"]["candidate_id"]
+    route_env["agent"].workspace_id = "ws-2"
+    route_env["db"].commit()
+    confirmed = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/confirm",
+        json={
+            "thread_id": "thread-1",
+            "reviewer": "forged-owner",
+            "expected_revision": 1,
+        },
+    )
+    assert confirmed.status_code == 404, confirmed.text
+
+
+def test_viewer_cannot_create_or_promote(route_env):
+    route_env["client"].app.dependency_overrides[get_current_user] = (
+        lambda: route_env["viewer"])
+    response = route_env["client"].post(
+        "/api/conversation-learning/candidates",
+        json={
+            "thread_id": "thread-1",
+            "agent_id": "agent-1",
+            "proposed_lesson": "Viewer lesson.",
+            "method_status": "unresolved",
+            "applies_to": ["pricing"],
+        },
+    )
+    assert response.status_code == 403, response.text
+
+
+def test_reviewer_identity_comes_from_authentication(route_env):
+    created = _create_candidate(route_env)
+    candidate_id = created["candidate"]["candidate_id"]
+    confirmed = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/confirm",
+        json={
+            "thread_id": "thread-1",
+            "reviewer": "forged-owner",
+            "expected_revision": 1,
+        },
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    assert confirmed.json()["candidate"]["confirmed_by"] == (
+        "member@example.com")
+
+
+def test_source_change_blocks_work_time_reuse_without_manual_revalidation(
+        route_env):
+    from core.student_learning_service import get_agent_lessons
+
+    created = _create_candidate(route_env)
+    candidate_id = created["candidate"]["candidate_id"]
+    route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/confirm",
+        json={"thread_id": "thread-1", "reviewer": "forged-owner",
+              "expected_revision": 1})
+    promoted = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/promote",
+        json={"thread_id": "thread-1", "reviewer": "forged-owner",
+              "expected_revision": 1})
+    assert promoted.status_code == 200, promoted.text
+    lesson_id = promoted.json()["lesson_id"]
+    assert any(entry.get("id") == lesson_id
+               for entry in get_agent_lessons(route_env["db"], "agent-1"))
+
+    dataset = route_env["db"].query(DatasetEntry).filter(
+        DatasetEntry.id == "ds-1").first()
+    dataset.content_hash = "v2"
+    route_env["db"].commit()
+    assert not any(entry.get("id") == lesson_id
+                   for entry in get_agent_lessons(route_env["db"], "agent-1"))
+
+    fetched = route_env["client"].get(
+        f"/api/conversation-learning/candidates/{candidate_id}",
+        params={"thread_id": "thread-1"})
+    assert fetched.status_code == 200, fetched.text
+    assert fetched.json()["candidate"]["status"] == "invalidated"
+    applied = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/apply",
+        json={"thread_id": "thread-1", "rows": [{"Qty": 1, "Price": "10"}]})
+    assert applied.status_code == 409, applied.text
+
+    agent_row = route_env["db"].query(AgentRegistry).filter(
+        AgentRegistry.id == "agent-1").first()
+    raw = next(entry for entry in agent_row.configuration["learning"]["log"]
+               if entry.get("id") == lesson_id)
+    assert raw["stale"] is True
+
+
+def test_promotion_blocks_after_source_change(route_env):
+    from core.student_learning_service import get_agent_lessons
+
+    created = _create_candidate(route_env)
+    candidate_id = created["candidate"]["candidate_id"]
+    route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/confirm",
+        json={"thread_id": "thread-1", "reviewer": "forged-owner",
+              "expected_revision": 1})
+    dataset = route_env["db"].query(DatasetEntry).filter(
+        DatasetEntry.id == "ds-1").first()
+    dataset.content_hash = "v2"
+    route_env["db"].commit()
+    promoted = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/promote",
+        json={"thread_id": "thread-1", "reviewer": "forged-owner",
+              "expected_revision": 1})
+    assert promoted.status_code == 409, promoted.text
+    assert get_agent_lessons(route_env["db"], "agent-1") == []
 
 
 def test_route_lists_local_email_threads(route_env):
@@ -189,6 +364,14 @@ def test_route_candidate_review_confirm_promote(route_env):
     assert any(entry.get("lesson") ==
                "Use the confirmed rates workbook." for entry in lessons)
 
+    applied = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/apply",
+        json={"thread_id": "thread-1",
+              "rows": [{"Qty": 2, "Price": "7.50",
+                        "Status": "approved", "Region": "south"}]})
+    assert applied.status_code == 200, applied.text
+    assert applied.json()["result"]["value"] == "15"
+
 
 def test_route_rejects_unreviewed_candidate(route_env):
     created = _create_candidate(route_env, lesson="Use the unreviewed rule.")
@@ -208,10 +391,8 @@ def test_route_rejects_unreviewed_candidate(route_env):
 def test_route_scope_hides_foreign_candidate(route_env):
     created = _create_candidate(route_env)
     candidate_id = created["candidate"]["candidate_id"]
-    foreign_user = SimpleNamespace(
-        id="user-2", workspace_id="ws-2", tenant_id="t-2")
     route_env["client"].app.dependency_overrides[get_current_user] = (
-        lambda: foreign_user)
+        lambda: route_env["empty_user"])
     response = route_env["client"].get(
         f"/api/conversation-learning/candidates/{candidate_id}",
         params={"thread_id": "thread-1"},

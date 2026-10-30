@@ -242,6 +242,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 { label: "Kanban", icon: KanbanSquare, path: "/boards", capability: "boards" },
                 { label: "Automations", icon: Play, path: "/automations", capability: "automations" },
                 { label: "Agents", icon: Bot, path: "/agents", capability: "agents" },
+                { label: "Learning", icon: GraduationCap, path: "/learning", capability: "learning" },
                 { label: "Assignments", icon: CheckSquare, path: "/assignments", capability: "activity" },
                 // Approvals = the HITL/supervision queue: decisions need
                 // team_lead+ on the backend. Kept as a safeguard in the core

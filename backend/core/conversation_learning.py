@@ -1608,6 +1608,7 @@ def promote_candidate(
     reviewer: str,
     expected_revision: Optional[int] = None,
     expected_digest: Optional[str] = None,
+    catalog: Sequence[ResourceBinding | Dict[str, Any]] = (),
 ) -> Dict[str, Any]:
     """Write an approved candidate through the one teaching journal."""
     if candidate.status in ("rejected", "invalidated"):
@@ -1623,6 +1624,31 @@ def promote_candidate(
     readiness = candidate_readiness(candidate)
     if not readiness["review_ready"]:
         raise ValueError("candidate_not_review_ready")
+    if catalog:
+        resources = [
+            item if isinstance(item, ResourceBinding)
+            else ResourceBinding.model_validate(item)
+            for item in catalog
+        ]
+        current = {str(item.resource_id): item for item in resources}
+        for edge in candidate.references:
+            if edge.target_binding is None:
+                continue
+            binding = current.get(str(edge.target_binding.resource_id))
+            if binding is None:
+                raise ValueError(
+                    f"candidate_reference_missing:"
+                    f"{edge.target_binding.resource_id}")
+            if str(binding.source_version) != str(
+                    edge.target_binding.source_version):
+                raise ValueError(
+                    f"candidate_reference_stale:"
+                    f"{edge.target_binding.resource_id}")
+            unavailable = _resource_unavailable_reason(binding)
+            if unavailable:
+                raise ValueError(
+                    f"candidate_reference_{unavailable}:"
+                    f"{edge.target_binding.resource_id}")
 
     from core.student_learning_service import journal_standing_lesson_entry
 
@@ -1634,6 +1660,8 @@ def promote_candidate(
             "digest": _candidate_digest(candidate),
             "thread_id": candidate.thread_id,
             "agent_id": candidate.agent_id,
+            "workspace_id": candidate.workspace_id,
+            "tenant_id": candidate.tenant_id,
             "applies_to": list(candidate.applies_to),
             "context": candidate.context,
             "method": candidate.method.model_dump(mode="json"),
@@ -2181,11 +2209,15 @@ def list_email_threads(
             .all()
         )
     }
+    if not canvas_ids:
+        # An empty authorized scope is not "no filter": it is no data.
+        return []
     rows = (
         db.query(CanvasAudit)
         .filter(
             CanvasAudit.canvas_type == "email",
             CanvasAudit.tenant_id == tenant_id,
+            CanvasAudit.canvas_id.in_(sorted(canvas_ids)),
         )
         .order_by(CanvasAudit.created_at.desc())
         .limit(audit_limit)
@@ -2193,8 +2225,6 @@ def list_email_threads(
     )
     threads: Dict[str, Dict[str, Any]] = {}
     for audit in rows:
-        if canvas_ids and str(audit.canvas_id) not in canvas_ids:
-            continue
         details = audit.details_json if isinstance(
             audit.details_json, dict) else {}
         thread_id = str(details.get("thread_id") or "").strip()
@@ -2260,21 +2290,42 @@ def collect_email_thread_evidence(
             .all()
         )
     }
+    if not canvas_ids:
+        return ConversationEvidence(
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+            account_id=user_id,
+            thread_id=str(thread_id or ""),
+            messages=[],
+            resources=[],
+            coverage=EvidenceCoverage(
+                messages_known=False,
+                messages_truncated=False,
+                attachments_complete=False,
+                resources_known=False,
+                source_access="access_denied",
+                message_count=0,
+                max_reference_depth=1,
+                depth_reached=0,
+                message_limit=audit_limit,
+                resource_limit=catalog_limit,
+                notes=[
+                    "No authorized canvas exists in this workspace; no "
+                    "thread data or catalog was read.",
+                ],
+            ),
+        )
     audits = (
         db.query(CanvasAudit)
         .filter(
             CanvasAudit.canvas_type == "email",
             CanvasAudit.tenant_id == tenant_id,
+            CanvasAudit.canvas_id.in_(sorted(canvas_ids)),
         )
         .order_by(CanvasAudit.created_at.asc())
         .limit(audit_limit)
         .all()
     )
-    if canvas_ids:
-        audits = [
-            audit for audit in audits
-            if str(audit.canvas_id) in canvas_ids
-        ]
     messages_by_id: Dict[str, MessageEvidence] = {}
     seen_thread = False
     for audit in audits:
@@ -2298,7 +2349,10 @@ def collect_email_thread_evidence(
 
     catalog_rows = (
         db.query(DatasetEntry)
-        .filter(DatasetEntry.tenant_id == tenant_id)
+        .filter(
+            DatasetEntry.workspace_id == workspace_id,
+            DatasetEntry.tenant_id == tenant_id,
+        )
         .order_by(DatasetEntry.ingested_at.desc())
         .limit(catalog_limit)
         .all()

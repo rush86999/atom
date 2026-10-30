@@ -5,12 +5,15 @@ import { AlertTriangle, CheckCircle2, Link2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  applyLearningCandidate,
   confirmLearningCandidate,
   createLearningCandidate,
   getLearningCandidate,
   LearningCandidatePayload,
+  LearningEmployee,
   LearningReview,
   listLearningCandidates,
+  listLearningEmployees,
   promoteLearningCandidate,
   rejectLearningCandidate,
   resolveLearningDependency,
@@ -70,11 +73,14 @@ export function ConversationLearningReview({
   className?: string;
 }) {
   const [payload, setPayload] = useState<LearningCandidatePayload | null>(null);
+  const [employees, setEmployees] = useState<LearningEmployee[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [resources, setResources] = useState<Record<string, string>>({});
+  const [applyValues, setApplyValues] = useState<Record<string, string>>({});
+  const [applyResult, setApplyResult] = useState<string | null>(null);
   const [draft, setDraft] = useState({
     agentId: "",
     lesson: "",
@@ -107,6 +113,24 @@ export function ConversationLearningReview({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listLearningEmployees()
+      .then((rows) => {
+        if (cancelled) return;
+        setEmployees(rows);
+        setDraft((current) => current.agentId || !rows.length
+          ? current
+          : { ...current, agentId: rows[0].id });
+      })
+      .catch(() => {
+        if (!cancelled) setEmployees([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const review = payload?.review;
   const unresolved = review?.unresolved_questions || [];
@@ -159,7 +183,7 @@ export function ConversationLearningReview({
           intended_outcome: draft.outcome || draft.lesson,
           operation: draft.operation,
           inputs,
-          output_unit: draft.unit1,
+          output_unit: draft.unit2 || draft.unit1,
           transformation: draft.operation === "sum"
             ? "sum of the declared input"
             : "declared by the reviewer",
@@ -234,6 +258,30 @@ export function ConversationLearningReview({
     }
   };
 
+  const apply = async () => {
+    if (!review) return;
+    setBusy(true);
+    setError(null);
+    setApplyResult(null);
+    try {
+      const method = review.method_and_assumptions.method || {};
+      const row: Record<string, string> = {};
+      for (const input of method.inputs || []) {
+        const column = String(input.column || input.concept || "");
+        if (column) row[column] = applyValues[input.concept] || "";
+      }
+      const applied = await applyLearningCandidate(
+        threadId, review.candidate_id, [row]);
+      setApplyResult(
+        `${applied.result.value} ${applied.result.unit || ""}`.trim());
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || err?.message
+        || "Could not apply the approved method");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const reject = async () => {
     if (!review) return;
     setBusy(true);
@@ -268,13 +316,25 @@ export function ConversationLearningReview({
           <p className="font-semibold">Draft a lesson from this conversation</p>
           <label className="block">
             Employee
-            <input
+            <select
               className="mt-1 w-full rounded border p-1"
-              data-testid="learning-agent-input"
+              data-testid="learning-employee-select"
               value={draft.agentId}
               onChange={(event) => setDraft({ ...draft, agentId: event.target.value })}
-              placeholder="agent id"
-            />
+            >
+              <option value="">Select an employee</option>
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.name}
+                  {employee.status ? ` · ${employee.status}` : ""}
+                </option>
+              ))}
+            </select>
+            {!employees.length ? (
+              <span className="mt-1 block text-slate-500">
+                No authorized employees in this workspace.
+              </span>
+            ) : null}
           </label>
           <label className="block">
             Proposed lesson
@@ -316,6 +376,11 @@ export function ConversationLearningReview({
             <input className="rounded border p-1" data-testid="learning-concept-1" value={draft.concept1} onChange={(e) => setDraft({ ...draft, concept1: e.target.value })} placeholder="input concept" />
             <input className="rounded border p-1" data-testid="learning-column-1" value={draft.column1} onChange={(e) => setDraft({ ...draft, column1: e.target.value })} placeholder="column" />
             <input className="rounded border p-1" data-testid="learning-unit-1" value={draft.unit1} onChange={(e) => setDraft({ ...draft, unit1: e.target.value })} placeholder="unit" />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <input className="rounded border p-1" data-testid="learning-concept-2" value={draft.concept2} onChange={(e) => setDraft({ ...draft, concept2: e.target.value })} placeholder="second input concept (optional)" />
+            <input className="rounded border p-1" data-testid="learning-column-2" value={draft.column2} onChange={(e) => setDraft({ ...draft, column2: e.target.value })} placeholder="second column" />
+            <input className="rounded border p-1" data-testid="learning-unit-2" value={draft.unit2} onChange={(e) => setDraft({ ...draft, unit2: e.target.value })} placeholder="second unit" />
           </div>
           <Button data-testid="learning-draft-button" disabled={busy || !draft.agentId || !draft.lesson} onClick={create}>
             Draft candidate
@@ -489,6 +554,43 @@ export function ConversationLearningReview({
               <XCircle className="mr-1 h-3 w-3" /> Reject
             </Button>
           </div>
+          {review.status === "promoted" ? (
+            <div className="rounded border p-2" data-testid="learning-apply">
+              <p className="font-semibold">Apply to unfamiliar work</p>
+              <p className="text-slate-500">
+                The approved method runs on a new row; no source is written.
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-1">
+                {(review.method_and_assumptions.method.inputs || []).map(
+                  (input: any) => (
+                    <label key={input.concept} className="text-[11px]">
+                      {input.concept}
+                      <input
+                        className="ml-1 w-20 rounded border p-1"
+                        data-testid={`learning-apply-${input.concept}`}
+                        value={applyValues[input.concept] || ""}
+                        onChange={(event) => setApplyValues({
+                          ...applyValues,
+                          [input.concept]: event.target.value,
+                        })}
+                      />
+                    </label>
+                  ))}
+                <Button
+                  data-testid="learning-apply-button"
+                  disabled={busy}
+                  onClick={apply}
+                >
+                  Run method
+                </Button>
+              </div>
+              {applyResult ? (
+                <p className="mt-1 font-semibold" data-testid="learning-apply-result">
+                  {applyResult}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           {!review.review_ready ? (
             <p className="flex items-center gap-1 text-amber-700" data-testid="learning-blocked">
               <AlertTriangle className="h-3 w-3" /> Resolve the required questions before promotion.

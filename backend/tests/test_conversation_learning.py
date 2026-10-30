@@ -43,7 +43,7 @@ from core.conversation_learning import (
     validate_authority,
     validate_method,
 )
-from core.models import AgentRegistry, Base
+from core.models import AgentRegistry, Base, DatasetEntry
 
 
 @pytest.fixture()
@@ -66,6 +66,31 @@ def _agent(db, agent_id="agent-1"):
         module_path="x", class_name="X", status="supervised",
         confidence_score=0.6, configuration={},
         workspace_id="ws-1", tenant_id="t-1",
+    )
+    db.add(row)
+    db.commit()
+    return row
+
+
+def _dataset(db, *, resource_id="ds-1", version="v1",
+             status="active"):
+    row = DatasetEntry(
+        id=resource_id,
+        workspace_id="ws-1",
+        tenant_id="t-1",
+        created_by="user-1",
+        source_kind="file",
+        source="upload",
+        external_id="m1:a1",
+        file_name="rates.xlsx",
+        content_hash=version,
+        entity_name="Rates",
+        dataset_name="rates",
+        parquet_path=f"/tmp/{resource_id}.parquet",
+        row_count=2,
+        column_count=3,
+        columns_json=["Price", "Quantity"],
+        status=status,
     )
     db.add(row)
     db.commit()
@@ -168,6 +193,13 @@ def _candidate(*, lesson="Use the confirmed method.", method=None,
         authority_message_id="m-auth",
         authority_excerpt="Use the confirmed method for this work.",
     )
+
+
+def test_core_profile_exposes_learning_surface():
+    from core.product_profile import route_capability, route_enabled
+
+    assert route_capability("/learning") == "learning"
+    assert route_enabled("/learning") is True
 
 
 def test_explicit_attachment_reference_resolves():
@@ -369,6 +401,7 @@ def test_version_change_marks_promoted_lesson_stale(db):
     from core.student_learning_service import get_agent_lessons
 
     agent = _agent(db)
+    _dataset(db, resource_id="ds-1", version="v1")
     old = _binding(resource_id="ds-1", version="v1")
     new = _binding(resource_id="ds-1", version="v2")
     candidate = _candidate(

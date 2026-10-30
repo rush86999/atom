@@ -5,6 +5,7 @@ import "@testing-library/jest-dom";
 jest.mock("@/lib/conversation-learning-api", () => ({
   __esModule: true,
   listLearningCandidates: jest.fn(),
+  listLearningEmployees: jest.fn(),
   getLearningCandidate: jest.fn(),
   createLearningCandidate: jest.fn(),
   resolveLearningDependency: jest.fn(),
@@ -17,6 +18,7 @@ import {
   confirmLearningCandidate,
   createLearningCandidate,
   listLearningCandidates,
+  listLearningEmployees,
   promoteLearningCandidate,
   rejectLearningCandidate,
   resolveLearningDependency,
@@ -99,6 +101,13 @@ function payload(overrides: Record<string, any> = {}) {
 describe("ConversationLearningReview", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (listLearningEmployees as jest.Mock).mockResolvedValue([{
+      id: "agent-1",
+      name: "Agent One",
+      status: "supervised",
+      category: "sales",
+      role: "sales_assistant",
+    }]);
   });
 
   it("shows the evidence chain and resolves a dependency before confirmation", async () => {
@@ -191,7 +200,7 @@ describe("ConversationLearningReview", () => {
     (createLearningCandidate as jest.Mock).mockResolvedValue(payload());
 
     render(<ConversationLearningReview threadId="thread-1" reviewer="owner" />);
-    fireEvent.change(await screen.findByTestId("learning-agent-input"), {
+    fireEvent.change(await screen.findByTestId("learning-employee-select"), {
       target: { value: "agent-1" },
     });
     fireEvent.change(screen.getByTestId("learning-lesson-input"), {

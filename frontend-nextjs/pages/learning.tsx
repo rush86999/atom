@@ -15,6 +15,23 @@ export default function LearningPage() {
   const [threads, setThreads] = useState<LearningThread[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  const selectThread = (value: string) => {
+    setThreadId(value);
+    const query = value ? { thread: value } : {};
+    router.replace({ pathname: "/learning", query }, undefined, {
+      shallow: true,
+    });
+  };
+
+  useEffect(() => {
+    const queryThread = typeof router.query.thread === "string"
+      ? router.query.thread
+      : new URLSearchParams(window.location.search).get("thread") || "";
+    if (queryThread && queryThread !== threadId) {
+      setThreadId(queryThread);
+    }
+  }, [router.query.thread, threadId]);
+
   useEffect(() => {
     let cancelled = false;
     listLearningThreads()
@@ -56,7 +73,7 @@ export default function LearningPage() {
             data-testid="learning-thread-select"
             value={threads.some((item) => item.thread_id === threadId)
               ? threadId : ""}
-            onChange={(event) => setThreadId(event.target.value)}
+            onChange={(event) => selectThread(event.target.value)}
           >
             <option value="">Select a local email thread</option>
             {threads.map((item) => (

@@ -31,7 +31,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.models import AgentRegistry, AgentStatus
+from core.models import AgentRegistry, AgentStatus, DatasetEntry
 
 logger = logging.getLogger(__name__)
 
@@ -204,10 +204,13 @@ def get_agent_lessons(
     global lessons apply. Entries written before scope existed have none and
     are therefore global — the historical behaviour, unchanged.
     """
+    permanent = _permanent_lessons(db, agent_id)
+    stale_ids = _reference_bound_stale_ids(db, permanent)
     lessons = [
-        e for e in _permanent_lessons(db, agent_id)
+        e for e in permanent
         if _lesson_in_scope(e, goal_id)
         and not _lesson_revalidation_required(e)
+        and str(e.get("id") or "") not in stale_ids
     ]
     # SIBLING LESSONS. Teaching is addressed to "the agent I am talking to", but
     # the knowledge usually is not: a pricing rule taught to the Sales Agent is
@@ -346,6 +349,67 @@ def _lesson_revalidation_required(entry: Dict[str, Any]) -> bool:
     learning = details.get("conversation_learning") if isinstance(
         details.get("conversation_learning"), dict) else {}
     return bool(learning.get("revalidation_required"))
+
+
+def _reference_bound_stale_ids(
+    db: Session, lessons: Sequence[Dict[str, Any]]
+) -> set:
+    """Lesson ids whose governing dataset version is no longer current."""
+    refs: Dict[str, set] = {}
+    for entry in lessons:
+        details = entry.get("details") if isinstance(entry.get("details"),
+                                                    dict) else {}
+        learning = details.get("conversation_learning") if isinstance(
+            details.get("conversation_learning"), dict) else {}
+        for ref in learning.get("references") or []:
+            if not isinstance(ref, dict):
+                continue
+            resource_id = str(ref.get("resource_id") or "")
+            if resource_id:
+                refs.setdefault(resource_id, set()).add(
+                    str(ref.get("source_version") or ""))
+    if not refs:
+        return set()
+    try:
+        rows = (
+            db.query(
+                DatasetEntry.id,
+                DatasetEntry.content_hash,
+                DatasetEntry.status,
+            )
+            .filter(DatasetEntry.id.in_(sorted(refs)))
+            .all()
+        )
+    except Exception as exc:  # noqa: BLE001 — retrieval must not break
+        logger.debug("reference-bound lesson check skipped: %s", exc)
+        return set()
+    current = {
+        str(row.id): (
+            str(row.content_hash or ""),
+            str(row.status or "active"),
+        )
+        for row in rows
+    }
+    stale: set = set()
+    for entry in lessons:
+        entry_id = str(entry.get("id") or "")
+        details = entry.get("details") if isinstance(entry.get("details"),
+                                                    dict) else {}
+        learning = details.get("conversation_learning") if isinstance(
+            details.get("conversation_learning"), dict) else {}
+        for ref in learning.get("references") or []:
+            if not isinstance(ref, dict):
+                continue
+            resource_id = str(ref.get("resource_id") or "")
+            if not resource_id:
+                continue
+            version = str(ref.get("source_version") or "")
+            found = current.get(resource_id)
+            if (found is None or found[1] != "active"
+                    or not version or found[0] != version):
+                stale.add(entry_id)
+                break
+    return stale
 
 
 def _lesson_in_scope(entry: Dict[str, Any], goal_id: Optional[str]) -> bool:
