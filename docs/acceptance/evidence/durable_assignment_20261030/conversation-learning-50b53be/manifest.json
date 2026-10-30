@@ -1,0 +1,100 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "conversation-learning-50b53be",
+  "source_commit": "50b53bef62242bdb8672dac9fbdc34c0ab7b8fcd",
+  "source_tree": "cf7d8d3ef867d054562fb063501b1d1c10779259",
+  "files": {
+    "SUMMARY.md": {
+      "sha256": "1d7e266d90cfe2f0159667299a6a7975bad6398790cf09cffc262c9b848a88be",
+      "bytes": 3002
+    },
+    "acceptance-matrix.json": {
+      "sha256": "cf04e880b5bace72f0e0e7f173d3851793b86997f79f15c0862b499821e6bdd4",
+      "bytes": 7675
+    },
+    "assignment-regressions.log": {
+      "sha256": "e64a18406bd6c9a6da8e259cd8d31209b1124e4555390db4040c1c69db6a8bfc",
+      "bytes": 28015
+    },
+    "backend-journey.log": {
+      "sha256": "8de5d0630e331260d2e58e07aced61162110c2d2dd75ed9bb162596a1492cb53",
+      "bytes": 40121
+    },
+    "backend-restart.log": {
+      "sha256": "e4d93f5673dbd316a067eccc2651bfed3b8e4a0f17b5f9e9accacbec60ac9ced",
+      "bytes": 38002
+    },
+    "context-after-restart.png": {
+      "sha256": "e8c893bf186429869b7a775b8f7fb231e7bc8d745df763d96944506f01d013c3",
+      "bytes": 116277
+    },
+    "context-journey-part1.json": {
+      "sha256": "25713f032b7435e7a7b8e96db1371019b2b8ca7d08f2b9c1f1d7ebdfbcc63c56",
+      "bytes": 398
+    },
+    "context-journey-part1.py": {
+      "sha256": "77b7d83156470a6cfe486552c5914ceea24d5251d233f250ef1fd1c87dd4b881",
+      "bytes": 5478
+    },
+    "context-journey-part2.json": {
+      "sha256": "67522219920cd950f1ef12b07c0bf586b89126f82f2aedad78827ab77d7f0989",
+      "bytes": 316
+    },
+    "context-journey-part2.py": {
+      "sha256": "29d7aad52d7751ee0535d61f516a79dadbdaa585d98b0f0a648f114e9b1029f0",
+      "bytes": 2992
+    },
+    "context-promoted.png": {
+      "sha256": "06a3116bd09148a7f4f868c3d61926ef2b917cb6099174a2a6dde6298a86d58d",
+      "bytes": 132927
+    },
+    "context-stale.png": {
+      "sha256": "374b55048d217be4591d2403cc941303cddcde95ea7cfc3cbed590e21f2d5ad5",
+      "bytes": 116286
+    },
+    "conversation-learning-tests.log": {
+      "sha256": "43e2d5b7a809d952e8220c851ed1a95ae73d85ff29e54accc97ef1fbb89492cb",
+      "bytes": 15633
+    },
+    "frontend-build.log": {
+      "sha256": "1aa40450becf44740779a7549c1925564dc044f299011decbe21e80f10257d56",
+      "bytes": 16025
+    },
+    "frontend-journey.log": {
+      "sha256": "b27cd7218d44677bf27b27d36a9bcb060ab6141a1da6f862b04c7759011158c8",
+      "bytes": 37673
+    },
+    "frontend-targeted-tests.log": {
+      "sha256": "6055bd3cb9620a5969ac49045398829e5bd14dedf62a8ce4fc936d923adf6822",
+      "bytes": 1440
+    },
+    "git-status.txt": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "preserved-baseline.json": {
+      "sha256": "44fe9f348d062cd5e91185547673b4f39356621feef1503b83734e313b531442",
+      "bytes": 700
+    },
+    "runtime.json": {
+      "sha256": "dcfad0132479350a22cd2f600ad528d3806b8e255b6afe58ae154583ec8e27fb",
+      "bytes": 1908
+    },
+    "source-commit.txt": {
+      "sha256": "fad8c010653f5a9fab02cd7c1e79e920f2dc7926b4766c86aadaa0459564fdc5",
+      "bytes": 41
+    },
+    "source-tree.txt": {
+      "sha256": "d131bd5ac2b7500bfc793e69901c5dd777c58783cbcd0d99dc6f900a3d485961",
+      "bytes": 41
+    },
+    "teaching-regressions.log": {
+      "sha256": "56623f2a5256ecda3afa44796fa38ccd1e4a6083473d8260491f058347184145",
+      "bytes": 33111
+    },
+    "typescript-check.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  }
+}

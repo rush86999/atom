@@ -1,13 +1,13 @@
 # Conversation-derived, reference-bound learning
 
 Status: **bounded successor implementation complete; independent verifier
-review pending.** Source commit `eac50600e` (tree `063751c`). This is
+review pending.** Source commit `50b53bef6` (tree `cf7d8d3`). This is
 deliberately separate from the accepted local-core closure at `da9cc8b12` /
 tag `local-core-2026-10-30-final`. It does not relabel historical
 browser/live evidence or claim a full application journey on this source.
 
 Evidence:
-`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-eac5060/`.
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-50b53be/`.
 
 ## 1. Why this phase exists
 
@@ -94,7 +94,22 @@ Promotion requires:
 The write goes through `journal_standing_lesson_entry`; an incoming email
 cannot write a lesson directly.
 
-### 3.6 Scope, authority and reuse enforcement
+### 3.6 Applicability enforcement
+
+- Promotion writes the candidate context through the existing
+  `normalize_lesson_context` into the journal entry's top-level `context`.
+  Provenance remains separately under `details.conversation_learning`.
+- Method application evaluates that top-level context before arithmetic:
+  wrong context refuses, missing context returns the missing keys, equally
+  specific conflicting methods surface a conflict, and a more specific lesson
+  supersedes a general one.
+- Normal work-time `get_agent_lessons` excludes context-bound lessons unless
+  the caller supplies matching task context. Format/mapping lessons continue
+  through `resolve_artifact_teaching`'s existing context resolver.
+- Refusal returns before calculation and does not mutate the candidate,
+  journal or governing state.
+
+### 3.7 Scope, authority and reuse enforcement
 
 - Email evidence is scoped to authorized canvases **before** any limit. An
   empty workspace returns no threads, messages or catalog rows. Default-scope
@@ -144,7 +159,7 @@ Additional coverage:
   blocking are permanent negatives;
 - local thread listing and evidence resolution through the public routes.
 
-The service/route suite is **30 passed**; assignment regressions **126
+The service/route suite is **37 passed**; assignment regressions **126
 passed**; teaching/renderer regressions **137 passed**; frontend targeted
 **35 passed**; TypeScript clean. The production frontend build succeeded.
 
@@ -193,12 +208,14 @@ The production frontend build and full app were exercised on
 2. select the authorized employee from the selector;
 3. propose/review the lesson with the resolved `rates.xlsx` binding;
 4. confirm and promote;
-5. apply the approved method to an unfamiliar row → **15 USD**;
-6. change the governing dataset version `v1` → `v2`;
-7. reload: candidate `invalidated`, apply HTTP 409;
-8. restart the backend against the same world;
-9. reopen: candidate still `invalidated`, raw lesson `stale`, apply HTTP 409;
-10. no page errors.
+5. apply with the wrong Customer-B/unlicensed context → visible refusal;
+6. apply with matching Customer-A/licensed context → **15 USD**;
+7. change the governing dataset version `v1` → `v2`;
+8. reload: candidate `invalidated`, apply HTTP 409;
+9. restart the backend against the same world;
+10. reopen: candidate still `invalidated`, top-level context preserved, raw
+    lesson `stale`, apply HTTP 409;
+11. no page errors.
 
 ## 7. Bounds and deferred work
 

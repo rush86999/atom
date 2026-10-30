@@ -1,0 +1,230 @@
+{
+  "schema": "atom-conversation-learning-acceptance-3",
+  "source_commit": "50b53bef62242bdb8672dac9fbdc34c0ab7b8fcd",
+  "source_tree": "cf7d8d3ef867d054562fb063501b1d1c10779259",
+  "cases": [
+    {
+      "case": "promoted context is stored top-level",
+      "test": "test_promoted_context_blocks_wrong_and_missing_application",
+      "result": "pass"
+    },
+    {
+      "case": "wrong customer/qualification refuses application",
+      "test": "test_promoted_context_blocks_wrong_and_missing_application",
+      "result": "pass"
+    },
+    {
+      "case": "missing qualification returns targeted clarification",
+      "test": "test_promoted_context_blocks_wrong_and_missing_application",
+      "result": "pass"
+    },
+    {
+      "case": "matching context applies method",
+      "test": "test_promoted_context_blocks_wrong_and_missing_application",
+      "result": "pass"
+    },
+    {
+      "case": "ordinary work-time lessons enforce context",
+      "test": "test_work_time_lessons_enforce_context",
+      "result": "pass"
+    },
+    {
+      "case": "conflicting applicable methods surface conflict",
+      "test": "test_conflicting_applicable_methods_surface_conflict",
+      "result": "pass"
+    },
+    {
+      "case": "context survives restart and blocks wrong use",
+      "test": "test_context_survives_restart_and_still_blocks_wrong_use",
+      "result": "pass"
+    },
+    {
+      "case": "route matching/wrong/missing context",
+      "test": "test_apply_context_matching_wrong_missing",
+      "result": "pass"
+    },
+    {
+      "case": "route conflicting applicable teaching",
+      "test": "test_apply_conflicting_applicable_teaching",
+      "result": "pass"
+    },
+    {
+      "case": "route context survives restart",
+      "test": "test_context_survives_route_restart",
+      "result": "pass"
+    },
+    {
+      "case": "empty workspace discloses no threads or evidence",
+      "test": "test_empty_workspace_sees_no_threads_or_evidence",
+      "result": "pass"
+    },
+    {
+      "case": "foreign employee cannot be targeted",
+      "test": "test_foreign_employee_cannot_be_targeted",
+      "result": "pass"
+    },
+    {
+      "case": "viewer cannot create or promote",
+      "test": "test_viewer_cannot_create_or_promote",
+      "result": "pass"
+    },
+    {
+      "case": "forged reviewer text is ignored",
+      "test": "test_reviewer_identity_comes_from_authentication",
+      "result": "pass"
+    },
+    {
+      "case": "source change blocks work-time reuse without manual revalidation",
+      "test": "test_source_change_blocks_work_time_reuse_without_manual_revalidation",
+      "result": "pass"
+    },
+    {
+      "case": "promotion blocks after source change",
+      "test": "test_promotion_blocks_after_source_change",
+      "result": "pass"
+    },
+    {
+      "case": "explicit attachment reference resolves",
+      "test": "test_explicit_attachment_reference_resolves",
+      "result": "pass"
+    },
+    {
+      "case": "same-name attachments require clarification",
+      "test": "test_same_name_attachments_require_clarification",
+      "result": "pass"
+    },
+    {
+      "case": "previous workbook resolves only when unambiguous",
+      "test": "test_previous_workbook_resolves_only_when_unambiguous",
+      "result": "pass"
+    },
+    {
+      "case": "usual method remains unresolved until established",
+      "test": "test_usual_method_remains_unresolved_until_established",
+      "result": "pass"
+    },
+    {
+      "case": "conflicting examples do not fabricate a rule",
+      "test": "test_conflicting_examples_do_not_produce_a_fabricated_rule",
+      "result": "pass"
+    },
+    {
+      "case": "complete referenced method transfers to unfamiliar data",
+      "test": "test_complete_referenced_method_transfers_to_unfamiliar_data",
+      "result": "pass"
+    },
+    {
+      "case": "missing units block a numerical conclusion",
+      "test": "test_missing_units_block_a_numerical_conclusion",
+      "result": "pass"
+    },
+    {
+      "case": "version change invalidates relevant reuse",
+      "test": "test_version_change_invalidates_relevant_reuse",
+      "result": "pass"
+    },
+    {
+      "case": "version change marks promoted lesson stale",
+      "test": "test_version_change_marks_promoted_lesson_stale",
+      "result": "pass"
+    },
+    {
+      "case": "revoked access prevents source retrieval",
+      "test": "test_revoked_access_prevents_source_retrieval",
+      "result": "pass"
+    },
+    {
+      "case": "quoted instructions do not become new authority",
+      "test": "test_quoted_instructions_do_not_become_new_authority",
+      "result": "pass"
+    },
+    {
+      "case": "source permission request is not authority",
+      "test": "test_source_content_permission_request_is_not_authority",
+      "result": "pass"
+    },
+    {
+      "case": "restart preserves dependencies and confirmations",
+      "test": "test_restart_preserves_dependencies_and_confirmations",
+      "result": "pass"
+    },
+    {
+      "case": "changed candidate content invalidates old approval",
+      "test": "test_changed_candidate_content_invalidates_old_approval",
+      "result": "pass"
+    },
+    {
+      "case": "rejecting a proposal has no governing effect",
+      "test": "test_rejecting_a_proposal_has_no_governing_effect",
+      "result": "pass"
+    },
+    {
+      "case": "correction preserves unrelated teaching",
+      "test": "test_correction_preserves_unrelated_teaching",
+      "result": "pass"
+    },
+    {
+      "case": "punctuation-sensitive identifiers do not collide",
+      "test": "test_punctuation_sensitive_identifiers_do_not_collide",
+      "result": "pass"
+    },
+    {
+      "case": "promoted lesson applies its method to new rows",
+      "test": "test_promoted_lesson_applies_its_method_to_new_rows",
+      "result": "pass"
+    },
+    {
+      "case": "core profile exposes learning surface",
+      "test": "test_core_profile_exposes_learning_surface",
+      "result": "pass"
+    }
+  ],
+  "browser_journey": {
+    "part1": {
+      "candidate_id": "lc-46d8522a2af246db",
+      "wrong_context_error": "Teaching does not apply to this context (customer: Customer-A vs Customer-B; qualification: licensed vs unlicensed).",
+      "matching_value": "15 USD",
+      "stale_status": "invalidated",
+      "apply_after_change_http": 409,
+      "top_level_context": {
+        "customer": "Customer-A",
+        "qualification": "licensed"
+      },
+      "page_errors": []
+    },
+    "part2": {
+      "candidate_status": "invalidated",
+      "lesson_stale": true,
+      "top_level_context": {
+        "customer": "Customer-A",
+        "qualification": "licensed"
+      },
+      "apply_after_restart_http": 409,
+      "page_errors": [],
+      "screenshot": "/Users/rushiparikh/projects/atom-conversation-context-world/context-after-restart.png"
+    },
+    "flow": [
+      "open local thread",
+      "select authorized employee",
+      "propose lesson with Customer-A/licensed context",
+      "review resolved binding",
+      "confirm/promote",
+      "apply with wrong Customer-B/unlicensed context -> refused",
+      "apply with matching context -> 15 USD",
+      "change governing dataset version",
+      "reuse blocked",
+      "restart",
+      "invalidated/stale/409 preserved"
+    ]
+  },
+  "domains": [
+    "sales pricing",
+    "payroll-style units/rates"
+  ],
+  "notes": [
+    "Applicability is evaluated from the journal entry top-level context, not provenance only.",
+    "Work-time get_agent_lessons excludes context-bound lessons unless the task context matches.",
+    "The browser journey used the production frontend build and full app.",
+    "No live mailbox, provider token, real send or external lookup was used."
+  ]
+}

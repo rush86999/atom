@@ -155,7 +155,10 @@ this phase does not relabel historical browser/live evidence.
 - Security boundaries: empty-workspace evidence is empty; foreign employees
   cannot be targeted; reviewer identity is authenticated; source changes
   block work-time reuse and promotion.
-- Acceptance matrix: 30 backend service/route tests passed; frontend targeted
+- Applicability: promoted context is stored top-level and enforced before
+  calculation; wrong/missing context and conflicting methods refuse; ordinary
+  work-time lesson retrieval is context-filtered.
+- Acceptance matrix: 37 backend service/route tests passed; frontend targeted
   35 passed; assignment/teaching regressions 126 + 137 passed.
 - Full-app production-build browser journey passed: thread → employee →
   review → promote → apply 15 USD → source change → reuse blocked → restart →
@@ -165,7 +168,7 @@ this phase does not relabel historical browser/live evidence.
 
 Evidence: `docs/acceptance/CONVERSATION_DERIVED_LEARNING_2026-10-30.md`
 and
-`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-eac5060/`.
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-50b53be/`.
 
 Still deferred: live mailbox access, automatic teaching-cue extraction from
 every email, arbitrary URL/recursive reference traversal, publication and

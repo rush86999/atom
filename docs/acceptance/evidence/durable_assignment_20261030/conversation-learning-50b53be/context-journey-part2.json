@@ -1,0 +1,11 @@
+{
+  "candidate_status": "invalidated",
+  "lesson_stale": true,
+  "top_level_context": {
+    "customer": "Customer-A",
+    "qualification": "licensed"
+  },
+  "apply_after_restart_http": 409,
+  "page_errors": [],
+  "screenshot": "/Users/rushiparikh/projects/atom-conversation-context-world/context-after-restart.png"
+}
