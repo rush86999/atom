@@ -139,8 +139,8 @@ No goal is marked fully complete where a promised behavior remains unqualified.
   reopen, active teaching snapshot retention, new Calibri lesson, correlated
   response, exact approval, one controlled outbox line, reload, and a
   revised-scope second run `2225.75` at Calibri 14.
-- Current-source regressions: 86 backend tests passed; 31 frontend tests
-  passed.
+- Current-source regressions: 86 assignment/executor/send/resource tests and
+  137 teaching/renderer tests passed; 31 frontend tests passed.
 
 Conclusion: **Bounded local core complete for the documented supported
 workflows.** Hosted deployment, public release and publication remain

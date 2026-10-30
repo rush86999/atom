@@ -112,6 +112,10 @@
       "sha256": "2fcdffda66e689b980ca126a96c332a90af8364cea9771d5b29b0a58788aae0e",
       "bytes": 41
     },
+    "teaching-targeted-tests.log": {
+      "sha256": "ad42b0323f7812b806975182ea7329cb3210cee9c18613d606eb9d794817fa35",
+      "bytes": 33226
+    },
     "verify-run.log": {
       "sha256": "382efc7a28ea7c6802f596ec1f6c0788150c9d61940b8038f18d9b488fbd4177",
       "bytes": 3890

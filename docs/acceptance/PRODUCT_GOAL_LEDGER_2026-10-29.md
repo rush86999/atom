@@ -78,8 +78,8 @@ Final local source `0efe3a9fbdc19414b0615ae033a3823e02d04d75` (tree
   `30602`), waiting-state reopen, active teaching snapshot retention, new
   Calibri lesson, correlated response, exact approval, one controlled outbox
   line, reload, and a revised-scope second run `2225.75` at Calibri 14.
-- Current-source regressions: 86 backend tests passed; 31 frontend tests
-  passed.
+- Current-source regressions: 86 assignment/executor/send/resource tests and
+  137 teaching/renderer tests passed; 31 frontend tests passed.
 
 Evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/local-core-repro-0efe3a9fb/`

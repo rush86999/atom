@@ -56,8 +56,11 @@
     "frontend": "31 passed",
     "logs": [
       "composite-final-0efe3a9fb/backend-targeted-tests.log",
+      "composite-final-0efe3a9fb/teaching-targeted-tests.log",
       "composite-final-0efe3a9fb/frontend-targeted-tests.log"
-    ]
+    ],
+    "backend_assignment": "86 passed",
+    "backend_teaching": "137 passed"
   },
   "deferred": [
     "hosted deployment",

@@ -139,6 +139,16 @@ The current source was tested with:
 
 Result: **86 passed** (`backend-targeted-tests.log`).
 
+Teaching regressions:
+
+- `test_artifact_renderers_teaching.py`
+- `test_artifact_teaching_context.py`
+- `test_chat_teaching.py`
+- `test_teaching_point_editing.py`
+- `test_workbook_read_artifact.py`
+
+Result: **137 passed** (`teaching-targeted-tests.log`).
+
 Frontend surfaces:
 
 - `AssignmentPanel.test.tsx`
