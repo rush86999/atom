@@ -10,10 +10,11 @@ deployment launcher or source-service shutdown.
 | Item | Value |
 |---|---|
 | Final local source tag | `local-core-2026-10-30-final` |
-| Runtime source commit | `5ce5f571539ce6444fba696644cf9ddc8924e85b` |
-| Runtime source tree | `f9f5b883ce5d971573c25b780e56a0ab1e16f9df` |
+| Runtime source commit | `43f3dae58f2742a478614569c47b5a34ab1d2b2e` |
+| Runtime source tree | `47af5d9197b6d70c2b7b4ee45817b0c4fb058788` |
 | Functional baseline | `fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4` |
 | Frontend build (clean install) | `jDccLkCOwPIvfD8dW-mSz` |
+| Frontend build (controlled composite) | `AB_oVltzmTt3-xN98PxV5` |
 | Python | `3.11.16` |
 | Node | `v20.19.6` |
 | npm | `10.8.2` |
@@ -349,21 +350,27 @@ data root.
 - Composite protocol/wait evidence: the approved controlled email carried
   `[Quote]` in the subject, `Dear colleague,` at the start and `Sales team` at
   the end. The successful wait used the genuinely missing `delivery_term`
-  (`FOB destination`). A contradictory `Currency unstated...` reply against a
-  source that already exposes `Currency` stayed waiting, was retained as a
-  conflict, and produced no artifact.
+  (`FOB destination`).
+- Wait-value twins: a blank `Currency` column accepted `USD` and completed; an
+  established `USD` value plus `USD` reply was a confirmation, not a conflict;
+  a conflicting reply against established `USD` stayed waiting with no
+  artifact. The blank-currency assignment survived a real restart with the
+  same artifact hash and exactly one applied wait operation.
 
-Clean-install evidence:
+Clean-install evidence (executed on 5ce5f5715; the final source adds only wait-value/projection/test-id changes):
 `docs/acceptance/evidence/durable_assignment_20261030/local-core-repro-5ce5f57/`
 
 Long-running and complex teaching evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/composite-protocol-5ce5f57/`
+
+Wait-value positive twins and negative control:
+`docs/acceptance/evidence/durable_assignment_20261030/wait-value-43f3dae5/`
 and `docs/acceptance/LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md`.
 The earlier `composite-final-0efe3a9fb/` and `composite-long-running-0efe3a9fb/`
 directories are preserved as prior attempts, not the final campaign.
 
 Consolidated closure record:
-`docs/acceptance/evidence/durable_assignment_20261030/final-local-closure-5ce5f57.json`.
+`docs/acceptance/evidence/durable_assignment_20261030/final-local-closure-43f3dae5.json`.
 
 ## Compatibility limits
 

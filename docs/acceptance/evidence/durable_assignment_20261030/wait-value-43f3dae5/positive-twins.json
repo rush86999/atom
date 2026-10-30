@@ -1,0 +1,84 @@
+{
+  "blank": {
+    "objective": "Blank currency recovery v2",
+    "run_id": "aa712987-c475-47a1-9d79-1b408eae4325",
+    "status": "completed",
+    "artifact": {
+      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/run/positive-twins/blank-currency-assignment-artifact.docx",
+      "sha256": "8a0a5ccfca09a8209abbf9aca4ba7cdac70ff8944f8fe2acabf33faa477dd96e"
+    },
+    "fact_resolution": {
+      "status": "missing",
+      "fact": "currency",
+      "column": "Currency",
+      "values": [],
+      "subjects": [],
+      "blank_subjects": [
+        "row 2",
+        "row 3"
+      ],
+      "source": {
+        "resource_id": "ace9df5b-e99d-4c8e-9f8b-8d13dae4f0cc",
+        "dataset_name": "upload_blank_currency__blank_currency",
+        "file_name": "blank_currency.csv",
+        "sheet": "blank_currency",
+        "source_version": "dd853a3cebddd382d62fbb36c5cefd99b07b2615",
+        "column": "Currency"
+      },
+      "source_version": "dd853a3cebddd382d62fbb36c5cefd99b07b2615"
+    },
+    "fact_confirmation": null
+  },
+  "agreeing": {
+    "objective": "Agreeing currency confirmation v2",
+    "run_id": "cf142231-90d9-4dad-bfa5-79db80d18715",
+    "status": "completed",
+    "fact_resolution": {
+      "status": "established",
+      "fact": "currency",
+      "column": "Currency",
+      "values": [
+        "USD"
+      ],
+      "subjects": [
+        "row 2",
+        "row 3",
+        "row 4"
+      ],
+      "blank_subjects": [],
+      "source": {
+        "resource_id": "aa402219-1dbb-4b60-8d8c-9afa42cd3c78",
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "file_name": "integrated_quote.csv",
+        "sheet": "integrated_quote",
+        "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "column": "Currency"
+      },
+      "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61"
+    },
+    "fact_confirmation": {
+      "correlation_id": "agree-currency",
+      "fact": "currency",
+      "response": "USD",
+      "source": {
+        "resource_id": "aa402219-1dbb-4b60-8d8c-9afa42cd3c78",
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "file_name": "integrated_quote.csv",
+        "sheet": "integrated_quote",
+        "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "column": "Currency"
+      },
+      "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+      "values": [
+        "USD"
+      ],
+      "subjects": [
+        "row 2",
+        "row 3",
+        "row 4"
+      ],
+      "at": "2026-10-30T15:46:20.164115+00:00",
+      "reason": "source_fact_confirmed"
+    }
+  }
+}

@@ -125,7 +125,7 @@ No goal is marked fully complete where a promised behavior remains unqualified.
   sanitized fresh install passed.
 - Hosted deployment/public release/publication are deferred and not claimed.
 
-## Final local closure — 5ce5f5715
+## Final local closure — 43f3dae58
 
 - New clean clone, new Python 3.11.16 venv, pinned wheel-backed install, new
   `npm ci` and build; new empty data root.
@@ -139,7 +139,12 @@ No goal is marked fully complete where a promised behavior remains unqualified.
   reopen, active teaching snapshot retention, new Calibri lesson, correlated
   response, exact approval with the taught email protocol, one controlled outbox line, the `delivery_term` wait and its contradictory-response negative control, reload, and a
   revised-scope second run `2225.75` at Calibri 14.
-- Current-source regressions: 89 assignment/executor/send/resource tests and
+- Wait-value repair: blank `Currency` cells accept an authorized resolution;
+  agreeing established values are confirmations; conflicting established
+  values stay waiting; mixed rows remain record-specific unresolved work.
+  The blank-currency assignment completed, survived a real restart with the
+  same artifact hash, and applied exactly one wait operation.
+- Current-source regressions: 92 assignment/executor/send/resource tests and
   137 teaching/renderer tests passed; 31 frontend tests passed.
 
 Conclusion: **Bounded local core complete for the documented supported

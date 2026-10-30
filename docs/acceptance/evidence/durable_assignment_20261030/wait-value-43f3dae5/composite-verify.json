@@ -1,0 +1,107 @@
+{
+  "schema": "atom-composite-long-running-verify-2",
+  "status": "passed",
+  "active": {
+    "run_id": "bbeea613-285a-4966-994d-6e09035f9cd5",
+    "status": "completed",
+    "teaching_revision": "50e006a8a1e452a8+595147815382d87e+map",
+    "mapping": [
+      {
+        "concept": "Price",
+        "sheet": "integrated_quote",
+        "column": "Gross Amount",
+        "unit": "USD",
+        "unit_authority": "source_evidence",
+        "required_unit": "",
+        "source_unit": "USD",
+        "source_unit_column": "Currency",
+        "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "revision": 2,
+        "lesson_id": null,
+        "lesson_revision": null,
+        "teaching_revision": "50e006a8a1e452a8+595147815382d87e+map",
+        "source": "upload",
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "external_id": "sha1:abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "available_columns": [
+          "Item Code",
+          "Units",
+          "Gross Amount",
+          "Currency"
+        ],
+        "numeric_columns": [
+          "Units",
+          "Gross Amount"
+        ],
+        "correctable": true
+      }
+    ],
+    "result_value": "400.00",
+    "artifact": {
+      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/run/composite-value/active-reload-assignment-artifact.docx",
+      "bytes": 37220,
+      "sha256": "f9004f72141c79b460b232b05a48f542d9474ab172dd25195c85509d8f994427",
+      "normal_font": "Arial",
+      "normal_size": 11.0,
+      "text": "Sum Price for the value-resolved quote sheet 2026-10-30 v2\nSummary\nsum of Gross Amount: 400.00 USD\ncontrolled reply received: FOB destination; delivery term supplied by the customer.\nFindings\nSources\nupload_integrated_quote__integrated_quote\nintegrated_quote.csv\nintegrated_quote\naa402219-1dbb-4b60-8d8c-9afa42cd3c78\nintegrated_quote.csv / integrated_quote\nObjective\nSum Price for the value-resolved quote sheet 2026-10-30 v2\nintegrated_quote.csv / integrated_quote"
+    }
+  },
+  "second": {
+    "run_id": "c8d40ec2-0786-4332-8029-863bbd6dc86e",
+    "status": "completed",
+    "teaching_revision": "ee709ac2b2517389+map",
+    "mapping": [
+      {
+        "concept": "Price",
+        "sheet": "clean_quote",
+        "column": "Net Amount",
+        "unit": "USD",
+        "unit_authority": "source_evidence",
+        "required_unit": "",
+        "source_unit": "USD",
+        "source_unit_column": "Currency",
+        "source_version": "07e5d4bad0b195d6898a4ce4fda0333853a83b80",
+        "revision": 2,
+        "lesson_id": null,
+        "lesson_revision": null,
+        "teaching_revision": "ee709ac2b2517389+map",
+        "source": "upload",
+        "dataset_name": "upload_clean_quote__clean_quote",
+        "external_id": "sha1:07e5d4bad0b195d6898a4ce4fda0333853a83b80",
+        "available_columns": [
+          "SKU",
+          "Quantity",
+          "Net Amount",
+          "Currency"
+        ],
+        "numeric_columns": [
+          "Quantity",
+          "Net Amount"
+        ],
+        "correctable": true
+      }
+    ],
+    "result_value": "2225.75",
+    "artifact": {
+      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/run/composite-value/revised-assignment-artifact.docx",
+      "bytes": 37180,
+      "sha256": "0942c8b94259d5f2966bf48d64f49408ad98fd0a5fad53e84d03b2e30a9e4606",
+      "normal_font": "Calibri",
+      "normal_size": 14.0,
+      "text": "Sum Price for the value-resolved revised quote sheet 2026-10-30 v2\nSummary\nsum of Net Amount: 2225.75 USD\nFindings\nSources\nupload_clean_quote__clean_quote\nclean_quote.csv\nclean_quote\n245b61b5-e64c-4ea1-b48b-beff410cbf47\nclean_quote.csv / clean_quote\nObjective\nSum Price for the value-resolved revised quote sheet 2026-10-30 v2\nclean_quote.csv / clean_quote"
+    }
+  },
+  "teaching_revision_changed_for_new_work": true,
+  "outbox": [
+    {
+      "operation_id": "86b12cac-cd7c-4014-b2e0-f38cb3cf1599",
+      "to": [
+        "acceptance@example.invalid"
+      ],
+      "subject": "[Quote] Sum Price for the value-resolved quote sheet 2026-10-30 v2",
+      "body": "Dear colleague,\n\nResult:\n- sum of Gross Amount: 400.00 USD\n- controlled reply received: FOB destination; delivery term supplied by the customer.\nFindings:\n- integrated_quote.csv / integrated_quote\n  - row 2 | sheet_row | 2 | 100.00 | USD | C2\n  - row 3 | sheet_row | 3 | 250.50 | USD | C3\n  - row 4 | sheet_row | 4 | 49.50 | USD | C4\nSources:\n- upload_integrated_quote__integrated_quote\n- integrated_quote.csv\n- integrated_quote\n- aa402219-1dbb-4b60-8d8c-9afa42cd3c78\n- integrated_quote.csv / integrated_quote\n\nSales team",
+      "teaching_revision": "50e006a8a1e452a8+595147815382d87e+map"
+    }
+  ],
+  "outbox_all_lines": 1
+}

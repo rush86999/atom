@@ -1,0 +1,36 @@
+{
+  "schema": "atom-final-local-closure-manifest-1",
+  "source_commit": "43f3dae58f2742a478614569c47b5a34ab1d2b2e",
+  "source_tree": "47af5d9197b6d70c2b7b4ee45817b0c4fb058788",
+  "files": {
+    "final-local-closure-43f3dae5.json": {
+      "sha256": "f1a766118740ac355362eef86a9ad0cb2456defde5c4fb86d5510e8a3a2f682a",
+      "bytes": 3612
+    },
+    "wait-value-43f3dae5/manifest.json": {
+      "sha256": "cabc99a90f606664419edcf19d6c409810d1f74212f379465ca0caf6ca4da91c",
+      "bytes": 4120
+    },
+    "local-core-repro-5ce5f57/manifest.json": {
+      "sha256": "af31b76766d13e47dec07415662f9e1452965e33481a5810a7e90c80d048abec",
+      "bytes": 1772
+    },
+    "composite-protocol-5ce5f57/manifest.json": {
+      "sha256": "1619587afbec83ec2d92fec9d2607556a100578b4be15ed6e078b22ea321dd1f",
+      "bytes": 5076
+    },
+    "local-core-repro-0efe3a9fb/manifest.json": {
+      "sha256": "363e959e65fd75dea1de6b7f712b60892ee7e0f330d48fa16908cdfd1d787018",
+      "bytes": 1774
+    },
+    "composite-final-0efe3a9fb/manifest.json": {
+      "sha256": "c99284afe84162899a8e21cc30b3d7c7c36441e13add34bd18ef0046ccacf7af",
+      "bytes": 4654
+    },
+    "composite-long-running-0efe3a9fb/manifest.json": {
+      "sha256": "8a03fe72047eeec9106b658fc16543de610452792fde79ee5015cd2d009dc6ac",
+      "bytes": 4095
+    }
+  },
+  "note": "43f3dae5 is the final wait-value repair; 5ce5f57 and 0efe3a9fb are preserved accepted baselines."
+}

@@ -1,0 +1,40 @@
+{
+  "schema": "atom-composite-wait-negative-control-1",
+  "status": "passed",
+  "objective": "Negative control: value conflict v4",
+  "run_id": "3761cf83-9ee7-4846-9758-bc35a44184d8",
+  "assignment_status": "waiting",
+  "wait_step_status": "waiting",
+  "conflicts": [
+    {
+      "correlation_id": "negative-currency",
+      "fact": "currency",
+      "response": "Currency unstated by source; report the total without a currency.",
+      "source": "d51d3156-97ae-452d-9bfb-6b7ae92d1972",
+      "evidence": "",
+      "at": "2026-10-30T15:52:49.222189+00:00",
+      "reason": "source_fact_conflict",
+      "column": "Currency",
+      "established_values": [
+        "USD"
+      ],
+      "subjects": [
+        "row 2",
+        "row 3",
+        "row 4"
+      ],
+      "blank_subjects": [],
+      "source_ref": {
+        "resource_id": "aa402219-1dbb-4b60-8d8c-9afa42cd3c78",
+        "dataset_name": "upload_integrated_quote__integrated_quote",
+        "file_name": "integrated_quote.csv",
+        "sheet": "integrated_quote",
+        "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+        "column": "Currency"
+      },
+      "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61"
+    }
+  ],
+  "response_retained": true,
+  "artifact_created": false
+}

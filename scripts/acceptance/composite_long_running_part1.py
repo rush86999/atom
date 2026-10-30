@@ -45,6 +45,12 @@ def agent_rows(page) -> list[dict]:
     return rows if isinstance(rows, list) else rows.get("data", [])
 
 
+def fresh_page(browser, frontend: str, password: str):
+    page = browser.new_page(viewport={"width": 1440, "height": 1200})
+    login(page, frontend, password)
+    return page
+
+
 def create_agent(page, frontend: str, goal: str) -> str:
     page.goto(f"{frontend}/agents", wait_until="domcontentloaded")
     page.wait_for_timeout(2500)
@@ -179,19 +185,7 @@ def main() -> int:
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 1440, "height": 1200})
-
-        def log_post(response):
-            if ("/api/assignments" in response.url
-                    and response.request.method == "POST"):
-                try:
-                    print("POST", response.status, response.text()[:800],
-                          flush=True)
-                except Exception:
-                    pass
-
-        page.on("response", log_post)
-        login(page, args.frontend, password)
+        page = fresh_page(browser, args.frontend, password)
         agent_id = create_agent(
             page, args.frontend,
             "Prepare sales quote documents from uploaded price sheets, "
@@ -258,9 +252,12 @@ def main() -> int:
         page.goto(f"{args.frontend}/documents", wait_until="domcontentloaded")
         page.set_input_files("#file-upload", args.csv)
         page.get_by_text("Successfully uploaded", exact=False).wait_for(timeout=90000)
+        page.close()
 
-        # First attempt: the two equally applicable document-format lessons
-        # conflict. The error must name the conflicting key, not choose one.
+        # First attempt in a fresh browser context: the two equally applicable
+        # document-format lessons conflict. The error must name the conflicting
+        # key, not choose one.
+        page = fresh_page(browser, args.frontend, password)
         first_error = fill_start(
             page, frontend=args.frontend, agent_id=agent_id,
             source_file=Path(args.csv).name, objective=args.objective,
@@ -273,8 +270,10 @@ def main() -> int:
                 + first_error[:1200])
         (out / "first-conflict.txt").write_text(first_error)
         page.screenshot(path=str(out / "first-conflict.png"), full_page=True)
+        page.close()
 
         # Remove the conflicting lesson through the normal teaching surface.
+        page = fresh_page(browser, args.frontend, password)
         page.goto(canvas_url, wait_until="domcontentloaded")
         page.get_by_test_id("training-panel").wait_for(timeout=30000)
         point = page.locator('[data-testid="teaching-point"]').filter(
@@ -284,9 +283,12 @@ def main() -> int:
         point.locator('[data-testid="teaching-point-delete"]').click()
         page.get_by_text("Teaching point removed", exact=False).wait_for(
             timeout=30000)
+        page.close()
 
-        # Second attempt: the required qualification is absent. The resolver
-        # must ask for it, not silently drop the licensed instruction.
+        # Second attempt in another fresh context: the required qualification
+        # is absent. The resolver must ask for it, not silently drop the
+        # licensed instruction.
+        page = fresh_page(browser, args.frontend, password)
         missing_error = fill_start(
             page, frontend=args.frontend, agent_id=agent_id,
             source_file=Path(args.csv).name, objective=args.objective,
@@ -300,8 +302,10 @@ def main() -> int:
         (out / "missing-qualification.txt").write_text(missing_error)
         page.screenshot(path=str(out / "missing-qualification.png"),
                         full_page=True)
+        page.close()
 
-        # Third attempt with the matching qualification starts the run.
+        # Final attempt in a clean context with the matching qualification.
+        page = fresh_page(browser, args.frontend, password)
         second_error = fill_start(
             page, frontend=args.frontend, agent_id=agent_id,
             source_file=Path(args.csv).name, objective=args.objective,

@@ -181,6 +181,12 @@ def main() -> int:
         page.get_by_test_id(f"assignment-summary-{blank['run_id']}").click()
         detail = page.get_by_test_id("assignment-detail")
         detail.wait_for(timeout=30000)
+        page.wait_for_function(
+            """expected => {
+                const el = document.querySelector(
+                    '[data-testid="assignment-detail-objective"]');
+                return el && el.textContent.trim() === expected;
+            }""", arg=blank["objective"], timeout=30000)
         detail.get_by_text("completed", exact=True).wait_for(timeout=30000)
         artifact = download(page, out, "blank-currency-after-restart")
         rows = api(page, "/api/assignments?include_terminal=true")

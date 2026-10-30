@@ -1,0 +1,80 @@
+{
+  "schema": "atom-composite-long-running-part1-1",
+  "status": "waiting",
+  "agent_name": "Quote Specialist",
+  "agent_id": "ae7d40b8-9e94-4070-9f71-917d4fbd5108",
+  "canvas_url": "http://127.0.0.1:3130/canvas/d2158b6b-55b5-47b2-a919-bc59f0c2c5b7?agent_id=ae7d40b8-9e94-4070-9f71-917d4fbd5108&side=training",
+  "objective": "Sum Price for the value-resolved quote sheet 2026-10-30 v2",
+  "correlation_id": "quote-missing-currency-1",
+  "run_id": "bbeea613-285a-4966-994d-6e09035f9cd5",
+  "assignment_id": "asg-900b12b3aa8c4b8b",
+  "teaching_revision": "50e006a8a1e452a8+595147815382d87e+map",
+  "mapping": [
+    {
+      "concept": "Price",
+      "sheet": "integrated_quote",
+      "column": "Gross Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+      "revision": 2,
+      "lesson_id": null,
+      "lesson_revision": null,
+      "teaching_revision": "50e006a8a1e452a8+595147815382d87e+map",
+      "source": "upload",
+      "dataset_name": "upload_integrated_quote__integrated_quote",
+      "external_id": "sha1:abf5444c388170ee6e978b026d7d18fe9190ac61",
+      "available_columns": [
+        "Item Code",
+        "Units",
+        "Gross Amount",
+        "Currency"
+      ],
+      "numeric_columns": [
+        "Units",
+        "Gross Amount"
+      ],
+      "correctable": true
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "source-1",
+      "status": "applied",
+      "result_value": "400.00",
+      "waiting": {}
+    },
+    {
+      "step_id": "wait",
+      "status": "waiting",
+      "result_value": null,
+      "waiting": {
+        "event": "email",
+        "state": "waiting_for_external",
+        "party": "external responder",
+        "correlation_id": "quote-missing-currency-1",
+        "resume_on": "response",
+        "detail": "authorized external reply",
+        "fact": "delivery_term"
+      }
+    },
+    {
+      "step_id": "deliverable-1",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    },
+    {
+      "step_id": "send",
+      "status": "pending",
+      "result_value": null,
+      "waiting": {}
+    }
+  ],
+  "open_gaps": [],
+  "first_error": "Assignments\nTeaching cannot govern this assignment until the missing context is confirmed. (font_name: \"Arial\" vs \"Times New Roman\"; font_size: 11 vs 12)\n\nStart durable work\n\nRefresh data\nNo employee binding\nDemo Assistant \u00b7 system\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nSales Assistant \u00b7 Sales\nintegrated_quote.csv / integrated_quote \u00b7 3 rows\nclean_quote.csv / clean_quote \u00b7 3 rows\nDocument\nPresentation\nEmail draft\nNo calculation / infer\nCount rows\nSum Units\nSum Gross Amount\nOther business concept\u2026\nLet Atom choose from a permitted scope instead of the selected data\nAdvanced (optional)\n\nSending stays disabled unless this local build enables the controlled transport or a separate live-send authorization is in force. Any send step still requires explicit approval.\n\nStart assignment\nSum Price for the value-resolved quote sheet 2026-10-30\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Price for the protocol revised quote sheet 2026-10-30 v4\ncompleted\nSum Price for the protocol composite quote sheet 2026-10-30 v4\ncompleted\nNegative control: currency contradiction v3\nwaiting\n\nCurrent: Wait for the missing external fact\n\nNegative control: currency contradiction v2\nwaiting\n\nCurrent: Wait for the missing external fact\n\nNegative control: currency contradiction\nwaiting\n\nCurrent: Wait for the missing external fact\n\nSum Price for the protocol revised quote sheet 2026-10-30 v3\ncompleted\nSum Price for the protocol composite quote sheet 2026-10-30 v3\ncompleted\nSum Price for the protocol composite quote sheet 2026-10-30\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Price for the final revised composite quote sheet 2026-10-30 v2\ncompleted\nSum Price for the final composite quote sheet 2026-10-30 v2\ncompleted\nSum Price for the final composite quote sheet 2026-10-30\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Price for the revised composite quote sheet 2026-10-30\ncompleted\nSum Price for the composite quote sheet 2026-10-30\ncompleted\nSum Price for the composite quote sheet 2026-10-30\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Price for the composite quote sheet 2026-10-30\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Price for the integrated quote sheet\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Price for the integrated quote sheet\nwaiting\n\nCurrent: Aggregate workbook source\n\nSum Net Amount for the uploaded clean quote sheet\ncompleted\n\nSum Price for the value-resolved quote sheet 2026-10-30\n\nwaiting\n\nPlan revision 1 \u00b7 teaching 90d6b66851fc6c1d+cba03e55f9c7ebf2\n\nTeaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.\n\nWaiting: Aggregate workbook source\n\nWaiting for owner\n\nCompleted work\n\nNothing completed yet.\n\nArtifacts\n\nSum Price for the value-resolved quote sheet 2026-10-30\npending\nProvider-accepted response\npending\n\nMissing information\n\nWhich column should be summed?\n\nthe named measure 'Price' is not in the frame \u00b7 Next: select the matching column from the current schema and confirm\n\nConcept: Price \u00b7 Sheet: integrated_quote \u00b7 Version: abf5444c388170ee6e978b026d7d18fe9190ac61 \u00b7 Source unit: USD (Currency) \u00b7 Teaching revision: 90d6b66851fc6c1d+cba03e55f9c7ebf2\n\nItem Codetext \u00b7 I-1, I-2, I-3\nUnitsnumber \u00b7 2, 3, 1\nGross Amountnumber \u00b7 100.0, 250.5, 49.5\nCurrencytext \u00b7 USD, USD, USD\nNone of these\nResume\nCancel\nDurable state persisted",
+  "teaching_points_visible": 0
+}

@@ -121,7 +121,7 @@ python scripts/acceptance/composite_long_running_verify.py \
 
 The verifier enforces the active/second fonts, results, revisions, artifact hashes, one-effect outbox and the taught email protocol. `--negative-controls` proves that wrong font, unchanged revision, duplicate operation, missing protocol and contradictory completion all fail.
 
-A separate runtime negative control checks that a reply denying a source fact does not complete the wait:
+A separate runtime negative control checks that a reply denying an established source fact does not complete the wait:
 
 ```bash
 python scripts/acceptance/composite_wait_negative_control.py \
@@ -129,6 +129,28 @@ python scripts/acceptance/composite_wait_negative_control.py \
   --password-file /path/to/local-admin-password \
   --out-dir /path/to/evidence \
   --part1 /path/to/evidence/part1.json
+```
+
+Positive wait-value twins use a blank-currency upload and an agreeing reply:
+
+```bash
+python scripts/acceptance/wait_value_positive_twins.py \
+  --frontend http://127.0.0.1:3130 \
+  --password-file /path/to/local-admin-password \
+  --out-dir /path/to/evidence \
+  --part1 /path/to/evidence/part1.json \
+  --blank-csv /path/to/blank_currency.csv \
+  --mode create
+
+# restart the backend against the same data root, then:
+python scripts/acceptance/wait_value_positive_twins.py \
+  --frontend http://127.0.0.1:3130 \
+  --password-file /path/to/local-admin-password \
+  --out-dir /path/to/evidence \
+  --part1 /path/to/evidence/part1.json \
+  --blank-csv /path/to/blank_currency.csv \
+  --mode verify \
+  --state /path/to/evidence/positive-twins.json
 ```
 
 The composite uses controlled external effects only. It does not send a real
