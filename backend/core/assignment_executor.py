@@ -832,9 +832,14 @@ def _source_fact_resolution(record: Dict[str, Any], fact: str) -> Dict[str, Any]
             "coverage": coverage,
         }
 
-        # A read adapter's result rows are already the accepted selection.
+        # A read adapter's result rows are already the accepted selection,
+        # but only when those rows actually carry the requested column. An
+        # aggregate may return rows containing only the measure; in that case
+        # use the receipt's row identities and read the bound frame.
         raw_rows = result.get("rows")
-        if isinstance(raw_rows, list) and raw_rows:
+        if (isinstance(raw_rows, list) and raw_rows
+                and any(isinstance(row, dict) and column in row
+                        for row in raw_rows)):
             records = []
             for index, row in enumerate(raw_rows):
                 if not isinstance(row, dict):
