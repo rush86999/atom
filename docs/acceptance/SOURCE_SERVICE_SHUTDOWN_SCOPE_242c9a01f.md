@@ -30,6 +30,16 @@ service.
 
 ## Re-verify immediately before stopping
 
+Use the packaged verifier, which checks PID, command, CWD, listener, source DB
+handles and other DB holders, then writes `run/source_verification.json`:
+
+```bash
+ROOT=/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-242c9a01f
+python "$ROOT/current/scripts/source_service_control.py" --root "$ROOT" verify
+```
+
+The same facts can be inspected manually:
+
 ```bash
 ps -p 19046 -o pid=,ppid=,lstart=,command=
 lsof -a -p 19046 -d cwd -Fn
@@ -49,11 +59,10 @@ If any field differs, stop and re-scope; do not kill by PID alone.
 ## Authorized stop (only after approval)
 
 ```bash
-kill -TERM 19046
-# wait for exit, then prove quiescence:
-ps -p 19046 >/dev/null 2>&1 && echo STILL_RUNNING || echo STOPPED
-lsof -t /Users/rushiparikh/projects/atom/backend/data/atom.db 2>/dev/null || echo NO_SOURCE_DB_HOLDERS
-lsof -nP -iTCP:8001 -sTCP:LISTEN 2>/dev/null || echo PORT_8001_FREE
+ROOT=/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-242c9a01f
+python "$ROOT/current/scripts/source_service_control.py" --root "$ROOT" stop
+# prove quiescence (the stop command writes run/source_stop.json):
+python "$ROOT/current/scripts/source_service_control.py" --root "$ROOT" check-stopped
 ```
 
 If the process does not exit, do not use `kill -9` without a new owner
@@ -73,10 +82,13 @@ The deployment transaction's code rollback to `901e5d773` is **not** the
 complete recovery. The intended source service must be restored as well:
 
 ```bash
-cd /Users/rushiparikh/projects/atom-releases/c912375de/backend
-/Users/rushiparikh/projects/atom/backend/venv314/bin/python -m uvicorn main_api_app:app \
-  --host 0.0.0.0 --port 8001 --timeout-keep-alive 75
+ROOT=/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-242c9a01f
+python "$ROOT/current/scripts/source_service_control.py" --root "$ROOT" restore
 ```
+
+The packaged `deploy_release.sh` also calls `restore` on failure when
+`run/source_stop.json` exists. It never starts a duplicate if the source
+service is already listening.
 
 Restore the same environment source (`/Users/rushiparikh/projects/atom/backend/.env`)
 and verify `8001` health, source DB handles and the service identity. Do not

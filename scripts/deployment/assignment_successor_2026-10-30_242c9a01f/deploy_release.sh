@@ -60,6 +60,8 @@ fi
 freshness_cmd=("$PY" "$KIT/check_freshness.py" --root "$ROOT" --phase preflight "${quiescence_args[@]}")
 post_backup_freshness_cmd=("$PY" "$KIT/check_freshness.py" --root "$ROOT" --phase post-backup "${quiescence_args[@]}")
 pre_activation_freshness_cmd=("$PY" "$KIT/check_freshness.py" --root "$ROOT" --phase pre-activation "${quiescence_args[@]}")
+source_check_cmd=("$PY" "$KIT/source_service_control.py" --root "$ROOT" check-stopped)
+source_restore_cmd=("$PY" "$KIT/source_service_control.py" --root "$ROOT" restore)
 preflight_running=("${release_tool[@]}" preflight "${REHEARSAL_ARGS[@]}" --ignore-running-ports)
 preflight_stopped=("${release_tool[@]}" preflight "${REHEARSAL_ARGS[@]}")
 start_cmd=("${release_tool[@]}" start "${REHEARSAL_ARGS[@]}")
@@ -70,17 +72,18 @@ rollback_cmd=("${release_tool[@]}" rollback)
 
 if [[ "$PRINT_PLAN" == "1" ]]; then
   python3 - "$MODE" "${REHEARSAL_ARGS[*]:-}" "${approval_cmd[*]}" \
-    "${freshness_cmd[*]}" "${preflight_running[*]}" "${backup_cmd[*]}" \
-    "${post_backup_freshness_cmd[*]}" "${stop_cmd[*]}" \
+    "${source_check_cmd[*]}" "${freshness_cmd[*]}" "${preflight_running[*]}" \
+    "${backup_cmd[*]}" "${post_backup_freshness_cmd[*]}" "${stop_cmd[*]}" \
     "${preflight_stopped[*]}" "${pre_activation_freshness_cmd[*]}" \
     "${start_cmd[*]}" "${rollback_cmd[*]}" <<'PY'
 import json, sys
-(mode, rehearsal, approval, fresh, pre, backup, fresh2, stop, pre2,
- fresh3, start, rollback) = sys.argv[1:]
+(mode, rehearsal, approval, source_check, fresh, pre, backup, fresh2,
+ stop, pre2, fresh3, start, rollback) = sys.argv[1:]
 print(json.dumps({
     "mode": mode,
     "rehearsal_args": rehearsal.split(),
     "approval": approval.split(),
+    "source_check_stopped": source_check.split(),
     "freshness_before_backup": fresh.split(),
     "preflight_before_stop": pre.split(),
     "backup": backup.split(),
@@ -121,16 +124,35 @@ receipt = {
 PY
 }
 
+restore_source_service() {
+  if [[ "$MODE" != "production" || ! -f "$ROOT/run/source_stop.json" ]]; then
+    return 0
+  fi
+  set +e
+  "${source_restore_cmd[@]}" > "$ROOT/logs/source_restore_receipt.log" 2>&1
+  local restore_rc=$?
+  set -e
+  if [[ "$restore_rc" -eq 0 ]]; then
+    echo "SOURCE SERVICE RESTORED after deployment failure" >&2
+  else
+    echo "SOURCE SERVICE RESTORE FAILED rc=$restore_rc; see logs/source_restore_receipt.log" >&2
+  fi
+  return "$restore_rc"
+}
+
 recover_on_exit() {
   rc=$?
   if [[ "$state_rollback_active" == "1" ]]; then
+    restore_source_service || true
     exit "$rc"
   fi
   if [[ "$state_committed" == "1" && "$rc" == "0" ]]; then
     exit 0
   fi
   if [[ "$state_shutdown_started" == "0" ]]; then
-    # Nothing disruptive happened; leave the running service alone.
+    # Nothing disruptive happened in this release root; if the source was
+    # already stopped for the quiescence window, put it back.
+    restore_source_service || true
     exit "$rc"
   fi
   state_rollback_active=1
@@ -145,12 +167,16 @@ recover_on_exit() {
     write_failure_receipt "$rc" "$rollback_rc"
   fi
   set -e
+  restore_source_service || true
   exit "$rc"
 }
 trap recover_on_exit EXIT
 
 # Authorization and local preconditions: no backup, shutdown or service call.
 "${approval_cmd[@]}"
+if [[ "$MODE" == "production" ]]; then
+  "${source_check_cmd[@]}"
+fi
 "${freshness_cmd[@]}"
 if [[ ! -f "$PASSWORD_FILE" ]]; then
   echo "REFUSED: normal-login smoke password file missing: $PASSWORD_FILE" >&2

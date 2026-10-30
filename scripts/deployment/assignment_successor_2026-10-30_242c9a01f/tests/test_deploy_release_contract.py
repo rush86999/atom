@@ -358,3 +358,41 @@ def test_production_approval_without_scope_is_refused(tmp_path):
          "--root", str(root), "approval-check", "--mode", "production"],
         capture_output=True, text=True, timeout=30)
     assert result.returncode != 0
+
+
+def _scope_root(tmp_path: Path, *, pid: int, database: Path, port: int) -> Path:
+    root = tmp_path / "source-scope"
+    (root / "config").mkdir(parents=True)
+    (root / "run").mkdir()
+    (root / "logs").mkdir()
+    (root / "config" / "source_shutdown_scope.json").write_text(json.dumps({
+        "pid": pid,
+        "service": "test-service",
+        "commit": "0" * 40,
+        "command": "python -m uvicorn main_api_app:app --port 65530",
+        "cwd": str(tmp_path),
+        "database": str(database),
+        "port": port,
+        "restore_command": "python -m uvicorn main_api_app:app --port 65530",
+        "restore_cwd": str(tmp_path),
+    }, indent=2))
+    return root
+
+
+def test_source_control_refuses_a_pid_only_stop(tmp_path):
+    database = tmp_path / "source.db"
+    database.write_bytes(b"")
+    root = _scope_root(tmp_path, pid=999999, database=database, port=65530)
+    verify = subprocess.run(
+        [sys.executable, str(KIT / "source_service_control.py"),
+         "--root", str(root), "verify"],
+        capture_output=True, text=True, timeout=30)
+    assert verify.returncode == 2
+    assert "process_missing" in verify.stdout
+    stopped = subprocess.run(
+        [sys.executable, str(KIT / "source_service_control.py"),
+         "--root", str(root), "check-stopped"],
+        capture_output=True, text=True, timeout=30)
+    assert stopped.returncode == 0
+    assert json.loads((root / "run" / "source_stopped_check.json").read_text())[
+        "stopped"] is True

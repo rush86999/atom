@@ -144,6 +144,24 @@ counts and SHA-256 of every file. `atom_memory` is excluded by default because
 it is large; pass `--include-memory` when a full vector-store snapshot is
 required. A backup is never restored automatically.
 
+## Source service verify, stop and restore
+
+Production deployment requires the source to be quiescent before the
+transaction. Use the packaged controller; never kill by PID alone:
+
+```bash
+ROOT=/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-242c9a01f
+python "$ROOT/current/scripts/source_service_control.py" --root "$ROOT" verify
+python "$ROOT/current/scripts/source_service_control.py" --root "$ROOT" stop
+python "$ROOT/current/scripts/source_service_control.py" --root "$ROOT" check-stopped
+```
+
+`verify` checks the scope file against the live PID, command, CWD, listener,
+source DB handles and other DB holders. `stop` refuses unless `verify` passes.
+On failure the deploy transaction calls `restore` when `run/source_stop.json`
+exists; `restore` uses the verified command, CWD and live env source and never
+starts a duplicate if the port is already listening.
+
 ## Cutover freshness and refresh
 
 `deploy_release.sh` runs `check_freshness.py` after approval and **before**

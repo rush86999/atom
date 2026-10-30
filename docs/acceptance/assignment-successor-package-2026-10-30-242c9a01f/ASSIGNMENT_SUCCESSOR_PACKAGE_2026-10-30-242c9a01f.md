@@ -20,7 +20,7 @@ connected source.
 | Rollback | `901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0` |
 | Frontend build | `K3N6o-mTkpSVJ7sj00FLu` |
 | Deployment kit | `scripts/deployment/assignment_successor_2026-10-30_242c9a01f/` |
-| Kit tree SHA-256 | `629f369dfc98472e786b0e9ba2499f95958ffdf6abfbd349401e1d220f061de5` |
+| Kit tree SHA-256 | `d72546d36f20af1c780ca526635d8c1ee764d28eb46230a11d5b0563835157e5` |
 | Prepared root | `/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-242c9a01f` |
 
 ## What this successor changes
