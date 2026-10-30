@@ -181,3 +181,32 @@ and
 Conclusion: **Bounded local core complete for the documented supported
 workflows.** Hosted deployment, public release and publication remain
 deferred. Compatibility limits remain explicit.
+
+## Successor phase (separate) — conversation-derived learning
+
+This successor is **not** part of the conclusion above and does not change
+the accepted core tag or its historical evidence. It adds reference-bound
+learning from persisted email conversations:
+
+- candidates and review history live in the existing `ConversationEvent`
+  ledger;
+- resource identity/version/access reuse the `DatasetEntry` catalog and
+  assignment binding contract;
+- accepted lessons write through `journal_standing_lesson_entry`;
+- ambiguous, missing, access-denied, stale, incomplete and conflicting
+  dependencies block promotion;
+- quoted/source content cannot become teaching authority, and
+  permission-expanding lessons require the authored authority excerpt itself
+  to state the expansion;
+- confirmed methods are an allowlisted Decimal calculation with explicit
+  units and rounding;
+- UI `/learning` presents the evidence chain and review actions.
+
+Acceptance matrix: 22 backend service/route tests passed; frontend review
+panel 3 tests passed; assignment/teaching regressions 126 + 137 passed.
+Independent verifier review of this successor is pending. Live mailbox
+access, automatic teaching-cue extraction from every email, arbitrary
+URL/recursive traversal, deployment and publication remain deferred.
+
+See `docs/acceptance/CONVERSATION_DERIVED_LEARNING_2026-10-30.md` and
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-554b462/`.

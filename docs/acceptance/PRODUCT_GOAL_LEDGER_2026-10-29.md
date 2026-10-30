@@ -133,6 +133,38 @@ and
 No deployment, real send, source shutdown or additional external action was
 performed.
 
+## Successor phase (separate) — conversation-derived learning
+
+This is a **separate successor**, not part of the local-core closure above.
+The accepted core tag `local-core-2026-10-30-final` remains at `da9cc8b12`;
+this phase does not relabel historical browser/live evidence.
+
+- Implemented reference/evidence/authority separation for lessons derived
+  from persisted email conversations.
+- Reuses `ConversationEvent` for candidates, `DatasetEntry` + assignment
+  resource bindings for identity/version/access, and
+  `journal_standing_lesson_entry` for accepted teaching. No second store.
+- Ambiguous, missing, access-denied, stale, incomplete and conflicting
+  dependencies block promotion. Same-name attachments and punctuation-
+  sensitive identifiers stay unresolved rather than first-match.
+- Aggregate/subtotal and quoted/source authority cannot become a lesson;
+  permission-expanding lessons require the authored authority excerpt itself
+  to state the expansion.
+- Confirmed methods are an allowlisted Decimal calculation (sum, count,
+  multiply_sum, percentage, ratio) with explicit units and rounding.
+- Acceptance matrix: 22 backend service/route tests passed; frontend review
+  panel 3 tests passed; assignment/teaching regressions 126 + 137 passed.
+- UI: `/learning` lists local threads and shows the evidence chain,
+  unresolved questions and confirm/promote/reject actions.
+
+Evidence: `docs/acceptance/CONVERSATION_DERIVED_LEARNING_2026-10-30.md`
+and
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-554b462/`.
+
+Still deferred: live mailbox access, automatic teaching-cue extraction from
+every email, arbitrary URL/recursive reference traversal, publication and
+deployment. Independent verifier review of this successor is pending.
+
 ## Real-provider send qualification — observed 2026-10-30
 
 - Sender `rish@brennan.ca`; recipient `rish.maniar@gmail.com`; subject
