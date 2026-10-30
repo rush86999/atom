@@ -96,6 +96,49 @@ export interface AssignmentSummary {
   };
 }
 
+export interface AssignmentSource {
+  dataset_name: string;
+  sheet: string;
+  file_name: string;
+  source: string;
+  external_id: string;
+  source_version: string;
+  kind: string;
+  columns: string[];
+  numeric_columns: string[];
+  row_count: number;
+  coverage: Record<string, unknown>;
+  ingested_at?: string | null;
+}
+
+export interface AssignmentAgent {
+  id: string;
+  name: string;
+  status?: string;
+  category?: string;
+}
+
+export async function listAssignmentSources(
+  query = ""
+): Promise<AssignmentSource[]> {
+  const { data } = await apiClient.get<AssignmentSource[]>(
+    "/api/assignments/sources",
+    { params: query ? { query } : undefined }
+  );
+  return data;
+}
+
+export async function listAssignmentAgents(): Promise<AssignmentAgent[]> {
+  const { data } = await apiClient.get("/api/agents/");
+  const rows = Array.isArray(data) ? data : data?.data || [];
+  return rows.map((row: Record<string, unknown>) => ({
+    id: String(row.id || ""),
+    name: String(row.name || row.id || "Employee"),
+    status: row.status ? String(row.status) : undefined,
+    category: row.category ? String(row.category) : undefined,
+  })).filter((row: AssignmentAgent) => row.id);
+}
+
 export async function listAssignments(): Promise<AssignmentSummary[]> {
   const { data } = await apiClient.get<AssignmentSummary[]>(
     "/api/assignments?include_terminal=true"
@@ -201,4 +244,20 @@ export async function approveAssignmentStep(
     { note }
   );
   return data;
+}
+
+export async function downloadAssignmentDeliverable(
+  runId: string,
+  deliverableId: string
+): Promise<{ blob: Blob; filename: string }> {
+  const response = await apiClient.get(
+    `/api/assignments/${encodeURIComponent(runId)}/deliverables/${encodeURIComponent(deliverableId)}/download`,
+    { responseType: "blob" }
+  );
+  const disposition = String(response.headers?.["content-disposition"] || "");
+  const match = disposition.match(/filename=\"?([^\";]+)\"?/i);
+  return {
+    blob: response.data as Blob,
+    filename: match?.[1] || "assignment-artifact",
+  };
 }

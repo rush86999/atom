@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Clock, CheckCircle, XCircle, AlertTriangle, MessageSquare, Edit, Brain, Trash2 } from "lucide-react";
+import { Play, Clock, CheckCircle, XCircle, AlertTriangle, MessageSquare, Edit, Brain, Trash2, GraduationCap } from "lucide-react";
 
 export interface AgentInfo {
     id: string;
@@ -21,6 +21,7 @@ interface AgentCardProps {
     onRun: (id: string) => void;
     onStop: (id: string) => void;
     onChat: (id: string) => void;
+    onTeach?: (id: string) => void;
     onEdit: (id: string) => void;
     onViewReasoning: (id: string) => void;
     onDelete?: (id: string, name: string) => void;
@@ -59,7 +60,7 @@ function getMaturityBadge(level: NonNullable<AgentInfo["maturity_level"]>) {
     );
 }
 
-const AgentCard: React.FC<AgentCardProps> = ({ agent, progress, onRun, onStop, onChat, onEdit, onViewReasoning, onDelete }) => {
+const AgentCard: React.FC<AgentCardProps> = ({ agent, progress, onRun, onStop, onChat, onTeach, onEdit, onViewReasoning, onDelete }) => {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -131,6 +132,17 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, progress, onRun, onStop, o
                 <Button variant="outline" size="icon" onClick={() => onChat(agent.id)} title="Chat with Agent">
                     <MessageSquare className="w-4 h-4" />
                 </Button>
+                {onTeach ? (
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => onTeach(agent.id)}
+                        title="Teach this employee"
+                        data-testid={`agent-teach-button-${agent.id}`}
+                    >
+                        <GraduationCap className="w-4 h-4" />
+                    </Button>
+                ) : null}
                 <Button variant="outline" size="icon" onClick={() => onEdit(agent.id)} title="Edit Agent">
                     <Edit className="w-4 h-4" />
                 </Button>

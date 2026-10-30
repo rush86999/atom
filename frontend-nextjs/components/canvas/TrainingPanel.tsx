@@ -104,6 +104,15 @@ export function TrainingPanel({
   const [lesson, setLesson] = useState("");
   const [topic, setTopic] = useState("");
   const [teachBusy, setTeachBusy] = useState(false);
+  // Optional structured scope/format guidance. The lesson text carries the
+  // method; these fields make applicability and output formatting explicit
+  // instead of relying on prose the renderer cannot verify.
+  const [appliesTo, setAppliesTo] = useState<string[]>([]);
+  const [formatFont, setFormatFont] = useState("");
+  const [formatSize, setFormatSize] = useState("");
+  const [formatHeadings, setFormatHeadings] = useState("");
+  const [formatColumns, setFormatColumns] = useState("");
+  const [teachContext, setTeachContext] = useState("");
   // P2: ALSO capture the lesson as a structured playbook draft.
   const [asPlaybook, setAsPlaybook] = useState(false);
   // Bumped when a teach actually drafted a rule — PlaybookSection re-reads so
@@ -222,9 +231,25 @@ export function TrainingPanel({
     try {
       // canvasId rides along so the lesson stores WHAT it was taught on —
       // retrieval later shows the agent the canvas context, not just the rule.
+      const formatSpec: Record<string, unknown> = {};
+      if (formatFont.trim()) formatSpec.font_name = formatFont.trim();
+      if (formatSize.trim()) formatSpec.font_size = Number(formatSize.trim());
+      if (formatHeadings.trim()) {
+        formatSpec.heading_order = formatHeadings
+          .split(",").map((item) => item.trim()).filter(Boolean);
+      }
+      if (formatColumns.trim()) {
+        formatSpec.table_columns = formatColumns
+          .split(",").map((item) => item.trim()).filter(Boolean);
+      }
       const result = await teachAgent(agent.id, lesson.trim(), topic.trim() || undefined, canvasId, {
         asPlaybook,
         playbookCanvasType: asPlaybook ? canvasType : undefined,
+        appliesTo: appliesTo.length ? appliesTo : undefined,
+        formatSpec: Object.keys(formatSpec).length ? formatSpec : undefined,
+        context: teachContext.trim()
+          ? { business_category: teachContext.trim() }
+          : undefined,
       });
       const status = String((result as Record<string, unknown>).status ?? "ok");
       const draftedPlaybook = Boolean((result as Record<string, unknown>).playbook_id);
@@ -239,6 +264,12 @@ export function TrainingPanel({
       );
       setLesson("");
       setTopic("");
+      setAppliesTo([]);
+      setFormatFont("");
+      setFormatSize("");
+      setFormatHeadings("");
+      setFormatColumns("");
+      setTeachContext("");
       setAsPlaybook(false);
       // The journal below should show the point just taught — refresh.
       if (status === "ok") await load();
@@ -729,6 +760,79 @@ export function TrainingPanel({
                 {teachBusy ? "Teaching…" : "Teach"}
               </Button>
             </div>
+            <details className="rounded border bg-muted/20 p-1.5" data-testid="teach-structured-fields">
+              <summary className="cursor-pointer text-[10px] font-medium">
+                Applies to and output format (optional)
+              </summary>
+              <div className="mt-1 space-y-1.5">
+                <div className="flex flex-wrap gap-2 text-[10px]">
+                  {[
+                    ["document", "Document"],
+                    ["presentation", "Presentation"],
+                    ["email", "Email"],
+                    ["spreadsheet", "Spreadsheet"],
+                  ].map(([value, label]) => (
+                    <label key={value} className="flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={appliesTo.includes(value)}
+                        onChange={(e) =>
+                          setAppliesTo((current) =>
+                            e.target.checked
+                              ? [...current, value]
+                              : current.filter((item) => item !== value)
+                          )
+                        }
+                        data-testid={`teach-applies-${value}`}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  <Input
+                    value={formatFont}
+                    onChange={(e) => setFormatFont(e.target.value)}
+                    placeholder="Font (for example Arial)"
+                    className="h-8 text-xs"
+                    aria-label="Taught font"
+                    data-testid="teach-format-font"
+                  />
+                  <Input
+                    value={formatSize}
+                    onChange={(e) => setFormatSize(e.target.value)}
+                    placeholder="Size (for example 11)"
+                    className="h-8 text-xs"
+                    aria-label="Taught font size"
+                    data-testid="teach-format-size"
+                  />
+                </div>
+                <Input
+                  value={formatHeadings}
+                  onChange={(e) => setFormatHeadings(e.target.value)}
+                  placeholder="Heading order, comma separated"
+                  className="h-8 text-xs"
+                  aria-label="Taught heading order"
+                  data-testid="teach-format-headings"
+                />
+                <Input
+                  value={formatColumns}
+                  onChange={(e) => setFormatColumns(e.target.value)}
+                  placeholder="Table columns, comma separated"
+                  className="h-8 text-xs"
+                  aria-label="Taught table columns"
+                  data-testid="teach-format-columns"
+                />
+                <Input
+                  value={teachContext}
+                  onChange={(e) => setTeachContext(e.target.value)}
+                  placeholder="Business context (for example sales)"
+                  className="h-8 text-xs"
+                  aria-label="Taught business context"
+                  data-testid="teach-context"
+                />
+              </div>
+            </details>
             <label
               className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
               data-testid="teach-as-playbook-toggle"

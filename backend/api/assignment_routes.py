@@ -7,11 +7,14 @@ run's own workspace binding.
 from __future__ import annotations
 
 import json
+import mimetypes
 import os
 import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -536,6 +539,55 @@ async def list_assignments(
     return results
 
 
+@router.get("/sources")
+async def list_assignment_sources(
+    query: str = "",
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+) -> List[Dict[str, Any]]:
+    """Authorized catalog sources the ordinary assignment form can name.
+
+    The assignment proposal never accepts a filesystem path. This projection
+    is deliberately smaller than the catalog row: no parquet path, no source
+    metadata, and only the workspace's active entries.
+    """
+    from core.assignment_resources import _parquet_schema
+    from core.sheet_dataset_service import find_entries_sync
+
+    workspace_id = current_user.workspace_id or "default"
+    entries = find_entries_sync(
+        query=query,
+        workspace_id=workspace_id,
+        limit=max(1, min(int(limit or 50), 100)),
+    )
+    rows: List[Dict[str, Any]] = []
+    for entry in entries:
+        if str(entry.get("workspace_id") or "") not in ("", workspace_id):
+            continue
+        parquet_path = str(entry.get("parquet_path") or "")
+        numeric_columns: List[str] = []
+        if parquet_path and Path(parquet_path).is_file():
+            _columns, numeric_columns = _parquet_schema(Path(parquet_path))
+        file_name = str(entry.get("file_name") or "")
+        kind = "workbook" if file_name.lower().endswith(
+            (".xlsx", ".xls", ".xlsm", ".csv")) else "document"
+        rows.append({
+            "dataset_name": entry.get("dataset_name"),
+            "sheet": entry.get("entity_name"),
+            "file_name": file_name,
+            "source": entry.get("source"),
+            "external_id": entry.get("external_id"),
+            "source_version": entry.get("content_hash"),
+            "kind": kind,
+            "columns": list(entry.get("columns") or []),
+            "numeric_columns": numeric_columns,
+            "row_count": int(entry.get("row_count") or 0),
+            "coverage": entry.get("coverage") or {},
+            "ingested_at": entry.get("ingested_at"),
+        })
+    return rows
+
+
 @router.get("/{run_id}")
 async def assignment_status(
     run_id: str,
@@ -543,6 +595,43 @@ async def assignment_status(
 ) -> Dict[str, Any]:
     run = _scoped_run(run_id, current_user)
     return _executor(run).status(run_id)
+
+
+@router.get("/{run_id}/deliverables/{deliverable_id}/download")
+async def download_assignment_deliverable(
+    run_id: str,
+    deliverable_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Download an artifact this run owns, without exposing a local path."""
+    run = _scoped_run(run_id, current_user)
+    detail = _executor(run).status(run_id)
+    assignment = detail.get("assignment") or {}
+    deliverable = next((
+        item for item in assignment.get("deliverables") or []
+        if str(item.get("deliverable_id") or "") == deliverable_id), None)
+    if deliverable is None:
+        raise HTTPException(status_code=404, detail="Deliverable not found")
+    raw_path = str(deliverable.get("artifact_path") or "").strip()
+    if not raw_path:
+        raise HTTPException(status_code=404, detail="Deliverable has no artifact")
+    root = Path(os.getenv("ATOM_ASSIGNMENT_OUTPUT_DIR")
+                or "data/office/assignments").resolve()
+    path = Path(raw_path).resolve()
+    if path != root and root not in path.parents:
+        raise HTTPException(
+            status_code=403,
+            detail="Artifact is outside the assignment output store",
+        )
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Artifact file is missing")
+    media = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    return FileResponse(
+        str(path),
+        media_type=media,
+        filename=path.name,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.post("/{run_id}/resume")

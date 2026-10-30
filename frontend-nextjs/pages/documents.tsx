@@ -123,7 +123,7 @@ export default function DocumentsPage() {
                         <CardHeader>
                             <CardTitle>Upload Document</CardTitle>
                             <CardDescription>
-                                Supported formats: PDF, DOCX, TXT, MD
+                                Supported formats: PDF, DOCX, TXT, MD, CSV, XLSX
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -144,7 +144,7 @@ export default function DocumentsPage() {
                                     type="file"
                                     className="hidden"
                                     onChange={handleChange}
-                                    accept=".pdf,.docx,.txt,.md"
+                                    accept=".pdf,.docx,.txt,.md,.csv,.xlsx,.xls"
                                 />
 
                                 <div className="flex flex-col items-center justify-center gap-4">
@@ -160,7 +160,7 @@ export default function DocumentsPage() {
                                             {isUploading ? "Uploading..." : "Click to upload or drag and drop"}
                                         </h3>
                                         <p className="text-sm text-muted-foreground mt-1">
-                                            PDF, DOCX, TXT or MD (MAX. 10MB)
+                                            PDF, DOCX, TXT, MD, CSV or XLSX (MAX. 50MB)
                                         </p>
                                     </div>
                                 </div>
