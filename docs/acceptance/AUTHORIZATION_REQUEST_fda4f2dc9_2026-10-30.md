@@ -76,10 +76,11 @@ Regards,
 Atom
 ```
 
-- **Attachment:** `/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-fda4f2dc9/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-3d906339cbe3/harsle-live-price-total-6c095beb.docx`
-- **Attachment SHA-256:** `e59d99141654c8a30047c80e62b19c57d946dfb5fb027d59f236a04e783d19f5`
-- **Attachment size:** 37,271 bytes
-- **Recheck:** full path, size and SHA-256 immediately before transport.
+- **Attachment:** `docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/send-review/harsle-live-price-total-currency-unstated.docx`
+- **Attachment SHA-256:** `7b736fb16ca66f9a84a9d41dad49d7d0470d5b904aa3504ddc5a67ee257ff1f6`
+- **Attachment size:** 37,082 bytes
+- **Content check:** the saved DOCX contains `Currency: unstated by source.`, contains no `USD` claim, and its table carries the QTY-derived total.
+- **Recheck:** full path, size, extracted content and SHA-256 immediately before transport.
 - **Missing:** sender UPN, recipient, approval window, provider receipt source, reconciliation window.
 
 **After authorization:** exact payload-bound approval → transport → provider
