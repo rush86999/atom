@@ -572,6 +572,7 @@ export function AssignmentPanel({
               placeholder="Correlation id for an external-fact wait (optional)"
               className="w-full rounded border px-1.5 py-1"
               aria-label="Correlation id"
+              data-testid="assignment-correlation-input"
             />
             <p className="text-[10px] text-muted-foreground">
               Sending stays disabled unless this local build enables the
