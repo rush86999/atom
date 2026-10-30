@@ -270,11 +270,16 @@ async def start_assignment(
             status_code=422,
             detail="at least one deliverable or outbound action is required")
     employee = current_user
+    # Bootstrap admin rows can carry NULL workspace/tenant columns while the
+    # rest of the app resolves them to "default". Compare against the same
+    # effective scope so the default employee is selectable on a fresh install.
+    workspace_id = current_user.workspace_id or "default"
+    tenant_id = current_user.tenant_id or "default"
     if body.employee_id and body.employee_id != current_user.id:
         employee = db.query(User).filter(
             User.id == body.employee_id,
-            User.workspace_id == current_user.workspace_id,
-            User.tenant_id == current_user.tenant_id,
+            User.workspace_id == workspace_id,
+            User.tenant_id == tenant_id,
         ).first()
         if employee is None:
             raise HTTPException(status_code=404, detail="Employee not found")
@@ -285,8 +290,8 @@ async def start_assignment(
     if body.agent_id:
         agent = db.query(AgentRegistry).filter(
             AgentRegistry.id == body.agent_id,
-            AgentRegistry.workspace_id == current_user.workspace_id,
-            AgentRegistry.tenant_id == current_user.tenant_id,
+            AgentRegistry.workspace_id == workspace_id,
+            AgentRegistry.tenant_id == tenant_id,
         ).first()
         if agent is None:
             raise HTTPException(status_code=404, detail="Employee agent not found")
