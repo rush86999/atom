@@ -263,6 +263,10 @@ export function TrainingPanel({
       const context: Record<string, string> = {};
       if (teachContext.trim()) context.business_category = teachContext.trim();
       if (qualification.trim()) context.qualification = qualification.trim();
+      // A task-scoped lesson is more specific than a general lesson. Keeping
+      // the scope in context (as well as the condition) lets the resolver
+      // override the general rule instead of treating the two as a tie.
+      if (taskScope.trim()) context.task_scope = taskScope.trim();
       if (effectiveFrom.trim()) context.effective_from = effectiveFrom.trim();
       if (effectiveTo.trim()) context.effective_to = effectiveTo.trim();
       const result = await teachAgent(agent.id, lesson.trim(), topic.trim() || undefined, canvasId, {
