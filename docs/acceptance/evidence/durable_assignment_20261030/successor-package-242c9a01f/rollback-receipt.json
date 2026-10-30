@@ -1,0 +1,12 @@
+{
+  "schema": "atom-assignment-release-rollback-1",
+  "at": "2026-10-30T02:21:34.470539+00:00",
+  "from_release": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-242c9a01f-rollback/releases/901e5d77348e0c7b85b1f1291cbeb0fc50eb2ff0",
+  "to_release": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-242c9a01f-rollback/releases/242c9a01ff9aebb0467ad7a619ea7e4e468f454d",
+  "to_release_commit": "242c9a01ff9aebb0467ad7a619ea7e4e468f454d",
+  "start_rc": 0,
+  "start_stdout_tail": "{\n  \"schema\": \"atom-assignment-release-startup-1\",\n  \"started_at\": \"2026-10-30T02:21:34.458941+00:00\",\n  \"release_commit\": \"242c9a01ff9aebb0467ad7a619ea7e4e468f454d\",\n  \"api_port\": 8071,\n  \"frontend_port\": 3130,\n  \"api_origin\": \"http://127.0.0.1:8071\",\n  \"backend_pid\": 72339,\n  \"frontend_pid\": 72340,\n  \"health_identity\": {\n    \"pid\": 72339,\n    \"started_at\": \"2026-10-30T02:21:31.677993+00:00\",\n    \"cwd\": \"/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-242c9a01f-rollback/releases/242c9a01ff9aebb0467ad7a619ea7e4e468f454d/app/backend\",\n    \"git_commit\": \"242c9a01ff9a\",\n    \"source_id\": \"242c9a01ff9a\",\n    \"instance_id\": \"242c9a01ff9a.72339.1793326894\",\n    \"revision\": \"242c9a01ff9aebb0467ad7a619ea7e4e468f454d\",\n    \"dirty\": false,\n    \"dirty_digest\": \"e3b0c44298fc\",\n    \"dirty_paths\": [],\n    \"untracked_paths\": [],\n    \"captured_at\": \"2026-10-30T02:21:34.069348+00:00\",\n    \"port\": 8071,\n    \"error\": null,\n    \"database\": \"/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-242c9a01f-rollback/data/atom.db\",\n    \"byok_key_store\": \"/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-242c9a01f-rollback/data/byok_keys.json\"\n  },\n  \"health_status\": \"healthy\",\n  \"audience\": \"single_user\",\n  \"pilot_email\": \"admin@example.com\",\n  \"outbound_scope\": \"draft_and_approval_only\",\n  \"controlled_transport\": \"<unset>\",\n  \"internal_paths\": \"0\",\n  \"topology\": \"one_worker_process_per_assignment\"\n}\n",
+  "start_stderr_tail": "",
+  "database_restored": false,
+  "user_data_preserved": true
+}

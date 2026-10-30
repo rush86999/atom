@@ -14,17 +14,17 @@ Statuses: **Demonstrated**, **Partial**, **Deferred**, **Blocked**.
 | # | Goal | Status | Implementation entry points | Tested source/config | User-visible evidence | Limitation / next action |
 |---|---|---|---|---|---|---|
 | 1 | Domain- and business-independent employee work | Demonstrated for tested domains; not universal competence | `core/assignment_planner.py`, `core/assignment_executor.py`, `core/table_selection.py`, `core/dataset_aggregation.py`, `core/review_result.py` | Cross-domain evidence on the review-fixed line (`294fdf0ec` / `40b3367d9`); C10 changes only outbound policy, not domain logic | `docs/acceptance/DURABLE_ASSIGNMENT_2026-10-29.md`; commercial and eligibility evidence under `docs/acceptance/evidence/durable_assignment_20261029/` | Two domains are demonstrated; arbitrary domain competence is not claimed. Keep business labels in task/teaching data. |
-| 2 | Teaching context, approach, protocol and formatting | Demonstrated | `core/artifact_teaching.py`, `core/student_learning_service.py`, `core/office_service.py`, renderers | `1d5e8d780` owner delta plus reviewed C10 package; historical bounded taught job | Bounded taught job evidence: `evidence/durable_assignment_20261029/bounded-taught-job/` | Teaching capture/correction/restart is demonstrated; arbitrary instructions and every renderer field are not. |
+| 2 | Teaching context, approach, protocol and formatting | Demonstrated; current successor journey test | `core/artifact_teaching.py`, `core/student_learning_service.py`, `core/office_service.py`, renderers | `1d5e8d780` owner delta plus reviewed C10 package; historical bounded taught job | Bounded taught job evidence: `evidence/durable_assignment_20261029/bounded-taught-job/` | Teaching capture/correction/restart is demonstrated; arbitrary instructions and every renderer field are not. |
 | 3 | Extrapolation to unfamiliar sheets and columns | **Demonstrated for tested mapping/confirmation/correction/restart workflows** | Mapping resolver in `core/artifact_teaching.py`; mapping-candidate gaps, unit authority, source-identity correction, scoped invalidation, rejection acknowledgement and replay guards in `core/assignment_executor.py`; gap/correction routes in `backend/api/assignment_routes.py`; candidate/unit picker, rejection and correction form in `frontend-nextjs/components/assignments/AssignmentPanel.tsx` | Final product `a96484324` (waiting-restart/rejection + authority controls) on unit-authority product `ae53e7e41`; B/C/correction/waiting-restart browser campaign | Browser B: gap → `Amount` → `35.00 USD` (`mapping-browser-b/attempts/c78b9a0c-4d4b-4ef6-97e5-4be56fa31449/`). Browser C: no source unit → explicit USD → `75.00` (`mapping-browser-c/attempts/a228e80a-1980-4d9c-8489-6295ca38abce/`). Correction: List Price `100.00` → Contract Price `80.00`, mapping revision 2→3; prior result/artifact preserved; unrelated Tax mapping, formatting/applicability and independent Tax `8.00` work unchanged; stale `409`, wrong workspace `404`, concurrent `200`/`409` (`mapping-browser-correction/attempts/0f8db7bb-f3d2-4d5f-8ec5-768dd677843e/`). Waiting restart: reject through panel keeps the same assignment/request/candidates/source and teaching revisions with no result or teaching write; backend-only restart reopens the same request; `Amount` then completes the same assignment at `35.00 USD`, mapping revision 2, one applied calculation, one superseded wait, artifact/reload durable (`mapping-browser-waiting-restart/attempts/a8b27ce5-ead8-4a9f-8b21-8069e088486e/`). Route controls cover wrong request/assignment, forged column, stale source, stale teaching, wrong workspace, incompatible unit, identical replay (no duplicate work) and conflicting replay; ambiguous concept/source correction is also refused. Affected suites: 98 passed; all four browser flows passed on the same commit. | Tested workflows only. Automatic understanding of arbitrary schemas, every possible authority surface, and arbitrary Excel compatibility are not claimed. |
 | 4 | Connected ingestion and agent retrieval | Demonstrated for declared Microsoft scope | `core/assignment_resources.py`, `core/sheet_dataset_service.py`, shared OAuth resolver, typed bindings | Live Outlook attachment and OneDrive changed-byte gates at `001f93472`; C10 resource code unchanged | `live-connected/guided/gate-result.json`, `live-connected/changed-source/gate-result.json` | Zoho is optional/out of scope; arbitrary connector coverage is not claimed. |
-| 5 | Large spreadsheets and formula ingestion | Partial — demonstrated subset | Workbook ingestion, `sheet_dataset_service`, formula sidecar/evaluator, `dataset_aggregation` | Historical large-workbook evidence; C10 did not regress it | Historical `connected_core_20261028` evidence and clean-source verification | Large retrieval and same/cross-sheet formula subset are demonstrated; arbitrary Excel compatibility and unsupported formulas as certified recalculation are not. |
+| 5 | Large spreadsheets and formula ingestion | Demonstrated within published subset; 24-sheet/cross-sheet current test | Workbook ingestion, `sheet_dataset_service`, formula sidecar/evaluator, `dataset_aggregation` | Historical large-workbook evidence; C10 did not regress it | Historical `connected_core_20261028` evidence and clean-source verification | Large retrieval and same/cross-sheet formula subset are demonstrated; arbitrary Excel compatibility and unsupported formulas as certified recalculation are not. |
 | 6 | Excel-like canvas | Demonstrated for supported operations | Capability adapter, authoritative frame, revision-checked edits, office routes | Historical acceptance on the supported table adapter; C10 no change | Office/canvas acceptance evidence under `docs/acceptance/evidence/` | Filtering/edit/recalc/reload/XLSX export are demonstrated for supported sheets; every spreadsheet control and unsupported formula display are not. |
 | 7 | Grounded selection, calculations and assessments | Demonstrated for tested contracts | `core/table_selection.py`, `core/dataset_aggregation.py`, `core/review_result.py`, deterministic receipt/evidence binding | Clean-source and bounded tests; C10 unchanged except outbound policy | Assignment tests and cross-domain evidence; fresh C10 assignment produced `216700.00` with row/cell provenance | Structural validity is separate from substantive policy judgment; arbitrary policies and full assessment certification coverage remain bounded. |
 | 8 | Email, documents and presentations | Demonstrated for draft/format/reopen; send separate | `core/office_service.py`, email/canvas services, artifact renderers | Historical Office/email evidence; C10 draft smoke completed and survived restart | `deployment-auth-20261029-c10/draft-smoke.json`; historical DOCX/PPTX/email evidence | Image/chart understanding is excluded. Real-provider send is **Blocked** on the separate authorized test (goal 11). |
-| 9 | User-created canvases inherit capabilities | Partial — supported table adapter | Versioned capability manifests, adapter registry, canvas routes | Historical capability evidence; C10 no change | Capability acceptance evidence | Only the supported table adapter is claimed; every future canvas component is not. |
-| 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
-| 11 | Approval and eventual sending | **Partial / Blocked** | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; server-side denial tested | C10 `send-denial.json`: HTTP 422 before run creation; draft smoke saved/reopened; no provider/outbox effect | Draft and approval preparation work; production send is refused before transport. **Remaining action:** separately authorized real-provider test with exact payload, provider receipt, reconciliation and restart/no-duplicate checks. |
-| 12 | Everyday usability, security and operational readiness | Pilot candidate; deployment unverified | Normal auth, Assignments/Activity, durable storage, deployment kit and recovery guards | C10 packaged source plus successor packaged smoke on `a96484324` | C10 auth smoke, fresh assignment, restart agreement, deployment receipt, 19 kit controls, 41 product controls; successor packaged smoke, backup and restart receipts | Normal sign-in/logout/relogin and fresh packaged execution pass in isolation. The successor packaged smoke reopened an existing taught assignment, exercised the mapping flow and survived restart. Deployment authorization is requested but not granted. |
+| 9 | User-created canvases inherit capabilities | Demonstrated for supported table adapter; two canvas shapes current test | Versioned capability manifests, adapter registry, canvas routes | Historical capability evidence; C10 no change | Capability acceptance evidence | Only the supported table adapter is claimed; every future canvas component is not. |
+| 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart; artifact-restart current test | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
+| 11 | Approval and eventual sending | **Partial / Blocked** — local attachment-byte binding added; real send separate | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; server-side denial tested | C10 `send-denial.json`: HTTP 422 before run creation; draft smoke saved/reopened; no provider/outbox effect | Draft and approval preparation work; production send is refused before transport. **Remaining action:** separately authorized real-provider test with exact payload, provider receipt, reconciliation and restart/no-duplicate checks. |
+| 12 | Everyday usability, security and operational readiness | Pilot candidate; successor package prepared; deployment blocked on approval/password/quiescence | Normal auth, Assignments/Activity, durable storage, deployment kit and recovery guards | C10 packaged source plus successor packaged smoke on `a96484324` | C10 auth smoke, fresh assignment, restart agreement, deployment receipt, 19 kit controls, 41 product controls; successor packaged smoke, backup and restart receipts | Normal sign-in/logout/relogin and fresh packaged execution pass in isolation. The successor packaged smoke reopened an existing taught assignment, exercised the mapping flow and survived restart. Deployment authorization is requested but not granted. |
 
 Mapping campaign identities: the canonical B baseline stays bound to harness
 `7399fe41e`; new B/C/correction/waiting-restart attempts are written under
@@ -36,6 +36,47 @@ product `ae53e7e41` (tree `a7f627fdf7705a26b361c0d1b1e7e17abadc13d3`). Frozen
 release `901e5d773` is unchanged. The final manifest and file hashes are
 `docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/manifest-a96484324.json`;
 the prior manifests and attempt directories are preserved unchanged.
+
+## Core completion successor — 242c9a01f
+
+The successor product is frozen at
+`242c9a01ff9aebb0467ad7a619ea7e4e468f454d` (tag
+`assignment-successor-2026-10-30-242c9a01f`, tree
+`c20bb599ff7ab65913f42cd14a5a93012b6817c93b6b0b5eddfb7c056e24c9b7`).
+It preserves `a96484324` and `901e5d773` unchanged.
+
+Current package:
+`docs/acceptance/assignment-successor-package-2026-10-30-242c9a01f/assignment_successor_manifest.json`.
+Prepared root:
+`/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-30-242c9a01f`.
+
+Current acceptance:
+- 578 release-affected tests passed, 2 skipped; 127 targeted tests passed;
+  22 deployment-kit controls passed.
+- Four current mapping browser flows passed on this product: B `35.00`, C
+  `75.00`, correction `100.00 -> 80.00`, waiting restart `35.00`.
+- New current boundaries: exact attachment-byte approval binding; 24-sheet
+  workbook with leading-zero ids and blanks; cross-sheet formula text; teach →
+  correct → wrong-context → restart; two differently shaped canvases using the
+  same operations; restart after artifact creation without duplicate work.
+- Data: 50/481/557 rows; 1,205 files; 16,305 operations, 0 binding mismatches;
+  21 missing historical paths visible, none referenced.
+- Rollback to `901e5d773` verified against refreshed data with the same
+  data/artifact world, 0 binding mismatches, no database restore and no new
+  interactive approval.
+
+Remaining boundaries:
+- `config/APPROVED` and `config/pilot_password` are absent.
+- The live source writer pid `19046` holds the source database/WAL; cutover
+  requires an authorized quiescence window or a final refresh. The gate now
+  checks before backup, after backup and immediately before activation.
+- Real-provider sending remains a separate authorization; local payload,
+  approval, attachment-byte, reconciliation and no-duplicate controls are
+  implemented and tested.
+- Supported-envelope limits remain: arbitrary Excel compatibility, arbitrary
+  schema understanding, embedded image/chart interpretation, every future
+  canvas component, other connectors, multi-worker campaigns and autonomous
+  third-party research are not claimed.
 
 ## Release integration — a96484324
 

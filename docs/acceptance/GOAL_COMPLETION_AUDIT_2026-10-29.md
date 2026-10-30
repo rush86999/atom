@@ -14,14 +14,33 @@ evidence bound to an earlier source, not automatically a successor pass;
 | 2 | Teaching context/formatting | Y | Y | Y | Y | Y | — | — |
 | 3 | Unfamiliar sheets/mappings | Y for tested workflows | Y | Y | Y | Y | — | — |
 | 4 | Connected ingestion/retrieval | Y for Microsoft scope | Y | H | Y | Y | H (earlier live gates) | — |
-| 5 | Large spreadsheets/formulas | Partial supported subset | Y | H | Y | Y | — | — |
+| 5 | Large spreadsheets/formulas | Y published subset; 24-sheet current | Y | H | Y | Y | — | — |
 | 6 | Excel-like canvas | Y for table adapter | Y | H | Y | Y | — | — |
 | 7 | Grounded selection/calculation/assessment | Y for tested contracts | Y | H | Y | Y | — | — |
 | 8 | Email/documents/presentations | Y draft/format/reopen | Y | H | Y | Y | Send — | — |
-| 9 | User-created canvases inherit capabilities | Partial table adapter | Y | H | Y | Y | — | — |
+| 9 | User-created canvases inherit capabilities | Y table adapter; two shapes current | Y | H | Y | Y | — | — |
 | 10 | Long-running employee work | Y controlled wait/approval/restart | Y | H | Y | Y | — | — |
-| 11 | Approval/eventual sending | Draft/approval Y; send gated | Y | H (draft) | Y | Y | — | — |
-| 12 | Usability/security/operations | Package prepared | Y (19 kit controls) | Y full isolated transaction | Y | Y | — | Not deployed |
+| 11 | Approval/eventual sending | Draft/approval + attachment-byte Y; send gated | Y | H (draft) | Y | Y | — | — |
+| 12 | Usability/security/operations | Successor package prepared | Y (22 kit controls) | Y current mapping flows | Y | Y | — | Not deployed |
+
+## Core completion successor — 242c9a01f
+
+- Product: `242c9a01ff9aebb0467ad7a619ea7e4e468f454d`, tree
+  `c20bb599ff7ab65913f42cd14a5a93012b6817c93b6b0b5eddfb7c056e24c9b7`.
+- Current acceptance: 578 release-affected passed / 2 skipped, 127 targeted
+  passed, 22 kit controls passed; four mapping browser flows passed.
+- New current boundaries: attachment-byte approval binding; 24-sheet workbook;
+  cross-sheet formula text; teaching correction/restart journey; two canvas
+  shapes; artifact-restart no-duplicate work.
+- Rollback to `901e5d773` verified against refreshed data; 0 binding mismatches,
+  no database restore, no new approval.
+- Deployment remains unauthorized; `config/APPROVED` and
+  `config/pilot_password` are absent. The live source writer pid `19046` still
+  holds the database/WAL, so the cutover gate refuses until an authorized
+  quiescence window or final refresh.
+- Real-provider sending remains separately unauthorized; local payload,
+  approval, attachment-byte, reconciliation and no-duplicate controls are
+  implemented and tested.
 
 ## Current verification on the frozen candidate
 

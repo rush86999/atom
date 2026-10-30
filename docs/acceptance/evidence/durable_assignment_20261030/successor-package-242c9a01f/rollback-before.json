@@ -1,0 +1,12 @@
+{
+  "counts": {
+    "users": 50,
+    "dataset_entries": 481,
+    "goal_runs": 557
+  },
+  "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-242c9a01f-rollback/data/office/assignments/default/b83eb105-d9e7-41a5-83e3-a632b15b9ee3/draft-3d906339cbe3/harsle-live-price-total-6c095beb.docx",
+  "artifact_sha256": "e59d99141654c8a30047c80e62b19c57d946dfb5fb027d59f236a04e783d19f5",
+  "operations": 16305,
+  "binding_mismatches": 0,
+  "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-242c9a01f-rollback/data"
+}

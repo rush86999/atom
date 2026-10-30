@@ -20,6 +20,23 @@ sending framework and does not enable sending globally.
 | Provider reconciliation | `TaskLifecycle.reconcile_outbound` maps `sent` → applied, `not_sent` → failed, `unknown` → explicit uncertain without blind retry |
 | Outcome fields | `provider_state`, `provider_ref`, `sent_record_confirmed`, `delivery_confirmed` are separate in executor projections |
 
+## Local engineering now implemented
+
+The successor adds the last local send-boundary control:
+
+- staged attachments carry a SHA-256 in their durable record;
+- assignment planning refuses attachment ids without an exact hash map;
+- the approval payload includes the attachment hash map, so a changed
+  attachment invalidates the existing approval;
+- `EmailCanvasService.send_email` re-hashes the bytes actually resolved and
+  blocks before provider transport on a mismatch;
+- the existing payload/artifact/authorization revisions, operation binding,
+  pre-effect vs uncertain-effect classification, reconciliation and
+  no-duplicate controls remain in force.
+
+Local tests cover the hash binding, planner refusal, approval-payload change
+and pre-transport block. No real transport is attempted.
+
 ## Required owner inputs — still missing
 
 1. **Sending account**: exact mailbox/UPN and tenant; confirmation that it is
@@ -30,7 +47,9 @@ sending framework and does not enable sending globally.
 3. **Test recipient**: one owner-approved external recipient address. Do not
    use a real customer or an invented address.
 4. **Exact payload approval**: subject, body (verbatim), attachment file(s),
-   attachment SHA-256, and whether the attachment is the rendered artifact.
+   each attachment SHA-256, and whether the attachment is the rendered
+   artifact. The implementation now refuses an attachment id without a
+   matching hash.
 5. **Approver identity and window**: who may approve the exact payload and the
    bounded test window.
 6. **Provider receipt source**: how the owner will expose the Sent Items /
