@@ -354,3 +354,85 @@ def test_mapping_only_lesson_resolves_and_confirmation_updates_it(db_session):
     resolved = resolve_artifact_teaching(
         db_session, agent.id, "document", workspace_id="ws-a")
     assert resolved["field_mappings"][0]["column"] == "Amount"
+
+
+def test_teach_correct_different_task_and_restart_journey(db_session):
+    """One continuous teaching lifecycle: teach an unfamiliar method, correct
+    it, confirm the wrong context does not inherit it, then read it back from
+    a fresh session (restart-equivalent) with the corrected revision."""
+    import core.assignment_teaching  # noqa: F401 — installs calculation schema
+    from sqlalchemy.orm import sessionmaker
+
+    agent = _agent(db_session, workspace="ws-journey")
+    taught = deliver_teacher_lesson(
+        db_session, agent.id,
+        "For pricing reviews, compute extended value and use the review labels.",
+        topic="pricing method",
+        workspace_id="ws-journey",
+        applies_to=["document"],
+        format_spec={
+            "font_name": "Arial", "font_size": 11,
+            "heading_order": ["Summary", "Findings", "Sources"],
+            "calculation_expression": "qty * unit_price",
+            "calculation_fields": ["qty=Quantity", "unit_price=Unit Price"],
+            "calculation_unit": "USD",
+        },
+        decision_options=["APPROVE", "REVIEW", "DENY"],
+        context={"business_category": "pricing", "location": "HQ"},
+    )
+    assert taught.get("status") not in ("error", "refused"), taught
+    point_id = taught["entry"]["id"]
+
+    first = resolve_artifact_teaching(
+        db_session, agent.id, "document",
+        task_context={"business_category": "pricing", "location": "HQ"},
+        workspace_id="ws-journey",
+    )
+    assert first["status"] == "applicable"
+    assert first["spec"]["font_size"] == 11
+    assert first["spec"]["calculation_expression"] == "qty * unit_price"
+    assert first["spec"]["calculation_unit"] == "USD"
+    assert taught["entry"]["decision_options"] == ["APPROVE", "REVIEW", "DENY"]
+
+    wrong_location = resolve_artifact_teaching(
+        db_session, agent.id, "document",
+        task_context={"business_category": "pricing", "location": "Warehouse"},
+        workspace_id="ws-journey",
+    )
+    assert wrong_location["status"] == "not_applicable"
+    wrong_output = resolve_artifact_teaching(
+        db_session, agent.id, "email",
+        task_context={"business_category": "pricing", "location": "HQ"},
+        workspace_id="ws-journey",
+    )
+    assert wrong_output["status"] == "not_applicable"
+
+    corrected = update_teaching_point(
+        db_session, agent.id, point_id,
+        text="For pricing reviews, compute extended value with the corrected format.",
+        format_spec={"font_size": 12},
+    )
+    assert corrected.get("status") not in ("error", "refused"), corrected
+    after_correction = resolve_artifact_teaching(
+        db_session, agent.id, "document",
+        task_context={"business_category": "pricing", "location": "HQ"},
+        workspace_id="ws-journey",
+    )
+    assert after_correction["status"] == "applicable"
+    assert after_correction["spec"]["font_size"] == 12
+    assert after_correction["revision"] != first["revision"]
+
+    # A fresh session reads the same corrected guidance (process restart).
+    Session = sessionmaker(bind=db_session.get_bind())
+    fresh = Session()
+    try:
+        restarted = resolve_artifact_teaching(
+            fresh, agent.id, "document",
+            task_context={"business_category": "pricing", "location": "HQ"},
+            workspace_id="ws-journey",
+        )
+    finally:
+        fresh.close()
+    assert restarted["status"] == "applicable"
+    assert restarted["spec"]["font_size"] == 12
+    assert restarted["revision"] == after_correction["revision"]

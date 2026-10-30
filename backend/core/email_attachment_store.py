@@ -13,6 +13,7 @@ launch dir; root-vs-backend launches caused divergent stores before — same
 anchoring as core.lancedb_handler).
 """
 
+import hashlib
 import logging
 import os
 import shutil
@@ -127,6 +128,7 @@ def save_staged(
         "filename": filename,
         "content_type": content_type or "application/octet-stream",
         "size": len(content),
+        "sha256": hashlib.sha256(content).hexdigest(),
         "is_inline": False,
         "origin": "staged",
         "ingestion": None,

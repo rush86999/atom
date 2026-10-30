@@ -188,11 +188,13 @@ async def test_send_with_attachments_passes_bytes_and_cleans_staged(
           "content_type": "application/pdf"}],
     )
     att = staged["attachments"][0]
+    assert att["sha256"] == __import__("hashlib").sha256(b"%PDF fake").hexdigest()
 
     with _mock_outlook() as mock_cls, patch.object(svc, "record_send"):
         result = await svc.send_email(
             canvas_id=canvas, user_id="u-1", to_emails=["mark@external.test"],
             subject="Q3 report", body="Attached.", attachment_ids=[att["attachment_id"]],
+            expected_attachment_hashes={att["attachment_id"]: att["sha256"]},
         )
 
     assert result["success"] is True
@@ -203,6 +205,34 @@ async def test_send_with_attachments_passes_bytes_and_cleans_staged(
     assert read_staged("u-1", canvas, att["attachment_id"]) is None
     listed = svc.list_attachments(canvas, "u-1")["attachments"]
     assert listed[0].get("sent_at")
+
+
+@pytest.mark.asyncio
+async def test_send_with_changed_attachment_hash_is_blocked_before_transport(
+    db_session, canvas
+):
+    from core.canvas_email_service import EmailCanvasService
+
+    svc = EmailCanvasService(db_session)
+    staged = svc.stage_attachments(
+        canvas, "u-1",
+        [{"filename": "report.pdf", "content_bytes": b"%PDF fake",
+          "content_type": "application/pdf"}],
+    )
+    att = staged["attachments"][0]
+    wrong = "0" * 64
+    with _mock_outlook() as mock_cls, patch.object(svc, "record_send"):
+        result = await svc.send_email(
+            canvas_id=canvas, user_id="u-1", to_emails=["mark@external.test"],
+            subject="Q3 report", body="Attached.",
+            attachment_ids=[att["attachment_id"]],
+            expected_attachment_hashes={att["attachment_id"]: wrong},
+        )
+    assert result["success"] is False
+    assert "changed after approval" in result["error"]
+    mock_cls.return_value.send_email.assert_not_awaited()
+    # The staged bytes remain available for a corrected, reapproved send.
+    assert read_staged("u-1", canvas, att["attachment_id"]) == b"%PDF fake"
 
 
 @pytest.mark.asyncio

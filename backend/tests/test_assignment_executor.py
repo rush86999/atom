@@ -948,3 +948,71 @@ def test_two_concurrent_resume_requests_dispatch_once(env):
     assert calls["count"] == 1
     assert step_by_id(
         env["lifecycle"].get_assignment(run_id), "one")["status"] == "applied"
+
+
+def test_send_prepare_binds_attachment_bytes_not_just_ids():
+    from core.assignment_executor import _outlook_send_prepare
+    from core.task_lifecycle import _approval_payload_hash
+
+    base = {
+        "canvas_id": "canvas-1", "to": ["x@example.invalid"],
+        "subject": "s", "body": "b", "attachment_ids": ["staged_abc"],
+    }
+    first = _outlook_send_prepare(
+        {**base, "attachment_hashes": {"staged_abc": "a" * 64}}, {})
+    second = _outlook_send_prepare(
+        {**base, "attachment_hashes": {"staged_abc": "b" * 64}}, {})
+    assert first["payload"]["attachment_hashes"] == {"staged_abc": "a" * 64}
+    assert _approval_payload_hash(first["payload"]) != _approval_payload_hash(
+        second["payload"])
+
+
+def test_send_prepare_refuses_attachment_ids_without_hashes():
+    from core.assignment_executor import _outlook_send_prepare
+
+    with pytest.raises(NeedsContext) as exc:
+        _outlook_send_prepare(
+            {"canvas_id": "canvas-1", "to": ["x@example.invalid"],
+             "subject": "s", "body": "b",
+             "attachment_ids": ["staged_abc"]}, {})
+    assert exc.value.gap.get("concept") == "attachment_binding"
+
+
+def test_restart_after_artifact_creation_does_not_recreate_work(
+        env, monkeypatch):
+    """Interruption after the document exists: a new executor resumes from
+    durable state, keeps the same artifact bytes, and only continues the
+    unresolved wait/approval rather than rebuilding completed work."""
+    import hashlib
+
+    (run_id, _), outbox, artifact = _commercial_assignment(
+        env, env["tmp"], monkeypatch)
+    executor = env["executor"]
+    first = _run(executor.execute(run_id))
+    assert first["assignment"]["status"] == "waiting"
+    doc_step = step_by_id(env["lifecycle"].get_assignment(run_id), "doc")
+    assert doc_step["status"] == "applied"
+    before_hash = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    before_mtime = artifact.stat().st_mtime_ns
+
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    resumed = _run(restarted.resume(run_id))
+    assert resumed["assignment"]["status"] == "waiting"
+    assert hashlib.sha256(artifact.read_bytes()).hexdigest() == before_hash
+    assert artifact.stat().st_mtime_ns == before_mtime
+    assert step_by_id(
+        env["lifecycle"].get_assignment(run_id), "doc")["status"] == "applied"
+    assert not outbox.exists() or not outbox.read_text().strip()
+
+    record = env["lifecycle"].get_task(run_id)
+    gap = next(item for item in record["task_revision"]["unresolved"]
+               if item["status"] == "open")
+    restarted.resolve_gap(
+        run_id, gap["question_id"], resolution="REF-9",
+        resolved_by="qualification owner")
+    _run(restarted.execute(run_id))
+    restarted.approve_step(run_id, "send", approved_by="owner")
+    completed = _run(restarted.execute(run_id))
+    assert completed["assignment"]["status"] == "completed"
+    assert hashlib.sha256(artifact.read_bytes()).hexdigest() == before_hash
+    assert len(outbox.read_text().strip().splitlines()) == 1

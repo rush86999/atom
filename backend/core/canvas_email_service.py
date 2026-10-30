@@ -4,6 +4,7 @@ Email Canvas Service
 Backend service for email canvas with threaded conversations,
 compose interface, and attachment management.
 """
+import hashlib
 import re
 import time as _time
 from datetime import datetime, timezone
@@ -1031,6 +1032,7 @@ class EmailCanvasService:
         canvas_id: str,
         user_id: str,
         attachment_ids: List[str],
+        expected_attachment_hashes: Optional[Dict[str, str]] = None,
     ) -> List[Dict[str, Any]]:
         """Resolve attachment ids to send payloads against a CAPTURED metadata
         snapshot (the send audit row written later doesn't carry canvas
@@ -1059,15 +1061,33 @@ class EmailCanvasService:
                 data = resolved.get("bytes") if resolved else None
             if data is None:
                 raise ValueError(f"Attachment content unavailable: {filename}")
+            digest = hashlib.sha256(data).hexdigest()
+            if expected_attachment_hashes is not None:
+                expected = str(expected_attachment_hashes.get(aid) or "")
+                if not expected:
+                    raise ValueError(
+                        f"Attachment has no approved sha256 binding: {filename}")
+                if digest != expected:
+                    raise ValueError(
+                        "Attachment changed after approval: "
+                        f"{filename} (expected {expected[:12]}, got {digest[:12]})")
             payloads.append(
                 {
+                    "attachment_id": aid,
                     "filename": filename,
                     "content_type": record.get("content_type")
                     or "application/octet-stream",
                     "content_bytes": data,
+                    "sha256": digest,
                     "policy_text": self._attachment_policy_text(data, filename),
                 }
             )
+        if expected_attachment_hashes is not None:
+            unknown = sorted(set(expected_attachment_hashes) - set(attachment_ids))
+            if unknown:
+                raise ValueError(
+                    "Approved attachment binding names attachments not sent: "
+                    + ", ".join(unknown))
         return payloads
 
     def _finalize_sent_attachments(
@@ -1107,6 +1127,7 @@ class EmailCanvasService:
         agent_id: Optional[str] = None,
         tenant_id: str = "default",
         attachment_ids: Optional[List[str]] = None,
+        expected_attachment_hashes: Optional[Dict[str, str]] = None,
         override_grounding: bool = False,
         # Mixed-thread leak guard override (internal_thread_quote) — a
         # supervisor's explicit decision, recorded on the send audit row.
@@ -1241,7 +1262,8 @@ class EmailCanvasService:
             canvas_meta = self._latest_email_metadata(canvas_id) or {}
             try:
                 send_attachments = await self._resolve_send_attachments(
-                    canvas_meta, canvas_id, user_id, attachment_ids
+                    canvas_meta, canvas_id, user_id, attachment_ids,
+                    expected_attachment_hashes=expected_attachment_hashes,
                 )
             except ValueError as e:
                 decision = {
@@ -1265,7 +1287,9 @@ class EmailCanvasService:
                 {"user_id": user_id, "agent_id": agent_id},
             )
             payload["attachments"] = [
-                {"filename": a["filename"], "size": len(a["content_bytes"])}
+                {"attachment_id": a["attachment_id"],
+                 "filename": a["filename"], "size": len(a["content_bytes"]),
+                 "sha256": a["sha256"]}
                 for a in send_attachments
             ]
 

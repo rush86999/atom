@@ -4819,13 +4819,28 @@ default_adapter_registry.register(
 
 
 def _outlook_send_prepare(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    attachment_ids = list(inputs.get("attachment_ids") or [])
+    attachment_hashes = {
+        str(key): str(value)
+        for key, value in (inputs.get("attachment_hashes") or {}).items()
+    }
+    if attachment_ids and not attachment_hashes:
+        raise NeedsContext({
+            "concept": "attachment_binding",
+            "reason": (
+                "sending attachments requires the exact sha256 binding that "
+                "was approved; attachment ids alone can resolve to changed bytes"),
+            "question": "Which attachment sha256 binding authorizes this send?",
+            "kind": "missing_evidence",
+        })
     payload = {
         "canvas_id": inputs.get("canvas_id"),
         "to": inputs.get("to") or [],
         "cc": inputs.get("cc") or [],
         "subject": inputs.get("subject") or "",
         "body": inputs.get("body") or "",
-        "attachment_ids": list(inputs.get("attachment_ids") or []),
+        "attachment_ids": attachment_ids,
+        "attachment_hashes": attachment_hashes,
         "thread_id": inputs.get("thread_id"),
         "reply_all": bool(inputs.get("reply_all")),
     }
@@ -4879,6 +4894,8 @@ async def _outlook_send(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
             agent_id=str(context.get("agent_id") or "") or None,
             tenant_id=str(context.get("tenant_id") or "default"),
             attachment_ids=list(inputs.get("attachment_ids") or []) or None,
+            expected_attachment_hashes=(
+                dict(inputs.get("attachment_hashes") or {}) or None),
             thread_id=(str(inputs.get("thread_id") or "").strip() or None),
             reply_all=bool(inputs.get("reply_all")),
             run_id=str(context.get("run_id") or "") or None,

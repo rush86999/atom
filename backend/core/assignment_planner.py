@@ -224,11 +224,32 @@ def _send_step(
         raise AssignmentPlanError(
             "the Outlook send adapter requires an existing prepared canvas_id; "
             "without one, use a draft-only step")
+    attachment_ids = [
+        str(item).strip() for item in (outbound.get("attachment_ids") or [])
+        if str(item).strip()
+    ]
+    attachment_hashes = {
+        str(key).strip(): str(value).strip()
+        for key, value in (outbound.get("attachment_hashes") or {}).items()
+        if str(key).strip()
+    }
+    if attachment_ids and not attachment_hashes:
+        raise AssignmentPlanError(
+            "outbound attachments require an exact sha256 binding; "
+            "attachment ids alone can resolve to changed bytes")
+    if attachment_hashes and not attachment_ids:
+        raise AssignmentPlanError(
+            "attachment sha256 bindings require matching attachment ids")
+    if set(attachment_hashes) != set(attachment_ids):
+        raise AssignmentPlanError(
+            "attachment sha256 bindings must name exactly the sent attachments")
     inputs: Dict[str, Any] = {
         "to": outbound.get("to") or [],
         "cc": outbound.get("cc") or [],
         "subject": outbound.get("subject") or "",
         "body": str(outbound.get("body") or ""),
+        "attachment_ids": attachment_ids,
+        "attachment_hashes": attachment_hashes,
         "deliverable_id": str(
             outbound.get("deliverable_id") or "del-send"),
     }
@@ -549,6 +570,22 @@ def validate_proposed_plan(
                 (step.get("inputs") or {}).get("to")):
             raise AssignmentPlanError(
                 f"outbound step {step['step_id']} requires a recipient")
+        outbound_inputs = step.get("inputs") or {}
+        proposed_attachment_ids = [
+            str(item).strip() for item in (
+                outbound_inputs.get("attachment_ids") or [])
+            if str(item).strip()
+        ]
+        proposed_attachment_hashes = {
+            str(key).strip() for key in (
+                outbound_inputs.get("attachment_hashes") or {})
+            if str(key).strip()
+        }
+        if proposed_attachment_ids or proposed_attachment_hashes:
+            if set(proposed_attachment_ids) != proposed_attachment_hashes:
+                raise AssignmentPlanError(
+                    f"outbound step {step['step_id']} must bind every "
+                    "attachment id to exactly one sha256")
     seen_deliverable_ids = set()
     seen_deliverable_steps = set()
     for item in assignment.get("deliverables") or []:
