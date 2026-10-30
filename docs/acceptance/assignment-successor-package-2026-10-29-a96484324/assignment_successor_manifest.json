@@ -26,7 +26,7 @@
     "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
     "product_tree_matches_tested": true,
     "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
-    "deployment_kit_tree_sha256": "fe977ea866173fe7e8446427bf851ac8b7835ac96df151d456f51b5fe285b8d3",
+    "deployment_kit_tree_sha256": "9d3b97a079548e1a1002540cd0b5700adda6eed026bbe28f926915305e520983",
     "frontend_build_id": "9XAkf6w6bcGinpRtHpj8X",
     "frontend_api_origin": "http://127.0.0.1:8071",
     "api_port": 8071,
@@ -371,7 +371,7 @@
       "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
       "product_tree_matches_tested": true,
       "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
-      "deployment_kit_tree_sha256": "fe977ea866173fe7e8446427bf851ac8b7835ac96df151d456f51b5fe285b8d3",
+      "deployment_kit_tree_sha256": "9d3b97a079548e1a1002540cd0b5700adda6eed026bbe28f926915305e520983",
       "frontend_build_id": "9XAkf6w6bcGinpRtHpj8X",
       "frontend_api_origin": "http://127.0.0.1:8071",
       "api_port": 8071,
@@ -413,8 +413,8 @@
     },
     "evidence_manifest": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/evidence-manifest.json",
-      "sha256": "2c48aed4bf465c1bba51d74a67a0f975222af2f1b5397ae8028e2914c80ea5ba",
-      "bytes": 22238
+      "sha256": "331b0000c87b23dfd958791c72a2b92c231655fed89bf5f6de743a36864a84c3",
+      "bytes": 22621
     },
     "data_handoff": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/production-data-handoff.json",
@@ -438,7 +438,7 @@
     },
     "preflight_no_approval": {
       "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/preflight-no-approval.json",
-      "sha256": "31100f17a264f3f08a5f4409eb0997ea5fa9f98ef20c5bab6077a926fd6f0561",
+      "sha256": "ba2f4b7e0354a20db83cb965e8631fcf8df7a61829e65c2c97659949fae11402",
       "bytes": 8367
     },
     "rollback_receipt": {

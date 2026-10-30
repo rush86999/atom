@@ -14,7 +14,7 @@
     "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
     "product_tree_matches_tested": true,
     "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
-    "deployment_kit_tree_sha256": "fe977ea866173fe7e8446427bf851ac8b7835ac96df151d456f51b5fe285b8d3",
+    "deployment_kit_tree_sha256": "9d3b97a079548e1a1002540cd0b5700adda6eed026bbe28f926915305e520983",
     "frontend_build_id": "9XAkf6w6bcGinpRtHpj8X",
     "frontend_api_origin": "http://127.0.0.1:8071",
     "api_port": 8071,
@@ -444,7 +444,8 @@
   },
   "files": {
     "RELEASE_IDENTITY.json": {
-      "sha256": "9877eec213eb883c085ad0cdd11c50b04bee78ae68e245374090daa1807f8597",
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/RELEASE_IDENTITY.json",
+      "sha256": "a2d2133aa7817a74b69ae69919d490c7ba99ab7c39972afd0de09b37d971b477",
       "bytes": 1143
     },
     "config-compatibility.json": {
@@ -464,7 +465,8 @@
       "bytes": 3111
     },
     "preflight-no-approval.json": {
-      "sha256": "31100f17a264f3f08a5f4409eb0997ea5fa9f98ef20c5bab6077a926fd6f0561",
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/preflight-no-approval.json",
+      "sha256": "ba2f4b7e0354a20db83cb965e8631fcf8df7a61829e65c2c97659949fae11402",
       "bytes": 8367
     },
     "previous-identity.json": {
@@ -476,6 +478,7 @@
       "bytes": 2420
     },
     "production-handoff-verification.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/production-package-a96484324/production-handoff-verification.json",
       "sha256": "4967048465c2e8ce02447f123531da9c8d2b55c1f816124f4426e9d0d44fb7d9",
       "bytes": 2912
     },

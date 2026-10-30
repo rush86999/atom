@@ -1,7 +1,7 @@
 {
   "schema": "atom-assignment-release-preflight-1",
   "ok": false,
-  "checked_at": "2026-10-30T01:06:02.176052+00:00",
+  "checked_at": "2026-10-30T01:14:46.707229+00:00",
   "root": "/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324",
   "checks": [
     {
@@ -269,7 +269,7 @@
     "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
     "product_tree_matches_tested": true,
     "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
-    "deployment_kit_tree_sha256": "fe977ea866173fe7e8446427bf851ac8b7835ac96df151d456f51b5fe285b8d3",
+    "deployment_kit_tree_sha256": "9d3b97a079548e1a1002540cd0b5700adda6eed026bbe28f926915305e520983",
     "frontend_build_id": "9XAkf6w6bcGinpRtHpj8X",
     "frontend_api_origin": "http://127.0.0.1:8071",
     "api_port": 8071,

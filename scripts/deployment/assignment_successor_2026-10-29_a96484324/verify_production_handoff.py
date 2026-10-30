@@ -47,7 +47,10 @@ def main() -> None:
         "LANCEDB_URI_BASE": env.get(
             "LANCEDB_URI_BASE", str(data / "atom_memory")),
     })
-    sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "backend"))
+    backend_dir = root / "current" / "app" / "backend"
+    if not backend_dir.is_dir():
+        backend_dir = Path(__file__).resolve().parents[3] / "backend"
+    sys.path.insert(0, str(backend_dir))
     from core.assignment_plan import assignment_projection
     from core.goals.goal_run_service import GoalRunService
     from core.task_lifecycle import TaskLifecycle, operation_binding_sha256
