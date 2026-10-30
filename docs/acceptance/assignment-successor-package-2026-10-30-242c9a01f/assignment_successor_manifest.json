@@ -102,8 +102,8 @@
   "evidence": {
     "production_package": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/evidence-manifest.json",
-      "sha256": "ad4dd68847e8db69678607612409b7b04db0a2d4444e76cc8d9bf45b7b7041e2",
-      "bytes": 174983
+      "sha256": "aa0ef748affbf4d5698ac124a53dacf409f1c1b662d7e1c0121f97daa09813ab",
+      "bytes": 176302
     },
     "preparation_report": "docs/acceptance/PRODUCTION_PACKAGE_PREPARATION_2026-10-30-242c9a01f.md",
     "deployment_decision": "docs/acceptance/DEPLOYMENT_DECISION_242c9a01f_2026-10-30.md",
@@ -169,8 +169,8 @@
     },
     "evidence_manifest": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/evidence-manifest.json",
-      "sha256": "ad4dd68847e8db69678607612409b7b04db0a2d4444e76cc8d9bf45b7b7041e2",
-      "bytes": 174983
+      "sha256": "aa0ef748affbf4d5698ac124a53dacf409f1c1b662d7e1c0121f97daa09813ab",
+      "bytes": 176302
     },
     "data_handoff": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/production-data-handoff.json",
@@ -199,8 +199,8 @@
     },
     "rollback_receipt": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/rollback-receipt.json",
-      "sha256": "3444b1287f03d64ffc10699b97884d086bfa4372a2d3f1a7fb474c1b9fa098e4",
-      "bytes": 2296
+      "sha256": "c0be012957973d1a43e9ab2f7761132b82f5adae0b2b4480d7b726f06cf8d738",
+      "bytes": 3385
     },
     "rollback_before": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-242c9a01f/rollback-before.json",
