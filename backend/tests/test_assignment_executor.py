@@ -1135,3 +1135,139 @@ def test_external_research_rejects_write_actions(env):
     research = step_by_id(env["lifecycle"].get_assignment(run_id), "research")
     assert research["failure"]["reason"] == "failed"
     assert "read-only" in research["failure"]["message"]
+
+
+def test_controlled_outbox_applies_taught_email_protocol(tmp_path, monkeypatch):
+    """The approved payload and the outbox bytes both carry the protocol."""
+    outbox = tmp_path / "protocol-outbox.jsonl"
+    monkeypatch.setenv("ATOM_ASSIGNMENT_OUTBOX", str(outbox))
+    from core.assignment_controlled_transport import (
+        _controlled_prepare,
+        _controlled_send,
+    )
+
+    teaching = _teaching(output_requirements={
+        "greeting": "Dear colleague,",
+        "signature": "Sales team",
+        "subject_prefix": "[Quote]",
+    })
+    inputs = {
+        "to": ["buyer@example.invalid"],
+        "subject": "Press brake total",
+        "body": "Result: 400.00 USD",
+    }
+    context = {"teaching": teaching, "step": {"operation_id": "op-1"}}
+    prepared = _controlled_prepare(inputs, context)
+    assert prepared["payload"]["subject"] == "[Quote] Press brake total"
+    assert prepared["payload"]["body"].startswith("Dear colleague,")
+    assert "Sales team" in prepared["payload"]["body"]
+
+    _run(_controlled_send(inputs, context))
+    line = json.loads(outbox.read_text().strip())
+    assert line["subject"] == "[Quote] Press brake total"
+    assert line["body"].startswith("Dear colleague,")
+    assert "Sales team" in line["body"]
+    assert line["teaching_revision"] == "teach-r1"
+
+
+def test_external_response_contradicting_source_fact_stays_waiting(env):
+    """A reply that denies a fact the source already has is a conflict."""
+    async def source(inputs, context):
+        return {"status": "applied", "summary": "source read",
+                "value": "400.00", "unit": "USD"}
+
+    async def wait_fact(inputs, context):
+        step = context.get("step") or {}
+        if step.get("external_response"):
+            return {"status": "applied", "summary": "reply received",
+                    "value": step["external_response"].get("response")}
+        raise WaitingForExternal({
+            "event": "email",
+            "state": "waiting_for_external",
+            "party": "owner",
+            "correlation_id": "corr-currency",
+            "resume_on": "response",
+            "detail": "currency confirmation",
+            "fact": "currency",
+        })
+
+    env["registry"].register("test.source", source)
+    env["registry"].register("test.wait_fact", wait_fact)
+    steps = [
+        new_step(
+            step_id="source", title="Read source",
+            operation_type="retrieve", adapter="test.source",
+            inputs={"resource_binding": {"columns": ["Currency", "Price"]}},
+            effect="read_only"),
+        new_step(
+            step_id="wait", title="Wait for currency",
+            operation_type="retrieve", adapter="test.wait_fact",
+            depends_on=["source"], effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Wait on currency", steps=steps, teaching=_teaching())
+    executor = env["executor"]
+    first = _run(executor.execute(run_id))
+    assert first["assignment"]["status"] == "waiting"
+
+    result = executor.record_external_response(
+        run_id, "corr-currency",
+        response="Currency unstated by source; report the total without a currency.")
+    assert result["status"] == "conflict"
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "waiting"
+    conflicts = (wait_step.get("waiting") or {}).get("conflicts") or []
+    assert conflicts and conflicts[-1]["reason"] == "source_already_provides_fact"
+    assert "Currency unstated" in conflicts[-1]["response"]
+
+
+def test_external_response_for_genuinely_missing_fact_resumes(env):
+    """A missing fact that is absent from the source can close the wait."""
+    async def source(inputs, context):
+        return {"status": "applied", "summary": "source read",
+                "value": "400.00", "unit": "USD"}
+
+    async def wait_fact(inputs, context):
+        step = context.get("step") or {}
+        if step.get("external_response"):
+            return {"status": "applied", "summary": "reply received",
+                    "value": step["external_response"].get("response")}
+        raise WaitingForExternal({
+            "event": "email",
+            "state": "waiting_for_external",
+            "party": "owner",
+            "correlation_id": "corr-delivery",
+            "resume_on": "response",
+            "detail": "delivery term",
+            "fact": "delivery_term",
+        })
+
+    env["registry"].register("test.source", source)
+    env["registry"].register("test.wait_fact", wait_fact)
+    steps = [
+        new_step(
+            step_id="source", title="Read source",
+            operation_type="retrieve", adapter="test.source",
+            inputs={"resource_binding": {"columns": ["Currency", "Price"]}},
+            effect="read_only"),
+        new_step(
+            step_id="wait", title="Wait for delivery term",
+            operation_type="retrieve", adapter="test.wait_fact",
+            depends_on=["source"], effect="read_only"),
+    ]
+    run_id, _ = _create(
+        env, objective="Wait on delivery term", steps=steps,
+        teaching=_teaching())
+    executor = env["executor"]
+    first = _run(executor.execute(run_id))
+    assert first["assignment"]["status"] == "waiting"
+
+    result = executor.record_external_response(
+        run_id, "corr-delivery", response="FOB destination")
+    assert result["status"] == "resumed"
+    _run(executor.execute(run_id))
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "applied"
+    assert wait_step["external_response"]["fact"] == "delivery_term"

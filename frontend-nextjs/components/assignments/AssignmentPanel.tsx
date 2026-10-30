@@ -127,6 +127,7 @@ export function AssignmentPanel({
   const [businessContext, setBusinessContext] = useState("");
   const [qualification, setQualification] = useState("");
   const [taskScope, setTaskScope] = useState("");
+  const [missingFact, setMissingFact] = useState("");
   const [startDraft, setStartDraft] = useState({
     objective: "",
     deliverableKind: "document",
@@ -272,6 +273,7 @@ export function AssignmentPanel({
           correlation_id: startDraft.correlation.trim(),
           party: "external responder",
           detail: "authorized external reply",
+          fact: missingFact.trim() || undefined,
         };
       }
       if (startDraft.recipient.trim()) {
@@ -298,6 +300,7 @@ export function AssignmentPanel({
       setCustomMeasure("");
       setQualification("");
       setTaskScope("");
+      setMissingFact("");
       setSelected(result.run_id);
       await refreshList();
       await refreshDetail(result.run_id);
@@ -582,6 +585,14 @@ export function AssignmentPanel({
               aria-label="Correlation id"
               data-testid="assignment-correlation-input"
             />
+            <input
+              value={missingFact}
+              onChange={(e) => setMissingFact(e.target.value)}
+              placeholder="Missing fact (for example delivery_term)"
+              className="w-full rounded border px-1.5 py-1"
+              aria-label="Missing fact"
+              data-testid="assignment-missing-fact-input"
+            />
             <p className="text-[10px] text-muted-foreground">
               Sending stays disabled unless this local build enables the
               controlled transport or a separate live-send authorization is in
@@ -693,8 +704,11 @@ export function AssignmentPanel({
               <p className="font-medium">Correlated response</p>
               <p className="text-[10px]">
                 Waiting for {waitingParty || "an external reply"} on{" "}
-                {String(step.waiting.correlation_id)}. Paste only the
-                authorized response; it is evidence, not teaching.
+                {String(step.waiting.correlation_id)}
+                {step.waiting.fact
+                  ? ` · missing fact: ${String(step.waiting.fact)}`
+                  : ""}. Paste only the authorized response; it is evidence,
+                not teaching.
               </p>
               <div className="mt-1 flex gap-1">
                 <input
@@ -708,15 +722,24 @@ export function AssignmentPanel({
                   size="sm"
                   disabled={busy || !responseDraft.trim()}
                   onClick={() =>
-                    act(
-                      () =>
-                        recordAssignmentResponse(
-                          detail.run_id,
-                          String(step.waiting.correlation_id),
-                          responseDraft
-                        ),
-                      detail.run_id
-                    )
+                    act(async () => {
+                      const result = await recordAssignmentResponse(
+                        detail.run_id,
+                        String(step.waiting.correlation_id),
+                        responseDraft
+                      );
+                      if (result?.status === "conflict") {
+                        setNotice(
+                          String(result.message || "The reply conflicts with "
+                            + "the source and did not complete the wait.")
+                        );
+                      } else if (result?.status === "unmatched") {
+                        setNotice(
+                          String(result.message || "The reply did not match "
+                            + "an open correlation.")
+                        );
+                      }
+                    }, detail.run_id)
                   }
                 >
                   <Send className="h-3 w-3" /> Deliver

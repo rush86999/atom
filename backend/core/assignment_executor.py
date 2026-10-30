@@ -725,6 +725,37 @@ def _compose_evidence_rows(
     return list(evidence["row_sets"][0]["rows"])
 
 
+def _normalized_fact_name(value: Any) -> str:
+    return " ".join(
+        re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).split())
+
+
+def _source_provides_fact(record: Dict[str, Any], fact: str) -> bool:
+    """Whether an applied source already exposes the named fact.
+
+    This is a schema-level contradiction check, not a value inference: a
+    column named ``Currency`` means the source has a currency field, so a
+    reply claiming currency is unstated cannot silently close that wait.
+    """
+    wanted = _normalized_fact_name(fact)
+    if not wanted:
+        return False
+    assignment = record.get("assignment") or {}
+    for step in assignment.get("steps") or []:
+        if str(step.get("status") or "") != "applied":
+            continue
+        inputs = step.get("inputs") or {}
+        binding = inputs.get("resource_binding") or {}
+        columns = list(binding.get("columns") or [])
+        columns += list(inputs.get("columns") or [])
+        result = step.get("result") or {}
+        columns += list(result.get("columns") or [])
+        for column in columns:
+            if _normalized_fact_name(column) == wanted:
+                return True
+    return False
+
+
 def _artifact_text(kind: str, path: str) -> str:
     if kind == "document":
         import docx
@@ -2430,6 +2461,51 @@ class AssignmentExecutor:
             if str(waiting.get("correlation_id") or "") != str(
                     correlation_id or ""):
                 continue
+            fact = str(waiting.get("fact") or "").strip()
+            if fact and _source_provides_fact(record, fact):
+                conflict = {
+                    "correlation_id": correlation_id,
+                    "fact": fact,
+                    "response": _bounded(response, 2000),
+                    "source": _bounded(source, 200),
+                    "evidence": _bounded(evidence, 500),
+                    "at": _utc_now_iso(),
+                    "reason": "source_already_provides_fact",
+                }
+
+                def record_conflict(record, current):
+                    new_plan = copy.deepcopy(current)
+                    item = step_by_id(new_plan, step["step_id"])
+                    if item is None:
+                        return new_plan, {}
+                    waiting_now = dict(item.get("waiting") or {})
+                    conflicts = [
+                        dict(entry) for entry in
+                        (waiting_now.get("conflicts") or [])
+                        if isinstance(entry, dict)
+                    ]
+                    conflicts.append(conflict)
+                    waiting_now["conflicts"] = conflicts[-10:]
+                    item["waiting"] = waiting_now
+                    item["updated_at"] = _utc_now_iso()
+                    new_plan["updated_at"] = _utc_now_iso()
+                    return new_plan, {"step_id": step["step_id"]}
+
+                result = self.lifecycle.mutate_assignment(
+                    run_id, record_conflict,
+                    rationale=(
+                        f"external response disputed {fact}; source already "
+                        "provides the fact"))
+                return {
+                    "status": "conflict",
+                    "message": (
+                        f"The source already provides '{fact}'. The reply was "
+                        "recorded as a conflict and did not complete the "
+                        "waiting obligation."),
+                    "fact": fact,
+                    "conflict": conflict,
+                    **result,
+                }
             operation_id = _operation_id_for_step(record, step)
             if operation_id:
                 operation = _operation_by_id(record, operation_id) or {}
@@ -2451,6 +2527,7 @@ class AssignmentExecutor:
                 item["waiting"] = None
                 item["external_response"] = {
                     "correlation_id": correlation_id,
+                    "fact": fact,
                     "response": _bounded(response, 2000),
                     "source": _bounded(source, 200),
                     "evidence": _bounded(evidence, 500),
@@ -4898,6 +4975,48 @@ async def _artifact_presentation(inputs: Dict[str, Any], context: Dict[str, Any]
     }
 
 
+def compose_outbound_content(
+    inputs: Dict[str, Any], context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Compose one outbound email payload with the applicable teaching.
+
+    Both the approval preparation and the eventual send call this function,
+    so the approved payload and the outgoing payload cannot diverge on the
+    greeting, signature or subject prefix. The function is deterministic and
+    applies the protocol idempotently.
+    """
+    from core.artifact_teaching import apply_email_teaching
+
+    body = str(inputs.get("body") or "")
+    if not body.strip() and inputs.get("compose_from_results"):
+        body = _compose_evidence_text(inputs, context)
+    if not body.strip():
+        raise NeedsContext({
+            "concept": "email_content",
+            "reason": "the outbound message has no grounded body",
+            "question": "What grounded result should the outbound message carry?",
+            "kind": "missing_evidence",
+        })
+    content = {
+        "to": inputs.get("to") or [],
+        "cc": inputs.get("cc") or [],
+        "subject": str(inputs.get("subject") or ""),
+        "body": body,
+    }
+    if isinstance(content["to"], str):
+        content["to"] = [content["to"]]
+    content, findings = apply_email_teaching(
+        content, _office_format_spec(inputs, context))
+    blocked = [
+        finding for finding in findings
+        if finding.get("code") == "prohibited_internal_information"
+    ]
+    if blocked:
+        raise AssignmentError(
+            "the outbound message contains prohibited internal information")
+    return content
+
+
 def _email_draft_prepare(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     draft = _compose_email_draft(inputs, context)
     return {
@@ -4995,12 +5114,19 @@ def _outlook_send_prepare(inputs: Dict[str, Any], context: Dict[str, Any]) -> Di
             "question": "Which attachment sha256 binding authorizes this send?",
             "kind": "missing_evidence",
         })
+    content = (
+        compose_outbound_content(inputs, context)
+        if str(inputs.get("body") or "").strip()
+        or inputs.get("compose_from_results")
+        else None
+    )
     payload = {
         "canvas_id": inputs.get("canvas_id"),
-        "to": inputs.get("to") or [],
-        "cc": inputs.get("cc") or [],
-        "subject": inputs.get("subject") or "",
-        "body": inputs.get("body") or "",
+        "to": (content or {}).get("to") or inputs.get("to") or [],
+        "cc": (content or {}).get("cc") or inputs.get("cc") or [],
+        "subject": (content or {}).get("subject")
+        or inputs.get("subject") or "",
+        "body": (content or {}).get("body") or inputs.get("body") or "",
         "attachment_ids": attachment_ids,
         "attachment_hashes": attachment_hashes,
         "thread_id": inputs.get("thread_id"),
@@ -5040,19 +5166,28 @@ async def _outlook_send(inputs: Dict[str, Any], context: Dict[str, Any]) -> Dict
             "question": "Which prepared draft should be sent?",
             "kind": "missing_evidence",
         })
-    recipients = inputs.get("to") or []
+    content = (
+        compose_outbound_content(inputs, context)
+        if str(inputs.get("body") or "").strip()
+        or inputs.get("compose_from_results")
+        else None
+    )
+    recipients = (content or {}).get("to") or inputs.get("to") or []
     if isinstance(recipients, str):
         recipients = [item.strip() for item in recipients.split(",")
                       if item.strip()]
+    subject = (content or {}).get("subject") or inputs.get("subject") or ""
+    body = (content or {}).get("body") or inputs.get("body") or ""
     with get_db_session() as db:
         service = EmailCanvasService(db)
         result = await service.send_email(
             canvas_id=canvas_id,
             user_id=str(context.get("employee_id") or ""),
             to_emails=list(recipients),
-            cc_emails=list(inputs.get("cc") or []),
-            subject=str(inputs.get("subject") or ""),
-            body=str(inputs.get("body") or ""),
+            cc_emails=list((content or {}).get("cc")
+                           or inputs.get("cc") or []),
+            subject=str(subject),
+            body=str(body),
             agent_id=str(context.get("agent_id") or "") or None,
             tenant_id=str(context.get("tenant_id") or "default"),
             attachment_ids=list(inputs.get("attachment_ids") or []) or None,

@@ -233,7 +233,7 @@ export async function recordAssignmentResponse(
   correlationId: string,
   response: string,
   evidence = ""
-): Promise<AssignmentDetail> {
+): Promise<Record<string, any>> {
   const { data } = await apiClient.post<AssignmentDetail>(
     `/api/assignments/${encodeURIComponent(runId)}/responses/${encodeURIComponent(correlationId)}`,
     { response, evidence }

@@ -707,12 +707,16 @@ def apply_email_teaching(
     if prefix and not subject.startswith(prefix):
         out["subject"] = f"{prefix} {subject}".strip()
     body = str(out.get("body") or "")
+    # Preserve the body's format: HTML bodies get paragraph tags, plain-text
+    # bodies (including the controlled outbox) stay readable text.
+    is_html = bool(re.search(r"<[a-zA-Z][^>]*>", body))
     greeting = str(spec.get("greeting") or "").strip()
     if greeting and not body.lstrip().lower().startswith(greeting.lower()):
-        body = f"<p>{greeting}</p>" + body
+        body = (f"<p>{greeting}</p>" if is_html else f"{greeting}\n\n") + body
     signature = str(spec.get("signature") or "").strip()
     if signature and signature not in body:
-        body = body.rstrip() + f"<p>{signature}</p>"
+        body = body.rstrip() + (
+            f"<p>{signature}</p>" if is_html else f"\n\n{signature}")
     out["body"] = body
     out["draft_only"] = True
     out["send_performed"] = False

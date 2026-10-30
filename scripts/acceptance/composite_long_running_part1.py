@@ -115,7 +115,8 @@ def teach(page, *, lesson: str, topic: str, applies: str | None = None,
 
 def fill_start(page, *, frontend: str, agent_id: str, source_file: str,
                objective: str, qualification: str, task_scope: str,
-               correlation: str, recipient: str) -> str:
+               correlation: str, recipient: str,
+               missing_fact: str = "delivery_term") -> str:
     # A fresh query string remounts the panel after a refused attempt; a
     # same-route goto can preserve the previous form/busy state in Next.js.
     page.goto(f"{frontend}/assignments?attempt={time.time_ns()}",
@@ -151,6 +152,7 @@ def fill_start(page, *, frontend: str, agent_id: str, source_file: str,
     page.get_by_text("Advanced (optional)", exact=False).click()
     page.get_by_test_id("assignment-recipient-input").fill(recipient)
     page.get_by_test_id("assignment-correlation-input").fill(correlation)
+    page.get_by_test_id("assignment-missing-fact-input").fill(missing_fact)
     button = page.get_by_test_id("assignment-start-button")
     print("start.disabled", button.is_disabled(), flush=True)
     button.click()

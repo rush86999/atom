@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
-"""Verify the completed composite run and the revised-scope second run."""
+"""Verify the completed composite run and the revised-scope second run.
+
+The verifier enforces the claims it records. A mismatch raises and exits
+nonzero; ``--negative-controls`` proves that wrong font, unchanged revision,
+duplicate operation, missing email protocol and contradictory completion are
+all rejected by the same validator.
+"""
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
+import sys
 import time
 import urllib.request
 from pathlib import Path
@@ -64,6 +72,13 @@ def download(page, out: Path, stem: str) -> dict:
     }
 
 
+def _result_value(state: dict, step_id: str) -> str:
+    for step in state["assignment"].get("steps") or []:
+        if step.get("step_id") == step_id:
+            return str(step.get("result_value") or "")
+    return ""
+
+
 def start_and_resolve(page, *, frontend: str, agent_id: str, source_file: str,
                       objective: str, candidate: str) -> None:
     page.goto(f"{frontend}/assignments?attempt={time.time_ns()}",
@@ -90,6 +105,110 @@ def start_and_resolve(page, *, frontend: str, agent_id: str, source_file: str,
     detail.get_by_text("completed", exact=True).wait_for(timeout=120000)
 
 
+def _assert(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
+
+
+def validate(record: dict, expected: dict) -> None:
+    """Enforce every property the campaign claims."""
+    _assert(record.get("active", {}).get("status") == "completed",
+            "active assignment did not complete")
+    _assert(record["active"]["teaching_revision"] == expected["active_revision"],
+            "active teaching revision changed")
+    active_mapping = (record["active"].get("mapping") or [{}])[0]
+    _assert(active_mapping.get("concept") == "Price",
+            "active mapping concept is not Price")
+    _assert(active_mapping.get("column") == expected["active_column"],
+            f"active mapping column is {active_mapping.get('column')!r}")
+    _assert(record["active"].get("result_value") == expected["active_result"],
+            f"active result is {record['active'].get('result_value')!r}")
+    _assert(record["active"]["artifact"]["normal_font"]
+            == expected["active_font"], "active font mismatch")
+    _assert(float(record["active"]["artifact"]["normal_size"])
+            == float(expected["active_size"]), "active font size mismatch")
+    _assert(expected["active_sha"] in ("", record["active"]["artifact"]["sha256"]),
+            "active artifact hash mismatch")
+    _assert("FOB destination" in record["active"]["artifact"]["text"],
+            "active artifact lacks the supplied delivery term")
+    _assert("Currency unstated" not in record["active"]["artifact"]["text"],
+            "active artifact contains the contradictory currency statement")
+
+    _assert(record.get("second", {}).get("status") == "completed",
+            "second assignment did not complete")
+    _assert(record["second"]["teaching_revision"]
+            != record["active"]["teaching_revision"],
+            "new work did not adopt a new teaching revision")
+    second_mapping = (record["second"].get("mapping") or [{}])[0]
+    _assert(second_mapping.get("concept") == "Price",
+            "second mapping concept is not Price")
+    _assert(second_mapping.get("column") == expected["second_column"],
+            f"second mapping column is {second_mapping.get('column')!r}")
+    _assert(record["second"].get("result_value") == expected["second_result"],
+            f"second result is {record['second'].get('result_value')!r}")
+    _assert(record["second"]["artifact"]["normal_font"]
+            == expected["second_font"], "second font mismatch")
+    _assert(float(record["second"]["artifact"]["normal_size"])
+            == float(expected["second_size"]), "second font size mismatch")
+    _assert(expected["second_sha"] in ("", record["second"]["artifact"]["sha256"]),
+            "second artifact hash mismatch")
+
+    lines = record.get("outbox") or []
+    _assert(len(lines) == 1, f"expected one outbox line, got {len(lines)}")
+    operations = [line.get("operation_id") for line in lines]
+    _assert(len(operations) == len(set(operations)),
+            "duplicate outbox operation")
+    subject = str(lines[0].get("subject") or "")
+    body = str(lines[0].get("body") or "")
+    _assert(subject.startswith(expected["subject_prefix"]),
+            f"outbox subject lacks {expected['subject_prefix']!r}")
+    _assert(body.lstrip().lower().startswith(expected["greeting"].lower()),
+            "outbox body lacks the taught greeting")
+    _assert(expected["signature"] in body,
+            "outbox body lacks the taught signature")
+    _assert("FOB destination" in body,
+            "outbox body lacks the supplied delivery term")
+    _assert("Currency unstated" not in body,
+            "outbox body contains the contradictory currency statement")
+
+
+def negative_controls(record: dict, expected: dict, out: Path) -> dict:
+    """Prove the validator rejects each claimed-property regression."""
+    cases = {
+        "wrong_font": lambda r: r["active"]["artifact"].__setitem__(
+            "normal_font", "Times New Roman"),
+        "unchanged_revision": lambda r: r["second"].__setitem__(
+            "teaching_revision", r["active"]["teaching_revision"]),
+        "duplicate_operation": lambda r: r["outbox"].append(
+            dict(r["outbox"][0])),
+        "missing_protocol": lambda r: r["outbox"][0].__setitem__(
+            "subject", "No protocol prefix"),
+        "contradictory_completion": lambda r: r["active"]["artifact"].__setitem__(
+            "text", r["active"]["artifact"]["text"]
+            + "\nCurrency unstated by source; report the total without a currency."),
+    }
+    results = {}
+    for name, mutate in cases.items():
+        candidate = copy.deepcopy(record)
+        mutate(candidate)
+        try:
+            validate(candidate, expected)
+        except AssertionError as exc:
+            results[name] = {"rejected": True, "reason": str(exc)}
+        else:
+            results[name] = {"rejected": False, "reason": "validator accepted"}
+    passed = all(item["rejected"] for item in results.values())
+    payload = {
+        "schema": "atom-composite-verifier-negative-controls-1",
+        "status": "passed" if passed else "failed",
+        "cases": results,
+    }
+    (out / "negative-controls.json").write_text(json.dumps(payload, indent=2) + "\n")
+    if not passed:
+        raise AssertionError(f"negative controls failed: {results}")
+    return payload
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--frontend", required=True)
@@ -99,6 +218,15 @@ def main() -> int:
     ap.add_argument("--objective", required=True)
     ap.add_argument("--second-objective", required=True)
     ap.add_argument("--outbox", required=True)
+    ap.add_argument("--expected-active-sha", default="")
+    ap.add_argument("--expected-second-sha", default="")
+    ap.add_argument("--expected-active-font", default="Arial")
+    ap.add_argument("--expected-active-size", default="11")
+    ap.add_argument("--expected-second-font", default="Calibri")
+    ap.add_argument("--expected-second-size", default="14")
+    ap.add_argument("--expected-active-result", default="400.00")
+    ap.add_argument("--expected-second-result", default="2225.75")
+    ap.add_argument("--negative-controls", action="store_true")
     args = ap.parse_args()
 
     out = Path(args.out_dir).resolve()
@@ -110,7 +238,7 @@ def main() -> int:
         page = browser.new_page(viewport={"width": 1440, "height": 1200})
         login(page, args.frontend, password)
 
-        detail = open_assignment(page, args.frontend, args.objective)
+        open_assignment(page, args.frontend, args.objective)
         active_artifact = download(page, out, "active-reload")
         active_state = api(page, f"/api/assignments/{part1['run_id']}")
         page.reload(wait_until="domcontentloaded")
@@ -130,15 +258,24 @@ def main() -> int:
         page.screenshot(path=str(out / "revised-completed.png"), full_page=True)
         browser.close()
 
-    outbox = Path(args.outbox)
+    outbox_path = Path(args.outbox)
+    outbox_lines = [
+        json.loads(line) for line in outbox_path.read_text().splitlines()
+        if line.strip()
+    ] if outbox_path.is_file() else []
+    final_lines = [
+        line for line in outbox_lines
+        if args.objective in str(line.get("subject") or "")
+    ]
     record = {
-        "schema": "atom-composite-long-running-verify-1",
+        "schema": "atom-composite-long-running-verify-2",
         "status": "passed",
         "active": {
             "run_id": part1["run_id"],
             "status": active_state["assignment"]["status"],
             "teaching_revision": active_state["assignment"]["teaching_revision"],
             "mapping": active_state["assignment"]["mappings"],
+            "result_value": _result_value(active_state, "source-1"),
             "artifact": active_artifact,
         },
         "second": {
@@ -146,18 +283,51 @@ def main() -> int:
             "status": second_state["assignment"]["status"],
             "teaching_revision": second_state["assignment"]["teaching_revision"],
             "mapping": second_state["assignment"]["mappings"],
+            "result_value": _result_value(second_state, "source-1"),
             "artifact": second_artifact,
         },
         "teaching_revision_changed_for_new_work": (
             second_state["assignment"]["teaching_revision"]
             != active_state["assignment"]["teaching_revision"]),
-        "outbox_lines": (
-            len(outbox.read_text().splitlines()) if outbox.is_file() else None),
+        "outbox": final_lines,
+        "outbox_all_lines": len(outbox_lines),
     }
+    expected = {
+        "active_revision": part1["teaching_revision"],
+        "active_column": "Gross Amount",
+        "active_result": args.expected_active_result,
+        "active_font": args.expected_active_font,
+        "active_size": args.expected_active_size,
+        "active_sha": args.expected_active_sha,
+        "second_column": "Net Amount",
+        "second_result": args.expected_second_result,
+        "second_font": args.expected_second_font,
+        "second_size": args.expected_second_size,
+        "second_sha": args.expected_second_sha,
+        "subject_prefix": "[Quote]",
+        "greeting": "Dear colleague,",
+        "signature": "Sales team",
+    }
+    try:
+        validate(record, expected)
+    except AssertionError as exc:
+        record["status"] = "failed"
+        record["failure"] = str(exc)
+        (out / "verify.json").write_text(json.dumps(record, indent=2) + "\n")
+        print(json.dumps(record, indent=2))
+        return 1
+
+    if args.negative_controls:
+        negative_controls(record, expected, out)
+
     (out / "verify.json").write_text(json.dumps(record, indent=2) + "\n")
     print(json.dumps(record, indent=2))
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except AssertionError as exc:
+        print(f"VERIFY FAILED: {exc}", file=sys.stderr)
+        raise SystemExit(2)

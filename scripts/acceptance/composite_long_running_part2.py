@@ -137,6 +137,9 @@ def main() -> int:
     ap.add_argument("--second-objective",
                     default="Sum Price for the revised clean quote sheet")
     ap.add_argument("--outbox", default="")
+    ap.add_argument(
+        "--response",
+        default="FOB destination; delivery term supplied by the customer.")
     args = ap.parse_args()
 
     out = Path(args.out_dir).resolve()
@@ -181,8 +184,7 @@ def main() -> int:
 
         open_assignment(page, args.frontend, args.objective)
         detail = page.get_by_test_id("assignment-detail")
-        detail.get_by_label("Correlated response").fill(
-            "Currency unstated by source; report the total without a currency.")
+        detail.get_by_label("Correlated response").fill(args.response)
         detail.get_by_role("button", name="Deliver").click()
         page.wait_for_timeout(2000)
         if detail.get_by_text("Approval required", exact=False).count():
