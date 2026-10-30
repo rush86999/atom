@@ -20,7 +20,7 @@ evidence bound to an earlier source, not automatically a successor pass;
 | 8 | Email/documents/presentations | Y draft/format/reopen | Y | H | Y | Y | Send — | — |
 | 9 | User-created canvases inherit capabilities | Y table adapter; two shapes current | Y | H | Y | Y | — | — |
 | 10 | Long-running employee work | Y controlled wait/approval/restart | Y | H | Y | Y | — | — |
-| 11 | Approval/eventual sending | Draft/approval + attachment-byte Y; send gated | Y | H (draft) | Y | Y | — | — |
+| 11 | Approval/eventual sending | Draft/approval + attachment-byte Y; sender/Sent Items verified; awaiting recipient/window | Y | H (draft) | Y | Y | — | — |
 | 12 | Usability/security/operations | Successor package prepared | Y (22 kit controls) | Y current mapping flows | Y | Y | — | Not deployed |
 
 ### Live research qualification — observed

@@ -90,11 +90,18 @@ Atom
 - **Attachment size:** 37,082 bytes
 - **Content check:** the saved DOCX contains `Currency: unstated by source.`, contains no `USD` claim, and its table carries the QTY-derived total.
 - **Recheck:** full path, size, extracted content and SHA-256 immediately before transport.
-- **Missing:** sender UPN, recipient, approval window, provider receipt source, reconciliation window.
+- **Only missing inputs:** confirm sender `rish@brennan.ca`, approved recipient,
+  and send window start/end.
+- **Receipt:** Graph Sent Items exact match on message id/internetMessageId,
+  subject, recipient and attachment SHA-256. Provider acceptance is recorded
+  separately from delivery.
+- **Ambiguous outcome:** up to three read-only Sent Items checks over 10
+  minutes; if unresolved, stop for review and never resend automatically.
+- **Restart:** operation binding/idempotency prevents a second send.
 
 **After authorization:** exact payload-bound approval → transport → provider
-acceptance recorded separately from delivery → reconciliation → restart/
-no-duplicate verification. No global send enablement.
+acceptance → Sent Items reconciliation → restart/no-duplicate verification. No
+global send enablement.
 
 ## Operation 3 — deployment
 

@@ -37,27 +37,47 @@ The successor adds the last local send-boundary control:
 Local tests cover the hash binding, planner refusal, approval-payload change
 and pre-transport block. No real transport is attempted.
 
-## Required owner inputs — still missing
+## Sender identity and permissions — verified presence-only
 
-1. **Sending account**: exact mailbox/UPN and tenant; confirmation that it is
-   the account whose delegated grant will be used.
-2. **Permission**: current `Mail.Send` delegated grant on that account, or a
-   separately reviewed application-permission design. The existing code uses
-   delegated `/me/sendMail`; a missing scope is refused, not widened.
-3. **Test recipient**: one owner-approved external recipient address. Do not
-   use a real customer or an invented address.
-4. **Exact payload approval**: subject, body (verbatim), attachment file(s),
-   each attachment SHA-256, and whether the attachment is the rendered
-   artifact. The implementation now refuses an attachment id without a
-   matching hash.
-5. **Approver identity and window**: who may approve the exact payload and the
-   bounded test window.
-6. **Provider receipt source**: how the owner will expose the Sent Items /
-   Graph message id for reconciliation.
-7. **Reconciliation window**: how long to wait before classifying an ambiguous
-   transport result, and who decides a retry.
-8. **Data handling**: whether the test message/attachment may remain in the
-   mailbox and where the evidence is stored.
+- Authenticated mailbox: `rish@brennan.ca` (`Rish Maniar`), established via a
+  read-only `/me` check during the authorized research qualification.
+- Delegated scopes include `Mail.Send` and `Mail.ReadWrite`; the refreshed
+  access token is valid until `2026-10-30T13:04Z`. `Mail.ReadWrite` covers the
+  Sent Items read needed for receipt reconciliation.
+- Existing code path: `OutlookService.list_emails(folder="sentitems")` and
+  `get_latest_conversation_message_id` read Sent Items; the send path uses
+  delegated `/me/sendMail`.
+
+## Minimal owner inputs
+
+Only three inputs are still needed:
+
+1. Confirm sender `rish@brennan.ca` is the intended mailbox.
+2. Supply one approved recipient address.
+3. Supply the send window start/end.
+
+The receipt and reconciliation mechanism is proposed below; the owner does not
+need to design it.
+
+## Proposed receipt and reconciliation policy
+
+- **Receipt:** after provider acceptance, read Graph Sent Items and match the
+  exact `internetMessageId` (or provider message id), subject, recipient and
+  attachment SHA-256. Record the Sent Items message id, conversation id and
+  sent timestamp.
+- **Provider acceptance vs delivery:** a 2xx `/me/sendMail` or Sent Items match
+  proves provider acceptance, not recipient delivery. `delivery_confirmed`
+  stays false without independent recipient evidence.
+- **Ambiguous outcome:** if the transport times out or the response is
+  uncertain, do not resend. Perform up to three read-only Sent Items checks
+  over a 10-minute window. If the exact message appears, reconcile as applied;
+  if not, leave the operation `uncertain` and stop for owner review.
+- **Restart/no-duplicate:** the operation binding and idempotency key prevent a
+  second send; after restart, verify the operation status, provider reference
+  and attachment hash before any further action.
+- **Data handling:** the test message and attachment remain in Sent Items; the
+  evidence record contains ids/hashes, not credentials or message bodies beyond
+  the approved payload.
 
 Drafting permission is **not** send permission. Approval of a draft is **not**
 approval of a real provider send.
