@@ -728,7 +728,8 @@ export function AssignmentPanel({
                         String(step.waiting.correlation_id),
                         responseDraft
                       );
-                      if (result?.status === "conflict") {
+                      if (result?.status === "conflict"
+                          || result?.status === "partial") {
                         setNotice(
                           String(result.message || "The reply conflicts with "
                             + "the source and did not complete the wait.")

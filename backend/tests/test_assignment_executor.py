@@ -1174,7 +1174,9 @@ def test_external_response_contradicting_source_fact_stays_waiting(env):
     """A reply that denies a fact the source already has is a conflict."""
     async def source(inputs, context):
         return {"status": "applied", "summary": "source read",
-                "value": "400.00", "unit": "USD"}
+                "value": "400.00", "unit": "USD",
+                "values": [{"currency": "USD", "value": "400.00"}],
+                "subtotals": {"USD": {"rows": 1, "value": "400.00"}}}
 
     async def wait_fact(inputs, context):
         step = context.get("step") or {}
@@ -1218,7 +1220,7 @@ def test_external_response_contradicting_source_fact_stays_waiting(env):
         env["lifecycle"].get_assignment(run_id), "wait")
     assert wait_step["status"] == "waiting"
     conflicts = (wait_step.get("waiting") or {}).get("conflicts") or []
-    assert conflicts and conflicts[-1]["reason"] == "source_already_provides_fact"
+    assert conflicts and conflicts[-1]["reason"] == "source_fact_conflict"
     assert "Currency unstated" in conflicts[-1]["response"]
 
 
@@ -1271,3 +1273,115 @@ def test_external_response_for_genuinely_missing_fact_resumes(env):
         env["lifecycle"].get_assignment(run_id), "wait")
     assert wait_step["status"] == "applied"
     assert wait_step["external_response"]["fact"] == "delivery_term"
+
+
+def _wait_assignment(env, *, correlation: str, fact: str, source_values):
+    async def source(inputs, context):
+        return {"status": "applied", "summary": "source read",
+                "value": "400.00", "unit": "USD",
+                "values": source_values,
+                "subtotals": {
+                    str(item.get("currency") or ""): {"rows": 1,
+                                                      "value": item.get("value")}
+                    for item in source_values
+                }}
+
+    async def wait_fact(inputs, context):
+        step = context.get("step") or {}
+        if step.get("external_response"):
+            return {"status": "applied", "summary": "reply received",
+                    "value": step["external_response"].get("response")}
+        raise WaitingForExternal({
+            "event": "email",
+            "state": "waiting_for_external",
+            "party": "owner",
+            "correlation_id": correlation,
+            "resume_on": "response",
+            "detail": f"{fact} confirmation",
+            "fact": fact,
+        })
+
+    env["registry"].register("test.source", source)
+    env["registry"].register("test.wait_fact", wait_fact)
+    steps = [
+        new_step(
+            step_id="source", title="Read source",
+            operation_type="retrieve", adapter="test.source",
+            inputs={"resource_binding": {"columns": ["Currency", "Price"]}},
+            effect="read_only"),
+        new_step(
+            step_id="wait", title=f"Wait for {fact}",
+            operation_type="retrieve", adapter="test.wait_fact",
+            depends_on=["source"], effect="read_only"),
+    ]
+    return _create(
+        env, objective=f"Wait on {fact}", steps=steps, teaching=_teaching())
+
+
+def test_blank_currency_value_accepts_authorized_resolution_and_survives_restart(env):
+    run_id, _ = _wait_assignment(
+        env, correlation="corr-blank", fact="currency",
+        source_values=[{"currency": None, "value": "400.00"}])
+    executor = env["executor"]
+    first = _run(executor.execute(run_id))
+    assert first["assignment"]["status"] == "waiting"
+
+    result = executor.record_external_response(
+        run_id, "corr-blank", response="USD")
+    assert result["status"] == "resumed"
+    _run(executor.execute(run_id))
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "applied"
+    assert wait_step["external_response"]["fact_resolution"]["status"] == "missing"
+    assert "fact_confirmation" not in wait_step["external_response"]
+
+    # Restart: the same completed wait is not dispatched a second time.
+    before = len([
+        op for op in env["lifecycle"].get_task(run_id)["operations"]
+        if op.get("step_id") == "wait" and op.get("status") == "applied"
+    ])
+    restarted = AssignmentExecutor(env["lifecycle"], adapters=env["registry"])
+    _run(restarted.resume(run_id))
+    after = len([
+        op for op in env["lifecycle"].get_task(run_id)["operations"]
+        if op.get("step_id") == "wait" and op.get("status") == "applied"
+    ])
+    assert before == 1 and after == 1
+
+
+def test_agreeing_currency_response_is_confirmation_not_conflict(env):
+    run_id, _ = _wait_assignment(
+        env, correlation="corr-agree", fact="currency",
+        source_values=[{"currency": "USD", "value": "400.00"}])
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-agree", response="USD")
+    assert result["status"] == "resumed"
+    _run(executor.execute(run_id))
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "applied"
+    confirmation = wait_step["external_response"]["fact_confirmation"]
+    assert confirmation["reason"] == "source_fact_confirmed"
+    assert confirmation["values"] == ["USD"]
+
+
+def test_mixed_currency_values_require_record_specific_resolution(env):
+    run_id, _ = _wait_assignment(
+        env, correlation="corr-mixed", fact="currency",
+        source_values=[{"currency": "USD", "value": "400.00"},
+                       {"currency": None, "value": "100.00"}])
+    executor = env["executor"]
+    _run(executor.execute(run_id))
+    result = executor.record_external_response(
+        run_id, "corr-mixed", response="USD")
+    assert result["status"] == "partial"
+    wait_step = step_by_id(
+        env["lifecycle"].get_assignment(run_id), "wait")
+    assert wait_step["status"] == "waiting"
+    conflict = (wait_step["waiting"]["conflicts"] or [])[-1]
+    assert conflict["reason"] == "source_fact_mixed"
+    assert conflict["blank_subjects"]
+    assert conflict["established_values"] == ["USD"]

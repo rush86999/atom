@@ -86,7 +86,7 @@ def main() -> int:
         detail = page.get_by_test_id("assignment-detail")
         detail.get_by_label("Correlated response").fill(args.response)
         detail.get_by_role("button", name="Deliver").click()
-        page.get_by_text("source already provides", exact=False).wait_for(
+        page.get_by_text("already establishes", exact=False).wait_for(
             timeout=30000)
         page.wait_for_timeout(1000)
         page.screenshot(path=str(out / "negative-control.png"), full_page=True)

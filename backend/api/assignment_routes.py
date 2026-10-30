@@ -699,10 +699,10 @@ async def record_assignment_response(
     )
     if result.get("status") == "unmatched":
         raise HTTPException(status_code=404, detail=result.get("message"))
-    if result.get("status") == "conflict":
-        # The reply was retained as a durable conflict and the wait remains
-        # open. Do not resume and do not turn the conflict into a generic
-        # assignment projection the UI cannot explain.
+    if result.get("status") in ("conflict", "partial"):
+        # The reply was retained as a durable conflict or record-specific
+        # partial answer and the wait remains open. Do not resume and do not
+        # turn it into a generic assignment projection the UI cannot explain.
         return result
     return await executor.resume(run_id)
 

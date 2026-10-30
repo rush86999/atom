@@ -730,16 +730,24 @@ def _normalized_fact_name(value: Any) -> str:
         re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).split())
 
 
-def _source_provides_fact(record: Dict[str, Any], fact: str) -> bool:
-    """Whether an applied source already exposes the named fact.
+def _is_blank_fact_value(value: Any) -> bool:
+    if value is None:
+        return True
+    text = str(value).strip().lower()
+    return text in {"", "nan", "none", "null", "n/a", "na", "unknown", "unstated"}
 
-    This is a schema-level contradiction check, not a value inference: a
-    column named ``Currency`` means the source has a currency field, so a
-    reply claiming currency is unstated cannot silently close that wait.
+
+def _source_fact_resolution(record: Dict[str, Any], fact: str) -> Dict[str, Any]:
+    """Resolve the wait fact against the bound records' actual values.
+
+    A column name is not an established fact. Blank cells are missing, a
+    single non-blank value is established, and a mix of blank and non-blank
+    cells is record-specific unresolved work. The returned subject/source/
+    version fields are preserved for the conflict record.
     """
     wanted = _normalized_fact_name(fact)
     if not wanted:
-        return False
+        return {"status": "unknown", "reason": "no_fact", "fact": fact}
     assignment = record.get("assignment") or {}
     for step in assignment.get("steps") or []:
         if str(step.get("status") or "") != "applied":
@@ -750,10 +758,106 @@ def _source_provides_fact(record: Dict[str, Any], fact: str) -> bool:
         columns += list(inputs.get("columns") or [])
         result = step.get("result") or {}
         columns += list(result.get("columns") or [])
-        for column in columns:
-            if _normalized_fact_name(column) == wanted:
-                return True
-    return False
+        column = next((
+            item for item in columns
+            if _normalized_fact_name(item) == wanted), None)
+        if not column:
+            continue
+        evidence = result.get("evidence") or []
+        path = str(binding.get("path") or next(
+            (item.get("path") for item in evidence
+             if isinstance(item, dict) and item.get("path")), "") or "")
+        source = {
+            "resource_id": binding.get("resource_id"),
+            "dataset_name": binding.get("dataset_name"),
+            "file_name": binding.get("original_file_name"),
+            "sheet": binding.get("sheet"),
+            "source_version": binding.get("source_version"),
+            "column": column,
+        }
+        values: List[str] = []
+        subjects: List[str] = []
+        blank_subjects: List[str] = []
+        if path and Path(path).is_file():
+            try:
+                import pyarrow.parquet as pq
+
+                read_columns = [column]
+                if "__sheet_row" in columns:
+                    read_columns.append("__sheet_row")
+                table = pq.read_table(path, columns=read_columns)
+                for index, row in enumerate(table.to_pylist()):
+                    raw = row.get(column)
+                    subject = (
+                        f"row {row.get('__sheet_row')}"
+                        if row.get("__sheet_row") is not None
+                        else f"row {index + 1}")
+                    if _is_blank_fact_value(raw):
+                        blank_subjects.append(subject)
+                    else:
+                        text = str(raw).strip()
+                        if text not in values:
+                            values.append(text)
+                        subjects.append(subject)
+            except Exception:  # noqa: BLE001 — fall through to result values
+                pass
+        if not values and not blank_subjects:
+            # Aggregate results carry the grouping key (for example the
+            # currency code) even when the row frame is not re-read here.
+            for item in result.get("values") or []:
+                if not isinstance(item, dict):
+                    continue
+                for key, value in item.items():
+                    if _normalized_fact_name(key) != wanted:
+                        continue
+                    if _is_blank_fact_value(value):
+                        blank_subjects.append("aggregate")
+                    else:
+                        text = str(value).strip()
+                        if text not in values:
+                            values.append(text)
+            subtotals = result.get("subtotals")
+            if isinstance(subtotals, dict):
+                for key in subtotals:
+                    if _is_blank_fact_value(key):
+                        blank_subjects.append("aggregate")
+                    else:
+                        text = str(key).strip()
+                        if text not in values:
+                            values.append(text)
+        if values and blank_subjects:
+            status = "mixed"
+        elif values:
+            status = "established"
+        elif blank_subjects:
+            status = "missing"
+        else:
+            status = "missing"
+        return {
+            "status": status,
+            "fact": fact,
+            "column": column,
+            "values": values,
+            "subjects": subjects,
+            "blank_subjects": blank_subjects,
+            "source": source,
+            "source_version": source.get("source_version"),
+        }
+    return {"status": "missing", "fact": fact, "reason": "no_bound_column"}
+
+
+def _response_agrees_fact(response: str, values: Sequence[str]) -> bool:
+    text = _normalized_fact_name(response)
+    if not text:
+        return False
+    if any(token in text for token in
+           ("unstated", "unknown", "not stated", "missing", "none", "n/a")):
+        return False
+    return any(
+        _normalized_fact_name(value)
+        and _normalized_fact_name(value) in text
+        for value in values
+    )
 
 
 def _artifact_text(kind: str, path: str) -> str:
@@ -2456,56 +2560,94 @@ class AssignmentExecutor:
         # human question (e.g. a controlled reply). Match the step's durable
         # correlation id, never the message wording.
         assignment = record.get("assignment") or {}
+        fact_confirmation: Optional[Dict[str, Any]] = None
         for step in assignment.get("steps") or []:
             waiting = step.get("waiting") or {}
             if str(waiting.get("correlation_id") or "") != str(
                     correlation_id or ""):
                 continue
             fact = str(waiting.get("fact") or "").strip()
-            if fact and _source_provides_fact(record, fact):
-                conflict = {
-                    "correlation_id": correlation_id,
-                    "fact": fact,
-                    "response": _bounded(response, 2000),
-                    "source": _bounded(source, 200),
-                    "evidence": _bounded(evidence, 500),
-                    "at": _utc_now_iso(),
-                    "reason": "source_already_provides_fact",
-                }
+            fact_resolution = (
+                _source_fact_resolution(record, fact)
+                if fact else {"status": "unknown", "fact": fact})
+            fact_status = str(fact_resolution.get("status") or "unknown")
+            if fact and fact_status in ("established", "mixed"):
+                agrees = _response_agrees_fact(
+                    response, fact_resolution.get("values") or [])
+                if fact_status == "established" and agrees:
+                    fact_confirmation = {
+                        "correlation_id": correlation_id,
+                        "fact": fact,
+                        "response": _bounded(response, 2000),
+                        "source": fact_resolution.get("source") or {},
+                        "source_version": fact_resolution.get("source_version"),
+                        "values": fact_resolution.get("values") or [],
+                        "subjects": fact_resolution.get("subjects") or [],
+                        "at": _utc_now_iso(),
+                        "reason": "source_fact_confirmed",
+                    }
+                else:
+                    conflict_status = (
+                        "partial" if fact_status == "mixed" else "conflict")
+                    conflict = {
+                        "correlation_id": correlation_id,
+                        "fact": fact,
+                        "response": _bounded(response, 2000),
+                        "source": _bounded(source, 200),
+                        "evidence": _bounded(evidence, 500),
+                        "at": _utc_now_iso(),
+                        "reason": (
+                            "source_fact_mixed"
+                            if fact_status == "mixed"
+                            else "source_fact_conflict"),
+                        "column": fact_resolution.get("column"),
+                        "established_values": (
+                            fact_resolution.get("values") or []),
+                        "subjects": fact_resolution.get("subjects") or [],
+                        "blank_subjects": (
+                            fact_resolution.get("blank_subjects") or []),
+                        "source_ref": fact_resolution.get("source") or {},
+                        "source_version": (
+                            fact_resolution.get("source_version")),
+                    }
 
-                def record_conflict(record, current):
-                    new_plan = copy.deepcopy(current)
-                    item = step_by_id(new_plan, step["step_id"])
-                    if item is None:
-                        return new_plan, {}
-                    waiting_now = dict(item.get("waiting") or {})
-                    conflicts = [
-                        dict(entry) for entry in
-                        (waiting_now.get("conflicts") or [])
-                        if isinstance(entry, dict)
-                    ]
-                    conflicts.append(conflict)
-                    waiting_now["conflicts"] = conflicts[-10:]
-                    item["waiting"] = waiting_now
-                    item["updated_at"] = _utc_now_iso()
-                    new_plan["updated_at"] = _utc_now_iso()
-                    return new_plan, {"step_id": step["step_id"]}
+                    def record_conflict(record, current):
+                        new_plan = copy.deepcopy(current)
+                        item = step_by_id(new_plan, step["step_id"])
+                        if item is None:
+                            return new_plan, {}
+                        waiting_now = dict(item.get("waiting") or {})
+                        conflicts = [
+                            dict(entry) for entry in
+                            (waiting_now.get("conflicts") or [])
+                            if isinstance(entry, dict)
+                        ]
+                        conflicts.append(conflict)
+                        waiting_now["conflicts"] = conflicts[-10:]
+                        item["waiting"] = waiting_now
+                        item["updated_at"] = _utc_now_iso()
+                        new_plan["updated_at"] = _utc_now_iso()
+                        return new_plan, {"step_id": step["step_id"]}
 
-                result = self.lifecycle.mutate_assignment(
-                    run_id, record_conflict,
-                    rationale=(
-                        f"external response disputed {fact}; source already "
-                        "provides the fact"))
-                return {
-                    "status": "conflict",
-                    "message": (
-                        f"The source already provides '{fact}'. The reply was "
-                        "recorded as a conflict and did not complete the "
-                        "waiting obligation."),
-                    "fact": fact,
-                    "conflict": conflict,
-                    **result,
-                }
+                    result = self.lifecycle.mutate_assignment(
+                        run_id, record_conflict,
+                        rationale=(
+                            f"external response did not resolve {fact}; "
+                            f"source fact status is {fact_status}"))
+                    message = (
+                        f"The source already establishes '{fact}' and the "
+                        "reply conflicts with it."
+                        if conflict_status == "conflict"
+                        else (
+                            f"The source has a partial '{fact}' value; some "
+                            "records still need a record-specific answer."))
+                    return {
+                        "status": conflict_status,
+                        "message": message,
+                        "fact": fact,
+                        "conflict": conflict,
+                        **result,
+                    }
             operation_id = _operation_id_for_step(record, step)
             if operation_id:
                 operation = _operation_by_id(record, operation_id) or {}
@@ -2531,8 +2673,12 @@ class AssignmentExecutor:
                     "response": _bounded(response, 2000),
                     "source": _bounded(source, 200),
                     "evidence": _bounded(evidence, 500),
+                    "fact_resolution": fact_resolution,
                     "at": _utc_now_iso(),
                 }
+                if fact_confirmation:
+                    item["external_response"]["fact_confirmation"] = (
+                        fact_confirmation)
                 item["updated_at"] = _utc_now_iso()
                 new_plan["status"] = "planned"
                 new_plan["updated_at"] = _utc_now_iso()
