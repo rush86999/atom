@@ -4746,42 +4746,42 @@
       "bytes": 3388
     },
     "local-acceptance/assignment-open.png": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/assignment-open.png",
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/local-acceptance/assignment-open.png",
       "sha256": "24f6ce2c66fa34c9e448712bd9a9ac7d5271fd491c2886f13afe05019c671eb9",
       "bytes": 158125
     },
     "local-acceptance/auth-smoke.json": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/auth-smoke.json",
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/local-acceptance/auth-smoke.json",
       "sha256": "da3dbcdd6cda3000e36b9eac53e24ef6b2d135030b6e1f82cccd2b2dbb6a9d9c",
       "bytes": 1766
     },
     "local-acceptance/fresh-install-dashboard.png": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/fresh-install-dashboard.png",
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/local-acceptance/fresh-install-dashboard.png",
       "sha256": "79f799f9f0f6a8bfac55915b18b6706b523940175e5b02012fd7fc41cdad0e39",
       "bytes": 100695
     },
     "local-acceptance/fresh-install-smoke.json": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/fresh-install-smoke.json",
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/local-acceptance/fresh-install-smoke.json",
       "sha256": "b20035ffcdcc2a2337333061c632e730de9ecb8e7a00237f12936c55b6675ff9",
       "bytes": 2152
     },
     "local-acceptance/integrated-assignment-ui.png": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/integrated-assignment-ui.png",
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/local-acceptance/integrated-assignment-ui.png",
       "sha256": "61865ccd1920c9328cf52bf74b3e50059fa88916d135554c292121868b8640a8",
       "bytes": 100417
     },
     "local-acceptance/local-acceptance.json": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/local-acceptance.json",
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/local-acceptance/local-acceptance.json",
       "sha256": "6b11a53017cdd8a52bed685d1b62ba8cf5185c44ee1d9dfe15c733a2f513792e",
       "bytes": 7307
     },
     "local-acceptance/signed-in-assignments.png": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/signed-in-assignments.png",
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/local-acceptance/signed-in-assignments.png",
       "sha256": "97622a72acc0b22fd9b6ffd6a09dd031855e21f7f65fe04a14b88f50e17080f8",
       "bytes": 158211
     },
     "local-acceptance/signed-in-dashboard.png": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261030/local-acceptance-fda4f2dc9/signed-in-dashboard.png",
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/local-acceptance/signed-in-dashboard.png",
       "sha256": "d1026d08e9a162fbd67e4525d24cf856495e6417e62b5f35934787ab5a4f445a",
       "bytes": 153283
     }
