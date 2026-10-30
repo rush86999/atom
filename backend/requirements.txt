@@ -62,7 +62,10 @@ python-jose[cryptography]>=3.3.0,<4.0.0
 passlib[bcrypt]>=1.7.4,<2.0.0
 bcrypt>=4.0.0
 python-multipart>=0.0.6,<1.0.0
-cryptography>=41.0.0,<50.0.0  # SECURITY: allow 49.x fixes; quickstart.sh uses --prefer-binary (49.0.0 has no Intel-mac wheel)
+# Pin the Intel-mac wheel-backed line; the open bound resolved 49.x, which
+# has no macOS x86_64 wheel and tried a Rust build through a broken local
+# LLVM/z3 toolchain. 42.0.8 is what the packaged acceptance environment ran.
+cryptography==42.0.8
 pyotp>=2.6.0,<3.0.0
 python3-saml>=1.14.0  # SAML 2.0 SSO support
 
@@ -149,7 +152,9 @@ safety>=3.0.0,<4.0.0
 pipdeptree>=2.13.0,<3.0.0
 
 # API Contract Testing (Phase 128)
-schemathesis>=3.6.0
+# Pin the tested line. The unbounded requirement made pip backtrack through
+# dozens of schemathesis releases during a clean install.
+schemathesis==3.39.16
 openapi-spec-validator>=0.5.0
 
 # Coverage delta calculation for PR comments (Phase 110)
