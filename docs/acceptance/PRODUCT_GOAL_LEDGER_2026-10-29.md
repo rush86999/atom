@@ -22,7 +22,7 @@ Statuses: **Demonstrated**, **Partial**, **Deferred**, **Blocked**.
 | 7 | Grounded selection, calculations and assessments | Demonstrated for tested contracts | `core/table_selection.py`, `core/dataset_aggregation.py`, `core/review_result.py`, deterministic receipt/evidence binding | Clean-source and bounded tests; C10 unchanged except outbound policy | Assignment tests and cross-domain evidence; fresh C10 assignment produced `216700.00` with row/cell provenance | Structural validity is separate from substantive policy judgment; arbitrary policies and full assessment certification coverage remain bounded. |
 | 8 | Email, documents and presentations | Demonstrated for draft/format/reopen; send separate | `core/office_service.py`, email/canvas services, artifact renderers | Historical Office/email evidence; C10 draft smoke completed and survived restart | `deployment-auth-20261029-c10/draft-smoke.json`; historical DOCX/PPTX/email evidence | Image/chart understanding is excluded. Real-provider send is **Blocked** on the separate authorized test (goal 11). |
 | 9 | User-created canvases inherit capabilities | Demonstrated for supported table adapter; two canvas shapes current test | Versioned capability manifests, adapter registry, canvas routes | Historical capability evidence; C10 no change | Capability acceptance evidence | Only the supported table adapter is claimed; every future canvas component is not. |
-| 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart; bounded external research implemented; artifact-restart current test | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
+| 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart; bounded external research live-qualified on `rish@brennan.ca`; artifact-restart current test | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
 | 11 | Approval and eventual sending | **Partial / Blocked** — local path incl. attachment-byte binding implemented; live-provider qualification separate | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; server-side denial tested | C10 `send-denial.json`: HTTP 422 before run creation; draft smoke saved/reopened; no provider/outbox effect | Draft and approval preparation work; production send is refused before transport. **Remaining action:** separately authorized real-provider test with exact payload, provider receipt, reconciliation and restart/no-duplicate checks. |
 | 12 | Everyday usability, security and operational readiness | Pilot candidate; successor package prepared; deployment blocked on approval/password/quiescence | Normal auth, Assignments/Activity, durable storage, deployment kit and recovery guards | C10 packaged source plus successor packaged smoke on `a96484324` | C10 auth smoke, fresh assignment, restart agreement, deployment receipt, 19 kit controls, 41 product controls; successor packaged smoke, backup and restart receipts | Normal sign-in/logout/relogin and fresh packaged execution pass in isolation. The successor packaged smoke reopened an existing taught assignment, exercised the mapping flow and survived restart. Deployment authorization is requested but not granted. |
 
@@ -36,6 +36,34 @@ product `ae53e7e41` (tree `a7f627fdf7705a26b361c0d1b1e7e17abadc13d3`). Frozen
 release `901e5d773` is unchanged. The final manifest and file hashes are
 `docs/acceptance/evidence/durable_assignment_20261029/mapping-restart-campaign/manifest-a96484324.json`;
 the prior manifests and attempt directories are preserved unchanged.
+
+## Live research qualification — observed 2026-10-30
+
+The bounded external research path was exercised against the existing Microsoft
+grant after authorization:
+
+- Authenticated mailbox: `rish@brennan.ca` (`Rish Maniar`), established via
+  read-only `/me`; token refreshed from the existing grant.
+- Message: `In-Stock Press Brakes Available for Fast Delivery From HARSLE`,
+  received `2026-09-01T03:17:14Z`, from `sales06@harsle.com`.
+- Attachment: `HARSLE press brake stock price list.xlsx`, SHA-256
+  `5cd746af2c46dfe3979b1881cb8623dff149958b4cadd97bd69da1e489c9dcb4`.
+- Independently parsed result: serial `25206`, model `170T3200`, Price
+  `31800`, QTY `1`, workbook QTY sum `8`, no currency column.
+- Missing control: `SERIAL-NOT-FOUND-999` returned zero messages and produced a
+  typed `external_research` obligation; resolving it resumed the **same**
+  assignment and completed the grounded document.
+- Conflicting control: two different prices for serial `25206` produced an
+  explicit `conflict`, not a silent choice.
+- The live evidence was consumed by a calculation and a product-rendered DOCX;
+  restart preserved the completed assignment and artifact.
+- Cross-source HARSLE retrieval also completed separately from the ingested
+  workbook.
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/`.
+
+Remaining: real-provider send qualification and deployment.
 
 ## Core completion successor — fda4f2dc9
 

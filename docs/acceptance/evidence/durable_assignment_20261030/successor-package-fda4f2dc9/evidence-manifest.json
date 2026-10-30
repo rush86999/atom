@@ -4689,6 +4689,124 @@
     "space.txt": {
       "sha256": "966dc220cd8e6895bc9adf342bf5296fafad2e56a0e05614bd3a85b0af1f3e12",
       "bytes": 164
+    },
+    "live-research/cross-source-qualification.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/cross-source-qualification.json",
+      "sha256": "10b737d4b939bc26cca68ade8b6884e97b8b191a676d407d59d7d3106d81cf10",
+      "bytes": 450
+    },
+    "live-research/cross-source-response.docx": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/cross-source-response.docx",
+      "sha256": "9568dc87a7107708184e25d155b817af854a419e9d6a41c1c760348c90326e1c",
+      "bytes": 36787
+    },
+    "live-research/live-research-qualification.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/live-research-qualification.json",
+      "sha256": "1a9c3ad9e8dc3094bc2cc7518c5e1a5ec509cd53e63ee99d33fe14f24f14adb0",
+      "bytes": 1675
+    },
+    "live-research/live-research-response.docx": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/live-research-response.docx",
+      "sha256": "48fd4941a78a2b87b48702dd5828907837af052cc6e77994a106c223aec93a38",
+      "bytes": 36792
+    },
+    "live-research/missing-control-response.docx": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/missing-control-response.docx",
+      "sha256": "0b97a18286e8950255cb390af123dbbd6df22b922eb9a500d4ecd520f673eb01",
+      "bytes": 36743
+    },
+    "live-research/research-assignment-qualification.json": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/research-assignment-qualification.json",
+      "sha256": "1e7c070365cbd84cbabcd8fa5985c31865717d8a4bbeab1caff33f08c3084a57",
+      "bytes": 1105
     }
+  },
+  "live_research": {
+    "schema": "atom-live-research-qualification-1",
+    "retrieved_at": "2026-10-30T11:36:01.403493+00:00",
+    "source_identity": {
+      "mail": "rish@brennan.ca",
+      "user_principal_name": "rish@brennan.ca",
+      "display_name": "Rish Maniar",
+      "id": "2927f127-c837-4f4b-beac-5c7b723bf887"
+    },
+    "queries": [
+      "HARSLE press brake stock price list",
+      "25206"
+    ],
+    "message": {
+      "query": "HARSLE press brake stock price list",
+      "id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAA=",
+      "subject": "In-Stock Press Brakes Available for Fast Delivery From HARSLE",
+      "received": "2026-09-01T03:17:14Z",
+      "from": {
+        "emailAddress": {
+          "name": "Gretchen Li",
+          "address": "sales06@harsle.com"
+        }
+      },
+      "has_attachments": true
+    },
+    "attachment": {
+      "id": "AAMkADdlNTY5N2I1LTQwNTMtNDQ2OC04MzBlLTU5OGFmZGQ2MzRmYQBGAAAAAADWztKWmJlHSYU0pqyNk-0MBwDEtbYrrPLwTae3iXb78LoOAAAAAAEMAADEtbYrrPLwTae3iXb78LoOAAHGYBeeAAABEgAQANdlswFjNGRFjGrTB3LgbWY=",
+      "name": "HARSLE press brake stock price list.xlsx",
+      "size": 10765,
+      "sha256": "5cd746af2c46dfe3979b1881cb8623dff149958b4cadd97bd69da1e489c9dcb4",
+      "retrieved_bytes": 10249
+    },
+    "workbook_check": {
+      "serial": "25206",
+      "price": 31800.0,
+      "qty": 1,
+      "model": "170T3200",
+      "row_count": 8,
+      "qty_sum": 8,
+      "currency_columns": []
+    },
+    "missing_control": {
+      "query": "SERIAL-NOT-FOUND-999",
+      "email_count": 0
+    },
+    "conflict_control": {
+      "serial": "25206",
+      "prices": [
+        31800.0,
+        99999.0
+      ],
+      "status": "conflict"
+    }
+  },
+  "research_assignment": {
+    "success_assignment": {
+      "run_id": "d7b23a90-e9c3-4d46-a75e-c30d6a0c0ebf",
+      "assignment_id": "asg-7057f1be43404808",
+      "status": "completed",
+      "artifact": "/tmp/fda_research_assignment/office/live.docx",
+      "artifact_sha256": "48fd4941a78a2b87b48702dd5828907837af052cc6e77994a106c223aec93a38",
+      "document_text": "Live Research Response\nSummary\nRetrieved live price: 31800\nSources\nrish@brennan.ca\nattachment 5cd746af2c46dfe3979b1881cb8623dff149958b4cadd97bd69da1e489c9dcb4"
+    },
+    "missing_control": {
+      "run_id": "605701b2-9f73-4321-8564-1507238be707",
+      "first_status": "waiting",
+      "gap_kind": "external_research",
+      "gap_concept": "external_research",
+      "assignment_id": "asg-22ec940bb9a34293",
+      "resumed_status": "completed",
+      "same_assignment_id": true,
+      "resumed_document_text": "Live Research Response\nSummary\nRetrieved live price: 31800\nSources\nresolved_obligation\nattachment"
+    },
+    "restart": {
+      "status": "completed",
+      "artifact_exists": true,
+      "artifact_sha256": "48fd4941a78a2b87b48702dd5828907837af052cc6e77994a106c223aec93a38"
+    }
+  },
+  "cross_source_assignment": {
+    "run_id": "f15daf4d-2483-4253-bcb8-109e129e7832",
+    "assignment_id": "asg-b30d1d2c8267476d",
+    "status": "completed",
+    "artifact": "/tmp/fda_cross_source/office/cross.docx",
+    "artifact_sha256": "9568dc87a7107708184e25d155b817af854a419e9d6a41c1c760348c90326e1c",
+    "document_text": "Cross-Source Response\nSummary\nRetrieved price: 31800.0\nSources\ningested:HARSLE press brake stock price list.xlsx\ne0a7fb8a1b4757b7f6bef882b19cc4588d66246e"
   }
 }

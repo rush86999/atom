@@ -84,7 +84,8 @@
     "bounded_external_research": true,
     "typed_external_obligation": true,
     "external_research_same_assignment": true,
-    "external_content_as_evidence_only": true
+    "external_content_as_evidence_only": true,
+    "bounded_external_research_live_qualified": true
   },
   "blockers": [
     "Deployment authorization is not granted; config/APPROVED is absent.",
@@ -98,8 +99,8 @@
   "evidence": {
     "production_package": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/evidence-manifest.json",
-      "sha256": "e25bc0d4599f62554d2973a48d0117135dd7796b549f23e09954812def987997",
-      "bytes": 176249
+      "sha256": "5622ca68257ef84d17e585cf341c330fcf0a1a5d058c3eadedc92ae68b3e7c54",
+      "bytes": 181581
     },
     "preparation_report": "docs/acceptance/PRODUCTION_PACKAGE_PREPARATION_2026-10-30-fda4f2dc9.md",
     "deployment_decision": "docs/acceptance/DEPLOYMENT_DECISION_fda4f2dc9_2026-10-30.md",
@@ -165,8 +166,8 @@
     },
     "evidence_manifest": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/evidence-manifest.json",
-      "sha256": "e25bc0d4599f62554d2973a48d0117135dd7796b549f23e09954812def987997",
-      "bytes": 176249
+      "sha256": "5622ca68257ef84d17e585cf341c330fcf0a1a5d058c3eadedc92ae68b3e7c54",
+      "bytes": 181581
     },
     "data_handoff": {
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/production-data-handoff.json",
@@ -247,6 +248,21 @@
       "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/freshness-blocker.txt",
       "sha256": "e02dc134a5892f094781ac28344074024eb1f0c2b0da3afcb0df7b5c7ac1e36b",
       "bytes": 263
+    },
+    "live_research": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/live-research-qualification.json",
+      "sha256": "1a9c3ad9e8dc3094bc2cc7518c5e1a5ec509cd53e63ee99d33fe14f24f14adb0",
+      "bytes": 1675
+    },
+    "research_assignment": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/research-assignment-qualification.json",
+      "sha256": "1e7c070365cbd84cbabcd8fa5985c31865717d8a4bbeab1caff33f08c3084a57",
+      "bytes": 1105
+    },
+    "cross_source_assignment": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261030/successor-package-fda4f2dc9/live-research/cross-source-qualification.json",
+      "sha256": "10b737d4b939bc26cca68ade8b6884e97b8b191a676d407d59d7d3106d81cf10",
+      "bytes": 450
     }
   }
 }

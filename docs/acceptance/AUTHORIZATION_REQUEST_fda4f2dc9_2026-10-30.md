@@ -43,18 +43,27 @@ change or source write occurred.
 - **Limits:** one source, one live lookup plus controls, 10 minutes, read-only; no writes/sends/purchases; no new credential. A successful refresh of the existing Microsoft grant is required.
 - **Authorization needed:** allow read-only Graph lookup and token refresh for the approved mailbox/OneDrive scope.
 
+## Observed research result (2026-10-30)
+
+The authorized live lookup completed on `rish@brennan.ca`. Message
+`In-Stock Press Brakes Available for Fast Delivery From HARSLE`, received
+`2026-09-01T03:17:14Z`, from `sales06@harsle.com`; attachment
+`HARSLE press brake stock price list.xlsx` SHA-256
+`5cd746af2c46dfe3979b1881cb8623dff149958b4cadd97bd69da1e489c9dcb4`.
+Independently parsed: serial `25206`, Price `31800`, QTY `1`, QTY sum `8`, no
+currency column. Missing and conflicting controls passed; live evidence was
+consumed by calculation and a DOCX; restart preserved the result. Cross-source
+ingestion lookup also passed separately.
+
 ## Operation 2 — real-provider sending qualification
 
 **Select:** `[ ] Authorize real-provider sending qualification`
 
 ### Sender identity — unresolved
 
-`admin@example.com` is the application account. The connected mailbox sender
-address is **not established** by local metadata. Before approval, the owner
-must either:
-
-- supply the actual authorized mailbox UPN, or
-- authorize a read-only `/me` identity check after the existing grant refreshes.
+The connected mailbox sender is now established as **`rish@brennan.ca`**
+(`Rish Maniar`) via a read-only `/me` check. `admin@example.com` remains the
+application account, not the mailbox.
 
 The existing `Mail.Send` scope is present, but the access token is expired and
 must refresh or be re-consented.

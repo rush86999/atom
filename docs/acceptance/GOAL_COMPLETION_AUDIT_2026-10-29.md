@@ -23,6 +23,17 @@ evidence bound to an earlier source, not automatically a successor pass;
 | 11 | Approval/eventual sending | Draft/approval + attachment-byte Y; send gated | Y | H (draft) | Y | Y | — | — |
 | 12 | Usability/security/operations | Successor package prepared | Y (22 kit controls) | Y current mapping flows | Y | Y | — | Not deployed |
 
+### Live research qualification — observed
+
+- Bounded live read-only Microsoft lookup passed on `rish@brennan.ca`; actual
+  message/attachment, retrieval time, SHA-256, parsed price and QTY sum were
+  recorded.
+- Missing-result control produced a typed obligation and resumed the same
+  assignment; conflicting prices were surfaced as a conflict.
+- Live evidence was consumed by calculation and a product-rendered DOCX;
+  restart preserved state and artifact.
+- Real sending and deployment remain outstanding.
+
 ## Core completion successor — fda4f2dc9
 
 - Product: `fda4f2dc9376f20a6e10de6d7d1e55cf16eeffd4`, tree
