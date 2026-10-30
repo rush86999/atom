@@ -144,6 +144,36 @@ counts and SHA-256 of every file. `atom_memory` is excluded by default because
 it is large; pass `--include-memory` when a full vector-store snapshot is
 required. A backup is never restored automatically.
 
+## Cutover freshness and refresh
+
+`deploy_release.sh` runs `check_freshness.py` after approval and **before**
+backup or shutdown. It compares the current source logical SQLite content
+(389 tables), LanceDB table versions/rows and referenced artifact/dataset hashes
+to `run/freshness_baseline.json`. Raw WAL byte churn is not treated as data
+change. A stale result exits non-zero and leaves the running service untouched.
+
+If the gate is stale because the live source advanced, refresh the handoff
+before rerunning the transaction:
+
+```bash
+ROOT=/Users/rushiparikh/projects/atom-deployments/assignment-successor-2026-10-29-a96484324
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+mv "$ROOT/data" "$ROOT/backups/production-data-pre-cutover-$STAMP"
+python "$ROOT/current/scripts/prepare_production_data.py" \
+  --source-data-dir /Users/rushiparikh/projects/atom/backend/data \
+  --target-data-dir "$ROOT/data" \
+  --secrets-source "$ROOT/config/secrets.env"
+python "$ROOT/current/scripts/prepare_memory_handoff.py" \
+  --source-memory-dir /Users/rushiparikh/projects/atom/backend/data/atom_memory \
+  --target-memory-dir "$ROOT/data/atom_memory" --workspace default
+python "$ROOT/current/scripts/verify_production_handoff.py" --root "$ROOT"
+python "$ROOT/current/scripts/check_freshness.py" --root "$ROOT"
+```
+
+Do this only while the release root is not running; it replaces the durable
+data copy and preserves the previous copy under `backups/`. Never refresh after
+the transaction has begun shutdown.
+
 ## Normal authentication smoke
 
 `smoke_auth.py` starts a fresh browser context with no injected session or

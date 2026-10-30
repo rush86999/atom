@@ -75,6 +75,12 @@ advances before cutover, the gate will refuse and require a refresh; the final
 cutover must therefore be performed against a quiescent or freshly refreshed
 source.
 
+The refresh procedure (move the current `data/` to `backups/`, rerun
+`prepare_production_data.py`, `prepare_memory_handoff.py`,
+`verify_production_handoff.py` and `check_freshness.py`) is in the runbook's
+"Cutover freshness and refresh" section. Never refresh after the transaction
+has begun shutdown.
+
 ## Memory store
 
 Strategy: **read-only logical export of required tables**, not a copy of
