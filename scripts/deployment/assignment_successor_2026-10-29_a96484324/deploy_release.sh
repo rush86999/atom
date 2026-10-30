@@ -53,7 +53,13 @@ fi
 
 release_tool=("$PY" "$KIT/release_tool.py" "--root" "$ROOT")
 approval_cmd=("${release_tool[@]}" approval-check --mode "$MODE")
-freshness_cmd=("$PY" "$KIT/check_freshness.py" --root "$ROOT")
+quiescence_args=()
+if [[ "$MODE" == "production" ]]; then
+  quiescence_args=(--require-quiescent-source)
+fi
+freshness_cmd=("$PY" "$KIT/check_freshness.py" --root "$ROOT" --phase preflight "${quiescence_args[@]}")
+post_backup_freshness_cmd=("$PY" "$KIT/check_freshness.py" --root "$ROOT" --phase post-backup "${quiescence_args[@]}")
+pre_activation_freshness_cmd=("$PY" "$KIT/check_freshness.py" --root "$ROOT" --phase pre-activation "${quiescence_args[@]}")
 preflight_running=("${release_tool[@]}" preflight "${REHEARSAL_ARGS[@]}" --ignore-running-ports)
 preflight_stopped=("${release_tool[@]}" preflight "${REHEARSAL_ARGS[@]}")
 start_cmd=("${release_tool[@]}" start "${REHEARSAL_ARGS[@]}")
@@ -64,18 +70,24 @@ rollback_cmd=("${release_tool[@]}" rollback)
 
 if [[ "$PRINT_PLAN" == "1" ]]; then
   python3 - "$MODE" "${REHEARSAL_ARGS[*]:-}" "${approval_cmd[*]}" \
-    "${preflight_running[*]}" "${backup_cmd[*]}" "${stop_cmd[*]}" \
-    "${preflight_stopped[*]}" "${start_cmd[*]}" "${rollback_cmd[*]}" <<'PY'
+    "${freshness_cmd[*]}" "${preflight_running[*]}" "${backup_cmd[*]}" \
+    "${post_backup_freshness_cmd[*]}" "${stop_cmd[*]}" \
+    "${preflight_stopped[*]}" "${pre_activation_freshness_cmd[*]}" \
+    "${start_cmd[*]}" "${rollback_cmd[*]}" <<'PY'
 import json, sys
-mode, rehearsal, approval, pre, backup, stop, pre2, start, rollback = sys.argv[1:]
+(mode, rehearsal, approval, fresh, pre, backup, fresh2, stop, pre2,
+ fresh3, start, rollback) = sys.argv[1:]
 print(json.dumps({
     "mode": mode,
     "rehearsal_args": rehearsal.split(),
     "approval": approval.split(),
+    "freshness_before_backup": fresh.split(),
     "preflight_before_stop": pre.split(),
     "backup": backup.split(),
+    "freshness_after_backup": fresh2.split(),
     "stop": stop.split(),
     "preflight_after_stop": pre2.split(),
+    "freshness_before_activation": fresh3.split(),
     "start": start.split(),
     "rollback": rollback.split(),
 }, indent=2))
@@ -147,12 +159,14 @@ fi
 
 "${preflight_running[@]}"
 "${backup_cmd[@]}"
+"${post_backup_freshness_cmd[@]}"
 
 state_shutdown_started=1
 "${stop_cmd[@]}"
 state_previous_stopped=1
 
 "${preflight_stopped[@]}"
+"${pre_activation_freshness_cmd[@]}"
 "${start_cmd[@]}"
 state_candidate_started=1
 

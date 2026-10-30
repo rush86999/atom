@@ -83,7 +83,10 @@ save(); sys.exit(0)
         "state=json.loads(Path(state_file).read_text()) if Path(state_file).is_file() else {'calls':[]}\n"
         "state['calls'].append({'command':'freshness','args':sys.argv[1:]})\n"
         "Path(state_file).write_text(json.dumps(state))\n"
-        "sys.exit(1 if os.environ.get('FAKE_SCENARIO')=='freshness_stale' else 0)\n")
+        "scenario=os.environ.get('FAKE_SCENARIO')\n"
+        "phase=sys.argv[sys.argv.index('--phase')+1] if '--phase' in sys.argv else 'preflight'\n"
+        "fail=(scenario=='freshness_stale' or (scenario=='freshness_post_backup_stale' and phase=='post-backup') or (scenario=='freshness_pre_activation_stale' and phase=='pre-activation'))\n"
+        "sys.exit(1 if fail else 0)\n")
     for name, body in {
         "smoke_auth.py": "import json,os,sys\nstate=os.environ.get('FAKE_SCENARIO','success')\nif state=='auth_fail': sys.exit(1)\nout=sys.argv[sys.argv.index('--out-dir')+1]\nos.makedirs(out,exist_ok=True)\nopen(out+'/auth-smoke.json','w').write(json.dumps({'status':'passed'}))\n",
         "smoke_assignment.py": "import json,os,sys\nstate=os.environ.get('FAKE_SCENARIO','success')\nrestart='--compare-to' in sys.argv\nif state=='assignment_fail' or (state=='restart_fail' and restart): sys.exit(1)\nout=sys.argv[sys.argv.index('--out')+1]\nopen(out,'w').write(json.dumps({'ok':True,'snapshot':{}}))\n",
@@ -140,6 +143,29 @@ def test_stale_freshness_refuses_before_shutdown(tmp_path):
     assert state["calls"][-1]["command"] == "freshness"
     assert all(c["command"] != "stop" for c in state["calls"])
     assert not state.get("rollback_called")
+
+
+def test_post_backup_stale_refuses_before_shutdown(tmp_path):
+    root = tmp_path / "post-backup-stale"
+    _fake_kit(root)
+    result = _run(root, "freshness_post_backup_stale")
+    assert result.returncode != 0
+    state = _state(root)
+    commands = [c["command"] for c in state["calls"]]
+    assert "backup" in commands
+    assert "freshness" in commands
+    assert "stop" not in commands
+    assert not state.get("rollback_called")
+
+
+def test_pre_activation_stale_after_stop_rolls_back(tmp_path):
+    root = tmp_path / "pre-activation-stale"
+    _fake_kit(root)
+    result = _run(root, "freshness_pre_activation_stale")
+    assert result.returncode != 0
+    state = _state(root)
+    assert state.get("rollback_called") is True
+    assert not state.get("candidate_started")
 
 
 def test_partial_stop_triggers_recovery(tmp_path):
@@ -212,6 +238,9 @@ def test_production_plan_has_no_rehearsal_flag(tmp_path):
     assert plan["mode"] == "production"
     assert plan["rehearsal_args"] == []
     assert all("--rehearsal" not in part for part in plan["start"])
+    assert "--require-quiescent-source" in plan["freshness_before_backup"]
+    assert "--require-quiescent-source" in plan["freshness_after_backup"]
+    assert "--require-quiescent-source" in plan["freshness_before_activation"]
 
 
 def test_rehearsal_plan_has_one_rehearsal_flag(tmp_path):

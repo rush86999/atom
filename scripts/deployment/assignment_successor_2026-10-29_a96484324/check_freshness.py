@@ -16,7 +16,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import shutil
 import sqlite3
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -29,6 +32,47 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: fh.read(1024 * 1024), b""):
             h.update(block)
     return h.hexdigest()
+
+
+def source_writer_processes(source_root: Path) -> dict:
+    """Processes holding the source SQLite files open.
+
+    A fresh logical snapshot is not enough for cutover while a live writer can
+    commit immediately after the check. Production cutover therefore requires
+    an explicit quiescence boundary: no other process may hold the source
+    database/WAL open. This is read-only (lsof), never a kill or lock.
+    """
+    lsof = shutil.which("lsof")
+    if not lsof:
+        return {"available": False, "error": "lsof not found", "processes": []}
+    paths = [str(source_root / name) for name in (
+        "atom.db", "atom.db-wal", "atom.db-shm")]
+    paths = [path for path in paths if Path(path).exists()]
+    if not paths:
+        return {"available": True, "processes": []}
+    try:
+        out = subprocess.run(
+            [lsof, "-nP", "-Fpc", "--", *paths],
+            capture_output=True, text=True, timeout=20,
+        ).stdout
+    except Exception as exc:  # noqa: BLE001
+        return {"available": False,
+                "error": f"{type(exc).__name__}: {exc}",
+                "processes": []}
+    processes = []
+    current = {}
+    for line in out.splitlines():
+        if line.startswith("p"):
+            if current:
+                processes.append(current)
+            current = {"pid": int(line[1:])}
+        elif line.startswith("c") and current:
+            current["command"] = line[1:]
+    if current:
+        processes.append(current)
+    own = os.getpid()
+    processes = [p for p in processes if p.get("pid") != own]
+    return {"available": True, "processes": processes}
 
 
 def db_fingerprint(path: Path) -> dict:
@@ -144,6 +188,8 @@ def fingerprint_changes(baseline: dict, current: dict) -> list[dict]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", required=True)
+    ap.add_argument("--phase", default="preflight")
+    ap.add_argument("--require-quiescent-source", action="store_true")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
     root = Path(args.root).resolve()
@@ -161,6 +207,7 @@ def main() -> None:
     source_db = source_root / "atom.db"
     target_db = target_root / "atom.db"
 
+    writer_check = source_writer_processes(source_root)
     current_fingerprint = db_fingerprint(source_db)
     table_changes = fingerprint_changes(
         baseline.get("source_db_fingerprint") or {}, current_fingerprint)
@@ -169,6 +216,21 @@ def main() -> None:
     file_checks = target_checks(target_db, target_root, source_root)
 
     changes = []
+    if args.require_quiescent_source:
+        if not writer_check["available"]:
+            changes.append({
+                "item": "source_quiescence",
+                "reason": "cannot verify source writers",
+                "detail": writer_check.get("error"),
+            })
+        elif writer_check["processes"]:
+            changes.append({
+                "item": "source_quiescence",
+                "reason": (
+                    "source writers remain active; stop them with operational "
+                    "authorization before cutover"),
+                "processes": writer_check["processes"],
+            })
     if table_changes:
         changes.append({
             "item": "source_db_fingerprint",
@@ -202,6 +264,9 @@ def main() -> None:
         "root": str(root),
         "fresh": not changes,
         "changes": changes,
+        "phase": args.phase,
+        "require_quiescent_source": bool(args.require_quiescent_source),
+        "source_writers": writer_check,
         "source_tables_fingerprinted": len(current_fingerprint),
         "source_table_changes": len(table_changes),
         "memory_unchanged": not memory_changed,
