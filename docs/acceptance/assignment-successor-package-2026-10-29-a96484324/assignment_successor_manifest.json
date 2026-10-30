@@ -26,8 +26,8 @@
     "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
     "product_tree_matches_tested": true,
     "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
-    "deployment_kit_tree_sha256": "ec1a5c15a29cb2a91e30e124867b9419d106e4621ba88018ac51f5eacda69aca",
-    "frontend_build_id": "wYD-ZstCdGkCCoI5bPvmW",
+    "deployment_kit_tree_sha256": "9f89542fcfb9cb976ad4b6746ee0a41b3b3c8aeb1a618b8ad67ac7dcfd17a9cc",
+    "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
     "frontend_api_origin": "http://127.0.0.1:8071",
     "api_port": 8071,
     "frontend_port": 3130,
@@ -36,7 +36,7 @@
     "outbound_scope": "draft_and_approval_only",
     "send_authorized": false,
     "topology": "one_worker_process_per_assignment",
-    "prepared_at": "2026-10-29T23:32:19.533261+00:00",
+    "prepared_at": "2026-10-29T23:43:56.891207+00:00",
     "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
     "seeded_rehearsal_data": true
   },
@@ -149,12 +149,18 @@
         "bytes": 8837
       },
       "deployment_kit": {
-        "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/kit-tests.log",
-        "sha256": "4e0e2cfb24d24b9258e345a215a2deec9fe5e5f9ca06ef421f7678995291a69a",
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/kit-tests.log",
+        "sha256": "c2724c99aa68516d62231c44d92b74e9695949b574ca7624df0c919866f00c1e",
         "bytes": 1189
+      },
+      "release_affected": {
+        "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/release-affected-final.log",
+        "sha256": "5874be9419c2a257916256f2ee7b43b9ab69b300300a88bf7f537e07c11f2724",
+        "bytes": 194552
       }
     },
-    "deployment_kit_controls": "19 passed"
+    "deployment_kit_controls": "19 passed",
+    "release_affected": "508 passed, 2 skipped"
   },
   "packaged_smoke": {
     "status": "passed",
@@ -170,8 +176,8 @@
       "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
       "product_tree_matches_tested": true,
       "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
-      "deployment_kit_tree_sha256": "ec1a5c15a29cb2a91e30e124867b9419d106e4621ba88018ac51f5eacda69aca",
-      "frontend_build_id": "wYD-ZstCdGkCCoI5bPvmW",
+      "deployment_kit_tree_sha256": "9f89542fcfb9cb976ad4b6746ee0a41b3b3c8aeb1a618b8ad67ac7dcfd17a9cc",
+      "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
       "frontend_api_origin": "http://127.0.0.1:8071",
       "api_port": 8071,
       "frontend_port": 3130,
@@ -180,24 +186,34 @@
       "outbound_scope": "draft_and_approval_only",
       "send_authorized": false,
       "topology": "one_worker_process_per_assignment",
-      "prepared_at": "2026-10-29T23:32:19.533261+00:00",
+      "prepared_at": "2026-10-29T23:43:56.891207+00:00",
       "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
       "seeded_rehearsal_data": true
     },
     "evidence_manifest": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/evidence-manifest.json",
-      "sha256": "ff126b33e08e6518a77bb3b85aef93ded49457839d61a5175d39e2ff0f1e9d78",
-      "bytes": 13242
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/evidence-manifest.json",
+      "sha256": "7614bb08bfebd0632626bfb7bc9a46dc1468c10d78bbd25aa7e505e9cfd11cc2",
+      "bytes": 19393
     },
     "before_restart": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/mapping-taught-smoke.json",
-      "sha256": "d0620609086737971d5a15d7d3131ca0487fd976bd2be27055cd879430c1d926",
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/mapping-taught-smoke.json",
+      "sha256": "59e8ef4e32a3fef1d1f30118256bc3dbd3ace3c6eae5069c58597a36376c72e7",
       "bytes": 3569
     },
     "after_restart": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/mapping-taught-smoke-after-restart.json",
-      "sha256": "391e5be339e157df86e087ef9076ea38939cf4dbdebf30bd55eb061a14bd236d",
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/mapping-taught-smoke-after-restart.json",
+      "sha256": "3ab96a0a6d7cead4acc5719fc6d6dd5dd68fe76380ce1fd9392acd2e1b040c9a",
       "bytes": 3123
+    },
+    "fresh_before_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/fresh-before-restart.json",
+      "sha256": "11424796d2dde26cf2e4359a11e44e9253c6dd78d6d0d395a15b995aa1f41abb",
+      "bytes": 2203
+    },
+    "fresh_after_restart": {
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/fresh-after-restart.json",
+      "sha256": "45f25f535c68fadd97c6a53e85f89cc7bfbb619b44b6072445c659181f98f247",
+      "bytes": 2046
     },
     "existing_taught_assignment": {
       "assignment_id": "asg-787c5e9954dc46cc",
@@ -213,6 +229,28 @@
     },
     "mapping_result": "35.00",
     "mapping_revision": 3,
+    "fresh_result": true,
+    "fresh_assignment": {
+      "schema": "atom-assignment-fresh-smoke-1",
+      "run_id": "f5bcfba7-ae47-444d-8bac-a6b2e02f4b81",
+      "assignment_id": "asg-0807c51c8a2d458d",
+      "objective": "Release smoke 2b1caa6773: sum Amount",
+      "status": "completed",
+      "plan_revision": 1,
+      "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-6f7aa548d584/release-smoke-2b1caa6773-sum-amount-9b9e8aa5.docx",
+      "artifact_sha256": "e4c02cad9e05e9e6d355c2a0c242d5b883c99331072e9c09dbfc541629f71a54",
+      "artifact_contains_expected_sum": true,
+      "source_versions": [
+        "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+      ],
+      "validation": {
+        "ok": true,
+        "errors": [],
+        "artifact_text": "Release smoke 2b1caa6773: sum Amount\nObjective\nRelease smoke 2b1caa6773: sum Amount\nSummary\nsum of Amount: 35.00 USD\nFindings\nworkbook_b.xlsx / Sheet1\nSources\noutlook_workbook_b__sheet1\nworkbook_b.xlsx\nSheet1\n6494998e-c310-4861-8b5e-8bb981f32567\nworkbook_b.xlsx / Sheet1\nRow | identity | identity_source | row | value | currency | value_cell\n | B-1 | identity_column | 2 | 15.00 | USD | C2\n | B-2 | identity_column | 3 | 20.00 | USD | C3",
+        "artifact_sha256": "e4c02cad9e05e9e6d355c2a0c242d5b883c99331072e9c09dbfc541629f71a54",
+        "recorded_sha256": "e4c02cad9e05e9e6d355c2a0c242d5b883c99331072e9c09dbfc541629f71a54"
+      }
+    },
     "provider_policy": {
       "mode": "selected",
       "allowed_providers": [
@@ -232,23 +270,27 @@
       "run_created": false,
       "send_allowed": false
     },
-    "restart_agreement": {
+    "mapping_restart_agreement": {
       "ok": true,
       "mismatches": {}
     },
+    "fresh_restart_agreement": {
+      "mismatches": {},
+      "ok": true
+    },
     "backup_manifest": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/backup-manifest.json",
-      "sha256": "26ae91cdb9c23fe09a0169a472ffaf785a3effc43637cafcb33d0efd137ea2f3",
-      "bytes": 2127
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/backup-manifest.json",
+      "sha256": "e835a189501963c5a55fab6ba403aea0ec3d724418dd0771ac96c0dd27467700",
+      "bytes": 2536
     },
     "preflight": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/preflight.json",
-      "sha256": "bde97e8b72998db1a39940e12affe7975381b0a97309fe3473b32c3472b0d56f",
-      "bytes": 6128
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/preflight.json",
+      "sha256": "d287ebb649940cc01dcbc147182325ff65fd1908dbc2643aff7436c887ff3441",
+      "bytes": 5955
     },
     "startup_receipt": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/startup-receipt.json",
-      "sha256": "1e34c3aeb2f70e56b259e68a508bf78ebea40fba22cfef7edf1197e347043c9a",
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/startup-receipt.json",
+      "sha256": "1a048f6c0777055b494e68b0a41ea6d7caefae1bb3229b4f09c7459641556b62",
       "bytes": 1510
     },
     "deploy_plan": {
@@ -279,14 +321,17 @@
   ],
   "evidence": {
     "release_integration": {
-      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/evidence-manifest.json",
-      "sha256": "05566f8c26c7a0a6a4c5240022b247658b412123ab227ff4fa6e55fd0927115e",
-      "bytes": 13105
+      "path": "docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/evidence-manifest.json",
+      "sha256": "eb7f5cc54cb6b7ba86aade23ee8dc31eaea82d85835cabccfc56095b42ec5a88",
+      "bytes": 18750
     },
     "goal_ledger": "docs/acceptance/PRODUCT_GOAL_LEDGER_2026-10-29.md",
     "deployment_runbook": "docs/deployment/assignment_successor_2026-10-29_a96484324/DEPLOYMENT_RUNBOOK.md",
     "approval_request": "docs/deployment/assignment_successor_2026-10-29_a96484324/APPROVAL_REQUEST.md",
-    "deployment_kit": "scripts/deployment/assignment_successor_2026-10-29_a96484324"
+    "deployment_kit": "scripts/deployment/assignment_successor_2026-10-29_a96484324",
+    "goal_audit": "docs/acceptance/GOAL_COMPLETION_AUDIT_2026-10-29.md",
+    "deployment_decision": "docs/acceptance/DEPLOYMENT_DECISION_a96484324_2026-10-29.md",
+    "send_qualification": "docs/acceptance/REAL_PROVIDER_SEND_QUALIFICATION_2026-10-29.md"
   },
   "no_deployment": true,
   "no_real_sending": true,

@@ -1,0 +1,107 @@
+{
+  "schema": "atom-assignment-packaged-mapping-taught-smoke-1",
+  "ok": true,
+  "existing_taught_assignment": {
+    "assignment_id": "asg-787c5e9954dc46cc",
+    "status": "completed",
+    "plan_revision": 1,
+    "teaching_revision": "3dce63cc9aa4ef14+map",
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-9711cbb62a32/mapping-b-total-0f76048f.docx",
+    "artifact_sha256": "9edba3848a432f462f9030b75514f6f27c7f0b2dea8572741ed99caf51be9854",
+    "artifact_contains_expected_sum": true,
+    "deliverable_status": "applied",
+    "run_id": "c78b9a0c-4d4b-4ef6-97e5-4be56fa31449",
+    "objective": "Mapping B sum Price"
+  },
+  "mapping": {
+    "run_id": "c04413c0-388e-4fab-859c-e972936746b7",
+    "assignment_id": "asg-5a713f7ae2f8462d",
+    "objective": "Release mapping smoke 965f4c391b: sum Price",
+    "status": "completed",
+    "mapping": {
+      "concept": "Price",
+      "sheet": "Sheet1",
+      "column": "Amount",
+      "unit": "USD",
+      "unit_authority": "source_evidence",
+      "required_unit": "USD",
+      "source_unit": "USD",
+      "source_unit_column": "Currency",
+      "source_version": "31533335b40b2a0a90a5b23de7e85c185cdaf7bb",
+      "revision": 3,
+      "lesson_id": "bff523b152f145dfa292c89c82a8bce1",
+      "lesson_revision": null,
+      "teaching_revision": "8703545e6af8ecb7+map",
+      "source": "outlook",
+      "dataset_name": "outlook_workbook_b__sheet1",
+      "external_id": "fixture-b",
+      "available_columns": [
+        "SKU",
+        "Quantity",
+        "Amount",
+        "Discount",
+        "Currency",
+        "Note"
+      ],
+      "numeric_columns": [
+        "Quantity",
+        "Amount",
+        "Discount"
+      ],
+      "correctable": true
+    },
+    "result": "35.00",
+    "unit": "USD",
+    "artifact": {
+      "assignment_id": "asg-5a713f7ae2f8462d",
+      "status": "completed",
+      "plan_revision": 1,
+      "teaching_revision": "8703545e6af8ecb7+map",
+      "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-77b35319817a/release-mapping-smoke-total-48af1f42.docx",
+      "artifact_sha256": "a137f411a27d4fe0e5b48937effd4111e5ef068f8f94d2fd5e94c285fd383a91",
+      "artifact_contains_expected_sum": true,
+      "deliverable_status": "applied"
+    },
+    "gap": {
+      "question_id": "eafb33c4-b4e8-4b76-9e4d-f3300897f4e7",
+      "source_version": "31533335b40b2a0a90a5b23de7e85c185cdaf7bb",
+      "teaching_revision": "8703545e6af8ecb7",
+      "candidates": [
+        "SKU",
+        "Quantity",
+        "Amount",
+        "Discount",
+        "Currency",
+        "Note"
+      ],
+      "required_unit": "USD",
+      "source_unit": "USD"
+    }
+  },
+  "provider_policy": {
+    "mode": "selected",
+    "allowed_providers": [
+      "deepseek"
+    ],
+    "preferred": {
+      "provider": "deepseek",
+      "model": "deepseek-flash"
+    },
+    "ok": true
+  },
+  "send_denial": {
+    "http_status": 422,
+    "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter",
+    "runs_before": 1,
+    "runs_after": 1,
+    "run_created": false,
+    "send_allowed": false
+  },
+  "source": {
+    "dataset_name": "outlook_workbook_b__sheet1",
+    "source": "outlook",
+    "external_id": "fixture-b",
+    "source_version": "31533335b40b2a0a90a5b23de7e85c185cdaf7bb",
+    "sheet": "Sheet1"
+  }
+}

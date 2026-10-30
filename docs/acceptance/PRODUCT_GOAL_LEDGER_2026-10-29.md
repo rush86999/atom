@@ -47,22 +47,28 @@ prior evidence are unchanged. Package manifest:
 The four browser flows pass on that product: workbook B `35.00`, workbook C
 `75.00` with an explicit unit, correction `100.00 -> 80.00` at mapping revision
 3, and reject -> backend restart -> confirm `35.00` at mapping revision 2.
-Authority controls: 5 focused route tests; affected regressions: 98 passed.
+Authority controls: 5 focused route tests; mapping regressions: 98 passed;
+release-affected regressions: 508 passed, 2 skipped.
 
 The isolated packaged smoke reopened an existing taught assignment and artifact,
-created and completed a new mapping assignment at `35.00 USD`, confirmed the
-selected DeepSeek policy (`deepseek` / `deepseek-flash`), proved an outbound
+created and completed a new mapping assignment at `35.00 USD`, created a second
+fresh read-only assignment with calculation and grounded artifact, confirmed
+the selected DeepSeek policy (`deepseek` / `deepseek-flash`), proved an outbound
 assignment is refused with HTTP 422 before run creation, and reopened both
 results after a packaged backend restart with no disagreement. Receipts:
-`docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/`.
+`docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/`.
 
 Deployment kit:
 `scripts/deployment/assignment_successor_2026-10-29_a96484324/`; runbook:
 `docs/deployment/assignment_successor_2026-10-29_a96484324/DEPLOYMENT_RUNBOOK.md`;
 approval request:
 `docs/deployment/assignment_successor_2026-10-29_a96484324/APPROVAL_REQUEST.md`.
-Deployment is **not authorized**. Real-provider sending remains explicitly open
-and is refused before transport by this release.
+Deployment is **not authorized**. The one reviewable deployment decision is
+`docs/acceptance/DEPLOYMENT_DECISION_a96484324_2026-10-29.md`; the goal-by-goal
+audit is `docs/acceptance/GOAL_COMPLETION_AUDIT_2026-10-29.md`. Real-provider
+sending remains explicitly open, is refused before transport by this release,
+and has a separate prepared qualification in
+`docs/acceptance/REAL_PROVIDER_SEND_QUALIFICATION_2026-10-29.md`.
 
 ## Explicit exclusions
 

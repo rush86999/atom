@@ -1,0 +1,26 @@
+{
+  "schema": "atom-assignment-successor-release-1",
+  "release_tag": "assignment-successor-2026-10-29-a96484324",
+  "release_commit": "a9648432495f4f75f59bf4667cac3cb997d7f229",
+  "tested_runtime_commit": "a96484324",
+  "product_paths": [
+    "backend",
+    "frontend-nextjs"
+  ],
+  "product_tree_sha256": "937d100838300c8ec703f5c8ee164f029acf4ecbe64d6a823bd994fa9070d8e6",
+  "product_tree_matches_tested": true,
+  "source_manifest_sha256": "4a6cfc40a3acaf0e95cc9a1b922b7628cbf62be9e5240e86498ccbd58717b9cc",
+  "deployment_kit_tree_sha256": "9f89542fcfb9cb976ad4b6746ee0a41b3b3c8aeb1a618b8ad67ac7dcfd17a9cc",
+  "frontend_build_id": "LZy8An7y4FAIM7H5yyRJD",
+  "frontend_api_origin": "http://127.0.0.1:8071",
+  "api_port": 8071,
+  "frontend_port": 3130,
+  "audience": "single_user",
+  "pilot_email": "admin@example.com",
+  "outbound_scope": "draft_and_approval_only",
+  "send_authorized": false,
+  "topology": "one_worker_process_per_assignment",
+  "prepared_at": "2026-10-29T23:43:56.891207+00:00",
+  "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data",
+  "seeded_rehearsal_data": true
+}

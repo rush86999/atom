@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "fresh": {
+    "schema": "atom-assignment-fresh-smoke-1",
+    "run_id": "f5bcfba7-ae47-444d-8bac-a6b2e02f4b81",
+    "assignment_id": "asg-0807c51c8a2d458d",
+    "objective": "Release smoke 2b1caa6773: sum Amount",
+    "status": "completed",
+    "plan_revision": 1,
+    "artifact_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/assignment-successor-a96484324-rehearsal/data/office/assignments/default/map-user/draft-6f7aa548d584/release-smoke-2b1caa6773-sum-amount-9b9e8aa5.docx",
+    "artifact_sha256": "e4c02cad9e05e9e6d355c2a0c242d5b883c99331072e9c09dbfc541629f71a54",
+    "artifact_contains_expected_sum": true,
+    "source_versions": [
+      "31533335b40b2a0a90a5b23de7e85c185cdaf7bb"
+    ],
+    "validation": {
+      "ok": true,
+      "errors": [],
+      "artifact_text": "Release smoke 2b1caa6773: sum Amount\nObjective\nRelease smoke 2b1caa6773: sum Amount\nSummary\nsum of Amount: 35.00 USD\nFindings\nworkbook_b.xlsx / Sheet1\nSources\noutlook_workbook_b__sheet1\nworkbook_b.xlsx\nSheet1\n6494998e-c310-4861-8b5e-8bb981f32567\nworkbook_b.xlsx / Sheet1\nRow | identity | identity_source | row | value | currency | value_cell\n | B-1 | identity_column | 2 | 15.00 | USD | C2\n | B-2 | identity_column | 3 | 20.00 | USD | C3",
+      "artifact_sha256": "e4c02cad9e05e9e6d355c2a0c242d5b883c99331072e9c09dbfc541629f71a54",
+      "recorded_sha256": "e4c02cad9e05e9e6d355c2a0c242d5b883c99331072e9c09dbfc541629f71a54"
+    }
+  },
+  "objective": "Release smoke 2b1caa6773: sum Amount",
+  "provider_policy": {
+    "mode": "selected",
+    "allowed_providers": [
+      "deepseek"
+    ],
+    "preferred": {
+      "provider": "deepseek",
+      "model": "deepseek-flash"
+    },
+    "ok": true
+  },
+  "send_denial": {
+    "http_status": 422,
+    "detail": "production email sending is not authorized in this release; use a draft-and-approval deliverable or the isolated controlled outbox adapter",
+    "runs_before": 2,
+    "runs_after": 2,
+    "run_created": false,
+    "send_allowed": false
+  },
+  "database_delta": {
+    "assignments_before": 2,
+    "assignments_after": 3,
+    "delta": 1,
+    "intentional_new_run_id": "f5bcfba7-ae47-444d-8bac-a6b2e02f4b81"
+  }
+}

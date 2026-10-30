@@ -30,8 +30,11 @@ class Client:
         req.add_header("Content-Type", "application/json")
         if self.token:
             req.add_header("Authorization", "Bearer " + self.token)
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            return resp.status, json.loads(resp.read().decode() or "{}")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return resp.status, json.loads(resp.read().decode() or "{}")
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.loads(exc.read().decode() or "{}")
 
 
 def sha256(path: Path) -> str:
@@ -175,6 +178,7 @@ def main() -> None:
     ap.add_argument("--source-version", required=True)
     ap.add_argument("--sheet", required=True)
     ap.add_argument("--expected-sum", required=True)
+    ap.add_argument("--measure", default="Price")
     ap.add_argument("--out", required=True)
     ap.add_argument("--verify-snapshot", default="")
     args = ap.parse_args()
@@ -217,7 +221,7 @@ def main() -> None:
 
     _, before_rows = client.call("GET", "/api/assignments?include_terminal=true")
     before_count = len(before_rows)
-    objective = f"Release smoke {uuid.uuid4().hex[:10]}: sum Price"
+    objective = f"Release smoke {uuid.uuid4().hex[:10]}: sum {args.measure}"
     _, created = client.call("POST", "/api/assignments", {
         "objective": objective,
         "sources": [source],

@@ -39,7 +39,8 @@ Authority controls: wrong request/assignment, forged column, stale source
 (payload and current source), stale teaching, wrong workspace, incompatible
 unit, rejection, identical replay without duplicate work, conflicting replay,
 and ambiguous concept/source identity. Focused controls: **5 passed**.
-Affected regressions: **98 passed** on the same product commit.
+Mapping regressions: **98 passed**. Release-affected regressions: **508 passed,
+2 skipped** on the same product commit.
 
 ## Packaged smoke
 
@@ -51,6 +52,9 @@ the packaged frontend/backend at the frozen commit. It:
 - created one new mapping assignment, confirmed `Amount`, and completed at
   `35.00 USD` with one accepted mapping update (revision 2 -> 3 in the seeded
   world);
+- created a second fresh read-only assignment through the public API,
+  calculated `35.00 USD`, rendered a grounded document and reopened it after
+  restart with the same artifact hash;
 - verified the selected provider policy is DeepSeek only
   (`deepseek` / `deepseek-flash`);
 - proved an outbound assignment is refused with HTTP 422 before run creation
@@ -59,7 +63,7 @@ the packaged frontend/backend at the frozen commit. It:
   artifacts with identical identity/hash and no restart disagreement.
 
 Receipts:
-`docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324/`
+`docs/acceptance/evidence/durable_assignment_20261029/release-integration-a96484324-final/`
 (`preflight.json`, `startup-receipt.json`, `mapping-taught-smoke.json`,
 `mapping-taught-smoke-after-restart.json`, `backup-manifest.json`,
 `final-status.json`, `evidence-manifest.json`).
