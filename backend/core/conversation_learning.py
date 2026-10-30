@@ -30,6 +30,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from pydantic import BaseModel, Field, model_validator
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from core.assignment_plan import canonical_sha256
@@ -425,6 +426,13 @@ class LearningCandidate(BaseModel):
 # ---------------------------------------------------------------------------
 # Reference resolution
 # ---------------------------------------------------------------------------
+
+def _scope_column(column, value: str):
+    """Match the explicit scope, treating NULL as the default scope."""
+    if str(value or "default") == "default":
+        return or_(column == value, column.is_(None))
+    return column == value
+
 
 def _in_scope(resource: ResourceBinding, workspace_id: str,
               tenant_id: str) -> bool:
@@ -2202,8 +2210,8 @@ def list_email_threads(
         for row in (
             db.query(Canvas.id)
             .filter(
-                Canvas.workspace_id == workspace_id,
-                Canvas.tenant_id == tenant_id,
+                _scope_column(Canvas.workspace_id, workspace_id),
+                _scope_column(Canvas.tenant_id, tenant_id),
             )
             .limit(2000)
             .all()
@@ -2283,8 +2291,8 @@ def collect_email_thread_evidence(
         for row in (
             db.query(Canvas.id)
             .filter(
-                Canvas.workspace_id == workspace_id,
-                Canvas.tenant_id == tenant_id,
+                _scope_column(Canvas.workspace_id, workspace_id),
+                _scope_column(Canvas.tenant_id, tenant_id),
             )
             .limit(2000)
             .all()
@@ -2350,8 +2358,8 @@ def collect_email_thread_evidence(
     catalog_rows = (
         db.query(DatasetEntry)
         .filter(
-            DatasetEntry.workspace_id == workspace_id,
-            DatasetEntry.tenant_id == tenant_id,
+            _scope_column(DatasetEntry.workspace_id, workspace_id),
+            _scope_column(DatasetEntry.tenant_id, tenant_id),
         )
         .order_by(DatasetEntry.ingested_at.desc())
         .limit(catalog_limit)
