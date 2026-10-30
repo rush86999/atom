@@ -195,6 +195,139 @@ def _candidate(*, lesson="Use the confirmed method.", method=None,
     )
 
 
+def test_promoted_context_blocks_wrong_and_missing_application(db):
+    _agent(db)
+    candidate = _candidate(
+        lesson="Use the customer-specific pricing method.",
+        context={"customer": "Customer-A", "qualification": "licensed"},
+    )
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    promoted = promote_candidate(
+        db, candidate, reviewer="owner", expected_revision=1)
+    entry = promoted["entry"]
+    assert entry["context"]["customer"] == "Customer-A"
+    assert entry["context"]["qualification"] == "licensed"
+
+    rows = [{"Qty": 2, "Price": "7.50", "Status": "approved",
+             "Region": "south"}]
+    wrong = apply_lesson_method(
+        entry, rows,
+        context={"customer": "Customer-B", "qualification": "unlicensed"})
+    assert wrong["status"] == "blocked"
+    assert wrong["reason"] == "teaching_context_mismatch"
+
+    missing = apply_lesson_method(
+        entry, rows, context={"customer": "Customer-A"})
+    assert missing["status"] == "blocked"
+    assert missing["reason"] == "teaching_context_required"
+    assert missing["applicability"]["missing"] == ["qualification"]
+
+    matching = apply_lesson_method(
+        entry, rows,
+        context={"customer": "Customer-A", "qualification": "licensed"})
+    assert matching["status"] == "applied"
+    assert matching["value"] == "15"
+    assert candidate.status == "promoted"
+    assert candidate.promoted_entry_id == entry["id"]
+
+
+def test_work_time_lessons_enforce_context(db):
+    from core.student_learning_service import get_agent_lessons
+
+    _agent(db)
+    candidate = _candidate(
+        lesson="Use the licensed Customer-A method.",
+        context={"customer": "Customer-A", "qualification": "licensed"},
+    )
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    promote_candidate(db, candidate, reviewer="owner", expected_revision=1)
+
+    assert get_agent_lessons(db, "agent-1") == []
+    assert get_agent_lessons(
+        db, "agent-1",
+        task_context={"customer": "Customer-B",
+                      "qualification": "unlicensed"},
+    ) == []
+    assert get_agent_lessons(
+        db, "agent-1",
+        task_context={"customer": "Customer-A"},
+    ) == []
+    matched = get_agent_lessons(
+        db, "agent-1",
+        task_context={"customer": "Customer-A",
+                      "qualification": "licensed"},
+    )
+    assert [item.get("lesson") for item in matched] == [
+        "Use the licensed Customer-A method."]
+
+
+def test_conflicting_applicable_methods_surface_conflict(db):
+    from core.conversation_learning import applicable_method_lessons
+
+    _agent(db)
+    context = {"customer": "Customer-A", "qualification": "licensed"}
+    first = _candidate(
+        lesson="Use the licensed Customer-A sum method.",
+        context=context, method=_method(operation="sum"))
+    save_candidate(db, first)
+    confirm_candidate(db, first, reviewer="owner", expected_revision=1)
+    promote_candidate(db, first, reviewer="owner", expected_revision=1)
+
+    second = _candidate(
+        lesson="Use the licensed Customer-A multiply method.",
+        context=context, method=_method(operation="multiply_sum"))
+    save_candidate(db, second)
+    confirm_candidate(db, second, reviewer="owner", expected_revision=1)
+    promote_candidate(db, second, reviewer="owner", expected_revision=1)
+
+    resolved = applicable_method_lessons(
+        db, "agent-1", context, workspace_id="ws-1")
+    assert resolved["status"] == "conflict"
+    assert len(resolved["lessons"]) == 2
+
+
+def test_context_survives_restart_and_still_blocks_wrong_use(db):
+    _agent(db)
+    candidate = _candidate(
+        lesson="Use the Customer-A licensed method.",
+        context={"customer": "Customer-A", "qualification": "licensed"},
+    )
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    promoted = promote_candidate(
+        db, candidate, reviewer="owner", expected_revision=1)
+    entry_id = promoted["entry"]["id"]
+    bind = db.get_bind()
+    db.close()
+    factory = sessionmaker(bind=bind, expire_on_commit=False)
+    db2 = factory()
+    try:
+        from core.models import AgentRegistry
+
+        agent = db2.query(AgentRegistry).filter(
+            AgentRegistry.id == "agent-1").first()
+        entry = next(
+            item for item in agent.configuration["learning"]["log"]
+            if item.get("id") == entry_id)
+        wrong = apply_lesson_method(
+            entry, [{"Qty": 1, "Price": "10"}],
+            context={"customer": "Customer-B",
+                     "qualification": "unlicensed"})
+        assert wrong["status"] == "blocked"
+        assert wrong["reason"] == "teaching_context_mismatch"
+        matching = apply_lesson_method(
+            entry, [{"Qty": 1, "Price": "10", "Status": "approved",
+                     "Region": "south"}],
+            context={"customer": "Customer-A",
+                     "qualification": "licensed"})
+        assert matching["status"] == "applied"
+        assert matching["value"] == "10"
+    finally:
+        db2.close()
+
+
 def test_core_profile_exposes_learning_surface():
     from core.product_profile import route_capability, route_enabled
 

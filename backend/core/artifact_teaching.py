@@ -507,7 +507,7 @@ def resolve_artifact_teaching(
 
     lessons = get_agent_lessons(
         db, str(agent_id), query=None, limit=limit, goal_id=goal_id,
-        include_workspace=False,
+        include_workspace=False, include_context_bound=True,
     )
     task = normalize_lesson_context(task_context or {})
     applicability: List[Dict[str, Any]] = []

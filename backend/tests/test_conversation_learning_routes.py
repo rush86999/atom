@@ -116,14 +116,15 @@ def route_env(tmp_path):
         engine.dispose()
 
 
-def _create_candidate(env, *, lesson="Use the confirmed rates workbook."):
+def _create_candidate(env, *, lesson="Use the confirmed rates workbook.",
+                      context=None, method=None):
     response = env["client"].post(
         "/api/conversation-learning/candidates",
         json={
             "thread_id": "thread-1",
             "agent_id": "agent-1",
             "proposed_lesson": lesson,
-            "method": {
+            "method": method or {
                 "intended_outcome": "Price the order",
                 "operation": "multiply_sum",
                 "inputs": [
@@ -137,6 +138,7 @@ def _create_candidate(env, *, lesson="Use the confirmed rates workbook."):
             },
             "method_status": "explicit",
             "applies_to": ["pricing"],
+            "context": context or {},
             "authority_message_id": "m1",
             "authority_excerpt": "Use the attached workbook",
         },
@@ -297,6 +299,133 @@ def test_promotion_blocks_after_source_change(route_env):
               "expected_revision": 1})
     assert promoted.status_code == 409, promoted.text
     assert get_agent_lessons(route_env["db"], "agent-1") == []
+
+
+
+
+def _promote_context_candidate(env, *, context, lesson, method=None):
+    created = _create_candidate(
+        env, lesson=lesson, context=context, method=method)
+    candidate_id = created["candidate"]["candidate_id"]
+    confirmed = env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/confirm",
+        json={"thread_id": "thread-1", "reviewer": "forged-owner",
+              "expected_revision": 1})
+    assert confirmed.status_code == 200, confirmed.text
+    promoted = env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/promote",
+        json={"thread_id": "thread-1", "reviewer": "forged-owner",
+              "expected_revision": 1})
+    assert promoted.status_code == 200, promoted.text
+    return candidate_id, promoted.json()
+
+
+def test_apply_context_matching_wrong_missing(route_env):
+    context = {"customer": "Customer-A", "qualification": "licensed"}
+    candidate_id, promoted = _promote_context_candidate(
+        route_env, context=context,
+        lesson="Use the Customer-A licensed pricing method.")
+    lesson_id = promoted["lesson_id"]
+
+    matching = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/apply",
+        json={"thread_id": "thread-1", "context": context,
+              "rows": [{"Qty": 2, "Price": "7.50",
+                        "Status": "approved", "Region": "south"}]})
+    assert matching.status_code == 200, matching.text
+    assert matching.json()["result"]["value"] == "15"
+
+    wrong = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/apply",
+        json={"thread_id": "thread-1",
+              "context": {"customer": "Customer-B",
+                          "qualification": "unlicensed"},
+              "rows": [{"Qty": 1, "Price": "10"}]})
+    assert wrong.status_code == 409, wrong.text
+    assert wrong.json()["detail"]["reason"] == "teaching_context_mismatch"
+
+    missing = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/apply",
+        json={"thread_id": "thread-1",
+              "context": {"customer": "Customer-A"},
+              "rows": [{"Qty": 1, "Price": "10"}]})
+    assert missing.status_code == 409, missing.text
+    detail = missing.json()["detail"]
+    assert detail["reason"] == "teaching_context_required"
+    assert "qualification" in detail["applicability"]["missing"]
+
+    fetched = route_env["client"].get(
+        f"/api/conversation-learning/candidates/{candidate_id}",
+        params={"thread_id": "thread-1"})
+    assert fetched.json()["candidate"]["status"] == "promoted"
+    assert fetched.json()["candidate"]["promoted_entry_id"] == lesson_id
+    agent = route_env["db"].query(AgentRegistry).filter(
+        AgentRegistry.id == "agent-1").first()
+    assert len(agent.configuration["learning"]["log"]) == 1
+
+
+def test_apply_conflicting_applicable_teaching(route_env):
+    context = {"customer": "Customer-A", "qualification": "licensed"}
+    first_id, _ = _promote_context_candidate(
+        route_env, context=context,
+        lesson="Use the Customer-A licensed sum method.",
+        method={
+            "intended_outcome": "Sum the order",
+            "operation": "sum",
+            "inputs": [{"concept": "amount", "column": "Price",
+                        "unit": "USD"}],
+            "output_unit": "USD",
+            "transformation": "sum of Price",
+            "rounding": {"places": 2, "stage": "final"},
+        })
+    _promote_context_candidate(
+        route_env, context=context,
+        lesson="Use the Customer-A licensed multiply method.",
+        method={
+            "intended_outcome": "Price the order",
+            "operation": "multiply_sum",
+            "inputs": [
+                {"concept": "quantity", "column": "Qty", "unit": "units"},
+                {"concept": "unit_price", "column": "Price", "unit": "USD"},
+            ],
+            "output_unit": "USD",
+            "transformation": "quantity * unit_price",
+            "rounding": {"places": 2, "stage": "final"},
+        })
+    applied = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{first_id}/apply",
+        json={"thread_id": "thread-1", "context": context,
+              "rows": [{"Qty": 2, "Price": "7.50"}]})
+    assert applied.status_code == 409, applied.text
+    assert applied.json()["detail"]["error"] == "teaching_context_conflict"
+
+
+def test_context_survives_route_restart(route_env):
+    context = {"customer": "Customer-A", "qualification": "licensed"}
+    candidate_id, _ = _promote_context_candidate(
+        route_env, context=context,
+        lesson="Use the restart-safe Customer-A method.")
+    bind = route_env["db"].get_bind()
+    route_env["db"].close()
+    factory = sessionmaker(bind=bind, expire_on_commit=False)
+    db2 = factory()
+    try:
+        route_env["client"].app.dependency_overrides[get_db] = lambda: db2
+        wrong = route_env["client"].post(
+            f"/api/conversation-learning/candidates/{candidate_id}/apply",
+            json={"thread_id": "thread-1",
+                  "context": {"customer": "Customer-B",
+                              "qualification": "unlicensed"},
+                  "rows": [{"Qty": 1, "Price": "10"}]})
+        assert wrong.status_code == 409, wrong.text
+        matching = route_env["client"].post(
+            f"/api/conversation-learning/candidates/{candidate_id}/apply",
+            json={"thread_id": "thread-1", "context": context,
+                  "rows": [{"Qty": 1, "Price": "10"}]})
+        assert matching.status_code == 200, matching.text
+        assert matching.json()["result"]["value"] == "10"
+    finally:
+        db2.close()
 
 
 def test_route_lists_local_email_threads(route_env):

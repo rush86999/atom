@@ -17,6 +17,7 @@ from core.base_routes import BaseAPIRouter
 from core.conversation_learning import (
     ConversationEvidence,
     LearningCandidate,
+    applicable_method_lessons,
     apply_lesson_method,
     build_candidate,
     candidate_readiness,
@@ -360,9 +361,44 @@ def apply_method(candidate_id: str, request: ApplyMethodRequest,
                   if str(item.get("id") or "") == str(candidate.promoted_entry_id)), None)
     if entry is None:
         raise HTTPException(status_code=409, detail="promoted_lesson_not_found")
-    result = apply_lesson_method(entry, request.rows,
-                                 field_mapping=request.field_mapping,
-                                 context=request.context)
+    resolved = applicable_method_lessons(
+        db, candidate.agent_id, request.context,
+        workspace_id=candidate.workspace_id)
+    if resolved.get("status") == "conflict":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "teaching_context_conflict",
+                "message": (
+                    "Equally specific teaching methods conflict for this "
+                    "context; confirm which scope governs."),
+                "lessons": [
+                    {"lesson_id": item["entry"].get("id"),
+                     "topic": item["entry"].get("topic")}
+                    for item in resolved.get("lessons") or []
+                ],
+            },
+        )
+    if resolved.get("status") == "applicable":
+        winner_ids = {
+            str(item["entry"].get("id"))
+            for item in resolved.get("lessons") or []
+        }
+        if str(candidate.promoted_entry_id) not in winner_ids:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "teaching_context_superseded",
+                    "message": (
+                        "A more specific applicable lesson governs this "
+                        "context; apply that lesson instead."),
+                },
+            )
+    result = apply_lesson_method(
+        entry, request.rows,
+        field_mapping=request.field_mapping,
+        context=request.context,
+        workspace_id=candidate.workspace_id)
     if result.get("status") != "applied":
         raise HTTPException(status_code=409, detail=result)
     return {"candidate_id": candidate.candidate_id,

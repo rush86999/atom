@@ -1707,6 +1707,8 @@ def promote_candidate(
         topic=f"conversation:{candidate.thread_id}",
         teacher_agent_id=str(reviewer or "human_supervisor"),
         details=details,
+        applies_to=list(candidate.applies_to),
+        context=dict(candidate.context),
         workspace_id=candidate.workspace_id,
     )
     if entry is None:
@@ -1751,16 +1753,97 @@ def apply_lesson_method(
     *,
     field_mapping: Optional[Dict[str, str]] = None,
     context: Optional[Dict[str, Any]] = None,
+    workspace_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Apply a promoted lesson's validated method, or refuse if it has none."""
+    """Apply a promoted lesson's validated method, or refuse if it has none.
+
+    Applicability is evaluated from the journal entry's top-level context,
+    not from provenance metadata alone. A wrong or incomplete task context
+    blocks the calculation before any arithmetic runs.
+    """
+    from core.artifact_teaching import evaluate_lesson_context
+
+    applicability = evaluate_lesson_context(
+        entry.get("context") or {},
+        context or {},
+        workspace_id=workspace_id or entry.get("workspace_id"),
+    )
+    if applicability.get("status") == "not_applicable":
+        return {
+            "status": "blocked",
+            "reason": "teaching_context_mismatch",
+            "applicability": applicability,
+        }
+    if applicability.get("status") == "needs_context":
+        return {
+            "status": "blocked",
+            "reason": "teaching_context_required",
+            "applicability": applicability,
+        }
+    if applicability.get("status") == "conflict":
+        return {
+            "status": "blocked",
+            "reason": "teaching_context_conflict",
+            "applicability": applicability,
+        }
     method = method_from_lesson(entry)
     if method is None:
         return {
             "status": "blocked",
             "reason": "lesson_has_no_confirmed_method",
+            "applicability": applicability,
         }
     return apply_confirmed_method(
         method, rows, field_mapping=field_mapping, context=context)
+
+
+
+def applicable_method_lessons(
+    db: Session,
+    agent_id: str,
+    task_context: Optional[Dict[str, Any]],
+    *,
+    workspace_id: Optional[str] = None,
+    limit: int = 50,
+) -> Dict[str, Any]:
+    """Applicable method lessons at the highest matching specificity.
+
+    Equally specific, different methods are a real conflict; recency never
+    chooses one. A more specific lesson outranks a global one.
+    """
+    from core.artifact_teaching import evaluate_lesson_context
+    from core.student_learning_service import get_agent_lessons
+
+    lessons = get_agent_lessons(
+        db, str(agent_id), limit=limit, include_context_bound=True)
+    applicable: List[Dict[str, Any]] = []
+    for entry in lessons:
+        method = method_from_lesson(entry)
+        if method is None:
+            continue
+        evaluation = evaluate_lesson_context(
+            entry.get("context") or {},
+            task_context or {},
+            workspace_id=workspace_id or entry.get("workspace_id"),
+        )
+        if evaluation.get("status") != "applicable":
+            continue
+        applicable.append({
+            "entry": entry,
+            "method": method,
+            "specificity": int(evaluation.get("specificity") or 0),
+            "applicability": evaluation,
+        })
+    if not applicable:
+        return {"status": "not_applicable", "lessons": []}
+    top = max(item["specificity"] for item in applicable)
+    top_items = [item for item in applicable if item["specificity"] == top]
+    signatures = {
+        json.dumps(item["method"].model_dump(mode="json"), sort_keys=True)
+        for item in top_items
+    }
+    status = "conflict" if len(signatures) > 1 else "applicable"
+    return {"status": status, "specificity": top, "lessons": top_items}
 
 
 def invalidate_candidate(

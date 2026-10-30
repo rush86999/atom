@@ -80,6 +80,10 @@ export function ConversationLearningReview({
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [resources, setResources] = useState<Record<string, string>>({});
   const [applyValues, setApplyValues] = useState<Record<string, string>>({});
+  const [applyContext, setApplyContext] = useState({
+    customer: "",
+    qualification: "",
+  });
   const [applyResult, setApplyResult] = useState<string | null>(null);
   const [draft, setDraft] = useState({
     agentId: "",
@@ -93,6 +97,8 @@ export function ConversationLearningReview({
     concept2: "",
     column2: "",
     unit2: "",
+    customer: "",
+    qualification: "",
     methodStatus: "explicit",
   });
 
@@ -180,6 +186,11 @@ export function ConversationLearningReview({
         proposed_lesson: draft.lesson,
         applies_to: draft.appliesTo
           .split(",").map((item) => item.trim()).filter(Boolean),
+        context: {
+          ...(draft.customer ? { customer: draft.customer } : {}),
+          ...(draft.qualification
+            ? { qualification: draft.qualification } : {}),
+        },
         method: {
           intended_outcome: draft.outcome || draft.lesson,
           operation: draft.operation,
@@ -272,7 +283,13 @@ export function ConversationLearningReview({
         if (column) row[column] = applyValues[input.concept] || "";
       }
       const applied = await applyLearningCandidate(
-        threadId, review.candidate_id, [row]);
+        threadId, review.candidate_id, [row], {},
+        {
+          ...(applyContext.customer
+            ? { customer: applyContext.customer } : {}),
+          ...(applyContext.qualification
+            ? { qualification: applyContext.qualification } : {}),
+        });
       setApplyResult(
         `${applied.result.value} ${applied.result.unit || ""}`.trim());
     } catch (err: any) {
@@ -377,6 +394,10 @@ export function ConversationLearningReview({
             <input className="rounded border p-1" data-testid="learning-concept-1" value={draft.concept1} onChange={(e) => setDraft({ ...draft, concept1: e.target.value })} placeholder="input concept" />
             <input className="rounded border p-1" data-testid="learning-column-1" value={draft.column1} onChange={(e) => setDraft({ ...draft, column1: e.target.value })} placeholder="column" />
             <input className="rounded border p-1" data-testid="learning-unit-1" value={draft.unit1} onChange={(e) => setDraft({ ...draft, unit1: e.target.value })} placeholder="unit" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <input className="rounded border p-1" data-testid="learning-customer-input" value={draft.customer} onChange={(e) => setDraft({ ...draft, customer: e.target.value })} placeholder="customer (optional)" />
+            <input className="rounded border p-1" data-testid="learning-qualification-input" value={draft.qualification} onChange={(e) => setDraft({ ...draft, qualification: e.target.value })} placeholder="qualification (optional)" />
           </div>
           <div className="grid grid-cols-3 gap-2">
             <input className="rounded border p-1" data-testid="learning-concept-2" value={draft.concept2} onChange={(e) => setDraft({ ...draft, concept2: e.target.value })} placeholder="second input concept (optional)" />
@@ -562,6 +583,24 @@ export function ConversationLearningReview({
                 The approved method runs on a new row; no source is written.
               </p>
               <div className="mt-1 flex flex-wrap items-center gap-1">
+                <input
+                  className="w-28 rounded border p-1"
+                  data-testid="learning-apply-customer"
+                  value={applyContext.customer}
+                  onChange={(event) => setApplyContext({
+                    ...applyContext, customer: event.target.value,
+                  })}
+                  placeholder="customer"
+                />
+                <input
+                  className="w-28 rounded border p-1"
+                  data-testid="learning-apply-qualification"
+                  value={applyContext.qualification}
+                  onChange={(event) => setApplyContext({
+                    ...applyContext, qualification: event.target.value,
+                  })}
+                  placeholder="qualification"
+                />
                 {(review.method_and_assumptions.method.inputs || []).map(
                   (input: any) => (
                     <label key={input.concept} className="text-[11px]">

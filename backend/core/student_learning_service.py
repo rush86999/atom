@@ -185,6 +185,10 @@ def get_agent_lessons(
     limit: int = WORK_TIME_LESSON_LIMIT,
     goal_id: Optional[str] = None,
     include_workspace: bool = True,
+    *,
+    task_context: Optional[Dict[str, Any]] = None,
+    workspace_id: Optional[str] = None,
+    include_context_bound: bool = False,
 ) -> List[Dict[str, Any]]:
     """The agent's permanent lessons, newest first, for injection at work time.
 
@@ -234,6 +238,28 @@ def get_agent_lessons(
                 continue
             if _lesson_in_scope(entry, goal_id):
                 lessons.append(entry)
+
+    if not include_context_bound:
+        from core.artifact_teaching import evaluate_lesson_context
+
+        applicable: List[Dict[str, Any]] = []
+        for entry in lessons:
+            lesson_context = entry.get("context") or {}
+            if not lesson_context:
+                applicable.append(entry)
+                continue
+            if task_context is None:
+                # A context-bound lesson cannot be safely generalized when
+                # the caller has not established the task context.
+                continue
+            evaluation = evaluate_lesson_context(
+                lesson_context,
+                task_context,
+                workspace_id=workspace_id or entry.get("workspace_id"),
+            )
+            if evaluation.get("status") == "applicable":
+                applicable.append(entry)
+        lessons = applicable
 
     if query:
         q_tokens = {

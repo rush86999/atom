@@ -202,7 +202,8 @@ export async function applyLearningCandidate(
   threadId: string,
   candidateId: string,
   rows: Array<Record<string, unknown>>,
-  fieldMapping: Record<string, string> = {}
+  fieldMapping: Record<string, string> = {},
+  context: Record<string, unknown> = {}
 ): Promise<{ lesson_id: string; result: Record<string, any> }> {
   const { data } = await apiClient.post(
     `/api/conversation-learning/candidates/${encodeURIComponent(candidateId)}/apply`,
@@ -210,6 +211,7 @@ export async function applyLearningCandidate(
       thread_id: threadId,
       rows,
       field_mapping: fieldMapping,
+      context,
     }
   );
   return data;
