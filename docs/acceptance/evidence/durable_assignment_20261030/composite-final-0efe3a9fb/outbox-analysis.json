@@ -1,0 +1,10 @@
+{
+  "schema": "atom-controlled-outbox-scope-1",
+  "total_lines": 2,
+  "final_run_lines": 1,
+  "final_run_operation_ids": [
+    "1310b957-a379-4d4f-b0fa-ed9e7ba091b8"
+  ],
+  "other_run_lines": 1,
+  "duplicate_final_run_operations": 0
+}

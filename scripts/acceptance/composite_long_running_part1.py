@@ -116,7 +116,10 @@ def teach(page, *, lesson: str, topic: str, applies: str | None = None,
 def fill_start(page, *, frontend: str, agent_id: str, source_file: str,
                objective: str, qualification: str, task_scope: str,
                correlation: str, recipient: str) -> str:
-    page.goto(f"{frontend}/assignments", wait_until="domcontentloaded")
+    # A fresh query string remounts the panel after a refused attempt; a
+    # same-route goto can preserve the previous form/busy state in Next.js.
+    page.goto(f"{frontend}/assignments?attempt={time.time_ns()}",
+              wait_until="domcontentloaded")
     page.get_by_test_id("assignment-source-select").wait_for(timeout=30000)
     page.get_by_text("Refresh data", exact=False).click()
     page.wait_for_timeout(2000)

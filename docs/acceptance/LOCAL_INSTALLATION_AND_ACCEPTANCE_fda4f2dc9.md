@@ -351,8 +351,10 @@ Clean-install evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/local-core-repro-0efe3a9fb/`
 
 Long-running and complex teaching evidence:
-`docs/acceptance/evidence/durable_assignment_20261030/composite-long-running-0efe3a9fb/`
+`docs/acceptance/evidence/durable_assignment_20261030/composite-final-0efe3a9fb/`
 and `docs/acceptance/LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md`.
+The earlier `composite-long-running-0efe3a9fb/` directory is preserved as a
+prior cross-source attempt, not the final campaign.
 
 Consolidated closure record:
 `docs/acceptance/evidence/durable_assignment_20261030/final-local-closure-0efe3a9fb.json`.

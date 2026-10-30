@@ -135,7 +135,7 @@ No goal is marked fully complete where a promised behavior remains unqualified.
   sum → DOCX download; restart preserved the artifact hash.
 - Composite long-running journey: complex teaching policy, conflict and
   missing-qualification refusals, mapping, source result `400.00`, browser
-  close, real backend process restart (`25444` → `25983`), waiting-state
+  close, real backend process restart (`30124` → `30602`), waiting-state
   reopen, active teaching snapshot retention, new Calibri lesson, correlated
   response, exact approval, one controlled outbox line, reload, and a
   revised-scope second run `2225.75` at Calibri 14.

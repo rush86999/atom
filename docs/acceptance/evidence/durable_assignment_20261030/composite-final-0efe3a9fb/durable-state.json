@@ -1,0 +1,767 @@
+{
+  "860a8d81-f17b-4bb0-9e87-442d8abbbaa4": {
+    "status": "achieved",
+    "assignment_id": "asg-ce28c7c56b954d3d",
+    "teaching_snapshot": {
+      "revision": "87d15fb70ae01762+bf5d58e747ff9cdf+map",
+      "effective_lesson_ids": [
+        {
+          "id": "995aa2e397294114a8abec5e6f4c6c5b",
+          "revision": 1
+        },
+        {
+          "id": "6f3a68c64c3a486ba3c009335d690d5d",
+          "revision": 1
+        }
+      ],
+      "applicable_conditions": {},
+      "matched_context": {
+        "business_category": "sales",
+        "qualification": "licensed",
+        "task_scope": "standard"
+      },
+      "unresolved_conditions": [],
+      "conflicting_conditions": [],
+      "field_mappings": [
+        {
+          "concept": "Price",
+          "sheet": "integrated_quote",
+          "column": "Gross Amount",
+          "unit": "USD",
+          "unit_authority": "source_evidence",
+          "required_unit": "",
+          "source_unit": "USD",
+          "source_unit_column": "Currency",
+          "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+          "revision": 2
+        }
+      ],
+      "source_versions": {
+        "995aa2e397294114a8abec5e6f4c6c5b": 1,
+        "6f3a68c64c3a486ba3c009335d690d5d": 1
+      },
+      "output_requirements": {
+        "font_name": "Arial",
+        "font_size": 11,
+        "heading_order": [
+          "Summary",
+          "Findings",
+          "Sources"
+        ],
+        "table_columns": [
+          "Item",
+          "Value"
+        ],
+        "greeting": "Dear colleague,",
+        "signature": "Sales team",
+        "subject_prefix": "[Quote]"
+      },
+      "decision_schema": [],
+      "artifact_requirements": {},
+      "captured_at": "2026-10-30T14:13:23.797379+00:00",
+      "fingerprint_version": 2,
+      "fingerprint": "e4cfce351528ff107780749922a71e25"
+    },
+    "mappings": null,
+    "steps": [
+      {
+        "step_id": "source-1",
+        "status": "applied",
+        "result": {
+          "summary": "sum of Gross Amount = 400.00 USD across 3 row(s) from integrated_quote.csv / integrated_quote",
+          "evidence": [
+            {
+              "kind": "connected_aggregate",
+              "resource_id": "aa402219-1dbb-4b60-8d8c-9afa42cd3c78",
+              "dataset_name": "upload_integrated_quote__integrated_quote",
+              "file_name": "integrated_quote.csv",
+              "sheet": "integrated_quote",
+              "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+              "representation": "parquet_frame",
+              "coverage": {
+                "known": true,
+                "source_row_count": 3,
+                "materialized_row_count": 3,
+                "truncated": false,
+                "row_cap": 500000
+              },
+              "workspace_id": "default",
+              "tenant_id": "default",
+              "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data/sheet_datasets/default/abf5444c3881/upload_integrated_quote__integrated_quote.parquet",
+              "operation": "sum",
+              "measure": "Gross Amount",
+              "subtotals": {
+                "USD": {
+                  "rows": "\u2026",
+                  "value": "\u2026"
+                }
+              },
+              "sheet_rows": [
+                2,
+                3,
+                4
+              ],
+              "selected_count": 3
+            }
+          ],
+          "artifact": null,
+          "artifact_revision": null,
+          "value": "400.00",
+          "unit": "USD",
+          "expression": null,
+          "operation": "sum",
+          "measure": "Gross Amount",
+          "values": [
+            {
+              "currency": "USD",
+              "value": "400.00",
+              "rows": 3
+            }
+          ],
+          "subtotals": {
+            "USD": {
+              "rows": 3,
+              "value": "400.00"
+            }
+          },
+          "source": {
+            "resource_id": "aa402219-1dbb-4b60-8d8c-9afa42cd3c78",
+            "dataset_name": "upload_integrated_quote__integrated_quote",
+            "file_name": "integrated_quote.csv",
+            "sheet": "integrated_quote",
+            "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+            "representation": "parquet_frame",
+            "coverage": {
+              "known": true,
+              "source_row_count": 3,
+              "materialized_row_count": 3,
+              "truncated": false,
+              "row_cap": 500000
+            },
+            "workspace_id": "default",
+            "tenant_id": "default"
+          },
+          "source_label": "integrated_quote.csv / integrated_quote",
+          "formulas": {},
+          "matched_count": null,
+          "selected_count": 3,
+          "truncated": null,
+          "substantive": null,
+          "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+          "provider_ref": null,
+          "rows": [
+            {
+              "identity": "row 2",
+              "identity_source": "sheet_row",
+              "row": 2,
+              "value": "100.00",
+              "currency": "USD",
+              "value_cell": "C2"
+            },
+            {
+              "identity": "row 3",
+              "identity_source": "sheet_row",
+              "row": 3,
+              "value": "250.50",
+              "currency": "USD",
+              "value_cell": "C3"
+            },
+            {
+              "identity": "row 4",
+              "identity_source": "sheet_row",
+              "row": 4,
+              "value": "49.50",
+              "currency": "USD",
+              "value_cell": "C4"
+            }
+          ],
+          "schema": null,
+          "text": null,
+          "decision": null,
+          "draft": null,
+          "data": null,
+          "at": "2026-10-30T14:13:23.816483+00:00",
+          "receipt": {
+            "receipt_version": 1,
+            "operation_id": "bbaf3895-3692-4190-bf71-f0f8d0b46a6b",
+            "execution_id": null,
+            "action": "dataset.aggregate",
+            "binding_sha256": "fc76d4ff1a1653d3c6e189bf8413e3d98c634b827cc9dc0dc01c2e29c6786a75",
+            "observed_status": "confirmed",
+            "error_class": null,
+            "reconciliation_required": false,
+            "at": "2026-10-30T14:13:23.818817+00:00",
+            "source": {
+              "kind": null,
+              "path": null,
+              "revision": null,
+              "sha256": null,
+              "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+              "coverage": null
+            },
+            "calculation": {
+              "expression": null,
+              "value": "400.00",
+              "unit": "USD",
+              "steps": null
+            },
+            "outbound": null,
+            "readback": null,
+            "summary": "sum of Gross Amount = 400.00 USD across 3 row(s) from integrated_quote.csv / integrated_quote",
+            "evidence": [
+              {
+                "kind": "connected_aggregate",
+                "resource_id": "aa402219-1dbb-4b60-8d8c-9afa42cd3c78",
+                "dataset_name": "upload_integrated_quote__integrated_quote",
+                "file_name": "integrated_quote.csv",
+                "sheet": "integrated_quote",
+                "source_version": "abf5444c388170ee6e978b026d7d18fe9190ac61",
+                "representation": "parquet_frame",
+                "coverage": {
+                  "known": true,
+                  "source_row_count": 3,
+                  "materialized_row_count": 3,
+                  "truncated": false,
+                  "row_cap": 500000
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data/sheet_datasets/default/abf5444c3881/upload_integrated_quote__integrated_quote.parquet",
+                "operation": "sum",
+                "measure": "Gross Amount",
+                "subtotals": {
+                  "USD": {
+                    "rows": 3,
+                    "value": "400.00"
+                  }
+                },
+                "sheet_rows": [
+                  2,
+                  3,
+                  4
+                ],
+                "selected_count": 3
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step_id": "wait",
+        "status": "applied",
+        "result": {
+          "summary": "controlled reply received",
+          "evidence": [],
+          "artifact": null,
+          "artifact_revision": null,
+          "value": "Currency unstated by source; report the total without a currency.",
+          "unit": null,
+          "expression": null,
+          "operation": null,
+          "measure": null,
+          "values": null,
+          "subtotals": null,
+          "source": null,
+          "source_label": null,
+          "formulas": null,
+          "matched_count": null,
+          "selected_count": null,
+          "truncated": null,
+          "substantive": null,
+          "source_version": null,
+          "provider_ref": null,
+          "rows": null,
+          "schema": null,
+          "text": null,
+          "decision": null,
+          "draft": null,
+          "data": null,
+          "at": "2026-10-30T14:15:12.128777+00:00",
+          "receipt": {
+            "receipt_version": 1,
+            "operation_id": "c312b45c-ac36-45c8-8750-9c814d2e6bb0",
+            "execution_id": null,
+            "action": "assignment.controlled_wait",
+            "binding_sha256": "fc32ece555b7c628008113775d8532c6105a8cdf67dbad9b9432c327ead48525",
+            "observed_status": "confirmed",
+            "error_class": null,
+            "reconciliation_required": false,
+            "at": "2026-10-30T14:15:12.131387+00:00",
+            "source": {
+              "kind": null,
+              "path": null,
+              "revision": null,
+              "sha256": null,
+              "source_version": null,
+              "coverage": null
+            },
+            "calculation": {
+              "expression": null,
+              "value": "Currency unstated by source; report the total without a currency.",
+              "unit": null,
+              "steps": null
+            },
+            "outbound": null,
+            "readback": null,
+            "summary": "controlled reply received",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "step_id": "deliverable-1",
+        "status": "applied",
+        "result": {
+          "summary": "rendered sum-price-for-the-final-composite-quote-sheet-2026-10-30-v2-9d03ca45.docx",
+          "evidence": [],
+          "artifact": {
+            "kind": "document",
+            "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data/office/assignments/default/d51d3156-97ae-452d-9bfb-6b7ae92d1972/draft-0f05f115e182/sum-price-for-the-final-composite-quote-sheet-2026-10-30-v2-9d03ca45.docx",
+            "sha256": "f0d902ddac32f38f8dd6bb1516eb3fbdfc371699537b1d8af7c540a516ded428",
+            "revision": "f0d902ddac32f38f"
+          },
+          "artifact_revision": "f0d902ddac32f38f",
+          "value": null,
+          "unit": null,
+          "expression": null,
+          "operation": null,
+          "measure": null,
+          "values": null,
+          "subtotals": null,
+          "source": null,
+          "source_label": null,
+          "formulas": null,
+          "matched_count": null,
+          "selected_count": null,
+          "truncated": null,
+          "substantive": {
+            "result_present": true,
+            "source_reference_present": true,
+            "subjects_covered": true,
+            "teaching_applied": true,
+            "teaching_spec_applied": true,
+            "teaching_revision": "87d15fb70ae01762+bf5d58e747ff9cdf+map",
+            "ok": true,
+            "summary": "result=True source=True subjects=True teaching=True"
+          },
+          "source_version": null,
+          "provider_ref": null,
+          "rows": null,
+          "schema": null,
+          "text": null,
+          "decision": null,
+          "draft": null,
+          "data": null,
+          "at": "2026-10-30T14:15:12.194177+00:00",
+          "receipt": {
+            "receipt_version": 1,
+            "operation_id": "5cad2fb6-e56a-400f-a73a-15f57f48e016",
+            "execution_id": null,
+            "action": "artifact.document",
+            "binding_sha256": "0ec8a5d31e6de84bbac0092ece1e254a42e8d800275b19559ebfe2db7724f247",
+            "observed_status": "confirmed",
+            "error_class": null,
+            "reconciliation_required": false,
+            "at": "2026-10-30T14:15:12.199092+00:00",
+            "source": {
+              "kind": "document",
+              "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data/office/assignments/default/d51d3156-97ae-452d-9bfb-6b7ae92d1972/draft-0f05f115e182/sum-price-for-the-final-composite-quote-sheet-2026-10-30-v2-9d03ca45.docx",
+              "revision": "f0d902ddac32f38f",
+              "sha256": "f0d902ddac32f38f8dd6bb1516eb3fbdfc371699537b1d8af7c540a516ded428",
+              "source_version": null,
+              "coverage": null
+            },
+            "calculation": null,
+            "outbound": null,
+            "readback": {
+              "revision": "f0d902ddac32f38f",
+              "sha256": "f0d902ddac32f38f8dd6bb1516eb3fbdfc371699537b1d8af7c540a516ded428"
+            },
+            "summary": "rendered sum-price-for-the-final-composite-quote-sheet-2026-10-30-v2-9d03ca45.docx",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "step_id": "send",
+        "status": "applied",
+        "result": {
+          "summary": "controlled provider accepted",
+          "evidence": [],
+          "artifact": null,
+          "artifact_revision": null,
+          "value": null,
+          "unit": null,
+          "expression": null,
+          "operation": null,
+          "measure": null,
+          "values": null,
+          "subtotals": null,
+          "source": null,
+          "source_label": null,
+          "formulas": null,
+          "matched_count": null,
+          "selected_count": null,
+          "truncated": null,
+          "substantive": null,
+          "source_version": null,
+          "provider_ref": "1310b957-a379-4d4f-b0fa-ed9e7ba091b8",
+          "rows": null,
+          "schema": null,
+          "text": null,
+          "decision": null,
+          "draft": null,
+          "data": null,
+          "at": "2026-10-30T14:15:14.174829+00:00",
+          "receipt": {
+            "receipt_version": 1,
+            "operation_id": "1310b957-a379-4d4f-b0fa-ed9e7ba091b8",
+            "execution_id": null,
+            "action": "assignment.controlled_outbox",
+            "binding_sha256": "44903afabc8c4abcf50973016bbc989ac2f2f3175edaf54bc9e4a8c0d8a94d9b",
+            "observed_status": "provider_accepted",
+            "error_class": null,
+            "reconciliation_required": false,
+            "at": "2026-10-30T14:15:14.178425+00:00",
+            "source": {
+              "kind": null,
+              "path": null,
+              "revision": null,
+              "sha256": null,
+              "source_version": null,
+              "coverage": null
+            },
+            "calculation": null,
+            "outbound": {
+              "provider_state": "sent",
+              "provider_ref": "1310b957-a379-4d4f-b0fa-ed9e7ba091b8"
+            },
+            "readback": null,
+            "summary": "controlled provider accepted",
+            "evidence": []
+          }
+        }
+      }
+    ]
+  },
+  "c869aa2c-d562-4c3c-8d79-786ce5d88396": {
+    "status": "achieved",
+    "assignment_id": "asg-c3a053020da54fc5",
+    "teaching_snapshot": {
+      "revision": "b9ea9fd7046d2776+map",
+      "effective_lesson_ids": [
+        {
+          "id": "f44f72ffdc954b18bc9c7010f0a6451c",
+          "revision": 1
+        },
+        {
+          "id": "995aa2e397294114a8abec5e6f4c6c5b",
+          "revision": 1
+        }
+      ],
+      "applicable_conditions": {},
+      "matched_context": {
+        "business_category": "sales",
+        "qualification": "licensed",
+        "task_scope": "revised"
+      },
+      "unresolved_conditions": [],
+      "conflicting_conditions": [],
+      "field_mappings": [
+        {
+          "concept": "Price",
+          "sheet": "clean_quote",
+          "column": "Net Amount",
+          "unit": "USD",
+          "unit_authority": "source_evidence",
+          "required_unit": "",
+          "source_unit": "USD",
+          "source_unit_column": "Currency",
+          "source_version": "07e5d4bad0b195d6898a4ce4fda0333853a83b80",
+          "revision": 2
+        }
+      ],
+      "source_versions": {
+        "f44f72ffdc954b18bc9c7010f0a6451c": 1,
+        "995aa2e397294114a8abec5e6f4c6c5b": 1
+      },
+      "output_requirements": {
+        "font_name": "Calibri",
+        "font_size": 14,
+        "heading_order": [
+          "Summary",
+          "Findings",
+          "Sources"
+        ],
+        "table_columns": [
+          "Item",
+          "Value"
+        ]
+      },
+      "decision_schema": [],
+      "artifact_requirements": {},
+      "captured_at": "2026-10-30T14:15:24.622060+00:00",
+      "fingerprint_version": 2,
+      "fingerprint": "75441d60a4d961f37287c6f6ebb16faa"
+    },
+    "mappings": null,
+    "steps": [
+      {
+        "step_id": "source-1",
+        "status": "applied",
+        "result": {
+          "summary": "sum of Net Amount = 2225.75 USD across 3 row(s) from clean_quote.csv / clean_quote",
+          "evidence": [
+            {
+              "kind": "connected_aggregate",
+              "resource_id": "245b61b5-e64c-4ea1-b48b-beff410cbf47",
+              "dataset_name": "upload_clean_quote__clean_quote",
+              "file_name": "clean_quote.csv",
+              "sheet": "clean_quote",
+              "source_version": "07e5d4bad0b195d6898a4ce4fda0333853a83b80",
+              "representation": "parquet_frame",
+              "coverage": {
+                "known": true,
+                "source_row_count": 3,
+                "materialized_row_count": 3,
+                "truncated": false,
+                "row_cap": 500000
+              },
+              "workspace_id": "default",
+              "tenant_id": "default",
+              "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data/sheet_datasets/default/07e5d4bad0b1/upload_clean_quote__clean_quote.parquet",
+              "operation": "sum",
+              "measure": "Net Amount",
+              "subtotals": {
+                "USD": {
+                  "rows": "\u2026",
+                  "value": "\u2026"
+                }
+              },
+              "sheet_rows": [
+                2,
+                3,
+                4
+              ],
+              "selected_count": 3
+            }
+          ],
+          "artifact": null,
+          "artifact_revision": null,
+          "value": "2225.75",
+          "unit": "USD",
+          "expression": null,
+          "operation": "sum",
+          "measure": "Net Amount",
+          "values": [
+            {
+              "currency": "USD",
+              "value": "2225.75",
+              "rows": 3
+            }
+          ],
+          "subtotals": {
+            "USD": {
+              "rows": 3,
+              "value": "2225.75"
+            }
+          },
+          "source": {
+            "resource_id": "245b61b5-e64c-4ea1-b48b-beff410cbf47",
+            "dataset_name": "upload_clean_quote__clean_quote",
+            "file_name": "clean_quote.csv",
+            "sheet": "clean_quote",
+            "source_version": "07e5d4bad0b195d6898a4ce4fda0333853a83b80",
+            "representation": "parquet_frame",
+            "coverage": {
+              "known": true,
+              "source_row_count": 3,
+              "materialized_row_count": 3,
+              "truncated": false,
+              "row_cap": 500000
+            },
+            "workspace_id": "default",
+            "tenant_id": "default"
+          },
+          "source_label": "clean_quote.csv / clean_quote",
+          "formulas": {},
+          "matched_count": null,
+          "selected_count": 3,
+          "truncated": null,
+          "substantive": null,
+          "source_version": "07e5d4bad0b195d6898a4ce4fda0333853a83b80",
+          "provider_ref": null,
+          "rows": [
+            {
+              "identity": "A-1",
+              "identity_source": "identity_column",
+              "row": 2,
+              "value": "1250.50",
+              "currency": "USD",
+              "value_cell": "C2"
+            },
+            {
+              "identity": "A-2",
+              "identity_source": "identity_column",
+              "row": 3,
+              "value": "900.00",
+              "currency": "USD",
+              "value_cell": "C3"
+            },
+            {
+              "identity": "A-3",
+              "identity_source": "identity_column",
+              "row": 4,
+              "value": "75.25",
+              "currency": "USD",
+              "value_cell": "C4"
+            }
+          ],
+          "schema": null,
+          "text": null,
+          "decision": null,
+          "draft": null,
+          "data": null,
+          "at": "2026-10-30T14:15:24.641945+00:00",
+          "receipt": {
+            "receipt_version": 1,
+            "operation_id": "6073f59e-57b5-4a76-91f8-e68c0b54b072",
+            "execution_id": null,
+            "action": "dataset.aggregate",
+            "binding_sha256": "e1240d14dc0c27a114281c7855e9530e31b228a6cfa5dc4406ad97988d37d77d",
+            "observed_status": "confirmed",
+            "error_class": null,
+            "reconciliation_required": false,
+            "at": "2026-10-30T14:15:24.644252+00:00",
+            "source": {
+              "kind": null,
+              "path": null,
+              "revision": null,
+              "sha256": null,
+              "source_version": "07e5d4bad0b195d6898a4ce4fda0333853a83b80",
+              "coverage": null
+            },
+            "calculation": {
+              "expression": null,
+              "value": "2225.75",
+              "unit": "USD",
+              "steps": null
+            },
+            "outbound": null,
+            "readback": null,
+            "summary": "sum of Net Amount = 2225.75 USD across 3 row(s) from clean_quote.csv / clean_quote",
+            "evidence": [
+              {
+                "kind": "connected_aggregate",
+                "resource_id": "245b61b5-e64c-4ea1-b48b-beff410cbf47",
+                "dataset_name": "upload_clean_quote__clean_quote",
+                "file_name": "clean_quote.csv",
+                "sheet": "clean_quote",
+                "source_version": "07e5d4bad0b195d6898a4ce4fda0333853a83b80",
+                "representation": "parquet_frame",
+                "coverage": {
+                  "known": true,
+                  "source_row_count": 3,
+                  "materialized_row_count": 3,
+                  "truncated": false,
+                  "row_cap": 500000
+                },
+                "workspace_id": "default",
+                "tenant_id": "default",
+                "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data/sheet_datasets/default/07e5d4bad0b1/upload_clean_quote__clean_quote.parquet",
+                "operation": "sum",
+                "measure": "Net Amount",
+                "subtotals": {
+                  "USD": {
+                    "rows": 3,
+                    "value": "2225.75"
+                  }
+                },
+                "sheet_rows": [
+                  2,
+                  3,
+                  4
+                ],
+                "selected_count": 3
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step_id": "deliverable-1",
+        "status": "applied",
+        "result": {
+          "summary": "rendered sum-price-for-the-final-revised-composite-quote-sheet-2026-1-61d89042.docx",
+          "evidence": [],
+          "artifact": {
+            "kind": "document",
+            "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data/office/assignments/default/d51d3156-97ae-452d-9bfb-6b7ae92d1972/draft-c65266f77a1f/sum-price-for-the-final-revised-composite-quote-sheet-2026-1-61d89042.docx",
+            "sha256": "fb87716c3d20299a0e035b7c22e3d8a38b42dee008c88bd5160ae33d2564c241",
+            "revision": "fb87716c3d20299a"
+          },
+          "artifact_revision": "fb87716c3d20299a",
+          "value": null,
+          "unit": null,
+          "expression": null,
+          "operation": null,
+          "measure": null,
+          "values": null,
+          "subtotals": null,
+          "source": null,
+          "source_label": null,
+          "formulas": null,
+          "matched_count": null,
+          "selected_count": null,
+          "truncated": null,
+          "substantive": {
+            "result_present": true,
+            "source_reference_present": true,
+            "subjects_covered": true,
+            "teaching_applied": true,
+            "teaching_spec_applied": true,
+            "teaching_revision": "b9ea9fd7046d2776+map",
+            "ok": true,
+            "summary": "result=True source=True subjects=True teaching=True"
+          },
+          "source_version": null,
+          "provider_ref": null,
+          "rows": null,
+          "schema": null,
+          "text": null,
+          "decision": null,
+          "draft": null,
+          "data": null,
+          "at": "2026-10-30T14:15:24.698010+00:00",
+          "receipt": {
+            "receipt_version": 1,
+            "operation_id": "4c2a1e1d-9990-4587-8bd9-3a0f9e3c6b33",
+            "execution_id": null,
+            "action": "artifact.document",
+            "binding_sha256": "b7f95db7236b0113ea3ed522e3d23221545857e0b26621a1abc14bcb75eeff7d",
+            "observed_status": "confirmed",
+            "error_class": null,
+            "reconciliation_required": false,
+            "at": "2026-10-30T14:15:24.703574+00:00",
+            "source": {
+              "kind": "document",
+              "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data/office/assignments/default/d51d3156-97ae-452d-9bfb-6b7ae92d1972/draft-c65266f77a1f/sum-price-for-the-final-revised-composite-quote-sheet-2026-1-61d89042.docx",
+              "revision": "fb87716c3d20299a",
+              "sha256": "fb87716c3d20299a0e035b7c22e3d8a38b42dee008c88bd5160ae33d2564c241",
+              "source_version": null,
+              "coverage": null
+            },
+            "calculation": null,
+            "outbound": null,
+            "readback": {
+              "revision": "fb87716c3d20299a",
+              "sha256": "fb87716c3d20299a0e035b7c22e3d8a38b42dee008c88bd5160ae33d2564c241"
+            },
+            "summary": "rendered sum-price-for-the-final-revised-composite-quote-sheet-2026-1-61d89042.docx",
+            "evidence": []
+          }
+        }
+      }
+    ]
+  }
+}

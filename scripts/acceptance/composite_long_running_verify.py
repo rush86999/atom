@@ -66,7 +66,8 @@ def download(page, out: Path, stem: str) -> dict:
 
 def start_and_resolve(page, *, frontend: str, agent_id: str, source_file: str,
                       objective: str, candidate: str) -> None:
-    page.goto(f"{frontend}/assignments", wait_until="domcontentloaded")
+    page.goto(f"{frontend}/assignments?attempt={time.time_ns()}",
+              wait_until="domcontentloaded")
     page.get_by_test_id("assignment-source-select").wait_for(timeout=30000)
     page.get_by_text("Refresh data", exact=False).click()
     page.wait_for_timeout(2000)

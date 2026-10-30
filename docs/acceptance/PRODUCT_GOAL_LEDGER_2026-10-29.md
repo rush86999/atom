@@ -24,7 +24,7 @@ Statuses: **Demonstrated**, **Partial**, **Deferred**, **Blocked**.
 | 9 | User-created canvases inherit capabilities | Demonstrated for supported table adapter; two canvas shapes current test | Versioned capability manifests, adapter registry, canvas routes | Historical capability evidence; C10 no change | Capability acceptance evidence | Only the supported table adapter is claimed; every future canvas component is not. |
 | 10 | Long-running, multi-source employee assignments | Demonstrated for controlled wait/approval/restart; bounded external research live-qualified on `rish@brennan.ca`; artifact-restart current test | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, HITL routes | Bounded taught job and C10 fresh/persistence restart checks | Bounded job evidence; C10 `deployment-receipt.json` restart agreement | One worker per assignment is the verified topology; multi-worker campaigns and autonomous third-party research are not claimed. |
 | 11 | Approval and eventual sending | **Demonstrated live** — payload-bound approval, provider acceptance, exact Sent Items message and attachment-hash match, restart no duplicate; recipient delivery not independently confirmed | Approval binding and HITL; `core/assignment_executor.py`; `core/email_send_policy.py`; `integrations/outlook_service.py`; `core/canvas_email_service.py` | C10 config: `ATOM_EMAIL_SEND_DISABLED=1`, `ATOM_ASSIGNMENT_ALLOW_LIVE_SEND=0`; controlled approval and live qualification separate | `send-qualification/` exact Sent Items receipt; composite controlled approval/outbox; C10 `send-denial.json` | The one authorized live send is final for this scope. No standing permission or new send. Production sending remains disabled by default; recipient delivery is unclaimed. |
-| 12 | Everyday usability, security and operational readiness | **Bounded local core complete for documented supported workflows** — clean install/startup, normal auth/UI, persistence, composite long-running job, restart/recovery, accurate docs; hosted deployment/public release/publication deferred | Normal auth, Assignments/Activity, durable storage, local UI entry points, backup/recovery docs | Final local source `0efe3a9fb` (tag `local-core-2026-10-30-final`); clean root on `8071/3130`; Python 3.11.16 / Node 20.19.6 | `local-core-repro-0efe3a9fb/`, `composite-long-running-0efe3a9fb/`, `LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md` | Local completion only. Hosted deployment, public release and publication are deferred. Compatibility limits remain explicit. |
+| 12 | Everyday usability, security and operational readiness | **Bounded local core complete for documented supported workflows** — clean install/startup, normal auth/UI, persistence, composite long-running job, restart/recovery, accurate docs; hosted deployment/public release/publication deferred | Normal auth, Assignments/Activity, durable storage, local UI entry points, backup/recovery docs | Final local source `0efe3a9fb` (tag `local-core-2026-10-30-final`); clean root on `8071/3130`; Python 3.11.16 / Node 20.19.6 | `local-core-repro-0efe3a9fb/`, `composite-final-0efe3a9fb/`, `LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md` | Local completion only. Hosted deployment, public release and publication are deferred. Compatibility limits remain explicit. |
 
 Mapping campaign identities: the canonical B baseline stays bound to harness
 `7399fe41e`; new B/C/correction/waiting-restart attempts are written under
@@ -74,8 +74,8 @@ Final local source `0efe3a9fbdc19414b0615ae033a3823e02d04d75` (tree
 - Composite long-running journey: complex teaching policy (method, contextual
   exception, qualification, effective period, document format, email protocol,
   conflict), conflict removal, missing-qualification clarification, mapping,
-  source result `400.00`, browser close, real backend restart (`25444` →
-  `25983`), waiting-state reopen, active teaching snapshot retention, new
+  source result `400.00`, browser close, real backend restart (`30124` →
+  `30602`), waiting-state reopen, active teaching snapshot retention, new
   Calibri lesson, correlated response, exact approval, one controlled outbox
   line, reload, and a revised-scope second run `2225.75` at Calibri 14.
 - Current-source regressions: 86 backend tests passed; 31 frontend tests
@@ -84,7 +84,7 @@ Final local source `0efe3a9fbdc19414b0615ae033a3823e02d04d75` (tree
 Evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/local-core-repro-0efe3a9fb/`
 and
-`docs/acceptance/evidence/durable_assignment_20261030/composite-long-running-0efe3a9fb/`.
+`docs/acceptance/evidence/durable_assignment_20261030/composite-final-0efe3a9fb/`.
 Transition table: `docs/acceptance/LONG_RUNNING_AND_TEACHING_COVERAGE_2026-10-30.md`.
 
 Hosted deployment, public release and publication remain deferred. No source

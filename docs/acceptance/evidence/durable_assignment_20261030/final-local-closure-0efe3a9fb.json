@@ -23,51 +23,40 @@
     "restart_pid": 29176
   },
   "composite": {
-    "evidence": "composite-long-running-0efe3a9fb",
-    "active_run": "006faa87-a3d4-4e77-9e23-e08b16b37957",
-    "active_teaching_revision": "43dc08b733bed2c2+4c250e1562b36890+map",
-    "active_artifact_sha256": "4d449702513e531c5b68c4d0aa516ce6f72648392ba838c5b91241aabd7d9993",
+    "evidence": "composite-final-0efe3a9fb",
+    "active_run": "860a8d81-f17b-4bb0-9e87-442d8abbbaa4",
+    "active_teaching_revision": "87d15fb70ae01762+bf5d58e747ff9cdf+map",
+    "active_artifact_sha256": "f0d902ddac32f38f8dd6bb1516eb3fbdfc371699537b1d8af7c540a516ded428",
     "active_font": [
       "Arial",
       11.0
     ],
-    "second_run": "f5823b2a-8f49-46f7-8787-2609fe5b8cbd",
-    "second_teaching_revision": "3082d64a5e096533+map",
-    "second_artifact_sha256": "c9a728a261e4837084840635d80947625b2023d1e5cb4e4c5265bc15ee68b00a",
+    "second_run": "c869aa2c-d562-4c3c-8d79-786ce5d88396",
+    "second_teaching_revision": "b9ea9fd7046d2776+map",
+    "second_artifact_sha256": "fb87716c3d20299a0e035b7c22e3d8a38b42dee008c88bd5160ae33d2564c241",
     "second_font": [
       "Calibri",
       14.0
     ],
-    "outbox_lines": 1,
+    "outbox_final_run_lines": 1,
+    "outbox_total_lines": 2,
+    "outbox_duplicate_final_run_operations": 0,
     "restart": {
-      "schema": "atom-composite-restart-1",
-      "browser": {
-        "part1_closed_before_restart": true,
-        "part2_new_browser_context": true
-      },
-      "backend": {
-        "old_pid": 25444,
-        "new_pid": 25983,
-        "stopped_before_restart": true,
-        "same_data_root": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data",
-        "same_database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/fda_clean_repro/data/atom.db",
-        "same_frontend_build": true
-      },
-      "active_run": {
-        "run_id": "006faa87-a3d4-4e77-9e23-e08b16b37957",
-        "status_after_restart": "waiting",
-        "teaching_revision_before": "43dc08b733bed2c2+4c250e1562b36890+map",
-        "teaching_revision_after_teach": "43dc08b733bed2c2+4c250e1562b36890+map",
-        "status_after_completion": "completed"
-      }
-    }
+      "old_pid": 30124,
+      "new_pid": 30602,
+      "same_data_root": true,
+      "browser_closed": true,
+      "status_after_restart": "waiting",
+      "status_after_completion": "completed"
+    },
+    "prior_attempt_preserved": "composite-long-running-0efe3a9fb"
   },
   "regressions": {
     "backend": "86 passed",
     "frontend": "31 passed",
     "logs": [
-      "composite-long-running-0efe3a9fb/backend-targeted-tests.log",
-      "composite-long-running-0efe3a9fb/frontend-targeted-tests.log"
+      "composite-final-0efe3a9fb/backend-targeted-tests.log",
+      "composite-final-0efe3a9fb/frontend-targeted-tests.log"
     ]
   },
   "deferred": [

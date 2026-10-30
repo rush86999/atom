@@ -14,12 +14,12 @@ mapping-wait recovery is **not** certification of every long-running state.
 | Required transition | What was actually done | Source-bound evidence |
 |---|---|---|
 | Database-session reload | Close and reopen the SQLAlchemy session, read the same durable row | `mapping-browser-waiting-restart` result: `durable_unchanged`; `backend/tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers` |
-| Actual backend process restart | Stop the isolated uvicorn process, start a new process against the same SQLite/LanceDB/office root, authenticate normally | Composite restart: old PID `25444` → new PID `25983`; `composite-long-running-0efe3a9fb/restart.json`; `reopened-after-restart.png` |
+| Actual backend process restart | Stop the isolated uvicorn process, start a new process against the same SQLite/LanceDB/office root, authenticate normally | Final composite restart: old PID `30124` → new PID `30602`; `composite-final-0efe3a9fb/restart.json`; `reopened-after-restart.png` |
 | Browser close/reopen | Part 1 browser context closed before restart; part 2 used a new browser context and normal login | `part1.json`, `part2-attempt-preserved.log`, `reopened-after-restart.png` |
 | Interrupted operation recovery | Recovery paths for a lost worker, running operation, wake-before-advance, and stranded uncertain operation | `test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain`, `test_ordinary_resume_leaves_healthy_running_operation_intact`, `test_crash_after_wake_before_advance_recovers` |
 | Delayed external-event handling | Source completed, durable `wait` step with correlation id, process stopped, restarted, then the correlated response delivered | `part1.json` (`source-1 applied`, `wait waiting`), `verify.json` (completed after restart) |
 | Restart after retrieval | The source aggregate `400.00` was applied before the restart and remained | `part1.json`, `durable-state.json` |
-| Restart after artifact creation | Completed artifact reopened and downloaded with the same SHA-256 | `active-reload-assignment-artifact.docx` = `4d449702...`; `verify.json` |
+| Restart after artifact creation | Completed artifact reopened and downloaded with the same SHA-256 | `active-reload-assignment-artifact.docx` = `f0d902dd...`; `verify.json` |
 | Changed source version | Stale version is refused before read; current version is re-resolved on every read | `test_assignment_routes.py` stale-source controls; `test_assignment_resource_boundary.py` |
 | Revoked access | Connected-source grant is re-checked on every read; cached rows are not access | `test_assignment_routes.py::test_supervisor_assignment_rechecks_requester_source_grant`; resource boundary tests |
 | Changed attachment invalidating approval | Approval is bound to attachment bytes; changing the artifact invalidates the old request | `test_assignment_executor.py::test_changed_artifact_invalidates_approval`, `test_send_prepare_binds_attachment_bytes_not_just_ids` |
@@ -66,14 +66,14 @@ reassessment**. It is exposed in the assignment detail:
 
 Evidence:
 
-- Active run `006faa87-a3d4-4e77-9e23-e08b16b37957` kept teaching revision
-  `43dc08b733bed2c2+4c250e1562b36890+map` after a new Calibri 14 lesson was
-  taught while it was waiting.
+- Final active run `860a8d81-f17b-4bb0-9e87-442d8abbbaa4` kept teaching
+  revision `87d15fb70ae01762+bf5d58e747ff9cdf+map` after a new Calibri 14
+  lesson was taught while it was waiting.
 - The active artifact remained Arial 11 and SHA-256
-  `4d449702513e531c5b68c4d0aa516ce6f72648392ba838c5b91241aabd7d9993`.
-- New work `f5823b2a-8f49-46f7-8787-2609fe5b8cbd` used the new revision
-  `3082d64a5e096533+map` and produced Calibri 14, result `2225.75`, SHA-256
-  `c9a728a261e4837084840635d80947625b2023d1e5cb4e4c5265bc15ee68b00a`.
+  `f0d902ddac32f38f8dd6bb1516eb3fbdfc371699537b1d8af7c540a516ded428`.
+- New work `c869aa2c-d562-4c3c-8d79-786ce5d88396` used the new revision
+  `b9ea9fd7046d2776+map` and produced Calibri 14, result `2225.75`, SHA-256
+  `fb87716c3d20299a0e035b7c22e3d8a38b42dee008c88bd5160ae33d2564c241`.
 
 No old calculation was silently mixed with new policy, and the unrelated
 active work was not invalidated.
@@ -84,6 +84,11 @@ The harness is:
 `scripts/acceptance/composite_long_running_part1.py`,
 `scripts/acceptance/composite_long_running_part2.py`,
 `scripts/acceptance/composite_long_running_verify.py`.
+
+Final campaign evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/composite-final-0efe3a9fb/`.
+The earlier `composite-long-running-0efe3a9fb/` directory is preserved as a
+prior cross-source attempt and is not the final campaign.
 
 Browser actions (not API setup) established the agent, the teaching policy,
 the conflict and correction, the data upload, the assignment start, the
@@ -102,12 +107,12 @@ Sequence:
 7. Licensed start: created.
 8. Mapping `Price → Gross Amount` confirmed through the UI.
 9. Durable wait reached; source result `400.00` applied.
-10. Browser closed; backend PID `25444` stopped; new PID `25983` started on the
+10. Browser closed; backend PID `30124` stopped; new PID `30602` started on the
     same data root; browser reopened and normal login.
 11. Waiting state, objective, source evidence and teaching revision verified.
 12. New Calibri 14 lesson taught; active revision unchanged.
 13. Correlated response delivered; artifact rendered; exact approval payload
-    shown; controlled outbox received one line.
+    shown; the final run wrote one controlled outbox line.
 14. Page reloaded; status, history, mapping and artifact hash agreed.
 15. New revised-scope assignment on a differently shaped source
     (`clean_quote.csv`) used the new teaching revision and produced Calibri 14.
@@ -116,9 +121,12 @@ Artifacts:
 
 - `active-assignment-artifact.docx` and
   `active-reload-assignment-artifact.docx` are byte-identical
-  (`4d449702...`).
-- `revised-assignment-artifact.docx` is `c9a728a2...`.
-- `controlled-outbox.jsonl` has exactly one line; no duplicate send.
+  (`f0d902dd...`).
+- `revised-assignment-artifact.docx` is `fb87716c...`.
+- `controlled-outbox-final.jsonl` has exactly one line for the final run;
+  `outbox-analysis.json` records one final-run operation and zero duplicate
+  operations. The older line in `controlled-outbox-all-runs.jsonl` belongs to
+  the preserved prior attempt, not this run.
 
 ## 5. Failure and timing twins
 
