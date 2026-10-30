@@ -40,7 +40,14 @@ function userFacingError(err: unknown, fallback: string): string {
   const detail = anyErr?.response?.data?.detail;
   if (typeof detail === "string" && detail.trim()) return detail;
   if (detail && typeof detail === "object" && detail.message) {
-    return String(detail.message);
+    const conflicts = Array.isArray(detail.conflicts) ? detail.conflicts : [];
+    const conflictText = conflicts.flatMap((item: any) =>
+      (item?.conflicts || []).map((pair: any) =>
+        `${pair.key}: ${pair.required} vs ${pair.actual}`)
+    );
+    return conflictText.length
+      ? `${detail.message} (${conflictText.join("; ")})`
+      : String(detail.message);
   }
   if (anyErr?.message) return String(anyErr.message);
   return fallback;
@@ -110,6 +117,8 @@ export function AssignmentPanel({
   const [measure, setMeasure] = useState("");
   const [customMeasure, setCustomMeasure] = useState("");
   const [businessContext, setBusinessContext] = useState("");
+  const [qualification, setQualification] = useState("");
+  const [taskScope, setTaskScope] = useState("");
   const [startDraft, setStartDraft] = useState({
     objective: "",
     deliverableKind: "document",
@@ -225,9 +234,15 @@ export function AssignmentPanel({
           description: startDraft.objective,
           content: startDraft.content.trim() || undefined,
         }],
-        task_context: businessContext.trim()
-          ? { business_category: businessContext.trim() }
-          : {},
+        task_context: {
+          ...(businessContext.trim()
+            ? { business_category: businessContext.trim() }
+            : {}),
+          ...(qualification.trim()
+            ? { qualification: qualification.trim() }
+            : {}),
+          ...(taskScope.trim() ? { task_scope: taskScope.trim() } : {}),
+        },
       };
       const measureValue = measure === "__custom__"
         ? customMeasure.trim()
@@ -273,6 +288,8 @@ export function AssignmentPanel({
       });
       setMeasure("");
       setCustomMeasure("");
+      setQualification("");
+      setTaskScope("");
       setSelected(result.run_id);
       await refreshList();
       await refreshDetail(result.run_id);
@@ -471,6 +488,24 @@ export function AssignmentPanel({
           aria-label="Business context"
           data-testid="assignment-context-input"
         />
+        <div className="grid grid-cols-2 gap-1">
+          <input
+            value={qualification}
+            onChange={(e) => setQualification(e.target.value)}
+            placeholder="Required qualification"
+            className="w-full rounded border px-1.5 py-1"
+            aria-label="Required qualification"
+            data-testid="assignment-qualification-input"
+          />
+          <input
+            value={taskScope}
+            onChange={(e) => setTaskScope(e.target.value)}
+            placeholder="Task scope (exception match)"
+            className="w-full rounded border px-1.5 py-1"
+            aria-label="Task scope"
+            data-testid="assignment-task-scope-input"
+          />
+        </div>
         <label className="flex items-center gap-1 text-[10px]">
           <input
             type="checkbox"
@@ -615,6 +650,14 @@ export function AssignmentPanel({
               {detail.assignment.teaching_revision
                 ? ` · teaching ${detail.assignment.teaching_revision}`
                 : ""}
+            </p>
+            <p
+              className="text-[10px] text-muted-foreground"
+              data-testid="teaching-snapshot-note"
+            >
+              Teaching is snapshotted at start. Later teaching changes apply to
+              new work; this assignment keeps its accepted revision until an
+              explicit reassessment.
             </p>
           </div>
 

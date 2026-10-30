@@ -112,7 +112,15 @@ export function TrainingPanel({
   const [formatSize, setFormatSize] = useState("");
   const [formatHeadings, setFormatHeadings] = useState("");
   const [formatColumns, setFormatColumns] = useState("");
+  const [formatGreeting, setFormatGreeting] = useState("");
+  const [formatSignature, setFormatSignature] = useState("");
+  const [formatSubjectPrefix, setFormatSubjectPrefix] = useState("");
   const [teachContext, setTeachContext] = useState("");
+  const [taskScope, setTaskScope] = useState("");
+  const [recipientCondition, setRecipientCondition] = useState("");
+  const [qualification, setQualification] = useState("");
+  const [effectiveFrom, setEffectiveFrom] = useState("");
+  const [effectiveTo, setEffectiveTo] = useState("");
   // P2: ALSO capture the lesson as a structured playbook draft.
   const [asPlaybook, setAsPlaybook] = useState(false);
   // Bumped when a teach actually drafted a rule — PlaybookSection re-reads so
@@ -242,14 +250,28 @@ export function TrainingPanel({
         formatSpec.table_columns = formatColumns
           .split(",").map((item) => item.trim()).filter(Boolean);
       }
+      if (formatGreeting.trim()) formatSpec.greeting = formatGreeting.trim();
+      if (formatSignature.trim()) formatSpec.signature = formatSignature.trim();
+      if (formatSubjectPrefix.trim()) {
+        formatSpec.subject_prefix = formatSubjectPrefix.trim();
+      }
+      const conditions: Record<string, string> = {};
+      if (taskScope.trim()) conditions.task_scope = taskScope.trim();
+      if (recipientCondition.trim()) {
+        conditions.recipient = recipientCondition.trim();
+      }
+      const context: Record<string, string> = {};
+      if (teachContext.trim()) context.business_category = teachContext.trim();
+      if (qualification.trim()) context.qualification = qualification.trim();
+      if (effectiveFrom.trim()) context.effective_from = effectiveFrom.trim();
+      if (effectiveTo.trim()) context.effective_to = effectiveTo.trim();
       const result = await teachAgent(agent.id, lesson.trim(), topic.trim() || undefined, canvasId, {
         asPlaybook,
         playbookCanvasType: asPlaybook ? canvasType : undefined,
         appliesTo: appliesTo.length ? appliesTo : undefined,
         formatSpec: Object.keys(formatSpec).length ? formatSpec : undefined,
-        context: teachContext.trim()
-          ? { business_category: teachContext.trim() }
-          : undefined,
+        conditions: Object.keys(conditions).length ? conditions : undefined,
+        context: Object.keys(context).length ? context : undefined,
       });
       const status = String((result as Record<string, unknown>).status ?? "ok");
       const draftedPlaybook = Boolean((result as Record<string, unknown>).playbook_id);
@@ -269,7 +291,15 @@ export function TrainingPanel({
       setFormatSize("");
       setFormatHeadings("");
       setFormatColumns("");
+      setFormatGreeting("");
+      setFormatSignature("");
+      setFormatSubjectPrefix("");
       setTeachContext("");
+      setTaskScope("");
+      setRecipientCondition("");
+      setQualification("");
+      setEffectiveFrom("");
+      setEffectiveTo("");
       setAsPlaybook(false);
       // The journal below should show the point just taught — refresh.
       if (status === "ok") await load();
@@ -830,6 +860,76 @@ export function TrainingPanel({
                   className="h-8 text-xs"
                   aria-label="Taught business context"
                   data-testid="teach-context"
+                />
+                <div className="grid grid-cols-2 gap-1">
+                  <Input
+                    value={qualification}
+                    onChange={(e) => setQualification(e.target.value)}
+                    placeholder="Required qualification"
+                    className="h-8 text-xs"
+                    aria-label="Required qualification"
+                    data-testid="teach-qualification"
+                  />
+                  <Input
+                    value={taskScope}
+                    onChange={(e) => setTaskScope(e.target.value)}
+                    placeholder="Exception task scope"
+                    className="h-8 text-xs"
+                    aria-label="Exception task scope"
+                    data-testid="teach-task-scope"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  <Input
+                    value={effectiveFrom}
+                    onChange={(e) => setEffectiveFrom(e.target.value)}
+                    placeholder="Effective from (ISO date)"
+                    className="h-8 text-xs"
+                    aria-label="Effective from"
+                    data-testid="teach-effective-from"
+                  />
+                  <Input
+                    value={effectiveTo}
+                    onChange={(e) => setEffectiveTo(e.target.value)}
+                    placeholder="Effective to (ISO date)"
+                    className="h-8 text-xs"
+                    aria-label="Effective to"
+                    data-testid="teach-effective-to"
+                  />
+                </div>
+                <Input
+                  value={recipientCondition}
+                  onChange={(e) => setRecipientCondition(e.target.value)}
+                  placeholder="Recipient exception (email address or @domain)"
+                  className="h-8 text-xs"
+                  aria-label="Recipient condition"
+                  data-testid="teach-recipient-condition"
+                />
+                <div className="grid grid-cols-2 gap-1">
+                  <Input
+                    value={formatGreeting}
+                    onChange={(e) => setFormatGreeting(e.target.value)}
+                    placeholder="Email greeting"
+                    className="h-8 text-xs"
+                    aria-label="Email greeting"
+                    data-testid="teach-format-greeting"
+                  />
+                  <Input
+                    value={formatSignature}
+                    onChange={(e) => setFormatSignature(e.target.value)}
+                    placeholder="Email signature"
+                    className="h-8 text-xs"
+                    aria-label="Email signature"
+                    data-testid="teach-format-signature"
+                  />
+                </div>
+                <Input
+                  value={formatSubjectPrefix}
+                  onChange={(e) => setFormatSubjectPrefix(e.target.value)}
+                  placeholder="Email subject prefix"
+                  className="h-8 text-xs"
+                  aria-label="Email subject prefix"
+                  data-testid="teach-format-subject-prefix"
                 />
               </div>
             </details>
