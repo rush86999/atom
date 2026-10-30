@@ -1,0 +1,1 @@
+{"error":"teaching_context_mismatch","message":"The established task context does not match the taught guidance for this assignment.","conflicts":[{"lesson_id":"97543615ea294d769807c0d0165eb65c","conflicts":[{"key":"customer","required":"Customer-A","actual":"Customer-B"},{"key":"qualification","required":"licensed","actual":"unlicensed"}]}]}

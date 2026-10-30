@@ -1,0 +1,118 @@
+{
+  "schema": "atom-conversation-learning-acceptance-4",
+  "source_commit": "a888f5d6c93e293fb6130adf8ecf3ffd1e5a0451",
+  "source_tree": "31b2d33bc053a5768cd6d28ff3a9ceb37b6c2608",
+  "parent_consumer_commit": "55dddd6d4c215029bb98b9d56098b02172655878",
+  "preserved_baseline_tag": {
+    "name": "local-core-2026-10-30-final",
+    "commit": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d"
+  },
+  "cases": [
+    {
+      "case": "promoted conversation context is stored top-level",
+      "test": "test_promoted_context_blocks_wrong_and_missing_application",
+      "result": "pass"
+    },
+    {
+      "case": "ordinary work-time lessons enforce matching context",
+      "test": "test_work_time_lessons_enforce_context",
+      "result": "pass"
+    },
+    {
+      "case": "chat memory leg carries lesson id/revision/method",
+      "test": "test_memory_lessons_leg_carries_context_and_clarifies",
+      "result": "pass"
+    },
+    {
+      "case": "chat memory leg excludes wrong context",
+      "test": "test_memory_lessons_leg_carries_context_and_clarifies",
+      "result": "pass"
+    },
+    {
+      "case": "chat memory leg clarifies missing qualification",
+      "test": "test_memory_lessons_leg_carries_context_and_clarifies",
+      "result": "pass"
+    },
+    {
+      "case": "chat reply asks instead of improvising missing context",
+      "test": "test_chat_reply_asks_for_missing_teaching_context",
+      "result": "pass"
+    },
+    {
+      "case": "conversation method compiles for assignment",
+      "test": "test_conversation_method_compiles_for_assignment",
+      "result": "pass"
+    },
+    {
+      "case": "normal assignment consumes matching context and records lesson",
+      "test": "test_assignment_consumes_contextual_conversation_method",
+      "result": "pass"
+    },
+    {
+      "case": "normal assignment rejects wrong context",
+      "test": "test_assignment_consumes_contextual_conversation_method",
+      "result": "pass"
+    },
+    {
+      "case": "normal assignment clarifies missing context",
+      "test": "test_assignment_consumes_contextual_conversation_method",
+      "result": "pass"
+    },
+    {
+      "case": "assignment read model exposes consumed lesson id/revision after restart",
+      "test": "test_assignment_consumes_contextual_conversation_method",
+      "result": "pass"
+    },
+    {
+      "case": "live chat matching consumes lesson",
+      "evidence": "chat-matching.json",
+      "result": "pass"
+    },
+    {
+      "case": "live chat wrong context excludes lesson",
+      "evidence": "chat-wrong.json",
+      "result": "pass"
+    },
+    {
+      "case": "live chat missing context asks deterministically",
+      "evidence": "chat-missing.json",
+      "result": "pass"
+    },
+    {
+      "case": "live assignment matching completes with formula and lesson id/revision",
+      "evidence": "assignment-matching.json",
+      "result": "pass"
+    },
+    {
+      "case": "live assignment wrong context is refused",
+      "evidence": "assignment-wrong.json",
+      "result": "pass"
+    },
+    {
+      "case": "live assignment missing context is refused with missing keys",
+      "evidence": "assignment-missing.json",
+      "result": "pass"
+    },
+    {
+      "case": "live assignment survives restart with lesson id/revision and result",
+      "evidence": "assignment-matching-restart.json",
+      "result": "pass"
+    }
+  ],
+  "tests": {
+    "targeted_backend": {
+      "result": "303 passed",
+      "log": "targeted-regressions.log"
+    },
+    "frontend_learning": {
+      "result": "4 passed",
+      "log": "frontend-targeted-tests.log"
+    },
+    "known_preexisting_failures": {
+      "suite": "tests/test_chat_canvas_editor.py",
+      "count": 14,
+      "reason": "lane refused pre-planning: the turn's own words do not authorize a canvas mutation",
+      "verified_at_parent_commit": "55dddd6d4c215029bb98b9d56098b02172655878"
+    }
+  }
+}

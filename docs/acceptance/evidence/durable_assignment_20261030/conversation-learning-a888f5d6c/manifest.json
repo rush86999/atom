@@ -1,0 +1,76 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "conversation-learning-a888f5d6c",
+  "source_commit": "a888f5d6c93e293fb6130adf8ecf3ffd1e5a0451",
+  "source_tree": "31b2d33bc053a5768cd6d28ff3a9ceb37b6c2608",
+  "files": {
+    "SUMMARY.md": {
+      "sha256": "248a7c873afa3761aef63f84e57240a95dbc92d16cb1c597619e349431d8bc32",
+      "bytes": 4153
+    },
+    "acceptance-matrix.json": {
+      "sha256": "3033ff901841d7e4d701d54b04e39c84e0e31d9da2b5eaca39da5dc714764428",
+      "bytes": 3874
+    },
+    "assignment-matching-restart.json": {
+      "sha256": "c6255ff5b9521928fe4605e82396385949ca7cb12ae697448e26e9417a3b6977",
+      "bytes": 4282
+    },
+    "assignment-matching.json": {
+      "sha256": "66e754796a9c30a576816dc3262973b45874b42729174d5962976d27ef99ab4e",
+      "bytes": 4395
+    },
+    "assignment-missing.json": {
+      "sha256": "082d9da0d6f7c6a138209843aa77a1a96f07ece72757ca19d412e94e22e24495",
+      "bytes": 215
+    },
+    "assignment-wrong.json": {
+      "sha256": "56e7d0fe703ac55f72201fad1af0e00bf0d626a750675b22d9061899d1f13754",
+      "bytes": 344
+    },
+    "chat-matching.json": {
+      "sha256": "84fce8f2a9388f327eebffedc71bb370dc66da4a8b24dce3325f46d729ea8f5c",
+      "bytes": 3057
+    },
+    "chat-missing.json": {
+      "sha256": "58e382efc155782f801a6ab5d0e21a8ae8692143a272de71f9965c78eed9951b",
+      "bytes": 2373
+    },
+    "chat-wrong.json": {
+      "sha256": "93034c96656e074b1da4edcecb0723bbe6ea3d55ef643e6092e79b8f89c7b4b2",
+      "bytes": 2244
+    },
+    "frontend-targeted-tests.log": {
+      "sha256": "d8fb44bc526e86a454bcb12e4dd95873645a47066d7fa2be8a4f9f8b7f4a69a3",
+      "bytes": 660
+    },
+    "git-status.txt": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "preserved-baseline.json": {
+      "sha256": "4f0e8cec19a683fa58dcd2e87a753546516bc50606838bb3ea28675a60ff4b16",
+      "bytes": 284
+    },
+    "runtime.json": {
+      "sha256": "1db0d04994e75b363c6705239514622aa862c518b778dd34b1c0035c90568a72",
+      "bytes": 1210
+    },
+    "source-commit.txt": {
+      "sha256": "4f5e1236e4fea594aa65bb5c3ac8fd6622a4427716e1fd68cb277dc8cd2df76c",
+      "bytes": 41
+    },
+    "source-tree.txt": {
+      "sha256": "7f9d9ed4f90222199e2e224393d9bfa088f3e9ffb347f37c62b540b3e908855b",
+      "bytes": 41
+    },
+    "targeted-regressions.log": {
+      "sha256": "ec3fd04e6588861a49228750a5a5cceef2ec564177434b6a899650681a687e63",
+      "bytes": 212628
+    },
+    "wider-canvas-regressions.log": {
+      "sha256": "ef119aa637450a26f6be0c3928706fd01f0fc48215fa6473aff80eecde5331fd",
+      "bytes": 181228
+    }
+  }
+}
