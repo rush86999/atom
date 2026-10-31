@@ -1,0 +1,17 @@
+{
+  "schema": "atom-assessment-qualification-1",
+  "_comment": "Server-controlled qualification registry. Autonomy for model-dependent judgment requires a configuration whose status is 'qualified' and revoked is false. Absence or status 'failed' means human review. The failed llama3.1:8b entry is kept deliberately: it records what was tested and why it does not authorize autonomy.",
+  "configurations": [
+    {
+      "id": "ollama-llama3.1-8b-canvas-assessment-2026-10-31",
+      "capability": "canvas_assessment.model_judgment",
+      "provider": "ollama",
+      "model": "llama3.1:8b",
+      "contract_version": "review_result/1",
+      "status": "failed",
+      "revoked": false,
+      "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-qualification/",
+      "limitations": "17/18 determinate under V1 and 18/19 under V3; invented APPROVE on Amount 0; stable Q-021 (blank Region) error; failing safe abstention."
+    }
+  ]
+}

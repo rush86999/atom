@@ -316,12 +316,15 @@ and `docs/acceptance/readme_feature_readiness_2026-10-31/INTEGRATED_RERUN_2026-1
   this configuration's supported scope; a human must review its
   recommendations, and the product enforces that: the default
   `ATOM_ASSESSMENT_REVIEW_POLICY=always` requires approval for every
-  assessment even when the model reports no uncertainty. Approval is bound to a
-  canonical assessment artifact by a digest recomputed from persisted content
-  (not a stored hash), plus execution/source/policy/canvas revisions; a changed
+  assessment even when the model reports no uncertainty (temporary containment
+  until a configuration is qualified). Approval is an atomic compare-and-swap on
+  a monotonic assessment revision, bound to a canonical artifact digest
+  recomputed from persisted content plus execution/source/policy/canvas
+  revisions; a stale session cannot overwrite newer work, and a changed
   decision, basis, evidence entry or unresolved requirement requires fresh
-  review, and the assess response withholds the actionable artifact until
-  approval. A stronger model is a candidate remedy, not a proven one.
+  review. `scoped` autonomy requires both a qualified registry entry and the
+  owner's `canvas_assessment` autonomy policy; revocation is re-read at
+  consumption. A stronger model is a candidate remedy, not a proven one.
   Cloud providers remain unavailable (DeepSeek key empty, OpenRouter HTTP 402);
   see `employee-execution-assessment-qualification/`,
   `employee-execution-substantive-assessment/` and the historical

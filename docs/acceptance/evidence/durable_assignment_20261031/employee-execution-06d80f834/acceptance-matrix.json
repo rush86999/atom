@@ -309,7 +309,7 @@
       "manifest_revision",
       "assessment_content_sha256"
     ],
-    "controls": 15,
+    "controls": 25,
     "judge_safe_abstention": true,
     "scoring_version": "v2-2026-10-31 (phase-specific materiality)",
     "artifact": "one canonical assessment artifact (decisions, basis, evidence, policy refs, unresolved requirements)",
@@ -319,6 +319,27 @@
       "content_drift",
       "stale_assessment"
     ],
-    "revision_cas": "approval binds canvas_revision; a data change between review, approval and consumption requires fresh review"
+    "revision_cas": "approval binds canvas_revision; a data change between review, approval and consumption requires fresh review",
+    "concurrency": {
+      "mechanism": "conditional UPDATE on (canvas id, capability revision, assessment execution id, assessment revision)",
+      "token": "monotonic assessment_revision incremented by assess and approval",
+      "on_conflict": "rollback; newer content preserved; assessment_conflict",
+      "consumption": "authoritative reload before authorization",
+      "repeat_approval": "idempotent, one transition"
+    },
+    "scoped_autonomy": {
+      "policy_modes": [
+        "always (default containment)",
+        "scoped"
+      ],
+      "removed": "model_reported (a model cannot authorize itself)",
+      "requirements": [
+        "qualified registry entry (status=qualified, revoked=false)",
+        "owner autonomy policy for canvas_assessment (mode x maturity x trust)"
+      ],
+      "registry": "backend/config/assessment_qualification.json",
+      "failed_configuration": "ollama/llama3.1:8b registered as failed; no autonomy",
+      "revocation": "re-read at consumption; state revoked refuses downstream use"
+    }
   }
 }

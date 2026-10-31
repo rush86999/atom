@@ -120,9 +120,13 @@ autonomous substantive recommendations. Substantive recommendations from this
 configuration require **human review**; autonomous decisions stay outside its
 supported scope.
 
-Review is enforced server-side, not just documented. The default policy
-(`ATOM_ASSESSMENT_REVIEW_POLICY=always`) requires human approval for **every**
-assessment, whatever the model reports about its own uncertainty — a confident
+Review is enforced server-side, not just documented. Approval is an atomic
+compare-and-swap on a monotonic assessment revision plus the execution id and
+capability revision; a stale session cannot overwrite newer canvas work, and
+consumption reloads authoritative state. The default policy
+(`ATOM_ASSESSMENT_REVIEW_POLICY=always`) is temporary containment: it requires
+human approval for **every** assessment, whatever the model reports about its
+own uncertainty — a confident
 wrong APPROVE reports none, so model-reported uncertainty cannot be the gate.
 Approval is bound to the execution, source and policy revisions, the canvas
 revision and the **recomputed digest of one canonical assessment artifact**
@@ -134,8 +138,12 @@ a fresh review. There is no separate decision map: downstream decisions are
 derived from the approved artifact.
 The existing assess response withholds the actionable artifact (`rendered`,
 `authorized=false`) until approval, and the capability read exposes the
-authorization state. `model_reported` is an explicit opt-out only for an
-independently qualified deployment.
+authorization state. `scoped` is the earned path: it requires both a server-controlled qualification
+entry (`backend/config/assessment_qualification.json`, status `qualified`, not
+revoked) and the owner's autonomy policy for the registered `canvas_assessment`
+topic (mode × maturity × trust). The failed llama3.1:8b configuration is
+registered as `failed`; revocation is re-read at consumption. `model_reported`
+is removed — a model cannot authorize itself.
 
 Scoring correction (v2): a blank field is a gap only when the policy in force
 depends on it. `Q-010` (blank Risk) is a gap under V1 but scored under V3

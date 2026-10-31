@@ -182,3 +182,50 @@ and unresolved-requirement mutations each require fresh review while the stored
 hash is untouched; approval refuses drift; a canvas edit after approval
 requires fresh review; **positive control** — unchanged approved content
 survives a fresh session reload and remains usable.
+
+## Approval concurrency and scoped autonomy (2026-10-31)
+
+The verifier reproduced a lost update: session A loaded revision 1, session B
+committed revision 2, and A's approval overwrote B's work. A revision check on
+an existing ORM object is not a compare-and-swap.
+
+Repair:
+
+- Approval **reloads the authoritative row** (`populate_existing`) before any
+  validation, and recomputes the canonical artifact digest from that state.
+- The write is a **conditional UPDATE** on `(canvas id, capability revision,
+  assessment execution id, assessment revision)` requiring exactly one row.
+  Zero rows means conflict: the transaction rolls back and the newer content is
+  preserved. No stale copy of the whole JSON is committed.
+- An explicit monotonic **assessment revision** token is incremented by both
+  writers of assessment state (assess and approval); it is not a source/data
+  revision.
+- `decisions_operation` reloads the authoritative row before authorizing, so a
+  stale session cannot consume an approval it no longer matches.
+- Repeat approval of the same binding is **idempotent**: one transition, no
+  second write.
+
+Scoped autonomy replaces the blanket switch:
+
+- `ATOM_ASSESSMENT_REVIEW_POLICY` now accepts `always` (default containment) or
+  `scoped`. `model_reported` is removed: a model cannot authorize itself.
+- `scoped` requires **both** a server-controlled qualification entry
+  (`backend/config/assessment_qualification.json`, status `qualified`, not
+  revoked) **and** the owner's autonomy policy for the registered
+  `canvas_assessment` topic (mode × maturity × trust via `gate_for_topic`).
+  One cannot override the other.
+- The failed llama3.1:8b configuration is registered as `failed`; it does not
+  authorize autonomy.
+- Qualification revocation is read from the registry **at consumption**, so
+  withdrawing it stops downstream use without a new assessment.
+
+Controls (`approval-concurrency-controls.log`, 25 passed): the exact two-session
+interleaving refuses and preserves revision 2; the CAS predicate matches zero
+rows after a concurrent write; reassessment between review and approval requires
+fresh review; two simultaneous approvals produce one transition; repeat approval
+is idempotent; stale-session consumption is refused; content drift on decision,
+basis, evidence and unresolved requirements still requires fresh review;
+unchanged approval survives reload.
+
+Not claimed: a browser journey for the autonomous positive case. The
+deterministic taught-method path was not modified by this change.
