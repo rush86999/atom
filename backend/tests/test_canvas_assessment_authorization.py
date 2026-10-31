@@ -664,3 +664,54 @@ def test_a_different_owner_cannot_consume_the_assessment(
     with pytest.raises(CapabilityError) as exc:
         decisions_operation(canvas, db=db, user=other)
     assert exc.value.code == "authority_mismatch"
+
+
+def test_typed_outcomes_project_the_authorization_state(
+        db, canvas, user, monkeypatch):
+    """execute / clarify / propose / refuse are distinct next steps."""
+    from core.canvas_capability_service import (
+        assessment_authorization, decisions_operation,
+    )
+
+    # Missing information -> clarify (not a bare propose).
+    _bind(db, canvas, user)
+    _fake_review(monkeypatch, unresolved={"R-4": ["Confirm the amount."]})
+    result = _assess(db, canvas, user)
+    clarify = assessment_authorization(canvas, db=db)
+    assert clarify["state"] == "review_required"
+    assert clarify["outcome"] == "clarify"
+
+    # Certified with no unresolved requirement, still human_always -> propose.
+    _fake_review(monkeypatch)
+    _assess(db, canvas, user)
+    propose = assessment_authorization(canvas, db=db)
+    assert propose["state"] == "review_required"
+    assert propose["outcome"] == "propose"
+
+    # Consuming an unapproved assessment is a refusal, not a proposal.
+    from core.canvas_capability_service import CapabilityError
+
+    with pytest.raises(CapabilityError) as exc:
+        decisions_operation(canvas, db=db)
+    assert exc.value.extra["authorization"]["outcome"] == "propose"
+
+
+def test_withdrawn_authority_projects_refuse(
+        db, canvas, user, monkeypatch, tmp_path):
+    from core import autonomy_policy
+    from core.canvas_capability_service import assessment_authorization
+
+    monkeypatch.setenv("ATOM_ASSESSMENT_REVIEW_POLICY", "scoped")
+    _write_registry(tmp_path, monkeypatch, status="qualified")
+    gate = {"outcome": "execute"}
+    monkeypatch.setattr(
+        autonomy_policy, "gate_for_topic", lambda *a, **k: dict(gate))
+    _bind(db, canvas, user)
+    _fake_review(monkeypatch)
+    _assess(db, canvas, user)
+    assert assessment_authorization(canvas, db=db)["outcome"] == "execute"
+
+    gate["outcome"] = "propose"
+    state = assessment_authorization(canvas, db=db)
+    assert state["state"] == "authority_withdrawn"
+    assert state["outcome"] == "refuse"

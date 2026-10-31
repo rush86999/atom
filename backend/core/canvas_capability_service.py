@@ -2031,6 +2031,17 @@ def _assessment_cas_predicates(
     return None
 
 
+def assessment_authorization(
+    canvas: Canvas, db=None,
+) -> Dict[str, Any]:
+    state = _assessment_authorization_state(canvas, db=db)
+    state["outcome"] = _typed_outcome(
+        str(state.get("state") or ""),
+        bool(state.get("unresolved_subjects")),
+    )
+    return state
+
+
 def _cas_update_assessment_content(
     db, canvas: Canvas, *, observed_revision: Any, execution_id: str,
     new_content: Dict[str, Any], observed_assessment_revision: Any,
@@ -2055,7 +2066,23 @@ def _cas_update_assessment_content(
     return result.rowcount == 1
 
 
-def assessment_authorization(
+def _typed_outcome(state: str, unresolved: bool = False) -> str:
+    """Map an authorization state to the typed next step.
+
+    execute  - proceed now
+    clarify  - information is missing; ask the smallest useful question
+    propose  - a human must review/approve before the effect
+    refuse   - authority or validity is gone; do not act
+    reconcile- reserved for a possibly-performed external effect
+    """
+    if state == "authorized":
+        return "execute"
+    if state == "review_required":
+        return "clarify" if unresolved else "propose"
+    return "refuse"
+
+
+def _assessment_authorization_state(
     canvas: Canvas, db=None,
 ) -> Dict[str, Any]:
     """Authorization state of the CURRENT assessment on this canvas.
