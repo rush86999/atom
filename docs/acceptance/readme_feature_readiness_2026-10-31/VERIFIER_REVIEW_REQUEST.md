@@ -110,7 +110,7 @@ This is a product gate, not an addition to the README breadth denominator.
   `Q-012`, so the qualification verdict is **failed**, not pending
   infrastructure.
 - **Assessment safety repairs**: done on `codex/employee-execution-readiness`
-  (source `6363e3794`). Unsupported approvals fail qualification; the default
+  (source `6363e3794`; typed outcomes `f8198c60e`). Unsupported approvals fail qualification; the default
   review policy requires human approval before downstream action; approval is
   bound to a canonical artifact digest recomputed from persisted content plus
   execution/source/policy/canvas revisions and an atomic assessment revision.

@@ -270,7 +270,7 @@ This is a product gate, not part of the README breadth count.
 ## 5.2 Assessment exact-content approval — separate product gate
 
 The canvas assessment safety repairs are verified on
-`codex/employee-execution-readiness` (source `6363e3794`):
+`codex/employee-execution-readiness` (source `6363e3794`; typed outcomes `f8198c60e`):
 
 - the default review policy requires human approval for every assessment,
   whatever the model reports;
