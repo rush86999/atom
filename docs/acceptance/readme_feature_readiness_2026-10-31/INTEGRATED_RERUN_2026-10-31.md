@@ -10,14 +10,15 @@ the employee-execution changes and the merge.
 | Measure | Value |
 |---|---:|
 | Eligible functional claims | **123** |
-| Verified functional claims | **100** |
-| Coverage | **81.3%** |
-| Not counted | 23 |
+| Verified functional claims | **83** |
+| Coverage | **67.5%** |
+| Not counted | 40 |
 | Security | 8/8 verified |
 | Group errors | 0 |
 
-The 128 result rows include the separately tracked security, performance,
-compatibility and comparative rows. The functional numerator remains 100/123.
+The corrected audit is the authoritative result: 83/123 functional claims.
+The earlier 100/123 self-assessment was withdrawn after the verifier's
+status-only/source-inspection findings; the 80% gate is not met.
 
 ## Configuration
 

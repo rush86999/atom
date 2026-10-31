@@ -1,3 +1,14 @@
+# SUPERSEDED — integrated README feature-readiness rerun
+
+The 100/123 result in `results.json` is **withdrawn**. The verifier's audit
+found status-only and source-inspection assertions that did not establish the
+claims; Agent 2's corrected result is **83/123 (67.5%)**, with 40 claims not
+counted. The corrected audit and evidence are in
+`docs/acceptance/readme_feature_readiness_2026-10-31/`.
+
+This directory is retained only as history. Do not use its 100/123 figure.
+The 80% milestone gate is not met.
+
 # Integrated README feature-readiness rerun
 
 Command (from `backend/`):

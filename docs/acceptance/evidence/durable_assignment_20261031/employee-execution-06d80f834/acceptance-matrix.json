@@ -1,6 +1,6 @@
 {
   "schema": "atom-employee-execution-acceptance-1",
-  "source_checkpoint": "642f5f384",
+  "source_checkpoint": "df3a0197c",
   "product_teaching_commit": "3e344f5b1",
   "preserved_tags": {
     "local-core-2026-10-30-final": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d",
@@ -205,13 +205,14 @@
   "readme_coverage": {
     "inventory": "docs/acceptance/readme_feature_readiness_2026-10-31/CLAIM_INVENTORY.json",
     "eligible_functional": 123,
-    "verified_functional": 100,
-    "coverage": "81.3%",
-    "not_counted": 23,
+    "verified_functional": 83,
+    "coverage": "67.5%",
+    "not_counted": 40,
     "security": "8/8 verified",
     "group_errors": 0,
     "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-integrated-readme/",
-    "status": "self_assessed_pending_verifier"
+    "status": "self_assessed_corrected_pending_verifier",
+    "note": "100/123 was withdrawn after the verifier audit; 83/123 is the corrected result. 80% gate not met."
   },
   "byok_refresh": {
     "status": "verified_for_tested_scope",

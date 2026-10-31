@@ -1,7 +1,7 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-06d80f834",
-  "source_checkpoint": "642f5f384",
+  "source_checkpoint": "df3a0197c",
   "product_teaching_commit": "3e344f5b1",
   "preserved_tags": {
     "local-core-2026-10-30-final": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d",
@@ -9,15 +9,15 @@
   },
   "files": {
     "README.md": {
-      "sha256": "89038f3f8bf94a7615e7e9193ca90e03b91ec7ffc586c534e2c8779d8bc73b5c",
+      "sha256": "9010613e8accf8c3f89e55db999c7352abed2fabeb3ff3b0aeae6a6c4b49cf95",
       "bytes": 5076
     },
     "acceptance-matrix.json": {
-      "sha256": "2e8e68b6135729eedbf9ab71ecbe15b5af0a846bc7d64598798ed48698a27288",
-      "bytes": 9392
+      "sha256": "dce8b3e91cb0d9ecd9ae9d42589f285757195e2d8ce5b097c0915a5733eb8053",
+      "bytes": 9514
     },
     "runtime.json": {
-      "sha256": "2ccf93cf4477207242be34c1ba7d4a5c1a96bcdd18db6491d6b992311d2dd0d8",
+      "sha256": "f28fd6cc1edff51d7207ddf8b07ff453a5228ac804893b275b1848817be5c704",
       "bytes": 1847
     },
     "sales/active-assignment-artifact.docx": {
@@ -181,6 +181,6 @@
       "bytes": 1182
     }
   },
-  "final_candidate": "642f5f384",
+  "final_candidate": "df3a0197c",
   "evidence_source": "06d80f834"
 }

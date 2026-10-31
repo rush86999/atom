@@ -10,10 +10,10 @@ publication remain deferred by the owner.
 | Item | Value |
 |---|---|
 | Branch | `codex/employee-execution-readiness` |
-| Final code/evidence | `642f5f384` |
+| Final code/evidence | `df3a0197c` |
 | Evidence source | `06d80f834` (product teaching `3e344f5b1`) |
 | Agent 2 merge | `931892be0` |
-| Integrated README rerun | `642f5f384` |
+| Integrated README rerun | `df3a0197c` |
 | Preserved core | `local-core-2026-10-30-final` → `da9cc8b12` |
 | Preserved reviewed successor | `conversation-learning-2026-10-30` → `d2b297deb` |
 | Python | 3.11.16 |
@@ -261,11 +261,14 @@ OpenAI-compatible server; it is not a real-provider send qualification.
 
 ## README breadth on the integrated candidate
 
-Agent 2's frozen inventory (123 eligible functional claims) was re-executed
-after the merge: **100 verified (81.3%)**, 23 not counted, security 8/8, no
-group errors. The run used `ATOM_PRODUCT_PROFILE=full` and the bounded local
-OpenAI/Anthropic/OAuth/MCP stub, with schedulers/pollers off. It is a
-self-assessment pending independent verifier agreement, not a release approval.
+Agent 2's corrected frozen inventory (123 eligible functional claims) reports
+**83 verified (67.5%)**, 40 not counted, security 8/8. The earlier 100/123
+figure was withdrawn after the verifier's audit of status-only and
+source-inspection assertions; it is preserved only as history. The corrected
+run used `ATOM_PRODUCT_PROFILE=full` and the bounded local
+OpenAI/Anthropic/OAuth/MCP stub, with schedulers/pollers off. It remains a
+self-assessment pending independent verifier agreement, and it does **not**
+meet the 80% milestone gate.
 Evidence:
 `docs/acceptance/evidence/durable_assignment_20261031/employee-execution-integrated-readme/`
 and `docs/acceptance/readme_feature_readiness_2026-10-31/INTEGRATED_RERUN_2026-10-31.md`.
