@@ -1,0 +1,53 @@
+{
+  "schema": "atom-two-domain-smoke-1",
+  "source": {
+    "recorded_head": "803ef2666",
+    "code_repair": "b7ee7ee22"
+  },
+  "checks": "5/5",
+  "backend_pids": [
+    43597,
+    43717
+  ],
+  "restarted": true,
+  "effects": 2,
+  "recipients": [
+    [
+      "sales@example.invalid"
+    ],
+    [
+      "grants@example.invalid"
+    ]
+  ],
+  "assignment_approvals": 0,
+  "grants": [
+    {
+      "domain": "sales",
+      "max_effects": 1,
+      "used_effects": 1,
+      "consumed_once": true
+    },
+    {
+      "domain": "grants",
+      "max_effects": 1,
+      "used_effects": 1,
+      "consumed_once": true
+    }
+  ],
+  "artifacts": [
+    {
+      "file_name": "grants-sum-the-approved-applications-92c1b9a2.docx",
+      "sha256": "1ad9f45a255fd81bf80f61f78de2d93e0547d99316df4c5a9f11c14c6419e86d",
+      "bytes": 36780
+    },
+    {
+      "file_name": "sales-sum-the-scotch-parts-total-b5e00538.docx",
+      "sha256": "29e3a157774b71073938181ede31e7f3f1f0db16449f5deb9b1330e9840aa63a",
+      "bytes": 36755
+    }
+  ],
+  "qualifications": [
+    "Hard-cost protection depends on trusted adapters declaring truthful cost bounds; it is not a universal provider-billing guarantee.",
+    "This smoke run postdates the execution-boundary repair (b7ee7ee22)."
+  ]
+}
