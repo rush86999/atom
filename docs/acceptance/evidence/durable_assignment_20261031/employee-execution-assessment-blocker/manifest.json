@@ -1,0 +1,23 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-assessment-blocker",
+  "source_checkpoint": "d57bb66f6",
+  "files": {
+    "README.md": {
+      "sha256": "1271f5e2b5dd39ce3bf0027e14dcd1697e27ab30d103f177b888910198320f1e",
+      "bytes": 1504
+    },
+    "assess-failed-openrouter.json": {
+      "sha256": "0d10cee57b766509b412bb8c7cd026ddb6a679c316bc5eb75c156c2cebce98cd",
+      "bytes": 2316
+    },
+    "blocker.json": {
+      "sha256": "ec790b1f9e9cc4daeab75d43c935877725416c598eccb994064462ef8420ccdf",
+      "bytes": 1762
+    },
+    "openrouter-402-sanitized.log": {
+      "sha256": "27c0e55c01d5e3d45392e21b0500fc3775f2d11dc018d5845eac0293bbfe01db",
+      "bytes": 22962
+    }
+  }
+}

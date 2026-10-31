@@ -1,0 +1,84 @@
+{
+  "canvas_id": "5bae367f-0642-49ac-96c1-fd608886ffa5",
+  "assess_status": 200,
+  "assess": {
+    "success": false,
+    "operation": "assess",
+    "canvas_id": "5bae367f-0642-49ac-96c1-fd608886ffa5",
+    "status": "failed_closed",
+    "certified": false,
+    "errors": [
+      {
+        "code": "empty_payload",
+        "stage": "dispatch",
+        "detail": "structured service returned no payload"
+      }
+    ],
+    "route": {
+      "ok": false,
+      "request_sha256": "4c53f2859b8b372892d5e452ff3ed8fe17100417227f96d33d0b44e922dbe137",
+      "message_count": 2,
+      "failure_kind": "empty_payload",
+      "failure_stage": "dispatch",
+      "dispatched": null,
+      "provider": "openrouter",
+      "model": "deepseek/deepseek-v4-pro",
+      "output_mode": "json",
+      "pin": {
+        "provider_model": [
+          "openrouter",
+          "deepseek/deepseek-v4-pro"
+        ]
+      },
+      "failure_detail": "structured service returned no payload"
+    },
+    "source": {
+      "resource_id": "canvas:5bae367f-0642-49ac-96c1-fd608886ffa5",
+      "file_name": "grant_eligibility_20261031.csv",
+      "source_version": "2bf13f2e11d2fd37",
+      "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+      "snapshot": {
+        "kind": "canvas_dataset_snapshot",
+        "resource_id": "canvas:5bae367f-0642-49ac-96c1-fd608886ffa5",
+        "version": "2bf13f2e11d2fd37",
+        "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+        "rows": 6,
+        "columns": 5
+      },
+      "writeback": {
+        "supported": false,
+        "upstream_mutated": false,
+        "performed": false
+      }
+    },
+    "coverage": {
+      "selected_count": 6,
+      "assessed_count": 6,
+      "unassessed_count": 0,
+      "assessment_truncated": false,
+      "max_subjects": 50,
+      "limit_source": "default",
+      "assessed_subjects": [
+        "A-201",
+        "A-202",
+        "A-203",
+        "A-204",
+        "A-205",
+        "A-206"
+      ],
+      "unassessed_subjects": [],
+      "selection_source_row_count": 6
+    },
+    "subjects": [
+      "A-201",
+      "A-202",
+      "A-203",
+      "A-204",
+      "A-205",
+      "A-206"
+    ],
+    "unassessed_subjects": [],
+    "manifest_revision": "41232e0c6686f000",
+    "policy_revision": "b913a79e667d1119"
+  }
+}

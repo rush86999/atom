@@ -44,10 +44,25 @@ ATOM_ASSIGNMENT_OUTPUT_DIR=<world>/data/assignments
 
 The two-domain acceptance uses **deterministic assignment, teaching,
 calculation, artifact and approval paths**. It does not dispatch an LLM for the
-final business result. The canvas **assessment** operation was not run because
-`ATOM_REVIEW_MODEL` is unconfigured in this local candidate; local Ollama is
-not available on this host (its model directory is on an unmounted/unreadable
-external volume). Historical DeepSeek assessment/send qualifications remain
+final business result.
+
+A substantive model-backed assessment was attempted on an unfamiliar six-record
+grant dataset with a declared policy and decision labels. It is **blocked by
+external model infrastructure**, not completed:
+
+- DeepSeek direct: `DEEPSEEK_API_KEY` is present but empty; no deepseek client
+  was built (`pin_unavailable`).
+- OpenRouter / `deepseek/deepseek-v4-pro`: the pin resolved and dispatch was
+  attempted; OpenRouter returned HTTP 402 "requires more credits" for the
+  6000-token request; fallback models also returned 402 (`empty_payload`).
+- Local Ollama: model storage is on an unreadable/unmounted external volume.
+
+The failed-closed response, sanitized provider errors, dataset hash and policy
+are preserved in
+`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-blocker/`.
+The smallest required input is a funded provider key with a declared review
+model, or a readable local Ollama model store. No assessment-quality claim is
+made until then. Historical DeepSeek assessment/send qualifications remain
 bound to their own source/configuration and are **not** merged into this
 candidate's claim.
 
@@ -56,7 +71,7 @@ Declared operation → model:
 | Operation | Model/provider |
 |---|---|
 | Teaching review/promotion, assignment planning, calculation, DOCX/PPTX/XLSX rendering, approval | deterministic application code; no model dispatch |
-| Canvas assessment | not configured on this candidate (requires `ATOM_REVIEW_MODEL`) |
+| Canvas assessment | **blocked** — attempted DeepSeek direct, OpenRouter and local Ollama; no usable model infrastructure |
 | Chat prose generation | not exercised for a final result in this acceptance |
 
 ## Install
@@ -80,14 +95,34 @@ the shared install and Next 16 Turbopack rejects the out-of-root symlink.
 ## Launch
 
 ```bash
-export WORLD=/absolute/path/to/isolated-world
+export WORLD=/absolute/path/under/backend/data/acceptance_worlds/<new-world>
 export ADMIN_PASSWORD='<local-only password>'
 scripts/acceptance/launch_integrated_local_candidate.sh
 ```
 
-The script creates the world's data/office/assignment/LanceDB directories,
-starts the backend and frontend, and writes PIDs/logs under `$WORLD`. It never
-stops or replaces the existing service on `:8001`.
+Safety contract before the first write:
+
+- `WORLD` must be under the configured `worlds.root` from
+  `backend/config/world_storage.json` (default
+  `backend/data/acceptance_worlds`), not the root itself, the repo, home,
+  `backend/data`, or a database file.
+- A new world must not exist or must be empty. An existing world must carry
+  `.atom-integrated-world.json` with exactly the same resolved world, repo and
+  database paths; a live PID in its marker/PID files refuses reuse.
+- Both ports are checked before startup. The backend health response must be
+  HTTP-successful and must report the exact child PID, backend CWD, database
+  path, port, source ID and instance ID. The frontend must report
+  `service=atom-frontend` and healthy status.
+- `core.world_storage_guard check` and
+  `scripts.orchestration_acceptance.storage_policy space` run before any
+  world directory is created.
+- `SECRET_KEY` is generated once and persisted at `$WORLD/.atom-secret`
+  (mode 600); there is no fixed fallback.
+- On startup failure the script stops only the backend/frontend PIDs it
+  started. It never stops the existing service on `:8001`.
+
+The script creates the world's data/office/assignment/LanceDB directories and
+writes PIDs/logs under `$WORLD`.
 
 First sign-in: `admin@example.com` with `ADMIN_PASSWORD`. The world is isolated;
 do not point `DATABASE_URL` at a live development database.
@@ -197,9 +232,11 @@ It contains:
 
 ## Known limitations and failure records
 
-- **Canvas assessment** is unverified on this candidate: no review model is
-  configured. The review contract itself is unit-tested; this is not a live
-  model-quality claim.
+- **Canvas assessment is blocked by external model infrastructure.** DeepSeek
+  direct has an empty key, OpenRouter returns HTTP 402 (no credits), and local
+  Ollama's model store is unreadable. The review contract is unit-tested, but
+  no live model-quality claim is made. See
+  `employee-execution-assessment-blocker/`.
 - **PPTX** is verified as an editable 4-slide artifact with grounded text; it
   is not a visual-design or chart-rendering claim.
 - **Live connectors**: current candidate uses controlled local uploads. The
@@ -231,8 +268,8 @@ The independent verifier should challenge:
 6. the guidance-only conversation candidate with no calculation method;
 7. the two-domain browser/API composite and artifact hashes;
 8. canvas export/reload and the XLSX contents;
-9. the declared model-provenance boundary (deterministic paths vs unconfigured
-   assessment).
+9. the declared model-provenance boundary and the assessment blocker
+   (deterministic paths; DeepSeek/OpenRouter/Ollama attempts).
 
 Acceptance is not self-granted. This document supplies the executable
 harnesses, source/config identity, browser actions versus setup, restart

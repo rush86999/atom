@@ -27,8 +27,8 @@
   "ingestion_sync": false,
   "model_provenance": {
     "deterministic_paths": "teaching review/promotion, assignment planning, calculation, DOCX/PPTX/XLSX rendering, approval",
-    "canvas_assessment": "not run: ATOM_REVIEW_MODEL unconfigured",
-    "local_ollama": "not available on this host (external model volume unreadable)",
+    "substantive_assessment": "blocked_external: DeepSeek direct key empty; OpenRouter deepseek/deepseek-v4-pro returned HTTP 402 no credits for all fallbacks; local Ollama model store unreadable",
+    "assessment_evidence": "employee-execution-assessment-blocker/",
     "historical_live_provider_evidence": "separate source/configuration; not merged into this candidate"
   },
   "final_candidate": "2ebeddfb1",

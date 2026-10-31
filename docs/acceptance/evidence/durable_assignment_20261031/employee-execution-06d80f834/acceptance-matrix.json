@@ -89,14 +89,15 @@
     {
       "id": 7,
       "goal": "Grounded selection, calculations and assessments",
-      "status": "partial",
+      "status": "blocked_external",
       "evidence": [
         "sales/verify.json",
         "grants/verify.json",
-        "logs/targeted-backend.log"
+        "logs/targeted-backend.log",
+        "employee-execution-assessment-blocker/blocker.json"
       ],
-      "result": "calculations with row/cell provenance; review contract tests pass",
-      "gap": "live model-backed assessment unverified on this candidate"
+      "result": "calculations with row/cell provenance; review contract tests pass; substantive assessment attempted but blocked",
+      "gap": "no usable model infrastructure: DeepSeek key empty, OpenRouter HTTP 402, local Ollama model store unreadable"
     },
     {
       "id": 8,
@@ -187,5 +188,12 @@
       "no real send or recipient-delivery claim"
     ]
   },
-  "evidence_source": "06d80f834"
+  "evidence_source": "06d80f834",
+  "blocked_external": [
+    {
+      "item": "model-backed substantive assessment",
+      "evidence": "employee-execution-assessment-blocker/",
+      "smallest_input": "funded provider key with declared review model, or readable local Ollama model store"
+    }
+  ]
 }

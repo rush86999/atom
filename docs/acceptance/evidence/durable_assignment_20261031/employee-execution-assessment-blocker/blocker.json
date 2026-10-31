@@ -1,0 +1,32 @@
+{
+  "schema": "atom-assessment-blocker-1",
+  "status": "blocked_external",
+  "reason": "No usable model infrastructure for a substantive assessment on this host.",
+  "attempts": [
+    {
+      "configuration": "deepseek direct / deepseek-flash",
+      "result": "pin_unavailable",
+      "detail": "DEEPSEEK_API_KEY is present in the environment file but empty; no deepseek client was built.",
+      "assessment_result": "failed_closed / pin_unavailable"
+    },
+    {
+      "configuration": "openrouter / deepseek/deepseek-v4-pro",
+      "result": "empty_payload",
+      "detail": "Pin resolved and dispatch was attempted; OpenRouter returned HTTP 402 'requires more credits' for the requested max_tokens. Fallback models also returned 402.",
+      "assessment_result": "failed_closed / empty_payload; route.provider=openrouter; route.model=deepseek/deepseek-v4-pro"
+    },
+    {
+      "configuration": "local Ollama",
+      "result": "unavailable",
+      "detail": "Ollama model storage is on an unreadable/unmounted external volume; /api/tags returns a permission error."
+    }
+  ],
+  "smallest_required_input": "A funded provider key with a declared review model, or a readable local Ollama model store. No model quality claim is made until that input exists.",
+  "dataset": {
+    "file": "grant_eligibility_20261031.csv",
+    "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+    "subjects": ["A-201", "A-202", "A-203", "A-204", "A-205", "A-206"],
+    "policy": "Approve Open records with Amount >= 100 and Risk Low. Review Open records with Amount 50-99 or Risk High. Deny Closed records. Exception: North region with Risk High requires Review even when Amount >= 100.",
+    "decision_options": ["APPROVE", "REVIEW", "DENY"]
+  }
+}

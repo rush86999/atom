@@ -1,0 +1,51 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-launcher-safety",
+  "source_checkpoint": "d57bb66f6",
+  "files": {
+    "README.md": {
+      "sha256": "0079ce964ef16361a98404e9795265b4fc183750215a35cd77cea7f63f39ee01",
+      "bytes": 1663
+    },
+    "failure-cleanup.log": {
+      "sha256": "2fe0945e39a41445615d959eb7a78eb456ac2fb6b4dbd89f3e8abc58a0aebedf",
+      "bytes": 1817
+    },
+    "identity.json": {
+      "sha256": "7f29e5aa4af41a71b2941e7861c17858cc39c1227e60fc4bdc444342dfbb3ed5",
+      "bytes": 789
+    },
+    "refuse-existing-database.log": {
+      "sha256": "ebd0b0e257fbcf5a63afb1f4dac4a48399cc1e64ff9c14276ff63e31cbe7d8c5",
+      "bytes": 207
+    },
+    "refuse-live-reuse.log": {
+      "sha256": "744029046bf84886e0f8f456a600f166949306f9d0935e9dea170baa6b8fa134",
+      "bytes": 220
+    },
+    "refuse-occupied-port.log": {
+      "sha256": "e75469ea052099125dc9e9df5069768b9e0b90c1686a783e5e94426274d69af7",
+      "bytes": 107
+    },
+    "refuse-protected-or-unknown.log": {
+      "sha256": "14cdaf3d9e7363f4f36a39fcf47238a6f0a30d1cc4fea34367c01a77385880bc",
+      "bytes": 226
+    },
+    "refuse-protected-path.log": {
+      "sha256": "bd853ca4fff7282c99ac3f3e9390a3da7f8176fcc9923b837dc082abe67f1fc1",
+      "bytes": 122
+    },
+    "refuse-repo-root.log": {
+      "sha256": "87491643f9c0b7b058a1d9f4d8e4a96b0790cdb6cce29e28d6a5ceb4d0742cf2",
+      "bytes": 109
+    },
+    "refuse-unknown-world.log": {
+      "sha256": "a8b2ebde4e07df661b1aad795e987ab4d96a1f8600c7d5d38c26a6558abf5a87",
+      "bytes": 173
+    },
+    "success.log": {
+      "sha256": "b09359d7b8486cda9ac07968e83ecc83914ac81b5d6378026f45cd921bd5b9bc",
+      "bytes": 1797
+    }
+  }
+}
