@@ -37,8 +37,8 @@
   "files": [
     {
       "path": "README.md",
-      "sha256": "f83bfe7e12bd17b84ac107438b18f232101ab565713de048dd882f6e7d323b19",
-      "bytes": 2334
+      "sha256": "a466341043d752e0e10aceccd545714cbef54db58c4ff14e411f5c012136c4a4",
+      "bytes": 2431
     },
     {
       "path": "CLAIM_INVENTORY.json",
@@ -184,6 +184,11 @@
       "path": "evidence/practical-assignment.json",
       "sha256": "af3d0608c7ac3ddc17bcb8e83403accf7e46c75a3cdf6f62eace5e08ef274706",
       "bytes": 9929
+    },
+    {
+      "path": "REMAINING_WORK.md",
+      "sha256": "bed8f3d7f4cb721d3cbb291153af7c266dcc88907aa43ad26dc8f954e91562a6",
+      "bytes": 3454
     }
   ]
 }
