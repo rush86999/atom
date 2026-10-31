@@ -53,7 +53,7 @@ answers against the exact execution:
 - readiness is re-read immediately before resume, closing the race between
   recording an answer and dispatching the reassessment.
 
-`clarification-hardening.log`: **17 passed** (clarification + route tests).
+`clarification-hardening.log`: **18 passed** (clarification + route tests). The resumed prompt also names the accepted source/policy/manifest revisions the answers were given against.
 
 Not claimed: an autonomous browser journey through clarification. `reconcile`
 remains reserved.
