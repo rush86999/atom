@@ -204,10 +204,65 @@ def security(ctx: Ctx) -> None:
                          f"masked={('secret' not in mask_text)}")
     except Exception as exc:
         ctx.record("SEC-04", "unverified", notes=f"gatekeeper unavailable: {exc}")
-    ctx.record("SEC-06", "verified",
-               [f"interop/mcp_register.json"],
-               notes="External MCP client connects to the bounded local server "
-                     "(see IO-01); disallowed targets are refused by URL policy")
+    # ---- SEC-06 external MCP client / egress policy --------------------
+    try:
+        from unittest.mock import patch
+        from core.mcp_service import mcp_service as core_mcp
+
+        permitted = ctx.post("/api/mcp/servers", json={
+            "name": "sec-permitted",
+            "transport": "http",
+            "url": "http://127.0.0.1:59997/mcp",
+        })
+        pbody = permitted.json() if permitted.status_code == 200 else {}
+        permitted_ok = (permitted.status_code == 200
+                        and "sec-permitted" in core_mcp.external_clients)
+
+        attempted = []
+
+        class NoNetwork:
+            def __init__(self, *args, **kwargs):
+                attempted.append(True)
+                raise AssertionError("network client constructed for a refused URL")
+
+        bad_results = {}
+        bad_names = ["sec-metadata", "sec-file", "sec-allowlist", "sec-transport"]
+        with patch("httpx.AsyncClient", NoNetwork):
+            bad_results["metadata"] = ctx.post("/api/mcp/servers", json={
+                "name": "sec-metadata", "transport": "http",
+                "url": "http://169.254.169.254/latest/meta-data"}).status_code
+            bad_results["file"] = ctx.post("/api/mcp/servers", json={
+                "name": "sec-file", "transport": "http",
+                "url": "file:///etc/passwd"}).status_code
+            bad_results["outside_allowlist"] = ctx.post("/api/mcp/servers", json={
+                "name": "sec-allowlist", "transport": "http",
+                "url": "https://example.com/mcp"}).status_code
+            bad_results["transport"] = ctx.post("/api/mcp/servers", json={
+                "name": "sec-transport", "transport": "carrier-pigeon",
+                "url": "http://127.0.0.1:59997/mcp"}).status_code
+
+        listed = ctx.get("/api/mcp/servers")
+        lbody = listed.json() if listed.status_code == 200 else {}
+        listed_names = {row.get("server_id") for row in (lbody.get("data") or [])}
+        leaked = [n for n in bad_names
+                  if n in listed_names or n in core_mcp.servers
+                  or n in core_mcp.external_clients]
+        ok = (permitted_ok and not attempted and not leaked
+              and all(code == 502 for code in bad_results.values()))
+        ctx.record("SEC-06", "verified" if ok else "failed",
+                   [ctx.save("security/mcp_egress.json", {
+                       "permitted_status": permitted.status_code,
+                       "permitted_connected": permitted_ok,
+                       "refused_statuses": bad_results,
+                       "network_attempts_for_refused": len(attempted),
+                       "leaked_registrations": leaked,
+                       "listed_servers": sorted(x for x in listed_names if x),
+                   })],
+                   notes=f"permitted={permitted_ok} refused={bad_results} "
+                         f"attempts={len(attempted)} leaked={leaked}")
+    except Exception as exc:
+        ctx.record("SEC-06", "unverified",
+                   notes=f"MCP egress boundary failed: {exc}")
     # Fail-closed without an encryption key in production.
     import subprocess
     import sys
