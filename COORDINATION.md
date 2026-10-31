@@ -232,8 +232,12 @@ substantive model-quality assessment are still separate open items. Cached
 BYOK refresh code is in place (credential revision, dispatch backstop,
 negative-cache reset), but the full Settings → Chat acceptance remains partial
 because the chat router selects an unsupported catalog model in the harness.
-Authorized model access and external/provider environments remain blocked. No
-deployment, send, credential change or connected-system write was performed.
+Model access is now available locally; the assessment issue is failed
+qualification/review enforcement, not unavailable infrastructure. Unsupported
+approvals must fail qualification and human review must be enforced before
+downstream action. Firecracker/KVM and live-provider environments remain
+external blockers. No deployment, send, credential change or connected-system
+write was performed.
 
 **Worlds/ports:** harness worlds live under
 `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-*`;

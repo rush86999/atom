@@ -131,6 +131,54 @@ class ContactGovernance:
             
             return approved_count / total_count
 
+    def find_approved_action(
+        self, workspace_id: str, action_type: str, platform: str,
+        params: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Most recent human approval matching this exact outbound payload.
+
+        Returns a small copy (never a detached ORM instance). The approval id
+        is the idempotency key for the downstream effect.
+        """
+        recipient = str((params or {}).get("recipient_id") or "")
+        content = str((params or {}).get("content") or "")
+        with self._session_scope() as db:
+            rows = (
+                db.query(HITLAction)
+                .filter(
+                    HITLAction.workspace_id == workspace_id,
+                    HITLAction.action_type == action_type,
+                    HITLAction.platform == platform,
+                    HITLAction.status == HITLActionStatus.APPROVED.value,
+                )
+                .order_by(HITLAction.reviewed_at.desc(), HITLAction.created_at.desc())
+                .limit(20)
+                .all()
+            )
+            for row in rows:
+                row_params = row.params or {}
+                if (str(row_params.get("recipient_id") or "") == recipient
+                        and str(row_params.get("content") or "") == content):
+                    return {
+                        "id": row.id,
+                        "context_snapshot": dict(row.context_snapshot or {}),
+                        "params": dict(row_params),
+                    }
+        return None
+
+    def mark_effect_applied(self, action_id: str, effect: Dict[str, Any]) -> bool:
+        """Record that the approved effect was applied exactly once."""
+        with self._session_scope() as db:
+            row = db.query(HITLAction).filter(HITLAction.id == action_id).first()
+            if row is None:
+                return False
+            snapshot = dict(row.context_snapshot or {})
+            snapshot["effect_applied"] = True
+            snapshot["effect_record"] = dict(effect or {})
+            row.context_snapshot = snapshot
+            db.commit()
+            return True
+
     async def request_approval(self, workspace_id: str, action_type: str, platform: str, params: Dict[str, Any], reason: str) -> str:
         """
         Pauses the action and creates a HITL record in the database.

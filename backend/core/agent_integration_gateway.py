@@ -130,7 +130,25 @@ class AgentIntegrationGateway:
                             "message": "Action paused for manual review (External Stakeholder Governance)"
                         }
 
-                return await self._handle_send_message(platform, params)
+                approved = contact_governance.find_approved_action(
+                    workspace_id, action_type.value, platform, params)
+                if approved and (approved.get("context_snapshot") or {}).get(
+                        "effect_applied"):
+                    return {
+                        "status": "duplicate",
+                        "idempotent": True,
+                        "hitl_id": approved.get("id"),
+                        "message": "This approved outbound payload was already applied",
+                    }
+                result = await self._handle_send_message(platform, params)
+                if approved and result.get("status") == "success":
+                    contact_governance.mark_effect_applied(
+                        approved["id"], {
+                            "platform": platform,
+                            "recipient": params.get("recipient_id"),
+                            "status": result.get("status"),
+                        })
+                return result
                 
             elif action_type == ActionType.UPDATE_RECORD:
                 return await self._handle_update_record(platform, params)

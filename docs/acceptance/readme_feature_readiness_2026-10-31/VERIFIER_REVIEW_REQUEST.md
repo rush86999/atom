@@ -43,10 +43,10 @@ CORE-06.
 | ASK-05 | stats, cold-start refusal, gated certification queue, approval flips enforcement |
 | ROUTE-04 | 56 feedback rows changed selection `minimax-m3`→`gpt-4o`; readiness true |
 | IO-06 | gateway request span + local Langfuse collector batch, no secrets |
-| OFF-07 | authorized canvas subscriber received updated structured snapshot; unrelated canvas excluded |
+| OFF-07 | agent write delivered to both the canvas subscriber and the `user:{uid}` subscriber with the same structured revision; unrelated canvas excluded |
 | TEAM-06 | incumbency/reviewer/COI report baselines; empty-window zero control |
 | INT-04 | registered HubSpot adapter read with bearer token/path assertions; missing token refused |
-| INT-05 | external send held at HITL, one effect after approval, rejection still blocked |
+| INT-05 | external send held at HITL; one effect after approval; approved retry returned duplicate; approval replay 400; rejection still blocked |
 | INT-07 | original-bytes HMAC accepted once, replay duplicate, forged/missing 401 |
 
 ## 3. Product fixes in the integrated candidate
@@ -78,8 +78,8 @@ duplicate resume; those remain open.
 - **CORE-06 / ROUTE-06**: the credential-revision rebuild, dispatch-time
   backstop and negative provider-cache reset are implemented, but the full
   Settings → save key → Chat acceptance still selects an unsupported catalog
-  model in this harness. CORE-06 and ROUTE-06 remain partial and are not
-  counted.
+  model. This is an engineering/catalog-selection issue, not a missing owner
+  decision. CORE-06 and ROUTE-06 remain partial and are not counted.
 - **ROUTE-03**: this world's provider policy admits one gateway route; a
   failed upstream returns `all_providers_failed`. The async-provider fallback
   fix is in place, but no cross-provider fallback world is configured yet.
@@ -88,8 +88,11 @@ duplicate resume; those remain open.
 - **GOV-05**: OIDC config only; login 503 and no IdP callback.
 - **TEAM-01/05**: exactly-one accountability and nightly automation are not
   enforced/exercised.
-- **Model-backed**: ORCH-01/02/07, GOAL-02/04, GOV-04, WF-05, MEM-07 and
-  ROUTE-07 need an authorized usable model or external key.
+- **Model-backed**: model access is now available locally. ORCH-01/02/07,
+  GOAL-02/04, GOV-04, WF-05, MEM-07 and ROUTE-07 remain engineering work; the
+  substantive assessment issue is failed qualification/review enforcement,
+  not unavailable infrastructure. Unsupported approvals must fail
+  qualification and human review must be enforced before downstream action.
 - **Environment/external**: MINI-03/04/05 need KVM; INT-09 needs real provider
   accounts; INST-01 needs a pristine `make setup`.
 - **GRAPH-05**: API query verified; the browser explorer check is not yet

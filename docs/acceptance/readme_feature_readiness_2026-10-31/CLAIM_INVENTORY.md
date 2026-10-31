@@ -1,6 +1,6 @@
 # README feature-readiness claim inventory
 
-Generated: 2026-10-31T18:52:05.708108+00:00
+Generated: 2026-10-31T19:20:52.401428+00:00
 
 README: `README.md` @ `da9cc8b12de3639f59cc5b8ea84338c5f507dc6d` (tag `local-core-2026-10-30-final`), sha256 `392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0`
 
@@ -543,7 +543,7 @@ Eligible functional claims: **123** · tracked separately: 20
 - Claim: episodic memory
 - Acceptance: Create episodes, retrieve by semantic/temporal mode, inspect graduation readiness
 - Expected: Episodes persist and retrieval modes return the matching episode
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/memory/graduation.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/episodes.json`
 
 ### MEM-05 — verified
 
@@ -657,49 +657,49 @@ Eligible functional claims: **123** · tracked separately: 20
 - Claim: Agent-driven Excel/Word/PPTX editing
 - Acceptance: Create a DOCX with headings/table, edit a paragraph, reopen it
 - Expected: Edit persists; styles and table survive; extracted text matches
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/docx.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/docx.json`
 
 ### OFF-02 — verified
 
 - Claim: Excel editing
 - Acceptance: Create XLSX with '00123' and a cross-sheet formula; restart the reader
 - Expected: Leading zeros and sheet names survive; cell values round-trip
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/xlsx.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/xlsx.json`
 
 ### OFF-03 — verified
 
 - Claim: formula-evaluating workbook runtime
 - Acceptance: Evaluate =SUM and a cross-sheet reference; inspect cached vs computed values
 - Expected: Computed values match the formula engine; unsupported formulas are reported, not guessed
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/formula.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/formula.json`
 
 ### OFF-04 — verified
 
 - Claim: PPTX editing
 - Acceptance: Create a deck, add/update a slide, reopen and extract text
 - Expected: Slide text persists and shape/notes structure survives
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/pptx.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/pptx.json`
 
 ### OFF-05 — verified
 
 - Claim: Agent-driven ... editing on Canvas
 - Acceptance: Present an XLSX, read the canvas, download the artifact
 - Expected: Canvas content references the file; downloaded bytes are a valid XLSX
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/present.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/present.json`
 
 ### OFF-06 — verified
 
 - Claim: agent<->document sync
 - Acceptance: Edit one paragraph/cell through sync-update and reopen the file
 - Expected: Only the targeted paragraph/cell changes; other structure is preserved
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/sync.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/sync.json`
 
 ### OFF-07 — verified
 
 - Claim: live preview broadcast
 - Acceptance: Open a canvas WS, perform an agent write, capture the message
 - Expected: Structured cells/paragraphs/slides snapshot arrives on both channels
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/live_broadcast.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/live_broadcast.json`
 
 ### OFF-08 — verified
 
@@ -782,49 +782,49 @@ Eligible functional claims: **123** · tracked separately: 20
 - Claim: 46+ Business Integrations
 - Acceptance: Fetch the catalog and count providers
 - Expected: At least 46 distinct providers are listed as available
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/catalog.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/catalog.json`
 
 ### INT-02 — verified
 
 - Claim: connected state is truthful
 - Acceptance: Read status with no tokens; add a token; read again
 - Expected: No token -> connected=false; token -> true with a truthful source
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/connection_status.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/connection_status.json`
 
 ### INT-03 — verified
 
 - Claim: OAuth connect
 - Acceptance: Run the full consent round-trip against a bounded local provider
 - Expected: Token rows persist; status becomes connected; state/PKCE checked
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/oauth_connect.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/oauth_connect.json`
 
 ### INT-04 — verified
 
 - Claim: use connected data
 - Acceptance: Read a bounded mocked dataset and ingest it
 - Expected: Records are returned/ingested with source identity and no silent empty success
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/controlled_read.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/controlled_read.json`
 
 ### INT-05 — verified
 
 - Claim: outbound actions
 - Acceptance: Request a send/create; approve; verify one effect at the mocked provider
 - Expected: No send before approval; exactly one approved effect
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/outbound_hitl.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/outbound_hitl.json`
 
 ### INT-06 — verified
 
 - Claim: disconnect
 - Acceptance: Disconnect, then read status and attempt a data call
 - Expected: Status returns disconnected and revoked tokens no longer work
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/disconnect.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/disconnect.json`
 
 ### INT-07 — verified
 
 - Claim: webhook triggers
 - Acceptance: Send an unsigned/forged webhook and a correctly signed one
 - Expected: Forged is rejected fail-closed; signed is accepted once
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/webhook.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/webhook.json`
 
 ### INT-08 — verified
 
@@ -844,56 +844,56 @@ Eligible functional claims: **123** · tracked separately: 20
 - Claim: OpenAI-compatible API
 - Acceptance: Call with a bounded local OpenAI-compatible upstream
 - Expected: OpenAI response shape, usage and routing metadata; normal errors in OpenAI shape
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/gateway/openai_chat.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/openai_chat.json`
 
 ### GW-02 — verified
 
 - Claim: Anthropic-compatible API
 - Acceptance: Call with a bounded local Anthropic-compatible upstream
 - Expected: Anthropic response shape and stop_reason are returned; SSE adapter works
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/gateway/anthropic.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/anthropic.json`
 
 ### GW-03 — verified
 
 - Claim: point Claude Code, n8n, or any OpenAI-SDK app at Atom
 - Acceptance: Call /v1/models with a valid atom_sk key
 - Expected: Returns the routable model list in OpenAI shape
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/gateway/models.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/models.json`
 
 ### GW-04 — verified
 
 - Claim: atom_sk_* keys
 - Acceptance: Create a key, use it, revoke it, reuse it, inspect storage
 - Expected: Only the hash is stored; revoked/invalid keys are 401
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/gateway/key_lifecycle.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/key_lifecycle.json`
 
 ### GW-05 — verified
 
 - Claim: over your BYOK
 - Acceptance: Send requests with and without x-atom-model and inspect the upstream actually called
 - Expected: Header override selects the requested model; otherwise the tier router decides
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/gateway/override.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/override.json`
 
 ### GW-06 — verified
 
 - Claim: error propagation
 - Acceptance: Point at an upstream returning 500/timeout
 - Expected: Caller receives a bounded provider error, not a traceback or silent success
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/gateway/error_path.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/error_path.json`
 
 ### ROUTE-01 — verified
 
 - Claim: 5-tier cognitive classification
 - Acceptance: Classify easy/normal/hard/reasoning/critical prompts
 - Expected: Each prompt maps to the expected tier deterministically
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/routing/tiers.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/tiers.json`
 
 ### ROUTE-02 — verified
 
 - Claim: 16+ providers
 - Acceptance: List provider catalog and count
 - Expected: At least 16 providers are registered, including the named families
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/routing/providers.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/providers.json`
 
 ### ROUTE-03 — partial
 
@@ -906,21 +906,21 @@ Eligible functional claims: **123** · tracked separately: 20
 - Claim: opt-in learning router (feedback-based re-ranking)
 - Acceptance: Record positive/negative feedback and compare ranked candidates
 - Expected: Feedback shifts the ranking; flag off restores the baseline order
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/routing/learning_rerank.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/learning_rerank.json`
 
 ### ROUTE-05 — verified
 
 - Claim: RTK token compression
 - Acceptance: Compress a long transcript and inspect token savings + retained facts
 - Expected: Token count falls and asserted facts remain
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/routing/rtk.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/rtk.json`
 
 ### ROUTE-06 — partial
 
 - Claim: local models (Ollama first-class, or any local OpenAI-compatible server)
 - Acceptance: Point at a bounded local OpenAI-compatible server and send a chat
 - Expected: Request goes to the local server; no cloud key is required
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/routing/local_models.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/local_models.json`
 
 ### IO-01 — verified
 
@@ -1039,7 +1039,7 @@ Eligible functional claims: **123** · tracked separately: 20
 - Claim: Chat
 - Acceptance: Send a chat turn and read the persisted session
 - Expected: Reply and session history agree; no stream is required
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/core/chat.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/chat.json`
 
 ### CORE-02 — verified
 
@@ -1053,14 +1053,14 @@ Eligible functional claims: **123** · tracked separately: 20
 - Claim: Workspace ... review or correct it
 - Acceptance: Open a canvas, edit content, reload, download
 - Expected: Edit persists and the download matches the edited content
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/core/canvas.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/canvas.json`
 
 ### CORE-04 — verified
 
 - Claim: Agents ... teach an agent
 - Acceptance: Teach a rule, run a later task, inspect the applied lesson
 - Expected: Lesson persists and is referenced by the later run
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/core/teach_apply.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/teach_apply.json`
 
 ### CORE-05 — verified
 
@@ -1081,7 +1081,7 @@ Eligible functional claims: **123** · tracked separately: 20
 - Claim: ATOM_PRODUCT_PROFILE=full restores the wider surface
 - Acceptance: Fetch the profile in both modes and open a deferred UI route
 - Expected: Core defers the wider surface; full exposes it without code changes
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/core/profile.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/profile.json`
 
 ### INST-02 — verified
 

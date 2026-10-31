@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "harness": "backend/scripts/readme_acceptance",
+  "generated_at": "2026-10-31T19:20:25.342553+00:00",
+  "started_at": "2026-10-31T19:20:23.158410+00:00",
+  "config": {
+    "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world",
+    "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/atom.db",
+    "product_profile": "full",
+    "external_integrations": "tokenless; schedulers/pollers off",
+    "llm": "bounded local OpenAI-compatible stub (no cloud spend)"
+  },
+  "groups": {
+    "integrations": "groups_integrations:integrations"
+  },
+  "group_errors": [],
+  "results": [
+    {
+      "claim_id": "INT-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/catalog.json"
+      ],
+      "notes": "total=67 categories={'ai': 1, 'analytics': 1, 'automation': 1, 'cloud': 1, 'communication': 17, 'crm': 4, 'design': 1, 'development': 3, 'ecommerce': 2, 'finance': 5, 'hr': 2, 'identity': 1, 'marketing': 3, 'productivity': 17, 'storage': 5, 'support': 3} named_missing=[]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/connection_status.json"
+      ],
+      "notes": "no_token=False with_token=True after_delete=False source=oauth_token",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/oauth_connect.json"
+      ],
+      "notes": "initiate=307 state=True callback=307 tokens=1 ciphertext=True",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/controlled_read.json"
+      ],
+      "notes": "deals=2 path=/crm/v3/objects/deals bearer=True no_token_error=True controlled_provider=True error=None",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/outbound_hitl.json"
+      ],
+      "notes": "before=waiting_approval sent=0 approve=200 after=success sent_after=1 retry=duplicate sent_after_retry=1 replay_approval=400 reject=200 denied_retry=waiting_approval",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/disconnect.json"
+      ],
+      "notes": "disconnect=200 revoked=True connected_after=False",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-07",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/webhook.json"
+      ],
+      "notes": "accepted=200 replay=duplicate forged=401 missing=401",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-08",
+      "status": "verified",
+      "evidence": [
+        "integrations/catalog.json"
+      ],
+      "notes": "named providers with adapter/oauth/route evidence: ['github', 'gitlab', 'gmail', 'hubspot', 'jira', 'linear', 'notion', 'quickbooks', 'salesforce', 'shopify', 'slack', 'stripe', 'teams', 'zoom']; missing=[]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-09",
+      "status": "blocked_external",
+      "evidence": [],
+      "notes": "Live qualification of 46+ providers requires real accounts and permissions; not requested in this run",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INT-09",
+      "status": "blocked_external",
+      "evidence": [],
+      "notes": "Live qualification of 46+ providers requires real accounts and permissions; not requested in this run",
+      "blocker": ""
+    }
+  ]
+}

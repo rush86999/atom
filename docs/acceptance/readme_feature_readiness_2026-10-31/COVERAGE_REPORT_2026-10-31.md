@@ -104,14 +104,20 @@ CORE-06). The earlier 18-claim audit is retained as history.
 
 ### Office + teams + integrations
 
-- **OFF-07** — an authorized canvas subscriber received the structured
-  snapshot after an agent write; an unrelated canvas was not notified.
+- **OFF-07** — the agent write was delivered on **both** live channels:
+  the canvas subscriber and the working `user:{uid}` subscriber each received
+  the same structured snapshot/revision; the unrelated canvas was not
+  targeted. The direct `notify_file_canvases()` call was removed from the
+  assertion path.
 - **TEAM-06** — the org dynamics report computed the expected incumbency,
   reviewer and radio→recruit COI baselines; an empty window was zero.
 - **INT-04** — the registered HubSpot adapter read controlled records with
   the bearer token and path asserted; a missing token was refused.
 - **INT-05** — an external send returned `waiting_approval` with no effect;
-  approval produced exactly one controlled send; rejection kept it blocked.
+  approval produced exactly one controlled send; repeating the approved
+  operation returned `duplicate` with the effect count still 1; replaying the
+  approval endpoint returned 400 and did not send again; rejection kept the
+  second pattern blocked.
 - **INT-07** — a Slack HMAC signature over the original bytes was accepted
   once, replay was duplicate, and forged/missing signatures were 401.
 

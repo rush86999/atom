@@ -42,23 +42,23 @@
     },
     {
       "path": "CLAIM_INVENTORY.json",
-      "sha256": "94b2de5b425de02587357165695df2a877ed41fcb3442819c95a015eae12a6d4",
-      "bytes": 151412
+      "sha256": "0900c2d609da81910ebfbc25f447ce242977c3b01c6c0e65fb48a5c1d2f98ab9",
+      "bytes": 153022
     },
     {
       "path": "CLAIM_INVENTORY.md",
-      "sha256": "82dac145893afc63f6ea67f25ce6669992272cbf96df0054a5f7f20c5e46a2f6",
-      "bytes": 64997
+      "sha256": "872056b3cf9bec23364a23d249aa6d0c4dcf52908bba892ab561735bf7bfc6f1",
+      "bytes": 65158
     },
     {
       "path": "COVERAGE_REPORT_2026-10-31.md",
-      "sha256": "a2597dcd7cbabc159fd5182bc73b006cdaa94ab5e62809e9cabaa554c3250afc",
-      "bytes": 12944
+      "sha256": "f964786aba0b8cc5c89e8294bfcfd14b6cc1d8cae73e7779106bea1e4286775f",
+      "bytes": 13290
     },
     {
       "path": "VERIFIER_REVIEW_REQUEST.md",
-      "sha256": "9dd82f34e576a032b0617c17c9c16d70d1e709309fa6cba3246d1b963fcd1de8",
-      "bytes": 6051
+      "sha256": "cbf690331c71883ffeaace91a01136c3630fcb9da04da8f241da8588590cad16",
+      "bytes": 6457
     },
     {
       "path": "NEXT_CLAIM_BATCHES_2026-10-31.md",
@@ -67,8 +67,8 @@
     },
     {
       "path": "evidence/corrected-results.json",
-      "sha256": "2833cbf6563ee9b7f3f8d51c63e9a7e1682d32e835974a7b65abd5b46db0ee2a",
-      "bytes": 64398
+      "sha256": "d7438ef004ffb7fefb949d2857a47507e03e7a437a3c8aea71378800f6dc0e94",
+      "bytes": 66186
     },
     {
       "path": "evidence/CLAIM_AUDIT_2026-10-31_final.json",
@@ -87,8 +87,8 @@
     },
     {
       "path": "evidence/merged-integrated.json",
-      "sha256": "962a207c8e31d65cc344bcc026941b857895ff956312244d53d61b4b43611af4",
-      "bytes": 61777
+      "sha256": "d08250701c93c373c53c84ec22652f3d821f277460308a1b66196b661d0c7c8d",
+      "bytes": 63565
     },
     {
       "path": "evidence/install-final.json",
@@ -187,8 +187,18 @@
     },
     {
       "path": "REMAINING_WORK.md",
-      "sha256": "bed8f3d7f4cb721d3cbb291153af7c266dcc88907aa43ad26dc8f954e91562a6",
-      "bytes": 3454
+      "sha256": "560d58727acceef4d823fd8c12dc44b8944e293e71c126746d98c3ff4b6b6d16",
+      "bytes": 3746
+    },
+    {
+      "path": "evidence/office-final.json",
+      "sha256": "5d07a905113df1f229619198fe9253bf8a2fb6347c5462dae9b02535368e06d5",
+      "bytes": 3383
+    },
+    {
+      "path": "evidence/integrations-final.json",
+      "sha256": "a6dabda7d80e03721662501df6decc84f72f313c41f3f1378d9dd9b47d401d74",
+      "bytes": 4256
     }
   ]
 }

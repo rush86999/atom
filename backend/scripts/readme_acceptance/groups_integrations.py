@@ -255,6 +255,19 @@ def integrations(ctx: Ctx) -> None:
     after = asyncio.run(gateway.execute_action(
         ActionType.SEND_MESSAGE, "slack", outbound_params))
     sent_after = len(sent)
+    retry = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "slack", outbound_params))
+    sent_after_retry = len(sent)
+    replay_approval = (ctx.post(
+        f"/api/agent-governance/approve/{hitl_id}")
+        if hitl_id else None)
+    replay_body = (replay_approval.json()
+                   if replay_approval is not None
+                   and replay_approval.headers.get("content-type", "")
+                   .startswith("application/json") else {})
+    retry_after_replay = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "slack", outbound_params))
+    sent_after_replay = len(sent)
 
     # Rejection control: a second external pattern is denied, and retrying it
     # still pauses instead of sending.
@@ -273,6 +286,11 @@ def integrations(ctx: Ctx) -> None:
                 and approve is not None and approve.status_code == 200
                 and after.get("status") == "success"
                 and sent_after == 1
+                and retry.get("status") == "duplicate"
+                and sent_after_retry == 1
+                and replay_approval is not None
+                and replay_approval.status_code in (400, 409)
+                and sent_after_replay == 1
                 and denied.get("status") == "waiting_approval" and denied_id
                 and reject is not None and reject.status_code == 200
                 and denied_retry.get("status") == "waiting_approval"
@@ -286,6 +304,13 @@ def integrations(ctx: Ctx) -> None:
                    "approve_status": None if approve is None else approve.status_code,
                    "after": after,
                    "sent_after": sent_after,
+                   "retry": retry,
+                   "sent_after_retry": sent_after_retry,
+                   "replay_approval": {"status": replay_approval.status_code
+                                       if replay_approval is not None else None,
+                                       "body": replay_body},
+                   "retry_after_replay": retry_after_replay,
+                   "sent_after_replay": sent_after_replay,
                    "sent": sent,
                    "denied": denied,
                    "denied_id": denied_id,
@@ -296,6 +321,8 @@ def integrations(ctx: Ctx) -> None:
                notes=f"before={before.get('status')} sent={sent_before} "
                      f"approve={None if approve is None else approve.status_code} "
                      f"after={after.get('status')} sent_after={sent_after} "
+                     f"retry={retry.get('status')} sent_after_retry={sent_after_retry} "
+                     f"replay_approval={None if replay_approval is None else replay_approval.status_code} "
                      f"reject={None if reject is None else reject.status_code} "
                      f"denied_retry={denied_retry.get('status')}")
 

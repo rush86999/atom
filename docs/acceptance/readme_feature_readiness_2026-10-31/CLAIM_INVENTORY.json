@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "README feature-readiness claim inventory",
-  "generated_at": "2026-10-31T18:52:05.708108+00:00",
+  "generated_at": "2026-10-31T19:20:52.401428+00:00",
   "readme": {
     "path": "README.md",
     "sha256": "392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0",
@@ -808,10 +808,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/memory/graduation.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/episodes.json"
       ],
       "blocker": "",
-      "notes": "episodes=10 analyzed=20 ready=True gaps=[] exam=200 promote=True empty_promoted=False [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json]"
+      "notes": "episode=7cbdbcc5-7fb3-456e-aba9-68da139b681f episodes=2 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "MEM-05",
@@ -1173,10 +1173,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/docx.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/docx.json"
       ],
       "blocker": "",
-      "notes": "heading_preserved=True table_preserved=True font=Courier New [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "heading_preserved=True table_preserved=True font=Courier New [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "OFF-02",
@@ -1194,10 +1194,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/xlsx.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/xlsx.json"
       ],
       "blocker": "",
-      "notes": "leading_zero='00123' formulas={'D2': '=SUM(B2:C2)', 'E2': '=B2*C2', 'SummaryB1': '=Data!D2+Data!D3'} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "leading_zero='00123' formulas={'D2': '=SUM(B2:C2)', 'E2': '=B2*C2', 'SummaryB1': '=Data!D2+Data!D3'} [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "OFF-03",
@@ -1215,10 +1215,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/formula.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/formula.json"
       ],
       "blocker": "",
-      "notes": "formula_result=200 recalc=200 cross_sheet_value=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "formula_result=200 recalc=200 cross_sheet_value=True [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "OFF-04",
@@ -1236,10 +1236,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/pptx.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/pptx.json"
       ],
       "blocker": "",
-      "notes": "titles=['PPTX-EDITED'] bodies=['Edited body'] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "titles=['PPTX-EDITED'] bodies=['Edited body'] [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "OFF-05",
@@ -1258,10 +1258,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/present.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/present.json"
       ],
       "blocker": "",
-      "notes": "canvas=canvas_417b68b7cc4d download_ok=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "canvas=canvas_ec723e7c30c3 download_ok=True [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "OFF-06",
@@ -1280,10 +1280,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/sync.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/sync.json"
       ],
       "blocker": "",
-      "notes": "paragraph_in_place=True heading_preserved=True tables=1 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "paragraph_in_place=True heading_preserved=True tables=1 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "OFF-07",
@@ -1302,10 +1302,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/office/live_broadcast.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-off07-fix-world/evidence/office/live_broadcast.json"
       ],
       "blocker": "",
-      "notes": "canvas=canvas_417b68b7cc4d message=True marker=True notified=['canvas_417b68b7cc4d'] unrelated_excluded=True error=None [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "canvas=canvas_ec723e7c30c3 canvas_channel=True user_channel=True same_revision=True unrelated_canvas=canvas_317fbb0ab10a error=None [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "OFF-08",
@@ -1327,7 +1327,7 @@
         "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json"
       ],
       "blocker": "",
-      "notes": "A presented Office canvas and its downloadable file were re-read from a new backend process on the same data root [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json]"
+      "notes": "A presented Office canvas and its downloadable file were re-read from a new backend process on the same data root [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/office-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/install-final.json]"
     },
     {
       "id": "MINI-01",
@@ -1559,10 +1559,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/catalog.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/catalog.json"
       ],
       "blocker": "",
-      "notes": "total=67 categories={'ai': 1, 'analytics': 1, 'automation': 1, 'cloud': 1, 'communication': 17, 'crm': 4, 'design': 1, 'development': 3, 'ecommerce': 2, 'finance': 5, 'hr': 2, 'identity': 1, 'marketing': 3, 'productivity': 17, 'storage': 5, 'support': 3} named_missing=[] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "total=67 categories={'ai': 1, 'analytics': 1, 'automation': 1, 'cloud': 1, 'communication': 17, 'crm': 4, 'design': 1, 'development': 3, 'ecommerce': 2, 'finance': 5, 'hr': 2, 'identity': 1, 'marketing': 3, 'productivity': 17, 'storage': 5, 'support': 3} named_missing=[] [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "INT-02",
@@ -1580,10 +1580,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/connection_status.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/connection_status.json"
       ],
       "blocker": "",
-      "notes": "no_token=False with_token=True after_delete=False source=oauth_token [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "no_token=False with_token=True after_delete=False source=oauth_token [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "INT-03",
@@ -1602,10 +1602,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/oauth_connect.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/oauth_connect.json"
       ],
       "blocker": "",
-      "notes": "initiate=307 state=True callback=307 tokens=1 ciphertext=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "initiate=307 state=True callback=307 tokens=1 ciphertext=True [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "INT-04",
@@ -1624,10 +1624,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/controlled_read.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/controlled_read.json"
       ],
       "blocker": "",
-      "notes": "deals=2 path=/crm/v3/objects/deals bearer=True no_token_error=True controlled_provider=True error=None [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "deals=2 path=/crm/v3/objects/deals bearer=True no_token_error=True controlled_provider=True error=None [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "INT-05",
@@ -1646,10 +1646,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/outbound_hitl.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/outbound_hitl.json"
       ],
       "blocker": "",
-      "notes": "before=waiting_approval sent=0 approve=200 after=success sent_after=1 reject=200 denied_retry=waiting_approval [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "before=waiting_approval sent=0 approve=200 after=success sent_after=1 retry=duplicate sent_after_retry=1 replay_approval=400 reject=200 denied_retry=waiting_approval [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "INT-06",
@@ -1667,10 +1667,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/disconnect.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/disconnect.json"
       ],
       "blocker": "",
-      "notes": "disconnect=200 revoked=True connected_after=False [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "disconnect=200 revoked=True connected_after=False [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "INT-07",
@@ -1689,10 +1689,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/integrations/webhook.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/webhook.json"
       ],
       "blocker": "",
-      "notes": "accepted=200 replay=duplicate forged=401 missing=401 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "accepted=200 replay=duplicate forged=401 missing=401 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "INT-08",
@@ -1714,7 +1714,7 @@
         "integrations/catalog.json"
       ],
       "blocker": "",
-      "notes": "named providers with adapter/oauth/route evidence: ['github', 'gitlab', 'gmail', 'hubspot', 'jira', 'linear', 'notion', 'quickbooks', 'salesforce', 'shopify', 'slack', 'stripe', 'teams', 'zoom']; missing=[] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "named providers with adapter/oauth/route evidence: ['github', 'gitlab', 'gmail', 'hubspot', 'jira', 'linear', 'notion', 'quickbooks', 'salesforce', 'shopify', 'slack', 'stripe', 'teams', 'zoom']; missing=[] [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "INT-09",
@@ -1733,7 +1733,7 @@
       "status": "blocked_external",
       "evidence": [],
       "blocker": "",
-      "notes": "Live qualification of 46+ providers requires real accounts and permissions; not requested in this run [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "Live qualification of 46+ providers requires real accounts and permissions; not requested in this run [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "GW-01",
@@ -1752,10 +1752,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/gateway/openai_chat.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/openai_chat.json"
       ],
       "blocker": "",
-      "notes": "chat_status=200 choices=1 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "chat_status=200 choices=1 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "GW-02",
@@ -1774,10 +1774,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/gateway/anthropic.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/anthropic.json"
       ],
       "blocker": "",
-      "notes": "messages_status=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "messages_status=200 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "GW-03",
@@ -1795,10 +1795,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/gateway/models.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/models.json"
       ],
       "blocker": "",
-      "notes": "models=2 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "models=2 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "GW-04",
@@ -1817,10 +1817,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/gateway/key_lifecycle.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/key_lifecycle.json"
       ],
       "blocker": "",
-      "notes": "invalid=401 revoke=200 revoked_use=401 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "invalid=401 revoke=200 revoked_use=401 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "GW-05",
@@ -1838,10 +1838,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/gateway/override.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/override.json"
       ],
       "blocker": "",
-      "notes": "x-atom-model override reached the upstream [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "x-atom-model override reached the upstream [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "GW-06",
@@ -1859,10 +1859,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/gateway/error_path.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/gateway/error_path.json"
       ],
       "blocker": "",
-      "notes": "transport failure mapped to 502 code=all_providers_failed [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "transport failure mapped to 502 code=all_providers_failed [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "ROUTE-01",
@@ -1880,10 +1880,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/routing/tiers.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/tiers.json"
       ],
       "blocker": "",
-      "notes": "tiers={'simple': 'micro', 'moderate': 'micro', 'technical': 'standard', 'advanced': 'versatile'} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "tiers={'simple': 'micro', 'moderate': 'micro', 'technical': 'standard', 'advanced': 'versatile'} [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "ROUTE-02",
@@ -1902,10 +1902,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/routing/providers.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/providers.json"
       ],
       "blocker": "",
-      "notes": "provider_count=37 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "provider_count=37 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "ROUTE-03",
@@ -1925,7 +1925,7 @@
       "status": "partial",
       "evidence": [],
       "blocker": "",
-      "notes": "Configured provider policy admits one gateway route; a failed upstream returns all_providers_failed instead of falling back to the local provider [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "Configured provider policy admits one gateway route; a failed upstream returns all_providers_failed instead of falling back to the local provider [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "ROUTE-04",
@@ -1943,10 +1943,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/routing/learning_rerank.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/learning_rerank.json"
       ],
       "blocker": "",
-      "notes": "loaded=157 baseline=minimax-m3 trained=gpt-4o ready=True rows=157 models=2 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "loaded=56 baseline=minimax-m3 trained=gpt-4o ready=True rows=56 models=2 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "ROUTE-05",
@@ -1964,10 +1964,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/routing/rtk.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/rtk.json"
       ],
       "blocker": "",
-      "notes": "chars 2670 -> 138; structured_unchanged=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "chars 2670 -> 138; structured_unchanged=True [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "ROUTE-06",
@@ -1985,10 +1985,10 @@
       "external": false,
       "status": "partial",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/routing/local_models.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final2-world/evidence/routing/local_models.json"
       ],
       "blocker": "",
-      "notes": "Local OpenAI-compatible provider is the harness upstream; the user-facing settings surface is served [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "Local OpenAI-compatible provider is the harness upstream; the user-facing settings surface is served [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "ROUTE-07",
@@ -2008,7 +2008,7 @@
       "status": "unverified",
       "evidence": [],
       "blocker": "",
-      "notes": "opencode-go needs a real subscription key; the provider resolves but no live call is made [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json]"
+      "notes": "opencode-go needs a real subscription key; the provider resolves but no live call is made [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/gateway-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "IO-01",
@@ -2412,10 +2412,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/core/chat.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/chat.json"
       ],
       "blocker": "",
-      "notes": "chat=200 session=dfd00739-a2f7-4957-9685-18e0c7324346 reply='acceptance reply for: nd offer to retry. Never invent tool activity.\"}, {\"role\":' provider=openai model=gpt-4o-mini [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json]"
+      "notes": "chat=200 session=8aba121a-1923-4665-9251-0ef14aba03f5 reply='acceptance reply for: nd offer to retry. Never invent tool activity.\"}, {\"role\":' provider=openai model=gpt-4o-mini [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "CORE-02",
@@ -2455,10 +2455,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/core/canvas.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/canvas.json"
       ],
       "blocker": "",
-      "notes": "canvas=fb416e4d-f23a-4f33-95fc-2bb117adf46b update=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json]"
+      "notes": "canvas=cc7ee893-8db3-43d4-9cd8-b6dd4b62dce9 update=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "CORE-04",
@@ -2477,10 +2477,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/core/teach_apply.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/teach_apply.json"
       ],
       "blocker": "",
-      "notes": "teach=200 lesson=1eaef22ef8b74efb92817d2f1d41b242 applied=True control=False same_goal=True wrong_goal=False corrected=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json]"
+      "notes": "teach=200 lesson=b3d34245051643358cd86797b3e0c6c5 applied=True control=False same_goal=True wrong_goal=False corrected=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "CORE-05",
@@ -2523,7 +2523,7 @@
         "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/core/settings.json"
       ],
       "blocker": "",
-      "notes": "providers=200 settings=200 openai_configured=True secret_masked=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json] [audit verified->partial: Provider configuration and masking were read; a route from a key stored through the Settings surface was not exercised without a restart.]"
+      "notes": "providers=200 settings=200 openai_configured=True secret_masked=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json] [audit verified->partial: Provider configuration and masking were read; a route from a key stored through the Settings surface was not exercised without a restart.]"
     },
     {
       "id": "CORE-07",
@@ -2542,10 +2542,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/core/profile.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core/profile.json"
       ],
       "blocker": "",
-      "notes": "profile=full enabled=['activity', 'agents', 'approvals', 'automations', 'boards', 'business_dashboards', 'canvas', 'chat', 'command_centers', 'connectors', 'documents', 'governance', 'marketplace', 'productivity', 'search', 'settings', 'tasks', 'team_chat'] deferred_enabled=['automations', 'governance', 'marketplace', 'search', 'tasks'] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json]"
+      "notes": "profile=full enabled=['activity', 'agents', 'approvals', 'automations', 'boards', 'business_dashboards', 'canvas', 'chat', 'command_centers', 'connectors', 'documents', 'governance', 'marketplace', 'productivity', 'search', 'settings', 'tasks', 'team_chat'] deferred_enabled=['automations', 'governance', 'marketplace', 'search', 'tasks'] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-byok-refresh-world5/evidence/core.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "INST-01",
