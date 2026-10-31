@@ -10,7 +10,9 @@ publication remain deferred by the owner.
 | Item | Value |
 |---|---|
 | Branch | `codex/employee-execution-readiness` |
-| Final code/evidence | `619960832` |
+| Final code/evidence | `e564890e7` (source `b24f67c29`) |
+| Assessment safety | `460f38c27` (atomic approval/scoped autonomy), `b80288e4e` (authoritative reads) |
+| Practical browser recovery | `b24f67c29` / `e564890e7` (5/5 checks) |
 | Evidence source | `06d80f834` (product teaching `3e344f5b1`) |
 | Agent 2 merge | `931892be0` |
 | Integrated README rerun | `619960832` |
