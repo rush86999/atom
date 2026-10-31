@@ -427,6 +427,15 @@
       "backend/core/assignment_executor.py": "fa7f6e3061c2869fd2d4084d3316a9b76fa96bf25c28a32c9afe6969a004e5a7",
       "backend/api/assignment_routes.py": "b407d22e2ddfac1c0ae924dce81a2cf85e467bdda58fc99c0eddf78719dd5c59",
       "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "144d10f93eeb1026871de3016bf697f4166c0fed93d1f8800753a352adead02b"
-    }
+    },
+    "evidence_generated_at_source": "b24f67c29",
+    "candidate_source": "f8198c60e",
+    "assignment_code_unchanged": true,
+    "unchanged_files": [
+      "backend/scripts/assignment_browser_acceptance_server.py",
+      "backend/core/assignment_executor.py",
+      "backend/api/assignment_routes.py",
+      "frontend-nextjs/components/assignments/AssignmentPanel.tsx"
+    ]
   }
 }

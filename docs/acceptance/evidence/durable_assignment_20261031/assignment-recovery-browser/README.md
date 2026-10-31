@@ -51,6 +51,14 @@ The acceptance server exposes `/_acceptance/state`, `/_acceptance/source-version
 and `/_acceptance/teach-mapping`. Those endpoints are setup-only; the product
 routes used for every user action are the normal `/api/assignments` routes.
 
+## Provenance
+
+The journey was generated at `b24f67c29`. The four exercised files (acceptance
+server, executor, assignment routes, Assignments panel) are byte-identical at
+the final candidate `f8198c60e`; `browser-recovery.json` records their SHA-256
+and the two source ids. The later commits on the candidate are assessment-only
+and do not change the assignment recovery path.
+
 ## Scope
 
 - one worker, one world, controlled outbox; no live provider, no real send;

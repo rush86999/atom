@@ -29,7 +29,7 @@ qualified registry entry and the owner's `canvas_assessment` policy.
 
 ## Result
 
-`assessment-approval.log`: **104 passed**, 0 failed.
+`assessment-approval.log`: **106 passed**, 0 failed.
 
 ```
 tests/test_canvas_assessment_routes.py

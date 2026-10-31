@@ -354,7 +354,7 @@ and `docs/acceptance/readme_feature_readiness_2026-10-31/INTEGRATED_RERUN_2026-1
   also exercised through the public routes: an unreviewed assessment is
   refused, approval of the exact execution authorizes it, and changing one
   reviewed decision while leaving the stored hash untouched makes authorization,
-  decisions and re-approval refuse (`content_drift`). 104 focused
+  decisions and re-approval refuse (`content_drift`). 106 focused
   assessment/canvas tests pass; evidence:
   `docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-approval/`.
   A stronger model is a candidate remedy, not a proven one.

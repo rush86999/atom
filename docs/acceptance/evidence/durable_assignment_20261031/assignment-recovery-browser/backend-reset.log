@@ -1,0 +1,25 @@
+⚠️  Using SQLite file database (/Users/rushiparikh/projects/atom-employee-execution/backend/dev.db)
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom-employee-execution/backend/scripts/assignment_browser_acceptance_server.py", line 124, in <module>
+    scotch_frame.to_parquet(scotch_parquet, index=False)
+  File "/Users/rushiparikh/projects/atom-phase-d/backend/venv/lib/python3.11/site-packages/pandas/util/_decorators.py", line 333, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom-phase-d/backend/venv/lib/python3.11/site-packages/pandas/core/frame.py", line 3124, in to_parquet
+    return to_parquet(
+           ^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom-phase-d/backend/venv/lib/python3.11/site-packages/pandas/io/parquet.py", line 478, in to_parquet
+    impl = get_engine(engine)
+           ^^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom-phase-d/backend/venv/lib/python3.11/site-packages/pandas/io/parquet.py", line 68, in get_engine
+    raise ImportError(
+ImportError: Unable to find a usable engine; tried using: 'pyarrow', 'fastparquet'.
+A suitable version of pyarrow or fastparquet is required for parquet support.
+Trying to import the above resulted in these errors:
+ - Missing optional dependency 'pyarrow'. pyarrow is required for parquet support. Use pip or conda to install pyarrow.
+ - Missing optional dependency 'fastparquet'. fastparquet is required for parquet support. Use pip or conda to install fastparquet.
+⚠️  Using SQLite file database (/Users/rushiparikh/projects/atom-employee-execution/backend/dev.db)
+⚠️  Using SQLite file database (/Users/rushiparikh/projects/atom-employee-execution/backend/dev.db)
+⚠️  Using SQLite file database (/Users/rushiparikh/projects/atom-employee-execution/backend/dev.db)
+⚠️  Using SQLite file database (/Users/rushiparikh/projects/atom-employee-execution/backend/dev.db)
+⚠️  Using SQLite file database (/Users/rushiparikh/projects/atom-employee-execution/backend/dev.db)

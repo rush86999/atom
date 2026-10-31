@@ -5,12 +5,13 @@
   "final_candidate": "f8198c60e",
   "files": {
     "README.md": {
-      "sha256": "a8aa46b08378f103c529001d06d1b49eae789b6032f217a360aef5fada551087",
+      "sha256": "48a4a216167cd6e3ef5e32b96652ab664a49fbdb77171604969008f447a9aa6c",
       "bytes": 2931
     },
     "assessment-approval.log": {
-      "sha256": "3bba30831afe1ae86b990ad71093802a262814ac2f6f078fe0b08ba57ad48a5f",
-      "bytes": 20591
+      "sha256": "70cadb4e41a1b96c3c840a5b78c83ed30d311f94f197f5791a2f71611dceddd8",
+      "bytes": 20806
     }
-  }
+  },
+  "evidence_generated_at": "f8198c60e"
 }

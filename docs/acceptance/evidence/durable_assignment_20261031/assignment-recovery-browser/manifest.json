@@ -6,8 +6,8 @@
   "harness": "scripts/acceptance/assignment_recovery_ui.cjs",
   "files": {
     "README.md": {
-      "sha256": "396b41f3ea0eef9e912e6a26740b10039ca25a0bfae8570bbf400565d39a9b70",
-      "bytes": 3809
+      "sha256": "734130a5698c0642046de6ecd8a3ffac3d11c630159bbebdb481fabc89e0fb8f",
+      "bytes": 4188
     },
     "backend-reset.log": {
       "sha256": "bc9724172ea4db23c455062456f60619d46ac9ed68c5daee712e6e172107f641",
@@ -18,8 +18,8 @@
       "bytes": 416
     },
     "browser-recovery.json": {
-      "sha256": "1bcb946579b6deb02420e73829da1ca986f0b5bcaab7e1ef6ecb528e6d0b8a80",
-      "bytes": 16369
+      "sha256": "464410e73309761ef7e2c5512168260010a9cec71749a26dcc9466f2134a937e",
+      "bytes": 16745
     },
     "screenshots/01-wait-before-restart.png": {
       "sha256": "6e53c7cbab4d031e67567fff3356634b871d80f60548b2acb49d46199643a91f",
@@ -53,5 +53,6 @@
       "sha256": "d9ec10758101ae7d78fe9d4b230be80d37c011a41f8fd0653ba623da7ffcac22",
       "bytes": 128671
     }
-  }
+  },
+  "evidence_generated_at": "b24f67c29"
 }
