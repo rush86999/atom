@@ -162,6 +162,7 @@ def governance(ctx: Ctx) -> None:
                             headers={"Authorization": "Bearer acceptance-scim-token"})
     unauthorized = ctx.client.get("/api/scim/v2/Users")
     deactivate = None
+    after_deactivate = None
     if scim_id:
         deactivate = ctx.client.patch(
             f"/api/scim/v2/Users/{scim_id}",
@@ -169,9 +170,17 @@ def governance(ctx: Ctx) -> None:
                      "Content-Type": "application/scim+json"},
             json={"schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
                   "Operations": [{"op": "replace", "path": "active", "value": False}]})
+        after_deactivate = ctx.client.get(
+            f"/api/scim/v2/Users/{scim_id}",
+            headers={"Authorization": "Bearer acceptance-scim-token"})
+    after_body = (after_deactivate.json()
+                  if after_deactivate is not None and after_deactivate.status_code == 200
+                  else {})
+    inactive = after_body.get("active") is False
     ok = (create.status_code in (200, 201) and scim_id
           and listed.status_code == 200 and unauthorized.status_code in (401, 403)
-          and deactivate is not None and deactivate.status_code in (200, 204))
+          and deactivate is not None and deactivate.status_code in (200, 204)
+          and inactive)
     ctx.record("GOV-06", "verified" if ok else "partial",
                [ctx.save("governance/scim.json", {
                    "create": {"status": create.status_code, "body": scim_body},
@@ -179,10 +188,12 @@ def governance(ctx: Ctx) -> None:
                    "unauthorized": {"status": unauthorized.status_code},
                    "deactivate": None if deactivate is None else {
                        "status": deactivate.status_code, "body": deactivate.text[:600]},
+                   "after_deactivate": after_body,
                })],
                notes=f"create={create.status_code} id={scim_id} "
                      f"list={listed.status_code} unauth={unauthorized.status_code} "
-                     f"deactivate={None if deactivate is None else deactivate.status_code}")
+                     f"deactivate={None if deactivate is None else deactivate.status_code} "
+                     f"active={after_body.get('active')}")
 
     # ---- GOV-07 RBAC ----------------------------------------------------
     from enum import Enum
@@ -237,23 +248,28 @@ def governance(ctx: Ctx) -> None:
                 or (created_body.get("agent") or {}).get("id"))
     read_agent = ctx.get(f"/api/agents/{agent_id}") if agent_id else None
     cap = ctx.get(f"/api/agent-governance/agents/{agent_id}/capabilities") if agent_id else None
-    stop = ctx.post(f"/api/agents/{agent_id}/stop") if agent_id else None
+    delete = ctx.delete(f"/api/agents/{agent_id}") if agent_id else None
+    after_delete = ctx.get(f"/api/agents/{agent_id}") if agent_id else None
+    inactive = after_delete is not None and after_delete.status_code == 404
     ok = (created.status_code in (200, 201) and agent_id
           and read_agent is not None and read_agent.status_code == 200
           and cap is not None and cap.status_code == 200
-          and stop is not None and stop.status_code in (200, 204))
+          and delete is not None and delete.status_code in (200, 204)
+          and inactive)
     ctx.record("GOV-08", "verified" if ok else "partial",
                [ctx.save("governance/lifecycle.json", {
                    "create": {"status": created.status_code, "body": created_body},
                    "read": None if read_agent is None else read_agent.status_code,
                    "capabilities": None if cap is None else {
                        "status": cap.status_code, "body": cap.text[:600]},
-                   "stop": None if stop is None else {
-                       "status": stop.status_code, "body": stop.text[:400]},
+                   "delete": None if delete is None else {
+                       "status": delete.status_code, "body": delete.text[:400]},
+                   "read_after_delete": None if after_delete is None else after_delete.status_code,
                })],
                notes=f"create={created.status_code} id={agent_id} "
                      f"read={None if read_agent is None else read_agent.status_code} "
-                     f"stop={None if stop is None else stop.status_code}")
+                     f"delete={None if delete is None else delete.status_code} "
+                     f"read_after_delete={None if after_delete is None else after_delete.status_code}")
 
 
 def oracle(ctx: Ctx) -> None:
@@ -320,37 +336,195 @@ def oracle(ctx: Ctx) -> None:
     ctx.record("ORACLE-05", "verified" if present_result and "claim_verified" in present_result else "partial",
                evidence, notes="OracleResult carries independent verification separately from the claim")
 
-    # ORACLE-04 kill switch
-    import os
-    old = os.environ.get("ATOM_ORACLE_VERIFIER_ENABLED")
-    os.environ["ATOM_ORACLE_VERIFIER_ENABLED"] = "false"
+    # ORACLE-04/05: exercise the actual post-execution stamp and kill switch.
     try:
-        disabled = oracle_verifier_enabled()
-    finally:
-        if old is None:
-            os.environ.pop("ATOM_ORACLE_VERIFIER_ENABLED", None)
-        else:
-            os.environ["ATOM_ORACLE_VERIFIER_ENABLED"] = old
-    # enforce switch is read by the observation stamper, which is exercised
-    # by the agent-loop scenario; here record the resolved switches.
-    from core import oracle as oracle_mod
-    ctx.record("ORACLE-04", "verified" if disabled is False else "failed",
-               [ctx.save("oracle/kill_switch.json", {"disabled_resolved": disabled})],
-               notes="ATOM_ORACLE_VERIFIER_ENABLED=false disables checks")
+        import os as _os
+        from core.generic_agent import GenericAgent as _GenericAgent
+        from core.models import AgentRegistry as _AgentRegistry
 
-    # ORACLE-06 reviewer loop: inspect the REVIEW strategy implementation
-    try:
-        from core.orchestration.verification import review
-        src = review.__file__
-        text = open(src).read()
-        has_redelegation = ("re-delegat" in text.lower() or "redelegat" in text.lower())
-        ctx.record("ORACLE-06",
-                   "verified" if has_redelegation else "partial",
-                   [ctx.save("oracle/reviewer.json", {
-                       "module": src, "mentions_redelegation": has_redelegation})],
-                   notes="Review strategy re-delegates to the originating specialist")
+        agent_id = make_agent(ctx, f"oracle-stamp-{uuid.uuid4().hex[:6]}",
+                              tier="intern", capabilities=["*"])
+        db = ctx.db()
+        try:
+            row = db.query(_AgentRegistry).filter(
+                _AgentRegistry.id == agent_id).first()
+            stamp_agent = _GenericAgent(row, workspace_id=ctx.workspace_id)
+        finally:
+            db.close()
+
+        board = ctx.post("/api/boards", json={
+            "name": f"oracle-stamp-{uuid.uuid4().hex[:6]}",
+            "seed_default_columns": True})
+        bbody = board.json() if board.status_code in (200, 201) else {}
+        detail = ctx.get(f"/api/boards/{bbody.get('id')}") if bbody.get("id") else None
+        dbody = detail.json() if detail is not None and detail.status_code == 200 else {}
+        columns = dbody.get("columns") or []
+        column_id = (columns[0] or {}).get("id") if columns else None
+        created = ctx.post("/api/rpc/tasks.create", json={"params": {
+            "title": "oracle stamp acceptance", "board_id": bbody.get("id"),
+            "column_id": column_id, "priority": "normal", "status": "backlog"}})
+        created_body = created.json() if created.status_code == 200 else {}
+        real_id = ((created_body.get("data") or {}).get("task") or {}).get("id")
+
+        old_enforce = _os.environ.get("ATOM_ORACLE_ENFORCE")
+        _os.environ["ATOM_ORACLE_ENFORCE"] = "true"
+        try:
+            stamped_missing = asyncio.run(stamp_agent._oracle_check(
+                "tasks.create", {"task_id": "definitely-missing"},
+                {"success": True, "task": {"id": "definitely-missing"}}))
+            stamped_real = asyncio.run(stamp_agent._oracle_check(
+                "tasks.create", {"task_id": real_id},
+                {"success": True, "task": {"id": real_id}})) if real_id else None
+        finally:
+            if old_enforce is None:
+                _os.environ.pop("ATOM_ORACLE_ENFORCE", None)
+            else:
+                _os.environ["ATOM_ORACLE_ENFORCE"] = old_enforce
+
+        _os.environ["ATOM_ORACLE_ENFORCE"] = "false"
+        try:
+            pass_through = asyncio.run(stamp_agent._oracle_check(
+                "tasks.create", {"task_id": "definitely-missing"},
+                {"success": True, "task": {"id": "definitely-missing"}}))
+        finally:
+            if old_enforce is None:
+                _os.environ.pop("ATOM_ORACLE_ENFORCE", None)
+            else:
+                _os.environ["ATOM_ORACLE_ENFORCE"] = old_enforce
+
+        kill_ok = (isinstance(pass_through, dict)
+                   and "oracle_verified" not in pass_through)
+        enforce_ok = (isinstance(stamped_missing, dict)
+                      and stamped_missing.get("oracle_verified") is False)
+        two_tier_ok = (isinstance(stamped_real, dict)
+                       and stamped_real.get("oracle_verified") is True
+                       and stamped_real.get("success") is True
+                       and bool(stamped_real.get("oracle_evidence")))
+        if real_id:
+            db = ctx.db()
+            try:
+                from core.models_board import BoardTask as _BT
+                row = db.query(_BT).filter(_BT.id == real_id).first()
+                if row is not None:
+                    db.delete(row)
+                    db.commit()
+            finally:
+                db.close()
+        ctx.record("ORACLE-04", "verified" if kill_ok and enforce_ok else "failed",
+                   [ctx.save("oracle/kill_switch.json", {
+                       "enforced_missing": stamped_missing,
+                       "pass_through": pass_through})],
+                   notes=f"enforce_stamped={enforce_ok} kill_switch_pass_through={kill_ok}")
+        ctx.record("ORACLE-05", "verified" if two_tier_ok else "failed",
+                   [ctx.save("oracle/two_tier.json", {
+                       "self_report": {"success": True},
+                       "oracle_result": stamped_real})],
+                   notes=f"self_report_and_external_verified_coexist={two_tier_ok}")
     except Exception as exc:
-        ctx.record("ORACLE-06", "unverified", notes=f"review module unavailable: {exc}")
+        ctx.record("ORACLE-04", "failed",
+                   notes=f"oracle stamp execution failed: {exc}")
+        ctx.record("ORACLE-05", "failed",
+                   notes=f"oracle stamp execution failed: {exc}")
+
+    # ORACLE-06 reviewer loop: actually run a REVIEW rejection through the
+    # conductor and verify the SAME step is re-delegated with the feedback.
+    try:
+        from core.orchestration.conductor_agent import (
+            ConductorAgent, ExecutionStatus, ExecutionStrategy,
+            OrchestrationResult, StepType, WorkflowExecutionContext,
+            WorkflowStep)
+        from core.orchestration.reviewer_loop import (
+            get_review_feedback, get_review_loop_state_machine)
+        from core.orchestration.verification.base import (
+            VerificationResult, VerificationStrategy)
+        from core.orchestration.workflow_state_machine import WorkflowState
+        import os
+
+        old_flag = os.environ.get("ATOM_REVIEWER_LOOP_ENABLED")
+        os.environ["ATOM_REVIEWER_LOOP_ENABLED"] = "true"
+        try:
+            conductor = ConductorAgent()
+            attempts = []
+
+            async def fake_executor(step, context):
+                feedback = get_review_feedback(step)
+                attempts.append(feedback)
+                return {
+                    "step_id": step.step_id,
+                    "status": "completed",
+                    "output": "revised answer" if feedback else "first answer",
+                }
+
+            class FakeVerification:
+                def __init__(self):
+                    self.calls = 0
+
+                async def verify(self, candidates, step, context):
+                    self.calls += 1
+                    if self.calls == 1:
+                        return VerificationResult(
+                            winner=None,
+                            strategy=VerificationStrategy.REVIEW,
+                            domain="acceptance",
+                            confidence=0.3,
+                            details={"accepted": False,
+                                     "feedback": "add the missing evidence"},
+                            reason="review rejected",
+                        )
+                    return VerificationResult(
+                        winner=candidates[0],
+                        strategy=VerificationStrategy.REVIEW,
+                        domain="acceptance",
+                        confidence=0.9,
+                        details={"accepted": True, "feedback": ""},
+                        reason="review accepted",
+                    )
+
+            verification = FakeVerification()
+            conductor.set_step_executor(fake_executor)
+            conductor.set_verification_orchestrator(verification)
+            wid = f"review-{uuid.uuid4().hex[:8]}"
+            eid = f"exec-{uuid.uuid4().hex[:8]}"
+            step = WorkflowStep(
+                step_id="s1", step_type=StepType.AGENT,
+                name="draft the answer",
+                description="reviewer re-delegation acceptance",
+                parameters={},
+            )
+            context = WorkflowExecutionContext(
+                workflow_id=wid, execution_id=eid, steps=[step],
+                start_step="s1", strategy=ExecutionStrategy.PARALLEL_CONSENSUS,
+            )
+            get_review_loop_state_machine().initialize_state(
+                wid, eid, WorkflowState.RUNNING)
+            result = OrchestrationResult(
+                workflow_id=wid, execution_id=eid, total_steps=1)
+            asyncio.run(conductor._execute_parallel_consensus(context, result))
+            ok = (verification.calls == 2 and len(attempts) == 6
+                  and attempts[:3] == ["", "", ""]
+                  and attempts[3:] == ["add the missing evidence"] * 3
+                  and result.completed_steps == 1
+                  and step.status == ExecutionStatus.COMPLETED
+                  and step.result.get("output") == "revised answer")
+            ctx.record("ORACLE-06", "verified" if ok else "failed",
+                       [ctx.save("oracle/reviewer_loop.json", {
+                           "reviewer_calls": verification.calls,
+                           "attempts": attempts,
+                           "completed_steps": result.completed_steps,
+                           "step_status": str(step.status),
+                           "step_result": step.result})],
+                       notes=f"reviewer_calls={verification.calls} "
+                             f"attempts={len(attempts)} "
+                             f"feedback_on_redelegation="
+                             f"{attempts[3:] == ['add the missing evidence'] * 3}")
+        finally:
+            if old_flag is None:
+                os.environ.pop("ATOM_REVIEWER_LOOP_ENABLED", None)
+            else:
+                os.environ["ATOM_REVIEWER_LOOP_ENABLED"] = old_flag
+    except Exception as exc:
+        ctx.record("ORACLE-06", "failed",
+                   notes=f"reviewer re-delegation execution failed: {exc}")
 
 
 def ask(ctx: Ctx) -> None:

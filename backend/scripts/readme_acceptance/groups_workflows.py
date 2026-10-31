@@ -1,6 +1,7 @@
 """Workflow execution, versioning, scheduling and conductor scenarios."""
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 
@@ -146,12 +147,23 @@ def workflows(ctx: Ctx) -> None:
     version_create2 = ctx.post(f"/api/v1/workflows/{wid}/versions", json={
         "version_type": "minor", "commit_message": "acceptance v2"}) if wid else None
     rollback = None
+    rollback_version = None
+    rollback_recorded = False
     if wid and v1 is not None:
         rollback = ctx.post(f"/api/v1/workflows/{wid}/rollback", json={
             "target_version": v1, "rollback_reason": "acceptance rollback"})
+        rollback_body = rollback.json() if rollback.headers.get("content-type", "").startswith("application/json") else {}
+        rollback_version = ((rollback_body.get("data") or {}).get("rollback_version")
+                            or rollback_body.get("rollback_version"))
+        versions_after = ctx.get(f"/api/v1/workflows/{wid}/versions")
+        after_body = versions_after.json() if versions_after.status_code == 200 else []
+        after_items = after_body if isinstance(after_body, list) else []
+        rollback_recorded = bool(rollback_version) and any(
+            str(v.get("version")) == str(rollback_version) for v in after_items)
     ctx.record("WF-06", "verified" if (version_create is not None and version_create.status_code in (200, 201)
                                        and v1 is not None and rollback is not None
-                                       and rollback.status_code in (200, 201)) else "partial",
+                                       and rollback.status_code in (200, 201)
+                                       and rollback_recorded) else "partial",
                [ctx.save("workflows/versioning.json", {
                    "create_v1": None if version_create is None else {
                        "status": version_create.status_code, "body": version_create.text[:800]},
@@ -161,8 +173,11 @@ def workflows(ctx: Ctx) -> None:
                    "create_v2": None if version_create2 is None else version_create2.status_code,
                    "rollback": None if rollback is None else {
                        "status": rollback.status_code, "body": rollback.text[:1200]},
+                   "rollback_version": rollback_version,
+                   "rollback_recorded": rollback_recorded,
                })],
-               notes=f"v1={v1} rollback={None if rollback is None else rollback.status_code}")
+               notes=f"v1={v1} rollback={None if rollback is None else rollback.status_code} "
+                     f"rollback_version={rollback_version} recorded={rollback_recorded}")
 
     # WF-07 starter templates
     templates = ctx.get("/api/workflow-templates/")
@@ -198,29 +213,50 @@ def workflows(ctx: Ctx) -> None:
                notes="Workflow pause/resume needs a model-backed low-maturity agent "
                      "run; the HITL queue itself is exercised by GOV-02")
 
-    # ---- Conductor: five strategies -----------------------------------
+    # ---- Conductor: five strategies with a deterministic step executor --
+    from core.orchestration.conductor_agent import (
+        ConductorAgent, ExecutionStrategy, WorkflowStep, StepType)
     strategies = ["sequential", "parallel", "hybrid", "adaptive", "rollback_safe"]
     outcomes = {}
     for strategy in strategies:
-        r = ctx.post("/api/v1/workflows/workflows/conductor/execute", json={
-            "steps": [{"id": "s1", "name": "acceptance", "parameters": {}}],
-            "strategy": strategy,
-            "context": {"acceptance": True},
-        })
-        outcomes[strategy] = {"status": r.status_code, "body": r.text[:800]}
+        conductor = ConductorAgent()
+        calls = []
+
+        async def _exec(step, context, _calls=calls):
+            _calls.append(step.step_id)
+            return {"step_id": step.step_id, "status": "completed",
+                    "output": "acceptance step output"}
+
+        conductor.set_step_executor(_exec)
+        step = WorkflowStep(step_id="s1", step_type=StepType.AGENT,
+                            name="acceptance", description="acceptance",
+                            parameters={})
+        result = asyncio.run(conductor.execute_workflow(
+            [step], start_step="s1",
+            strategy=ExecutionStrategy(strategy)))
+        outcomes[strategy] = {
+            "status": str(result.status),
+            "completed_steps": result.completed_steps,
+            "failed_steps": result.failed_steps,
+            "executor_calls": calls,
+        }
     invalid = ctx.post("/api/v1/workflows/workflows/conductor/execute", json={
         "steps": [{"id": "s1", "name": "acceptance", "parameters": {}}],
         "strategy": "not-a-strategy",
     })
-    accepted = [s for s, o in outcomes.items() if o["status"] == 200]
+    accepted = [s for s, o in outcomes.items()
+                if o["status"].endswith("COMPLETED")
+                and o["completed_steps"] == 1
+                and o["executor_calls"] == ["s1"]]
     ok = len(accepted) == 5 and invalid.status_code == 422
-    ctx.record("ORCH-03", "verified" if ok else "partial",
+    ctx.record("ORCH-03", "verified" if ok else "failed",
                [ctx.save("orchestration/conductor.json", {
                    "outcomes": outcomes,
-                   "invalid": {"status": invalid.status_code, "body": invalid.text[:400]},
+                   "invalid": {"status": invalid.status_code,
+                               "body": invalid.text[:400]},
                })],
-               notes=f"accepted={accepted} invalid={invalid.status_code}; agent-step "
-                     f"reasoning needs the model-backed scenario")
+               notes=f"strategies_executed={accepted} invalid={invalid.status_code}; "
+                     f"deterministic executor called once under each strategy")
 
     # ---- State machine transitions/rollback ----------------------------
     try:
@@ -249,9 +285,11 @@ def workflows(ctx: Ctx) -> None:
     # ---- Rollback (versioning) is the workflow rollback evidence ------
     ctx.record("ORCH-05",
                "verified" if (wid and v1 is not None and rollback is not None
-                              and rollback.status_code in (200, 201)) else "partial",
+                              and rollback.status_code in (200, 201)
+                              and rollback_recorded) else "partial",
                [f"workflows/versioning.json"],
-               notes="Rollback to a prior version through the public API")
+               notes=f"Rollback to {v1} created {rollback_version} and the version "
+                     f"history contains it = {rollback_recorded}")
 
     # ---- Queen / Fleet: model-backed; record honestly ------------------
     for cid, note in (("ORCH-01", "Queen workflow blueprint"),
