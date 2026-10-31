@@ -1,77 +1,84 @@
-# Independent verifier review request — README feature readiness
+# Independent verifier review request — corrected resubmission
 
-**Date:** 2026-10-31
+**Date:** 2026-10-31 (correction after verifier decision)
 **Prepared by:** Agent 2 (README breadth + common-data surface)
-**Status requested:** agreement on the denominator and the verified set, not a
-release approval.
+**Status requested:** agreement on the corrected claim list and denominator, not
+a release approval.
 
-## 1. Claims
+## 1. What changed
+
+The prior submission claimed 100/123 (81.3%). I accept the four verifier
+findings:
+
+1. the acceptance world could be deleted unsafely;
+2. ORACLE-06 and GOAL-01 passed on source/predicate inspection rather than
+   executing their claimed behavior;
+3. SEC-06 was an unconditional pass;
+4. the evidence manifest had a hash mismatch for `frontend-results.json`.
+
+The corrections are recorded in
+[`COVERAGE_REPORT_2026-10-31.md`](COVERAGE_REPORT_2026-10-31.md) §2 and
+[`evidence/CLAIM_AUDIT_2026-10-31.json`](evidence/CLAIM_AUDIT_2026-10-31.json).
+The denominator is unchanged: **123 eligible functional claims**.
+
+## 2. Corrected result
 
 | Question | Proposed answer |
 |---|---|
-| Is the denominator frozen and defensible? | 123 eligible functional claims, split from the 17 README capability categories; 143 total rows including 20 tracked-separately non-functional/comparative claims |
-| Is the score the agreed measure? | **100 / 123 = 81.3%** verified functional claims |
-| Are partial/failed/unverified claims excluded from the numerator? | Yes — 23 functional claims are not counted |
-| Are security/performance/compatibility/marketing separate? | Yes — security 8/8, performance 1/3, compatibility 0/4, comparative 0/5 |
-| Is any category entirely untested? | No, but orchestration/routing/mini-apps/integrations are the thin areas |
-| Is "46+ integrations" verified live? | **No.** 67 providers are registered and evidenced; live qualification is `blocked_external` (INT-09) |
+| Is the denominator still frozen? | Yes — 123 eligible functional claims; the README hash/commit are pinned and unchanged |
+| Corrected score | **83 / 123 = 67.5%** |
+| Are partial/failed/unverified excluded? | Yes — 40 functional claims are not counted |
+| Security | 8/8 separately |
+| Performance | 1/3 (test count; latency/throughput unmeasured) |
+| Compatibility / comparative | 0/4 and 0/5; tracked separately |
+| Is any category entirely untested? | No, but governance, agent teams, ask/trust, memory, orchestration and routing are thin |
 
-## 2. What to check first
+The drop from 81.3% is deliberate: 17 claims that passed on existence-only,
+status-only, synthetic-history or prerequisite checks were downgraded. The
+audit file gives the reason per claim.
 
-1. **Denominator freeze** — `CLAIM_INVENTORY.json`: `readme.commit`,
-   `readme.sha256`, `denominator.eligible_functional == 123`, and no claim text
-   edits after the run. The generator refuses to build if README moves.
-2. **Method vs boundary** — every claim's `entry` and `acceptance` fields name
-   an HTTP/WS route, action, command or service boundary. Controlled-provider
-   evidence (local OpenAI/Anthropic/OAuth/MCP servers) is labelled as such; it
-   is not presented as live provider qualification.
-3. **Merged evidence** — `evidence/merged-results.json` records the strongest
-   status per claim and every source world. The durable copies are:
-   `all-groups.json`, `data-graph-memory.json`, `core-chat-episode.json`,
-   `agent-radio.json`, `install-restart.json`.
-4. **Defect fixes** — the coverage report §5 lists each fix with the failing
-   boundary and targeted tests. The verifier should reproduce at least:
-   - workflow conductor + rollback on a node-based workflow;
-   - a nonsense document search returns no results;
-   - external MCP register → execute;
-   - GraphRAG neighbors/query use the supplied query;
-   - episode creation from a real chat execution.
-5. **Gaps** — coverage report §4 lists the 23 functional claims that are not
-   counted. Confirm none were silently dropped or re-scoped.
+## 3. Required corrections: evidence
 
-## 3. Specific concerns for the reviewer
+| Finding | Correction |
+|---|---|
+| Unsafe world deletion | `common.reset_world()` now refuses protected paths, symlinks, outside-root paths and unmarked directories; install uses the same helper. Tests: `tests/test_readme_harness_world_guard.py` (10 cases). |
+| ORACLE-06 | Executable conductor test: one REVIEW rejection → same step re-delegated with feedback → three branches rerun → accepted revised answer. `reviewer_calls=2`, `attempts=6`. Test: `tests/test_reviewer_redelegation_execution.py`. |
+| GOAL-01 | Running `GenericAgent.execute()`: satisfying predicate stops at 2/5 calls; impossible predicate burns 3/3. Test: `tests/test_objective_loop_termination.py`. |
+| SEC-06 | Transport/scheme/host policy before any network; permitted local server plus metadata/file/allowlist/transport refusals; `httpx.AsyncClient` sentinel proves no prohibited connection; failed registrations do not leak. Test: `tests/test_mcp_client_egress.py`. |
+| SEARCH-02 | Zero-lexical query retrieves the semantic document (`lexical_hits=0`, `vector_hits=1`). |
+| SEARCH-04 | Requires `citation_path` and resolves it via `documents.cat` to line-numbered content; an ID alone fails. |
+| Evidence hash | Pre-rename `frontend-results.json` preserved as `frontend-results.pre-rename.json` (sha256 `4b56ba3c…`, matching the old report); final hashes regenerated in `evidence/MANIFEST.json`. |
 
-- **CORE-01** was verified in a world where the provider existed at process
-  start. A key stored after `LLMService` construction is not picked up by the
-  cached chat service (gateway works). This is recorded as a shared defect for
-  Agent 1, not hidden as a pass.
-- **ORCH-08** is recorded `inaccurate`: `DelegationChain.max_depth` is stored
-  but `AgentFleetService.recruit_member` does not enforce nesting depth.
-- **MINI-03/04/05** are environment-limited/architecture-only on macOS
-  (Firecracker requires KVM). They are not counted.
-- **INST-01** is unverified: the full `make setup` from a pristine clone was not
-  run. The documented backend process, password file, restart and frontend dev
-  server were run.
-- **Performance** `0.027 ms P99` and `616k ops/s` were not measured (no
-  reproducible benchmark script found); the test-function count (93,825) is
-  above the README's 85k+ claim.
-- **Live integrations / opencode-go** remain externally unqualified; no
-  credentials were requested.
+## 4. Specific claims still open
 
-## 4. Reproduction
+See `COVERAGE_REPORT_2026-10-31.md` §4 for all 40. Notable:
 
-See `COVERAGE_REPORT_2026-10-31.md` §9. Worlds are isolated under
-`/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-*`;
-the local stub is `backend/scripts/readme_acceptance/mock_llm_server.py`.
+- **ORCH-08** is `inaccurate` (delegation `max_depth` is stored, not enforced).
+- **GOV-05** is `partial` (OIDC config only; login 503; no callback).
+- **ORACLE-01** is `partial` (only two postcondition verifiers; not every
+  mutating action).
+- **TEAM/ASK/MEM** are `partial` where the harness exercised a prerequisite or
+  synthetic history rather than the full claimed operation.
+- **MINI-03/04/05** are environment-limited/architecture-only (no KVM).
+- **INT-09** is blocked externally; 67 providers are registered/evidenced, not
+  live-qualified.
+- **INST-01** is unverified (full pristine `make setup` not run).
+
+## 5. Shared defects handed to Agent 1
+
+- Cached BYOK key: a key stored after `LLMService` construction is not seen by
+  chat until restart; gateway works.
+- Objective-loop status: the loop stops at the satisfying predicate but returns
+  `max_steps_exceeded`; GOAL-01 is counted for termination only. This is a
+  separate shared-loop reporting bug.
+
+## 6. Decision requested
+
+- **Agree** — denominator and 83/123 corrected set accepted as reviewed.
+- **Disagree** — name the claim(s) and the boundary/evidence problem; I will
+  rerun or downgrade rather than argue a number.
+- **Conditional** — specify the additional worlds required (local IdP, live
+  provider, Firecracker host, model-backed orchestration/goal loop).
+
 No deployment, real send, credential change or connected-system write was
 performed.
-
-## 5. Decision requested
-
-Please reply with one of:
-
-- **Agree** — denominator and 100/123 verified set accepted as reviewed.
-- **Disagree** — name the claim(s) and the boundary/evidence problem; I will
-  re-run or downgrade rather than argue a number.
-- **Conditional** — specify the additional worlds/checks required (frontend,
-  live provider, Firecracker host, model-backed orchestration).

@@ -82,7 +82,7 @@ def interop(ctx: Ctx) -> None:
                notes=f"send={send.status_code} result={'result' in sbody} "
                      f"unauth={unauthorized.status_code}")
 
-    # ---- IO-05 ACP handshake over WebSocket ---------------------------
+    # ---- IO-05 ACP handshake + prompt/reply ---------------------------
     try:
         with ctx.client.websocket_connect(f"/acp/ws?token={ctx.token}") as ws:
             ws.send_json({"jsonrpc": "2.0", "id": 1, "method": "initialize",
@@ -92,14 +92,39 @@ def interop(ctx: Ctx) -> None:
             ws.send_json({"jsonrpc": "2.0", "id": 2, "method": "session/new",
                           "params": {"cwd": "/acceptance", "mcpServers": []}})
             new = ws.receive_json()
-        ok = "result" in init and "result" in new
+            session_id = (new.get("result") or {}).get("sessionId")
+            updates = []
+            prompt_result = None
+            if session_id:
+                ws.send_json({
+                    "jsonrpc": "2.0", "id": 3, "method": "session/prompt",
+                    "params": {"sessionId": session_id, "prompt": [
+                        {"type": "text", "text": "Reply with the word acceptance."}]},
+                })
+                # One session/update notification, then the JSON-RPC result.
+                for _ in range(4):
+                    msg = ws.receive_json()
+                    if msg.get("method") == "session/update":
+                        updates.append(msg)
+                    elif msg.get("id") == 3:
+                        prompt_result = msg
+                        break
+        delivered = any(
+            (u.get("params") or {}).get("update", {}).get("sessionUpdate")
+            == "agent_message_chunk" for u in updates)
+        stop = ((prompt_result or {}).get("result") or {}).get("stopReason")
+        ok = ("result" in init and "result" in new and delivered
+              and stop == "end_turn")
         ctx.record("IO-05", "verified" if ok else "partial",
-                   [ctx.save("interop/acp.json", {"initialize": init, "session_new": new})],
-                   notes=f"initialize={'result' in init} session/new={'result' in new}")
+                   [ctx.save("interop/acp.json", {
+                       "initialize": init, "session_new": new,
+                       "updates": updates, "prompt_result": prompt_result})],
+                   notes=f"initialize={'result' in init} session/new={'result' in new} "
+                         f"agent_chunk={delivered} stopReason={stop}")
     except Exception as exc:
         ctx.record("IO-05", "failed",
                    [ctx.save("interop/acp.json", {"error": str(exc)})],
-                   notes=f"ACP handshake failed: {exc}")
+                   notes=f"ACP session/prompt failed: {exc}")
 
     # ---- IO-06 span tracing -------------------------------------------
     try:

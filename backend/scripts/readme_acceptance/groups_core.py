@@ -155,8 +155,18 @@ def core_workspace(ctx: Ctx) -> None:
     profile = ctx.get("/api/product/profile")
     pr = profile.json() if profile.status_code == 200 else {}
     caps = pr.get("capabilities") or {}
-    exposed = [k for k, v in caps.items() if v.get("enabled")]
-    ok = profile.status_code == 200 and pr.get("profile") == "full" and len(exposed) >= 10
+    exposed = sorted(k for k, v in caps.items() if v.get("enabled"))
+    profile_name = pr.get("profile")
+    core_required = {"chat", "documents", "canvas", "agents", "activity", "settings"}
+    deferred = {"search", "tasks", "automations", "marketplace", "governance"}
+    if profile_name == "core":
+        ok = (profile.status_code == 200
+              and core_required <= set(exposed)
+              and not (deferred & set(exposed)))
+    else:
+        ok = (profile.status_code == 200 and profile_name == "full"
+              and len(exposed) >= 10)
     ctx.record("CORE-07", "verified" if ok else "partial",
                [ctx.save("core/profile.json", pr)],
-               notes=f"profile={pr.get('profile')} enabled={len(exposed)}")
+               notes=f"profile={profile_name} enabled={exposed} "
+                     f"deferred_enabled={sorted(deferred & set(exposed))}")

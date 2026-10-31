@@ -1,6 +1,7 @@
 """GraphRAG and goal-run scenarios."""
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 import uuid
@@ -61,12 +62,22 @@ def graphrag(ctx: Ctx) -> None:
                            params={"user_id": ctx.admin_id})
     cbody = communities.json() if communities.status_code == 200 else {}
     cdata = cbody.get("data") or {}
+    from core.models import GraphCommunity
+    db = ctx.db()
+    try:
+        community_count = (db.query(GraphCommunity)
+                           .filter(GraphCommunity.workspace_id == ws).count())
+    finally:
+        db.close()
     stats = ctx.get(f"{base}/stats", params={"workspace_id": ws})
-    ctx.record("GRAPH-03", "verified" if communities.status_code == 200 and cdata else "partial",
+    ctx.record("GRAPH-03", "verified" if communities.status_code == 200
+               and community_count >= 1 else "failed",
                [ctx.save("graphrag/communities.json", {
-                   "build": {"status": communities.status_code, "body": cdata},
+                   "build": {"status": communities.status_code, "body": cdata,
+                             "message": cbody.get("message")},
+                   "community_rows": community_count,
                    "stats": stats.text[:1000]})],
-               notes=f"communities={json.dumps(cdata)[:400]}")
+               notes=f"communities={community_count} build={communities.status_code}")
 
     query = ctx.post(f"{base}/query", json={
         "query": f"Atlas-{suffix}", "workspace_id": ws, "mode": "local"})
@@ -146,27 +157,74 @@ def goals(ctx: Ctx) -> None:
                notes=f"run={run_id} status={status} "
                      f"cancel={None if cancel is None else cancel.status_code}")
 
-    # GOAL-01: definition_of_done is evaluated as the loop's done-predicate.
+    # GOAL-01: run the actual ReAct loop with a scripted step function. The
+    # satisfying predicate must stop at step 2/5; the negative control must
+    # burn max_steps. This also exposed a status-reporting bug (the loop
+    # exits early but the returned status says max_steps); hand that to Agent 1.
     try:
-        from core.agent_objective import Objective, objective_loop_enabled
-        objective = Objective(
-            goal="produce two steps",
-            definition_of_done=lambda state: int(state.get("steps", 0)) >= 2,
-        )
-        not_done = objective.is_satisfied({"steps": 1, "final_answer": None})
-        done = objective.is_satisfied({"steps": 2, "final_answer": "ok"})
-        from pathlib import Path as _P
-        source = (_P(__file__).resolve().parents[2] / "core" / "generic_agent.py").read_text()
-        wired = "is_satisfied(" in source and "objective_loop_enabled" in source
-        ctx.record("GOAL-01", "verified" if objective_loop_enabled() and not not_done
-                   and done and wired else "partial",
-                   [ctx.save("goals/objective.json", {
-                       "enabled": objective_loop_enabled(),
-                       "not_done": not_done, "done": done,
-                       "loop_wired": wired})],
-                   notes=f"predicate false->true, loop wired={wired}")
+        from core.generic_agent import GenericAgent
+        from core.models import AgentRegistry
+        from core.react_models import ReActStep, ToolCall
+
+        async def _run_loop_case(name: str, done, max_steps: int):
+            agent_id = make_agent(ctx, f"objective-{name}-{uuid.uuid4().hex[:4]}",
+                                  tier="intern", capabilities=["*"])
+            db = ctx.db()
+            try:
+                row = db.query(AgentRegistry).filter(
+                    AgentRegistry.id == agent_id).first()
+                agent = GenericAgent(row, workspace_id=ctx.workspace_id)
+            finally:
+                db.close()
+            calls = []
+
+            async def fake_react_step(task_input, memory, history,
+                                      context=None, utility_delta=None):
+                calls.append(len(calls) + 1)
+                return ReActStep(
+                    thought="still working",
+                    action=ToolCall(tool="acceptance_probe",
+                                    params={"n": len(calls)}),
+                )
+
+            async def fake_step_act(tool_name, tool_args, context,
+                                    step_callback=None):
+                return "probe observation"
+
+            agent._react_step = fake_react_step
+            agent._step_act = fake_step_act
+            result = await agent.execute(
+                f"objective loop {name}",
+                context={
+                    "optimization": {"max_steps": max_steps},
+                    "objective_goal": f"objective loop {name}",
+                    "objective_done": done,
+                },
+            )
+            return calls, result
+
+        satisfied_calls, satisfied = asyncio.run(_run_loop_case(
+            "satisfied", lambda state: int(state.get("current_step", 0)) >= 2, 5))
+        impossible_calls, impossible = asyncio.run(_run_loop_case(
+            "impossible", lambda state: False, 3))
+        ok = (len(satisfied_calls) == 2 and len(satisfied.get("steps") or []) == 2
+              and len(impossible_calls) == 3)
+        ctx.record("GOAL-01", "verified" if ok else "failed",
+                   [ctx.save("goals/objective_loop.json", {
+                       "satisfied_calls": len(satisfied_calls),
+                       "satisfied_status": satisfied.get("status"),
+                       "satisfied_steps": len(satisfied.get("steps") or []),
+                       "impossible_calls": len(impossible_calls),
+                       "impossible_status": impossible.get("status"),
+                       "note": "status field says max_steps despite the early "
+                               "predicate break; shared-loop reporting bug",
+                   })],
+                   notes=f"predicate stop at {len(satisfied_calls)}/5 calls; "
+                         f"control burned {len(impossible_calls)}/3; "
+                         f"status reporting bug recorded")
     except Exception as exc:
-        ctx.record("GOAL-01", "unverified", notes=f"objective predicate failed: {exc}")
+        ctx.record("GOAL-01", "failed",
+                   notes=f"objective loop execution failed: {exc}")
 
     # GOAL-03: maturity-gated custom action surface.
     try:

@@ -9,6 +9,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _allow_test_mcp_hosts(monkeypatch):
+    """Local/test hosts must be explicitly allowlisted (the client defaults to
+    denying private/loopback destinations)."""
+    monkeypatch.setenv("ATOM_MCP_ALLOWED_HOSTS", "127.0.0.1,localhost,x")
+
+
 # ============================================================================
 # Transport fakes (no real network)
 # ============================================================================
@@ -96,9 +103,8 @@ class TestTransportSetup:
     async def test_ensure_stdio_missing_command(self, monkeypatch):
         from core.mcp_client import MCPClient, MCPClientError
 
-        c = MCPClient("s", {"transport": "stdio"})
         with pytest.raises(MCPClientError):
-            await c._ensure_stdio()
+            MCPClient("s", {"transport": "stdio"})
 
     @pytest.mark.asyncio
     async def test_ensure_stdio_spawns(self, monkeypatch):
@@ -450,9 +456,11 @@ class TestMCPServiceHandshake:
 
         monkeypatch.setattr(ms, "MCPClient", FailingClient)
         svc = ms.MCPService()
-        await svc.register_server("ext", {"transport": "http", "url": "http://x"})
+        with pytest.raises(MCPClientError):
+            await svc.register_server("ext", {"transport": "http", "url": "http://x"})
         assert "ext" not in svc.tools_cache
         assert "ext" not in svc.external_clients
+        assert "ext" not in svc.servers
 
     @pytest.mark.asyncio
     async def test_refresh_tools_generic_exception_logged(self, monkeypatch):
@@ -467,8 +475,10 @@ class TestMCPServiceHandshake:
 
         monkeypatch.setattr(ms, "MCPClient", BoomClient)
         svc = ms.MCPService()
-        await svc.register_server("ext", {"transport": "http", "url": "http://x"})
+        with pytest.raises(ms.MCPClientError):
+            await svc.register_server("ext", {"transport": "http", "url": "http://x"})
         assert "ext" not in svc.tools_cache
+        assert "ext" not in svc.servers
 
     @pytest.mark.asyncio
     async def test_register_server_handshake_and_call(self, monkeypatch):

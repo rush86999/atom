@@ -24,14 +24,160 @@ BACKEND = REPO / "backend"
 TMP = Path(os.getenv("ATOM_README_TMP", "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode"))
 WORLD = Path(os.getenv("ATOM_README_WORLD", str(TMP / "readme-feature-world")))
 EVIDENCE = Path(os.getenv("ATOM_README_EVIDENCE", str(WORLD / "evidence")))
+WORLD_ROOT = Path(os.getenv("ATOM_README_WORLD_ROOT", str(TMP)))
 
 ADMIN_EMAIL = "admin@example.com"
 ADMIN_PASSWORD = "ReadmeHarness!2026"
+HARNESS_MARKER = ".atom-readme-acceptance-world"
+
+
+class UnsafeWorldError(RuntimeError):
+    """Raised before a destructive world operation when the path is unsafe."""
+
+
+def _protected_paths() -> list[Path]:
+    """Paths an acceptance reset must never target or delete as a parent."""
+    protected = [
+        Path("/"),
+        Path("/Users"),
+        Path("/private"),
+        Path("/tmp"),
+        Path.home(),
+        REPO,
+        BACKEND,
+        TMP,
+        WORLD_ROOT,
+    ]
+    # Resolve non-existent roots defensively; keep the literal path too.
+    out: list[Path] = []
+    for path in protected:
+        out.append(path)
+        try:
+            out.append(path.resolve())
+        except OSError:
+            pass
+    return out
+
+
+def assert_safe_world(path: Path, *, allowed_root: Path | None = None) -> Path:
+    """Validate a world path before creating, reusing, or deleting it.
+
+    Rules (all fail closed):
+      * the path itself must not be a symlink;
+      * no existing component between the allowed root and the world may be
+        a symlink;
+      * the world must be a strict child of the allowed root (not the root);
+      * the world must not equal or contain a protected path (home, repo,
+        backend, temp root, filesystem root);
+      * an existing world must carry the harness ownership marker.
+
+    The marker is what distinguishes "a harness world we may replace" from
+    "an arbitrary directory an operator pointed the env var at".
+    """
+    root = Path(allowed_root or WORLD_ROOT)
+    try:
+        resolved_root = root.resolve(strict=False)
+        resolved = Path(path).resolve(strict=False)
+    except OSError as exc:
+        raise UnsafeWorldError(f"world path cannot be resolved: {path}: {exc}") from exc
+
+    # The allowed root itself must not be a broad system/home/repo directory.
+    forbidden_roots = {Path("/"), Path("/Users"), Path("/private"), Path("/tmp"),
+                       Path.home(), REPO, BACKEND}
+    if any(resolved_root == (p.resolve(strict=False) if p.exists() else p)
+           for p in forbidden_roots):
+        raise UnsafeWorldError(f"refusing protected allowed world root {resolved_root}")
+
+    if Path(path).is_symlink():
+        raise UnsafeWorldError(
+            f"refusing a symlinked acceptance world: {path} -> {os.readlink(path)}"
+        )
+    if resolved_root == resolved:
+        raise UnsafeWorldError(
+            f"refusing to use the allowed world root itself as a world: {resolved}"
+        )
+    if resolved_root not in resolved.parents:
+        raise UnsafeWorldError(
+            f"world {resolved} is outside the allowed root {resolved_root}"
+        )
+
+    # Reject a symlinked component below the allowed root: deleting through
+    # it could escape the sandbox even when the final resolved path is inside.
+    raw_abs = Path(path).absolute()
+    raw_root = root.absolute()
+    cursor = raw_abs
+    while cursor != raw_root and cursor != cursor.parent:
+        if cursor.is_symlink():
+            raise UnsafeWorldError(
+                f"refusing a world under a symlinked component: {cursor}"
+            )
+        cursor = cursor.parent
+
+    for protected in _protected_paths():
+        try:
+            protected_resolved = protected.resolve(strict=False)
+        except OSError:
+            protected_resolved = protected
+        if resolved == protected_resolved:
+            raise UnsafeWorldError(f"refusing to use protected path {protected}")
+        if resolved in protected_resolved.parents:
+            # This world is an ancestor of a protected path; deleting it
+            # would delete /Users, the repo, the home directory, etc.
+            raise UnsafeWorldError(
+                f"refusing to delete/overwrite an ancestor of protected path {protected}"
+            )
+
+    if resolved.exists():
+        if not resolved.is_dir():
+            raise UnsafeWorldError(f"world path exists but is not a directory: {resolved}")
+        marker = resolved / HARNESS_MARKER
+        if not marker.is_file():
+            raise UnsafeWorldError(
+                f"existing world has no ownership marker ({HARNESS_MARKER}): {resolved}. "
+                "Refusing to delete an unmarked directory. Remove it manually after "
+                "verifying it is a harness world."
+            )
+    return resolved
+
+
+def reset_world(path: Path | None = None, *, reset: bool = True,
+                allowed_root: Path | None = None) -> Path:
+    """Safely create or replace one marked acceptance world.
+
+    The existing launcher storage guard runs first (it is a no-op unless the
+    deployment configured it). Then the harness-specific marker/protected-path
+    checks run before any rmtree.
+    """
+    world = Path(path or WORLD)
+    try:
+        from core.world_storage_guard import load_config, preflight
+
+        cfg = load_config()
+        if cfg.enabled:
+            guard_root = cfg.root.resolve(strict=False)
+            world_resolved = world.resolve(strict=False)
+            if guard_root == world_resolved or guard_root in world_resolved.parents:
+                # Only the deployment's own worlds root is governed by this
+                # config. Applying it to an unrelated temp world would refuse
+                # every run because that root may not exist.
+                preflight(cfg)
+    except Exception as exc:
+        # A configured guard failure is a hard refusal, never a warning.
+        raise UnsafeWorldError(f"world storage preflight refused the run: {exc}") from exc
+
+    resolved = assert_safe_world(world, allowed_root=allowed_root)
+    if reset and resolved.exists():
+        shutil.rmtree(resolved)
+    resolved.mkdir(parents=True, exist_ok=True)
+    (resolved / HARNESS_MARKER).write_text(
+        "atom readme acceptance world\n"
+        "This directory is disposable and owned by the README harness.\n"
+    )
+    return resolved
 
 
 def prepare_world(reset: bool = True) -> None:
-    if reset and WORLD.exists():
-        shutil.rmtree(WORLD)
+    reset_world(WORLD, reset=reset)
     (WORLD / "data").mkdir(parents=True, exist_ok=True)
     EVIDENCE.mkdir(parents=True, exist_ok=True)
     os.environ.update({
@@ -39,7 +185,7 @@ def prepare_world(reset: bool = True) -> None:
         "SECRET_KEY": "readme-harness-secret",
         "JWT_SECRET_KEY": "readme-harness-jwt",
         "DATABASE_URL": f"sqlite:///{WORLD / 'atom.db'}",
-        "ATOM_PRODUCT_PROFILE": "full",
+        "ATOM_PRODUCT_PROFILE": os.getenv("ATOM_README_PRODUCT_PROFILE", "full"),
         "ADMIN_PASSWORD": ADMIN_PASSWORD,
         "ATOM_BOOTSTRAP_PASSWORD_FILE": str(WORLD / "bootstrap_admin_password.txt"),
         # Isolated world: no schedulers, pollers or outbound integration sync.
@@ -62,6 +208,7 @@ def prepare_world(reset: bool = True) -> None:
         "LANCEDB_URI_BASE": str(WORLD / "atom_memory"),
         "LANCEDB_URI": str(WORLD / "atom_memory" / "default"),
         "ATOM_RADIO_ENABLED": "true",
+        "ATOM_MCP_ALLOWED_HOSTS": "127.0.0.1",
         "ATOM_OBJECTIVE_LOOP_ENABLED": "true",
         "ATOM_ORACLE_VERIFIER_ENABLED": "true",
         "ATOM_ORACLE_ENFORCE": "true",

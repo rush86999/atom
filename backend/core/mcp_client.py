@@ -17,9 +17,13 @@ HTTP+SSE is the primary transport for this phase.
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import logging
+import os
+import socket
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +36,84 @@ _JSONRPC_INTERNAL_ERROR = -32603
 # not be able to push an unbounded payload into agent context.
 _MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 
+_ALLOWED_TRANSPORTS = {"http", "sse", "stdio"}
+
 
 class MCPClientError(Exception):
     """Raised when an MCP client operation fails."""
+
+
+def _allowed_mcp_hosts() -> set[str]:
+    raw = os.getenv("ATOM_MCP_ALLOWED_HOSTS", "").strip()
+    if not raw:
+        return set()
+    return {h.strip().lower() for h in raw.split(",") if h.strip()}
+
+
+def validate_server_config(server_id: str, config: Dict[str, Any]) -> str:
+    """Validate transport + egress target BEFORE any network/process setup.
+
+    Scope-safe defaults:
+      * only http/https/sse URLs (no file://, ftp://, credentials in URL);
+      * with ATOM_MCP_ALLOWED_HOSTS set, only those hosts (or subdomains) are
+        permitted — the harness uses this to allow its bounded local server;
+      * without an allowlist, private, loopback, link-local, reserved and
+        multicast destinations are refused after DNS resolution (SSRF guard).
+    A stdio server must name a command; it is still admin-gated by the route.
+    """
+    transport = str((config or {}).get("transport") or "http").strip().lower()
+    if transport not in _ALLOWED_TRANSPORTS:
+        raise MCPClientError(
+            f"{server_id}: unsupported MCP transport {transport!r}")
+
+    if transport == "stdio":
+        if not str((config or {}).get("command") or "").strip():
+            raise MCPClientError(
+                f"{server_id}: stdio transport requires a command")
+        return "stdio"
+
+    url = str((config or {}).get("url") or "").strip()
+    if not url:
+        raise MCPClientError(f"{server_id}: {transport} transport requires a url")
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise MCPClientError(
+            f"{server_id}: MCP URL scheme must be http/https, got {parsed.scheme!r}")
+    if parsed.username or parsed.password:
+        raise MCPClientError(f"{server_id}: credentials in MCP URL are not allowed")
+    host = (parsed.hostname or "").strip().lower()
+    if not host:
+        raise MCPClientError(f"{server_id}: MCP URL has no host")
+
+    allowed = _allowed_mcp_hosts()
+    if allowed:
+        if not any(host == entry or host.endswith("." + entry) for entry in allowed):
+            raise MCPClientError(
+                f"{server_id}: host {host!r} is outside ATOM_MCP_ALLOWED_HOSTS")
+        return url
+
+    # Default-deny local/private destinations. Resolve so a public-looking
+    # hostname pointing at 127.0.0.1 cannot bypass the literal-IP check.
+    try:
+        infos = socket.getaddrinfo(
+            host, parsed.port or (443 if parsed.scheme == "https" else 80),
+            type=socket.SOCK_STREAM,
+        )
+    except OSError as exc:
+        raise MCPClientError(
+            f"{server_id}: MCP host {host!r} cannot be resolved: {exc}") from exc
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            continue
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            raise MCPClientError(
+                f"{server_id}: MCP destination {host!r} resolves to a blocked "
+                f"address {ip}; set ATOM_MCP_ALLOWED_HOSTS to permit a local "
+                f"test server explicitly")
+    return url
 
 
 class MCPClient:
@@ -51,9 +130,13 @@ class MCPClient:
     def __init__(self, server_id: str, config: Dict[str, Any]) -> None:
         self.server_id = server_id
         self.config = config or {}
-        self.transport = self.config.get("transport", "http").lower()
+        self.transport = str(self.config.get("transport", "http")).lower()
         self.url = self.config.get("url")
         self.headers = self.config.get("headers") or {}
+        # Fail before any socket/process is created. This is the shared
+        # registration/get-tools/call boundary, so every caller gets the same
+        # scheme/host policy rather than a route-only special case.
+        validate_server_config(server_id, self.config)
         # Lazily-created transport objects.
         self._http_client: Any = None
         self._stdio_proc: Optional[asyncio.subprocess.Process] = None

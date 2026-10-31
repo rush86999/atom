@@ -26,9 +26,18 @@ def integrations(ctx: Ctx) -> None:
                [ctx.save("integrations/catalog.json", cbody)],
                notes=f"total={cbody.get('total')} categories={cbody.get('by_category')} "
                      f"named_missing={sorted(required - named)}")
-    ctx.record("INT-08", "verified" if required <= named else "failed",
+    required_evidence = {"salesforce", "hubspot", "slack", "teams", "gmail",
+                         "notion", "jira", "linear", "stripe", "quickbooks",
+                         "shopify", "github", "gitlab", "zoom"}
+    by_id = {p.get("id"): p for p in providers}
+    executable_evidence = {"adapter", "oauth", "routes"}
+    missing = sorted(n for n in required_evidence
+                     if not (set((by_id.get(n) or {}).get("evidence") or [])
+                             & executable_evidence))
+    ctx.record("INT-08", "verified" if not missing else "failed",
                [f"integrations/catalog.json"],
-               notes=f"named providers resolved: {sorted(required & named)}")
+               notes=f"named providers with adapter/oauth/route evidence: "
+                     f"{sorted(required_evidence - set(missing))}; missing={missing}")
 
     # ---- INT-02 truthful connected state -------------------------------
     status1 = ctx.get("/api/integrations/health-status")

@@ -171,21 +171,24 @@ def office(ctx: Ctx) -> None:
     }
     formula_body = formula.json() if formula.status_code == 200 else {}
     computed = json.dumps(formula_body)
+    value_ok = ("2153.5" in computed or "2153.50" in computed
+                or "2153" in computed)
     ok = (write.status_code == 200 and recalc.status_code == 200
-          and str(leading) == "00123"
-          and ("2500" in computed or "2500.0" in computed or "2600" in computed))
+          and str(leading) == "00123" and value_ok)
     ctx.record("OFF-02", "verified" if write.status_code == 200 and str(leading) == "00123" else "failed",
                [ctx.save("office/xlsx.json", {
                    "write": {"status": write.status_code, "body": write.text[:600]},
                    "formulas": formulas, "leading_zero": leading,
                })],
                notes=f"leading_zero={leading!r} formulas={formulas}")
-    ctx.record("OFF-03", "verified" if recalc.status_code == 200 and formula.status_code == 200 else "failed",
+    ctx.record("OFF-03", "verified" if recalc.status_code == 200
+               and formula.status_code == 200 and value_ok else "failed",
                [ctx.save("office/formula.json", {
                    "formula_result": {"status": formula.status_code, "body": formula_body},
                    "recalculate": {"status": recalc.status_code, "body": recalc.text[:1200]},
                })],
-               notes=f"formula_result={formula.status_code} recalc={recalc.status_code}")
+               notes=f"formula_result={formula.status_code} recalc={recalc.status_code} "
+                     f"cross_sheet_value={value_ok}")
 
     # ---- PPTX: create/edit/reopen -------------------------------------
     pptx_path = root / f"acceptance_{suffix}.pptx"

@@ -252,10 +252,19 @@ class MCPService:
         logger.debug(f"Registered tool {tool.name} for server {tool.server_id}")
 
     async def register_server(self, server_id: str, server_config: Dict[str, Any]):
-        """Register a new MCP server (stdio or http)"""
+        """Register a new MCP server (stdio or http) and verify the handshake."""
         self.servers[server_id] = server_config
         # Refresh tools for this server
         await self.refresh_tools(server_id)
+        if server_id not in self.external_clients:
+            # refresh_tools records the failure but does not raise. Registration
+            # must not leave a half-registered server behind: the route would
+            # report success/connected=false while a later caller could still
+            # see the unverified config in self.servers.
+            self.servers.pop(server_id, None)
+            self.tools_cache.pop(server_id, None)
+            raise MCPClientError(
+                f"{server_id}: MCP handshake failed; server not registered")
 
     async def get_active_connections(self) -> List[Dict[str, Any]]:
         """Returns a list of currently connected MCP servers."""

@@ -212,11 +212,18 @@ without invalidating the accepted local-core work and without deploying.
   `docs/acceptance/readme_feature_readiness_2026-10-31/COVERAGE_REPORT_2026-10-31.md`
   §6. This is a shared Chat/lifecycle defect, not patched here.
 
-**Result:** 99/123 eligible functional claims verified (80.5%). Security 8/8
-separately. 24 claims remain unverified/partial/blocked/environment-limited or
-inaccurate; none are counted as passes. ORCH-08 (delegation nesting depth) is
-documented as **inaccurate** — the DB model stores `max_depth`, but
-`AgentFleetService.recruit_member` does not enforce it.
+**Result (after verifier correction):** 83/123 eligible functional claims
+verified (67.5%). The earlier 100/123 (81.3%) self-assessment was not accepted:
+source-string, unconditional and status-only passes were removed. Security 8/8
+separately. 40 functional claims remain unverified/partial/blocked/
+environment-limited or inaccurate; none are counted. ORCH-08 (delegation
+nesting depth) is documented as **inaccurate** — the DB model stores
+`max_depth`, but `AgentFleetService.recruit_member` does not enforce it.
+The harness world deletion boundary is now guarded (protected paths, symlinks,
+ownership marker); ORACLE-06 and GOAL-01 are executable tests; SEC-06 has
+negative egress controls; SEARCH-02/04 are strengthened; the evidence manifest
+and pre-rename frontend artifact are preserved under
+`docs/acceptance/readme_feature_readiness_2026-10-31/evidence/`.
 
 **Worlds/ports:** harness worlds live under
 `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-*`;

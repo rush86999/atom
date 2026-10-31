@@ -482,7 +482,7 @@ class DocumentsHybridSearch:
         # treated as a relevance match just because it exists. Without a
         # floor a nonsense query returned the k nearest documents (the empty
         # case was indistinguishable from a real semantic hit).
-        floor = float(os.getenv("ATOM_HYBRID_VECTOR_MIN_SCORE", "0.3"))
+        floor = float(os.getenv("ATOM_HYBRID_VECTOR_MIN_SCORE", "0.25"))
         out: List[Dict[str, Any]] = []
         for r in rows:
             if not r.get("id"):
@@ -732,6 +732,13 @@ class DocumentsHybridSearch:
                 "score": round(e["rrf"], 6),
                 "modified": e["modified"],
                 "bridged": e["bridged"],
+                # A stable, usable locator for the citation: pass this to
+                # documents.cat for line-numbered content. An opaque id alone
+                # was not enough for a user/agent to resolve the source.
+                "citation_path": (
+                    f"knowledge/documents/{e['id']}/content.lines"
+                    if e.get("id") else None
+                ),
                 "freshness_status": e.get("freshness_status"),
                 "sender": e.get("sender"),
                 "as_of": e.get("as_of"),

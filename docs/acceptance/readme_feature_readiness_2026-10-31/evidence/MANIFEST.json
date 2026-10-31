@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-31",
+  "authoritative_claim_result": "evidence/corrected-results.json",
+  "authoritative_score": "83/123 eligible functional claims verified (67.5%)",
+  "audit": "evidence/CLAIM_AUDIT_2026-10-31.json",
+  "hash_history": [
+    {
+      "artifact": "evidence/frontend-results.json",
+      "prior_sha256": "4b56ba3c037a6c5d18fa116ada51d91ceb57ae89fe4fce05739fdd6c2fa7cbf3",
+      "reason": "The dev-server log was renamed from .log (gitignored) to .txt so it could be committed; the JSON evidence path changed after the report hash was written. The pre-rename file is preserved as evidence/frontend-results.pre-rename.json, whose hash matches the prior 4b56... value."
+    }
+  ],
+  "superseded": [
+    {
+      "path": "evidence/merged-results.json",
+      "reason": "Pre-correction merge (100/123 self-assessed) retained for history; superseded by corrected-results.json after the verifier audit."
+    },
+    {
+      "path": "evidence/all-groups.json",
+      "reason": "Pre-correction all-groups run retained for history."
+    },
+    {
+      "path": "evidence/all-groups-baseline.json",
+      "reason": "Baseline all-groups run used as the source for groups not rerun; not the authoritative result."
+    }
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "0c7e18cc5ba60409eec359f574c2488420a781ce41e23c52622a069ac68c675b",
+      "bytes": 1747
+    },
+    {
+      "path": "CLAIM_INVENTORY.json",
+      "sha256": "f1352fa91e8d6aa80f7453231fc0df4727d5b424a489c3e706f445659e98a21f",
+      "bytes": 164577
+    },
+    {
+      "path": "CLAIM_INVENTORY.md",
+      "sha256": "c923c655c4420c29d6371f0b99f9136c5607e60ee9fbfcf6590ff57457352cb0",
+      "bytes": 65290
+    },
+    {
+      "path": "COVERAGE_REPORT_2026-10-31.md",
+      "sha256": "bde620d523d0f23a719480054eaa3aec21da2824c560ea66b5ddb216e17685f1",
+      "bytes": 17194
+    },
+    {
+      "path": "VERIFIER_REVIEW_REQUEST.md",
+      "sha256": "4087fb6b484b3d2ee095df8d5de577a8166bd1f5b47c9080dfe41f61988098d2",
+      "bytes": 4679
+    },
+    {
+      "path": "evidence/corrected-results.json",
+      "sha256": "8cd1146a42cbe97922fdad6b0bc13d4bfe3bbde298b81a70ff21b80f93bfc63f",
+      "bytes": 80826
+    },
+    {
+      "path": "evidence/CLAIM_AUDIT_2026-10-31.json",
+      "sha256": "c405b7b0cfea4c73066bf63964e0268f308d2dd01f8b7f2d9025576dad506fac",
+      "bytes": 4171
+    },
+    {
+      "path": "evidence/corrected-affected.json",
+      "sha256": "b2d7f0a10fd0744ff1284d3609ab531caa6191068c8c0bbd16e1ff80ca9e20ee",
+      "bytes": 27341
+    },
+    {
+      "path": "evidence/gateway-final.json",
+      "sha256": "1d0540b004dda6e0c0d2d75aa68d99ee46d18eb38cd2ff6b5364817f3e9ee74d",
+      "bytes": 4998
+    },
+    {
+      "path": "evidence/install-fix.json",
+      "sha256": "b9b75fe67d0ec1a0b789a8fc72886277dc47c73e144c8bc6926cc3025f41024c",
+      "bytes": 2479
+    },
+    {
+      "path": "evidence/core-profile.json",
+      "sha256": "762516b43a53baca018de0f6b3f55fa3c433909cffa6e084a72a6dd8dc9072a3",
+      "bytes": 2786
+    },
+    {
+      "path": "evidence/agent-radio.json",
+      "sha256": "9c87b6211f91e1bec6b40e77618de97d538894d08bf29f2f6cc0430ea3aa9799",
+      "bytes": 1848
+    },
+    {
+      "path": "evidence/test-count-results.json",
+      "sha256": "734b9a149aa61e9c3cbbfc94ee782a2d6aea672e79ff1e3ced2eafce8d088eaf",
+      "bytes": 369
+    },
+    {
+      "path": "evidence/test-count.txt",
+      "sha256": "c6e0a1ed201e9b112974a8813d2281dc2aa2447ad3e90cdfa1e60a1b73c4e451",
+      "bytes": 228
+    },
+    {
+      "path": "evidence/frontend-results.json",
+      "sha256": "a6c4d4c216e546b27b950d7b58161605bd96c27f303ea51a8c91663648adcf11",
+      "bytes": 386
+    },
+    {
+      "path": "evidence/frontend-dev.txt",
+      "sha256": "f092e93ab28578b8acd36deb80882f59161b8e58843364fa1d6de53e2f1ba3cc",
+      "bytes": 665
+    },
+    {
+      "path": "evidence/all-groups-baseline.json",
+      "sha256": "b9ca20356f74b5bb71bb0010b4d7e99434682202e79ee248bc0817b016dd13d3",
+      "bytes": 43599
+    },
+    {
+      "path": "evidence/merged-results.json",
+      "sha256": "bba39d9569067758b6bf0fe239577eca67107917b345e4d02511f23dca21ddde",
+      "bytes": 63511
+    },
+    {
+      "path": "evidence/all-groups.json",
+      "sha256": "e18b410fc8db7dfa1bd2a027b676b9cc28c96467ddc740d0ce9c7146dd7e374e",
+      "bytes": 42338
+    },
+    {
+      "path": "evidence/data-graph-memory.json",
+      "sha256": "a2c4bf35b224290297a7271df5e66074c738217b011d23fe22f6d2b1afa3cd84",
+      "bytes": 8238
+    },
+    {
+      "path": "evidence/core-chat-episode.json",
+      "sha256": "51d0c6dcccca9100eda90d3062abcdb91f61cb9f34221d1e0201c620b3ace154",
+      "bytes": 2626
+    },
+    {
+      "path": "evidence/install-restart.json",
+      "sha256": "901bc52a8f7ad98f32c9bfef1e9e53d981b73d8561321c3204953ad06ae7e292",
+      "bytes": 2292
+    },
+    {
+      "path": "evidence/frontend-results.pre-rename.json",
+      "sha256": "4b56ba3c037a6c5d18fa116ada51d91ceb57ae89fe4fce05739fdd6c2fa7cbf3",
+      "bytes": 386
+    }
+  ]
+}

@@ -12,6 +12,13 @@ and the ``# Placeholder for real MCP protocol handshake`` in ``refresh_tools``
 becomes a real handshake.
 """
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _allow_test_mcp_hosts(monkeypatch):
+    """Local/test hosts must be explicitly allowlisted (the client defaults to
+    denying private/loopback destinations)."""
+    monkeypatch.setenv("ATOM_MCP_ALLOWED_HOSTS", "127.0.0.1,localhost,x")
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
