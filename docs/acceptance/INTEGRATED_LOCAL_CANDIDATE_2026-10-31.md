@@ -10,12 +10,12 @@ publication remain deferred by the owner.
 | Item | Value |
 |---|---|
 | Branch | `codex/employee-execution-readiness` |
-| Final code/evidence | `2108a2839` |
+| Final code/evidence | `caee1a057` |
 | Assessment safety | `460f38c27` (atomic approval/scoped autonomy), `b80288e4e` (authoritative reads), `6363e3794` (route-level exact approval), `8123f12c6` + `099c15e02` (clarification identity/revisions) |
 | Practical browser recovery | `b24f67c29` / `e564890e7` (5/5 checks) |
 | Bounded autonomy boundaries | `814962078` / `24b0633df` (185 backend + 6 frontend tests) |
 | Execution boundaries | `b7ee7ee22` / `84da4cbfd` (81 assignment executor/route controls) |
-| Two-domain autonomous journey | `814962078` / `24b0633df` (5/5 browser checks) |
+| Two-domain autonomous journey | `814962078` / `24b0633df` (5/5); repaired-source smoke `caee1a057` (5/5, 2 effects, 0 approvals) |
 | Evidence source | `06d80f834` (product teaching `3e344f5b1`) |
 | Agent 2 merge | `931892be0` |
 | Integrated README rerun | `619960832` |
