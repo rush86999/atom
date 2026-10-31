@@ -1,14 +1,15 @@
 # Conversation-derived, reference-bound learning
 
 Status: **bounded successor implementation complete; independent verifier
-review pending.** Approval-binding source `e05bc55a6` (tree `37ec5a02`),
-building on parser/continuation source `dfa940ee5` / `237a187df`,
-method-boundary source `525a768d1` / `a660065cd`, closure source
-`54543b493` / `550e8c165`, consumer source `37904dcd0` / `a888f5d6c` and
-applicability source `50b53bef6` (tree `cf7d8d3`). This is deliberately
-separate from the accepted local-core closure at `da9cc8b12` / tag
-`local-core-2026-10-30-final`. It does not relabel historical browser/live
-evidence or claim a full application journey on this source.
+review pending.** Atomic-claim source `dcac5d323` (tree `12355fa7`), building
+on approval-binding source `e05bc55a6` / `e160c4852`, parser/continuation
+source `dfa940ee5` / `237a187df`, method-boundary source `525a768d1` /
+`a660065cd`, closure source `54543b493` / `550e8c165`, consumer source
+`37904dcd0` / `a888f5d6c` and applicability source `50b53bef6` (tree
+`cf7d8d3`). This is deliberately separate from the accepted local-core
+closure at `da9cc8b12` / tag `local-core-2026-10-30-final`. It does not
+relabel historical browser/live evidence or claim a full application journey
+on this source.
 
 Applicability evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-50b53be/`.
@@ -27,6 +28,9 @@ Parser/continuation evidence:
 
 Approval-binding evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-e05bc55a6/`.
+
+Atomic-claim evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-dcac5d323/`.
 
 ## 1. Why this phase exists
 
@@ -266,6 +270,23 @@ action captured from the reviewed read. A changed payload raises
 Rejection, duplicate approval (already executed → replayed), missing binding
 (fail closed) and terminal proposal states remain preserved.
 
+### 3.12 Atomic claim and executed-action audit
+
+`ProposalService._claim_proposal` now ends any earlier read snapshot, re-reads
+the proposal with `populate_existing()` under a row lock, and compares the
+**fresh database** payload and canvas revision to the reviewed binding. It
+performs the conditional approval UPDATE, re-reads and re-compares before
+commit, and only then executes the captured reviewed action. The captured
+execution snapshot is never used as the database drift value.
+
+A change injected immediately before `_claim_proposal` therefore yields
+`payload_changed`, zero transport calls and a proposal still
+`pending_approval`. The canvas-revision twin behaves the same.
+
+After a successful approval, `execution_outcome_details` stores the immutable
+`executed_action`, `executed_action_sha256`, `reviewed_payload_sha256` and
+`reviewed_artifact_revision`, so audit records describe exactly what ran.
+
 ## 4. Acceptance matrix
 
 All cases run through the shared implementation in
@@ -313,13 +334,15 @@ browser/restart journeys. The method-boundary source adds candidate/unit
 validation, calculation receipts, compound-request settlement and operand
 clarification. The parser/continuation source adds prefix units, shared
 answer validation and resumable compound email work. The approval-binding
-source binds the reviewed proposal payload and artifact revision. Its targeted
-backend set is **425 passed**; its frontend learning suites are **4 passed**;
-TypeScript `--noEmit` is clean. Fourteen
+source binds the reviewed proposal payload and artifact revision. The
+atomic-claim source checks the fresh database payload under a row lock and
+persists the executed snapshot. Its targeted backend set is **427 passed**;
+its frontend learning suites are **4 passed**; TypeScript `--noEmit` is clean.
+Fourteen
 `test_chat_canvas_editor.py` tests fail in a wider run; the same failure mode
 is present at the parent commit `55dddd6d4` with `lane refused pre-planning:
 the turn's own words do not authorize a canvas mutation`; they are
-pre-existing and unrelated, and are not counted in the 420-pass set.
+pre-existing and unrelated, and are not counted in the 427-pass set.
 
 Two domains are exercised by the method-transfer case: sales pricing
 (`quantity × unit price`) and payroll-style units/rates, with independently
@@ -458,6 +481,18 @@ proposal moved to `executed` with `execution_success=true`.
 
 The controlled transport is a mock; no real email was sent.
 
+## 6.6 Atomic claim live campaign
+
+| Case | Result |
+|---|---|
+| Recipient changed immediately before `_claim_proposal` | `payload_changed`; 0 transport calls; `pending_approval` |
+| Canvas content changed immediately before `_claim_proposal` | `payload_changed`; 0 transport calls; `pending_approval` |
+| Matching payload | `handled=true`, `resumed=true`; 1 controlled call; `executed` |
+| Duplicate approval | `replayed=true`; still 1 call |
+| Executed audit snapshot | `executed_action.to=alice@example.com`; digest == reviewed digest |
+
+The controlled transport is a mock; no real email was sent.
+
 ## 7. Consumer audit
 
 | Surface | Established task context | Required-context clarification | Scoped conversation methods | Consumed revision record |
@@ -489,7 +524,8 @@ This phase is intentionally bounded:
 - no currency conversion is authorized or implemented; explicit units are
   validated against the method and incompatible/unknown units clarify;
 - a compound request keeps its non-calculation obligations in the approval
-  ledger; approval is bound to the reviewed payload/artifact digest, resumes
+  ledger; approval is bound to the reviewed payload/artifact digest and
+  re-checks the fresh database row under a row lock before claiming, resumes
   only that exact payload through `hitl_resume` and `ProposalService`, and
   refuses drift; tests use controlled transport and no real send runs;
 - the existing core tag and its historical evidence are unchanged.
