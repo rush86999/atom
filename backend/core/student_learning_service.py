@@ -637,17 +637,28 @@ def resolve_teaching_contract(
         else:
             method_status = "applicable"
             method_lessons = top_items
+    # Guidance-only lessons (style, protocol, preference, approach) are
+    # applicable teaching even though there is no executable method. They
+    # must not be reported as "no_method" — that reads as no teaching at all
+    # and hid promoted non-arithmetic lessons from callers.
+    guidance_lessons = [
+        entry for entry in applicable
+        if method_from_lesson(entry) is None
+    ]
     if required_rows:
         status = "needs_context"
     elif method_status == "conflict":
         status = "conflict"
     elif method_lessons:
         status = "applicable"
+    elif guidance_lessons:
+        status = "guidance"
     else:
         status = "no_method"
     return {
         "status": status,
         "applicable_lessons": applicable,
+        "guidance_lessons": guidance_lessons,
         "required_context": required_rows,
         "conflicts": conflicts,
         "excluded_lessons": excluded,

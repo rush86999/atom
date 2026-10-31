@@ -125,6 +125,10 @@ export function ConversationLearningReview({
     customer: "",
     qualification: "",
     methodStatus: "explicit",
+    guidanceOnly: false,
+    formatSpec: "",
+    conditions: "",
+    decisionOptions: "",
   });
 
   const load = useCallback(async () => {
@@ -205,6 +209,18 @@ export function ConversationLearningReview({
             }]
           : []),
       ];
+      const parseObject = (raw: string, label: string) => {
+        if (!raw.trim()) return {};
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          throw new Error(`${label} must be a JSON object`);
+        }
+        return parsed;
+      };
+      const formatSpec = parseObject(draft.formatSpec, "Format spec");
+      const conditions = parseObject(draft.conditions, "Conditions");
+      const decisionOptions = draft.decisionOptions
+        .split(",").map((item) => item.trim()).filter(Boolean);
       const created = await createLearningCandidate({
         thread_id: threadId,
         agent_id: selectedAgentId,
@@ -216,16 +232,26 @@ export function ConversationLearningReview({
           ...(draft.qualification
             ? { qualification: draft.qualification } : {}),
         },
-        method: {
-          intended_outcome: draft.outcome || draft.lesson,
-          operation: draft.operation,
-          inputs,
-          output_unit: draft.unit2 || draft.unit1,
-          transformation: draft.operation === "sum"
-            ? "sum of the declared input"
-            : "declared by the reviewer",
-        },
-        method_status: draft.methodStatus,
+        ...(Object.keys(formatSpec).length
+          ? { format_spec: formatSpec } : {}),
+        ...(Object.keys(conditions).length
+          ? { conditions } : {}),
+        ...(decisionOptions.length
+          ? { decision_options: decisionOptions } : {}),
+        ...(draft.guidanceOnly
+          ? { method: {}, method_status: "not_applicable" }
+          : {
+              method: {
+                intended_outcome: draft.outcome || draft.lesson,
+                operation: draft.operation,
+                inputs,
+                output_unit: draft.unit2 || draft.unit1,
+                transformation: draft.operation === "sum"
+                  ? "sum of the declared input"
+                  : "declared by the reviewer",
+              },
+              method_status: draft.methodStatus,
+            }),
       });
       setPayload(created);
       setNotice("Candidate drafted. Resolve the remaining questions before confirmation.");
@@ -388,6 +414,21 @@ export function ConversationLearningReview({
               rows={2}
             />
           </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              data-testid="learning-guidance-only"
+              checked={draft.guidanceOnly}
+              onChange={(event) => setDraft({
+                ...draft,
+                guidanceOnly: event.target.checked,
+                methodStatus: event.target.checked
+                  ? "not_applicable" : "explicit",
+              })}
+            />
+            Guidance only (style, protocol, preference or approach — no
+            calculation method)
+          </label>
           <div className="grid grid-cols-2 gap-2">
             <label>
               Applies to
@@ -419,6 +460,11 @@ export function ConversationLearningReview({
             <input className="rounded border p-1" data-testid="learning-column-1" value={draft.column1} onChange={(e) => setDraft({ ...draft, column1: e.target.value })} placeholder="column" />
             <input className="rounded border p-1" data-testid="learning-unit-1" value={draft.unit1} onChange={(e) => setDraft({ ...draft, unit1: e.target.value })} placeholder="unit" />
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <input className="rounded border p-1" data-testid="learning-format-input" value={draft.formatSpec} onChange={(e) => setDraft({ ...draft, formatSpec: e.target.value })} placeholder='format spec JSON, e.g. {"greeting":"Dear colleague,"}' />
+            <input className="rounded border p-1" data-testid="learning-conditions-input" value={draft.conditions} onChange={(e) => setDraft({ ...draft, conditions: e.target.value })} placeholder='conditions JSON, e.g. {"recipient":"@example.com"}' />
+          </div>
+          <input className="w-full rounded border p-1" data-testid="learning-decisions-input" value={draft.decisionOptions} onChange={(e) => setDraft({ ...draft, decisionOptions: e.target.value })} placeholder="review decision labels, comma separated (optional)" />
           <div className="grid grid-cols-2 gap-2">
             <input className="rounded border p-1" data-testid="learning-customer-input" value={draft.customer} onChange={(e) => setDraft({ ...draft, customer: e.target.value })} placeholder="customer (optional)" />
             <input className="rounded border p-1" data-testid="learning-qualification-input" value={draft.qualification} onChange={(e) => setDraft({ ...draft, qualification: e.target.value })} placeholder="qualification (optional)" />
@@ -456,6 +502,17 @@ export function ConversationLearningReview({
               <p className="font-semibold">Method and assumptions</p>
               <p>{methodSummary(review)}</p>
               <p className="text-slate-500">status: {review.method_and_assumptions.method_status}</p>
+              {review.artifact_and_protocol?.format_spec
+                && Object.keys(review.artifact_and_protocol.format_spec).length ? (
+                <pre className="mt-1 whitespace-pre-wrap text-[11px]">
+                  {JSON.stringify(review.artifact_and_protocol.format_spec, null, 2)}
+                </pre>
+              ) : null}
+              {review.artifact_and_protocol?.decision_options?.length ? (
+                <p className="mt-1">
+                  decisions: {review.artifact_and_protocol.decision_options.join(", ")}
+                </p>
+              ) : null}
               {(review.method_and_assumptions.method.assumptions || []).length ? (
                 <ul className="mt-1 list-disc pl-4">
                   {review.method_and_assumptions.method.assumptions.map((item: string, index: number) => (

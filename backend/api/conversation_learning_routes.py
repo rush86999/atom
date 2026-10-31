@@ -54,6 +54,9 @@ class CandidateCreate(BaseModel):
     method_status: str = "unresolved"
     applies_to: List[str] = []
     context: Dict[str, Any] = {}
+    format_spec: Dict[str, Any] = {}
+    conditions: Dict[str, Any] = {}
+    decision_options: List[str] = []
     references: Optional[List[Dict[str, Any]]] = None
     authority_message_id: str = ""
     authority_excerpt: str = ""
@@ -66,6 +69,9 @@ class CandidateRevise(BaseModel):
     method_status: Optional[str] = None
     applies_to: Optional[List[str]] = None
     context: Optional[Dict[str, Any]] = None
+    format_spec: Optional[Dict[str, Any]] = None
+    conditions: Optional[Dict[str, Any]] = None
+    decision_options: Optional[List[str]] = None
     changed_by: str = ""
 
 
@@ -252,7 +258,10 @@ def create_candidate(request: CandidateCreate, db: Session = Depends(get_db),
             agent_id=request.agent_id, thread_id=request.thread_id,
             proposed_lesson=request.proposed_lesson, method=request.method,
             method_status=request.method_status, applies_to=request.applies_to,
-            context=request.context, evidence=evidence,
+            context=request.context, format_spec=request.format_spec,
+            conditions=request.conditions,
+            decision_options=request.decision_options,
+            evidence=evidence,
             references=request.references,
             authority_message_id=request.authority_message_id,
             authority_excerpt=request.authority_excerpt,
@@ -284,6 +293,9 @@ def revise(candidate_id: str, request: CandidateRevise,
             db, candidate, proposed_lesson=request.proposed_lesson,
             method=request.method, method_status=request.method_status,
             applies_to=request.applies_to, context=request.context,
+            format_spec=request.format_spec,
+            conditions=request.conditions,
+            decision_options=request.decision_options,
             changed_by=_reviewer(user))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

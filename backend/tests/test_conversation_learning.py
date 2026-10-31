@@ -1884,3 +1884,136 @@ def test_correction_preserves_unrelated_teaching(db):
         db, "agent-1", limit=20)]
     assert "Use net price for this account." in lessons
     assert "Round totals to three decimals." in lessons
+
+
+def test_guidance_only_lesson_promotes_without_a_calculation_method(db):
+    """Style/protocol/preference teaching is a first-class lesson.
+
+    It must be reviewable and promotable with an EMPTY method; requiring a
+    dummy arithmetic operation would fabricate executable behavior the user
+    never taught.
+    """
+    from core.student_learning_service import resolve_teaching_contract
+
+    _agent(db)
+    authority = _evidence([
+        _message(
+            "m-auth",
+            "Always open quote emails with 'Dear colleague,' and sign as "
+            "Sales team.",
+        ),
+    ], [])
+    candidate = build_candidate(
+        workspace_id="ws-1",
+        tenant_id="t-1",
+        agent_id="agent-1",
+        thread_id="thread-1",
+        proposed_lesson=(
+            "Always open quote emails with 'Dear colleague,' and sign as "
+            "Sales team."),
+        method={},
+        method_status="not_applicable",
+        applies_to=["email"],
+        context={"customer": "Customer-A"},
+        format_spec={
+            "greeting": "Dear colleague,",
+            "signature": "Sales team",
+        },
+        conditions={"recipient": "@example.com"},
+        decision_options=["APPROVE", "REVIEW"],
+        evidence=authority,
+        authority_message_id="m-auth",
+        authority_excerpt=(
+            "Always open quote emails with 'Dear colleague,' and sign as "
+            "Sales team."),
+    )
+    readiness = candidate_readiness(candidate)
+    assert readiness["review_ready"] is True
+    assert readiness["blocking"] == []
+    assert candidate.method_status == "not_applicable"
+    assert candidate.method.operation == ""
+
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    promoted = promote_candidate(
+        db, candidate, reviewer="owner", expected_revision=1)
+    entry = promoted["entry"]
+    assert entry["format_spec"]["greeting"] == "Dear colleague,"
+    assert entry["format_spec"]["signature"] == "Sales team"
+    assert entry["conditions"]["recipient"] == "@example.com"
+    assert entry["decision_options"] == ["APPROVE", "REVIEW"]
+    assert method_from_lesson(entry) is None
+
+    resolution = resolve_teaching_contract(
+        db, "agent-1", query="quote email for Customer-A",
+        task_context={"customer": "Customer-A"}, workspace_id="ws-1")
+    assert resolution["status"] == "guidance"
+    assert resolution["method_status"] == "not_applicable"
+    assert any(item.get("id") == entry["id"]
+               for item in resolution["applicable_lessons"])
+    assert any(item.get("id") == entry["id"]
+               for item in resolution["guidance_lessons"])
+
+    from core.artifact_teaching import resolve_artifact_teaching
+
+    artifact = resolve_artifact_teaching(
+        db, "agent-1", "email", recipient="alice@example.com",
+        task_context={"customer": "Customer-A"}, workspace_id="ws-1")
+    assert artifact["status"] == "applicable"
+    assert artifact["spec"]["greeting"] == "Dear colleague,"
+    assert artifact["spec"]["signature"] == "Sales team"
+
+
+def test_guidance_only_lesson_without_artifact_format_still_promotes(db):
+    """A pure approach/preference lesson has no format spec and no method."""
+    _agent(db)
+    authority = _evidence([
+        _message("m-auth", "When a source is ambiguous, ask before guessing."),
+    ], [])
+    candidate = build_candidate(
+        workspace_id="ws-1",
+        tenant_id="t-1",
+        agent_id="agent-1",
+        thread_id="thread-1",
+        proposed_lesson="When a source is ambiguous, ask before guessing.",
+        method={},
+        method_status="not_applicable",
+        applies_to=["assignment"],
+        context={"customer": "Customer-A"},
+        evidence=authority,
+        authority_message_id="m-auth",
+        authority_excerpt="When a source is ambiguous, ask before guessing.",
+    )
+    assert candidate_readiness(candidate)["review_ready"] is True
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    promoted = promote_candidate(
+        db, candidate, reviewer="owner", expected_revision=1)
+    assert promoted["entry"]["lesson"].startswith("When a source")
+    assert "format_spec" not in promoted["entry"]
+    assert method_from_lesson(promoted["entry"]) is None
+
+
+def test_guidance_only_lesson_rejects_invalid_artifact_format(db):
+    _agent(db)
+    authority = _evidence([
+        _message("m-auth", "Use the approved email greeting."),
+    ], [])
+    candidate = build_candidate(
+        workspace_id="ws-1",
+        tenant_id="t-1",
+        agent_id="agent-1",
+        thread_id="thread-1",
+        proposed_lesson="Use the approved email greeting.",
+        method={},
+        method_status="not_applicable",
+        applies_to=["email"],
+        context={"customer": "Customer-A"},
+        format_spec={"not_a_supported_key": "value"},
+        evidence=authority,
+        authority_message_id="m-auth",
+        authority_excerpt="Use the approved email greeting.",
+    )
+    readiness = candidate_readiness(candidate)
+    assert readiness["review_ready"] is False
+    assert any(dep.kind == "format" for dep in readiness["blocking"])

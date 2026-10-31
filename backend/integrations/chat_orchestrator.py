@@ -8829,7 +8829,11 @@ class ChatOrchestrator:
                     _review_lessons = (
                         self._agent_lessons(
                             agent_id, objective, limit=10,
-                            include_workspace=False) or [])
+                            include_workspace=False,
+                            task_context=(
+                                session.get("_turn_task_context")
+                                if isinstance(session, dict) else None),
+                            workspace_id=workspace_id) or [])
                     _review_allowed_decisions = (
                         decision_options_from_lessons(_review_lessons))
                 except Exception:  # noqa: BLE001 — teaching is additive
@@ -21854,6 +21858,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         memory_context=memory_block,
                         request_id=str(execution_id or ""),
                     )
+                    if isinstance(session, dict):
+                        # The review/canvas lanes run later in this turn and
+                        # need the SAME established context the teaching gate
+                        # used. Without it, a context-bound review policy is
+                        # silently dropped or applied without its guard.
+                        session["_turn_task_context"] = dict(_task_context)
+                        session["_turn_workspace_id"] = str(
+                            user_workspace or "")
                     if _teaching_reply is not None:
                         return _teaching_reply
                     # C4 (owner directive): observations are committed only
@@ -32381,7 +32393,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         with _stage_span("corrections_versions_lessons"):
             corrections = self._recent_canvas_corrections(user_id, canvas.get("canvas_id"))
             versions = self._recent_canvas_versions(user_id, canvas.get("canvas_id"))
-            lessons = self._agent_lessons(agent_id, message)
+            lessons = self._agent_lessons(
+                agent_id, message,
+                task_context=(
+                    session.get("_turn_task_context")
+                    if isinstance(session, dict) else None),
+                workspace_id=(
+                    session.get("_turn_workspace_id")
+                    if isinstance(session, dict) else None))
         # JOB FINDINGS (round 62, authorized drafting): the durable
         # research record for THIS canvas's job — verified findings with
         # sources, approved manual values, open business decisions and
