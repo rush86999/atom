@@ -1,7 +1,8 @@
 # Conversation-derived, reference-bound learning
 
-Status: **bounded successor implementation complete; independent verifier
-review pending.** Atomic-claim source `dcac5d323` (tree `12355fa7`), building
+Status: **bounded successor implementation accepted by the independent
+verifier within the documented local configuration and controlled-effect
+scope (2026-10-31).** Atomic-claim source `dcac5d323` (tree `12355fa7`), building
 on approval-binding source `e05bc55a6` / `e160c4852`, parser/continuation
 source `dfa940ee5` / `237a187df`, method-boundary source `525a768d1` /
 `a660065cd`, closure source `54543b493` / `550e8c165`, consumer source
@@ -532,3 +533,26 @@ This phase is intentionally bounded:
 
 Hosted deployment, publication, source shutdown and additional real sends
 remain deferred and unauthorized.
+
+## 9. Independent verifier acceptance
+
+On 2026-10-31 the independent verifier closed the atomic approval-binding
+finding and accepted the reviewed successor at `d2b297deb` within the
+documented local configuration and controlled-effect scope:
+
+- 66 learning and Chat-route tests passed;
+- all 11 evidence-manifest entries matched with no hash mismatches;
+- the pre-claim interleaving reproduction returned `payload_changed`,
+  `resumed=false`, `fresh_review_required=true`, zero transport calls, and
+  the proposal remained `pending_approval`;
+- the claim reads fresh database state rather than the captured execution
+  snapshot;
+- executed-action details and hashes are persisted, and the positive
+  campaign's executed digest matches its reviewed digest;
+- `local-core-2026-10-30-final` remains `da9cc8b12`.
+
+This is bounded acceptance, not universal reliability or a fresh
+real-provider send qualification. The full browser campaign and every core
+workflow were not rerun on this successor. Hosted deployment remains
+deferred, and no real email or live-service change occurred during
+verification.
