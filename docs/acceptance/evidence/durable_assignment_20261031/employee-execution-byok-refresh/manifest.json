@@ -1,7 +1,7 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-byok-refresh",
-  "source_checkpoint": "3385baa0f",
+  "source_checkpoint": "9ccd7b6c1",
   "files": {
     "README.md": {
       "sha256": "fd0165211fb2aef377eb9fc6ec588382a800d94beba97936b66b2dae24c3e947",
@@ -28,5 +28,5 @@
       "bytes": 5720
     }
   },
-  "final_candidate": "3385baa0f"
+  "final_candidate": "9ccd7b6c1"
 }
