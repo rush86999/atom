@@ -96,6 +96,11 @@ def _fixtures() -> dict:
         files["acceptance_pdf.pdf"] = buf.getvalue()
     except Exception:
         pass
+
+    # A dedicated semantic fixture with no lexical overlap to the query.
+    files["acceptance_fauna.txt"] = (
+        "The ornithology team recorded a scarlet macaw near the canopy walkway."
+    ).encode()
     return files
 
 
@@ -170,26 +175,45 @@ def data_group(ctx: Ctx) -> None:
     legs = data.get("legs") or data.get("stats") or {}
     lexical_ok = bool(results) and any(
         "ALPHA-TOKEN-9381".lower() in json.dumps(r).lower() for r in results)
+    cited = next((r for r in results if r.get("citation_path")), None)
+    citation_resolved = False
+    citation_cat = {}
+    if cited:
+        citation_cat = ctx.post("/api/rpc/documents.cat", json={"params": {
+            "path": cited["citation_path"]}})
+        cbody = citation_cat.json() if citation_cat.status_code == 200 else {}
+        cdata = cbody.get("data") or {}
+        ctext = cdata.get("content") or cdata.get("text") or json.dumps(cdata)
+        citation_resolved = ("L1:" in ctext
+                             and "ALPHA-TOKEN-9381" in ctext)
     ctx.record("SEARCH-04",
-               "verified" if lexical_ok and all(
-                   r.get("id") or r.get("path") or r.get("source") for r in results
-               ) else "partial",
-               [ctx.save("search/hybrid.json", rpc_body)],
-               notes=f"hits={len(results)} label={data.get('label') or data.get('mode')} "
-                     f"legs={json.dumps(legs)[:300]}")
+               "verified" if lexical_ok and cited and citation_resolved else "failed",
+               [ctx.save("search/hybrid.json", rpc_body),
+                ctx.save("search/citation_cat.json",
+                         citation_cat.json() if citation_cat else {})],
+               notes=f"hits={len(results)} citation_path={cited.get('citation_path') if cited else None} "
+                     f"resolved={citation_resolved} "
+                     f"legs={json.dumps(legs)[:200]}")
     ctx.record("SEARCH-01",
                "verified" if lexical_ok else "failed",
                [ctx.save("search/lexical.json", rpc_body)],
                notes="Exact rare token retrieved through documents.search")
+    semantic_query = "parrot spotted at the rainforest treetop path"
+    semantic = ctx.post("/api/rpc/documents.search", json={"params": {
+        "query": semantic_query, "limit": 5}})
+    sbody = semantic.json() if semantic.status_code == 200 else {}
+    sdata = sbody.get("data") or {}
+    sresults = sdata.get("results") or []
+    sstats = sdata.get("stats") or {}
+    lexical_zero = int(sstats.get("lexical_hits", 0)) == 0
+    semantic_hit = any("macaw" in json.dumps(r).lower() for r in sresults)
     ctx.record("SEARCH-02",
-               "verified" if any("zebra" in json.dumps(r).lower() for r in
-               (ctx.get("/api/documents/search",
-                        params={"q": "how many zebras were counted"}).json()
-                .get("results") or [])) else "partial",
-               [ctx.save("search/vector.json",
-                         ctx.get("/api/documents/search",
-                                 params={"q": "how many zebras were counted"}).json())],
-               notes="Semantic paraphrase retrieved through the LanceDB route")
+               "verified" if (semantic.status_code == 200 and lexical_zero
+                              and sstats.get("vector_hits", 0) >= 1
+                              and semantic_hit) else "failed",
+               [ctx.save("search/vector.json", sbody)],
+               notes=f"query={semantic_query!r} lexical_hits={sstats.get('lexical_hits')} "
+                     f"vector_hits={sstats.get('vector_hits')} semantic_hit={semantic_hit}")
     ctx.record("SEARCH-05",
                "verified" if ctx.post("/api/rpc/documents.search",
                                       json={"params": {"query": "zzzqqqxxx"}})
