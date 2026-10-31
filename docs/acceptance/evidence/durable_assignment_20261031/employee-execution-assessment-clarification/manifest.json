@@ -1,0 +1,16 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-assessment-clarification",
+  "source_checkpoint": "f8198c60e",
+  "final_candidate": "f8198c60e",
+  "files": {
+    "README.md": {
+      "sha256": "9b021798e4c0ac92f6570a46b626ceb5ba92c307e0dc4d674e49e63ec9bd72bb",
+      "bytes": 1654
+    },
+    "clarification-controls.log": {
+      "sha256": "91a0cc65b9ded38d5e50b1399977d050206efcbb89546f1482366e9e59b5460c",
+      "bytes": 4518
+    }
+  }
+}

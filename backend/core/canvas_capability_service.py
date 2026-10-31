@@ -1707,6 +1707,24 @@ async def assess_operation(
             item["subject_id"] for item in assessment_artifact
             if item["unresolved_requirements"]
         ],
+        "clarifications": [
+            {
+                "subject": item["subject_id"],
+                "requirement": requirement,
+                "answer": None,
+                "answered_at": None,
+            }
+            for item in assessment_artifact
+            for requirement in item["unresolved_requirements"]
+        ],
+        "clarification_state": (
+            "open" if any(item["unresolved_requirements"]
+                          for item in assessment_artifact) else "none"),
+        "request": {
+            "ask": str(ask or ""),
+            "execution_id": execution_id,
+            "execution_fingerprint": execution_fingerprint,
+        },
         "assessed_at": _now().isoformat(),
         # A new assessment invalidates any earlier human approval: the
         # authorization below is cleared here and must be granted again for
@@ -1728,6 +1746,7 @@ async def assess_operation(
         "review_reasons": review_reasons,
         "qualification": qualification,
         "unresolved_subjects": unresolved_subjects,
+        "clarification": assessment_clarification(canvas),
         "authorization": assessment_authorization(canvas, db=db),
         "assessments": review.get("assessments") or [],
         "errors": review.get("errors") or [],
@@ -2207,6 +2226,121 @@ def _assessment_authorization_state(
             if item.get("unresolved_requirements")
         ],
         "binding": binding,
+    }
+
+
+def assessment_clarification(canvas: Canvas) -> Dict[str, Any]:
+    """Durable clarification obligation attached to the current assessment."""
+    record = _canvas_content(canvas).get("assessment_review") or {}
+    requirements = list(record.get("clarifications") or [])
+    open_items = [item for item in requirements if not item.get("answer")]
+    state = record.get("clarification_state") or (
+        "open" if open_items else "none")
+    if requirements and not open_items:
+        state = "answered"
+    return {
+        "state": state,
+        "execution_id": record.get("execution_id"),
+        "request": record.get("request") or {},
+        "requirements": requirements,
+        "open_count": len(open_items),
+        "source_revision": record.get("source_revision"),
+        "policy_revision": record.get("policy_revision"),
+        "manifest_revision": record.get("manifest_revision"),
+    }
+
+
+def answer_assessment_clarification(
+    db, canvas: Canvas, user: Any, execution_id: str,
+    answers: Sequence[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Record answers to a durable clarification obligation.
+
+    The obligation keeps the original objective, request identity, source and
+    teaching revisions. Answering clears any approval (the inputs changed) and
+    advances the concurrency token with the same CAS used elsewhere.
+    """
+    fresh = _reload_canvas(db, canvas)
+    content = copy.deepcopy(_canvas_content(fresh))
+    record = content.get("assessment_review")
+    if not isinstance(record, dict) or not record:
+        raise CapabilityError(
+            "no_assessment", "There is no assessment on this canvas.", 409)
+    if str(record.get("execution_id")) != str(execution_id):
+        raise CapabilityError(
+            "stale_assessment",
+            "The named assessment is not the current one; re-read before "
+            "answering.",
+            409,
+            current_execution_id=record.get("execution_id"),
+        )
+    requirements = list(record.get("clarifications") or [])
+    if not requirements:
+        raise CapabilityError(
+            "no_clarification",
+            "This assessment has no open clarification requirement.",
+            409,
+        )
+    open_by_subject = {
+        str(item.get("subject")): item for item in requirements
+        if not item.get("answer")
+    }
+    if not answers:
+        raise CapabilityError(
+            "invalid_answer", "At least one answer is required.", 400)
+    for answer in answers:
+        if not isinstance(answer, dict):
+            raise CapabilityError(
+                "invalid_answer", "Each answer must be an object.", 400)
+        subject = str(answer.get("subject") or "")
+        text = str(answer.get("answer") or "").strip()
+        if subject not in open_by_subject:
+            raise CapabilityError(
+                "unknown_subject",
+                f"Subject '{subject}' has no open clarification requirement.",
+                400,
+            )
+        if not text:
+            raise CapabilityError(
+                "invalid_answer",
+                f"The answer for '{subject}' must be non-empty.",
+                400,
+            )
+        open_by_subject[subject]["answer"] = text
+        open_by_subject[subject]["answered_at"] = _now().isoformat()
+
+    observed_revision = record.get("canvas_revision")
+    observed_assessment_revision = record.get("assessment_revision")
+    # Answers are new inputs: any earlier approval no longer applies.
+    record["authorization"] = None
+    record["assessment_revision"] = int(observed_assessment_revision or 0) + 1
+    record["clarification_state"] = (
+        "answered" if all(item.get("answer") for item in requirements)
+        else "open")
+    content["assessment_review"] = record
+    written = _cas_update_assessment_content(
+        db, fresh,
+        observed_revision=observed_revision,
+        execution_id=str(record.get("execution_id")),
+        observed_assessment_revision=observed_assessment_revision,
+        new_content=content,
+    )
+    if not written:
+        db.rollback()
+        raise CapabilityError(
+            "assessment_conflict",
+            "The canvas changed while the answer was being recorded; reload "
+            "and answer the current assessment.",
+            409,
+        )
+    db.commit()
+    db.expire(fresh)
+    clarification = assessment_clarification(fresh)
+    return {
+        "success": True,
+        "canvas_id": fresh.id,
+        "clarification": clarification,
+        "ready_to_resume": clarification["open_count"] == 0,
     }
 
 

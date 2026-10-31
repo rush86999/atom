@@ -168,13 +168,16 @@ Closed with browser-level evidence:
 - exact-content approval through the public routes
   (`employee-execution-assessment-approval/`);
 - typed next-step outcomes at the assessment boundary — `execute` / `clarify` /
-  `propose` / `refuse`, with `reconcile` reserved (`f8198c60e`).
+  `propose` / `refuse`, with `reconcile` reserved (`f8198c60e`);
+- **durable assessment clarification**: the original objective, request
+  identity, source/teaching revisions and one obligation per unresolved
+  requirement persist on the canvas; answers use the same CAS, clear any prior
+  approval, and a full answer re-dispatches the same work
+  (`employee-execution-assessment-clarification/`).
 
 Still open:
 
-- durable ambiguity and standing authority **at the assessment boundary**
-  (assignment-level ambiguity and approval are covered; assessment clarification
-  is typed but not yet a durable obligation);
+- standing authority at the assessment boundary and for external effects;
 - bounded request/operation/assignment budgets and uncertain-effect
   reconciliation beyond the covered cancellation path;
 - presenting unapproved drafts vs authorized decisions in the canvas UI;

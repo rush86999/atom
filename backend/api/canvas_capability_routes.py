@@ -21,7 +21,9 @@ from core.canvas_capability_service import (
     CapabilityError,
     approve_assessment,
     assess_operation,
+    answer_assessment_clarification,
     assessment_authorization,
+    assessment_clarification,
     assessment_review_policy,
     authorize_canvas,
     bind_connected_dataset,
@@ -279,6 +281,48 @@ async def capability_assess(
             db, canvas, current_user, request.ask,
             max_subjects=request.max_subjects,
         )
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+class ClarifyRequest(BaseModel):
+    answers: List[Dict[str, Any]]
+
+
+@router.post("/{canvas_id}/capability/assess/{execution_id}/clarify")
+async def capability_clarify(
+    canvas_id: str,
+    execution_id: str,
+    request: ClarifyRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Answer a durable clarification, then resume the same work.
+
+    The obligation keeps the original objective, request identity, source and
+    teaching revisions. Once every requirement is answered the assessment is
+    re-dispatched against the same canvas and policy; the new execution
+    invalidates the old approval.
+    """
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        result = answer_assessment_clarification(
+            db, canvas, current_user, execution_id, request.answers)
+        if not result.get("ready_to_resume"):
+            return result
+        original = (result.get("clarification") or {}).get(
+            "request", {}).get("ask") or "Assess every selected row."
+        answers_text = "; ".join(
+            f"{item.get('subject')}: {item.get('answer')}"
+            for item in (result["clarification"]["requirements"]))
+        ask = (
+            f"{original} Clarification answers: {answers_text}. "
+            "Reassess every record under the policy using these answers."
+        )
+        resumed = await assess_operation(
+            db, canvas, current_user, ask)
+        resumed["clarification_resumed"] = True
+        return resumed
     except CapabilityError as exc:
         return _error(exc)
 
