@@ -291,7 +291,7 @@ All artifacts are under
 | `evidence/agent-radio.json` | `9c87b6211f91e1bec6b40e77618de97d538894d08bf29f2f6cc0430ea3aa9799` |
 | `evidence/install-restart.json` | `901bc52a8f7ad98f32c9bfef1e9e53d981b73d8561321c3204953ad06ae7e292` |
 | `evidence/test-count.txt` | `c6e0a1ed201e9b112974a8813d2281dc2aa2447ad3e90cdfa1e60a1b73c4e451` |
-| `evidence/frontend-dev.log` | `f092e93ab28578b8acd36deb80882f59161b8e58843364fa1d6de53e2f1ba3cc` |
+| `evidence/frontend-dev.txt` | `f092e93ab28578b8acd36deb80882f59161b8e58843364fa1d6de53e2f1ba3cc` |
 | `evidence/frontend-results.json` | `4b56ba3c037a6c5d18fa116ada51d91ceb57ae89fe4fce05739fdd6c2fa7cbf3` |
 
 The merged result records every source world per claim. The inventory's
