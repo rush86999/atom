@@ -34,12 +34,31 @@ def _agent(db, name: str) -> GenericAgent:
 
 
 @pytest.fixture
-def db():
-    from core.database import SessionLocal
+def db(tmp_path, monkeypatch):
+    """Self-contained database: create the schema in a fresh scratch file.
 
-    session = SessionLocal()
-    yield session
-    session.close()
+    The previous fixture opened the ambient SessionLocal and assumed the schema
+    already existed; on a clean test database both objective tests failed with
+    missing tables. Patch core.database.SessionLocal (the global the service
+    layer's get_db_session resolves at call time) to a session bound to a new
+    schema-initialized engine.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from core import database
+    from core.models import Base
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'objective_loop.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    monkeypatch.setattr(database, "SessionLocal", Session)
+    session = Session()
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()
 
 
 @pytest.mark.asyncio
@@ -70,12 +89,10 @@ async def test_loop_stops_at_definition_of_done(db, monkeypatch):
         },
     )
 
-    # The loop stopped at 2/5. NOTE: the returned status field currently says
-    # max_steps even though the predicate break fired (a separate shared-loop
-    # reporting bug handed to Agent 1); the call count is the discriminating
-    # evidence for termination.
     assert len(calls) == 2, f"loop ran {len(calls)} steps, expected early stop at 2"
     assert len(result["steps"]) == 2
+    # Frozen acceptance: stop at the satisfying step AND record why.
+    assert result["status"] == "objective_satisfied", result
 
 
 @pytest.mark.asyncio

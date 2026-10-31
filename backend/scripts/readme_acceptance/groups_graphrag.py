@@ -207,8 +207,11 @@ def goals(ctx: Ctx) -> None:
             "satisfied", lambda state: int(state.get("current_step", 0)) >= 2, 5))
         impossible_calls, impossible = asyncio.run(_run_loop_case(
             "impossible", lambda state: False, 3))
-        ok = (len(satisfied_calls) == 2 and len(satisfied.get("steps") or []) == 2
-              and len(impossible_calls) == 3)
+        ok = (len(satisfied_calls) == 2
+              and len(satisfied.get("steps") or []) == 2
+              and satisfied.get("status") == "objective_satisfied"
+              and len(impossible_calls) == 3
+              and impossible.get("status") == "max_steps_exceeded")
         ctx.record("GOAL-01", "verified" if ok else "failed",
                    [ctx.save("goals/objective_loop.json", {
                        "satisfied_calls": len(satisfied_calls),
@@ -216,12 +219,12 @@ def goals(ctx: Ctx) -> None:
                        "satisfied_steps": len(satisfied.get("steps") or []),
                        "impossible_calls": len(impossible_calls),
                        "impossible_status": impossible.get("status"),
-                       "note": "status field says max_steps despite the early "
-                               "predicate break; shared-loop reporting bug",
+                       "note": "frozen acceptance requires objective_satisfied on "
+                               "the early break and max_steps_exceeded on the control",
                    })],
-                   notes=f"predicate stop at {len(satisfied_calls)}/5 calls; "
-                         f"control burned {len(impossible_calls)}/3; "
-                         f"status reporting bug recorded")
+                   notes=f"predicate stop at {len(satisfied_calls)}/5 calls "
+                         f"status={satisfied.get('status')}; control burned "
+                         f"{len(impossible_calls)}/3 status={impossible.get('status')}")
     except Exception as exc:
         ctx.record("GOAL-01", "failed",
                    notes=f"objective loop execution failed: {exc}")
