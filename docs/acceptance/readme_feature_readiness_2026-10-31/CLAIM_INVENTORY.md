@@ -1,6 +1,6 @@
 # README feature-readiness claim inventory
 
-Generated: 2026-10-31T13:48:01.487993+00:00
+Generated: 2026-10-31T13:54:19.040363+00:00
 
 README: `README.md` @ `da9cc8b12de3639f59cc5b8ea84338c5f507dc6d` (tag `local-core-2026-10-30-final`), sha256 `392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0`
 
@@ -33,7 +33,7 @@ Eligible functional claims: **123** · tracked separately: 20
 | office | 8 | 7 | 1 | 0 | 0 | 0 | 0 |
 | oracle | 6 | 6 | 0 | 0 | 0 | 0 | 0 |
 | orchestration | 8 | 4 | 0 | 0 | 3 | 0 | 0 |
-| performance | 3 | 0 | 0 | 0 | 3 | 0 | 0 |
+| performance | 3 | 1 | 0 | 0 | 2 | 0 | 0 |
 | routing | 7 | 3 | 3 | 0 | 1 | 0 | 0 |
 | security | 8 | 8 | 0 | 0 | 0 | 0 | 0 |
 | vfs | 4 | 4 | 0 | 0 | 0 | 0 | 0 |
@@ -284,7 +284,7 @@ Eligible functional claims: **123** · tracked separately: 20
 |---|---|---|---|---|
 | PERF-01 | L40 | Measure governance check latency P99 | `repo benchmark` | **unverified** |
 | PERF-02 | L54 | Measure cached governance throughput | `repo benchmark` | **unverified** |
-| PERF-03 | L15 | Count collected test functions in the named suite | `pytest --collect-only` | **unverified** |
+| PERF-03 | L15 | Count collected test functions in the named suite | `pytest --collect-only` | **verified** |
 
 ### compatibility
 
@@ -1156,4 +1156,11 @@ Eligible functional claims: **123** · tracked separately: 20
 - Acceptance: Attempt to mint/store a token
 - Expected: Refuses instead of generating an ephemeral key
 - Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/security/fail_closed.json`
+
+### PERF-03 — verified
+
+- Claim: 85k+ test functions
+- Acceptance: Collect the suite and count functions
+- Expected: Collected count is at least 85,000 across the documented files
+- Evidence: `docs/acceptance/readme_feature_readiness_2026-10-31/evidence/test-count.txt`
 

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "README feature-readiness claim inventory",
-  "generated_at": "2026-10-31T13:48:01.487993+00:00",
+  "generated_at": "2026-10-31T13:54:19.040363+00:00",
   "readme": {
     "path": "README.md",
     "sha256": "392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0",
@@ -2870,10 +2870,12 @@
       "acceptance": "Collect the suite and count functions",
       "expected": "Collected count is at least 85,000 across the documented files",
       "external": false,
-      "status": "unverified",
-      "evidence": [],
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/test-count.txt"
+      ],
       "blocker": "",
-      "notes": ""
+      "notes": "93,825 `def test_` functions across 3,749 files exceeds the README's 85k+ claim (count method: grep, not pytest collection) [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/test-count-results.json]"
     },
     {
       "id": "COMPAT-01",
@@ -3285,10 +3287,10 @@
     },
     "performance": {
       "total": 3,
-      "verified": 0,
+      "verified": 1,
       "partial": 0,
       "failed": 0,
-      "unverified": 3,
+      "unverified": 2,
       "blocked_external": 0,
       "environment_limited": 0,
       "architecture_only": 0,
@@ -3318,7 +3320,7 @@
     }
   },
   "acceptance_run": {
-    "results_file": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/merged.json",
+    "results_file": "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/merged-results.json",
     "generated_at": null,
     "config": null,
     "harness": "backend/scripts/readme_acceptance + scripts/acceptance/readme_local_install.py"

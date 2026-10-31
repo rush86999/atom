@@ -20,7 +20,7 @@
 | Coverage | **80.5%** |
 | Not verified (partial / unverified / blocked / env-limited / inaccurate) | 24 |
 | Security claims (tracked separately) | 8 / 8 verified |
-| Performance claims (tracked separately) | 0 / 3 verified |
+| Performance claims (tracked separately) | 1 / 3 verified |
 | Compatibility claims (tracked separately) | 0 / 4 verified |
 | Comparative marketing claims (tracked separately) | 0 / 5 verified |
 
@@ -257,9 +257,12 @@ outbound gatekeeper HITL + masking; data-taint block; external MCP connect;
 unauthenticated API rejection; production fail-closed without an encryption
 key.
 
-**Performance — 0/3 verified.** No reproducible governance benchmark script was
-found in the tree for the advertised `0.027 ms P99` / `616k ops/s` figures.
-These were not measured and are not claimed.
+**Performance — 1/3 verified.** The advertised `85k+ test functions` is
+supported: the tree contains **93,825** `def test_` functions across 3,749 test
+files (grep count; the README's 84,737/2,759 figure is conservative). No
+reproducible governance benchmark script was found for the advertised
+`0.027 ms P99` / `616k ops/s` figures; those two were not measured and are not
+claimed.
 
 **Compatibility — 0/4 fully verified.** Python 3.11 + the pinned backend stack
 booted and served. The 3.12/3.13/3.14 guard matrix, PostgreSQL dialect path,
@@ -280,13 +283,14 @@ All artifacts are under
 
 | Artifact | sha256 |
 |---|---|
-| `CLAIM_INVENTORY.json` | `f403295415c672642c502ca335484a31f641fbf6cef63be5223431fdffa3b9c2` |
-| `evidence/merged-results.json` | `1645e0e037d6bbc11da28c97bffe5e64a73aaab455f4af80f657056676c2c799` |
+| `CLAIM_INVENTORY.json` | `3c30ba28d285d3bd64733696e0008dbb0ba428a7d9e670a8bbeac63fd2b6fe08` |
+| `evidence/merged-results.json` | `40950d0beb82c19b8a93af54eac1e77486462335183c5f01b7f43c06eb6339be` |
 | `evidence/all-groups.json` | `e18b410fc8db7dfa1bd2a027b676b9cc28c96467ddc740d0ce9c7146dd7e374e` |
 | `evidence/data-graph-memory.json` | `a2c4bf35b224290297a7271df5e66074c738217b011d23fe22f6d2b1afa3cd84` |
 | `evidence/core-chat-episode.json` | `51d0c6dcccca9100eda90d3062abcdb91f61cb9f34221d1e0201c620b3ace154` |
 | `evidence/agent-radio.json` | `9c87b6211f91e1bec6b40e77618de97d538894d08bf29f2f6cc0430ea3aa9799` |
 | `evidence/install-restart.json` | `901bc52a8f7ad98f32c9bfef1e9e53d981b73d8561321c3204953ad06ae7e292` |
+| `evidence/test-count.txt` | `c6e0a1ed201e9b112974a8813d2281dc2aa2447ad3e90cdfa1e60a1b73c4e451` |
 
 The merged result records every source world per claim. The inventory's
 per-claim evidence paths point at the throwaway worlds; the durable copies above

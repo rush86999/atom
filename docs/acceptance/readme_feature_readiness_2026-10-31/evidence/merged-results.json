@@ -1,12 +1,13 @@
 {
   "schema_version": 1,
   "harness": "backend/scripts/readme_acceptance + scripts/acceptance/readme_local_install.py",
-  "merged_at": "2026-10-31T13:48:01.431635+00:00",
+  "merged_at": "2026-10-31T13:54:18.978787+00:00",
   "inputs": [
     "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json",
     "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json",
     "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-world/evidence/core.json",
     "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio.json",
+    "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/test-count-results.json",
     "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json"
   ],
   "results": [
@@ -780,6 +781,15 @@
         "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/orchestration/depth.json"
       ],
       "notes": "DelegationChain stores max_depth but AgentFleetService.recruit_member does not reject a link beyond it; the README/CLAUDE.md enforcement claim is overstated. [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "PERF-03",
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/test-count.txt"
+      ],
+      "notes": "93,825 `def test_` functions across 3,749 files exceeds the README's 85k+ claim (count method: grep, not pytest collection) [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/test-count-results.json]",
       "blocker": ""
     },
     {
