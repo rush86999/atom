@@ -1,0 +1,68 @@
+Assignments
+Teaching cannot govern this assignment until the missing context is confirmed. (missing qualification)
+
+Start durable work
+
+Refresh data
+No employee binding
+Demo Assistant · system
+Sales Assistant · Sales
+Sales Assistant · Sales
+Review Grant Applications From Assistant · General
+Review Grant Applications From Assistant · General
+grant_applications.csv / grant_applications · 3 rows
+grant_applications_revised.csv / grant_applications_revised · 3 rows
+clean_quote.csv / clean_quote · 3 rows
+integrated_quote.csv / integrated_quote · 3 rows
+Document
+Presentation
+Email draft
+No calculation / infer
+Count rows
+Sum Requested Units
+Sum Award Amount
+Other business concept…
+Let Atom choose from a permitted scope instead of the selected data
+Advanced (optional)
+
+Sending stays disabled unless this local build enables the controlled transport or a separate live-send authorization is in force. Any send step still requires explicit approval.
+
+Start assignment
+Sum Price for the revised clean quote sheet 2026-10-31
+completed
+Sum Price for the integrated quote sheet 2026-10-31 run 2
+completed
+
+Sum Price for the revised clean quote sheet 2026-10-31
+
+completed
+
+Plan revision 1 · teaching 4ac061d30c13cf0a+map
+
+Teaching is snapshotted at start. Later teaching changes apply to new work; this assignment keeps its accepted revision until an explicit reassessment.
+
+Completed work
+
+Aggregate workbook source
+Render Sum Price for the revised clean quote sheet 2026-10-31
+Result: 2225.75 USD · Net Amount
+
+Artifacts
+
+Sum Price for the revised clean quote sheet 2026-10-31
+applied
+Download
+
+Mappings
+
+Price → Net Amount
+
+Source: upload · Sheet: clean_quote · Version: 07e5d4bad0b1
+
+Required unit: not specified · Established: source-established (USD)
+
+Mapping revision: 2 · Teaching revision: 4ac061d30c13cf0a+map
+
+Correct mapping
+Resume
+Cancel

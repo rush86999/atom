@@ -1,0 +1,73 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.11.16, pytest-7.4.4, pluggy-1.6.0
+benchmark: 5.2.3 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+rootdir: /Users/rushiparikh/projects/atom-employee-execution/backend
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-0.23.8, benchmark-5.2.3, respx-0.22.0, freezegun-0.4.2, repeat-0.9.4, json-report-1.5.0, timeout-2.4.0, schemathesis-3.39.16, metadata-3.1.1, cov-4.1.0, html-4.2.0, hypothesis-6.151.9, base-url-2.1.0, subtests-0.14.2, playwright-0.5.2, Faker-22.7.0, xdist-3.6.1, rerunfailures-16.1
+asyncio: mode=Mode.AUTO
+
+----------------------------- live log collection ------------------------------
+2026-10-31 15:32:53 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+collected 62 items / 54 deselected / 8 selected
+
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect 
+-------------------------------- live log setup --------------------------------
+2026-10-31 15:32:53 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-10-31 15:32:53 [    INFO] EscalationManager initialized
+2026-10-31 15:32:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 15:32:53 [    INFO] EscalationManager initialized
+2026-10-31 15:32:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 15:32:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-31 15:32:53 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-10-31 15:32:53 [    INFO] runtime identity: source_id=8610b5ebba16-dirty.b6c38247a676 revision=8610b5ebba16 dirty=True (0 modified, 4 untracked)
+PASSED                                                                   [ 12%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [ 25%]
+tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [ 37%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 50%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 62%]
+tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 75%]
+tests/test_assignment_routes.py::test_cancelled_assignment_cannot_be_approved 
+-------------------------------- live log call ---------------------------------
+2026-10-31 15:32:55 [    INFO] HTTP Request: POST http://testserver/api/assignments/f56c4316-e849-4ac2-8e32-6a257a4ea56d/approve/send "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 87%]
+tests/test_assignment_routes.py::test_ambiguous_mapping_correction_requires_source_identity 
+-------------------------------- live log call ---------------------------------
+2026-10-31 15:32:55 [    INFO] HTTP Request: POST http://testserver/api/assignments/7e5368cd-536b-454d-abb5-8b17d2968123/mappings/correct "HTTP/1.1 409 Conflict"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754: PytestAssertRewriteWarning: Module already imported so cannot be rewritten: tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 124 warnings
+  /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_user_management_monitoring.py: 0.054 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============== 8 passed, 54 deselected, 130 warnings in 16.01s ================
