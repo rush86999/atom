@@ -1550,7 +1550,8 @@ async def assess_operation(
         clarification_text = (
             "\n\nCLARIFICATION ANSWERS\n"
             + "\n".join(
-                f"- subject={item.get('subject')} | "
+                f"- requirement_id={item.get('requirement_id')} | "
+                f"subject={item.get('subject')} | "
                 f"requirement={item.get('requirement')} | "
                 f"answer={item.get('answer')}"
                 for item in clarification_answers
@@ -1724,13 +1725,23 @@ async def assess_operation(
         ],
         "clarifications": [
             {
+                # Stable identity: two requirements on one subject are two
+                # distinct obligations, not one keyed by subject.
+                "requirement_id": _sha256_json({
+                    "execution_id": execution_id,
+                    "subject": item["subject_id"],
+                    "ordinal": ordinal,
+                    "requirement": requirement,
+                })[:20],
+                "execution_id": execution_id,
                 "subject": item["subject_id"],
                 "requirement": requirement,
                 "answer": None,
                 "answered_at": None,
             }
             for item in assessment_artifact
-            for requirement in item["unresolved_requirements"]
+            for ordinal, requirement in enumerate(
+                item["unresolved_requirements"])
         ],
         "clarification_state": (
             "open" if any(item["unresolved_requirements"]
@@ -2259,9 +2270,65 @@ def assessment_clarification(canvas: Canvas) -> Dict[str, Any]:
         "request": record.get("request") or {},
         "requirements": requirements,
         "open_count": len(open_items),
+        "historical_answers": list(record.get("historical_answers") or []),
         "source_revision": record.get("source_revision"),
         "policy_revision": record.get("policy_revision"),
         "manifest_revision": record.get("manifest_revision"),
+    }
+
+
+def clarification_revision_mismatch(
+    canvas: Canvas, record: Dict[str, Any],
+) -> List[str]:
+    """Which accepted revisions have moved since the assessment was recorded."""
+    manifest = get_manifest(canvas) or {}
+    current_source = _dataset_source(canvas).get("source_version")
+    current_policy = policy_revision(manifest) if manifest else None
+    current_manifest = manifest.get("manifest_revision")
+    mismatch: List[str] = []
+    if record.get("canvas_revision") != current_revision(canvas):
+        mismatch.append("canvas_revision_changed")
+    if record.get("source_revision") != current_source:
+        mismatch.append("source_revision_changed")
+    if record.get("policy_revision") != current_policy:
+        mismatch.append("policy_revision_changed")
+    if record.get("manifest_revision") != current_manifest:
+        mismatch.append("manifest_revision_changed")
+    return mismatch
+
+
+def clarification_resume_readiness(canvas: Canvas) -> Dict[str, Any]:
+    """Whether the answered obligation may still be resumed on this canvas."""
+    record = _canvas_content(canvas).get("assessment_review") or {}
+    if not isinstance(record, dict) or not record:
+        return {"state": "no_assessment", "ready": False}
+    open_items = [
+        item for item in (record.get("clarifications") or [])
+        if not item.get("answer")
+    ]
+    if open_items:
+        return {
+            "state": "open",
+            "ready": False,
+            "open_count": len(open_items),
+        }
+    mismatch = clarification_revision_mismatch(canvas, record)
+    if mismatch:
+        return {
+            "state": "reassessment_required",
+            "ready": False,
+            "stale": mismatch,
+            "execution_id": record.get("execution_id"),
+        }
+    return {
+        "state": "ready_to_resume",
+        "ready": True,
+        "execution_id": record.get("execution_id"),
+        "accepted_revisions": {
+            "source": record.get("source_revision"),
+            "policy": record.get("policy_revision"),
+            "manifest": record.get("manifest_revision"),
+        },
     }
 
 
@@ -2269,11 +2336,12 @@ def answer_assessment_clarification(
     db, canvas: Canvas, user: Any, execution_id: str,
     answers: Sequence[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    """Record answers to a durable clarification obligation.
+    """Record answers against specific obligations.
 
-    The obligation keeps the original objective, request identity, source and
-    teaching revisions. Answering clears any approval (the inputs changed) and
-    advances the concurrency token with the same CAS used elsewhere.
+    An answer identifies its obligation by ``requirement_id``. A subject-only
+    answer is accepted only when that subject has exactly one open
+    requirement; otherwise it is refused as ambiguous, because collapsing two
+    requirements onto one subject is how an answer lands on the wrong one.
     """
     fresh = _reload_canvas(db, canvas)
     content = copy.deepcopy(_canvas_content(fresh))
@@ -2296,36 +2364,132 @@ def answer_assessment_clarification(
             "This assessment has no open clarification requirement.",
             409,
         )
-    open_by_subject = {
-        str(item.get("subject")): item for item in requirements
-        if not item.get("answer")
-    }
     if not answers:
         raise CapabilityError(
             "invalid_answer", "At least one answer is required.", 400)
+
+    open_by_id = {
+        str(item.get("requirement_id")): item for item in requirements
+        if not item.get("answer")
+    }
+    open_by_subject: Dict[str, List[Dict[str, Any]]] = {}
+    for item in open_by_id.values():
+        open_by_subject.setdefault(str(item.get("subject")), []).append(item)
+
+    updates: Dict[str, str] = {}
     for answer in answers:
         if not isinstance(answer, dict):
             raise CapabilityError(
                 "invalid_answer", "Each answer must be an object.", 400)
-        subject = str(answer.get("subject") or "")
+        requirement_id = str(answer.get("requirement_id") or "").strip()
+        subject = str(answer.get("subject") or "").strip()
         text = str(answer.get("answer") or "").strip()
-        if subject not in open_by_subject:
-            raise CapabilityError(
-                "unknown_subject",
-                f"Subject '{subject}' has no open clarification requirement.",
-                400,
-            )
+        if requirement_id:
+            if requirement_id not in open_by_id:
+                raise CapabilityError(
+                    "unknown_requirement",
+                    f"Requirement '{requirement_id}' is not open on this "
+                    "assessment.",
+                    400,
+                )
+            target = open_by_id[requirement_id]
+        else:
+            candidates = open_by_subject.get(subject) or []
+            if not candidates:
+                raise CapabilityError(
+                    "unknown_subject",
+                    f"Subject '{subject}' has no open clarification "
+                    "requirement.",
+                    400,
+                )
+            if len(candidates) > 1:
+                raise CapabilityError(
+                    "ambiguous_requirement",
+                    f"Subject '{subject}' has {len(candidates)} open "
+                    "requirements; identify the requirement_id.",
+                    400,
+                    requirement_ids=[
+                        item.get("requirement_id") for item in candidates],
+                )
+            target = candidates[0]
         if not text:
             raise CapabilityError(
                 "invalid_answer",
-                f"The answer for '{subject}' must be non-empty.",
+                f"The answer for '{target.get('requirement_id')}' must be "
+                "non-empty.",
                 400,
             )
-        open_by_subject[subject]["answer"] = text
-        open_by_subject[subject]["answered_at"] = _now().isoformat()
+        target_id = str(target.get("requirement_id"))
+        if target_id in updates and updates[target_id] != text:
+            raise CapabilityError(
+                "conflicting_answer",
+                f"Two different answers were supplied for '{target_id}'.",
+                400,
+            )
+        updates[target_id] = text
 
-    observed_revision = record.get("canvas_revision")
+    mismatch = clarification_revision_mismatch(fresh, record)
+    observed_revision = current_revision(fresh)
     observed_assessment_revision = record.get("assessment_revision")
+    if mismatch:
+        # The accepted revisions moved: keep the answers as HISTORICAL input
+        # and require a reassessment. They are never silently transferred.
+        history = list(record.get("historical_answers") or [])
+        answered_at = _now().isoformat()
+        for requirement_id, text in updates.items():
+            item = open_by_id[requirement_id]
+            history.append({
+                "requirement_id": requirement_id,
+                "subject": item.get("subject"),
+                "requirement": item.get("requirement"),
+                "answer": text,
+                "answered_at": answered_at,
+                "reason": "revisions_changed",
+                "stale": list(mismatch),
+                "accepted_revisions": {
+                    "source": record.get("source_revision"),
+                    "policy": record.get("policy_revision"),
+                    "manifest": record.get("manifest_revision"),
+                },
+            })
+        record["historical_answers"] = history
+        record["assessment_revision"] = (
+            int(observed_assessment_revision or 0) + 1)
+        content["assessment_review"] = record
+        written = _cas_update_assessment_content(
+            db, fresh,
+            observed_revision=observed_revision,
+            execution_id=str(record.get("execution_id")),
+            observed_assessment_revision=observed_assessment_revision,
+            new_content=content,
+        )
+        if not written:
+            db.rollback()
+            raise CapabilityError(
+                "assessment_conflict",
+                "The canvas changed while the answer was being recorded.",
+                409,
+            )
+        db.commit()
+        db.expire(fresh)
+        return {
+            "success": False,
+            "canvas_id": fresh.id,
+            "state": "reassessment_required",
+            "outcome": "refuse",
+            "stale": mismatch,
+            "answers_preserved": [
+                item for item in history if item.get("answered_at") == answered_at
+            ],
+            "clarification": assessment_clarification(fresh),
+            "ready_to_resume": False,
+        }
+
+    answered_at = _now().isoformat()
+    for requirement_id, text in updates.items():
+        open_by_id[requirement_id]["answer"] = text
+        open_by_id[requirement_id]["answered_at"] = answered_at
+
     # Answers are new inputs: any earlier approval no longer applies.
     record["authorization"] = None
     record["assessment_revision"] = int(observed_assessment_revision or 0) + 1
@@ -2354,6 +2518,7 @@ def answer_assessment_clarification(
     return {
         "success": True,
         "canvas_id": fresh.id,
+        "state": clarification["state"],
         "clarification": clarification,
         "ready_to_resume": clarification["open_count"] == 0,
     }

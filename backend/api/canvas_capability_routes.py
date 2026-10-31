@@ -25,6 +25,7 @@ from core.canvas_capability_service import (
     assessment_authorization,
     assessment_clarification,
     assessment_review_policy,
+    clarification_resume_readiness,
     authorize_canvas,
     bind_connected_dataset,
     bind_dataset,
@@ -310,6 +311,21 @@ async def capability_clarify(
             db, canvas, current_user, execution_id, request.answers)
         if not result.get("ready_to_resume"):
             return result
+        # Re-read and re-validate immediately before dispatch: a policy/source/
+        # manifest change between recording the answer and resuming must not
+        # silently reuse the answer under the new rules.
+        canvas = _canvas(db, canvas_id, current_user)
+        readiness = clarification_resume_readiness(canvas)
+        if not readiness.get("ready"):
+            return {
+                "success": False,
+                "canvas_id": canvas.id,
+                "state": readiness.get("state"),
+                "outcome": "refuse",
+                "stale": readiness.get("stale") or [],
+                "clarification": assessment_clarification(canvas),
+                "ready_to_resume": False,
+            }
         original = (result.get("clarification") or {}).get(
             "request", {}).get("ask") or "Assess every selected row."
         resumed = await assess_operation(

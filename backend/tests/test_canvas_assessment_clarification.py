@@ -290,3 +290,311 @@ def test_answer_after_reassessment_is_stale(store, user, monkeypatch):
         assert exc.value.extra["current_execution_id"] == second["execution_id"]
     finally:
         db.close()
+
+
+def test_two_requirements_on_one_subject_require_requirement_ids(
+        store, user, monkeypatch):
+    from core.canvas_capability_service import (
+        CapabilityError, answer_assessment_clarification,
+    )
+
+    Session, _ = store
+    db = Session()
+    try:
+        canvas = db.query(Canvas).first()
+        _prepare(db, canvas, user)
+        _fake_review(monkeypatch)
+        _FAKE["unresolved"] = {
+            "R-4": ["Confirm the amount.", "Confirm the delivery term."]}
+        result = _assess(db, canvas, user)
+        requirements = [
+            item for item in result["clarification"]["requirements"]
+            if item["subject"] == "R-4"]
+        assert len(requirements) == 2
+        amount_id = next(
+            item["requirement_id"] for item in requirements
+            if item["requirement"] == "Confirm the amount.")
+        term_id = next(
+            item["requirement_id"] for item in requirements
+            if item["requirement"] == "Confirm the delivery term.")
+        assert amount_id != term_id
+
+        # A subject-only answer is ambiguous and refused.
+        with pytest.raises(CapabilityError) as exc:
+            answer_assessment_clarification(
+                db, canvas, user, result["execution_id"],
+                [{"subject": "R-4", "answer": "95.00"}],
+            )
+        assert exc.value.code == "ambiguous_requirement"
+        assert set(exc.value.extra["requirement_ids"]) == {amount_id, term_id}
+
+        # Identifying the obligation lands on the right one.
+        answered = answer_assessment_clarification(
+            db, canvas, user, result["execution_id"],
+            [{"requirement_id": amount_id, "answer": "95.00"}],
+        )
+        by_id = {item["requirement_id"]: item
+                 for item in answered["clarification"]["requirements"]}
+        assert by_id[amount_id]["answer"] == "95.00"
+        assert by_id[term_id]["answer"] is None
+        assert answered["clarification"]["open_count"] == 1
+    finally:
+        db.close()
+
+
+def test_reordered_answers_and_conflicting_replay(
+        store, user, monkeypatch):
+    from core.canvas_capability_service import (
+        CapabilityError, answer_assessment_clarification,
+    )
+
+    Session, _ = store
+    db = Session()
+    try:
+        canvas = db.query(Canvas).first()
+        _prepare(db, canvas, user)
+        _fake_review(monkeypatch)
+        _FAKE["unresolved"] = {
+            "R-4": ["Confirm the amount.", "Confirm the delivery term."]}
+        result = _assess(db, canvas, user)
+        requirements = result["clarification"]["requirements"]
+        amount_id = next(
+            item["requirement_id"] for item in requirements
+            if item["requirement"] == "Confirm the amount.")
+        term_id = next(
+            item["requirement_id"] for item in requirements
+            if item["requirement"] == "Confirm the delivery term.")
+
+        # Reversed order must still bind to the right obligation.
+        answered = answer_assessment_clarification(
+            db, canvas, user, result["execution_id"],
+            [
+                {"requirement_id": term_id, "answer": "NET-30"},
+                {"requirement_id": amount_id, "answer": "95.00"},
+            ],
+        )
+        by_id = {item["requirement_id"]: item
+                 for item in answered["clarification"]["requirements"]}
+        assert by_id[amount_id]["answer"] == "95.00"
+        assert by_id[term_id]["answer"] == "NET-30"
+        assert answered["ready_to_resume"] is True
+
+        # Conflicting answers for one obligation in a single payload refuse.
+        _fake_review(monkeypatch)
+        _FAKE["unresolved"] = {"R-4": ["Confirm the amount."]}
+        second = _assess(db, canvas, user)
+        rid = second["clarification"]["requirements"][0]["requirement_id"]
+        with pytest.raises(CapabilityError) as exc:
+            answer_assessment_clarification(
+                db, canvas, user, second["execution_id"],
+                [
+                    {"requirement_id": rid, "answer": "95.00"},
+                    {"requirement_id": rid, "answer": "120.00"},
+                ],
+            )
+        assert exc.value.code == "conflicting_answer"
+    finally:
+        db.close()
+
+
+def test_changed_policy_preserves_the_answer_as_history(
+        store, user, monkeypatch):
+    from core.canvas_capability_service import (
+        answer_assessment_clarification, set_manifest,
+    )
+
+    Session, _ = store
+    db = Session()
+    try:
+        canvas = db.query(Canvas).first()
+        _prepare(db, canvas, user)
+        _fake_review(monkeypatch)
+        _FAKE["unresolved"] = {"R-4": ["Confirm the amount."]}
+        result = _assess(db, canvas, user)
+        rid = result["clarification"]["requirements"][0]["requirement_id"]
+
+        changed = _manifest()
+        changed["task_policy"] = "Approve everything. Deny nothing."
+        set_manifest(db, canvas, user, changed)
+
+        answered = answer_assessment_clarification(
+            db, canvas, user, result["execution_id"],
+            [{"requirement_id": rid, "answer": "95.00"}],
+        )
+        assert answered["success"] is False
+        assert answered["state"] == "reassessment_required"
+        assert answered["outcome"] == "refuse"
+        assert answered["ready_to_resume"] is False
+        assert "policy_revision_changed" in answered["stale"]
+        assert answered["clarification"]["state"] == "open"
+        assert answered["clarification"]["open_count"] == 1
+        assert answered["clarification"]["requirements"][0]["answer"] is None
+        history = answered["clarification"]["historical_answers"]
+        assert history and history[0]["requirement_id"] == rid
+        assert history[0]["answer"] == "95.00"
+        assert history[0]["reason"] == "revisions_changed"
+    finally:
+        db.close()
+
+
+def test_changed_source_preserves_the_answer_as_history(
+        store, user, monkeypatch):
+    from core.canvas_capability_service import (
+        answer_assessment_clarification, bind_dataset,
+    )
+
+    Session, _ = store
+    db = Session()
+    try:
+        canvas = db.query(Canvas).first()
+        _prepare(db, canvas, user)
+        _fake_review(monkeypatch)
+        _FAKE["unresolved"] = {"R-4": ["Confirm the amount."]}
+        result = _assess(db, canvas, user)
+        rid = result["clarification"]["requirements"][0]["requirement_id"]
+
+        bind_dataset(
+            db, canvas, user,
+            ["Ref", "Amount", "Status", "Note"],
+            [["R-1", 121, "Open", "alpha"]],
+            source={"file_name": "clarify.csv", "sha256": "new-source-sha"},
+        )
+        answered = answer_assessment_clarification(
+            db, canvas, user, result["execution_id"],
+            [{"requirement_id": rid, "answer": "95.00"}],
+        )
+        assert answered["state"] == "reassessment_required"
+        assert "source_revision_changed" in answered["stale"]
+        assert answered["clarification"]["open_count"] == 1
+    finally:
+        db.close()
+
+
+def test_multiple_requirements_on_one_subject_need_requirement_ids(
+        store, user, monkeypatch):
+    from core.canvas_capability_service import (
+        CapabilityError, answer_assessment_clarification,
+    )
+
+    Session, _ = store
+    db = Session()
+    try:
+        canvas = db.query(Canvas).first()
+        _prepare(db, canvas, user)
+        _fake_review(monkeypatch)
+        _FAKE["unresolved"] = {
+            "R-4": ["Confirm the amount.", "Confirm the currency."]}
+        result = _assess(db, canvas, user)
+        requirements = result["clarification"]["requirements"]
+        assert len(requirements) == 2
+        assert len({item["requirement_id"] for item in requirements}) == 2
+        assert all(item["execution_id"] == result["execution_id"]
+                   for item in requirements)
+
+        with pytest.raises(CapabilityError) as exc:
+            answer_assessment_clarification(
+                db, canvas, user, result["execution_id"],
+                [{"subject": "R-4", "answer": "95.00"}])
+        assert exc.value.code == "ambiguous_requirement"
+        assert len(exc.value.extra["requirement_ids"]) == 2
+
+        answered = answer_assessment_clarification(
+            db, canvas, user, result["execution_id"],
+            [
+                {"requirement_id": requirements[0]["requirement_id"],
+                 "answer": "95.00"},
+                {"requirement_id": requirements[1]["requirement_id"],
+                 "answer": "USD"},
+            ])
+        assert answered["ready_to_resume"] is True
+        assert answered["clarification"]["state"] == "answered"
+        assert [item["answer"] for item in
+                answered["clarification"]["requirements"]] == ["95.00", "USD"]
+    finally:
+        db.close()
+
+
+def test_unknown_requirement_id_is_refused(store, user, monkeypatch):
+    from core.canvas_capability_service import (
+        CapabilityError, answer_assessment_clarification,
+    )
+
+    Session, _ = store
+    db = Session()
+    try:
+        canvas = db.query(Canvas).first()
+        _prepare(db, canvas, user)
+        _fake_review(monkeypatch)
+        _FAKE["unresolved"] = {"R-4": ["Confirm the amount."]}
+        result = _assess(db, canvas, user)
+        with pytest.raises(CapabilityError) as exc:
+            answer_assessment_clarification(
+                db, canvas, user, result["execution_id"],
+                [{"requirement_id": "req-does-not-exist", "answer": "95"}])
+        assert exc.value.code == "unknown_requirement"
+    finally:
+        db.close()
+
+
+def test_conflicting_answers_for_one_requirement_are_refused(
+        store, user, monkeypatch):
+    from core.canvas_capability_service import (
+        CapabilityError, answer_assessment_clarification,
+    )
+
+    Session, _ = store
+    db = Session()
+    try:
+        canvas = db.query(Canvas).first()
+        _prepare(db, canvas, user)
+        _fake_review(monkeypatch)
+        _FAKE["unresolved"] = {"R-4": ["Confirm the amount."]}
+        result = _assess(db, canvas, user)
+        requirement_id = result["clarification"]["requirements"][0][
+            "requirement_id"]
+        with pytest.raises(CapabilityError) as exc:
+            answer_assessment_clarification(
+                db, canvas, user, result["execution_id"],
+                [
+                    {"requirement_id": requirement_id, "answer": "95"},
+                    {"requirement_id": requirement_id, "answer": "96"},
+                ])
+        assert exc.value.code == "conflicting_answer"
+    finally:
+        db.close()
+
+
+def test_changed_revision_preserves_answers_and_requires_reassessment(
+        store, user, monkeypatch):
+    from core.canvas_capability_service import (
+        answer_assessment_clarification, set_manifest,
+    )
+
+    Session, _ = store
+    db = Session()
+    try:
+        canvas = db.query(Canvas).first()
+        _prepare(db, canvas, user)
+        _fake_review(monkeypatch)
+        _FAKE["unresolved"] = {"R-4": ["Confirm the amount."]}
+        result = _assess(db, canvas, user)
+        requirement_id = result["clarification"]["requirements"][0][
+            "requirement_id"]
+
+        changed = _manifest()
+        changed["task_policy"] = "Deny everything regardless of fields."
+        set_manifest(db, canvas, user, changed)
+
+        answer = answer_assessment_clarification(
+            db, canvas, user, result["execution_id"],
+            [{"requirement_id": requirement_id, "answer": "95.00"}])
+        assert answer["success"] is False
+        assert answer["state"] == "reassessment_required"
+        assert answer["ready_to_resume"] is False
+        assert "policy_revision_changed" in answer["stale"]
+        assert answer["answers_preserved"][0]["answer"] == "95.00"
+        assert answer["clarification"]["open_count"] == 1
+        assert answer["clarification"]["historical_answers"][0][
+            "answer"] == "95.00"
+    finally:
+        db.close()
