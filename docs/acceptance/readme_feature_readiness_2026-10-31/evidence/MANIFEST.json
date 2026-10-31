@@ -52,13 +52,13 @@
     },
     {
       "path": "COVERAGE_REPORT_2026-10-31.md",
-      "sha256": "325b7d9c193dce000b53868f03f5994f223ed68c93f0b5b985acb3239beb1866",
-      "bytes": 14742
+      "sha256": "bd8e872a6e6984af29f282797e34e2c80b33eb15ddae8131259389eb235afdf8",
+      "bytes": 16255
     },
     {
       "path": "VERIFIER_REVIEW_REQUEST.md",
-      "sha256": "148269eaf70803df8b3fd90c7b7fd3da24da13733c8fee2dc29074064af4fe3b",
-      "bytes": 7199
+      "sha256": "8564e673e71bb482e7ed947578db5b6b3738e0f04d9fe737a8a1a6cf12c978ae",
+      "bytes": 8510
     },
     {
       "path": "NEXT_CLAIM_BATCHES_2026-10-31.md",
@@ -187,8 +187,8 @@
     },
     {
       "path": "REMAINING_WORK.md",
-      "sha256": "560d58727acceef4d823fd8c12dc44b8944e293e71c126746d98c3ff4b6b6d16",
-      "bytes": 3746
+      "sha256": "8f0d03731683944da34d36abae00d122b9e9d329fb824e96ca529ba6a14c91fa",
+      "bytes": 4438
     },
     {
       "path": "evidence/office-final.json",

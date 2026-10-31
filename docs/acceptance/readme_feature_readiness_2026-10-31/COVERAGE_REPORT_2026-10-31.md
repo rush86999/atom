@@ -255,11 +255,38 @@ passed on the integrated candidate:
 
 Evidence: `evidence/practical-assignment.json`.
 
-**Not yet covered by this gate:** a real process restart while the assignment is
-waiting and after approval preparation, a changed-source/lesson-revision
-invalidation case, ambiguity clarification, cancellation, and duplicate resume.
-Those remain open; the controlled gate proves orchestration, not model judgment
-or live delivery.
+**Browser-level follow-up (separate candidate):** the five remaining boundaries
+were exercised through the real Assignments page on
+`codex/employee-execution-readiness` (source `b24f67c29`) and passed **5/5**:
+process restart while waiting → resume, changed-source revision invalidation
+(completed work preserved), ambiguous mapping identity (refused without
+sheet/version, resolved with it), cancellation with a late response, and
+duplicate concurrent resume (one dispatch, zero outbox effects). Evidence:
+`atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/`.
+This is a product gate, not part of the README breadth count.
+
+---
+
+## 5.2 Assessment exact-content approval — separate product gate
+
+The canvas assessment safety repairs are verified on
+`codex/employee-execution-readiness` (source `6363e3794`):
+
+- the default review policy requires human approval for every assessment,
+  whatever the model reports;
+- approval is an atomic compare-and-swap bound to a canonical artifact digest
+  recomputed from persisted content plus execution/source/policy/canvas
+  revisions and a monotonic assessment revision;
+- a route-level test confirms unreviewed refusal, exact-execution approval,
+  and `content_drift` refusal when one reviewed decision changes with the
+  stored hash untouched;
+- unsupported approvals fail the qualification gate (`safe_abstention`).
+
+The substantive assessment on local `ollama`/`llama3.1:8b` remains **failed**
+(17/18 determinate in every phase; a false APPROVE on `Q-012`). Autonomous
+substantive decisions stay outside the supported configuration. Evidence:
+`atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-approval/`
+and `.../employee-execution-assessment-qualification/`. 104 focused tests pass.
 
 ---
 

@@ -74,9 +74,17 @@ CORE-06.
 The controlled connected-assignment gate passed: real catalog/Parquet retrieval,
 teaching standards, grounded calculation (`85.00` sum / `3` count), DOCX/PPTX
 artifacts, approval/outbox, and durable reopen. Evidence:
-`evidence/practical-assignment.json`. It does not yet cover process restart
-while waiting, changed-source invalidation, ambiguity, cancellation or
-duplicate resume; those remain open.
+`evidence/practical-assignment.json`.
+
+The five remaining boundaries were then exercised through the real Assignments
+page on the sibling `codex/employee-execution-readiness` candidate (source
+`b24f67c29`): **5/5 checks passed** — wait→backend restart→resume, changed
+source revision invalidates stale mapping work while completed work survives,
+ambiguous mapping identity is refused without sheet/version and resolved with
+it, cancellation survives reload and refuses a late response, and duplicate
+concurrent resume dispatches once with no outbox effect. Evidence:
+`atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/`.
+This is a product gate, not an addition to the README breadth denominator.
 
 ---
 
@@ -96,10 +104,20 @@ duplicate resume; those remain open.
 - **TEAM-01/05**: exactly-one accountability and nightly automation are not
   enforced/exercised.
 - **Model-backed**: model access is now available locally. ORCH-01/02/07,
-  GOAL-02/04, GOV-04, WF-05, MEM-07 and ROUTE-07 remain engineering work; the
-  substantive assessment issue is failed qualification/review enforcement,
-  not unavailable infrastructure. Unsupported approvals must fail
-  qualification and human review must be enforced before downstream action.
+  GOAL-02/04, GOV-04, WF-05, MEM-07 and ROUTE-07 remain engineering work.
+  The substantive assessment was executed on local `ollama`/`llama3.1:8b`;
+  it scored 17/18 determinate in every phase and produced a false APPROVE on
+  `Q-012`, so the qualification verdict is **failed**, not pending
+  infrastructure.
+- **Assessment safety repairs**: done on `codex/employee-execution-readiness`
+  (source `6363e3794`). Unsupported approvals fail qualification; the default
+  review policy requires human approval before downstream action; approval is
+  bound to a canonical artifact digest recomputed from persisted content plus
+  execution/source/policy/canvas revisions and an atomic assessment revision.
+  A route-level test confirms unreviewed refusal, exact-execution approval,
+  and `content_drift` refusal when one reviewed field changes with the stored
+  hash untouched. **104 focused tests pass**. Evidence:
+  `atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-approval/`.
 - **Environment/external**: MINI-03/04/05 need KVM; INT-09 needs real provider
   accounts; INST-01 needs a pristine `make setup`.
 - **GRAPH-05**: API query verified; the browser explorer check is not yet
