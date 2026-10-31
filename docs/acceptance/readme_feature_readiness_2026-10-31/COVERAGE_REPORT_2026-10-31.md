@@ -286,7 +286,7 @@ The substantive assessment on local `ollama`/`llama3.1:8b` remains **failed**
 (17/18 determinate in every phase; a false APPROVE on `Q-012`). Autonomous
 substantive decisions stay outside the supported configuration. Evidence:
 `atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-approval/`
-and `.../employee-execution-assessment-qualification/`. 104 focused tests pass.
+and `.../employee-execution-assessment-qualification/`. 106 focused tests pass.
 
 ---
 

@@ -116,7 +116,7 @@ This is a product gate, not an addition to the README breadth denominator.
   execution/source/policy/canvas revisions and an atomic assessment revision.
   A route-level test confirms unreviewed refusal, exact-execution approval,
   and `content_drift` refusal when one reviewed field changes with the stored
-  hash untouched. **104 focused tests pass**. Evidence:
+  hash untouched. **106 focused tests pass**. Evidence:
   `atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-approval/`.
 - **Environment/external**: MINI-03/04/05 need KVM; INT-09 needs real provider
   accounts; INST-01 needs a pristine `make setup`.

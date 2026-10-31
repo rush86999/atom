@@ -52,12 +52,12 @@
     },
     {
       "path": "COVERAGE_REPORT_2026-10-31.md",
-      "sha256": "bd8e872a6e6984af29f282797e34e2c80b33eb15ddae8131259389eb235afdf8",
+      "sha256": "40c55907847da0c6057a2c44d21973b47d895c0afc7f146a3eaf4edd09e9e794",
       "bytes": 16255
     },
     {
       "path": "VERIFIER_REVIEW_REQUEST.md",
-      "sha256": "8564e673e71bb482e7ed947578db5b6b3738e0f04d9fe737a8a1a6cf12c978ae",
+      "sha256": "c68d76dedbbe123164f8563a188587f08c486db540385af00e59e52c3750a0b1",
       "bytes": 8510
     },
     {
@@ -187,7 +187,7 @@
     },
     {
       "path": "REMAINING_WORK.md",
-      "sha256": "8f0d03731683944da34d36abae00d122b9e9d329fb824e96ca529ba6a14c91fa",
+      "sha256": "bd4ae3d99cad2cceb16c1fbdf548dd53823663719a836c309865bdcb66733c2a",
       "bytes": 4438
     },
     {
