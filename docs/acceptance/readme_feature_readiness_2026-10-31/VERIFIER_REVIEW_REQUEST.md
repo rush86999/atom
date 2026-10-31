@@ -128,7 +128,7 @@ breadth.
   A route-level test confirms unreviewed refusal, exact-execution approval,
   and `content_drift` refusal when one reviewed field changes with the stored
   hash untouched. **106 focused tests pass**. Evidence:
-  `atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-approval/`.
+  `atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-approval/`. The clarification follow-up (`099c15e02`, evidence `2108a2839`) binds each answer to a stable requirement id, refuses ambiguous subject-only answers, and preserves answers as history when source/policy/manifest revisions move.
 - **Environment/external**: MINI-03/04/05 need KVM; INT-09 needs real provider
   accounts; INST-01 needs a pristine `make setup`.
 - **GRAPH-05**: API query verified; the browser explorer check is not yet
