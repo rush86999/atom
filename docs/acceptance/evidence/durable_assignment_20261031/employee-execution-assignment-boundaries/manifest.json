@@ -1,0 +1,16 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-assignment-boundaries",
+  "source_checkpoint": "8610b5ebb",
+  "final_candidate": "8610b5ebb",
+  "files": {
+    "README.md": {
+      "sha256": "83740da6f14f9d8668bd3be629cbc612d132795aa63b4810141c85f68a63e4b1",
+      "bytes": 2178
+    },
+    "boundaries.log": {
+      "sha256": "405574393568640088b5124f1474d7241a6933b20e327459c7cdb17c883fde22",
+      "bytes": 5614
+    }
+  }
+}

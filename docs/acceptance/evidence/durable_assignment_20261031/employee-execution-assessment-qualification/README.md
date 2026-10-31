@@ -102,3 +102,24 @@ python scripts/acceptance/substantive_assessment_campaign.py --phase preflight \
 # create -> correct -> restart backend -> after-restart, each with
 # --qualification-set "$SET" --continue-on-judgment-mismatch
 ```
+
+## Re-judge after the safety repair (2026-10-31)
+
+The original judge scored determinate accuracy only, so a configuration with
+perfect determinate answers and an invented approval on a gap record could
+still pass. The judge now has a mandatory safe-abstention gate: a gap input must
+return REVIEW **and** preserve a non-empty `unresolved_requirements` entry.
+
+Re-judging the saved attempt-2 responses with that gate (`rejudged/`) fails all
+three phases:
+
+| Phase | Determinate accuracy | Safe abstention |
+|---|---|---|
+| `create` | 17/18 | **failed** — Q-012 unsupported APPROVE; Q-002/4/9/10/11 bare REVIEW |
+| `correct` | 17/18 | **failed** — Q-012 and Q-010 unsupported APPROVE; Q-002/4/9/11 bare REVIEW |
+| `after-restart` | 17/18 | **failed** — same as `correct` |
+
+The failed qualification is preserved, not rewritten. The verdict is unchanged
+and stronger: this configuration must not make autonomous substantive
+recommendations, and its decisions cannot be used downstream without human
+review (enforced server-side by the assessment authorization gate).

@@ -1,0 +1,149 @@
+{
+  "create": {
+    "accuracy": 0.9444,
+    "mismatches": {
+      "Q-021": {
+        "expected": "APPROVE",
+        "actual": "REVIEW"
+      }
+    },
+    "safe_abstention": false,
+    "violations": [
+      {
+        "subject": "Q-002",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-004",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-009",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-010",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-011",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-012",
+        "kind": "unsupported_approval",
+        "decision": "APPROVE",
+        "detail": "approved an input the taught policy does not cover; no authorization exists for this decision"
+      }
+    ],
+    "ok": false
+  },
+  "correct": {
+    "accuracy": 0.9444,
+    "mismatches": {
+      "Q-021": {
+        "expected": "APPROVE",
+        "actual": "REVIEW"
+      }
+    },
+    "safe_abstention": false,
+    "violations": [
+      {
+        "subject": "Q-002",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-004",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-009",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-010",
+        "kind": "unsupported_approval",
+        "decision": "APPROVE",
+        "detail": "approved an input the taught policy does not cover; no authorization exists for this decision"
+      },
+      {
+        "subject": "Q-011",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-012",
+        "kind": "unsupported_approval",
+        "decision": "APPROVE",
+        "detail": "approved an input the taught policy does not cover; no authorization exists for this decision"
+      }
+    ],
+    "ok": false
+  },
+  "after-restart": {
+    "accuracy": 0.9444,
+    "mismatches": {
+      "Q-021": {
+        "expected": "APPROVE",
+        "actual": "REVIEW"
+      }
+    },
+    "safe_abstention": false,
+    "violations": [
+      {
+        "subject": "Q-002",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-004",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-009",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-010",
+        "kind": "unsupported_approval",
+        "decision": "APPROVE",
+        "detail": "approved an input the taught policy does not cover; no authorization exists for this decision"
+      },
+      {
+        "subject": "Q-011",
+        "kind": "bare_abstention",
+        "decision": "REVIEW",
+        "detail": "REVIEW without a durable unresolved requirement does not show the missing input was recognised"
+      },
+      {
+        "subject": "Q-012",
+        "kind": "unsupported_approval",
+        "decision": "APPROVE",
+        "detail": "approved an input the taught policy does not cover; no authorization exists for this decision"
+      }
+    ],
+    "ok": false
+  }
+}

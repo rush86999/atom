@@ -218,7 +218,13 @@
     "status": "verified_for_tested_scope",
     "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-byok-refresh/",
     "result": "Settings save -> Chat used key A; replacement -> key B; removal -> no provider call and fail-closed; keys absent from logs",
-    "scope": "bounded local OpenAI-compatible server; x-atom-model=gpt-4o-mini; no real provider send"
+    "scope": "bounded local OpenAI-compatible server; x-atom-model=gpt-4o-mini; no real provider send",
+    "normal_routing": {
+      "status": "verified_for_tested_scope",
+      "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-byok-refresh/normal-routing/",
+      "result": "no model pin; key A served by gpt-4o-mini, replacement by gpt-5.6-luna/o4-mini; removal no new call and fail-closed",
+      "scope": "bounded local OpenAI-compatible provider; not a real-account send"
+    }
   },
   "assessment_campaign": {
     "status": "executed_with_findings",
@@ -270,5 +276,33 @@
     "dangerous_gap": "Q-012 (Amount 0) approved although the policy gives no rule below 50",
     "requirement": "human review for substantive recommendations; autonomous decisions outside supported scope",
     "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-qualification/"
+  },
+  "assignment_boundaries": {
+    "status": "executable_controls_passed",
+    "controls": 8,
+    "failed": 0,
+    "boundaries": [
+      "restart_while_waiting",
+      "revision_invalidation",
+      "ambiguity",
+      "cancellation",
+      "duplicate_resume"
+    ],
+    "level": "executor_and_route (scratch store); no browser rerun",
+    "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assignment-boundaries/"
+  },
+  "assessment_review_enforcement": {
+    "status": "implemented",
+    "review_required_state": true,
+    "downstream_guard": "capability/decisions refuses unless certified-without-unresolved or human-approved for the exact execution/source/policy",
+    "approval_binding": [
+      "execution_id",
+      "execution_fingerprint",
+      "source_revision",
+      "policy_revision",
+      "manifest_revision"
+    ],
+    "controls": 6,
+    "judge_safe_abstention": true
   }
 }

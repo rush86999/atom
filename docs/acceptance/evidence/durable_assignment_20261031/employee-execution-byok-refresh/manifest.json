@@ -1,7 +1,7 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-byok-refresh",
-  "source_checkpoint": "0daddeb09",
+  "source_checkpoint": "8610b5ebb",
   "files": {
     "README.md": {
       "sha256": "fd0165211fb2aef377eb9fc6ec588382a800d94beba97936b66b2dae24c3e947",
@@ -14,7 +14,19 @@
     "result.json": {
       "sha256": "9d025b5dbea7c4b4420100a95f2574532d9cd17fb8e3d3c2624819eeea6f5cee",
       "bytes": 5753
+    },
+    "normal-routing/README.md": {
+      "sha256": "296cb0688612b5aa7743c564518ec96a9e3d92d962c7923ec438b0157104e36d",
+      "bytes": 1084
+    },
+    "normal-routing/app.log": {
+      "sha256": "f134d7d82ce07c7a2eba3af1d397faf7e3a6a18ddd4ff547a6cea7592b4e3e9e",
+      "bytes": 1008352
+    },
+    "normal-routing/result.json": {
+      "sha256": "38b691951e58326f290b225568578a29e6d709d5372b8abbd4579032911e85d3",
+      "bytes": 5720
     }
   },
-  "final_candidate": "0daddeb09"
+  "final_candidate": "8610b5ebb"
 }

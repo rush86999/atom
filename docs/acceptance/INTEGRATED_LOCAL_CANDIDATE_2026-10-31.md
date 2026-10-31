@@ -259,10 +259,36 @@ and rebuilds its cached `BYOKHandler` on save/replacement/removal;
 a credential change clears the provider discovery backoff so the new key's
 catalogue is refreshed immediately.
 
+The normal journey was then re-run **without any model pin**: with the bounded
+provider advertising the models the router actually selects, normal routing
+served key A on `gpt-4o-mini` and the replacement key on `gpt-5.6-luna` /
+`o4-mini`, and removal still made no new call. The earlier pinned run is kept as
+history; the pin is now an explicit diagnostic override only.
+
 Evidence:
-`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-byok-refresh/`.
-The probe pins `x-atom-model: gpt-4o-mini` to a bounded local
-OpenAI-compatible server; it is not a real-provider send qualification.
+`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-byok-refresh/`
+(`normal-routing/` for the unpinned run). The provider is a bounded local
+OpenAI-compatible server, not a real OpenAI account; this is not a
+real-provider send qualification.
+
+## Practical assignment boundaries
+
+The practical gate's five open boundaries now have named executable controls
+that pass (executor and route level, scratch store):
+
+- process restart while waiting — `test_crash_after_wake_before_advance_recovers`;
+- changed-revision invalidation — `test_stale_task_revision_prevents_dispatch`;
+- ambiguity — `test_ambiguous_mapping_correction_requires_source_identity`;
+- cancellation — `test_cancellation_prevents_unstarted_effect`,
+  `test_approval_after_cancellation_is_refused`,
+  `test_cancelled_assignment_cannot_be_approved`;
+- duplicate resume — `test_two_concurrent_resume_requests_dispatch_once`,
+  `test_external_reply_matches_exact_correlation_once`.
+
+Run: **8 passed**, 0 failed. Evidence:
+`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assignment-boundaries/`.
+Not claimed: a browser-level rerun of these five on this candidate, or
+multi-worker/soak behaviour.
 
 ## README breadth on the integrated candidate
 

@@ -56,8 +56,22 @@ reliability.
 Verified through the normal Settings key route and Chat route without a
 restart: save, replacement and removal; the bounded provider sees the saved
 and replacement keys, removal makes no new call, and key values do not appear
-in logs. Evidence:
-`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-byok-refresh/`.
+in logs.
+
+The journey also runs on **normal routing with no model pin**: with the
+bounded provider advertising the models the router selects, key A was served by
+`gpt-4o-mini` and the replacement by `gpt-5.6-luna` / `o4-mini`. The earlier
+pinned run is history; the pin is a diagnostic override only. Evidence:
+`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-byok-refresh/`
+(`normal-routing/`). Local provider, not a real-account send.
+
+## Practical assignment boundaries
+
+The five boundaries the practical gate left open now have passing executable
+controls: restart-while-waiting, changed-revision invalidation, ambiguity,
+cancellation and duplicate resume. Run: **8 passed**, 0 failed. These are
+executor/route-level controls, not a browser rerun. Evidence:
+`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assignment-boundaries/`.
 
 ## Substantive model-backed assessment
 

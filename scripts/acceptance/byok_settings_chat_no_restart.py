@@ -46,9 +46,9 @@ class Recorder(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.rstrip("/").endswith("/models"):
-            # Include the provider's default/catalog candidates so the
-            # tenant-plan preflight can see a dispatchable route after the
-            # first catalog refresh; the chat probe still pins gpt-4o-mini.
+            # Advertise the provider's real model catalogue. The chat probe
+            # deliberately does NOT pin a model: the normal router must pick a
+            # model this provider actually serves.
             self._json({"object": "list", "data": [
                 {"id": "gpt-4o-mini"},
                 {"id": "gpt-5.6-luna-pro"},
@@ -239,8 +239,15 @@ def main() -> int:
                     "message": message,
                     "user_id": "admin",
                     "session_id": session,
-                }, headers={**headers, "x-atom-model": "gpt-4o-mini"})
+                }, headers=chat_headers())
                 return res
+
+            PIN = (os.environ.get("BYOK_PROBE_PIN") or "").strip()
+
+            def chat_headers():
+                # The journey must work on normal routing. A pin exists only as
+                # an explicit diagnostic override, never as the acceptance path.
+                return ({**headers, "x-atom-model": PIN} if PIN else dict(headers))
 
             from integrations.chat_orchestrator import chat_orchestrator
             from integrations.chat_routes import chat_orchestrator as route_orchestrator
