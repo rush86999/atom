@@ -117,7 +117,9 @@ Safety contract before the first write:
   `service=atom-frontend` and healthy status.
 - `core.world_storage_guard check` and
   `scripts.orchestration_acceptance.storage_policy space` run before any
-  world directory is created.
+  world directory is created. A fresh checkout with a `local` layout gets the
+  configured worlds root created after validation; a `drive_symlink` layout
+  never is.
 - `SECRET_KEY` is generated once and persisted at `$WORLD/.atom-secret`
   (mode 600); there is no fixed fallback.
 - On startup failure the script stops only the backend/frontend PIDs it

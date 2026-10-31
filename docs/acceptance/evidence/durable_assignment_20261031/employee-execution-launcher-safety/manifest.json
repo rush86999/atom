@@ -4,12 +4,16 @@
   "source_checkpoint": "16c113880",
   "files": {
     "README.md": {
-      "sha256": "4a92ba1eaf5da97bd46ddef7448a601fceeee3688e60b0f0b9465252ed52f671",
-      "bytes": 1653
+      "sha256": "59fc7c83624feb6a85a6d4c9c07feec0f87830519e015a4914ad2b24db910bdf",
+      "bytes": 2076
     },
     "failure-cleanup.log": {
       "sha256": "2fe0945e39a41445615d959eb7a78eb456ac2fb6b4dbd89f3e8abc58a0aebedf",
       "bytes": 1817
+    },
+    "fresh-root-bootstrap.log": {
+      "sha256": "f35ca60edc1f145af53f65a6049d5e58fb8a60c88e0626d72a242ba4b168f998",
+      "bytes": 699
     },
     "identity.json": {
       "sha256": "7f29e5aa4af41a71b2941e7861c17858cc39c1227e60fc4bdc444342dfbb3ed5",

@@ -1,0 +1,9 @@
+created configured local worlds root: /Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds
+world storage preflight OK
+  ok       no maintenance lock
+  ok       worlds root is a local directory (/Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds)
+world=/Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/integrated_fresh_root_test
+database=/Users/rushiparikh/projects/atom-employee-execution/backend/data/acceptance_worlds/integrated_fresh_root_test/atom.db
+backend=http://127.0.0.1:8072 pid=81218 source=364b94460e64-dirty.411a5671bf36
+frontend=http://127.0.0.1:3132 pid=81267
+stop: kill -INT 81218 81267

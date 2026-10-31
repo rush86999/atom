@@ -30,6 +30,15 @@ launcher started the backend, failed to bind the frontend, and stopped only the
 backend PID it started; the competing listener remained alive. This proves the
 trap does not kill an unrelated process or the existing 8001 service.
 
+## Fresh-checkout local root
+
+A fresh checkout has no gitignored `backend/data/acceptance_worlds` root. The
+launcher creates that configured root only when the storage config layout is
+`local`, after its path/port/space validation, then runs the world-storage
+guard. `drive_symlink` layouts are never created. `fresh-root-bootstrap.log`
+shows the guard accepting the newly created local root and the exact identity
+check.
+
 ## Preserved limitation
 
 The successful run used source ID `d57bb66f6796-dirty…` because the launcher

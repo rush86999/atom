@@ -68,7 +68,33 @@ echo "$VALIDATION" | "$PYTHON" -m json.tool >/dev/null
 WORLD_REAL="$("$PYTHON" -c 'import json,sys; print(json.load(sys.stdin)["world"])' <<<"$VALIDATION")"
 DB_PATH="$("$PYTHON" -c 'import json,sys; print(json.load(sys.stdin)["database"])' <<<"$VALIDATION")"
 
-# 2. Existing storage guards, still read-only.
+# 2. Existing storage guards. A fresh checkout has no gitignored worlds
+# root; for a LOCAL layout only, create the configured root after the path/
+# port/space validation above. Drive-backed layouts still refuse a missing
+# volume and are never created here.
+CONFIG="$ROOT/backend/config/world_storage.json"
+if [[ -f "$CONFIG" ]]; then
+  IFS=$'\t' read -r LAYOUT WORLDS_ROOT < <(
+    "$PYTHON" - "$CONFIG" "$ROOT/backend" <<'PY'
+import json, sys
+from pathlib import Path
+config = json.loads(Path(sys.argv[1]).read_text())
+backend = Path(sys.argv[2])
+root = ((config.get("worlds") or {}).get("root")
+        or "data/acceptance_worlds")
+root_path = Path(root)
+if not root_path.is_absolute():
+    root_path = backend / root_path
+layout = (config.get("layout")
+          or (config.get("worlds") or {}).get("layout") or "local")
+print(f"{layout}\t{root_path}")
+PY
+  )
+  if [[ "$LAYOUT" == "local" && ! -e "$WORLDS_ROOT" ]]; then
+    mkdir -p "$WORLDS_ROOT"
+    echo "created configured local worlds root: $WORLDS_ROOT"
+  fi
+fi
 (
   cd "$ROOT/backend"
   "$PYTHON" -m core.world_storage_guard check
