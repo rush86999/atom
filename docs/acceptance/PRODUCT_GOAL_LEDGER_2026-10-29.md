@@ -155,6 +155,33 @@ depends on it. `Q-010` (blank Risk) is a gap under V1 but scored under V3
 is unchanged. Evidence:
 `docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-qualification/`.
 
+## Practical acceptance status
+
+Closed with browser-level evidence:
+
+- the five practical assignment boundaries — wait→restart→resume (backend PID
+  changed), changed-source-revision refusal, ambiguous mapping resolution,
+  cancellation surviving reload with no late effect, duplicate resume
+  dispatching once — **5/5**, controlled outbox effects **0**
+  (`assignment-recovery-browser/`), with executor/route controls in
+  `employee-execution-assignment-boundaries/`;
+- exact-content approval through the public routes
+  (`employee-execution-assessment-approval/`);
+- typed next-step outcomes at the assessment boundary — `execute` / `clarify` /
+  `propose` / `refuse`, with `reconcile` reserved (`f8198c60e`).
+
+Still open:
+
+- durable ambiguity and standing authority **at the assessment boundary**
+  (assignment-level ambiguity and approval are covered; assessment clarification
+  is typed but not yet a durable obligation);
+- bounded request/operation/assignment budgets and uncertain-effect
+  reconciliation beyond the covered cancellation path;
+- presenting unapproved drafts vs authorized decisions in the canvas UI;
+- the integrated two-domain autonomous positive journey (teach → unfamiliar
+  workbook → deterministic result → draft → durable wait → restart → resume →
+  complete without redundant approval).
+
 ## README marketed-surface coverage
 
 The frozen README claim inventory (123 eligible functional claims) was
