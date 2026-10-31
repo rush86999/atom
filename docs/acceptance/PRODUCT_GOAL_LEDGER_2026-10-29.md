@@ -5,7 +5,7 @@ contract. The prior ledger and its appended history are preserved separately
 at `docs/acceptance/PRODUCT_GOAL_LEDGER_HISTORY_2026-10-29.md`; historical
 statuses there do not override this table.
 
-**Candidate source:** `f8198c60e` on branch `codex/employee-execution-readiness`
+**Candidate source:** `661c751b2` on branch `codex/employee-execution-readiness`
 (evidence source `06d80f834`; product teaching `3e344f5b1`; Agent 2
 README-readiness merge `931892be0`). **Configuration:** isolated local world, `ATOM_PRODUCT_PROFILE=core`,
 `ATOM_LOCAL_ONLY=true`, `ATOM_TURN_DECISION_ROUTING=0`,
@@ -168,7 +168,7 @@ Closed with browser-level evidence:
 - exact-content approval through the public routes
   (`employee-execution-assessment-approval/`);
 - typed next-step outcomes at the assessment boundary — `execute` / `clarify` /
-  `propose` / `refuse`, with `reconcile` reserved (`f8198c60e`);
+  `propose` / `refuse`, with `reconcile` reserved (`661c751b2`);
 - **durable assessment clarification**: the original objective, request
   identity, source/teaching revisions and one obligation per unresolved
   requirement persist on the canvas; answers use the same CAS, clear any prior
