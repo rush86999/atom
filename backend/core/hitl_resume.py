@@ -17,7 +17,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
-from core.database import get_db_session
 from core.models import HITLAction
 
 logger = logging.getLogger(__name__)
@@ -28,6 +27,8 @@ _CHAT_OBLIGATION_ACTIONS = {"chat_request_obligation"}
 
 
 def _load_action(action_id: str) -> Optional[Dict[str, Any]]:
+    from core.database import get_db_session
+
     with get_db_session() as db:
         action = db.query(HITLAction).filter(HITLAction.id == action_id).first()
         if action is None:
@@ -170,10 +171,25 @@ async def _resume_chat_obligation(
             "handled": False,
             "reason": "chat obligation has no prepared proposal",
         }
-    from core.proposal_service import ProposalService
+    from core.proposal_service import (
+        ProposalApprovalInvalidated,
+        ProposalService,
+    )
+
+    expected_payload_sha256 = str(params.get("payload_sha256") or "")
+    expected_artifact_revision = str(
+        params.get("artifact_revision") or "")
+    from core.database import get_db_session
 
     with get_db_session() as db:
         service = ProposalService(db)
+        current = service._proposal_query(
+            proposal_id, action.get("tenant_id")).first()
+        if current is None:
+            return {
+                "handled": False,
+                "reason": "prepared proposal not found",
+            }
         if not approved:
             try:
                 await service.reject_proposal(
@@ -195,11 +211,48 @@ async def _resume_chat_obligation(
                 "proposal_id": proposal_id,
                 "status": "rejected",
             }
-        result = await service.approve_proposal(
-            proposal_id,
-            user_id=reviewer_id or "approver",
-            tenant_id=action.get("tenant_id"),
-        )
+        if current.status == "executed":
+            return {
+                "handled": True, "resumed": True, "replayed": True,
+                "kind": "chat_obligation",
+                "proposal_id": proposal_id,
+                "status": "already_executed",
+            }
+        if current.status in ("rejected", "cancelled", "execution_failed"):
+            return {
+                "handled": True, "resumed": False,
+                "kind": "chat_obligation",
+                "proposal_id": proposal_id,
+                "status": current.status,
+            }
+        if not expected_payload_sha256:
+            return {
+                "handled": True, "resumed": False,
+                "kind": "chat_obligation",
+                "proposal_id": proposal_id,
+                "status": "missing_payload_binding",
+                "reason": (
+                    "this approval has no reviewed payload binding; fresh "
+                    "review is required"),
+            }
+        try:
+            result = await service.approve_proposal(
+                proposal_id,
+                user_id=reviewer_id or "approver",
+                tenant_id=action.get("tenant_id"),
+                expected_payload_sha256=expected_payload_sha256,
+                expected_artifact_revision=(
+                    expected_artifact_revision or None),
+            )
+        except ProposalApprovalInvalidated as exc:
+            return {
+                "handled": True, "resumed": False,
+                "kind": "chat_obligation",
+                "proposal_id": proposal_id,
+                "status": "payload_changed",
+                "reason": str(exc)[:500],
+                "fresh_review_required": True,
+            }
         return {
             "handled": True,
             "resumed": bool((result or {}).get("success")),

@@ -33868,6 +33868,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # proposal must replay as the same threaded reply.
                         "thread_id": (plan.thread_id or "").strip(),
                         "reply_all": bool(plan.reply_all),
+                        "attachment_ids": list(
+                            getattr(plan, "attachment_ids", None) or []),
+                        "attachment_hashes": dict(
+                            getattr(plan, "attachment_hashes", None) or {}),
                     },
                     status="pending_approval",
                 )
@@ -35478,6 +35482,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         to: Optional[str] = None,
         subject: Optional[str] = None,
         body: Optional[str] = None,
+        payload_sha256: Optional[str] = None,
+        artifact_revision: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Keep non-calculation work open in the existing approval ledger.
 
@@ -35510,6 +35516,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "to": to,
                         "subject": subject,
                         "body": body,
+                        "payload_sha256": payload_sha256,
+                        "artifact_revision": artifact_revision,
                     },
                     status=HITLActionStatus.PENDING.value,
                     reason=(
@@ -35566,6 +35574,45 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         except Exception as exc:  # noqa: BLE001 — additive
             logger.debug("compound task obligation skipped: %r", exc)
         return {"approval_id": approval_id, "obligations": obligations}
+
+    @staticmethod
+    def _email_review_payload(
+        *, draft_canvas_id: str, recipients: List[str], subject: str,
+        body: str,
+    ) -> Dict[str, Any]:
+        return {
+            "action_type": "send_email",
+            "canvas_id": draft_canvas_id,
+            "to": ", ".join(recipients),
+            "cc": "",
+            "subject": subject,
+            "body": body,
+            "attachment_ids": [],
+            "attachment_hashes": {},
+            "thread_id": "",
+            "reply_all": False,
+        }
+
+    def _draft_artifact_revision(self, draft_canvas_id: str) -> str:
+        try:
+            from core.database import get_db_session
+            from core.models import Canvas
+            from core.task_lifecycle import _approval_payload_hash
+
+            with get_db_session() as db:
+                canvas = db.query(Canvas).filter(
+                    Canvas.id == draft_canvas_id).first()
+                if canvas is not None:
+                    return _approval_payload_hash(canvas.content or {})
+        except Exception:  # noqa: BLE001 — binding is additive
+            pass
+        return ""
+
+    @staticmethod
+    def _proposal_payload_sha256(payload: Dict[str, Any]) -> str:
+        from core.proposal_service import proposal_payload_sha256
+
+        return proposal_payload_sha256(payload)
 
     def _create_email_draft_canvas(
         self,
@@ -35696,6 +35743,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         )
         if not proposal_id:
             return None
+        reviewed = self._email_review_payload(
+            draft_canvas_id=draft_id, recipients=recipients,
+            subject=subject, body=body)
         compound = self._record_compound_obligation(
             session=session,
             session_id=session_id,
@@ -35710,6 +35760,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             to=", ".join(recipients),
             subject=subject,
             body=body,
+            payload_sha256=self._proposal_payload_sha256(reviewed),
+            artifact_revision=self._draft_artifact_revision(draft_id),
         )
         return {
             "proposal_id": proposal_id,
@@ -35767,6 +35819,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         if not proposal_id:
             return {"status": "failed", "reason": "proposal_unavailable",
                     "draft_canvas_id": draft_id, "obligations": obligations}
+        reviewed = self._email_review_payload(
+            draft_canvas_id=draft_id, recipients=recipients,
+            subject=subject, body=body_text)
         compound = self._record_compound_obligation(
             session=session,
             session_id=session_id,
@@ -35781,6 +35836,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             to=", ".join(recipients),
             subject=subject,
             body=body_text,
+            payload_sha256=self._proposal_payload_sha256(reviewed),
+            artifact_revision=self._draft_artifact_revision(draft_id),
         )
         return {
             "status": "approval_requested",

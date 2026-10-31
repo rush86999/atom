@@ -220,13 +220,16 @@ def test_compound_email_draft_clarification_and_approval_resume(
         "method_lessons": [{"entry": entry, "method": method,
                             "specificity": 2}],
     }
+    import uuid
+
     orch = ChatOrchestrator()
     orch.session_manager = None
-    session = {"id": "s1", "history": []}
+    session_id = f"email-{uuid.uuid4().hex[:8]}"
+    session = {"id": session_id, "history": []}
     first = orch._apply_teaching_resolution(
         resolution=resolution,
         message="Qty 2 and Price 7.50; then email the quote",
-        session=session, session_id="s1", user_id="user-1",
+        session=session, session_id=session_id, user_id="user-1",
         agent_id="agent-1", workspace_id="ws-1",
         task_context={"qualification": "licensed"},
         memory_context="TRAINING LESSONS",
@@ -241,7 +244,7 @@ def test_compound_email_draft_clarification_and_approval_resume(
     assert session["_pending_teaching_clarification"]["kind"] == "email_draft"
 
     message, context, state = orch._resume_teaching_clarification(
-        session=session, session_id="s1", user_id="user-1",
+        session=session, session_id=session_id, user_id="user-1",
         message="alice@example.com",
         context={"task_context": {"qualification": "licensed"}},
         workspace_id="ws-1", agent_id="agent-1",
@@ -255,7 +258,7 @@ def test_compound_email_draft_clarification_and_approval_resume(
     second = orch._apply_teaching_resolution(
         resolution=resolution,
         message="Qty 2 and Price 7.50; then email the quote",
-        session=session, session_id="s1", user_id="user-1",
+        session=session, session_id=session_id, user_id="user-1",
         agent_id="agent-1", workspace_id="ws-1",
         task_context=context["task_context"],
         memory_context="TRAINING LESSONS",
@@ -308,5 +311,149 @@ def test_compound_email_draft_clarification_and_approval_resume(
             AgentProposal.id == proposal["proposal_id"]).first()
         assert proposal_row.status == "executed"
         assert proposal_row.execution_success is True
+    finally:
+        db.close()
+
+    # Duplicate approval must replay, not send twice.
+    replay = asyncio.run(resume_after_hitl_decision(
+        hitl_id, approved=True, reviewer_id="user-1"))
+    assert replay["handled"] is True
+    assert replay["replayed"] is True
+    assert replay["status"] == "already_executed"
+    assert send_mock.await_count == 1
+
+
+def _prepare_email_proposal(route_env):
+    import asyncio
+
+    from core.conversation_learning import MethodInput, MethodSpec
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    method = MethodSpec(
+        intended_outcome="Price the order",
+        operation="multiply_sum",
+        inputs=[
+            MethodInput(concept="quantity", column="Qty", unit="units"),
+            MethodInput(concept="unit_price", column="Price", unit="USD"),
+        ],
+        output_unit="USD",
+        transformation="quantity * unit_price",
+        rounding={"places": 2, "stage": "final"},
+    )
+    entry = {
+        "id": "lesson-1", "revision": 1,
+        "details": {"conversation_learning": {
+            "method": method.model_dump(mode="json")}},
+    }
+    resolution = {
+        "needs_context": False, "required_context": [],
+        "conflicts": [], "excluded_lessons": [],
+        "consumed_lesson_refs": [{"id": "lesson-1", "revision": 1}],
+        "method_status": "applicable",
+        "method_lessons": [{"entry": entry, "method": method,
+                            "specificity": 2}],
+    }
+    import uuid
+
+    orch = ChatOrchestrator()
+    orch.session_manager = None
+    session_id = f"email-{uuid.uuid4().hex[:8]}"
+    session = {"id": session_id, "history": []}
+    orch._apply_teaching_resolution(
+        resolution=resolution,
+        message="Qty 2 and Price 7.50; then email the quote",
+        session=session, session_id=session_id, user_id="user-1",
+        agent_id="agent-1", workspace_id="ws-1",
+        task_context={"qualification": "licensed"},
+        memory_context="TRAINING LESSONS",
+    )
+    message, context, state = orch._resume_teaching_clarification(
+        session=session, session_id=session_id, user_id="user-1",
+        message="alice@example.com",
+        context={"task_context": {"qualification": "licensed"}},
+        workspace_id="ws-1", agent_id="agent-1",
+    )
+    assert state["confirmed"] is True
+    proposal = context["_teaching_resume"]["email_proposal"]
+    assert proposal.get("approval_id"), proposal
+    return {
+        "proposal_id": proposal["proposal_id"],
+        "hitl_id": proposal["approval_id"],
+        "draft_canvas_id": proposal["draft_canvas_id"],
+        "resolution": resolution,
+        "session": session,
+        "context": context,
+        "message": message,
+    }
+
+
+@pytest.mark.parametrize("field,value", [
+    ("to", "different-recipient@example.invalid"),
+    ("body", "A different body that was never reviewed."),
+    ("attachment_hashes", {"a1": "deadbeef"}),
+])
+def test_chat_obligation_payload_drift_refused(
+        route_env, monkeypatch, field, value):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    from core.canvas_email_service import EmailCanvasService
+    from core.hitl_resume import resume_after_hitl_decision
+    from core.models import AgentProposal
+
+    prepared = _prepare_email_proposal(route_env)
+    db = route_env["factory"]()
+    try:
+        proposal = db.query(AgentProposal).filter(
+            AgentProposal.id == prepared["proposal_id"]).first()
+        data = dict(proposal.proposal_data or {})
+        data[field] = value
+        proposal.proposal_data = data
+        db.commit()
+    finally:
+        db.close()
+
+    send = AsyncMock(return_value={"success": True, "status": "draft_only"})
+    monkeypatch.setattr(EmailCanvasService, "send_email", send)
+    result = asyncio.run(resume_after_hitl_decision(
+        prepared["hitl_id"], approved=True, reviewer_id="user-1"))
+    assert result["handled"] is True
+    assert result["resumed"] is False
+    assert result["status"] == "payload_changed"
+    assert result["fresh_review_required"] is True
+    assert send.await_count == 0
+
+    db = route_env["factory"]()
+    try:
+        proposal = db.query(AgentProposal).filter(
+            AgentProposal.id == prepared["proposal_id"]).first()
+        assert proposal.status == "pending_approval"
+    finally:
+        db.close()
+
+
+def test_chat_obligation_rejection_has_no_transport(route_env, monkeypatch):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    from core.canvas_email_service import EmailCanvasService
+    from core.hitl_resume import resume_after_hitl_decision
+    from core.models import AgentProposal
+
+    prepared = _prepare_email_proposal(route_env)
+    send = AsyncMock(return_value={"success": True, "status": "draft_only"})
+    monkeypatch.setattr(EmailCanvasService, "send_email", send)
+    result = asyncio.run(resume_after_hitl_decision(
+        prepared["hitl_id"], approved=False, reviewer_id="user-1",
+        guidance="not this one"))
+    assert result["handled"] is True
+    assert result["resumed"] is False
+    assert result["status"] == "rejected"
+    assert send.await_count == 0
+    db = route_env["factory"]()
+    try:
+        proposal = db.query(AgentProposal).filter(
+            AgentProposal.id == prepared["proposal_id"]).first()
+        assert proposal.status == "rejected"
     finally:
         db.close()
