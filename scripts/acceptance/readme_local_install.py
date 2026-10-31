@@ -28,6 +28,7 @@ REPO = Path(__file__).resolve().parents[2]
 BACKEND = REPO / "backend"
 sys.path.insert(0, str(BACKEND))
 from scripts.readme_acceptance.common import reset_world  # noqa: E402
+from scripts.readme_acceptance import mock_llm_server  # noqa: E402
 PYTHON = Path(os.getenv(
     "ATOM_ACCEPTANCE_PYTHON",
     "/Users/rushiparikh/projects/atom-phase-d/backend/venv/bin/python"))
@@ -94,7 +95,11 @@ class Backend:
             "BYOK_CONFIG_FILE": str(self.world / "byok_config.json"),
             "BYOK_KEYS_FILE": str(self.world / "byok_keys.json"),
             "BYOK_ENC_KEY_FILE": str(self.world / "byok_encryption_key"),
-            "ATOM_LOCAL_ONLY": "true",
+            "ATOM_LOCAL_ONLY": os.getenv("ATOM_INSTALL_LOCAL_ONLY", "false"),
+            "ATOM_GOAL_RUN_AGENT_WORK": "0",
+            "OLLAMA_BASE_URL": os.getenv("ATOM_INSTALL_LLM_URL", "http://127.0.0.1:59996/v1"),
+            "OPENAI_BASE_URL": os.getenv("ATOM_INSTALL_LLM_URL", "http://127.0.0.1:59996/v1"),
+            "OPENAI_API_KEY": "sk-install-acceptance-local-upstream",
             "PYTHONPATH": f"{OVERLAY}:{REPO}:{BACKEND}",
             "LOG_LEVEL": "WARNING",
         }
@@ -139,6 +144,7 @@ def main() -> None:
     workflow_id = None
     execution_id = None
 
+    llm = mock_llm_server.Server(59996).start()
     backend = Backend(args.world, args.port)
     try:
         backend.start()
@@ -222,6 +228,61 @@ def main() -> None:
         canvas_id = presented.get("canvas_id")
         result["checks"]["office_canvas"] = {
             "canvas_id": canvas_id, "present_status": status}
+
+        # A goal run paused on a human checkpoint must survive restart, keep
+        # its identity, and resume into exactly one deliverable.
+        status, goal = request(f"{base}/api/goals", "POST", {
+            "title": "install goal restart acceptance",
+            "description": "install restart goal",
+            "criteria": [{"description": "create the deliverable"}],
+        }, token=token)
+        goal_id = (goal.get("goal_id") or goal.get("id")
+                   or (goal.get("goal") or {}).get("id")
+                   or (goal.get("data") or {}).get("id"))
+        goal_run = None
+        goal_run_id = None
+        goal_hitl_id = None
+        if goal_id:
+            status, goal_run = request(f"{base}/api/goal-runs", "POST", {
+                "goal_id": goal_id,
+                "role": "acceptance",
+                "start": False,
+                "supervision_mode": "shadow",
+                "plan": [
+                    {"id": "install-checkpoint", "kind": "human_checkpoint",
+                     "title": "Install restart checkpoint"},
+                    {"id": "install-deliverable", "kind": "canvas_work",
+                     "title": "Install restart deliverable",
+                     "canvas_type": "document"},
+                ],
+            }, token=token)
+            goal_run_id = (goal_run or {}).get("id") or ((goal_run or {}).get("run") or {}).get("id")
+        if goal_run_id:
+            status, advance = request(
+                f"{base}/api/goal-runs/{goal_run_id}/advance", "POST", {},
+                token=token)
+            _, pending = request(f"{base}/api/agents/approvals/pending",
+                                 token=token)
+            for action in pending if isinstance(pending, list) else []:
+                if (action.get("action_type") == "goal_run_checkpoint"
+                        and str((action.get("params") or {}).get("run_id"))
+                        == str(goal_run_id)):
+                    goal_hitl_id = action.get("id")
+                    break
+            _, run_before_restart = request(
+                f"{base}/api/goal-runs/{goal_run_id}", token=token)
+            _, canvases_before = request(
+                f"{base}/api/goal-runs/{goal_run_id}/canvases", token=token)
+        else:
+            advance = run_before_restart = canvases_before = {}
+        result["checks"]["goal_run"] = {
+            "goal_id": goal_id,
+            "run_id": goal_run_id,
+            "hitl_id": goal_hitl_id,
+            "advance": advance,
+            "before_restart": run_before_restart,
+            "canvases_before": canvases_before,
+        }
     finally:
         backend.stop()
 
@@ -275,8 +336,55 @@ def main() -> None:
                 "canvas_read": canvas_ok,
                 "download_ok": download_ok,
             })
+
+        goal_check = result["checks"].get("goal_run") or {}
+        run_id = goal_check.get("run_id")
+        hitl_id = goal_check.get("hitl_id")
+        if run_id:
+            status, run_after = request(
+                f"{base}/api/goal-runs/{run_id}", token=token2)
+            _, canvases_after = request(
+                f"{base}/api/goal-runs/{run_id}/canvases", token=token2)
+            before = goal_check.get("before_restart") or {}
+            before_status = before.get("status")
+            same_identity = str((run_after or {}).get("id")) == str(run_id)
+            status_kept = (run_after or {}).get("status") == before_status
+            before_canvases = len(
+                (goal_check.get("canvases_before") or {}).get("canvases") or [])
+            after_canvases = len((canvases_after or {}).get("canvases") or [])
+            approve = {}
+            if hitl_id:
+                status, approve = request(
+                    f"{base}/api/agents/approvals/{hitl_id}", "POST",
+                    {"decision": "approved",
+                     "feedback": "install restart approval"}, token=token2)
+            _, run_resumed = request(
+                f"{base}/api/goal-runs/{run_id}", token=token2)
+            _, canvases_resumed = request(
+                f"{base}/api/goal-runs/{run_id}/canvases", token=token2)
+            resumed_canvases = len(
+                (canvases_resumed or {}).get("canvases") or [])
+            goal_check.update({
+                "restart_status": status,
+                "run_after_restart": run_after,
+                "canvases_after_restart": canvases_after,
+                "same_identity": same_identity,
+                "status_kept": status_kept,
+                "same_canvas_count_before_approval": (
+                    before_canvases == after_canvases),
+                "approve": approve,
+                "run_resumed": run_resumed,
+                "canvases_resumed": canvases_resumed,
+                "resumed_canvas_count": resumed_canvases,
+                "no_duplicate_effect": resumed_canvases == 1,
+            })
+            result["checks"]["goal_run"] = goal_check
     finally:
         restarted.stop()
+        try:
+            llm.stop()
+        except Exception:
+            pass
         if workflows_backup is not None:
             workflows_file.write_bytes(workflows_backup)
         elif workflows_file.exists():
@@ -294,13 +402,19 @@ def main() -> None:
             and checks.get("workflow", {}).get("survives_restart")
             and checks.get("office_canvas", {}).get("canvas_read")
             and checks.get("office_canvas", {}).get("download_ok")
+            and checks.get("goal_run", {}).get("same_identity")
+            and checks.get("goal_run", {}).get("status_kept")
+            and checks.get("goal_run", {}).get("same_canvas_count_before_approval")
+            and checks.get("goal_run", {}).get("no_duplicate_effect")
         ) else "partial"
     )
     # Never persist the plaintext credential in the evidence artifact.
+    result["mock_llm_calls"] = mock_llm_server.calls()[-8:]
     result.pop("password", None)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps(result, indent=2))
+    raise SystemExit(0 if result.get("status") == "verified" else 1)
 
 
 if __name__ == "__main__":

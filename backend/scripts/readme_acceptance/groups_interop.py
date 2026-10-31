@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 import json
+import os
+import threading
 import time
+import uuid
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .common import Ctx
 
@@ -126,21 +130,112 @@ def interop(ctx: Ctx) -> None:
                    [ctx.save("interop/acp.json", {"error": str(exc)})],
                    notes=f"ACP session/prompt failed: {exc}")
 
-    # ---- IO-06 span tracing -------------------------------------------
+    # ---- IO-06 request-level span + optional local export --------------
+    io06_error = None
+    request_spans = []
+    collector_body = None
+    export_recorded = []
     try:
         from core.observability.tracing import (
-            record_span, get_recent_spans, langfuse_configured)
-        record_span(
-            trace_id="acceptance-trace-123",
-            name="acceptance-span", kind="internal",
-            attributes={"acceptance": True},
-            started_at=time.time(), ended_at=time.time(), status="ok",
-        )
-        spans = get_recent_spans(limit=20, name_prefix="acceptance-span")
-        ctx.record("IO-06", "verified" if spans else "partial",
+            clear_spans, get_recent_spans, langfuse_configured)
+
+        clear_spans()
+        key_resp = ctx.post("/api/gateway/keys", json={
+            "name": f"trace-{uuid.uuid4().hex[:6]}",
+            "rate_limit_per_minute": 60})
+        key_body = (key_resp.json()
+                    if key_resp.status_code in (200, 201) else {})
+        gateway_key = key_body.get("key")
+        call = (ctx.client.post("/v1/chat/completions", headers={
+            "Authorization": f"Bearer {gateway_key}"}, json={
+                "model": "gpt-4o-mini",
+                "messages": [{"role": "user", "content": "trace acceptance"}],
+            }) if gateway_key else None)
+        status = ctx.get("/api/observability/spans",
+                         params={"name_prefix": "llm.gateway.request"})
+        status_body = status.json() if status.status_code == 200 else {}
+        request_spans = status_body.get("spans") or []
+        status_flag = ctx.get("/api/observability/status")
+        status_flag_body = status_flag.json() if status_flag.status_code == 200 else {}
+
+        class _Collector(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                return
+
+            def do_POST(self):
+                length = int(self.headers.get("content-length") or 0)
+                raw = self.rfile.read(length) if length else b"{}"
+                try:
+                    export_recorded.append(json.loads(raw.decode() or "{}"))
+                except Exception:
+                    export_recorded.append({"_raw": raw[:500].decode("latin1")})
+                payload = b'{"ok":true}'
+                self.send_response(200)
+                self.send_header("content-type", "application/json")
+                self.send_header("content-length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+        collector = ThreadingHTTPServer(("127.0.0.1", 0), _Collector)
+        thread = threading.Thread(target=collector.serve_forever, daemon=True)
+        thread.start()
+        collector_port = collector.server_address[1]
+        old_env = {k: os.environ.get(k) for k in (
+            "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_HOST")}
+        os.environ["LANGFUSE_PUBLIC_KEY"] = "pk-acceptance"
+        os.environ["LANGFUSE_SECRET_KEY"] = "sk-acceptance"
+        os.environ["LANGFUSE_HOST"] = f"http://127.0.0.1:{collector_port}"
+        try:
+            call2 = (ctx.client.post("/v1/chat/completions", headers={
+                "Authorization": f"Bearer {gateway_key}"}, json={
+                    "model": "gpt-4o-mini",
+                    "messages": [{"role": "user", "content": "trace export acceptance"}],
+                }) if gateway_key else None)
+            time.sleep(1.0)
+            collector_body = export_recorded[-1] if export_recorded else None
+        finally:
+            collector.shutdown()
+            collector.server_close()
+            for key, value in old_env.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
+        span_names = [s.get("name") for s in request_spans]
+        span_attrs = (request_spans[0].get("attributes") or {}) if request_spans else {}
+        batch = (collector_body or {}).get("batch") or []
+        batch_types = [event.get("type") for event in batch]
+        io06_ok = (call is not None and call.status_code == 200
+                   and request_spans
+                   and "llm.gateway.request" in span_names
+                   and span_attrs.get("model") == "gpt-4o-mini"
+                   and "provider" in span_attrs and "status_code" in span_attrs
+                   and status_flag.status_code == 200
+                   and status_flag_body.get("langfuse_export", {}).get("configured") is False
+                   and call2 is not None and call2.status_code == 200
+                   and collector_body is not None
+                   and "trace-create" in batch_types
+                   and "span-create" in batch_types
+                   and "sk-acceptance" not in json.dumps(collector_body))
+        ctx.record("IO-06", "verified" if io06_ok else "failed",
                    [ctx.save("interop/tracing.json", {
-                       "spans": spans[-3:], "langfuse_configured": langfuse_configured()})],
-                   notes=f"spans={len(spans)}; Langfuse export is optional and "
-                         f"{'configured' if langfuse_configured() else 'off'}")
+                       "controlled_collector": True,
+                       "request": None if call is None else call.status_code,
+                       "export_request": None if call2 is None else call2.status_code,
+                       "spans": request_spans,
+                       "observability_status": status_flag_body,
+                       "collector_batch_types": batch_types,
+                       "collector_received": collector_body is not None,
+                       "error": io06_error,
+                   })],
+                   notes=f"request={None if call is None else call.status_code} "
+                         f"spans={len(request_spans)} "
+                         f"export={None if call2 is None else call2.status_code} "
+                         f"batch_types={batch_types} "
+                         f"error={io06_error}")
     except Exception as exc:
-        ctx.record("IO-06", "unverified", notes=f"tracer unavailable: {exc}")
+        import traceback as _tb
+        io06_error = f"{type(exc).__name__}: {exc}"
+        ctx.save("interop/tracing_error.txt", _tb.format_exc())
+        ctx.record("IO-06", "failed", notes=f"tracer unavailable: {io06_error}")

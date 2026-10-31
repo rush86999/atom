@@ -186,22 +186,75 @@ def workflows(ctx: Ctx) -> None:
         tbody.get("templates") or tbody.get("data") or [])
     template_id = None
     if isinstance(items, list) and items:
-        template_id = items[0].get("id") or items[0].get("template_id")
-    imported = execute_t = None
+        # Pick a starter that actually has executable steps and does not
+        # require an approval pause. The visual-editor starter with two
+        # deterministic action steps is the canonical fixture.
+        ordered = sorted(
+            items,
+            key=lambda t: 0 if str(t.get("template_id") or t.get("id"))
+            == "00c445dd-1d6e-5da3-9a41-dc0b1289d936" else 1)
+        for item in ordered:
+            steps = item.get("steps") or []
+            if not steps:
+                continue
+            if any(str(step.get("step_type")).lower() == "approval"
+                   for step in steps):
+                continue
+            template_id = item.get("template_id") or item.get("id")
+            break
+    imported = execute_t = execution_read = unknown = None
+    execution_id = None
+    execution_body = {}
     if template_id:
-        imported = ctx.post(f"/api/workflow-templates/{template_id}/import", json={})
-        execute_t = ctx.post(f"/api/workflow-templates/{template_id}/execute", json={})
-    ok = templates.status_code == 200 and template_id and imported is not None and imported.status_code in (200, 201)
-    ctx.record("WF-07", "verified" if ok else "partial",
+        template_params = {
+            "trigger_type": "manual",
+            "schedule": "0 9 * * 1-5",
+            "actions": ["acceptance"],
+        } if str(template_id).startswith("00c445dd") else {}
+        imported = ctx.post(f"/api/workflow-templates/{template_id}/import",
+                            json=template_params)
+        execute_t = ctx.post(f"/api/workflow-templates/{template_id}/execute",
+                             json=template_params)
+        ebody = (execute_t.json() if execute_t is not None
+                 and execute_t.headers.get("content-type", "").startswith("application/json")
+                 else {})
+        execution_id = ebody.get("execution_id")
+        if execution_id:
+            for _ in range(30):
+                execution_read = ctx.get(
+                    f"/api/workflow-templates/executions/{execution_id}/results")
+                execution_body = (execution_read.json()
+                                  if execution_read is not None
+                                  and execution_read.status_code == 200 else {})
+                if execution_body.get("status") in ("completed", "failed"):
+                    break
+                time.sleep(0.5)
+    unknown = ctx.post("/api/workflow-templates/no-such-template/execute", json={})
+    steps = execution_body.get("steps") or []
+    ok = (templates.status_code == 200 and template_id
+          and imported is not None and imported.status_code in (200, 201)
+          and execute_t is not None and execute_t.status_code == 200
+          and execution_id
+          and execution_body.get("status") == "completed"
+          and len(steps) >= 1
+          and execution_body.get("success") is True
+          and unknown is not None and unknown.status_code == 404)
+    ctx.record("WF-07", "verified" if ok else "failed",
                [ctx.save("workflows/templates.json", {
                    "list": {"status": templates.status_code,
                             "count": len(items) if isinstance(items, list) else None},
                    "template_id": template_id,
                    "import": None if imported is None else imported.text[:800],
-                   "execute": None if execute_t is None else execute_t.text[:800],
+                   "execute": None if execute_t is None else execute_t.text[:1200],
+                   "execution_id": execution_id,
+                   "execution": execution_body,
+                   "unknown_template": None if unknown is None else unknown.status_code,
                })],
-               notes=f"templates={len(items) if isinstance(items, list) else 'n/a'} "
-                     f"import={None if imported is None else imported.status_code}")
+               notes=f"template={template_id} "
+                     f"import={None if imported is None else imported.status_code} "
+                     f"execute={None if execute_t is None else execute_t.status_code} "
+                     f"execution={execution_id} status={execution_body.get('status')} "
+                     f"steps={len(steps)} unknown={None if unknown is None else unknown.status_code}")
 
     # WF-05 HITL pause/resume: a workflow bound to a below-tier agent needs a
     # model-backed run; the generic approval pause is GOV-02. Record partial

@@ -22,6 +22,10 @@ if __package__ in (None, ""):
 from . import common
 
 GROUPS = {
+    # Core chat runs before the gateway failure/fallback scenarios: those
+    # intentionally stop the bounded upstream, and provider-health recovery
+    # after an intentional outage is not part of CORE-01's acceptance.
+    "core": "groups_core:core_workspace",
     "governance": "groups_governance:governance",
     "oracle": "groups_governance:oracle",
     "ask": "groups_governance:ask",
@@ -38,7 +42,6 @@ GROUPS = {
     "integrations": "groups_integrations:integrations",
     "mini-apps": "groups_miniapp:mini_apps",
     "security": "groups_miniapp:security",
-    "core": "groups_core:core_workspace",
 }
 
 
@@ -63,12 +66,16 @@ def main() -> None:
     # loops use this, never a cloud API.
     from . import mock_llm_server
     llm = mock_llm_server.Server(59997).start()
-    os.environ["OLLAMA_BASE_URL"] = llm.base_url
+    # A second bounded upstream is deliberately configured to succeed where
+    # the primary (OpenAI) route fails; ROUTE-03 uses it to prove provider
+    # fallback on a real failed attempt.
+    llm_secondary = mock_llm_server.Server(59998, fail_model=False).start()
+    os.environ["OLLAMA_BASE_URL"] = llm_secondary.base_url
     os.environ["OPENAI_BASE_URL"] = llm.base_url
     os.environ["ATOM_HARNESS_LLM_URL"] = llm.base_url
     # Expose the bounded server so a scenario can force a real transport
     # failure (error-propagation acceptance) and restart it.
-    _HARNESS_STATE = {"llm_server": llm}
+    _HARNESS_STATE = {"llm_server": llm, "llm_secondary": llm_secondary}
     # Controlled OAuth provider (consent + code exchange) for one provider.
     os.environ.update({
         "GITHUB_CLIENT_ID": "acceptance-github-client",
@@ -114,6 +121,7 @@ def main() -> None:
                          admin_id="", tenant_id="", workspace_id="",
                          world=common.WORLD, evidence=common.EVIDENCE)
         ctx.cache["llm_server"] = llm
+        ctx.cache["llm_server_secondary"] = llm_secondary
         common.login(ctx)
         from core.models import User, Workspace
         db = ctx.db()
@@ -182,6 +190,10 @@ def main() -> None:
     except Exception:
         pass
     try:
+        llm_secondary.stop()
+    except Exception:
+        pass
+    try:
         ctx.cache.get("llm_server").stop()
     except Exception:
         pass
@@ -195,6 +207,11 @@ def main() -> None:
         script = common.REPO / "scripts" / "acceptance" / "readme_claim_inventory.py"
         import subprocess
         subprocess.run([sys.executable, str(script), "--merge", str(args.out)], check=True)
+
+    # A report that says "failed" while the command exits 0 is not a gate.
+    failed_claims = [r for r in results if r.get("status") == "failed"]
+    if failures or failed_claims:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

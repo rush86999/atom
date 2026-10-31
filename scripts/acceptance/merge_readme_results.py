@@ -64,6 +64,17 @@ def install_claims(path: Path) -> dict:
             "notes": "A completed workflow execution was re-read from a new backend process on the same data root",
             "blocker": "",
         },
+        "GOAL-05": {
+            "claim_id": "GOAL-05",
+            "status": "verified" if (
+                checks.get("goal_run", {}).get("same_identity")
+                and checks.get("goal_run", {}).get("status_kept")
+                and checks.get("goal_run", {}).get("same_canvas_count_before_approval")
+                and checks.get("goal_run", {}).get("no_duplicate_effect")) else "partial",
+            "evidence": common_ev,
+            "notes": "The same paused goal run (identity, status and canvases) was re-read after a real backend restart; approval resumed it into exactly one deliverable",
+            "blocker": "",
+        },
         "OFF-08": {
             "claim_id": "OFF-08",
             "status": "verified" if (checks.get("office_canvas", {}).get("canvas_read")
@@ -95,7 +106,9 @@ def main() -> None:
         for cid, row in install_claims(args.install).items():
             merged.setdefault(cid, row)
             sources.setdefault(cid, []).append(str(args.install))
-            if RANK.get(row["status"], 0) > RANK.get(merged[cid]["status"], 0):
+            # Install evidence is process-level; prefer it on a tie so the
+            # restart proof (not the in-process re-read) is the cited evidence.
+            if RANK.get(row["status"], 0) >= RANK.get(merged[cid]["status"], 0):
                 merged[cid] = row
 
     for cid, row in merged.items():
