@@ -1753,7 +1753,7 @@ def extract_request_assignments(
                for start, end in occupied):
             continue
         clause = text[m.start():]
-        stop = _re.search(r"[.;\n]", clause)
+        stop = _re.search(r"(?:[;\n]|\.(?:\s|$))", clause)
         snippet = (clause[:stop.start()] if stop else clause).strip()[:160]
         if snippet:
             additional_actions.append({"text": snippet})

@@ -1048,6 +1048,19 @@ def test_method_operand_validation_matrix():
     assert "_recorded_outcome" not in cad
     assert "calculation_receipt" not in cad
 
+    prefixed = execute_method_lesson(
+        entry, "Qty 2 and Price €7.50",
+        task_context={"qualification": "licensed"}, workspace_id="ws-1")
+    assert prefixed["status"] == "unit_conflict"
+    assert prefixed["questions"][0]["reason"] == "incompatible_unit"
+    assert prefixed["questions"][0]["candidates"][0]["raw_unit"] == "€"
+
+    suffixed = execute_method_lesson(
+        entry, "Qty 2 and Price 7.50€",
+        task_context={"qualification": "licensed"}, workspace_id="ws-1")
+    assert suffixed["status"] == "unit_conflict"
+    assert suffixed["questions"][0]["candidates"][0]["raw_unit"] == "€"
+
     unknown = execute_method_lesson(
         entry, "Qty 2 and Price 7.50 credits",
         task_context={"qualification": "licensed"}, workspace_id="ws-1")
@@ -1105,6 +1118,23 @@ def test_operand_answer_confirms_or_preserves_units():
     incompatible = parse_operand_answer("8.00 CAD", question)
     assert incompatible["status"] == "unit_incompatible"
     assert incompatible["candidate"]["raw_unit"] == "CAD"
+
+    prefixed = parse_operand_answer("€8.00", question)
+    assert prefixed["status"] == "unit_incompatible"
+    assert prefixed["candidate"]["raw_unit"] == "€"
+
+    two_bare = parse_operand_answer("8.00 or 9.00", question)
+    assert two_bare["status"] == "ambiguous"
+    assert len(two_bare["candidates"]) == 2
+
+    two_labeled = parse_operand_answer(
+        "Price 8.00 or Price 9.00", question)
+    assert two_labeled["status"] == "ambiguous"
+    assert len(two_labeled["candidates"]) == 2
+
+    malformed = parse_operand_answer("Price 7.50.5", question)
+    assert malformed["status"] == "malformed"
+    assert malformed["candidate"]["raw_value"] == "7.50.5"
 
     pending = new_pending(
         session_id="s1", user_id="u1", agent_id="a1",
@@ -1219,13 +1249,20 @@ def test_chat_compound_request_keeps_email_obligation():
                             "specificity": 2}],
     }
     with patch.object(
+            orch, "_create_email_draft_canvas", return_value="draft-1"), \
+         patch.object(
+            orch, "_create_email_proposal_for_draft",
+            return_value="proposal-1"), \
+         patch.object(
             orch, "_record_compound_obligation",
             return_value={"approval_id": "approval-1",
                           "obligations": [{"kind": "action",
-                                           "text": "email the quote"}]}):
+                                           "text": "email the quote to alice@example.com"}]}):
         reply = orch._apply_teaching_resolution(
             resolution=resolution,
-            message="Qty 2 and Price 7.50; then email the quote",
+            message=(
+                "Qty 2 and Price 7.50; then email the quote to "
+                "alice@example.com"),
             session={"id": "s1"}, session_id="s1", user_id="u1",
             agent_id="agent-1", workspace_id="ws-1",
             task_context={"qualification": "licensed"},
@@ -1236,11 +1273,13 @@ def test_chat_compound_request_keeps_email_obligation():
         "value"] == "15.00"
     assert reply["teaching_execution"]["covered_obligations"] == [
         "calculation"]
-    assert reply["teaching_execution"]["open_obligations"] == [
-        {"kind": "action", "text": "email the quote"}]
+    assert reply["teaching_execution"]["open_obligations"][0]["text"] == (
+        "email the quote to alice@example.com")
     assert reply["teaching_execution"]["approval_id"] == "approval-1"
-    assert "email the quote" in reply["content"]
-    assert "awaiting approval" in reply["content"]
+    assert reply["teaching_execution"]["proposal_id"] == "proposal-1"
+    assert reply["teaching_execution"]["draft_canvas_id"] == "draft-1"
+    assert "alice@example.com" in reply["content"]
+    assert "No email was sent" in reply["content"]
 
 
 def test_operand_clarification_survives_restart():

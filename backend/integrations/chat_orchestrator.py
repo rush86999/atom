@@ -89,6 +89,15 @@ def _presentation_record_from_meta(
 
 logger = logging.getLogger(__name__)
 
+_EMAIL_ADDRESS_RE = re.compile(
+    r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
+
+
+def _email_recipients(message: str) -> List[str]:
+    return list(dict.fromkeys(
+        match.group(0) for match in _EMAIL_ADDRESS_RE.finditer(
+            str(message or ""))))
+
 from core.teaching_clarification import (  # noqa: E402 — stdlib-only module
     extract_confirmation as extract_teaching_confirmation,
     infer_context_from_message as infer_teaching_context,
@@ -10607,6 +10616,7 @@ class ChatOrchestrator:
                                     "teaching_execution",
                                     "teaching_clarification",
                                     "teaching_operand_clarification",
+                                    "teaching_email_clarification",
                                     "teaching_method_conflict",
                                     "teaching_exclusion")
                                 if _early_reply.get(key) is not None
@@ -18816,6 +18826,7 @@ class ChatOrchestrator:
                     "teaching_execution",
                     "teaching_clarification",
                     "teaching_operand_clarification",
+                    "teaching_email_clarification",
                     "teaching_method_conflict",
                     "teaching_exclusion"):
                 _teaching_value = (ai_response or {}).get(_teaching_key)
@@ -35278,6 +35289,45 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 session, pending, workspace_id,
                 "user cancelled the teaching-context clarification")
             return message, context, {"cancelled": True}
+        if (confirmation.get("status") == "confirmed"
+                and str(pending.get("kind") or "") == "email_draft"):
+            recipients = list(
+                confirmation.get("email_recipients") or [])
+            completed = self._complete_email_draft(
+                pending=pending,
+                recipients=recipients,
+                session=session,
+                session_id=session_id,
+                user_id=user_id,
+                agent_id=agent_id,
+                workspace_id=workspace_id,
+            )
+            if completed is None:
+                updated = mark_teaching_pending(
+                    pending, confirmation, message)
+                self._persist_pending_teaching_clarification(
+                    session, session_id, updated)
+                return message, context, {"pending": updated}
+            updated = mark_teaching_confirmed(pending, confirmation)
+            updated["last_answer"] = str(message or "")[:1000]
+            updated["last_result"] = None
+            context["_teaching_resume"] = {
+                "clarification_id": updated.get("clarification_id"),
+                "objective": updated.get("objective"),
+                "method_ref": dict(updated.get("method_ref") or {}),
+                "email_proposal": completed,
+                "confirmation_source": "user",
+            }
+            if isinstance(session, dict):
+                session["_teaching_resume"] = context["_teaching_resume"]
+                session.pop("_teaching_replay", None)
+            self._resolve_teaching_question(
+                session, updated, workspace_id,
+                "user supplied the email recipient: "
+                + ", ".join(recipients))
+            self._persist_pending_teaching_clarification(
+                session, session_id, updated)
+            return message, context, {"confirmed": True, "pending": updated}
         if confirmation.get("status") == "confirmed":
             updated = mark_teaching_confirmed(pending, confirmation)
             updated["last_answer"] = str(message or "")[:1000]
@@ -35423,6 +35473,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         objective: str,
         receipt: Dict[str, Any],
         obligations: List[Dict[str, Any]],
+        proposal_id: Optional[str] = None,
+        draft_canvas_id: Optional[str] = None,
+        to: Optional[str] = None,
+        subject: Optional[str] = None,
+        body: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Keep non-calculation work open in the existing approval ledger.
 
@@ -35450,6 +35505,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "objective": objective[:4000],
                         "calculation_receipt": receipt,
                         "obligations": obligations[:20],
+                        "proposal_id": proposal_id,
+                        "draft_canvas_id": draft_canvas_id,
+                        "to": to,
+                        "subject": subject,
+                        "body": body,
                     },
                     status=HITLActionStatus.PENDING.value,
                     reason=(
@@ -35491,6 +35551,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "calculation_receipt": receipt,
                                 "obligations": obligations[:20],
                                 "approval_id": approval_id,
+                                "proposal_id": proposal_id,
+                                "draft_canvas_id": draft_canvas_id,
+                                "to": to,
+                                "subject": subject,
                             },
                             "concept": "additional_request",
                             "reason": (
@@ -35502,6 +35566,232 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         except Exception as exc:  # noqa: BLE001 — additive
             logger.debug("compound task obligation skipped: %r", exc)
         return {"approval_id": approval_id, "obligations": obligations}
+
+    def _create_email_draft_canvas(
+        self,
+        *,
+        user_id: str,
+        workspace_id: Optional[str],
+        agent_id: Optional[str],
+        subject: str,
+        body: str,
+        recipients: List[str],
+    ) -> Optional[str]:
+        try:
+            import uuid as _uuid
+
+            from core.database import get_db_session
+            from core.models import Canvas
+
+            with get_db_session() as db:
+                canvas = Canvas(
+                    id=str(_uuid.uuid4()),
+                    tenant_id=str(getattr(self, "tenant_id", "") or "default"),
+                    workspace_id=workspace_id or None,
+                    created_by=user_id,
+                    name=f"Email draft: {subject or 'quote'}"[:255],
+                    canvas_type="email",
+                    content={
+                        "to": ", ".join(recipients),
+                        "cc": "",
+                        "subject": subject,
+                        "body": body,
+                        "content": body,
+                    },
+                    status="active",
+                )
+                db.add(canvas)
+                db.commit()
+                return canvas.id
+        except Exception as exc:  # noqa: BLE001 — draft is additive
+            logger.warning("email draft canvas creation failed: %r", exc)
+            return None
+
+    def _create_email_proposal_for_draft(
+        self,
+        *,
+        user_id: str,
+        session_id: str,
+        agent_id: Optional[str],
+        draft_canvas_id: str,
+        recipients: List[str],
+        subject: str,
+        body: str,
+    ) -> Optional[str]:
+        from types import SimpleNamespace
+
+        plan = SimpleNamespace(
+            to=", ".join(recipients),
+            cc="",
+            subject=subject,
+            body=body,
+            thread_id="",
+            reply_all=False,
+            reply="",
+        )
+        canvas = {
+            "canvas_id": draft_canvas_id,
+            "content": {
+                "to": ", ".join(recipients),
+                "cc": "",
+                "subject": subject,
+                "body": body,
+                "content": body,
+            },
+            "title": subject,
+        }
+        return self._create_send_email_proposal(
+            plan, canvas, user_id, session_id, agent_id)
+
+    def _update_email_draft_recipients(
+        self, draft_canvas_id: str, recipients: List[str],
+    ) -> bool:
+        try:
+            from core.database import get_db_session
+            from core.models import Canvas
+
+            with get_db_session() as db:
+                canvas = db.query(Canvas).filter(
+                    Canvas.id == draft_canvas_id).first()
+                if canvas is None:
+                    return False
+                content = dict(canvas.content or {})
+                content["to"] = ", ".join(recipients)
+                canvas.content = content
+                db.commit()
+                return True
+        except Exception as exc:  # noqa: BLE001 — additive
+            logger.warning("email draft recipient update failed: %r", exc)
+            return False
+
+    def _complete_email_draft(
+        self,
+        *,
+        pending: Dict[str, Any],
+        recipients: List[str],
+        session: Optional[Dict[str, Any]],
+        session_id: str,
+        user_id: str,
+        agent_id: Optional[str],
+        workspace_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        draft_id = str(pending.get("draft_canvas_id") or "")
+        subject = str(pending.get("email_subject") or "Quote")
+        body = str(pending.get("email_body") or "")
+        completed = dict(pending.get("completed_work") or {})
+        receipt = dict(completed.get("calculation_receipt") or {})
+        obligations = list(completed.get("obligations") or [])
+        if not draft_id or not recipients:
+            return None
+        if not self._update_email_draft_recipients(draft_id, recipients):
+            return None
+        proposal_id = self._create_email_proposal_for_draft(
+            user_id=user_id,
+            session_id=session_id,
+            agent_id=agent_id,
+            draft_canvas_id=draft_id,
+            recipients=recipients,
+            subject=subject,
+            body=body,
+        )
+        if not proposal_id:
+            return None
+        compound = self._record_compound_obligation(
+            session=session,
+            session_id=session_id,
+            user_id=user_id,
+            agent_id=agent_id,
+            workspace_id=workspace_id,
+            objective=str(pending.get("objective") or ""),
+            receipt=receipt,
+            obligations=obligations,
+            proposal_id=proposal_id,
+            draft_canvas_id=draft_id,
+            to=", ".join(recipients),
+            subject=subject,
+            body=body,
+        )
+        return {
+            "proposal_id": proposal_id,
+            "approval_id": compound.get("approval_id"),
+            "draft_canvas_id": draft_id,
+            "recipients": recipients,
+            "subject": subject,
+            "calculation_receipt": receipt,
+            "open_obligations": obligations,
+        }
+
+    def _prepare_email_obligation(
+        self,
+        *,
+        message: str,
+        session: Optional[Dict[str, Any]],
+        session_id: str,
+        user_id: str,
+        agent_id: Optional[str],
+        workspace_id: Optional[str],
+        receipt: Dict[str, Any],
+        body_text: str,
+        obligations: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        recipients = _email_recipients(message)
+        subject = "Quote"
+        draft_id = self._create_email_draft_canvas(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            agent_id=agent_id,
+            subject=subject,
+            body=body_text,
+            recipients=recipients,
+        )
+        if not draft_id:
+            return {"status": "failed", "reason": "draft_unavailable",
+                    "obligations": obligations}
+        if not recipients:
+            return {
+                "status": "needs_recipient",
+                "draft_canvas_id": draft_id,
+                "subject": subject,
+                "body": body_text,
+                "obligations": obligations,
+            }
+        proposal_id = self._create_email_proposal_for_draft(
+            user_id=user_id,
+            session_id=session_id,
+            agent_id=agent_id,
+            draft_canvas_id=draft_id,
+            recipients=recipients,
+            subject=subject,
+            body=body_text,
+        )
+        if not proposal_id:
+            return {"status": "failed", "reason": "proposal_unavailable",
+                    "draft_canvas_id": draft_id, "obligations": obligations}
+        compound = self._record_compound_obligation(
+            session=session,
+            session_id=session_id,
+            user_id=user_id,
+            agent_id=agent_id,
+            workspace_id=workspace_id,
+            objective=message,
+            receipt=receipt,
+            obligations=obligations,
+            proposal_id=proposal_id,
+            draft_canvas_id=draft_id,
+            to=", ".join(recipients),
+            subject=subject,
+            body=body_text,
+        )
+        return {
+            "status": "approval_requested",
+            "draft_canvas_id": draft_id,
+            "proposal_id": proposal_id,
+            "approval_id": compound.get("approval_id"),
+            "recipients": recipients,
+            "subject": subject,
+            "body": body_text,
+            "obligations": obligations,
+        }
 
     def _apply_teaching_resolution(
         self,
@@ -35531,6 +35821,102 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             if isinstance(session, dict):
                 session.pop("_teaching_replay", None)
             return dict(_replay)
+        _resume = (
+            (session or {}).get("_teaching_resume")
+            if isinstance(session, dict) else None)
+        if isinstance(_resume, dict) and _resume.get("email_proposal"):
+            proposal = dict(_resume.get("email_proposal") or {})
+            return {
+                "content": (
+                    "I prepared the email draft to "
+                    + ", ".join(proposal.get("recipients") or [])
+                    + " and requested approval. No email was sent."),
+                "model": "teaching-resolver",
+                "provider": "deterministic",
+                "memory_context": memory_context,
+                "teaching_execution": {
+                    "calculation_receipt": proposal.get(
+                        "calculation_receipt") or {},
+                    "covered_obligations": ["calculation"],
+                    "open_obligations": proposal.get(
+                        "open_obligations") or [],
+                    "approval_id": proposal.get("approval_id"),
+                    "proposal_id": proposal.get("proposal_id"),
+                    "draft_canvas_id": proposal.get("draft_canvas_id"),
+                },
+                "deterministic_delivery": True,
+                "_recorded_outcome": {
+                    "state": "partial",
+                    "work_turn": True,
+                },
+            }
+        _pending_now = (
+            session.get("_pending_teaching_clarification")
+            if isinstance(session, dict) else None)
+        if (isinstance(_pending_now, dict)
+                and _pending_now.get("kind") == "operands"
+                and _pending_now.get("state") == "pending"):
+            _method_lessons_now = list(
+                resolution.get("method_lessons") or [])
+            _current_ref = (
+                {
+                    "id": str((_method_lessons_now[0].get("entry") or {}).get(
+                        "id") or ""),
+                    "revision": int(
+                        (_method_lessons_now[0].get("entry") or {}).get(
+                            "revision") or 1),
+                }
+                if _method_lessons_now else {})
+            _pending_ref = dict(_pending_now.get("method_ref") or {})
+            if (not _current_ref or not _pending_ref
+                    or _current_ref == _pending_ref):
+                return {
+                    "content": render_teaching_question(_pending_now),
+                    "model": "teaching-resolver",
+                    "provider": "deterministic",
+                    "memory_context": memory_context,
+                    "teaching_operand_clarification": {
+                        "clarification_id": _pending_now.get(
+                            "clarification_id"),
+                        "kind": "operands",
+                        "operand_questions": list(
+                            _pending_now.get("operand_questions") or []),
+                        "method_ref": dict(
+                            _pending_now.get("method_ref") or {}),
+                        "state": "pending",
+                    },
+                    "deterministic_delivery": True,
+                    "_recorded_outcome": {
+                        "state": "partial",
+                        "work_turn": True,
+                    },
+                }
+            # A changed method revision invalidates the old operand question;
+            # fall through so the current method is reassessed and the pending
+            # question is replaced with the current method ref.
+        if (isinstance(_pending_now, dict)
+                and _pending_now.get("kind") == "email_draft"
+                and _pending_now.get("state") == "pending"):
+            return {
+                "content": render_teaching_question(_pending_now),
+                "model": "teaching-resolver",
+                "provider": "deterministic",
+                "memory_context": memory_context,
+                "teaching_email_clarification": {
+                    "clarification_id": _pending_now.get(
+                        "clarification_id"),
+                    "kind": "email_draft",
+                    "draft_canvas_id": _pending_now.get(
+                        "draft_canvas_id"),
+                    "email_subject": _pending_now.get("email_subject"),
+                    "state": "pending",
+                },
+                "deterministic_delivery": True,
+                "_recorded_outcome": {
+                    "state": "partial",
+                    "work_turn": True,
+                },
+            }
         required = list(resolution.get("required_context") or [])
         if required:
             pending = (
@@ -35677,31 +36063,114 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "covered_obligations": ["calculation"],
                 }
                 if obligations:
-                    compound = self._record_compound_obligation(
-                        session=session,
-                        session_id=session_id,
-                        user_id=user_id,
-                        agent_id=agent_id,
-                        workspace_id=workspace_id,
-                        objective=message,
-                        receipt=receipt,
-                        obligations=obligations,
-                    )
                     texts = [
                         str(item.get("text") or item.get("target")
                             or item.get("kind"))
                         for item in obligations[:6]
                     ]
-                    content = (
-                        str(execution.get("content") or "")
-                        + " Additional work remains open: "
-                        + "; ".join(texts)
-                        + ". No outbound action was performed; the "
-                        "remaining request is awaiting approval or further "
-                        "work.")
-                    metadata["open_obligations"] = compound["obligations"]
-                    if compound.get("approval_id"):
-                        metadata["approval_id"] = compound["approval_id"]
+                    _email_action = any(
+                        "email" in str(item.get("text") or "").casefold()
+                        or "send" in str(item.get("text") or "").casefold()
+                        for item in obligations
+                        if item.get("kind") == "action")
+                    if _email_action:
+                        prepared = self._prepare_email_obligation(
+                            message=message,
+                            session=session,
+                            session_id=session_id,
+                            user_id=user_id,
+                            agent_id=agent_id,
+                            workspace_id=workspace_id,
+                            receipt=receipt,
+                            body_text=str(execution.get("content") or ""),
+                            obligations=obligations,
+                        )
+                        metadata["open_obligations"] = obligations
+                        if prepared.get("status") == "needs_recipient":
+                            pending = new_teaching_pending(
+                                session_id=session_id,
+                                user_id=user_id,
+                                agent_id=agent_id or "",
+                                workspace_id=workspace_id or "",
+                                tenant_id=str(
+                                    getattr(self, "tenant_id", "") or ""),
+                                objective=message,
+                                required_context=[],
+                                established_context=task_context or {},
+                                lesson_refs=_teaching_lesson_refs(resolution),
+                                source_bindings=(
+                                    resolution.get("source_bindings") or []),
+                                request_id=request_id,
+                                kind="email_draft",
+                                method_ref=method_ref,
+                                completed_work={
+                                    "calculation_receipt": receipt,
+                                    "obligations": obligations,
+                                },
+                                draft_canvas_id=prepared.get(
+                                    "draft_canvas_id"),
+                                email_subject=prepared.get("subject"),
+                                email_body=prepared.get("body"),
+                            )
+                            self._record_teaching_question(
+                                session, session_id, pending, workspace_id)
+                            self._persist_pending_teaching_clarification(
+                                session, session_id, pending)
+                            content = (
+                                str(execution.get("content") or "")
+                                + " I prepared the email draft, but I need "
+                                "the recipient before I can request approval. "
+                                "Who should I email it to? Reply with an "
+                                "email address.")
+                            metadata["email_draft"] = {
+                                "draft_canvas_id": prepared.get(
+                                    "draft_canvas_id"),
+                                "subject": prepared.get("subject"),
+                                "recipient_required": True,
+                            }
+                        elif prepared.get("status") == "approval_requested":
+                            content = (
+                                str(execution.get("content") or "")
+                                + " I prepared the email draft to "
+                                + ", ".join(prepared.get("recipients") or [])
+                                + " and requested approval. No email was "
+                                "sent.")
+                            metadata["open_obligations"] = obligations
+                            metadata["approval_id"] = prepared.get(
+                                "approval_id")
+                            metadata["proposal_id"] = prepared.get(
+                                "proposal_id")
+                            metadata["draft_canvas_id"] = prepared.get(
+                                "draft_canvas_id")
+                        else:
+                            content = (
+                                str(execution.get("content") or "")
+                                + " The additional email work could not be "
+                                "prepared: "
+                                + str(prepared.get("reason") or "unknown")
+                                + ". No email was sent.")
+                            metadata["open_obligations"] = obligations
+                    else:
+                        compound = self._record_compound_obligation(
+                            session=session,
+                            session_id=session_id,
+                            user_id=user_id,
+                            agent_id=agent_id,
+                            workspace_id=workspace_id,
+                            objective=message,
+                            receipt=receipt,
+                            obligations=obligations,
+                        )
+                        content = (
+                            str(execution.get("content") or "")
+                            + " Additional work remains open: "
+                            + "; ".join(texts)
+                            + ". No outbound action was performed; the "
+                            "remaining request is awaiting approval or "
+                            "further work.")
+                        metadata["open_obligations"] = compound["obligations"]
+                        if compound.get("approval_id"):
+                            metadata["approval_id"] = compound["approval_id"]
                     outcome = {"state": "partial", "work_turn": True}
                 else:
                     content = str(execution.get("content") or "")
@@ -36175,6 +36644,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     "teaching_execution",
                                     "teaching_clarification",
                                     "teaching_operand_clarification",
+                                    "teaching_email_clarification",
                                     "teaching_method_conflict",
                                     "teaching_exclusion"):
                                 _teaching_value = _response_data.get(

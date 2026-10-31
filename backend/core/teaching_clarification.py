@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 SCHEMA = "teaching-clarification-1"
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
 
 
 def json_safe(value: Any) -> Any:
@@ -65,6 +66,10 @@ def new_pending(
     operand_questions: Optional[List[Dict[str, Any]]] = None,
     method_ref: Optional[Dict[str, Any]] = None,
     completed_work: Optional[Dict[str, Any]] = None,
+    draft_canvas_id: Optional[str] = None,
+    email_subject: Optional[str] = None,
+    email_body: Optional[str] = None,
+    email_recipients: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     return json_safe({
         "schema": SCHEMA,
@@ -80,6 +85,12 @@ def new_pending(
         "request_id": str(request_id or "") or None,
         "method_ref": dict(method_ref or {}) if method_ref else None,
         "completed_work": dict(completed_work or {}) if completed_work else None,
+        "draft_canvas_id": str(draft_canvas_id or "") or None,
+        "email_subject": str(email_subject or "")[:200] or None,
+        "email_body": str(email_body or "")[:8000] or None,
+        "email_recipients": [
+            str(item) for item in (email_recipients or []) if str(item).strip()
+        ][:20],
         "operand_questions": list(operand_questions or [])[:24],
         "lesson_refs": [
             {"id": str(item.get("id") or ""),
@@ -182,6 +193,28 @@ def extract_confirmation(message: str, pending: Dict[str, Any]) -> Dict[str, Any
     text = str(message or "")
     if str((pending or {}).get("kind") or "context") == "operands":
         return extract_operand_confirmation(text, pending)
+    if str((pending or {}).get("kind") or "context") == "email_draft":
+        recipients = list(dict.fromkeys(
+            match.group(0) for match in _EMAIL_RE.finditer(text)))
+        if not recipients:
+            return {
+                "status": "unresolved",
+                "answers": {},
+                "scope_updates": {},
+                "ambiguous": [],
+                "uncertain": [],
+                "unmatched": ["recipient"],
+                "email_recipients": [],
+            }
+        return {
+            "status": "confirmed",
+            "answers": {},
+            "scope_updates": {},
+            "ambiguous": [],
+            "uncertain": [],
+            "unmatched": [],
+            "email_recipients": recipients,
+        }
     if is_cancel(text):
         return {"status": "cancelled", "answers": {}, "scope_updates": {},
                 "ambiguous": [], "uncertain": [], "unmatched": []}
@@ -355,7 +388,12 @@ def extract_operand_confirmation(
             if concept:
                 confirmed[concept] = candidate
             continue
-        remaining.append(question)
+        updated_question = dict(question)
+        if parsed.get("candidates"):
+            updated_question["candidates"] = list(parsed["candidates"])
+        if parsed.get("reason"):
+            updated_question["reason"] = str(parsed["reason"])
+        remaining.append(updated_question)
         statuses.append(str(parsed.get("status") or "unresolved"))
     if remaining:
         if "ambiguous" in statuses:
@@ -378,6 +416,12 @@ def extract_operand_confirmation(
 def render_user_question(pending: Dict[str, Any]) -> str:
     if str((pending or {}).get("kind") or "context") == "operands":
         return render_operand_question(pending)
+    if str((pending or {}).get("kind") or "context") == "email_draft":
+        subject = str((pending or {}).get("email_subject") or "the quote")
+        return (
+            f"I prepared the email draft for '{subject}', but I need the "
+            "recipient before I can request approval. Who should I email it "
+            "to? Reply with an email address.")
     required = list((pending or {}).get("required_context") or [])
     parts: List[str] = []
     for row in required:
@@ -417,6 +461,8 @@ def mark_confirmed(
         (confirmation or {}).get("answers") or {})
     updated["confirmed_operands"] = dict(
         (confirmation or {}).get("operand_overrides") or {})
+    updated["confirmed_emails"] = list(
+        (confirmation or {}).get("email_recipients") or [])
     updated["scope_updates"] = dict(
         (confirmation or {}).get("scope_updates") or {})
     updated["confirmation_source"] = "user"
@@ -434,6 +480,9 @@ def mark_pending(
     updated = dict(pending or {})
     updated["state"] = "pending"
     updated["last_answer"] = str(message or "")[:1000]
+    if (confirmation or {}).get("remaining") is not None:
+        updated["operand_questions"] = list(
+            (confirmation or {}).get("remaining") or [])
     updated["last_status"] = str(
         (confirmation or {}).get("status") or "unresolved")
     updated["updated_at"] = _now()

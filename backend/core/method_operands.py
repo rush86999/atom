@@ -16,7 +16,7 @@ import re
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Iterable, List, Optional
 
-_NUMBER_RE = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?")
+_NUMBER_RE = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)*")
 _STRICT_COMMA_RE = re.compile(r"^[-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?$")
 _CONNECTOR_WORDS = {
     "and", "or", "then", "with", "at", "for", "plus", "also", "to", "vs",
@@ -164,22 +164,49 @@ def _unit_token(tail: str) -> str:
     return token
 
 
-def _candidate_for_match(
-    message: str,
-    match: re.Match,
+def _candidate_from_parts(
     *,
     concept: str,
     column: str,
     label: str,
+    raw_value: str,
+    prefix_unit: str,
+    suffix_unit: str,
+    span: List[int],
     expected_unit: str,
+    source: str = "user_message",
 ) -> Dict[str, Any]:
-    raw_value = match.group("number")
     value = _parse_decimal(raw_value)
-    tail_start = match.end("number")
-    tail = message[tail_start:tail_start + 60]
-    raw_unit = _unit_token(tail)
-    unit = normalize_unit(raw_unit, expected_unit)
-    span_end = tail_start + len(raw_unit)
+    prefix = normalize_unit(prefix_unit, expected_unit)
+    suffix = normalize_unit(suffix_unit, expected_unit)
+    raw_units = [item for item in (prefix_unit, suffix_unit) if item]
+    raw_unit = " ".join(raw_units)
+    if prefix_unit and suffix_unit:
+        p_norm = prefix.get("normalized_unit") or ""
+        s_norm = suffix.get("normalized_unit") or ""
+        if p_norm and s_norm and p_norm.casefold() != s_norm.casefold():
+            unit = {
+                "normalized_unit": p_norm,
+                "unit_status": "incompatible",
+                "unit_authority": "user_message",
+                "raw_unit": raw_unit,
+            }
+        elif p_norm or s_norm:
+            unit = prefix if prefix.get("unit_status") != "unknown" else suffix
+            unit["raw_unit"] = raw_unit
+        else:
+            unit = {
+                "normalized_unit": "",
+                "unit_status": "unknown",
+                "unit_authority": "user_message",
+                "raw_unit": raw_unit,
+            }
+    elif prefix_unit:
+        unit = prefix
+    elif suffix_unit:
+        unit = suffix
+    else:
+        unit = normalize_unit("", expected_unit)
     return {
         "concept": concept,
         "column": column,
@@ -191,10 +218,33 @@ def _candidate_for_match(
         "required_unit": _clean(expected_unit),
         "unit_status": unit["unit_status"],
         "unit_authority": unit["unit_authority"],
-        "span": [int(match.start()), int(span_end)],
-        "source": "user_message",
+        "span": [int(span[0]), int(span[1])],
+        "source": source,
         "malformed": value is None,
     }
+
+
+def _candidate_for_match(
+    message: str,
+    match: re.Match,
+    *,
+    concept: str,
+    column: str,
+    label: str,
+    expected_unit: str,
+) -> Dict[str, Any]:
+    raw_value = match.group("number")
+    prefix_unit = str(match.groupdict().get("prefix") or "")
+    tail_start = match.end("number")
+    tail = message[tail_start:tail_start + 60]
+    suffix_unit = _unit_token(tail)
+    span_end = tail_start + len(suffix_unit)
+    return _candidate_from_parts(
+        concept=concept, column=column, label=label,
+        raw_value=raw_value, prefix_unit=prefix_unit,
+        suffix_unit=suffix_unit, span=[match.start(), span_end],
+        expected_unit=expected_unit,
+    )
 
 
 def extract_candidates(
@@ -213,7 +263,7 @@ def extract_candidates(
     for label in _labels_for(item):
         pattern = re.compile(
             r"(?<![A-Za-z0-9_])" + re.escape(label) +
-            r"\s*(?:=|:)?\s*(?:[$€£]\s*)?"
+            r"\s*(?:=|:)?\s*(?P<prefix>[$€£])?\s*"
             r"(?P<number>" + _NUMBER_RE.pattern + r")",
             re.IGNORECASE,
         )
@@ -411,93 +461,80 @@ def parse_operand_answer(
     *,
     allow_bare: bool = True,
 ) -> Dict[str, Any]:
-    """Parse one answer for one pending operand question.
+    """Parse one answer through the SAME candidate-validation contract.
 
-    Accepts either an explicit ``label value [unit]`` or, when there is one
-    question, a bare ``value [unit]``. Ambiguity and unit incompatibility are
-    returned, never resolved silently.
+    Labeled answers use ``extract_candidates``; a bare answer collects every
+    numeric token with its prefix/suffix unit. Multiple candidates,
+    malformed tokens and incompatible/unknown units stay unresolved.
     """
+    from types import SimpleNamespace
+
     text = str(message or "").strip()
     concept = _clean(question.get("concept"))
     column = _clean(question.get("column"))
     required = _clean(question.get("required_unit"))
-    # Strip a small set of explicit-answer lead-ins. This is not a general
-    # NL parser; it only removes the confirmation wrapper.
     text = re.sub(
         r"^\s*(?:use|actually|correction|instead|please\s+use|"
         r"i\s+confirm|confirmed)\s*[:=-]?\s*",
         "", text, flags=re.IGNORECASE)
-    label_pattern = re.compile(
-        r"(?<![A-Za-z0-9_])(?:" + "|".join(
-            re.escape(label) for label in
-            [x for x in (column, concept, concept.replace("_", " ")) if x]
-        ) + r")\s*(?:=|:)?\s*(?:[$€£]\s*)?"
-        r"(?P<number>" + _NUMBER_RE.pattern + r")",
-        re.IGNORECASE,
-    )
-    match = label_pattern.search(text)
-    if match is None and allow_bare:
-        # Bare value shape: 8.00 / 8.00 USD / $8.00.
-        match = re.match(
-            r"\s*(?:[$€£]\s*)?(?P<number>" + _NUMBER_RE.pattern + r")"
-            r"\s*(?P<tail>[A-Za-z%$€£][^\n;]*)?\s*$",
-            text,
-        )
-    if match is None:
+    item = SimpleNamespace(
+        concept=concept, column=column, unit=required)
+    labels = [label for label in (column, concept,
+                                  concept.replace("_", " ")) if label]
+    label_present = any(
+        re.search(r"(?<![A-Za-z0-9_])" + re.escape(label),
+                  text, re.IGNORECASE)
+        for label in labels)
+    if label_present:
+        candidates = extract_candidates(
+            text, item, expected_unit=required)
+    elif allow_bare:
+        candidates = []
+        for match in re.finditer(
+                r"(?P<prefix>[$€£])?\s*(?P<number>" +
+                _NUMBER_RE.pattern + r")",
+                text):
+            raw_value = match.group("number")
+            tail = text[match.end("number"):]
+            suffix_unit = _unit_token(tail)
+            candidates.append(_candidate_from_parts(
+                concept=concept, column=column, label=column or concept,
+                raw_value=raw_value,
+                prefix_unit=str(match.group("prefix") or ""),
+                suffix_unit=suffix_unit,
+                span=[match.start(), match.end("number") + len(suffix_unit)],
+                expected_unit=required,
+                source="user_confirmation",
+            ))
+    else:
+        candidates = []
+    if not candidates:
         return {
             "status": "unresolved",
             "question": question,
             "reason": "no_explicit_value",
         }
-    raw_value = match.group("number")
-    value = _parse_decimal(raw_value)
-    if value is None:
+    result = validate_candidates(candidates, item)
+    if result.get("status") == "ready":
+        candidate = dict(result.get("validated") or {})
+        candidate["source"] = "user_confirmation"
         return {
-            "status": "malformed",
-            "question": question,
-            "reason": "malformed_value",
-        }
-    tail = text[match.end("number"):]
-    raw_unit = _unit_token(tail)
-    unit = normalize_unit(raw_unit, required)
-    candidate = {
-        "concept": concept,
-        "column": column,
-        "label": column or concept,
-        "raw_value": raw_value,
-        "value": value,
-        "raw_unit": unit["raw_unit"],
-        "normalized_unit": unit["normalized_unit"],
-        "required_unit": required,
-        "unit_status": unit["unit_status"],
-        "unit_authority": "user_confirmation",
-        "span": [int(match.start()), int(match.end("number")) + len(raw_unit)],
-        "source": "user_confirmation",
-        "malformed": False,
-    }
-    if unit["unit_status"] == "incompatible":
-        return {
-            "status": "unit_incompatible",
+            "status": "confirmed",
             "question": question,
             "candidate": candidate,
-            "reason": "incompatible_unit",
         }
-    if unit["unit_status"] == "unknown":
-        return {
-            "status": "unit_unknown",
-            "question": question,
-            "candidate": candidate,
-            "reason": "unknown_unit",
-        }
-    if unit["unit_status"] == "unresolved":
-        return {
-            "status": "unit_unresolved",
-            "question": question,
-            "candidate": candidate,
-            "reason": "unit_unresolved",
-        }
+    status = result.get("status") or "unresolved"
+    reason = {
+        "unit_incompatible": "incompatible_unit",
+        "unit_unknown": "unknown_unit",
+        "unit_unresolved": "unit_unresolved",
+        "ambiguous": "ambiguous_value",
+        "malformed": "malformed_value",
+    }.get(status, status)
     return {
-        "status": "confirmed",
+        "status": status,
         "question": question,
-        "candidate": candidate,
+        "candidate": candidates[0] if candidates else None,
+        "candidates": candidates,
+        "reason": reason,
     }

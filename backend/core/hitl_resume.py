@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 _GOAL_RUN_ACTIONS = {"goal_run_decision", "goal_run_checkpoint"}
 _ASSIGNMENT_ACTIONS = {"assignment_approval"}
+_CHAT_OBLIGATION_ACTIONS = {"chat_request_obligation"}
 
 
 def _load_action(action_id: str) -> Optional[Dict[str, Any]]:
@@ -151,6 +152,63 @@ async def _resume_assignment(
             "assignment": loop}
 
 
+async def _resume_chat_obligation(
+    action: Dict[str, Any], approved: bool,
+    reviewer_id: Optional[str], guidance: Optional[str],
+) -> Dict[str, Any]:
+    """Resume a prepared chat obligation through the existing proposal path.
+
+    The HITL row is the approval event; the concrete email payload lives on
+    the AgentProposal. Approval executes that proposal through the existing
+    deterministic email policy (controlled transport in tests), never a
+    second send path.
+    """
+    params = action.get("params") or {}
+    proposal_id = str(params.get("proposal_id") or "")
+    if not proposal_id:
+        return {
+            "handled": False,
+            "reason": "chat obligation has no prepared proposal",
+        }
+    from core.proposal_service import ProposalService
+
+    with get_db_session() as db:
+        service = ProposalService(db)
+        if not approved:
+            try:
+                await service.reject_proposal(
+                    proposal_id,
+                    user_id=reviewer_id or "approver",
+                    reason=guidance or action.get("reason") or "rejected",
+                    tenant_id=action.get("tenant_id"),
+                )
+            except Exception as exc:  # noqa: BLE001 — decision stands
+                return {
+                    "handled": True, "resumed": False,
+                    "kind": "chat_obligation",
+                    "proposal_id": proposal_id,
+                    "error": str(exc)[:500],
+                }
+            return {
+                "handled": True, "resumed": False,
+                "kind": "chat_obligation",
+                "proposal_id": proposal_id,
+                "status": "rejected",
+            }
+        result = await service.approve_proposal(
+            proposal_id,
+            user_id=reviewer_id or "approver",
+            tenant_id=action.get("tenant_id"),
+        )
+        return {
+            "handled": True,
+            "resumed": bool((result or {}).get("success")),
+            "kind": "chat_obligation",
+            "proposal_id": proposal_id,
+            "result": result,
+        }
+
+
 async def _resume_workflow(action: Dict[str, Any], approved: bool,
                             guidance: Optional[str]) -> Dict[str, Any]:
     params = action.get("params") or {}
@@ -218,6 +276,9 @@ async def resume_after_hitl_decision(
             result = await _resume_goal_run(action, approved, reviewer_id, guidance)
         elif action["action_type"] in _ASSIGNMENT_ACTIONS:
             result = await _resume_assignment(
+                action, approved, reviewer_id, guidance)
+        elif action["action_type"] in _CHAT_OBLIGATION_ACTIONS:
+            result = await _resume_chat_obligation(
                 action, approved, reviewer_id, guidance)
         elif (action.get("params") or {}).get("execution_id"):
             result = await _resume_workflow(action, approved, guidance)
