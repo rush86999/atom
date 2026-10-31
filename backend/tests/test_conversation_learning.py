@@ -970,6 +970,36 @@ def test_chat_wrong_context_excludes_scoped_method_without_calculation():
     assert reply["_recorded_outcome"]["state"] == "partial"
 
 
+def test_chat_competing_methods_conflict_without_calculation():
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    orch = ChatOrchestrator()
+    orch.ai_engines = {}
+    reply = orch._apply_teaching_resolution(
+        resolution={
+            "needs_context": False,
+            "required_context": [],
+            "conflicts": [],
+            "excluded_lessons": [],
+            "consumed_lesson_refs": [
+                {"id": "lesson-1", "revision": 1},
+                {"id": "lesson-2", "revision": 1},
+            ],
+            "method_status": "conflict",
+            "method_lessons": [],
+        },
+        message="price the order with Qty 2 and Price 7.50",
+        session={"id": "s1"}, session_id="s1", user_id="u1",
+        agent_id="agent-1", workspace_id="ws-1",
+        task_context={"qualification": "licensed"},
+        memory_context="TRAINING LESSONS",
+    )
+    assert reply is not None
+    assert "did not calculate" in reply["content"]
+    assert reply["teaching_method_conflict"]["lesson_refs"]
+    assert "teaching_execution" not in reply
+
+
 def test_conversation_method_compiles_for_assignment():
     from core.assignment_teaching import build_conversation_calculation
 
