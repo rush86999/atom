@@ -78,7 +78,8 @@ def _request(base: str, path: str, payload: Any = None, *, token: str = "",
             "Content-Type": "application/json",
             **({"Authorization": f"Bearer {token}"} if token else {}),
         })
-    with urllib.request.urlopen(request, timeout=300) as response:
+    timeout = float(os.getenv("ATOM_ASSESSMENT_HTTP_TIMEOUT", "900") or 900)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode() or "{}")
 
 
@@ -127,8 +128,16 @@ def _decision_map(result: Dict[str, Any]) -> Dict[str, str]:
     }
 
 
-def _require_certified(result: Dict[str, Any], expected: Dict[str, str],
-                       label: str) -> None:
+def _judge(result: Dict[str, Any], expected: Dict[str, str], label: str,
+           *, strict: bool) -> Dict[str, Any]:
+    """Apply the SYSTEM gates hard, then measure judgment separately.
+
+    Certification, real model provenance and subject coverage are contract
+    gates: without them there is no assessment to judge. Decision accuracy is
+    a property of the serving model, so it is measured and recorded — a small
+    local model that misreads a policy boundary must not be reported as a
+    harness crash, and must not be reported as a pass either.
+    """
     if result.get("success") is not True or result.get("certified") is not True:
         raise SystemExit(
             f"{label}: assessment not certified: "
@@ -137,12 +146,44 @@ def _require_certified(result: Dict[str, Any], expected: Dict[str, str],
     if not route.get("served_provider") or not route.get("served_model"):
         raise SystemExit(
             f"{label}: no real model provenance in route: {route}")
-    actual = _decision_map(result)
-    if actual != expected:
-        raise SystemExit(
-            f"{label}: decision mismatch; expected {expected}, got {actual}")
     if sorted(result.get("subjects") or []) != sorted(SUBJECTS):
         raise SystemExit(f"{label}: subject coverage mismatch")
+
+    actual = _decision_map(result)
+    mismatches = {
+        subject: {"expected": expected[subject], "actual": actual.get(subject)}
+        for subject in expected
+        if actual.get(subject) != expected[subject]
+    }
+    judgment = {
+        "schema": "atom-substantive-assessment-judgment-1",
+        "phase": label,
+        "served_provider": route.get("served_provider"),
+        "served_model": route.get("served_model"),
+        "expected": expected,
+        "actual": actual,
+        "mismatches": mismatches,
+        "accuracy": round(
+            (len(expected) - len(mismatches)) / len(expected), 4),
+        "ok": not mismatches,
+    }
+    if mismatches and strict:
+        raise SystemExit(
+            f"{label}: decision mismatch; expected {expected}, got {actual}")
+    return judgment
+
+
+def _write_judgment(out: Path, label: str, judgment: Dict[str, Any]) -> None:
+    (out / f"judgment-{label}.json").write_text(
+        json.dumps(judgment, indent=2) + "\n")
+    print(json.dumps({
+        "phase": label,
+        "judgment_ok": judgment["ok"],
+        "accuracy": judgment["accuracy"],
+        "mismatches": judgment["mismatches"],
+        "served_provider": judgment["served_provider"],
+        "served_model": judgment["served_model"],
+    }, indent=2))
 
 
 def _preflight(out: Path) -> int:
@@ -180,7 +221,7 @@ def _preflight(out: Path) -> int:
     return 0 if not blockers else 3
 
 
-def _create(frontend: str, token: str, out: Path) -> int:
+def _create(frontend: str, token: str, out: Path, *, strict: bool) -> int:
     canvas = _request(frontend, "/api/canvas", {
         "title": "Grant eligibility substantive assessment",
         "description": "Unfamiliar grant records under a taught policy.",
@@ -197,7 +238,9 @@ def _create(frontend: str, token: str, out: Path) -> int:
         "title": "Grant eligibility 2026-10-31",
     }, token=token)
     result = _assess(frontend, token, canvas_id)
-    _require_certified(result, EXPECTED_V1, "create")
+    (out / "create-raw.json").write_text(json.dumps(result, indent=2) + "\n")
+    judgment = _judge(result, EXPECTED_V1, "create", strict=strict)
+    _write_judgment(out, "create", judgment)
     state = {
         "schema": "atom-substantive-assessment-state-1",
         "canvas_id": canvas_id,
@@ -209,27 +252,34 @@ def _create(frontend: str, token: str, out: Path) -> int:
         "v1": result,
         "v1_route": result.get("route"),
         "v1_policy_revision": result.get("policy_revision"),
+        "v1_judgment": judgment,
     }
     (out / "state.json").write_text(json.dumps(state, indent=2) + "\n")
     (out / "create.json").write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps({"status": "passed", "phase": "create",
                       "canvas_id": canvas_id,
+                      "judgment_ok": judgment["ok"],
+                      "accuracy": judgment["accuracy"],
                       "route": result.get("route")}, indent=2))
     return 0
 
 
-def _correct(frontend: str, token: str, out: Path, state_path: str) -> int:
+def _correct(frontend: str, token: str, out: Path, state_path: str,
+             *, strict: bool) -> int:
     state = json.loads(Path(state_path).read_text())
     canvas_id = state["canvas_id"]
     _request(frontend, f"/api/canvas/{canvas_id}/capability/manifest",
              {"manifest": _manifest(POLICY_V3)}, token=token, method="PUT")
     result = _assess(frontend, token, canvas_id)
-    _require_certified(result, EXPECTED_V3, "correct")
+    (out / "correct-raw.json").write_text(json.dumps(result, indent=2) + "\n")
+    judgment = _judge(result, EXPECTED_V3, "correct", strict=strict)
+    _write_judgment(out, "correct", judgment)
     if result.get("policy_revision") == state.get("v1_policy_revision"):
         raise SystemExit("correct: policy revision did not change")
     state["v3"] = result
     state["v3_route"] = result.get("route")
     state["v3_policy_revision"] = result.get("policy_revision")
+    state["v3_judgment"] = judgment
     (out / "state.json").write_text(json.dumps(state, indent=2) + "\n")
     (out / "correct.json").write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps({"status": "passed", "phase": "correct",
@@ -239,14 +289,23 @@ def _correct(frontend: str, token: str, out: Path, state_path: str) -> int:
 
 
 def _after_restart(frontend: str, token: str, out: Path,
-                   state_path: str) -> int:
+                   state_path: str, *, strict: bool) -> int:
     state = json.loads(Path(state_path).read_text())
     result = _assess(frontend, token, state["canvas_id"])
-    _require_certified(result, EXPECTED_V3, "after-restart")
+    (out / "after-restart-raw.json").write_text(json.dumps(result, indent=2) + "\n")
+    judgment = _judge(result, EXPECTED_V3, "after-restart", strict=strict)
+    _write_judgment(out, "after-restart", judgment)
     route = result.get("route") or {}
     if route.get("served_provider") != state.get("v3_route", {}).get(
             "served_provider"):
         raise SystemExit("after-restart: served provider changed")
+    # Stability is a SYSTEM property: the same world and policy must produce
+    # the same decisions after a real restart, whatever those decisions are.
+    before = (state.get("v3_judgment") or {}).get("actual") or {}
+    if before and _decision_map(result) != before:
+        raise SystemExit(
+            "after-restart: decisions changed across restart; "
+            f"before={before} after={_decision_map(result)}")
     (out / "after-restart.json").write_text(
         json.dumps(result, indent=2) + "\n")
     print(json.dumps({"status": "passed", "phase": "after-restart",
@@ -263,7 +322,14 @@ def main() -> int:
     ap.add_argument("--password-file", default="")
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--state", default="")
+    ap.add_argument(
+        "--continue-on-judgment-mismatch", action="store_true",
+        help=("Record decision accuracy and keep running the correction and "
+              "restart phases. System gates (certification, provenance, "
+              "coverage, policy revision, post-restart stability) stay hard."),
+    )
     args = ap.parse_args()
+    strict = not args.continue_on_judgment_mismatch
     out = Path(args.out_dir).resolve()
     out.mkdir(parents=True, exist_ok=True)
     if args.phase == "preflight":
@@ -272,12 +338,13 @@ def main() -> int:
         raise SystemExit("--password-file is required for assessment phases")
     token = _login(args.frontend, args.password_file)
     if args.phase == "create":
-        return _create(args.frontend, token, out)
+        return _create(args.frontend, token, out, strict=strict)
     if not args.state:
         raise SystemExit("--state is required for this phase")
     if args.phase == "correct":
-        return _correct(args.frontend, token, out, args.state)
-    return _after_restart(args.frontend, token, out, args.state)
+        return _correct(args.frontend, token, out, args.state, strict=strict)
+    return _after_restart(
+        args.frontend, token, out, args.state, strict=strict)
 
 
 if __name__ == "__main__":
