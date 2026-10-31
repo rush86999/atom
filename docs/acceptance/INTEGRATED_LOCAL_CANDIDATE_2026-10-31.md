@@ -10,9 +10,11 @@ publication remain deferred by the owner.
 | Item | Value |
 |---|---|
 | Branch | `codex/employee-execution-readiness` |
-| Final code/evidence | `54eea4462` (code `661c751b2`) |
+| Final code/evidence | `24b0633df` (code `814962078`) |
 | Assessment safety | `460f38c27` (atomic approval/scoped autonomy), `b80288e4e` (authoritative reads), `6363e3794` (route-level exact approval) |
 | Practical browser recovery | `b24f67c29` / `e564890e7` (5/5 checks) |
+| Bounded autonomy boundaries | `814962078` / `24b0633df` (185 backend + 6 frontend tests) |
+| Two-domain autonomous journey | `814962078` / `24b0633df` (5/5 browser checks) |
 | Evidence source | `06d80f834` (product teaching `3e344f5b1`) |
 | Agent 2 merge | `931892be0` |
 | Integrated README rerun | `619960832` |
