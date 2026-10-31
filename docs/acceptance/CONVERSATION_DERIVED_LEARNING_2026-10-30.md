@@ -1,8 +1,9 @@
 # Conversation-derived, reference-bound learning
 
 Status: **bounded successor implementation complete; independent verifier
-review pending.** Parser/continuation source `dfa940ee5` (tree `774ed1f1`),
-building on method-boundary source `525a768d1` / `a660065cd`, closure source
+review pending.** Approval-binding source `e05bc55a6` (tree `37ec5a02`),
+building on parser/continuation source `dfa940ee5` / `237a187df`,
+method-boundary source `525a768d1` / `a660065cd`, closure source
 `54543b493` / `550e8c165`, consumer source `37904dcd0` / `a888f5d6c` and
 applicability source `50b53bef6` (tree `cf7d8d3`). This is deliberately
 separate from the accepted local-core closure at `da9cc8b12` / tag
@@ -23,6 +24,9 @@ Method-boundary evidence:
 
 Parser/continuation evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-dfa940ee5/`.
+
+Approval-binding evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-e05bc55a6/`.
 
 ## 1. Why this phase exists
 
@@ -242,6 +246,26 @@ outbound action runs during this repair.
   email path, not a second send path. Tests use a controlled
   `EmailCanvasService.send_email` mock; no real send runs.
 
+### 3.11 Approval payload binding
+
+A chat `chat_request_obligation` approval is bound to the exact reviewed
+proposal payload, not just the proposal id:
+
+- `payload_sha256` covers `action_type`, `canvas_id`, `to`, `cc`, `subject`,
+  `body`, `attachment_ids`, `attachment_hashes`, `thread_id`, `reply_all`;
+- `artifact_revision` is the draft canvas content hash at review time.
+
+`ProposalService.approve_proposal` compares both values before the
+`pending_approval → approved` claim, performs the conditional UPDATE, re-reads
+and compares again while holding the row lock, then commits and executes the
+action captured from the reviewed read. A changed payload raises
+`ProposalApprovalInvalidated`; the claim is rolled back, the proposal remains
+`pending_approval`, and `hitl_resume` returns `payload_changed` with
+`fresh_review_required=true`. No transport runs.
+
+Rejection, duplicate approval (already executed → replayed), missing binding
+(fail closed) and terminal proposal states remain preserved.
+
 ## 4. Acceptance matrix
 
 All cases run through the shared implementation in
@@ -288,9 +312,10 @@ clarification, deterministic chat execution, wrong/conflict outcomes and the
 browser/restart journeys. The method-boundary source adds candidate/unit
 validation, calculation receipts, compound-request settlement and operand
 clarification. The parser/continuation source adds prefix units, shared
-answer validation and resumable compound email work. Its targeted backend set
-is **421 passed**; its frontend learning suites are **4 passed**; TypeScript
-`--noEmit` is clean. Fourteen
+answer validation and resumable compound email work. The approval-binding
+source binds the reviewed proposal payload and artifact revision. Its targeted
+backend set is **425 passed**; its frontend learning suites are **4 passed**;
+TypeScript `--noEmit` is clean. Fourteen
 `test_chat_canvas_editor.py` tests fail in a wider run; the same failure mode
 is present at the parent commit `55dddd6d4` with `lane refused pre-planning:
 the turn's own words do not authorize a canvas mutation`; they are
@@ -420,6 +445,19 @@ called.
 The controlled transport recorded one call to `alice@example.com`; the
 proposal moved to `executed` with `execution_success=true`.
 
+## 6.5 Approval payload-binding live campaign
+
+| Case | Result |
+|---|---|
+| Recipient changed after review | `payload_changed`; 0 transport calls; proposal `pending_approval` |
+| Body changed after review | `payload_changed`; 0 transport calls; proposal `pending_approval` |
+| Attachment hash changed after review | `payload_changed`; 0 transport calls; proposal `pending_approval` |
+| Matching reviewed payload | `handled=true`, `resumed=true`; 1 controlled transport call; proposal `executed` |
+| Duplicate approval | `replayed=true`; still 1 transport call |
+| Rejection | proposal `rejected`; 0 transport calls |
+
+The controlled transport is a mock; no real email was sent.
+
 ## 7. Consumer audit
 
 | Surface | Established task context | Required-context clarification | Scoped conversation methods | Consumed revision record |
@@ -451,8 +489,9 @@ This phase is intentionally bounded:
 - no currency conversion is authorized or implemented; explicit units are
   validated against the method and incompatible/unknown units clarify;
 - a compound request keeps its non-calculation obligations in the approval
-  ledger; approval resumes the prepared proposal through `hitl_resume` and
-  `ProposalService`; tests use controlled transport and no real send runs;
+  ledger; approval is bound to the reviewed payload/artifact digest, resumes
+  only that exact payload through `hitl_resume` and `ProposalService`, and
+  refuses drift; tests use controlled transport and no real send runs;
 - the existing core tag and its historical evidence are unchanged.
 
 Hosted deployment, publication, source shutdown and additional real sends

@@ -1,0 +1,73 @@
+{
+  "recipient": {
+    "proposal_id": "bf041ad7-7b53-46a5-8d24-90dc17418557",
+    "hitl_id": "ad1d8298-ab53-4ad5-ab73-7232c6c767ce",
+    "result": {
+      "handled": true,
+      "resumed": false,
+      "kind": "chat_obligation",
+      "proposal_id": "bf041ad7-7b53-46a5-8d24-90dc17418557",
+      "status": "payload_changed",
+      "reason": "the proposal payload changed after review; fresh approval is required",
+      "fresh_review_required": true
+    },
+    "transport_calls": 0,
+    "proposal_status": "pending_approval"
+  },
+  "body": {
+    "proposal_id": "19d736ca-e03b-46e0-8c88-e0b06b87227d",
+    "hitl_id": "7b40da53-b5fb-4d7d-b8b9-e325aa6c13d5",
+    "result": {
+      "handled": true,
+      "resumed": false,
+      "kind": "chat_obligation",
+      "proposal_id": "19d736ca-e03b-46e0-8c88-e0b06b87227d",
+      "status": "payload_changed",
+      "reason": "the proposal payload changed after review; fresh approval is required",
+      "fresh_review_required": true
+    },
+    "transport_calls": 0,
+    "proposal_status": "pending_approval"
+  },
+  "attachment": {
+    "proposal_id": "981a2345-19e7-4f58-8268-d04cadd7aad1",
+    "hitl_id": "f3bcfdb6-7280-4615-b5ec-afb706ce0e2e",
+    "result": {
+      "handled": true,
+      "resumed": false,
+      "kind": "chat_obligation",
+      "proposal_id": "981a2345-19e7-4f58-8268-d04cadd7aad1",
+      "status": "payload_changed",
+      "reason": "the proposal payload changed after review; fresh approval is required",
+      "fresh_review_required": true
+    },
+    "transport_calls": 0,
+    "proposal_status": "pending_approval"
+  },
+  "positive": {
+    "proposal_id": "ceee9fe3-a343-43b0-8836-895c4a53980f",
+    "hitl_id": "9015377e-c73a-4cf9-8dce-1a54b77e5727",
+    "result": {
+      "handled": true,
+      "resumed": true,
+      "kind": "chat_obligation",
+      "proposal_id": "ceee9fe3-a343-43b0-8836-895c4a53980f",
+      "result": {
+        "success": true,
+        "status": "draft_only",
+        "message": "Email draft_only to alice@example.com"
+      }
+    },
+    "transport_calls": 1,
+    "proposal_status": "executed",
+    "duplicate": {
+      "handled": true,
+      "resumed": true,
+      "replayed": true,
+      "kind": "chat_obligation",
+      "proposal_id": "ceee9fe3-a343-43b0-8836-895c4a53980f",
+      "status": "already_executed"
+    },
+    "calls_after_duplicate": 1
+  }
+}
