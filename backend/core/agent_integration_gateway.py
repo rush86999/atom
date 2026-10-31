@@ -135,12 +135,27 @@ class AgentIntegrationGateway:
                 if approved:
                     from core import outbound_operation_claim as operation_claim
 
+                    if approved.get("binding_ok") is not True:
+                        return {
+                            "status": "approval_binding_mismatch",
+                            "requires_new_approval": True,
+                            "hitl_id": approved.get("id"),
+                            "message": (
+                                "The request changed after human review; the "
+                                "approved payload is not the payload being "
+                                "dispatched."),
+                            "error": approved.get("reason"),
+                        }
+
+                    # Dispatch exactly the captured reviewed payload, not the
+                    # possibly-mutated current request.
+                    dispatch_params = dict(approved.get("params") or {})
                     payload_hash = operation_claim.payload_sha256(
                         workspace_id=workspace_id,
                         approval_id=approved["id"],
                         action_type=action_type.value,
                         platform=platform,
-                        params=params,
+                        params=dispatch_params,
                     )
                     claim = operation_claim.claim_or_replay(
                         workspace_id=workspace_id,
@@ -202,7 +217,7 @@ class AgentIntegrationGateway:
                             "error": "claim could not enter the dispatch state",
                         }
                     try:
-                        result = await self._handle_send_message(platform, params)
+                        result = await self._handle_send_message(platform, dispatch_params)
                     except Exception as exc:  # noqa: BLE001 — transport may have applied
                         effect_possible = getattr(exc, "effect_possible", True)
                         status = (
@@ -235,7 +250,7 @@ class AgentIntegrationGateway:
                             contact_governance.mark_effect_applied(
                                 approved["id"], {
                                     "platform": platform,
-                                    "recipient": params.get("recipient_id"),
+                                    "recipient": dispatch_params.get("recipient_id"),
                                     "status": result.get("status"),
                                 })
                         except Exception as receipt_err:  # noqa: BLE001

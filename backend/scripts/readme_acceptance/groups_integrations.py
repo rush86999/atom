@@ -386,6 +386,23 @@ def integrations(ctx: Ctx) -> None:
     claim_ok = (race_ok and restart_ok and changed_ok
                 and persist_ok and noeffect_ok)
 
+    # Approval binding: a changed action-relevant parameter must be refused
+    # BEFORE a claim exists, not bound to the new value.
+    binding_params, binding_id, binding_approval = _start_approval(
+        "telegram", "binding@example.com", "INT-05 approved content")
+    changed_request = dict(binding_params)
+    changed_request["content"] = "INT-05 changed after review"
+    binding_first = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "telegram", changed_request))
+    binding_effects = [item for item in sent
+                       if item.get("recipient") == "binding@example.com"]
+    binding_claim = operation_claim.current(ctx.workspace_id, binding_id)
+    binding_ok = (binding_approval is not None and binding_approval.status_code == 200
+                  and binding_first.get("status") == "approval_binding_mismatch"
+                  and not binding_effects
+                  and binding_claim is None)
+    claim_ok = claim_ok and binding_ok
+
     # Rejection control: a second external pattern is denied, and retrying it
     # still pauses instead of sending.
     reject_params = {**outbound_params, "recipient_id": "denied@example.com"}
@@ -446,6 +463,10 @@ def integrations(ctx: Ctx) -> None:
                        "noeffect_retry": noeffect_retry,
                        "noeffect_effects": noeffect_effects,
                        "noeffect_ok": noeffect_ok,
+                       "binding_first": binding_first,
+                       "binding_effects": binding_effects,
+                       "binding_claim": binding_claim,
+                       "binding_ok": binding_ok,
                    },
                    "sent": sent,
                    "denied": denied,
@@ -462,6 +483,7 @@ def integrations(ctx: Ctx) -> None:
                      f"race_effects={len(race_effects)} restart={restart_retry.get('status')} "
                      f"changed={changed.get('status')} persist={persist_retry.get('status')} "
                      f"noeffect={noeffect_retry.get('status')} "
+                     f"binding={binding_first.get('status')} "
                      f"reject={None if reject is None else reject.status_code} "
                      f"denied_retry={denied_retry.get('status')}")
 

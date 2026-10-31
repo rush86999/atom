@@ -127,7 +127,12 @@ CORE-06). The earlier 18-claim audit is retained as history.
   - transport success followed by a failed confirmation write stayed
     `uncertain_effect`, and retry did not send again;
   - a known-before-effect failure was stored as `failed_before_effect` and
-    was not auto-resent.
+    was not auto-resent;
+  - approval binding: the complete normalized request is compared with the
+    immutable reviewed payload before the claim is created. An approved
+    send whose content was changed returned `approval_binding_mismatch`,
+    created **no claim row** and made **zero transport calls**. The captured
+    approved payload — not the current request — is what gets dispatched.
 - **INT-07** — a Slack HMAC signature over the original bytes was accepted
   once, replay was duplicate, and forged/missing signatures were 401.
 

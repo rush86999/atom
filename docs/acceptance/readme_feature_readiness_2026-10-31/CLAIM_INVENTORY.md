@@ -1,6 +1,6 @@
 # README feature-readiness claim inventory
 
-Generated: 2026-10-31T20:08:18.437473+00:00
+Generated: 2026-10-31T20:28:13.807844+00:00
 
 README: `README.md` @ `da9cc8b12de3639f59cc5b8ea84338c5f507dc6d` (tag `local-core-2026-10-30-final`), sha256 `392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0`
 
@@ -782,49 +782,49 @@ Eligible functional claims: **123** · tracked separately: 20
 - Claim: 46+ Business Integrations
 - Acceptance: Fetch the catalog and count providers
 - Expected: At least 46 distinct providers are listed as available
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/catalog.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/catalog.json`
 
 ### INT-02 — verified
 
 - Claim: connected state is truthful
 - Acceptance: Read status with no tokens; add a token; read again
 - Expected: No token -> connected=false; token -> true with a truthful source
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/connection_status.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/connection_status.json`
 
 ### INT-03 — verified
 
 - Claim: OAuth connect
 - Acceptance: Run the full consent round-trip against a bounded local provider
 - Expected: Token rows persist; status becomes connected; state/PKCE checked
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/oauth_connect.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/oauth_connect.json`
 
 ### INT-04 — verified
 
 - Claim: use connected data
 - Acceptance: Read a bounded mocked dataset and ingest it
 - Expected: Records are returned/ingested with source identity and no silent empty success
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/controlled_read.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/controlled_read.json`
 
 ### INT-05 — verified
 
 - Claim: outbound actions
 - Acceptance: Request a send/create; approve; verify one effect at the mocked provider
 - Expected: No send before approval; exactly one approved effect
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/outbound_hitl.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/outbound_hitl.json`
 
 ### INT-06 — verified
 
 - Claim: disconnect
 - Acceptance: Disconnect, then read status and attempt a data call
 - Expected: Status returns disconnected and revoked tokens no longer work
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/disconnect.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/disconnect.json`
 
 ### INT-07 — verified
 
 - Claim: webhook triggers
 - Acceptance: Send an unsigned/forged webhook and a correctly signed one
 - Expected: Forged is rejected fail-closed; signed is accepted once
-- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/webhook.json`
+- Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-binding-world/evidence/integrations/webhook.json`
 
 ### INT-08 — verified
 

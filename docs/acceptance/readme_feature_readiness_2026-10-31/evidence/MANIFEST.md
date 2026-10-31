@@ -19,16 +19,16 @@ Next-claim plan: `NEXT_CLAIM_BATCHES_2026-10-31.md`
 | Artifact | sha256 | bytes |
 |---|---|---|
 | `README.md` | `a466341043d752e0e10aceccd545714cbef54db58c4ff14e411f5c012136c4a4` | 2431 |
-| `CLAIM_INVENTORY.json` | `2c1f1e5154f2946daf86d815fa6cdab8702f82196becee531ef8a22910ce8402` | 153148 |
-| `CLAIM_INVENTORY.md` | `081e95dc3bd1e322507bef3ea2ceef100d2bfda4024b2d81b6d32fa3e4c82ee8` | 65172 |
-| `COVERAGE_REPORT_2026-10-31.md` | `9649e7a4d9933ab63ab1cffea0a1ab04219275841c2672ae468b371eb2dd0c79` | 14367 |
-| `VERIFIER_REVIEW_REQUEST.md` | `e7079098647718373f1dd1e7c88ede286203e04539a74507b1c1e26bab3e717a` | 6896 |
+| `CLAIM_INVENTORY.json` | `00281c1cc36dec80145208d8d2ea830705e478167ca2b9d72933f7a926105743` | 153196 |
+| `CLAIM_INVENTORY.md` | `79765dd18d1dd12ab9362b69399fc2495d8342d8ac2d5252dc4f391f6ffc14a8` | 65186 |
+| `COVERAGE_REPORT_2026-10-31.md` | `325b7d9c193dce000b53868f03f5994f223ed68c93f0b5b985acb3239beb1866` | 14742 |
+| `VERIFIER_REVIEW_REQUEST.md` | `148269eaf70803df8b3fd90c7b7fd3da24da13733c8fee2dc29074064af4fe3b` | 7199 |
 | `NEXT_CLAIM_BATCHES_2026-10-31.md` | `d9488457011c0e52fbbe9f83dc49e3516431ae58912467ebe710db23eb227e9d` | 26532 |
-| `evidence/corrected-results.json` | `4df28fab274ebe858e2d9ec060ff102e0c5365bea875bf8e6961e4f3d79f160b` | 66312 |
+| `evidence/corrected-results.json` | `9756f173d960f4137cc2023489a502b3e65a32b87e42a4420aa48c581e6a70f1` | 66360 |
 | `evidence/CLAIM_AUDIT_2026-10-31_final.json` | `cbe045b61c2d52a36cb95b51520f927aed5c94750e5125d491300fb930989798` | 1672 |
 | `evidence/CLAIM_AUDIT_2026-10-31.json` | `aa774b47d7a8e97e77fd68f22cfd0e9c599243de51024f49ced273eb21516337` | 4579 |
 | `evidence/final-all-groups.json` | `522ee4e11620573e1a4242a3f6f98fdcc9770d22cca89c31ffdc6009fddb0f2e` | 45527 |
-| `evidence/merged-integrated.json` | `cee69b1ff7b0bdd55f3a4c53f00babd134382ccbcd79eaa340b8aba033054582` | 63691 |
+| `evidence/merged-integrated.json` | `dec4caad752a1c77131afda236fd4c6472de245dd409c4148a015868a710fc6e` | 63739 |
 | `evidence/install-final.json` | `8212ff5a9e4447e86007085bb69b83d6a23a1d858f3c4547b4bdd30bba5c6c9d` | 26113 |
 | `evidence/goals-status-recheck.json` | `18bed86bea2f9d58cf6232042e085932d94be3d01701ce53e90974c78f61a4b8` | 283 |
 | `evidence/corrected-affected.json` | `b2d7f0a10fd0744ff1284d3609ab531caa6191068c8c0bbd16e1ff80ca9e20ee` | 27341 |
@@ -50,7 +50,7 @@ Next-claim plan: `NEXT_CLAIM_BATCHES_2026-10-31.md`
 | `evidence/practical-assignment.json` | `af3d0608c7ac3ddc17bcb8e83403accf7e46c75a3cdf6f62eace5e08ef274706` | 9929 |
 | `REMAINING_WORK.md` | `560d58727acceef4d823fd8c12dc44b8944e293e71c126746d98c3ff4b6b6d16` | 3746 |
 | `evidence/office-final.json` | `5d07a905113df1f229619198fe9253bf8a2fb6347c5462dae9b02535368e06d5` | 3383 |
-| `evidence/integrations-final.json` | `a65aca2e9964ef89cfd30f19689f91a3f038942a313076e215a6299faa83a68b` | 4386 |
+| `evidence/integrations-final.json` | `d5c203c99d9c9cd6e48027b428ba9ebd9fc59945c92ac18879ab18573c0c3b19` | 4438 |
 
 ## Hash history
 

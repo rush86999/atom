@@ -46,7 +46,7 @@ CORE-06.
 | OFF-07 | agent write delivered to both the canvas subscriber and the `user:{uid}` subscriber with the same structured revision; unrelated canvas excluded |
 | TEAM-06 | incumbency/reviewer/COI report baselines; empty-window zero control |
 | INT-04 | registered HubSpot adapter read with bearer token/path assertions; missing token refused |
-| INT-05 | external send held at HITL; one effect after approval; sequential retry duplicate; approval replay 400; two simultaneous retries → one effect; restart-after-claim, changed-payload conflict, persistence-failure uncertainty and before-effect failure all leave the effect count at one/zero; rejection still blocked |
+| INT-05 | external send held at HITL; one effect after approval; sequential retry duplicate; approval replay 400; two simultaneous retries → one effect; restart-after-claim, changed-payload conflict, persistence-failure uncertainty and before-effect failure all leave the effect count at one/zero; a parameter changed after approval is refused before claim creation with zero transport; rejection still blocked |
 | INT-07 | original-bytes HMAC accepted once, replay duplicate, forged/missing 401 |
 
 ## 3. Product fixes in the integrated candidate
@@ -64,7 +64,10 @@ CORE-06.
 - approved outbound effects atomically claim the existing
   `task_operation_records` row before dispatch, bind it to the complete
   payload hash, and persist success/failed-before-effect/uncertain-effect
-  distinctly; competing/restarted callers never resend.
+  distinctly; competing/restarted callers never resend. The complete
+  normalized request is compared with the immutable reviewed payload before
+  claiming; a changed parameter is refused before any claim or transport, and
+  the captured approved payload is dispatched.
 
 ## 3.1 Practical employee gate
 
