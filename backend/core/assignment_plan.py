@@ -398,6 +398,13 @@ def new_assignment(
     objective_text = _bounded(objective, 4000).strip()
     if not objective_text:
         raise TaskLifecycleError("an assignment requires an objective")
+    raw_budget = dict(budget or {})
+    cost_mode = str(raw_budget.get("cost_mode") or "hard").lower()
+    soft_limit_by = str(
+        raw_budget.get("soft_limit_authorized_by") or "").strip()
+    if cost_mode not in ("hard", "soft") or (
+            cost_mode == "soft" and not soft_limit_by):
+        cost_mode = "hard"
     assignment = {
         "schema_version": ASSIGNMENT_SCHEMA_VERSION,
         "assignment_id": str(
@@ -435,6 +442,13 @@ def new_assignment(
                 (budget or {}).get("max_wall_seconds") or 3600.0)),
             "max_cost_usd": max(0.0, float(
                 (budget or {}).get("max_cost_usd") or 0.0)),
+            "cost_mode": cost_mode,
+            "soft_limit_authorized_by": soft_limit_by or None,
+            "reserved_cost_usd": 0.0,
+            "cost_reservations": [],
+            "cost_overrun_usd": 0.0,
+            "cost_violation": None,
+            "soft_limit_exceeded": False,
             "steps_started": 0,
             "started_at": None,
             "elapsed_seconds": 0.0,

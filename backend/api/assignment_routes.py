@@ -109,6 +109,7 @@ class AssignmentStart(BaseModel):
     transport: Optional[str] = None
     proposed_steps: Optional[List[Dict[str, Any]]] = None
     standing_authority: Optional[Dict[str, Any]] = None
+    budget: Optional[Dict[str, Any]] = None
 
 
 def _scoped_run(run_id: str, current_user: User) -> Dict[str, Any]:
@@ -575,6 +576,7 @@ async def start_assignment(
             outbound=body.outbound,
             wait=body.wait,
             standing_authority=standing_authority,
+            budget=body.budget,
             teaching_snapshot=teaching,
             authorized_actions=accepted_actions,
             employee_id=employee.id,

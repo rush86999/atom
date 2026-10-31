@@ -22,6 +22,7 @@ os.environ.setdefault("TESTING", "1")
 
 from core.assignment_executor import (
     AssignmentExecutor,
+    ExternalOutcomeNotApplied,
     ExternalOutcomeUnknown,
     NeedsContext,
     WaitingForExternal,
@@ -2005,3 +2006,257 @@ def test_cost_budget_stops_before_the_next_step(env):
         "assignment_budget_exhausted")
     assert result["assignment"]["status"] in (
         "running", "blocked", "failed", "partial")
+
+
+def _external_error_assignment(
+        env, tmp_path, monkeypatch, name, handler, budget=None):
+    outbox = tmp_path / f"{name}-outbox.jsonl"
+
+    def prepare(inputs, context):
+        return {
+            "payload": {"to": inputs.get("to"),
+                        "subject": inputs.get("subject"),
+                        "body": inputs.get("body")},
+            "requested_by": "user-1",
+        }
+
+    env["executor"].adapters.register(
+        name, handler, prepare=prepare,
+        metadata={"effect": "external", "required_actions": ["outbound"],
+                  "allow_standing_authorization": False})
+    steps = [new_step(
+        step_id="send", title="External effect",
+        operation_type="outbound", adapter=name,
+        inputs={"to": ["test@example.invalid"], "subject": "S", "body": "B"},
+        effect="external", approval_required=True,
+        approval_purpose="Send the effect")]
+    run_id, _ = _create(
+        env, objective=name, steps=steps, teaching=_teaching(),
+        authorized_actions=["outbound"], budget=budget)
+    _run(env["executor"].execute(run_id))
+    env["executor"].approve_step(run_id, "send", approved_by="owner")
+    return run_id, outbox
+
+
+def _outbox_records(path):
+    if not path.exists():
+        return []
+    return [json.loads(line) for line in path.read_text().splitlines()
+            if line.strip()]
+
+
+def test_post_effect_runtime_error_is_uncertain_not_failed_before_effect(
+        env, tmp_path, monkeypatch):
+    outbox = tmp_path / "post-effect-runtime.jsonl"
+
+    async def writes_then_raises(inputs, context):
+        outbox.write_text(json.dumps({"to": inputs.get("to")}) + "\n")
+        raise RuntimeError("response parser failed after send")
+
+    run_id, _ = _external_error_assignment(
+        env, tmp_path, monkeypatch, "test.post_effect_runtime",
+        writes_then_raises)
+
+    _run(env["executor"].execute(run_id))
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(op for op in record["operations"]
+                     if op.get("step_id") == "send")
+    step = step_by_id(record["assignment"], "send")
+    assert len(_outbox_records(outbox)) == 1
+    assert operation["status"] == "uncertain"
+    assert operation["needs_reconciliation"] is True
+    assert operation["receipt"]["observed_status"] == "uncertain"
+    assert operation["receipt"]["reconciliation_required"] is True
+    assert step["status"] == "uncertain"
+    assert step["failure"]["reason"] == "external_outcome_unknown"
+
+    # A retry must not resend a possibly-applied effect.
+    _run(env["executor"].execute(run_id))
+    assert len(_outbox_records(outbox)) == 1
+
+
+def test_post_effect_timeout_is_uncertain_and_does_not_resend(
+        env, tmp_path, monkeypatch):
+    outbox = tmp_path / "post-effect-timeout.jsonl"
+
+    async def writes_then_hangs(inputs, context):
+        outbox.write_text(json.dumps({"to": inputs.get("to")}) + "\n")
+        await asyncio.sleep(2)
+        return {"status": "applied", "summary": "too late"}
+
+    run_id, _ = _external_error_assignment(
+        env, tmp_path, monkeypatch, "test.post_effect_timeout",
+        writes_then_hangs,
+        budget={"max_steps": 20, "max_attempts_per_step": 3,
+                "max_wall_seconds": 0.5})
+    _run(env["executor"].execute(run_id))
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(op for op in record["operations"]
+                     if op.get("step_id") == "send")
+    assert len(_outbox_records(outbox)) == 1
+    assert operation["status"] == "uncertain"
+    assert operation["needs_reconciliation"] is True
+    _run(env["executor"].execute(run_id))
+    assert len(_outbox_records(outbox)) == 1
+
+
+def test_post_effect_parse_error_is_uncertain(env, tmp_path, monkeypatch):
+    outbox = tmp_path / "post-effect-parse.jsonl"
+
+    async def writes_then_returns_bad_payload(inputs, context):
+        outbox.write_text(json.dumps({"to": inputs.get("to")}) + "\n")
+        return object()
+
+    run_id, _ = _external_error_assignment(
+        env, tmp_path, monkeypatch, "test.post_effect_parse",
+        writes_then_returns_bad_payload)
+    _run(env["executor"].execute(run_id))
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(op for op in record["operations"]
+                     if op.get("step_id") == "send")
+    assert len(_outbox_records(outbox)) == 1
+    assert operation["status"] == "uncertain"
+    assert operation["receipt"]["observed_status"] == "uncertain"
+
+
+def test_post_effect_cancellation_is_uncertain(env, tmp_path, monkeypatch):
+    outbox = tmp_path / "post-effect-cancel.jsonl"
+
+    async def writes_then_cancels(inputs, context):
+        outbox.write_text(json.dumps({"to": inputs.get("to")}) + "\n")
+        raise asyncio.CancelledError()
+
+    run_id, _ = _external_error_assignment(
+        env, tmp_path, monkeypatch, "test.post_effect_cancel",
+        writes_then_cancels)
+    with pytest.raises(asyncio.CancelledError):
+        _run(env["executor"].execute(run_id))
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(op for op in record["operations"]
+                     if op.get("step_id") == "send")
+    step = step_by_id(record["assignment"], "send")
+    assert len(_outbox_records(outbox)) == 1
+    assert operation["status"] == "uncertain"
+    assert step["status"] == "uncertain"
+    _run(env["executor"].execute(run_id))
+    assert len(_outbox_records(outbox)) == 1
+
+
+def test_trusted_before_effect_error_remains_retryable(
+        env, tmp_path, monkeypatch):
+    outbox = tmp_path / "trusted-before-effect.jsonl"
+
+    async def refuses_before_effect(inputs, context):
+        raise ExternalOutcomeNotApplied("provider rejected before dispatch")
+
+    run_id, _ = _external_error_assignment(
+        env, tmp_path, monkeypatch, "test.before_effect",
+        refuses_before_effect)
+    _run(env["executor"].execute(run_id))
+    record = env["lifecycle"].get_task(run_id)
+    operation = next(op for op in record["operations"]
+                     if op.get("step_id") == "send")
+    step = step_by_id(record["assignment"], "send")
+    assert len(_outbox_records(outbox)) == 0
+    assert operation["status"] == "failed"
+    assert operation.get("needs_reconciliation") is not True
+    assert operation["receipt"]["observed_status"] == "failed_before_effect"
+    assert step["status"] == "failed"
+
+
+def _costed_assignment(env, tmp_path, monkeypatch, *, bound, actual,
+                       budget, calls):
+    async def costed(inputs, context):
+        calls["count"] += 1
+        return {"status": "applied", "summary": "costed work",
+                "cost_usd": actual}
+
+    env["executor"].adapters.register(
+        "test.costed", costed,
+        metadata={"effect": "local", "cost_bearing": True,
+                  **({"max_cost_usd": bound} if bound is not None else {})})
+    steps = [new_step(
+        step_id="cost", title="Costed work", operation_type="calculate",
+        adapter="test.costed", effect="local")]
+    run_id, _ = _create(
+        env, objective="Costed work", steps=steps, teaching=_teaching(),
+        budget=budget)
+    return run_id
+
+
+def test_hard_cost_budget_refuses_before_dispatch(env, tmp_path):
+    calls = {"count": 0}
+    run_id = _costed_assignment(
+        env, tmp_path, None, bound=10.0, actual=10.0,
+        budget={"max_steps": 20, "max_attempts_per_step": 3,
+                "max_wall_seconds": 600, "max_cost_usd": 5.0},
+        calls=calls)
+    _run(env["executor"].execute(run_id))
+    record = env["lifecycle"].get_task(run_id)
+    step = step_by_id(record["assignment"], "cost")
+    budget = record["assignment"]["budget"]
+    assert calls["count"] == 0
+    assert step["status"] == "failed"
+    assert step["failure"]["reason"] == "assignment_cost_budget_exhausted"
+    assert budget["cost_usd"] == 0.0
+    assert budget["reserved_cost_usd"] == 0.0
+
+
+def test_reserved_cost_blocks_the_next_over_limit_step(env, tmp_path):
+    calls = {"count": 0}
+    run_id = _costed_assignment(
+        env, tmp_path, None, bound=4.0, actual=3.5,
+        budget={"max_steps": 20, "max_attempts_per_step": 3,
+                "max_wall_seconds": 600, "max_cost_usd": 5.0},
+        calls=calls)
+    record = env["lifecycle"].get_task(run_id)
+    assignment = record["assignment"]
+    step = step_by_id(assignment, "cost")
+    first = env["executor"]._reserve_step_cost(
+        run_id, assignment, step, "op-first", 4.0,
+        env["executor"].adapters.get("test.costed"))
+    assert first["ok"] is True
+    second = env["executor"]._reserve_step_cost(
+        run_id, first["assignment"], step, "op-second", 2.0,
+        env["executor"].adapters.get("test.costed"))
+    assert second["ok"] is False
+    assert "committed=0" in second["message"]
+    saved = env["lifecycle"].get_assignment(run_id)
+    assert saved["budget"]["reserved_cost_usd"] == 4.0
+    assert saved["budget"]["cost_usd"] == 0.0
+
+
+def test_soft_cost_limit_is_explicit_and_exposed(env, tmp_path):
+    calls = {"count": 0}
+    run_id = _costed_assignment(
+        env, tmp_path, None, bound=10.0, actual=10.0,
+        budget={"max_steps": 20, "max_attempts_per_step": 3,
+                "max_wall_seconds": 600, "max_cost_usd": 5.0,
+                "cost_mode": "soft",
+                "soft_limit_authorized_by": "owner-1"},
+        calls=calls)
+    _run(env["executor"].execute(run_id))
+    record = env["lifecycle"].get_task(run_id)
+    step = step_by_id(record["assignment"], "cost")
+    budget = record["assignment"]["budget"]
+    assert calls["count"] == 1
+    assert step["status"] == "applied"
+    assert budget["cost_mode"] == "soft"
+    assert budget["soft_limit_authorized_by"] == "owner-1"
+    assert budget["soft_limit_exceeded"] is True
+    assert budget["cost_usd"] == 10.0
+
+
+def test_cost_bearing_adapter_without_a_bound_is_refused(env, tmp_path):
+    calls = {"count": 0}
+    run_id = _costed_assignment(
+        env, tmp_path, None, bound=None, actual=1.0,
+        budget={"max_steps": 20, "max_attempts_per_step": 3,
+                "max_wall_seconds": 600, "max_cost_usd": 5.0},
+        calls=calls)
+    _run(env["executor"].execute(run_id))
+    record = env["lifecycle"].get_task(run_id)
+    step = step_by_id(record["assignment"], "cost")
+    assert calls["count"] == 0
+    assert step["status"] == "failed"
+    assert step["failure"]["reason"] == "unbounded_cost_refused"

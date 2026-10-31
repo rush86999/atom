@@ -714,6 +714,24 @@ export function AssignmentPanel({
                 ? ` · teaching ${detail.assignment.teaching_revision}`
                 : ""}
             </p>
+            {Number(detail.assignment.budget?.max_cost_usd || 0) > 0 ? (
+              <p
+                className="text-[10px] text-muted-foreground"
+                data-testid="assignment-cost-budget"
+              >
+                Cost budget: $
+                {Number(detail.assignment.budget?.cost_usd || 0).toFixed(2)} used
+                {" · "}$
+                {Number(detail.assignment.budget?.max_cost_usd || 0).toFixed(2)}{" "}
+                limit ({String(detail.assignment.budget?.cost_mode || "hard")}
+                {detail.assignment.budget?.cost_mode === "soft"
+                  ? ` · authorized by ${String(
+                      detail.assignment.budget?.soft_limit_authorized_by || "",
+                    )}`
+                  : ""}
+                )
+              </p>
+            ) : null}
             {detail.assignment.standing_authority ? (
               <p
                 className="text-[10px] text-emerald-700"

@@ -297,6 +297,7 @@ def plan_assignment(
     provenance: Optional[Dict[str, Any]] = None,
     proposed_steps: Optional[Sequence[Dict[str, Any]]] = None,
     standing_authority: Optional[Dict[str, Any]] = None,
+    budget: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Build and validate an assignment plan from opaque descriptors."""
     teaching = teaching_snapshot or new_teaching_snapshot(
@@ -479,9 +480,12 @@ def plan_assignment(
         ],
         authorized_actions=actions,
         completion_criteria=criteria,
-        budget={"max_steps": max(4, min(len(steps) + 8, 40)),
-                "max_attempts_per_step": 3,
-                "max_wall_seconds": 900},
+        budget={
+            "max_steps": max(4, min(len(steps) + 8, 40)),
+            "max_attempts_per_step": 3,
+            "max_wall_seconds": 900,
+            **dict(budget or {}),
+        },
         provenance={
             **dict(provenance or {}),
             "agent_id": agent_id,
