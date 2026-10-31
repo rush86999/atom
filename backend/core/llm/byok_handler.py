@@ -623,6 +623,24 @@ def _last_user_text(messages: List[Dict]) -> str:
     return ""
 
 
+def _ollama_request_timeout() -> float:
+    """Per-request timeout for local Ollama calls (``OLLAMA_REQUEST_TIMEOUT``).
+
+    The OpenAI SDK default is 600s. CPU-only inference over a larger record set
+    legitimately needs longer, but silently lengthening every local user's
+    timeout is not this change's call: the default stays 600s and the operator
+    declares a budget when the serving hardware needs it.
+    """
+    raw = os.getenv("OLLAMA_REQUEST_TIMEOUT")
+    if raw:
+        try:
+            return float(raw)
+        except ValueError:
+            logger.warning(
+                "Invalid OLLAMA_REQUEST_TIMEOUT=%r, using 600", raw)
+    return 600.0
+
+
 def _llm_request_timeout() -> float:
     """Resolve the provider request timeout from ``ATOM_LLM_REQUEST_TIMEOUT``."""
     raw = os.getenv("ATOM_LLM_REQUEST_TIMEOUT")
@@ -3321,11 +3339,13 @@ class BYOKHandler:
                     self.clients["ollama"] = OpenAI(
                         api_key="ollama",  # Dummy key — server ignores it
                         base_url=ollama_base_url,
+                        timeout=_ollama_request_timeout(),
                     )
                     if AsyncOpenAI:
                         self.async_clients["ollama"] = AsyncOpenAI(
                             api_key="ollama",
                             base_url=ollama_base_url,
+                            timeout=_ollama_request_timeout(),
                         )
                     logger.info(f"Initialized Ollama (local) client at {ollama_base_url}")
                 except Exception as e:
