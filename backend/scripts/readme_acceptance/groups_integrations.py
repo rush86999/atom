@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
 import hmac
 import json
 import os
@@ -234,6 +235,9 @@ def integrations(ctx: Ctx) -> None:
     sent = []
 
     async def _controlled_send(platform, params):
+        # Widen the race window so two concurrent retries actually reach the
+        # claim arbiter while the first dispatch is in flight.
+        await asyncio.sleep(0.2)
         sent.append({"platform": platform,
                      "recipient": params.get("recipient_id"),
                      "content": params.get("content")})
@@ -269,17 +273,130 @@ def integrations(ctx: Ctx) -> None:
         ActionType.SEND_MESSAGE, "slack", outbound_params))
     sent_after_replay = len(sent)
 
+    # Durable claim / replay controls. The claim is inserted and committed
+    # BEFORE dispatch; competing callers observe the winner and never send.
+    from core import outbound_operation_claim as operation_claim
+
+    def _start_approval(platform, recipient, content):
+        params = {
+            "workspace_id": ctx.workspace_id,
+            "recipient_id": recipient,
+            "content": content,
+            "is_internal": False,
+        }
+        pending = asyncio.run(gateway.execute_action(
+            ActionType.SEND_MESSAGE, platform, params))
+        action_id = pending.get("hitl_id")
+        approved = (ctx.post(f"/api/agent-governance/approve/{action_id}")
+                    if action_id else None)
+        return params, action_id, approved
+
+    # Simultaneous retries of one approved operation.
+    race_params, race_id, race_approval = _start_approval(
+        "email", "race@example.com", "INT-05 concurrent retry")
+    def _race_call():
+        return asyncio.run(gateway.execute_action(
+            ActionType.SEND_MESSAGE, "email", race_params))
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        race_statuses = list(pool.map(lambda _: _race_call(), range(2)))
+    race_effects = [item for item in sent
+                    if item.get("recipient") == "race@example.com"]
+    race_ok = (race_approval is not None and race_approval.status_code == 200
+               and len(race_effects) == 1
+               and sum(1 for r in race_statuses if r.get("status") == "success") == 1
+               and all(r.get("status") in ("success", "duplicate",
+                                           "in_progress", "uncertain_effect")
+                       for r in race_statuses))
+
+    # Process restart after a claim: a dispatching row must not resend.
+    restart_params, restart_id, restart_approval = _start_approval(
+        "teams", "restart@example.com", "INT-05 restart after claim")
+    restart_hash = operation_claim.payload_sha256(
+        workspace_id=ctx.workspace_id, approval_id=restart_id,
+        action_type="send_message", platform="teams", params=restart_params)
+    restart_claim = operation_claim.claim_or_replay(
+        workspace_id=ctx.workspace_id, tenant_id=None,
+        approval_id=restart_id, payload_hash=restart_hash)
+    operation_claim.mark_status(restart_claim.get("record_id"),
+                                operation_claim.DISPATCHING)
+    restart_retry = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "teams", restart_params))
+    restart_effects = [item for item in sent
+                       if item.get("recipient") == "restart@example.com"]
+    restart_ok = (restart_approval is not None and restart_approval.status_code == 200
+                  and restart_retry.get("status") == "uncertain_effect"
+                  and not restart_effects)
+
+    # Changed payload on the same claim key is a conflict, never a send.
+    changed = operation_claim.claim_or_replay(
+        workspace_id=ctx.workspace_id, tenant_id=None,
+        approval_id=restart_id, payload_hash="different-payload")
+    changed_effects = [item for item in sent
+                       if item.get("recipient") == "restart@example.com"]
+    changed_ok = changed.get("status") == "conflict" and not changed_effects
+
+    # Transport succeeds, then confirmation persistence fails: the claim
+    # remains dispatching and retries must not send again.
+    persist_params, persist_id, persist_approval = _start_approval(
+        "whatsapp", "persist@example.com", "INT-05 persistence failure")
+    original_mark = operation_claim.mark_status
+    def _fail_success(record_id, status):
+        if status == operation_claim.SUCCEEDED:
+            return False
+        return original_mark(record_id, status)
+    operation_claim.mark_status = _fail_success
+    try:
+        persist_first = asyncio.run(gateway.execute_action(
+            ActionType.SEND_MESSAGE, "whatsapp", persist_params))
+    finally:
+        operation_claim.mark_status = original_mark
+    persist_retry = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "whatsapp", persist_params))
+    persist_effects = [item for item in sent
+                       if item.get("recipient") == "persist@example.com"]
+    persist_ok = (persist_approval is not None and persist_approval.status_code == 200
+                  and persist_first.get("status") == "uncertain_effect"
+                  and persist_retry.get("status") == "uncertain_effect"
+                  and len(persist_effects) == 1)
+
+    # A transport failure explicitly known to be before effect is recorded
+    # distinctly; it is still not auto-resent.
+    class _NoEffectError(Exception):
+        effect_possible = False
+    noeffect_params, noeffect_id, noeffect_approval = _start_approval(
+        "messenger", "noeffect@example.com", "INT-05 failed before effect")
+    original_send = gateway._handle_send_message
+    async def _raise_before_effect(platform, params):
+        raise _NoEffectError("transport rejected before effect")
+    gateway._handle_send_message = _raise_before_effect
+    try:
+        noeffect_first = asyncio.run(gateway.execute_action(
+            ActionType.SEND_MESSAGE, "messenger", noeffect_params))
+    finally:
+        gateway._handle_send_message = original_send
+    noeffect_retry = asyncio.run(gateway.execute_action(
+        ActionType.SEND_MESSAGE, "messenger", noeffect_params))
+    noeffect_effects = [item for item in sent
+                        if item.get("recipient") == "noeffect@example.com"]
+    noeffect_ok = (noeffect_approval is not None and noeffect_approval.status_code == 200
+                   and noeffect_first.get("status") == "failed_before_effect"
+                   and noeffect_retry.get("status") == "failed_before_effect"
+                   and not noeffect_effects)
+
+    claim_ok = (race_ok and restart_ok and changed_ok
+                and persist_ok and noeffect_ok)
+
     # Rejection control: a second external pattern is denied, and retrying it
     # still pauses instead of sending.
     reject_params = {**outbound_params, "recipient_id": "denied@example.com"}
     denied = asyncio.run(gateway.execute_action(
-        ActionType.SEND_MESSAGE, "email", reject_params))
+        ActionType.SEND_MESSAGE, "discord", reject_params))
     denied_id = denied.get("hitl_id")
     reject = (ctx.post(f"/api/agent-governance/reject/{denied_id}"
                        "?reason=INT-05%20rejection%20control")
               if denied_id else None)
     denied_retry = asyncio.run(gateway.execute_action(
-        ActionType.SEND_MESSAGE, "email", reject_params))
+        ActionType.SEND_MESSAGE, "discord", reject_params))
     denied_sent = [s for s in sent if s.get("recipient") == "denied@example.com"]
     int05_ok = (before.get("status") == "waiting_approval" and hitl_id
                 and sent_before == 0
@@ -291,6 +408,7 @@ def integrations(ctx: Ctx) -> None:
                 and replay_approval is not None
                 and replay_approval.status_code in (400, 409)
                 and sent_after_replay == 1
+                and claim_ok
                 and denied.get("status") == "waiting_approval" and denied_id
                 and reject is not None and reject.status_code == 200
                 and denied_retry.get("status") == "waiting_approval"
@@ -311,6 +429,24 @@ def integrations(ctx: Ctx) -> None:
                                        "body": replay_body},
                    "retry_after_replay": retry_after_replay,
                    "sent_after_replay": sent_after_replay,
+                   "claim_controls": {
+                       "race_statuses": race_statuses,
+                       "race_effects": race_effects,
+                       "race_ok": race_ok,
+                       "restart_retry": restart_retry,
+                       "restart_effects": restart_effects,
+                       "restart_ok": restart_ok,
+                       "changed_payload": changed,
+                       "changed_ok": changed_ok,
+                       "persist_first": persist_first,
+                       "persist_retry": persist_retry,
+                       "persist_effects": persist_effects,
+                       "persist_ok": persist_ok,
+                       "noeffect_first": noeffect_first,
+                       "noeffect_retry": noeffect_retry,
+                       "noeffect_effects": noeffect_effects,
+                       "noeffect_ok": noeffect_ok,
+                   },
                    "sent": sent,
                    "denied": denied,
                    "denied_id": denied_id,
@@ -323,6 +459,9 @@ def integrations(ctx: Ctx) -> None:
                      f"after={after.get('status')} sent_after={sent_after} "
                      f"retry={retry.get('status')} sent_after_retry={sent_after_retry} "
                      f"replay_approval={None if replay_approval is None else replay_approval.status_code} "
+                     f"race_effects={len(race_effects)} restart={restart_retry.get('status')} "
+                     f"changed={changed.get('status')} persist={persist_retry.get('status')} "
+                     f"noeffect={noeffect_retry.get('status')} "
                      f"reject={None if reject is None else reject.status_code} "
                      f"denied_retry={denied_retry.get('status')}")
 

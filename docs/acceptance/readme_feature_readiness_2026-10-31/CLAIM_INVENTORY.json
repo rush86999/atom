@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "README feature-readiness claim inventory",
-  "generated_at": "2026-10-31T19:20:52.401428+00:00",
+  "generated_at": "2026-10-31T20:08:18.437473+00:00",
   "readme": {
     "path": "README.md",
     "sha256": "392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0",
@@ -1559,7 +1559,7 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/catalog.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/catalog.json"
       ],
       "blocker": "",
       "notes": "total=67 categories={'ai': 1, 'analytics': 1, 'automation': 1, 'cloud': 1, 'communication': 17, 'crm': 4, 'design': 1, 'development': 3, 'ecommerce': 2, 'finance': 5, 'hr': 2, 'identity': 1, 'marketing': 3, 'productivity': 17, 'storage': 5, 'support': 3} named_missing=[] [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
@@ -1580,7 +1580,7 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/connection_status.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/connection_status.json"
       ],
       "blocker": "",
       "notes": "no_token=False with_token=True after_delete=False source=oauth_token [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
@@ -1602,7 +1602,7 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/oauth_connect.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/oauth_connect.json"
       ],
       "blocker": "",
       "notes": "initiate=307 state=True callback=307 tokens=1 ciphertext=True [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
@@ -1624,7 +1624,7 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/controlled_read.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/controlled_read.json"
       ],
       "blocker": "",
       "notes": "deals=2 path=/crm/v3/objects/deals bearer=True no_token_error=True controlled_provider=True error=None [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
@@ -1646,10 +1646,10 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/outbound_hitl.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/outbound_hitl.json"
       ],
       "blocker": "",
-      "notes": "before=waiting_approval sent=0 approve=200 after=success sent_after=1 retry=duplicate sent_after_retry=1 replay_approval=400 reject=200 denied_retry=waiting_approval [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
+      "notes": "before=waiting_approval sent=0 approve=200 after=success sent_after=1 retry=duplicate sent_after_retry=1 replay_approval=400 race_effects=1 restart=uncertain_effect changed=conflict persist=uncertain_effect noeffect=failed_before_effect reject=200 denied_retry=waiting_approval [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
     },
     {
       "id": "INT-06",
@@ -1667,7 +1667,7 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/disconnect.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/disconnect.json"
       ],
       "blocker": "",
       "notes": "disconnect=200 revoked=True connected_after=False [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"
@@ -1689,7 +1689,7 @@
       "external": false,
       "status": "verified",
       "evidence": [
-        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-fix-world/evidence/integrations/webhook.json"
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-int05-race-world2/evidence/integrations/webhook.json"
       ],
       "blocker": "",
       "notes": "accepted=200 replay=duplicate forged=401 missing=401 [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/integrations-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-final-world2/evidence/all.json]"

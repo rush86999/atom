@@ -117,7 +117,17 @@ CORE-06). The earlier 18-claim audit is retained as history.
   approval produced exactly one controlled send; repeating the approved
   operation returned `duplicate` with the effect count still 1; replaying the
   approval endpoint returned 400 and did not send again; rejection kept the
-  second pattern blocked.
+  second pattern blocked. The durable claim now uses the existing
+  `task_operation_records` arbiter, bound to the complete payload hash:
+  - two simultaneous retries produced one success and one
+    `uncertain_effect`/in-progress, with **one** effect;
+  - a persisted `dispatching` claim after a simulated restart did not resend;
+  - a changed payload on the same approval key returned `conflict` with no
+    transport;
+  - transport success followed by a failed confirmation write stayed
+    `uncertain_effect`, and retry did not send again;
+  - a known-before-effect failure was stored as `failed_before_effect` and
+    was not auto-resent.
 - **INT-07** — a Slack HMAC signature over the original bytes was accepted
   once, replay was duplicate, and forged/missing signatures were 401.
 
@@ -159,6 +169,13 @@ CORE-06). The earlier 18-claim audit is retained as history.
 8. **Process-level install** — the install script now exercises a goal run
    paused on a checkpoint across a real restart, plus the existing task,
    workflow and Office canvas durability checks, and exits nonzero on failure.
+9. **Approved outbound effect claim** — the gateway reuses the durable
+   `task_operation_records` uniqueness arbiter. The claim is inserted before
+   dispatch, bound to a hash of the complete validated payload, and records
+   `claimed` / `dispatching` / `succeeded` / `failed_before_effect` /
+   `uncertain_effect` distinctly. A competing or restarted caller never
+   dispatches; possible-effect states require reconciliation and are never
+   auto-resent.
 
 The earlier fixes are retained: world deletion guard, MCP egress policy,
 ORACLE-06 executable re-delegation, SEARCH-02 semantic retrieval and SEARCH-04
