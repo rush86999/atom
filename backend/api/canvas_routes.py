@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 
 # Note: Using BaseAPIRouter for consistency with atom-upstream's enhanced JSON responses
 router = BaseAPIRouter(prefix="/api/canvas", tags=["Canvas"], dependencies=[Depends(require_pilot_user)])
+# WebSocket routes cannot use the HTTP-only pilot dependency (it resolves a
+# Request and OAuth2PasswordBearer rejects the WS scope). The canvas WS
+# handler authenticates its own ?token= and checks canvas ownership, so it
+# lives on a dependency-free sibling router.
+ws_router = APIRouter(prefix="/api/canvas", tags=["Canvas"])
 
 
 # ============================================================================
@@ -1406,11 +1411,16 @@ class CanvasStateConnectionManager:
                 self.active_connections[canvas_id].remove(websocket)
 
     async def broadcast_state(self, canvas_id: str, state: Dict[str, Any]):
+        await self.broadcast_message(
+            canvas_id, {"type": "canvas:state_change", "state": state})
+
+    async def broadcast_message(self, canvas_id: str, message: Dict[str, Any]):
+        """Send an already-shaped canvas event to this canvas's subscribers."""
         if canvas_id in self.active_connections:
             failed_connections = []
             for connection in self.active_connections[canvas_id]:
                 try:
-                    await connection.send_json({"type": "canvas:state_change", "state": state})
+                    await connection.send_json(message)
                 except Exception as e:
                     logger.warning(f"Failed to send to WebSocket connection: {e}")
                     failed_connections.append(connection)
@@ -1421,7 +1431,7 @@ class CanvasStateConnectionManager:
 
 manager = CanvasStateConnectionManager()
 
-@router.websocket("/ws/{canvas_id}")
+@ws_router.websocket("/ws/{canvas_id}")
 async def canvas_state_websocket(canvas_id: str, websocket: WebSocket):
     """WebSocket for real-time canvas state sync.
 

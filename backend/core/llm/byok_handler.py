@@ -1465,6 +1465,24 @@ def _get_drift_detector():
     return get_drift_detector()
 
 
+def key_store_signature():
+    """Opaque revision of the durable BYOK key store.
+
+    Changes on save, replace and delete, so LLMService rebuilds a cached
+    handler only when the credential view actually changed.
+    """
+    import os as _os
+    path = _os.getenv("BYOK_KEYS_FILE") or getattr(
+        core.byok_endpoints, "BYOK_KEYS_FILE", None)
+    if not path:
+        return None
+    try:
+        st = _os.stat(path)
+        return (st.st_mtime_ns, st.st_size)
+    except OSError:
+        return None
+
+
 class BYOKHandler:
     """
     Handler for LLM interactions using BYOK system with intelligent cost optimization.
@@ -1534,6 +1552,10 @@ class BYOKHandler:
         # Use injected dependencies or create defaults
         self.cognitive_classifier = cognitive_classifier or CognitiveClassifier()  # Phase 68: Cognitive tier system
         self._initialize_clients()
+        # Credential revision this handler's clients were built from. The
+        # cached LLMService compares it before reusing the handler so a key
+        # saved/replaced/deleted through Settings is visible without restart.
+        self.credential_signature = key_store_signature()
 
         # Initialize cache-aware router for cost optimization
         self.cache_router = cache_router or CacheAwareRouter(get_pricing_fetcher())
@@ -1936,8 +1958,14 @@ class BYOKHandler:
         Returns:
             List of provider IDs in fallback order
         """
-        # All available providers that have clients initialized
-        available_providers = list(self.clients.keys())
+        # All available providers that have clients initialized. Some
+        # providers (notably the local Ollama runtime) are async-only in
+        # modern initialization; ignoring them made the fallback ladder
+        # single-provider and defeated cross-provider resilience.
+        available_providers = sorted(
+            set(self.clients.keys())
+            | set(getattr(self, "async_clients", {}).keys())
+        )
 
         # Provider policy first: fallback/cascade may only choose from the
         # allowed set. This is the streaming/non-streaming provider_order
@@ -3095,6 +3123,21 @@ class BYOKHandler:
         minutes ago may be valid now, and a catalogue fetched with the old key
         may not describe the new one. Recovery must not wait for a TTL.
         """
+        try:
+            from core.provider_health_monitor import get_provider_health_monitor
+
+            monitor = get_provider_health_monitor()
+            with monitor._lock:
+                if provider_id is None:
+                    monitor._conn_fail_streak.clear()
+                    monitor._breaker_open_until.clear()
+                    monitor.health_scores.clear()
+                else:
+                    monitor._conn_fail_streak.pop(provider_id, None)
+                    monitor._breaker_open_until.pop(provider_id, None)
+                    monitor.health_scores.pop(provider_id, None)
+        except Exception as health_err:  # noqa: BLE001 — best effort
+            logger.debug(f"provider health reset skipped: {health_err}")
         with _PROVIDER_COOLDOWN_LOCK:
             if provider_id is None:
                 _PROVIDER_COOLDOWN_UNTIL.clear()
@@ -3211,6 +3254,13 @@ class BYOKHandler:
         if not OpenAI:
             logger.warning("OpenAI package not installed. LLM features may be limited.")
             return
+
+        # Full rebuild: a deleted/replaced key must never survive in an old
+        # client map. Callers that need an additive change construct a new
+        # handler instead.
+        self.clients = {}
+        self.async_clients = {}
+        self.env_key_providers = set()
 
         # Initialize OpenAI-compatible clients for each provider
         providers_config = {
@@ -5725,6 +5775,22 @@ class BYOKHandler:
             )
         return None
 
+    def refresh_credentials_if_changed(self) -> bool:
+        """Rebuild clients when the durable key store revision changed.
+
+        LLMService already rebuilds its cached handler, but chat/orchestrator
+        call sites may hold a handler directly. This is the dispatch-time
+        backstop: save, replace and delete all invalidate the provider clients
+        and the negative cooldown/circuit-breaker state without a restart.
+        """
+        current = key_store_signature()
+        if current == getattr(self, "credential_signature", None):
+            return False
+        self.invalidate_provider_failures()
+        self._initialize_clients()
+        self.credential_signature = current
+        return True
+
     async def generate_response(
         self,
         prompt: str,
@@ -5748,6 +5814,7 @@ class BYOKHandler:
         Generate a response using cost-optimized provider routing.
         Supports multimodal inputs (text + image) via `image_payload`.
         """
+        self.refresh_credentials_if_changed()
         # Stage router: clear any stale decision carrier from a previous
         # structured call in this task — plain/fallback generations must not
         # write outcomes onto a prior turn's audit row. (The structured path
@@ -7606,6 +7673,7 @@ class BYOKHandler:
         Returns:
             Instance of response_model or None if parsing fails
         """
+        self.refresh_credentials_if_changed()
         # Stage router outcome join: stash the decision id on the per-request
         # carrier so _record_outcome_feedback writes the attempt's outcome
         # back onto the audit row (calibration data). Best-effort, never
@@ -9449,6 +9517,7 @@ class BYOKHandler:
         Yields:
             Individual tokens as they arrive from the LLM
         """
+        self.refresh_credentials_if_changed()
         if not self.async_clients and not self.clients:
             raise ValueError("No available providers. No clients initialized. Streaming unavailable.")
 

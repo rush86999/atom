@@ -310,9 +310,12 @@ class WorkflowTemplateManager:
             # Validate template parameters
             validated_params = self._validate_template_parameters(template, template_parameters)
 
-            # Generate workflow definition
+            # Generate workflow definition (one stable id for the instance
+            # and its registered definition).
+            workflow_id = f"workflow_{uuid.uuid4().hex[:12]}"
             workflow_def = self._generate_workflow_definition(
-                template, workflow_name, validated_params, customizations or {}
+                template, workflow_name, validated_params, customizations or {},
+                workflow_id=workflow_id,
             )
 
             # Track template usage
@@ -322,7 +325,7 @@ class WorkflowTemplateManager:
             logger.info(f"Created workflow from template: {workflow_name} from {template.name}")
 
             return {
-                "workflow_id": f"workflow_{uuid.uuid4().hex[:12]}",
+                "workflow_id": workflow_id,
                 "workflow_definition": workflow_def,
                 "template_used": template.template_id,
                 "template_name": template.name,
@@ -471,10 +474,11 @@ class WorkflowTemplateManager:
                                     template: WorkflowTemplate,
                                     workflow_name: str,
                                     parameters: Dict[str, Any],
-                                    customizations: Dict[str, Any]) -> Dict[str, Any]:
+                                    customizations: Dict[str, Any],
+                                    workflow_id: Optional[str] = None) -> Dict[str, Any]:
         """Generate workflow definition from template"""
         workflow_def = {
-            "workflow_id": f"workflow_{uuid.uuid4().hex[:12]}",
+            "workflow_id": workflow_id or f"workflow_{uuid.uuid4().hex[:12]}",
             "name": workflow_name,
             "description": f"Created from template: {template.name}",
             "category": template.category.value,

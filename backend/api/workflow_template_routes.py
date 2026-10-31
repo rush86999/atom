@@ -375,6 +375,7 @@ def _persist_imported_workflow(
     template,
     workflow_name: str,
     author_email: Optional[str],
+    template_parameters: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Instantiate a template AND persist it as a private editable template copy.
 
@@ -387,7 +388,7 @@ def _persist_imported_workflow(
     result = manager.create_workflow_from_template(
         template_id=template.template_id,
         workflow_name=workflow_name,
-        template_parameters={},
+        template_parameters=template_parameters or {},
     )
     workflow_def = result.get("workflow_definition") or {}
 
@@ -447,6 +448,7 @@ async def import_template(
             template=template,
             workflow_name=f"Imported {template.name}",
             author_email=getattr(current_user, "email", None),
+            template_parameters=body if isinstance(body, dict) else {},
         )
 
         return {
@@ -665,14 +667,66 @@ async def execute_template(
             current_user, workflow_data.get("workflow_definition") or {}
         )
 
-        # 2. Execute via orchestrator
+        # 2. Register the instantiated definition with the orchestrator, then
+        # execute it. create_workflow_from_template returns a definition, but
+        # the orchestrator's registry is a separate in-memory store; without
+        # this registration execute_workflow saw only the generated id and
+        # raised "not found in registry or templates".
         import asyncio
-        from advanced_workflow_orchestrator import get_orchestrator
+        from advanced_workflow_orchestrator import (
+            WorkflowDefinition,
+            WorkflowStep,
+            WorkflowStepType,
+            get_orchestrator,
+        )
+
+        orchestrator = get_orchestrator()
+        definition = workflow_data.get("workflow_definition") or {}
+        raw_steps = [dict(step) for step in (definition.get("steps") or [])]
+        reg_steps = []
+        for index, step in enumerate(raw_steps):
+            raw_type = str(step.get("step_type") or "api_call").lower()
+            try:
+                step_type = WorkflowStepType(raw_type)
+            except ValueError:
+                # Templates use business step names ("action", "ai_task",
+                # "condition"); the orchestrator's generic API step is the
+                # safe deterministic executor for those shapes.
+                step_type = WorkflowStepType.API_CALL
+            raw_params = step.get("parameters")
+            if raw_params is None:
+                raw_params = step.get("input_parameters")
+            step_params = raw_params if isinstance(raw_params, dict) else {}
+            if isinstance(raw_params, list):
+                step_params = {
+                    str(p.get("name")): p.get("default_value")
+                    for p in raw_params if isinstance(p, dict) and p.get("name")
+                }
+            next_steps = list(step.get("next_steps") or [])
+            if not next_steps and index + 1 < len(raw_steps):
+                next_steps = [str(raw_steps[index + 1].get("step_id")
+                                  or raw_steps[index + 1].get("id"))]
+            reg_steps.append(WorkflowStep(
+                step_id=str(step.get("step_id") or step.get("id")),
+                step_type=step_type,
+                description=str(step.get("description")
+                                or step.get("name") or "template step"),
+                parameters=step_params,
+                next_steps=next_steps,
+            ))
+        if reg_steps:
+            orchestrator.register_workflow(WorkflowDefinition(
+                workflow_id=workflow_id,
+                name=definition.get("name") or f"Execution of {template_id}",
+                description=definition.get("description") or "",
+                steps=reg_steps,
+                start_step=reg_steps[0].step_id,
+            ))
 
         # Create execution context — R89: stamp the caller's identity so the
         # run is attributable and the status/results reads can scope to it.
-        context = await get_orchestrator().execute_workflow(
-            workflow_id,  # Use the instantiated workflow_id
+        context = await orchestrator.execute_workflow(
+            workflow_id,  # Use the instantiated/registered workflow_id
             input_data=parameters if parameters is not None else {},
             execution_context={
                 "source": "visual_builder",

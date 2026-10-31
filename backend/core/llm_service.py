@@ -436,18 +436,41 @@ class LLMService:
             except Exception as exc:  # noqa: BLE001 — fail closed
                 return ("invalid", "invalid", "invalid", str(exc), ())
 
+        def _credential_key() -> object:
+            try:
+                from core.llm.byok_handler import key_store_signature
+
+                return key_store_signature()
+            except Exception:  # noqa: BLE001 — rebuild conservatively
+                return object()
+
         if self._handler is not None and \
                 target_ws == self._workspace_id and \
                 target_tenant == self._tenant_id:
             # Test/mocked handlers keep their established replacement
-            # semantics; policy refresh applies to real BYOK handlers.
+            # semantics; refresh applies to real BYOK handlers.
             if not _is_real_handler(self._handler):
                 return self._handler
-            # Policy changes apply to NEW requests. Rebuild rather than
-            # mutating the shared handler, so an in-flight turn keeps the
-            # immutable policy snapshot it was admitted under.
-            if _policy_key(self._handler) == _fresh_policy_key():
+            # Policy OR credential changes apply to NEW requests. Rebuild
+            # rather than mutating the shared handler, so an in-flight turn
+            # keeps the snapshot it was admitted under. The credential
+            # signature makes Settings save/replace/delete visible without a
+            # process restart and without rebuilding on every request.
+            _cred = _credential_key()
+            _policy_ok = _policy_key(self._handler) == _fresh_policy_key()
+            _cred_ok = (getattr(self._handler, "credential_signature", None)
+                        == _cred)
+            if _policy_ok and _cred_ok:
                 return self._handler
+            if not _cred_ok:
+                # A new/replaced/deleted key must also clear provider
+                # cooldowns and the connection circuit breaker; otherwise a
+                # failed probe with the old key keeps the replacement
+                # unreachable until the cooldown expires.
+                try:
+                    self._handler.invalidate_provider_failures()
+                except Exception:
+                    pass
             self._handler = BYOKHandler(
                 workspace_id=target_ws, tenant_id=target_tenant,
                 db_session=self._db)
@@ -457,7 +480,17 @@ class LLMService:
         handler = self._scoped_handlers.get(key)
         if handler is not None and not _is_real_handler(handler):
             return handler
-        if handler is None or _policy_key(handler) != _fresh_policy_key():
+        _cred = _credential_key()
+        _cred_ok = (handler is not None
+                    and getattr(handler, "credential_signature", None) == _cred)
+        if (handler is None
+                or _policy_key(handler) != _fresh_policy_key()
+                or not _cred_ok):
+            if handler is not None and not _cred_ok:
+                try:
+                    handler.invalidate_provider_failures()
+                except Exception:
+                    pass
             handler = BYOKHandler(
                 workspace_id=target_ws, tenant_id=target_tenant,
                 db_session=self._db)
