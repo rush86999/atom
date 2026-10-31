@@ -1534,6 +1534,10 @@ class BYOKHandler:
         # Use injected dependencies or create defaults
         self.cognitive_classifier = cognitive_classifier or CognitiveClassifier()  # Phase 68: Cognitive tier system
         self._initialize_clients()
+        # The provider clients above are a snapshot of the credential store.
+        # Remember its non-secret fingerprint so LLMService can rebuild this
+        # handler when Settings saves/replaces/removes a key at runtime.
+        self._credential_signature = self._credential_store_signature()
 
         # Initialize cache-aware router for cost optimization
         self.cache_router = cache_router or CacheAwareRouter(get_pricing_fetcher())
@@ -3119,6 +3123,15 @@ class BYOKHandler:
                     pair for pair in _AUTH_FAILED if pair.startswith(prefix)
                 })
         _save_pair_memos()
+        # A credential change must also clear the discovery BACKOFF: the
+        # catalogue was just invalidated, but a recent failed/empty discovery
+        # would otherwise suppress the refresh for the whole window and the
+        # next request would still see the old (or empty) served set.
+        with _DISCOVERY_REFRESH_LOCK:
+            if provider_id is None:
+                _DISCOVERY_REFRESH_ATTEMPTED_AT.clear()
+            else:
+                _DISCOVERY_REFRESH_ATTEMPTED_AT.pop(provider_id, None)
         try:
             from core.llm.model_route_registry import get_provider_model_catalog
 
@@ -3204,6 +3217,28 @@ class BYOKHandler:
         if self.tenant_id in (None, "", "default"):
             return None
         return self.tenant_id
+
+    def _credential_store_signature(self) -> Optional[str]:
+        """Current non-secret credential fingerprint for this handler."""
+        manager = getattr(self, "byok_manager", None)
+        fingerprint = getattr(manager, "credential_fingerprint", None)
+        if not callable(fingerprint):
+            return None
+        try:
+            return str(fingerprint())
+        except Exception:  # noqa: BLE001 — refresh is additive
+            return None
+
+    def credentials_changed(self) -> bool:
+        """True when the BYOK store changed since this handler was built.
+
+        The runtime manager already refreshes its in-memory key view from the
+        shared file; the handler's provider CLIENTS are still the old
+        snapshot. LLMService calls this before serving a new request and
+        rebuilds the handler when it returns True.
+        """
+        current = self._credential_store_signature()
+        return current != getattr(self, "_credential_signature", None)
 
     def _initialize_clients(self) -> None:
         """Initialize clients for all available providers"""

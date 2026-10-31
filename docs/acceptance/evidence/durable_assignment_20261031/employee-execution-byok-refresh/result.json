@@ -1,0 +1,246 @@
+{
+  "schema": "atom-byok-settings-chat-no-restart-1",
+  "status": "passed",
+  "first_chat_http": 200,
+  "second_chat_http": 200,
+  "third_chat_http": 200,
+  "delete_http": 200,
+  "provider_calls_after_first": 126,
+  "provider_calls_after_replacement": 252,
+  "provider_calls_after_removal": 252,
+  "first_key_seen": true,
+  "replacement_key_seen": true,
+  "removed_key_not_resent": true,
+  "keys_absent_from_logs": true,
+  "log_chars": 2035377,
+  "handler_before": {
+    "handler_id": 6221865552,
+    "has_openai": false,
+    "key_is_first": false,
+    "key_is_second": false
+  },
+  "handler_after_first_save": {
+    "handler_id": 6263833360,
+    "has_openai": true,
+    "key_is_first": true,
+    "key_is_second": false
+  },
+  "handler_after_second_save": {
+    "handler_id": 6221144912,
+    "has_openai": true,
+    "key_is_first": false,
+    "key_is_second": true
+  },
+  "handler_after_removal": {
+    "handler_id": 6282395088,
+    "has_openai": false,
+    "key_is_first": false,
+    "key_is_second": false
+  },
+  "route_handler_after_first_save": {
+    "handler_id": 5852106512,
+    "has_openai": true,
+    "key_is_first": true,
+    "key_is_second": false
+  },
+  "route_handler_after_second_save": {
+    "handler_id": 6291343632,
+    "has_openai": true,
+    "key_is_first": false,
+    "key_is_second": true
+  },
+  "first_payload_keys": [
+    "confidence",
+    "error_code",
+    "execution_id",
+    "failure_reason",
+    "intent",
+    "memory_context",
+    "message",
+    "metadata",
+    "model",
+    "next_steps",
+    "outcome",
+    "provider",
+    "reasoning",
+    "recovery_url",
+    "requires_confirmation",
+    "session_id",
+    "success",
+    "suggested_actions",
+    "timestamp"
+  ],
+  "first_message": "BYOK refresh OK",
+  "second_message": "BYOK refresh OK",
+  "third_message": "I couldn't generate a response \u2014 every configured provider failed. Last error: no provider attempted. Check provider status or credentials in Settings and try again.",
+  "first_meta": {
+    "outcome": null,
+    "error_code": null,
+    "failure_reason": "",
+    "model": "gpt-4o-mini",
+    "provider": "openai",
+    "metadata_keys": []
+  },
+  "second_meta": {
+    "outcome": null,
+    "error_code": null,
+    "failure_reason": "",
+    "model": "gpt-4o-mini",
+    "provider": "openai"
+  },
+  "request_models": [
+    "gpt-4o-mini",
+    "gpt-5.6-luna",
+    "gpt-4o-mini",
+    "gpt-4o-mini",
+    "gpt-4o-mini",
+    "o4-mini",
+    "o4-mini",
+    "o4-mini"
+  ],
+  "request_streams": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ],
+  "request_tools": [
+    true,
+    true,
+    false,
+    false,
+    false,
+    true,
+    true,
+    true
+  ],
+  "request_tool_names": [
+    [
+      "_Interpretation"
+    ],
+    [
+      "ToolPlan"
+    ],
+    [],
+    [],
+    [],
+    [
+      "CommandIntentResult"
+    ],
+    [
+      "CommandIntentResult"
+    ],
+    [
+      "CommandIntentResult"
+    ]
+  ],
+  "first_tool_schema": {
+    "$defs": {
+      "_ProposedAction": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "research",
+              "learning",
+              "canvas_edit",
+              "calculation",
+              "presentation",
+              "conversation"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "subjects": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Subjects",
+            "type": "array"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "_ProposedAction",
+        "type": "object"
+      }
+    },
+    "properties": {
+      "actions": {
+        "items": {
+          "$ref": "#/$defs/_ProposedAction"
+        },
+        "title": "Actions",
+        "type": "array"
+      },
+      "subjects": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Subjects",
+        "type": "array"
+      },
+      "sources": {
+        "description": "External evidence sources requiring consultation. If the request names a specific source, copy that source's complete filename/name exactly; for a prior observed source, copy the observed filename exactly. Only when the request asks for a source kind without naming a specific source, use a supported canonical source kind \u2014 prefer the kind shown on the matching observed entry. If several observed sources could match the request's wording, do not choose one \u2014 preserve the wording. Do not append explanations, parentheses, or uncertainty notes. Do not include the attached draft/canvas as an external source.",
+        "items": {
+          "type": "string"
+        },
+        "title": "Sources",
+        "type": "array"
+      },
+      "requested_fields": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Requested Fields",
+        "type": "array"
+      },
+      "output_format": {
+        "default": "",
+        "title": "Output Format",
+        "type": "string"
+      },
+      "constraints": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Constraints",
+        "type": "array"
+      },
+      "scope_change": {
+        "enum": [
+          "replace",
+          "extend",
+          "subset",
+          "continue",
+          "unresolved"
+        ],
+        "title": "Scope Change",
+        "type": "string"
+      },
+      "confidence": {
+        "default": 0.0,
+        "title": "Confidence",
+        "type": "number"
+      }
+    },
+    "required": [
+      "actions",
+      "constraints",
+      "requested_fields",
+      "scope_change",
+      "sources",
+      "subjects"
+    ],
+    "type": "object"
+  }
+}

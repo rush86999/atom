@@ -26,3 +26,35 @@ Preserved artifacts: `assess-failed-openrouter.json` (full failed-closed
 response), `openrouter-402-sanitized.log` (provider errors with user/org IDs
 redacted), and `blocker.json` (configuration attempts, dataset hash, policy and
 expected decision schema).
+
+## Prepared campaign (blocked at preflight)
+
+`scripts/acceptance/substantive_assessment_campaign.py` is the executable
+campaign for the day a usable model exists. Phases:
+
+```bash
+# 1. declared model/key preflight
+python scripts/acceptance/substantive_assessment_campaign.py \
+  --phase preflight --out-dir <evidence>
+
+# 2. create canvas + bind unfamiliar records + assess policy v1
+python scripts/acceptance/substantive_assessment_campaign.py \
+  --phase create --frontend http://127.0.0.1:3130 \
+  --password-file <password> --out-dir <evidence>
+
+# 3. correct the policy (remove the North/High exception) and re-assess
+python scripts/acceptance/substantive_assessment_campaign.py \
+  --phase correct --frontend http://127.0.0.1:3130 \
+  --password-file <password> --out-dir <evidence> --state <evidence>/state.json
+
+# 4. restart the backend against the same world, then:
+python scripts/acceptance/substantive_assessment_campaign.py \
+  --phase after-restart --frontend http://127.0.0.1:3130 \
+  --password-file <password> --out-dir <evidence> --state <evidence>/state.json
+```
+
+The campaign requires a certified assessment with real
+`served_provider`/`served_model` provenance, exact expected decisions, a
+changed policy revision after correction, and the corrected judgment after a
+real restart. `campaign-preflight.json` records the current blocker: no
+`ATOM_REVIEW_MODEL`/`ATOM_REVIEW_PROVIDER` is configured.

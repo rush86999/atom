@@ -436,18 +436,38 @@ class LLMService:
             except Exception as exc:  # noqa: BLE001 — fail closed
                 return ("invalid", "invalid", "invalid", str(exc), ())
 
+        def _credentials_changed(handler) -> bool:
+            checker = getattr(handler, "credentials_changed", None)
+            if not callable(checker):
+                return False
+            try:
+                return bool(checker())
+            except Exception:  # noqa: BLE001 — refresh must not break dispatch
+                return False
+
         if self._handler is not None and \
                 target_ws == self._workspace_id and \
                 target_tenant == self._tenant_id:
             # Test/mocked handlers keep their established replacement
-            # semantics; policy refresh applies to real BYOK handlers.
+            # semantics; policy/credential refresh applies to real BYOK
+            # handlers.
             if not _is_real_handler(self._handler):
                 return self._handler
-            # Policy changes apply to NEW requests. Rebuild rather than
-            # mutating the shared handler, so an in-flight turn keeps the
-            # immutable policy snapshot it was admitted under.
-            if _policy_key(self._handler) == _fresh_policy_key():
+            policy_same = _policy_key(self._handler) == _fresh_policy_key()
+            credentials_same = not _credentials_changed(self._handler)
+            # Policy and credential changes apply to NEW requests. Rebuild
+            # rather than mutating the shared handler, so an in-flight turn
+            # keeps the snapshot it was admitted under.
+            if policy_same and credentials_same:
                 return self._handler
+            if not policy_same:
+                logger.info(
+                    "provider policy changed; rebuilding LLM handler for "
+                    "workspace=%s tenant=%s", target_ws, target_tenant)
+            else:
+                logger.info(
+                    "BYOK credential store changed; rebuilding LLM handler "
+                    "for workspace=%s tenant=%s", target_ws, target_tenant)
             self._handler = BYOKHandler(
                 workspace_id=target_ws, tenant_id=target_tenant,
                 db_session=self._db)
@@ -457,7 +477,17 @@ class LLMService:
         handler = self._scoped_handlers.get(key)
         if handler is not None and not _is_real_handler(handler):
             return handler
-        if handler is None or _policy_key(handler) != _fresh_policy_key():
+        policy_changed = (
+            handler is not None
+            and _policy_key(handler) != _fresh_policy_key())
+        credentials_changed = (
+            handler is not None and _credentials_changed(handler))
+        if handler is None or policy_changed or credentials_changed:
+            if handler is not None:
+                logger.info(
+                    "BYOK credential/policy changed; rebuilding scoped LLM "
+                    "handler for workspace=%s tenant=%s",
+                    target_ws, target_tenant)
             handler = BYOKHandler(
                 workspace_id=target_ws, tenant_id=target_tenant,
                 db_session=self._db)

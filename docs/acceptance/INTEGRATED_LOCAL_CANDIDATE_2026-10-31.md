@@ -62,6 +62,10 @@ external model infrastructure**, not completed:
 The failed-closed response, sanitized provider errors, dataset hash and policy
 are preserved in
 `docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-blocker/`.
+The executable campaign (`scripts/acceptance/substantive_assessment_campaign.py`)
+is prepared for `create → correct → restart → after-restart` with real
+`served_provider`/`served_model` provenance; its current preflight is blocked
+on the same missing model configuration.
 The smallest required input is a funded provider key with a declared review
 model, or a readable local Ollama model store. No assessment-quality claim is
 made until then. Historical DeepSeek assessment/send qualifications remain
@@ -233,6 +237,27 @@ It contains:
 - conversation guidance candidate JSON and screenshots;
 - targeted backend/frontend/TypeScript logs;
 - a manifest with SHA-256 for every file.
+
+## Settings BYOK refresh without restart
+
+Verified through the normal Settings key route and the normal Chat route, with
+no process restart:
+
+- save key A → Chat succeeds and the bounded provider sees key A;
+- replace with key B → Chat succeeds and the provider sees key B;
+- delete the key → no new provider call; Chat fails closed;
+- both key values are absent from captured logs.
+
+Fixes: `LLMService._get_handler` compares a non-secret credential fingerprint
+and rebuilds its cached `BYOKHandler` on save/replacement/removal;
+`BYOKHandler.credentials_changed()` reads the refreshed store fingerprint; and
+a credential change clears the provider discovery backoff so the new key's
+catalogue is refreshed immediately.
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-byok-refresh/`.
+The probe pins `x-atom-model: gpt-4o-mini` to a bounded local
+OpenAI-compatible server; it is not a real-provider send qualification.
 
 ## README breadth on the integrated candidate
 

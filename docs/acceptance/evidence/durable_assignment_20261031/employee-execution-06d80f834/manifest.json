@@ -13,8 +13,8 @@
       "bytes": 5076
     },
     "acceptance-matrix.json": {
-      "sha256": "ebfbe451660d1d4e95fc0312d9ee6462041ffd2c91f74e55a1f9c83e3449571b",
-      "bytes": 8510
+      "sha256": "63eb2b6e9e3d824ea85196abfc0c9055cbcba6fa6af4d3c275e15a6cd15b81e5",
+      "bytes": 9392
     },
     "runtime.json": {
       "sha256": "3a6c72f63928e54c67dfbd76a5a8d989137dd2795e608453363650eebb0955d4",
@@ -135,6 +135,14 @@
     "canvas/canvas.json": {
       "sha256": "74f57c77e16536573c543a9d3141879b6c26eae6ba9fb78511ad121486a68f4a",
       "bytes": 4938
+    },
+    "logs/agent2-focused-254.log": {
+      "sha256": "ff6276662a84aea6e955802afb2c14474a6eba1c6e136b8d5b7bc7b88ef5f5e0",
+      "bytes": 115970
+    },
+    "logs/employee-execution-287.log": {
+      "sha256": "19ba9da933fb7b0f25068828723a9e7a4679563167867fcdb544f42212af40a8",
+      "bytes": 96434
     },
     "logs/frontend-learning.log": {
       "sha256": "35c47e3c0f36e6641ef2aa2137ac44b0a6a113fdeb51d54e9f09a1e8d0351f38",

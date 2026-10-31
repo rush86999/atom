@@ -4,8 +4,8 @@
   "source_checkpoint": "676d5e648",
   "files": {
     "README.md": {
-      "sha256": "1271f5e2b5dd39ce3bf0027e14dcd1697e27ab30d103f177b888910198320f1e",
-      "bytes": 1504
+      "sha256": "a2cfdce72a70b0db6d3d483424ee7d71488e8ef33d13c1d2edff617872512545",
+      "bytes": 2920
     },
     "assess-failed-openrouter.json": {
       "sha256": "0d10cee57b766509b412bb8c7cd026ddb6a679c316bc5eb75c156c2cebce98cd",
@@ -14,6 +14,14 @@
     "blocker.json": {
       "sha256": "ec790b1f9e9cc4daeab75d43c935877725416c598eccb994064462ef8420ccdf",
       "bytes": 1762
+    },
+    "campaign-preflight.json": {
+      "sha256": "9bd81875827ff014856a285c8f8aac087ea1941aaf284fd0e9474326c8fe9a24",
+      "bytes": 1139
+    },
+    "campaign-preflight.log": {
+      "sha256": "9bd81875827ff014856a285c8f8aac087ea1941aaf284fd0e9474326c8fe9a24",
+      "bytes": 1139
     },
     "openrouter-402-sanitized.log": {
       "sha256": "27c0e55c01d5e3d45392e21b0500fc3775f2d11dc018d5845eac0293bbfe01db",

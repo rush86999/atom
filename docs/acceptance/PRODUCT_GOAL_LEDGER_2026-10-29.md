@@ -51,6 +51,14 @@ reliability.
 - Hosted deployment and publication are not unfinished engineering in this
   ledger; they are explicitly deferred by the owner.
 
+## Settings BYOK refresh
+
+Verified through the normal Settings key route and Chat route without a
+restart: save, replacement and removal; the bounded provider sees the saved
+and replacement keys, removal makes no new call, and key values do not appear
+in logs. Evidence:
+`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-byok-refresh/`.
+
 ## README marketed-surface coverage
 
 The frozen README claim inventory (123 eligible functional claims) was

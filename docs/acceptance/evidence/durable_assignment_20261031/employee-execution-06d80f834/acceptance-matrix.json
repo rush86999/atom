@@ -212,5 +212,23 @@
     "group_errors": 0,
     "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-integrated-readme/",
     "status": "self_assessed_pending_verifier"
+  },
+  "byok_refresh": {
+    "status": "verified_for_tested_scope",
+    "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-byok-refresh/",
+    "result": "Settings save -> Chat used key A; replacement -> key B; removal -> no provider call and fail-closed; keys absent from logs",
+    "scope": "bounded local OpenAI-compatible server; x-atom-model=gpt-4o-mini; no real provider send"
+  },
+  "assessment_campaign": {
+    "status": "prepared_blocked",
+    "harness": "scripts/acceptance/substantive_assessment_campaign.py",
+    "phases": [
+      "preflight",
+      "create",
+      "correct",
+      "after-restart"
+    ],
+    "blocker": "no ATOM_REVIEW_MODEL/ATOM_REVIEW_PROVIDER; DeepSeek key empty; OpenRouter 402; local Ollama unreadable",
+    "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-blocker/"
   }
 }
