@@ -240,6 +240,10 @@ deployment, send, credential change or connected-system write was performed.
 the install check uses port 8137. No external credentials, sends, deployments
 or writes to connected systems.
 
-**Status:** COMPLETE for this coverage pass; awaiting independent verifier
-agreement and Agent 1's integrated checkpoint. Not a release declaration.
+**Status:** README coverage target reached (99/123); awaiting independent
+verifier agreement. The controlled practical-assignment gate passed for
+retrieval/calculation/artifact/approval/durable reopen; process restart while
+waiting, changed-revision invalidation, ambiguity, cancellation and duplicate
+resume remain open. The substantive model-quality assessment remains blocked
+on authorized model access. Not a release declaration.
 
