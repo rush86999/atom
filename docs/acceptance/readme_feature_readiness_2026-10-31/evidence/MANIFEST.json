@@ -2,10 +2,13 @@
   "schema_version": 1,
   "generated_at": "2026-10-31",
   "authoritative_claim_result": "evidence/corrected-results.json",
-  "authoritative_score": "82/123 eligible functional claims verified (66.7%)",
-  "audit": "evidence/CLAIM_AUDIT_2026-10-31.json",
+  "authoritative_score": "99/123 eligible functional claims verified (80.5%)",
+  "final_audit": "evidence/CLAIM_AUDIT_2026-10-31_final.json",
+  "historical_audit": "evidence/CLAIM_AUDIT_2026-10-31.json",
+  "final_run": "evidence/final-all-groups.json",
+  "merged_pre_audit": "evidence/merged-integrated.json",
+  "install_restart": "evidence/install-final.json",
   "next_batches": "NEXT_CLAIM_BATCHES_2026-10-31.md",
-  "goal01_recheck": "evidence/goals-status-recheck.json",
   "hash_history": [
     {
       "artifact": "evidence/frontend-results.json",
@@ -24,49 +27,73 @@
     },
     {
       "path": "evidence/all-groups-baseline.json",
-      "reason": "Baseline all-groups run used as the source for groups not rerun; not the authoritative result."
+      "reason": "Baseline all-groups run used as the source for groups not rerun in the correction; not the final authoritative result."
+    },
+    {
+      "path": "evidence/CLAIM_AUDIT_2026-10-31.json",
+      "reason": "The 18-claim intermediate audit is retained as history; the five-claim final audit is authoritative for the integrated result."
     }
   ],
   "files": [
     {
       "path": "README.md",
-      "sha256": "639e0eb8e07e5cfb2cebe20e796c5c362cb479c927def364cfe60c667dcbff04",
-      "bytes": 2159
+      "sha256": "f83bfe7e12bd17b84ac107438b18f232101ab565713de048dd882f6e7d323b19",
+      "bytes": 2334
     },
     {
       "path": "CLAIM_INVENTORY.json",
-      "sha256": "1ab30a060cdb2f5f5562740c9da26fcb24d11186e107e95ecc9f277b3dfcc052",
-      "bytes": 164902
+      "sha256": "94b2de5b425de02587357165695df2a877ed41fcb3442819c95a015eae12a6d4",
+      "bytes": 151412
     },
     {
       "path": "CLAIM_INVENTORY.md",
-      "sha256": "fa035adadca528e83473b18474935dab1f2701aa05b9eace9e0a8f0f241a5001",
-      "bytes": 65288
+      "sha256": "82dac145893afc63f6ea67f25ce6669992272cbf96df0054a5f7f20c5e46a2f6",
+      "bytes": 64997
     },
     {
       "path": "COVERAGE_REPORT_2026-10-31.md",
-      "sha256": "f0f064ecace7651f4b3d5bcc2106a0e501da70960645ab26bfd2d6738b222cda",
-      "bytes": 18468
+      "sha256": "4d93c2760521cdcf522a7f5aa174831b9729522aa135eb9d99f693582a8cae4a",
+      "bytes": 11993
     },
     {
       "path": "VERIFIER_REVIEW_REQUEST.md",
-      "sha256": "1bb3d7d6a8db3874621e0ed9d82c33419bcb4dc91ff5757a838adbd455ca79ad",
-      "bytes": 5207
+      "sha256": "6a299a793f62ebc911c97018b45cffd69280ff26824a5f20f7777b40bd68fead",
+      "bytes": 5612
     },
     {
       "path": "NEXT_CLAIM_BATCHES_2026-10-31.md",
-      "sha256": "676b3ce1beddb294f9dc64d51e10c151e61a45ea5e1aa2578de7443e3f1277a8",
-      "bytes": 25498
+      "sha256": "d9488457011c0e52fbbe9f83dc49e3516431ae58912467ebe710db23eb227e9d",
+      "bytes": 26532
     },
     {
       "path": "evidence/corrected-results.json",
-      "sha256": "093dfad608698e6396dfa4b50fef99061411a7359d6bdf565bfbf2aec30b2c9e",
-      "bytes": 81571
+      "sha256": "2833cbf6563ee9b7f3f8d51c63e9a7e1682d32e835974a7b65abd5b46db0ee2a",
+      "bytes": 64398
+    },
+    {
+      "path": "evidence/CLAIM_AUDIT_2026-10-31_final.json",
+      "sha256": "cbe045b61c2d52a36cb95b51520f927aed5c94750e5125d491300fb930989798",
+      "bytes": 1672
     },
     {
       "path": "evidence/CLAIM_AUDIT_2026-10-31.json",
       "sha256": "aa774b47d7a8e97e77fd68f22cfd0e9c599243de51024f49ced273eb21516337",
       "bytes": 4579
+    },
+    {
+      "path": "evidence/final-all-groups.json",
+      "sha256": "522ee4e11620573e1a4242a3f6f98fdcc9770d22cca89c31ffdc6009fddb0f2e",
+      "bytes": 45527
+    },
+    {
+      "path": "evidence/merged-integrated.json",
+      "sha256": "962a207c8e31d65cc344bcc026941b857895ff956312244d53d61b4b43611af4",
+      "bytes": 61777
+    },
+    {
+      "path": "evidence/install-final.json",
+      "sha256": "8212ff5a9e4447e86007085bb69b83d6a23a1d858f3c4547b4bdd30bba5c6c9d",
+      "bytes": 26113
     },
     {
       "path": "evidence/goals-status-recheck.json",
@@ -80,8 +107,8 @@
     },
     {
       "path": "evidence/gateway-final.json",
-      "sha256": "1d0540b004dda6e0c0d2d75aa68d99ee46d18eb38cd2ff6b5364817f3e9ee74d",
-      "bytes": 4998
+      "sha256": "6140d93ce4d9d4b9cd3067bfb5dcfa4367e0c9aa00681fe1d8bc842214056660",
+      "bytes": 5050
     },
     {
       "path": "evidence/install-fix.json",

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-10-31",
+  "policy": "A claim is verified only when the harness executes the claimed operation and asserts its expected observable. Source-string checks, unconditional passes, existence-only checks, and assertions weaker than the stated acceptance are downgraded. This is the final audit after the 2026-10-31 wave repairs; the earlier 18-claim audit is retained as history.",
+  "downgrades": [
+    {
+      "claim_id": "ORACLE-01",
+      "from": "verified",
+      "to": "partial",
+      "reason": "The registry contains postcondition verifiers for only trigger_workflow and tasks.create; the README's 'every mutating action is re-derived' is not established."
+    },
+    {
+      "claim_id": "GOV-05",
+      "from": "verified",
+      "to": "partial",
+      "reason": "OIDC config round-trips and the secret is hidden, but login returned 503 and no IdP callback/session was completed."
+    },
+    {
+      "claim_id": "TEAM-01",
+      "from": "verified",
+      "to": "partial",
+      "reason": "A contract with one accountable-agent field was constructed; exactly-one accounting is not validated or enforced at the delegation boundary."
+    },
+    {
+      "claim_id": "TEAM-05",
+      "from": "verified",
+      "to": "partial",
+      "reason": "The alignment sweep was run manually with a controlled chat function; the opt-in nightly automation path was not exercised."
+    },
+    {
+      "claim_id": "CORE-06",
+      "from": "verified",
+      "to": "partial",
+      "reason": "Provider configuration and masking were read; a route from a key stored through the Settings surface was not exercised without a restart."
+    }
+  ]
+}

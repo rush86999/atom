@@ -5,9 +5,11 @@
 **Denominator:** 123 eligible functional claims (frozen; no removals, no re-splitting)
 **Current authoritative count:** **82/123 = 66.7%**
 **Target:** **99/123 = 80.5%** — 17 additional claims
-**Status:** plan only. No broad campaign was run. Shared repairs (objective
-status, cached BYOK refresh) belong to Agent 1 and must be integrated and
-rechecked before their claims are counted.
+**Status:** executed 2026-10-31. Final integrated result: **99/123 = 80.5%**.
+The wave plan below reached the target with GOAL-01 and INT-05 counted; ASK-03,
+ROUTE-03 and GRAPH-05 were left partial rather than counted on weaker
+evidence. The authoritative result is `evidence/corrected-results.json` and the
+final audit is `evidence/CLAIM_AUDIT_2026-10-31_final.json`.
 
 This file replaces the earlier "next 17" sketch. Every selected claim below is
 an **executable boundary test**: the claimed operation is invoked and its
@@ -554,3 +556,26 @@ the authoritative score remains **82/123 = 66.7%**.
 
 No deployment, real send, credential change or connected-system write was
 performed for this plan.
+
+
+---
+
+## 11. Execution outcome (2026-10-31)
+
+The integrated campaign result is **99/123 = 80.5%**.
+
+| Planned / added claim | Outcome |
+|---|---|
+| GOV-02, GOV-03, GOAL-05, WF-07 | verified |
+| MEM-01, MEM-04, CORE-04 | verified |
+| ASK-01, ASK-05 | verified |
+| ROUTE-04, IO-06 | verified |
+| OFF-07, TEAM-06, INT-04, INT-05, INT-07 | verified |
+| GOAL-01 | verified after status/downstream integration |
+| ROUTE-03 | partial: one gateway route in this provider policy; no cross-provider fallback |
+| ASK-03 | partial: consent-gated ledger has no runtime action consumer |
+| GRAPH-05 | partial: API query verified; D3 browser check not authoritative |
+
+The final audit keeps only ORACLE-01, GOV-05, TEAM-01, TEAM-05 and CORE-06 as
+explicit downgrades. The remaining open work is listed in
+`COVERAGE_REPORT_2026-10-31.md` §4 and the shared defects in §5.
