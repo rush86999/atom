@@ -74,3 +74,19 @@ The browser journey is recorded separately in
   live sends;
 - the phase-aware qualification verdict remains failed (17/18 V1, 18/19
   V3/post-restart).
+
+## Reconciliation on the final source (2108a2839)
+
+The implementation landed at `814962078`; the clarification-binding repair
+landed after it. Both were re-run together on the final source:
+
+- backend: **208 passed** across the assignment executor/routes, all four
+  canvas-assessment suites, the clarification suites, review contract/result,
+  assessment judge and canvas training context
+  (`reconciled-at-2108a2839.log`);
+- frontend: **6 passed** in `AssignmentPanel.test.tsx` and
+  `CanvasCapabilityAssessment.test.tsx` (draft vs authorized decisions,
+  clarification questions, bounded authority and reconciliation surfaces).
+
+The earlier `focused-backend-tests.log` (185 passed at `814962078`) is
+preserved as that commit's record.

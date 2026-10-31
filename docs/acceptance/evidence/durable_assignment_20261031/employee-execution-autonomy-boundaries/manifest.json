@@ -5,8 +5,8 @@
   "final_candidate": "2108a2839",
   "files": {
     "README.md": {
-      "sha256": "793deda6daa1b4c752072fce2bec21dceae2d1593f457466aa632b7e273cb09d",
-      "bytes": 3462
+      "sha256": "953442e68dc3b586273f10aff9e624ba671222988d11d1dc0b76e8b334117866",
+      "bytes": 4201
     },
     "focused-backend-tests.log": {
       "sha256": "221ceff4a1782dccfb4279f4dd73edbf4e4fde8ac948e23ab1377890e074deed",
@@ -15,6 +15,12 @@
     "frontend-tests.log": {
       "sha256": "5b91fc890f76e8fcd160825d0eea01728a5cf2dfb6488f2235cc6ec98ddc2d35",
       "bytes": 694
+    },
+    "reconciled-at-2108a2839.log": {
+      "sha256": "3505164cf2f525b4fe05b8f7866b603aba3dc1927c0cbdbf645ec1a041ebc0ae",
+      "bytes": 51665
     }
-  }
+  },
+  "reconciled_candidate": "2108a2839",
+  "frontend_tests": "6 passed (AssignmentPanel, CanvasCapabilityAssessment)"
 }
