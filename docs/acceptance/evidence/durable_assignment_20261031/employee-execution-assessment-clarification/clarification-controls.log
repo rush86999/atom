@@ -5,24 +5,43 @@ rootdir: /Users/rushiparikh/projects/atom-employee-execution/backend
 configfile: pytest.ini
 plugins: anyio-4.12.1, asyncio-0.23.8, benchmark-5.2.3, respx-0.22.0, freezegun-0.4.2, repeat-0.9.4, json-report-1.5.0, timeout-2.4.0, schemathesis-3.39.16, metadata-3.1.1, cov-4.1.0, html-4.2.0, hypothesis-6.151.9, base-url-2.1.0, subtests-0.14.2, playwright-0.5.2, Faker-22.7.0, xdist-3.6.1, rerunfailures-16.1
 asyncio: mode=Mode.AUTO
-collected 6 items
+
+----------------------------- live log collection ------------------------------
+2026-10-31 18:36:09 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+collected 15 items
 
 tests/test_canvas_assessment_clarification.py::test_assessment_persists_the_clarification_obligation 
 -------------------------------- live log setup --------------------------------
-2026-10-31 17:56:59 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
-2026-10-31 17:56:59 [    INFO] Updated costs for 16 providers from dynamic pricing
-2026-10-31 17:56:59 [    INFO] EscalationManager initialized
-2026-10-31 17:56:59 [    INFO] CognitiveTierService initialized for workspace: default
-2026-10-31 17:56:59 [    INFO] EscalationManager initialized
-2026-10-31 17:56:59 [    INFO] CognitiveTierService initialized for workspace: default
-2026-10-31 17:56:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-10-31 17:56:59 [    INFO] AgentTaskRegistry initialized
-PASSED                                                                   [ 16%]
-tests/test_canvas_assessment_clarification.py::test_clarification_survives_a_restart PASSED [ 33%]
-tests/test_canvas_assessment_clarification.py::test_partial_answer_stays_open_and_clears_approval PASSED [ 50%]
-tests/test_canvas_assessment_clarification.py::test_full_answer_resumes_the_same_work PASSED [ 66%]
-tests/test_canvas_assessment_clarification.py::test_answer_for_an_unknown_subject_is_refused PASSED [ 83%]
-tests/test_canvas_assessment_clarification.py::test_answer_after_reassessment_is_stale PASSED [100%]
+2026-10-31 18:36:10 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-10-31 18:36:10 [    INFO] EscalationManager initialized
+2026-10-31 18:36:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 18:36:10 [    INFO] EscalationManager initialized
+2026-10-31 18:36:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-10-31 18:36:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-10-31 18:36:10 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  6%]
+tests/test_canvas_assessment_clarification.py::test_clarification_survives_a_restart PASSED [ 13%]
+tests/test_canvas_assessment_clarification.py::test_partial_answer_stays_open_and_clears_approval PASSED [ 20%]
+tests/test_canvas_assessment_clarification.py::test_full_answer_resumes_the_same_work PASSED [ 26%]
+tests/test_canvas_assessment_clarification.py::test_answer_for_an_unknown_subject_is_refused PASSED [ 33%]
+tests/test_canvas_assessment_clarification.py::test_answer_after_reassessment_is_stale PASSED [ 40%]
+tests/test_canvas_assessment_clarification.py::test_two_requirements_on_one_subject_require_requirement_ids PASSED [ 46%]
+tests/test_canvas_assessment_clarification.py::test_reordered_answers_and_conflicting_replay PASSED [ 53%]
+tests/test_canvas_assessment_clarification.py::test_changed_policy_preserves_the_answer_as_history PASSED [ 60%]
+tests/test_canvas_assessment_clarification.py::test_changed_source_preserves_the_answer_as_history PASSED [ 66%]
+tests/test_canvas_assessment_clarification.py::test_multiple_requirements_on_one_subject_need_requirement_ids PASSED [ 73%]
+tests/test_canvas_assessment_clarification.py::test_unknown_requirement_id_is_refused PASSED [ 80%]
+tests/test_canvas_assessment_clarification.py::test_conflicting_answers_for_one_requirement_are_refused PASSED [ 86%]
+tests/test_canvas_assessment_clarification.py::test_changed_revision_preserves_answers_and_requires_reassessment PASSED [ 93%]
+tests/test_canvas_assessment_clarification_routes.py::test_clarify_route_consumes_saved_answers_into_generation 
+-------------------------------- live log call ---------------------------------
+2026-10-31 18:36:22 [    INFO] EscalationManager initialized
+2026-10-31 18:36:22 [    INFO] CognitiveTierService initialized for workspace: ws-route
+2026-10-31 18:36:22 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_clarify_route_1/capability/assess "HTTP/1.1 200 OK"
+2026-10-31 18:36:22 [    INFO] EscalationManager initialized
+2026-10-31 18:36:22 [    INFO] CognitiveTierService initialized for workspace: ws-route
+2026-10-31 18:36:22 [    INFO] HTTP Request: POST http://testserver/api/canvas/canvas_clarify_route_1/capability/assess/canvas-canvas_clarify_route_1-25e255341957/clarify "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
 
 =============================== warnings summary ===============================
 ../../atom/backend/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:754
@@ -33,7 +52,7 @@ tests/test_canvas_assessment_clarification.py::test_answer_after_reassessment_is
   /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
     ref_error: type[Exception] = jsonschema.RefResolutionError,
 
-../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 12 warnings
+../../atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: 30 warnings
   /Users/rushiparikh/projects/atom/backend/venv/lib/python3.11/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
     if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
 
@@ -58,4 +77,4 @@ tests/test_canvas_assessment_clarification.py::test_answer_after_reassessment_is
   <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 6 passed, 18 warnings in 19.39s ========================
+======================= 15 passed, 36 warnings in 26.41s =======================

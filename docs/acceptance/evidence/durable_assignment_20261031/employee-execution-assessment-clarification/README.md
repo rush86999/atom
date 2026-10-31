@@ -57,3 +57,43 @@ answers against the exact execution:
 
 Not claimed: an autonomous browser journey through clarification. `reconcile`
 remains reserved.
+
+## Requirement identity and revision binding (2026-10-31)
+
+The verifier reproduced two gaps:
+
+1. two requirements on one subject collapsed onto one answer slot, so
+   "Confirm the amount" was stored against "Confirm delivery term";
+2. changing the policy after the assessment still let the old execution's
+   answer record and mark ready-to-resume.
+
+Repair:
+
+- every obligation carries a stable `requirement_id` derived from
+  (execution, subject, ordinal, requirement text);
+- an answer must identify that `requirement_id`; a subject-only answer is
+  accepted **only** when the subject has exactly one open requirement and is
+  otherwise refused as `ambiguous_requirement` with the candidate ids;
+- duplicate answers for one obligation with different text are refused as
+  `conflicting_answer`;
+- source, policy, manifest **and canvas** revisions are validated before
+  recording an answer and again immediately before resumed dispatch;
+- when a revision moved, the answer is preserved under `historical_answers`
+  with the accepted revisions and `reason: revisions_changed`, the obligation
+  stays open, and the result is `state=reassessment_required`,
+  `outcome=refuse` — never silently transferred.
+
+### Route continuation
+
+`test_clarify_route_consumes_saved_answers_into_generation` drives the public
+routes and captures what generation receives: the original objective, the
+`requirement_id`, subject, requirement text and answer, plus an
+`ACCEPTED REVISIONS` block with the source/policy/manifest revisions. The
+resumed assessment has a new execution and is not authorized by the old
+approval.
+
+### Controls
+
+14 service controls + 1 route continuation control pass, including two
+requirements on one subject, reordered answers, conflicting replay, changed
+policy, changed source, and restart read.

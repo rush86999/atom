@@ -5,12 +5,12 @@
   "final_candidate": "099c15e02",
   "files": {
     "README.md": {
-      "sha256": "411ad7b837cb56c08ff3809c82a5912a36496b3a4e5ec71a705407af3b14ed82",
-      "bytes": 2521
+      "sha256": "9e71e1ef89204130b0e4305dcf7b4854734e3f5650f8b4a1607453b7cc0b398b",
+      "bytes": 4329
     },
     "clarification-controls.log": {
-      "sha256": "91a0cc65b9ded38d5e50b1399977d050206efcbb89546f1482366e9e59b5460c",
-      "bytes": 4518
+      "sha256": "d98d52acd0764f12f396e95194601e848498f20135b638f7a1b189cc2006ef89",
+      "bytes": 6424
     },
     "clarification-hardening.log": {
       "sha256": "910f347106ccdfeba4c32985edbf602ff94994b5671947fe541eb5fb57557a61",

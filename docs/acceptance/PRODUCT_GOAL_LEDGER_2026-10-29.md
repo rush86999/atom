@@ -171,9 +171,15 @@ Closed with browser-level evidence:
   `propose` / `refuse`, with `reconcile` reserved (`661c751b2`);
 - **durable assessment clarification**: the original objective, request
   identity, source/teaching revisions and one obligation per unresolved
-  requirement persist on the canvas; answers use the same CAS, clear any prior
-  approval, and a full answer re-dispatches the same work
-  (`employee-execution-assessment-clarification/`).
+  requirement persist on the canvas. Each obligation has a stable
+  `requirement_id`; an answer must identify it (subject-only answers are
+  refused when a subject has more than one requirement). Source, policy,
+  manifest and canvas revisions are revalidated before recording and before
+  resumed dispatch; a moved revision preserves the answer as historical input
+  and returns `reassessment_required` instead of transferring it. Answers use
+  the same CAS, clear any prior approval, and a full answer re-dispatches the
+  same work with the original objective, the identified answers and an
+  `ACCEPTED REVISIONS` block (`employee-execution-assessment-clarification/`).
 
 Closed after the verifier handoff:
 
