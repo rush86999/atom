@@ -377,7 +377,10 @@ class GraphRAGEngine:
             # 2. URLs
             url_pattern = r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))[^\s]*'
             for match in re.finditer(url_pattern, text):
-                url = match.group()
+                # Sentence punctuation is not part of the URL. Without this,
+                # "visit https://example.com/a." stores the trailing period in
+                # the entity identity and citations no longer match the source.
+                url = match.group().rstrip(".,;:!?")
                 if url not in entity_names:
                     entities.append(Entity(
                         id=str(uuid.uuid4()),

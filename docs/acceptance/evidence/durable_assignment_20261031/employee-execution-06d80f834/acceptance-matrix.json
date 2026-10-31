@@ -195,5 +195,22 @@
       "evidence": "employee-execution-assessment-blocker/",
       "smallest_input": "funded provider key with declared review model, or readable local Ollama model store"
     }
-  ]
+  ],
+  "integrated_merge": {
+    "agent2_branch": "codex/readme-feature-readiness",
+    "merge_commit": "931892be0",
+    "shared_file": "backend/main_api_app.py (additive: conversation-learning routes + business catalog)",
+    "merge_introduced_fix": "GraphRAG URL entity trailing sentence punctuation stripped"
+  },
+  "readme_coverage": {
+    "inventory": "docs/acceptance/readme_feature_readiness_2026-10-31/CLAIM_INVENTORY.json",
+    "eligible_functional": 123,
+    "verified_functional": 100,
+    "coverage": "81.3%",
+    "not_counted": 23,
+    "security": "8/8 verified",
+    "group_errors": 0,
+    "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-integrated-readme/",
+    "status": "self_assessed_pending_verifier"
+  }
 }

@@ -230,6 +230,17 @@ It contains:
 - targeted backend/frontend/TypeScript logs;
 - a manifest with SHA-256 for every file.
 
+## README breadth on the integrated candidate
+
+Agent 2's frozen inventory (123 eligible functional claims) was re-executed
+after the merge: **100 verified (81.3%)**, 23 not counted, security 8/8, no
+group errors. The run used `ATOM_PRODUCT_PROFILE=full` and the bounded local
+OpenAI/Anthropic/OAuth/MCP stub, with schedulers/pollers off. It is a
+self-assessment pending independent verifier agreement, not a release approval.
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-integrated-readme/`
+and `docs/acceptance/readme_feature_readiness_2026-10-31/INTEGRATED_RERUN_2026-10-31.md`.
+
 ## Known limitations and failure records
 
 - **Canvas assessment is blocked by external model infrastructure.** DeepSeek

@@ -50,6 +50,25 @@ reliability.
 - Hosted deployment and publication are not unfinished engineering in this
   ledger; they are explicitly deferred by the owner.
 
+## README marketed-surface coverage
+
+The frozen README claim inventory (123 eligible functional claims) was
+re-executed on the integrated candidate after merging Agent 2's
+feature-readiness branch:
+
+- **100 / 123 verified functional claims (81.3%)**.
+- 23 claims are not counted (partial/unverified/inaccurate/blocked/
+  environment-limited/architecture-only); see
+  `docs/acceptance/readme_feature_readiness_2026-10-31/COVERAGE_REPORT_2026-10-31.md` §4.
+- Security 8/8 verified; performance, compatibility and comparative claims
+  remain tracked separately and are not part of the functional numerator.
+- No group errors in the integrated rerun.
+
+Evidence: `docs/acceptance/evidence/durable_assignment_20261031/employee-execution-integrated-readme/`.
+This is a self-assessment pending independent verifier agreement; it is not a
+release approval. The rerun used the bounded local provider/OAuth/MCP stub, not
+live provider qualification.
+
 ## Historical records
 
 The full previous ledger, including the 2026-10-29 table and all appended
