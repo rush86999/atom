@@ -462,12 +462,30 @@ def _teaching_relevance_tokens(query: Optional[str]) -> set:
 
 def _lesson_relevance_haystack(entry: Dict[str, Any]) -> str:
     canvas = entry.get("canvas") if isinstance(entry.get("canvas"), dict) else {}
-    return " ".join((
+    parts = [
         str(entry.get("topic") or ""),
         _lesson_text(entry),
         str(canvas.get("name") or ""),
         str(canvas.get("label") or ""),
-    )).lower()
+    ]
+    # A structured method declares the inputs the user will name. "Qty 2 and
+    # Price 7.50" is about the taught pricing method even when the lesson's
+    # prose never says "qty" or "price"; the method contract is the relevance
+    # evidence, not a phrase list.
+    try:
+        from core.conversation_learning import method_from_lesson
+
+        method = method_from_lesson(entry)
+        if method is not None:
+            parts.append(str(getattr(method, "operation", "") or ""))
+            parts.append(str(getattr(method, "output_unit", "") or ""))
+            for item in getattr(method, "inputs", []) or []:
+                parts.append(str(getattr(item, "concept", "") or ""))
+                parts.append(str(getattr(item, "column", "") or ""))
+                parts.append(str(getattr(item, "unit", "") or ""))
+    except Exception:  # noqa: BLE001 — relevance is additive
+        pass
+    return " ".join(parts).lower()
 
 
 def _context_allowed_values(value: Any) -> List[str]:

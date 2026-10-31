@@ -14,9 +14,21 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 SCHEMA = "teaching-clarification-1"
+
+
+def json_safe(value: Any) -> Any:
+    """Convert Decimal-bearing resolver records to JSON-safe values."""
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+    return value
 
 _UNCERTAIN_RE = re.compile(
     r"\b(?:probably|maybe|perhaps|possibly|might\s+be|may\s+be|"
@@ -43,15 +55,20 @@ def new_pending(
     workspace_id: str,
     tenant_id: str,
     objective: str,
-    required_context: List[Dict[str, Any]],
+    required_context: Optional[List[Dict[str, Any]]] = None,
     established_context: Optional[Dict[str, Any]] = None,
     lesson_refs: Optional[List[Dict[str, Any]]] = None,
     source_bindings: Optional[List[Dict[str, Any]]] = None,
     request_id: Optional[str] = None,
     all_context_values: Optional[Dict[str, List[str]]] = None,
+    kind: str = "context",
+    operand_questions: Optional[List[Dict[str, Any]]] = None,
+    method_ref: Optional[Dict[str, Any]] = None,
+    completed_work: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    return {
+    return json_safe({
         "schema": SCHEMA,
+        "kind": str(kind or "context"),
         "clarification_id": uuid.uuid4().hex,
         "state": "pending",
         "session_id": str(session_id or ""),
@@ -61,6 +78,9 @@ def new_pending(
         "tenant_id": str(tenant_id or ""),
         "objective": str(objective or "")[:4000],
         "request_id": str(request_id or "") or None,
+        "method_ref": dict(method_ref or {}) if method_ref else None,
+        "completed_work": dict(completed_work or {}) if completed_work else None,
+        "operand_questions": list(operand_questions or [])[:24],
         "lesson_refs": [
             {"id": str(item.get("id") or ""),
              "revision": int(item.get("revision") or 1)}
@@ -94,7 +114,7 @@ def new_pending(
         "confirmed_context": {},
         "confirmation_source": None,
         "confirmed_at": None,
-    }
+    })
 
 
 def is_cancel(message: str) -> bool:
@@ -160,6 +180,8 @@ def extract_confirmation(message: str, pending: Dict[str, Any]) -> Dict[str, Any
     - an explicit value for an already-established key is a scope update.
     """
     text = str(message or "")
+    if str((pending or {}).get("kind") or "context") == "operands":
+        return extract_operand_confirmation(text, pending)
     if is_cancel(text):
         return {"status": "cancelled", "answers": {}, "scope_updates": {},
                 "ambiguous": [], "uncertain": [], "unmatched": []}
@@ -251,7 +273,111 @@ def merge_confirmed_context(
     return merged
 
 
+def render_operand_question(pending: Dict[str, Any]) -> str:
+    """Render typed operand questions from the extraction/validation layer."""
+    questions = list((pending or {}).get("operand_questions") or [])
+    if not questions:
+        return "I need one more value before I can run the taught method."
+    parts: List[str] = []
+    for question in questions:
+        column = str(question.get("column") or question.get("concept") or "")
+        reason = str(question.get("reason") or "")
+        required = str(question.get("required_unit") or "")
+        candidates = list(question.get("candidates") or [])
+        if reason == "ambiguous_value":
+            values = ", ".join(
+                f"{item.get('raw_value')}"
+                + (f" {item.get('raw_unit')}" if item.get("raw_unit") else "")
+                for item in candidates[:8]
+            )
+            parts.append(
+                f"I found more than one value for {column}: {values}. "
+                "Which one should I use?")
+        elif reason == "incompatible_unit":
+            item = candidates[0] if candidates else {}
+            parts.append(
+                f"{column} {item.get('raw_value', '')} is in "
+                f"{item.get('raw_unit') or 'an explicit unit'}, but the taught "
+                f"method requires {required or 'a different unit'}. I can't "
+                "convert currencies without an approved conversion method. "
+                f"Please provide the value in {required or 'the required unit'}.")
+        elif reason == "unknown_unit":
+            item = candidates[0] if candidates else {}
+            parts.append(
+                f"I don't recognize the unit "
+                f"'{item.get('raw_unit') or 'explicit unit'}' for {column}. "
+                f"The method requires {required or 'a declared unit'}. "
+                f"Please provide the value and unit in {required or 'the required unit'}.")
+        elif reason == "malformed_value":
+            item = candidates[0] if candidates else {}
+            parts.append(
+                f"I couldn't read '{item.get('raw_value') or 'that value'}' "
+                f"as a valid number for {column}. Please provide a plain "
+                f"value in {required or 'the required unit'}.")
+        elif reason == "unit_unresolved":
+            parts.append(
+                f"Please confirm the unit for {column} "
+                f"({required or 'required unit'}).")
+        else:
+            parts.append(
+                f"I need {column} ({required or 'a value'}).")
+    return (
+        "Before I can run the taught method, " + " ".join(parts)
+        + " Reply with the field and value, for example "
+        "'" + str((questions[0].get("column") or "Price")) + " 8.00 "
+        + (str(questions[0].get("required_unit") or "")).strip() + "'."
+    ).strip()
+
+
+def extract_operand_confirmation(
+    message: str,
+    pending: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Bind the user's answer to the pending operand questions.
+
+    Only a compatible, explicit value is confirmed. Ambiguity, unknown units
+    and incompatible units stay open.
+    """
+    from core.method_operands import parse_operand_answer
+
+    questions = list((pending or {}).get("operand_questions") or [])
+    confirmed: Dict[str, Dict[str, Any]] = dict(
+        (pending or {}).get("confirmed_operands") or {})
+    remaining: List[Dict[str, Any]] = []
+    statuses: List[str] = []
+    allow_bare = len(questions) == 1
+    for question in questions:
+        parsed = parse_operand_answer(
+            message, question, allow_bare=allow_bare)
+        if parsed.get("status") == "confirmed":
+            candidate = dict(parsed.get("candidate") or {})
+            concept = str(question.get("concept") or question.get("column"))
+            if concept:
+                confirmed[concept] = candidate
+            continue
+        remaining.append(question)
+        statuses.append(str(parsed.get("status") or "unresolved"))
+    if remaining:
+        if "ambiguous" in statuses:
+            status = "ambiguous"
+        elif any(item in ("unit_incompatible", "unit_unknown",
+                          "unit_unresolved") for item in statuses):
+            status = "unit_conflict"
+        else:
+            status = "partial"
+    else:
+        status = "confirmed"
+    return {
+        "status": status,
+        "operand_overrides": confirmed,
+        "remaining": remaining,
+        "answers": confirmed,
+    }
+
+
 def render_user_question(pending: Dict[str, Any]) -> str:
+    if str((pending or {}).get("kind") or "context") == "operands":
+        return render_operand_question(pending)
     required = list((pending or {}).get("required_context") or [])
     parts: List[str] = []
     for row in required:
@@ -289,6 +415,8 @@ def mark_confirmed(
     updated["state"] = "confirmed"
     updated["confirmed_context"] = dict(
         (confirmation or {}).get("answers") or {})
+    updated["confirmed_operands"] = dict(
+        (confirmation or {}).get("operand_overrides") or {})
     updated["scope_updates"] = dict(
         (confirmation or {}).get("scope_updates") or {})
     updated["confirmation_source"] = "user"

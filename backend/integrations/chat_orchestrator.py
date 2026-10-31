@@ -10606,6 +10606,7 @@ class ChatOrchestrator:
                                 for key in (
                                     "teaching_execution",
                                     "teaching_clarification",
+                                    "teaching_operand_clarification",
                                     "teaching_method_conflict",
                                     "teaching_exclusion")
                                 if _early_reply.get(key) is not None
@@ -18814,6 +18815,7 @@ class ChatOrchestrator:
             for _teaching_key in (
                     "teaching_execution",
                     "teaching_clarification",
+                    "teaching_operand_clarification",
                     "teaching_method_conflict",
                     "teaching_exclusion"):
                 _teaching_value = (ai_response or {}).get(_teaching_key)
@@ -35094,6 +35096,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         session_id: Optional[str],
         pending: Optional[Dict[str, Any]],
     ) -> None:
+        if pending is not None:
+            from core.teaching_clarification import json_safe
+
+            pending = json_safe(pending)
         if isinstance(session, dict):
             if pending is None:
                 session.pop("_pending_teaching_clarification", None)
@@ -35273,32 +35279,54 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "user cancelled the teaching-context clarification")
             return message, context, {"cancelled": True}
         if confirmation.get("status") == "confirmed":
-            merged = merge_teaching_context(pending, confirmation)
             updated = mark_teaching_confirmed(pending, confirmation)
             updated["last_answer"] = str(message or "")[:1000]
             updated["last_result"] = None  # filled by the executing turn
-            context["task_context"] = {
-                **(context.get("task_context") or {}),
-                **merged,
-            }
-            context["_teaching_resume"] = {
-                "clarification_id": updated.get("clarification_id"),
-                "objective": updated.get("objective"),
-                "lesson_refs": list(updated.get("lesson_refs") or []),
-                "confirmed_context": dict(
-                    confirmation.get("answers") or {}),
-                "scope_updates": dict(
-                    confirmation.get("scope_updates") or {}),
-                "confirmation_source": "user",
-            }
+            if str(pending.get("kind") or "context") == "operands":
+                context["task_context"] = {
+                    **dict(pending.get("established_context") or {}),
+                    **(context.get("task_context") or {}),
+                }
+                context["_teaching_resume"] = {
+                    "clarification_id": updated.get("clarification_id"),
+                    "objective": updated.get("objective"),
+                    "method_ref": dict(updated.get("method_ref") or {}),
+                    "operand_overrides": dict(
+                        confirmation.get("operand_overrides") or {}),
+                    "confirmed_operands": dict(
+                        confirmation.get("operand_overrides") or {}),
+                    "confirmation_source": "user",
+                }
+                resolution_text = (
+                    "user confirmed operands: " + ", ".join(
+                        f"{key}={value.get('raw_value')}"
+                        for key, value in
+                        (confirmation.get("operand_overrides") or {}).items()))
+            else:
+                merged = merge_teaching_context(pending, confirmation)
+                context["task_context"] = {
+                    **(context.get("task_context") or {}),
+                    **merged,
+                }
+                context["_teaching_resume"] = {
+                    "clarification_id": updated.get("clarification_id"),
+                    "objective": updated.get("objective"),
+                    "lesson_refs": list(updated.get("lesson_refs") or []),
+                    "confirmed_context": dict(
+                        confirmation.get("answers") or {}),
+                    "scope_updates": dict(
+                        confirmation.get("scope_updates") or {}),
+                    "confirmation_source": "user",
+                }
+                resolution_text = (
+                    "user confirmed teaching context: " + ", ".join(
+                        f"{key}={value}" for key, value in
+                        (confirmation.get("answers") or {}).items()))
             if isinstance(session, dict):
                 session["_teaching_resume"] = context["_teaching_resume"]
                 session.pop("_teaching_replay", None)
             self._resolve_teaching_question(
-                session, updated, workspace_id,
-                "user confirmed teaching context: " + ", ".join(
-                    f"{key}={value}" for key, value in
-                    (confirmation.get("answers") or {}).items()))
+                session, updated, workspace_id, resolution_text)
             self._persist_pending_teaching_clarification(
                 session, session_id, updated)
             return message, context, {"confirmed": True, "pending": updated}
@@ -35308,17 +35336,32 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         # promoted to confirmation.
         updated = mark_teaching_pending(pending, confirmation, message)
         definite = dict(confirmation.get("answers") or {})
-        merged = {**dict(pending.get("established_context") or {}), **definite}
-        context["task_context"] = {
-            **(context.get("task_context") or {}),
-            **merged,
-        }
-        context["_teaching_resume"] = {
-            "clarification_id": updated.get("clarification_id"),
-            "objective": updated.get("objective"),
-            "pending": True,
-            "confirmed_context": definite,
-        }
+        if str(pending.get("kind") or "context") == "operands":
+            context["task_context"] = {
+                **dict(pending.get("established_context") or {}),
+                **(context.get("task_context") or {}),
+            }
+            context["_teaching_resume"] = {
+                "clarification_id": updated.get("clarification_id"),
+                "objective": updated.get("objective"),
+                "method_ref": dict(updated.get("method_ref") or {}),
+                "operand_overrides": dict(
+                    confirmation.get("operand_overrides") or {}),
+                "pending": True,
+            }
+        else:
+            merged = {
+                **dict(pending.get("established_context") or {}), **definite}
+            context["task_context"] = {
+                **(context.get("task_context") or {}),
+                **merged,
+            }
+            context["_teaching_resume"] = {
+                "clarification_id": updated.get("clarification_id"),
+                "objective": updated.get("objective"),
+                "pending": True,
+                "confirmed_context": definite,
+            }
         if isinstance(session, dict):
             session["_teaching_resume"] = context["_teaching_resume"]
             session.pop("_teaching_replay", None)
@@ -35327,6 +35370,138 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         self._persist_pending_teaching_clarification(
             session, session_id, updated)
         return message, context, {"pending": updated}
+
+    def _request_obligations(self, message: str) -> List[Dict[str, Any]]:
+        """Additional work named by the request, from the existing extractor.
+
+        The calculation receipt covers arithmetic only. Accepted assignments,
+        additional actions, unresolved additions and source references are
+        other obligations and must survive the shortcut.
+        """
+        try:
+            from core.turn_decision import extract_request_assignments
+
+            extracted = extract_request_assignments(message)
+        except Exception:  # noqa: BLE001 — fail closed on coverage
+            return [{
+                "kind": "coverage_unresolved",
+                "text": "the request could not be checked for additional work",
+            }]
+        obligations: List[Dict[str, Any]] = []
+        for item in extracted.get("assignments") or []:
+            obligations.append({
+                "kind": "assignment",
+                "target": item.get("target"),
+                "value": item.get("value"),
+                "span": item.get("span"),
+            })
+        for item in extracted.get("additional_actions") or []:
+            obligations.append({
+                "kind": "action",
+                "text": item.get("text"),
+            })
+        for item in extracted.get("unresolved_additions") or []:
+            obligations.append({
+                "kind": "unresolved_addition",
+                **dict(item or {}),
+            })
+        for item in extracted.get("source_references") or []:
+            obligations.append({
+                "kind": "source_reference",
+                "text": str(item),
+            })
+        return obligations
+
+    def _record_compound_obligation(
+        self,
+        *,
+        session: Optional[Dict[str, Any]],
+        session_id: str,
+        user_id: str,
+        agent_id: Optional[str],
+        workspace_id: Optional[str],
+        objective: str,
+        receipt: Dict[str, Any],
+        obligations: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Keep non-calculation work open in the existing approval ledger.
+
+        No outbound action is executed here. A pending HITLAction is the
+        durable "awaiting approval" record; the task ledger gets the same
+        obligation when the conversation already has an active task.
+        """
+        approval_id = None
+        try:
+            import uuid as _uuid
+
+            from core.database import get_db_session
+            from core.models import HITLAction, HITLActionStatus
+
+            with get_db_session() as db:
+                row = HITLAction(
+                    id=str(_uuid.uuid4()),
+                    workspace_id=workspace_id or None,
+                    tenant_id=getattr(self, "tenant_id", None),
+                    agent_id=agent_id,
+                    action_type="chat_request_obligation",
+                    platform="in_app",
+                    params={
+                        "session_id": session_id,
+                        "objective": objective[:4000],
+                        "calculation_receipt": receipt,
+                        "obligations": obligations[:20],
+                    },
+                    status=HITLActionStatus.PENDING.value,
+                    reason=(
+                        "Additional request remains open after the "
+                        "calculation; no outbound action was performed."),
+                    priority="MEDIUM",
+                    user_id=user_id or None,
+                )
+                db.add(row)
+                db.commit()
+                approval_id = row.id
+        except Exception as exc:  # noqa: BLE001 — ledger is additive
+            logger.debug("compound obligation ledger skipped: %r", exc)
+        try:
+            lifecycle = self._teaching_lifecycle(workspace_id)
+            run_id = str((session or {}).get("_task_run_id") or "") if isinstance(
+                session, dict) else ""
+            if lifecycle is not None:
+                record = lifecycle.get_task(run_id) if run_id else None
+                if record is None:
+                    record = lifecycle.find_active_task(session_id)
+                if record is not None:
+                    from core.task_lifecycle import add_unresolved_questions
+
+                    add_unresolved_questions(
+                        lifecycle, str(record.get("run_id") or ""),
+                        [{
+                            "item": "additional request",
+                            "question": (
+                                "Complete the additional request: "
+                                + "; ".join(
+                                    str(item.get("text")
+                                        or item.get("target")
+                                        or item.get("kind"))
+                                    for item in obligations[:4])),
+                            "kind": "business_decision",
+                            "inputs": {
+                                "objective": objective[:4000],
+                                "calculation_receipt": receipt,
+                                "obligations": obligations[:20],
+                                "approval_id": approval_id,
+                            },
+                            "concept": "additional_request",
+                            "reason": (
+                                "the deterministic calculation covered "
+                                "arithmetic only"),
+                        }],
+                        source_operation="teaching_calculation",
+                    )
+        except Exception as exc:  # noqa: BLE001 — additive
+            logger.debug("compound task obligation skipped: %r", exc)
+        return {"approval_id": approval_id, "obligations": obligations}
 
     def _apply_teaching_resolution(
         self,
@@ -35469,24 +35644,76 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             from core.chat_teaching_runtime import execute_method_lesson
 
             entry = method_lessons[0].get("entry") or {}
+            method_ref = {
+                "id": str(entry.get("id") or ""),
+                "revision": int(entry.get("revision") or 1),
+            }
+            resume = (
+                (session or {}).get("_teaching_resume")
+                if isinstance(session, dict) else None)
+            overrides: Dict[str, Any] = {}
+            if (isinstance(resume, dict)
+                    and dict(resume.get("method_ref") or {}) == method_ref):
+                overrides = dict(resume.get("operand_overrides") or {})
             execution = execute_method_lesson(
                 entry, message, task_context=task_context,
-                workspace_id=workspace_id)
+                workspace_id=workspace_id,
+                operand_overrides=overrides)
             if execution.get("status") == "applied":
+                receipt = dict(execution.get("calculation_receipt") or {})
+                obligations = self._request_obligations(message)
                 metadata = {
-                    key: value for key, value in execution.items()
-                    if key not in ("content", "method", "_recorded_outcome")
+                    "calculation_receipt": receipt,
+                    "lesson_id": receipt.get("lesson_ref", {}).get("id"),
+                    "lesson_revision": receipt.get("lesson_ref", {}).get(
+                        "revision"),
+                    "operation": receipt.get("operation"),
+                    "validated_inputs": list(
+                        receipt.get("validated_inputs") or []),
+                    "value": receipt.get("value"),
+                    "unit": receipt.get("unit"),
+                    "input_totals": dict(receipt.get("input_totals") or {}),
+                    "assumptions": list(receipt.get("assumptions") or []),
+                    "covered_obligations": ["calculation"],
                 }
+                if obligations:
+                    compound = self._record_compound_obligation(
+                        session=session,
+                        session_id=session_id,
+                        user_id=user_id,
+                        agent_id=agent_id,
+                        workspace_id=workspace_id,
+                        objective=message,
+                        receipt=receipt,
+                        obligations=obligations,
+                    )
+                    texts = [
+                        str(item.get("text") or item.get("target")
+                            or item.get("kind"))
+                        for item in obligations[:6]
+                    ]
+                    content = (
+                        str(execution.get("content") or "")
+                        + " Additional work remains open: "
+                        + "; ".join(texts)
+                        + ". No outbound action was performed; the "
+                        "remaining request is awaiting approval or further "
+                        "work.")
+                    metadata["open_obligations"] = compound["obligations"]
+                    if compound.get("approval_id"):
+                        metadata["approval_id"] = compound["approval_id"]
+                    outcome = {"state": "partial", "work_turn": True}
+                else:
+                    content = str(execution.get("content") or "")
+                    outcome = {"state": "completed", "work_turn": True}
                 reply = {
-                    "content": execution.get("content"),
+                    "content": content,
                     "model": "teaching-method",
                     "provider": "deterministic",
                     "memory_context": memory_context,
                     "teaching_execution": metadata,
                     "deterministic_delivery": True,
-                    "_recorded_outcome": execution.get(
-                        "_recorded_outcome") or {
-                            "state": "completed", "work_turn": True},
+                    "_recorded_outcome": outcome,
                 }
                 if isinstance(session, dict):
                     pending = session.get(
@@ -35499,38 +35726,75 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "provider": reply["provider"],
                             "teaching_execution": metadata,
                             "deterministic_delivery": True,
-                            "_recorded_outcome": reply["_recorded_outcome"],
+                            "_recorded_outcome": outcome,
                         }
                         self._persist_pending_teaching_clarification(
                             session, session_id, pending)
                     session.pop("_teaching_resume", None)
                     session.pop("_teaching_replay", None)
                 return reply
-            if execution.get("status") in ("needs_inputs", "blocked"):
-                missing = list(execution.get("missing") or [])
-                if missing:
-                    content = (
-                        "I can apply the taught method, but I need these "
-                        "inputs: " + ", ".join(missing) + ".")
+            if execution.get("status") in (
+                    "needs_clarification", "ambiguous_operands",
+                    "unit_conflict"):
+                questions = list(execution.get("questions") or [])
+                pending = (
+                    session.get("_pending_teaching_clarification")
+                    if isinstance(session, dict) else None)
+                if (not isinstance(pending, dict)
+                        or pending.get("state") != "pending"
+                        or pending.get("kind") != "operands"):
+                    pending = new_teaching_pending(
+                        session_id=session_id,
+                        user_id=user_id,
+                        agent_id=agent_id or "",
+                        workspace_id=workspace_id or "",
+                        tenant_id=str(getattr(self, "tenant_id", "") or ""),
+                        objective=message,
+                        required_context=[],
+                        established_context=task_context or {},
+                        lesson_refs=_teaching_lesson_refs(resolution),
+                        source_bindings=(
+                            resolution.get("source_bindings") or []),
+                        request_id=request_id,
+                        all_context_values=_teaching_all_values(resolution),
+                        kind="operands",
+                        operand_questions=questions,
+                        method_ref=method_ref,
+                    )
                 else:
-                    reason = str(
-                        execution.get("reason")
-                        or "the required inputs are not available")
-                    content = (
-                        "The taught method could not be applied: "
-                        f"{reason}. No calculation was run.")
+                    pending["kind"] = "operands"
+                    pending["operand_questions"] = questions
+                    pending["method_ref"] = method_ref
+                    pending["established_context"] = dict(task_context or {})
+                    pending["lesson_refs"] = _teaching_lesson_refs(resolution)
+                    pending["source_bindings"] = list(
+                        resolution.get("source_bindings") or [])
+                    pending["updated_at"] = datetime.now(
+                        timezone.utc).isoformat()
+                from core.teaching_clarification import json_safe
+
+                pending = json_safe(pending)
+                questions = list(pending.get("operand_questions") or questions)
+                self._record_teaching_question(
+                    session, session_id, pending, workspace_id)
+                self._persist_pending_teaching_clarification(
+                    session, session_id, pending)
+                content = render_teaching_question(pending)
                 return {
                     "content": content,
-                    "model": "teaching-method",
+                    "model": "teaching-resolver",
                     "provider": "deterministic",
                     "memory_context": memory_context,
-                    "teaching_execution": {
-                        "status": execution.get("status"),
-                        "lesson_id": entry.get("id"),
-                        "lesson_revision": int(
-                            entry.get("revision") or 1),
-                        "missing": missing,
-                        "reason": execution.get("reason"),
+                    "teaching_operand_clarification": {
+                        "schema": "teaching-clarification-1",
+                        "clarification_id": pending.get("clarification_id"),
+                        "state": "pending",
+                        "kind": "operands",
+                        "operand_questions": questions,
+                        "method_ref": method_ref,
+                        "lesson_refs": list(
+                            pending.get("lesson_refs") or []),
+                        "authority": "user_confirmation",
                     },
                     "deterministic_delivery": True,
                     "_recorded_outcome": {
@@ -35538,6 +35802,29 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "work_turn": True,
                     },
                 }
+            reason = str(
+                execution.get("reason")
+                or "the required inputs are not available")
+            return {
+                "content": (
+                    "The taught method could not be applied: "
+                    f"{reason}. No calculation was run."),
+                "model": "teaching-method",
+                "provider": "deterministic",
+                "memory_context": memory_context,
+                "teaching_execution": {
+                    "status": execution.get("status"),
+                    "lesson_id": entry.get("id"),
+                    "lesson_revision": int(entry.get("revision") or 1),
+                    "reason": execution.get("reason"),
+                    "questions": list(execution.get("questions") or []),
+                },
+                "deterministic_delivery": True,
+                "_recorded_outcome": {
+                    "state": "partial",
+                    "work_turn": True,
+                },
+            }
         return None
 
     def _get_or_create_session(
@@ -35887,6 +36174,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             for _teaching_key in (
                                     "teaching_execution",
                                     "teaching_clarification",
+                                    "teaching_operand_clarification",
                                     "teaching_method_conflict",
                                     "teaching_exclusion"):
                                 _teaching_value = _response_data.get(

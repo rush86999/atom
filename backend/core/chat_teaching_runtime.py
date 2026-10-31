@@ -29,86 +29,30 @@ def looks_like_calculation(message: str) -> bool:
     return bool(_CALC_SHAPE_RE.search(text) and re.search(r"\d", text))
 
 
-def _number_after(message: str, label: str) -> Optional[str]:
-    if not label:
-        return None
-    pattern = re.compile(
-        r"(?<![A-Za-z0-9_])" + re.escape(str(label)) +
-        r"\s*(?:=|:)?\s*(?:[$€£]\s*)?(" + _NUMBER_RE.pattern + r")",
-        re.IGNORECASE,
-    )
-    match = pattern.search(str(message or ""))
-    if not match:
-        return None
-    return match.group(1).replace(",", "")
-
-
-def _unit_after(message: str, label: str, expected: str = "") -> str:
-    if not label:
-        return ""
-    pattern = re.compile(
-        r"(?<![A-Za-z0-9_])" + re.escape(str(label)) +
-        r"\s*(?:=|:)?\s*(?:[$€£]\s*)?(?:[-+]?\d[\d,]*(?:\.\d+)?)"
-        r"\s*(" + _UNIT_RE.pattern + r")?",
-        re.IGNORECASE,
-    )
-    match = pattern.search(str(message or ""))
-    if not match:
-        return ""
-    token = str(match.group(1) or "").strip()
-    if not token:
-        return ""
-    # "Qty 2 and Price 7.50" must not read "and" as the unit. Only accept a
-    # token that is the method's declared unit or a small generic unit
-    # vocabulary; everything else is left to the method's own unit.
-    known = {
-        "unit", "units", "kg", "lb", "lbs", "g", "oz", "usd", "eur", "gbp",
-        "dollar", "dollars", "hour", "hours", "day", "days", "week", "weeks",
-        "month", "months", "year", "years", "%", "$", "€", "£",
-    }
-    if expected and token.casefold() == str(expected).casefold():
-        return token
-    if token.casefold() in known:
-        return token
-    return ""
-
-
 def extract_method_row(message: str, method: Any) -> Dict[str, Any]:
-    """Extract the method's declared inputs from a normal chat message.
+    """Backward-compatible projection of the validated operand extraction."""
+    from core.method_operands import extract_operands
 
-    Only explicit ``label value`` / ``label: value`` shapes are accepted.
-    Missing or ambiguous operands block execution instead of guessing.
-    """
-    row: Dict[str, Any] = {}
-    operands: Dict[str, Any] = {}
-    missing: List[str] = []
-    for item in getattr(method, "inputs", []) or []:
-        concept = str(getattr(item, "concept", "") or "")
-        column = str(getattr(item, "column", "") or "")
-        value = None
-        used_label = ""
-        for label in (column, concept):
-            value = _number_after(message, label)
-            if value is not None:
-                used_label = label
-                break
-        if value is None:
-            missing.append(column or concept or "input")
-            continue
-        unit = str(getattr(item, "unit", "") or "")
-        declared_unit = _unit_after(message, used_label, unit)
-        if declared_unit and unit and declared_unit.casefold() != unit.casefold():
-            # A unit the method does not declare is a real ambiguity, not
-            # something to coerce silently.
-            missing.append(f"{column or concept}:unit")
-            continue
-        row[column or concept] = value
-        operands[concept or column] = {
-            "value": value,
-            "unit": unit,
-            "column": column or concept,
-        }
-    return {"row": row, "operands": operands, "missing": missing}
+    extracted = extract_operands(message, method)
+    return {
+        "row": extracted.get("row") or {},
+        "operands": {
+            row["concept"]: {
+                "value": row["raw_value"],
+                "unit": row.get("normalized_unit") or row.get("required_unit"),
+                "column": row.get("column"),
+            }
+            for row in extracted.get("validated_inputs") or []
+        },
+        "missing": [
+            q.get("column") or q.get("concept")
+            for q in extracted.get("questions") or []
+            if q.get("reason") == "missing"
+        ],
+        "status": extracted.get("status"),
+        "questions": extracted.get("questions") or [],
+        "validated_inputs": extracted.get("validated_inputs") or [],
+    }
 
 
 def execute_method_lesson(
@@ -117,18 +61,28 @@ def execute_method_lesson(
     *,
     task_context: Optional[Dict[str, Any]] = None,
     workspace_id: Optional[str] = None,
+    operand_overrides: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
-    """Run one applicable method lesson through the existing allowlist."""
+    """Extract, validate and execute one method, returning a receipt.
+
+    This function proves arithmetic only. It never returns a whole-task
+    completed verdict; the caller submits the receipt to the obligation /
+    finalization path.
+    """
     from core.conversation_learning import apply_lesson_method, method_from_lesson
+    from core.method_operands import extract_operands
 
     method = method_from_lesson(entry)
     if method is None:
         return {"status": "not_executable", "reason": "lesson_has_no_method"}
-    extracted = extract_method_row(message, method)
-    if extracted.get("missing"):
+    extracted = extract_operands(
+        message, method, overrides=operand_overrides or {})
+    if extracted.get("status") != "ready":
         return {
-            "status": "needs_inputs",
-            "missing": list(extracted["missing"]),
+            "status": extracted.get("status") or "needs_clarification",
+            "questions": list(extracted.get("questions") or []),
+            "validated_inputs": list(
+                extracted.get("validated_inputs") or []),
             "method": method,
         }
     result = apply_lesson_method(
@@ -139,11 +93,30 @@ def execute_method_lesson(
                 "detail": result, "method": method}
     lesson_id = str(entry.get("id") or "")
     revision = int(entry.get("revision") or 1)
-    operands = extracted.get("operands") or {}
+    validated_inputs = [
+        {
+            **row,
+            "value": (str(row.get("value"))
+                      if row.get("value") is not None else None),
+        }
+        for row in (extracted.get("validated_inputs") or [])
+    ]
+    operands = {
+        row["concept"]: {
+            "value": row["raw_value"],
+            "unit": row.get("normalized_unit") or row.get("required_unit"),
+            "column": row.get("column"),
+            "unit_status": row.get("unit_status"),
+            "unit_authority": row.get("unit_authority"),
+            "span": row.get("span"),
+        }
+        for row in validated_inputs
+    }
     operand_text = ", ".join(
-        f"{concept}={item.get('value')}"
-        + (f" {item.get('unit')}" if item.get("unit") else "")
-        for concept, item in operands.items()
+        f"{row['concept']}={row['raw_value']}"
+        + (f" {row.get('normalized_unit')}" if row.get("normalized_unit")
+           else "")
+        for row in validated_inputs
     )
     value = str(result.get("value") or "")
     places = getattr(method, "rounding", {}).get("places")
@@ -153,12 +126,38 @@ def execute_method_lesson(
         except (InvalidOperation, ValueError, TypeError):
             pass
     unit = str(result.get("unit") or "")
+    receipt = {
+        "status": "applied",
+        "operation": result.get("operation"),
+        "validated_inputs": validated_inputs,
+        "value": value,
+        "unit": unit,
+        "lesson_ref": {"id": lesson_id, "revision": revision},
+        "input_evidence": [
+            {
+                "concept": row["concept"],
+                "column": row.get("column"),
+                "raw_value": row.get("raw_value"),
+                "raw_unit": row.get("raw_unit"),
+                "normalized_unit": row.get("normalized_unit"),
+                "required_unit": row.get("required_unit"),
+                "unit_status": row.get("unit_status"),
+                "unit_authority": row.get("unit_authority"),
+                "span": row.get("span"),
+                "source": row.get("source"),
+            }
+            for row in validated_inputs
+        ],
+        "covered_obligations": ["calculation"],
+        "input_totals": dict(result.get("input_totals") or {}),
+        "assumptions": list(result.get("assumptions") or []),
+    }
     content = (
-        f"Using the taught method from lesson {lesson_id} rev {revision}: "
+        f"Calculation receipt from lesson {lesson_id} rev {revision}: "
         f"{result.get('operation')}({operand_text}) = {value}"
         + (f" {unit}" if unit else "")
-        + ". This result comes from the deterministic calculator, not "
-        "free-form estimation."
+        + ". The arithmetic was run by the deterministic calculator; "
+        "this receipt covers the calculation only."
     )
     return {
         "status": "applied",
@@ -171,7 +170,8 @@ def execute_method_lesson(
         "unit": unit,
         "input_totals": dict(result.get("input_totals") or {}),
         "assumptions": list(result.get("assumptions") or []),
+        "validated_inputs": validated_inputs,
+        "calculation_receipt": receipt,
         "method": method,
         "deterministic_delivery": True,
-        "_recorded_outcome": {"state": "completed", "work_turn": True},
     }

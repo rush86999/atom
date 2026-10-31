@@ -1021,7 +1021,9 @@ _COMPOUND_ACTION_VETO_RE = re.compile(
     # no object follows.
     r"\b(?:updat(?:e|es|ed|ing)|edit(?:s|ed|ing)?|"
     r"chang(?:e|es|ed|ing)|set|sets|setting|apply|applies|applied|"
-    r"applying|send|sends|sent|sending|creat(?:e|es|ed|ing)|"
+    r"applying|send|sends|sent|sending|email|emails|emailed|emailing|"
+    r"forward|forwards|forwarded|forwarding|reply|replies|replied|"
+    r"replying|notify|notifies|notified|notifying|creat(?:e|es|ed|ing)|"
     r"add|adds|added|adding|remov(?:e|es|ed|ing)|"
     r"delet(?:e|es|ed|ing)|writ(?:e|es|ten|ing)|"
     r"schedul(?:e|es|ed|ing)|book|books|booked|booking|"
@@ -1050,8 +1052,9 @@ _COMPOUND_ACTION_VETO_RE = re.compile(
     # A mutation/send verb with ANY object is still an additional
     # obligation. This is the general action clause the obligation
     # extractor records; it is not a phrase-specific blacklist.
-    r"|\b(?:insert|append|prepend|send|submit|upload|schedule|book|"
-    r"pay|create|write|remove|delete|add)\b\s+\w+",
+    r"|\b(?:insert|append|prepend|send|email|forward|reply|notify|"
+    r"submit|upload|schedule|book|pay|create|write|remove|delete|add)\b"
+    r"\s+\w+",
     re.IGNORECASE,
 )
 
@@ -1749,7 +1752,9 @@ def extract_request_assignments(
         if any(start <= m.start() < end or start < m.end() <= end
                for start, end in occupied):
             continue
-        snippet = m.group(0).strip()[:120]
+        clause = text[m.start():]
+        stop = _re.search(r"[.;\n]", clause)
+        snippet = (clause[:stop.start()] if stop else clause).strip()[:160]
         if snippet:
             additional_actions.append({"text": snippet})
     return {

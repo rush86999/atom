@@ -691,7 +691,12 @@ def test_chat_method_execution_uses_the_existing_calculator():
     assert "1.75" not in result["content"]
     assert "quantity=2 units" in result["content"]
     assert "unit_price=7.50 USD" in result["content"]
-    assert result["_recorded_outcome"]["state"] == "completed"
+    receipt = result["calculation_receipt"]
+    assert receipt["value"] == "15.00"
+    assert receipt["unit"] == "USD"
+    assert receipt["lesson_ref"] == {"id": "lesson-1", "revision": 3}
+    assert receipt["covered_obligations"] == ["calculation"]
+    assert "_recorded_outcome" not in result
 
 
 @pytest.mark.asyncio
@@ -998,6 +1003,358 @@ def test_chat_competing_methods_conflict_without_calculation():
     assert "did not calculate" in reply["content"]
     assert reply["teaching_method_conflict"]["lesson_refs"]
     assert "teaching_execution" not in reply
+
+
+def _method_entry(lesson_id="lesson-1", revision=1):
+    from core.conversation_learning import MethodInput, MethodSpec
+
+    method = MethodSpec(
+        intended_outcome="Price the order",
+        operation="multiply_sum",
+        inputs=[
+            MethodInput(concept="quantity", column="Qty", unit="units"),
+            MethodInput(concept="unit_price", column="Price", unit="USD"),
+        ],
+        output_unit="USD",
+        transformation="quantity * unit_price",
+        rounding={"places": 2, "stage": "final"},
+    )
+    return {
+        "id": lesson_id, "revision": revision,
+        "details": {"conversation_learning": {
+            "method": method.model_dump(mode="json")}},
+    }
+
+
+def test_method_operand_validation_matrix():
+    from core.chat_teaching_runtime import execute_method_lesson
+
+    entry = _method_entry()
+    valid = execute_method_lesson(
+        entry, "Qty 2 and Price 7.50 USD",
+        task_context={"qualification": "licensed"}, workspace_id="ws-1")
+    assert valid["status"] == "applied"
+    assert valid["calculation_receipt"]["value"] == "15.00"
+    evidence = valid["calculation_receipt"]["input_evidence"]
+    assert {row["concept"]: row["unit_authority"] for row in evidence} == {
+        "quantity": "method_declared", "unit_price": "user_message"}
+
+    cad = execute_method_lesson(
+        entry, "Qty 2 and Price 7.50 CAD",
+        task_context={"qualification": "licensed"}, workspace_id="ws-1")
+    assert cad["status"] == "unit_conflict"
+    assert cad["questions"][0]["reason"] == "incompatible_unit"
+    assert cad["questions"][0]["candidates"][0]["raw_unit"] == "CAD"
+    assert "_recorded_outcome" not in cad
+    assert "calculation_receipt" not in cad
+
+    unknown = execute_method_lesson(
+        entry, "Qty 2 and Price 7.50 credits",
+        task_context={"qualification": "licensed"}, workspace_id="ws-1")
+    assert unknown["status"] == "unit_conflict"
+    assert unknown["questions"][0]["reason"] == "unknown_unit"
+
+    ambiguous = execute_method_lesson(
+        entry, "Qty 2 and Price 7.50 or Price 8.00",
+        task_context={"qualification": "licensed"}, workspace_id="ws-1")
+    assert ambiguous["status"] == "ambiguous_operands"
+    assert len(ambiguous["questions"][0]["candidates"]) == 2
+    assert "calculation_receipt" not in ambiguous
+
+    duplicate = execute_method_lesson(
+        entry, "Qty 2 and quantity 3 and Price 7.50",
+        task_context={"qualification": "licensed"}, workspace_id="ws-1")
+    assert duplicate["status"] == "ambiguous_operands"
+    assert duplicate["questions"][0]["concept"] == "quantity"
+
+    missing = execute_method_lesson(
+        entry, "Qty 2", task_context={"qualification": "licensed"},
+        workspace_id="ws-1")
+    assert missing["status"] == "needs_clarification"
+    assert missing["questions"][0]["reason"] == "missing"
+
+    malformed = execute_method_lesson(
+        entry, "Qty 2 and Price 7,50",
+        task_context={"qualification": "licensed"}, workspace_id="ws-1")
+    assert malformed["status"] == "needs_clarification"
+    assert malformed["questions"][0]["reason"] == "malformed_value"
+
+
+def test_operand_answer_confirms_or_preserves_units():
+    from core.method_operands import parse_operand_answer
+    from core.teaching_clarification import (
+        extract_operand_confirmation,
+        new_pending,
+    )
+
+    question = {
+        "concept": "unit_price",
+        "column": "Price",
+        "reason": "ambiguous_value",
+        "required_unit": "USD",
+        "candidates": [
+            {"raw_value": "7.50", "raw_unit": "", "unit_status": "compatible"},
+            {"raw_value": "8.00", "raw_unit": "", "unit_status": "compatible"},
+        ],
+    }
+    confirmed = parse_operand_answer("8.00", question)
+    assert confirmed["status"] == "confirmed"
+    assert confirmed["candidate"]["raw_value"] == "8.00"
+    assert confirmed["candidate"]["source"] == "user_confirmation"
+
+    incompatible = parse_operand_answer("8.00 CAD", question)
+    assert incompatible["status"] == "unit_incompatible"
+    assert incompatible["candidate"]["raw_unit"] == "CAD"
+
+    pending = new_pending(
+        session_id="s1", user_id="u1", agent_id="a1",
+        workspace_id="ws-1", tenant_id="t-1",
+        objective="price the order", kind="operands",
+        operand_questions=[question],
+        method_ref={"id": "lesson-1", "revision": 1},
+    )
+    result = extract_operand_confirmation("Price 8.00 USD", pending)
+    assert result["status"] == "confirmed"
+    assert result["operand_overrides"]["unit_price"]["raw_value"] == "8.00"
+
+
+@pytest.mark.asyncio
+async def test_chat_operand_clarification_resumes_with_confirmed_value():
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    entry = _method_entry()
+    method = entry["details"]["conversation_learning"]["method"]
+    orch = ChatOrchestrator()
+    orch.ai_engines = {}
+    orch.llm_service = MagicMock()
+    orch.llm_service.generate_completion = AsyncMock(
+        return_value={"success": True, "content": "invented"})
+    session = {"id": "s1", "history": []}
+    resolution = {
+        "needs_context": False,
+        "required_context": [],
+        "conflicts": [],
+        "excluded_lessons": [],
+        "consumed_lesson_refs": [{"id": "lesson-1", "revision": 1}],
+        "method_status": "applicable",
+        "method_lessons": [{"entry": entry, "method": method,
+                            "specificity": 2}],
+    }
+    first = orch._apply_teaching_resolution(
+        resolution=resolution,
+        message="Qty 2 and Price 7.50 or Price 8.00",
+        session=session, session_id="s1", user_id="u1",
+        agent_id="agent-1", workspace_id="ws-1",
+        task_context={"qualification": "licensed"},
+        memory_context="TRAINING LESSONS",
+    )
+    assert first is not None
+    assert first["_recorded_outcome"]["state"] == "partial"
+    assert first["teaching_operand_clarification"]["kind"] == "operands"
+    assert "more than one value" in first["content"]
+    assert "teaching_execution" not in first
+
+    message, context, state = orch._resume_teaching_clarification(
+        session=session, session_id="s1", user_id="u1",
+        message="8.00",
+        context={"task_context": {"qualification": "licensed"}},
+        workspace_id="ws-1", agent_id="agent-1")
+    assert state["confirmed"] is True
+    assert context["_teaching_resume"]["operand_overrides"][
+        "unit_price"]["raw_value"] == "8.00"
+
+    second = orch._apply_teaching_resolution(
+        resolution=resolution,
+        message="Qty 2 and Price 7.50 or Price 8.00",
+        session=session, session_id="s1", user_id="u1",
+        agent_id="agent-1", workspace_id="ws-1",
+        task_context=context["task_context"],
+        memory_context="TRAINING LESSONS",
+    )
+    assert second["teaching_execution"]["calculation_receipt"][
+        "value"] == "16.00"
+    assert second["_recorded_outcome"]["state"] == "completed"
+    assert "8.00" in second["content"]
+    assert "1.75" not in second["content"]
+    orch.llm_service.generate_completion.assert_not_awaited()
+
+    replay_message, replay_context, replay_state = (
+        orch._resume_teaching_clarification(
+            session=session, session_id="s1", user_id="u1",
+            message="8.00",
+            context={"task_context": {"qualification": "licensed"}},
+            workspace_id="ws-1", agent_id="agent-1"))
+    assert replay_state["replayed"] is True
+    replayed = orch._apply_teaching_resolution(
+        resolution=resolution,
+        message="Qty 2 and Price 7.50 or Price 8.00",
+        session=session, session_id="s1", user_id="u1",
+        agent_id="agent-1", workspace_id="ws-1",
+        task_context=replay_context["task_context"],
+        memory_context="TRAINING LESSONS",
+    )
+    assert replayed["teaching_execution"]["calculation_receipt"][
+        "value"] == "16.00"
+
+
+def test_chat_compound_request_keeps_email_obligation():
+    from unittest.mock import patch
+
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    entry = _method_entry()
+    method = entry["details"]["conversation_learning"]["method"]
+    orch = ChatOrchestrator()
+    orch.ai_engines = {}
+    resolution = {
+        "needs_context": False,
+        "required_context": [],
+        "conflicts": [],
+        "excluded_lessons": [],
+        "consumed_lesson_refs": [{"id": "lesson-1", "revision": 1}],
+        "method_status": "applicable",
+        "method_lessons": [{"entry": entry, "method": method,
+                            "specificity": 2}],
+    }
+    with patch.object(
+            orch, "_record_compound_obligation",
+            return_value={"approval_id": "approval-1",
+                          "obligations": [{"kind": "action",
+                                           "text": "email the quote"}]}):
+        reply = orch._apply_teaching_resolution(
+            resolution=resolution,
+            message="Qty 2 and Price 7.50; then email the quote",
+            session={"id": "s1"}, session_id="s1", user_id="u1",
+            agent_id="agent-1", workspace_id="ws-1",
+            task_context={"qualification": "licensed"},
+            memory_context="TRAINING LESSONS",
+        )
+    assert reply["_recorded_outcome"]["state"] == "partial"
+    assert reply["teaching_execution"]["calculation_receipt"][
+        "value"] == "15.00"
+    assert reply["teaching_execution"]["covered_obligations"] == [
+        "calculation"]
+    assert reply["teaching_execution"]["open_obligations"] == [
+        {"kind": "action", "text": "email the quote"}]
+    assert reply["teaching_execution"]["approval_id"] == "approval-1"
+    assert "email the quote" in reply["content"]
+    assert "awaiting approval" in reply["content"]
+
+
+def test_operand_clarification_survives_restart():
+    from core.teaching_clarification import new_pending
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    class FakeSessionManager:
+        def __init__(self):
+            self.metadata = {}
+
+        def update_session_metadata(self, session_id, values):
+            self.metadata.setdefault(session_id, {}).update(values)
+            return True
+
+        def get_session(self, session_id):
+            return {"metadata": self.metadata.get(session_id, {})}
+
+    manager = FakeSessionManager()
+    orch = ChatOrchestrator()
+    orch.session_manager = manager
+    question = {
+        "concept": "unit_price",
+        "column": "Price",
+        "reason": "ambiguous_value",
+        "required_unit": "USD",
+        "candidates": [
+            {"raw_value": "7.50", "raw_unit": "", "unit_status": "compatible"},
+            {"raw_value": "8.00", "raw_unit": "", "unit_status": "compatible"},
+        ],
+    }
+    pending = new_pending(
+        session_id="s1", user_id="u1", agent_id="a1",
+        workspace_id="ws-1", tenant_id="t-1",
+        objective="Qty 2 and Price 7.50 or Price 8.00",
+        kind="operands", operand_questions=[question],
+        method_ref={"id": "lesson-1", "revision": 1},
+    )
+    orch._persist_pending_teaching_clarification(
+        {"id": "s1"}, "s1", pending)
+
+    restarted = ChatOrchestrator()
+    restarted.session_manager = manager
+    loaded = restarted._load_pending_teaching_clarification("s1")
+    assert loaded["kind"] == "operands"
+    assert loaded["clarification_id"] == pending["clarification_id"]
+    message, context, state = restarted._resume_teaching_clarification(
+        session={"id": "s1"}, session_id="s1", user_id="u1",
+        message="8.00", context={}, workspace_id="ws-1", agent_id="a1")
+    assert state["confirmed"] is True
+    assert context["_teaching_resume"]["operand_overrides"][
+        "unit_price"]["raw_value"] == "8.00"
+    assert context["_teaching_resume"]["method_ref"] == {
+        "id": "lesson-1", "revision": 1}
+
+
+def test_changed_method_revision_reassesses_operand_override():
+    from core.teaching_clarification import new_pending
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    entry = _method_entry(revision=2)
+    method = entry["details"]["conversation_learning"]["method"]
+    question = {
+        "concept": "unit_price", "column": "Price",
+        "reason": "ambiguous_value", "required_unit": "USD",
+        "candidates": [
+            {"raw_value": "7.50", "raw_unit": "", "unit_status": "compatible"},
+            {"raw_value": "8.00", "raw_unit": "", "unit_status": "compatible"},
+        ],
+    }
+    pending = new_pending(
+        session_id="s1", user_id="u1", agent_id="agent-1",
+        workspace_id="ws-1", tenant_id="t-1",
+        objective="Qty 2 and Price 7.50 or Price 8.00",
+        kind="operands", operand_questions=[question],
+        method_ref={"id": "lesson-1", "revision": 1},
+    )
+    session = {
+        "id": "s1",
+        "_pending_teaching_clarification": pending,
+        "_teaching_resume": {
+            "method_ref": {"id": "lesson-1", "revision": 1},
+            "operand_overrides": {
+                "unit_price": {
+                    "concept": "unit_price", "column": "Price",
+                    "raw_value": "8.00", "value": "8.00",
+                    "raw_unit": "", "normalized_unit": "USD",
+                    "required_unit": "USD", "unit_status": "compatible",
+                    "unit_authority": "user_confirmation",
+                    "span": [0, 1], "source": "user_confirmation",
+                },
+            },
+        },
+    }
+    orch = ChatOrchestrator()
+    orch.ai_engines = {}
+    reply = orch._apply_teaching_resolution(
+        resolution={
+            "needs_context": False, "required_context": [],
+            "conflicts": [], "excluded_lessons": [],
+            "consumed_lesson_refs": [{"id": "lesson-1", "revision": 2}],
+            "method_status": "applicable",
+            "method_lessons": [{"entry": entry, "method": method,
+                                "specificity": 2}],
+        },
+        message="Qty 2 and Price 7.50 or Price 8.00",
+        session=session, session_id="s1", user_id="u1",
+        agent_id="agent-1", workspace_id="ws-1",
+        task_context={"qualification": "licensed"},
+        memory_context="TRAINING LESSONS",
+    )
+    assert reply["teaching_operand_clarification"]["method_ref"] == {
+        "id": "lesson-1", "revision": 2}
+    assert "teaching_execution" not in reply
+    assert reply["_recorded_outcome"]["state"] == "partial"
 
 
 def test_conversation_method_compiles_for_assignment():
