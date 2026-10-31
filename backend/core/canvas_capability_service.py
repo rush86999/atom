@@ -111,8 +111,37 @@ def load_assessment_qualification_registry() -> Dict[str, Any]:
     return registry
 
 
-def assessment_qualification(provider: Any, model: Any) -> Dict[str, Any]:
-    """Qualification state for the configuration that served an assessment."""
+def assessment_serving_configuration(provider: Any) -> Dict[str, Any]:
+    """The serving configuration an assessment actually ran against.
+
+    Qualification is not a property of a model name: the same weights behind a
+    different endpoint or budget are a different configuration.
+    """
+    if str(provider or "") == "ollama":
+        base_url = (os.getenv("OLLAMA_BASE_URL")
+                    or "http://localhost:11434/v1").rstrip("/")
+        try:
+            timeout = int(float(os.getenv("OLLAMA_REQUEST_TIMEOUT") or 600))
+        except ValueError:
+            timeout = 600
+        return {"base_url": base_url, "request_timeout": str(timeout)}
+    return {}
+
+
+def assessment_qualification(
+    provider: Any, model: Any, *,
+    policy_text: Any = None,
+    decision_options: Any = None,
+    subject_field: Any = None,
+    contract_version: Any = None,
+    serving: Any = None,
+) -> Dict[str, Any]:
+    """Qualification state for one exact configuration and task scope.
+
+    A qualified entry applies only to the contract version, serving
+    configuration, policy text, decision vocabulary and subject field it was
+    qualified against. A model name alone authorizes nothing.
+    """
     registry = load_assessment_qualification_registry()
     wanted = (str(provider or ""), str(model or ""))
     for entry in registry.get("configurations") or []:
@@ -124,8 +153,7 @@ def assessment_qualification(provider: Any, model: Any) -> Dict[str, Any]:
                 str(entry.get("model") or "")) != wanted:
             continue
         revoked = bool(entry.get("revoked"))
-        return {
-            "qualified": entry.get("status") == "qualified" and not revoked,
+        base = {
             "status": entry.get("status"),
             "revoked": revoked,
             "configuration_id": entry.get("id"),
@@ -134,10 +162,37 @@ def assessment_qualification(provider: Any, model: Any) -> Dict[str, Any]:
             "limitations": entry.get("limitations"),
             "registry": registry.get("path"),
         }
+        if entry.get("status") != "qualified" or revoked:
+            return {**base, "qualified": False, "scope_reasons": ["not_qualified"]}
+
+        reasons: List[str] = []
+        if str(entry.get("contract_version") or "") != str(contract_version or ""):
+            reasons.append("contract_version_mismatch")
+        scope = entry.get("scope") or {}
+        if str(scope.get("task_policy") or "") != str(policy_text or ""):
+            reasons.append("policy_out_of_scope")
+        if [str(x) for x in scope.get("decision_options") or []] != [
+                str(x) for x in (decision_options or [])]:
+            reasons.append("decision_vocabulary_out_of_scope")
+        if str(scope.get("subject_field") or "") != str(subject_field or ""):
+            reasons.append("subject_field_out_of_scope")
+        declared_serving = entry.get("serving")
+        if not isinstance(declared_serving, dict) or not declared_serving:
+            reasons.append("serving_configuration_undeclared")
+        elif declared_serving != (serving or {}):
+            reasons.append("serving_configuration_mismatch")
+        return {
+            **base,
+            "qualified": not reasons,
+            "scope_reasons": reasons,
+            "scope": scope,
+            "serving": declared_serving,
+        }
     return {
         "qualified": False,
         "status": "unregistered",
         "revoked": False,
+        "scope_reasons": ["unregistered"],
         "registry": registry.get("path"),
     }
 
@@ -1567,8 +1622,15 @@ async def assess_operation(
         review_reasons.append("assessment_uncertified")
     if unresolved_subjects:
         review_reasons.append("unresolved_requirements")
+    serving = assessment_serving_configuration(route.get("served_provider"))
     qualification = assessment_qualification(
-        route.get("served_provider"), route.get("served_model"))
+        route.get("served_provider"), route.get("served_model"),
+        policy_text=manifest.get("task_policy") or "",
+        decision_options=manifest.get("decision_options") or [],
+        subject_field=(manifest.get("data_binding") or {}).get("subject_field"),
+        contract_version=review.get("schema_version"),
+        serving=serving,
+    )
     if review_policy == _REVIEW_POLICY_ALWAYS:
         review_reasons.append("review_policy_always")
     else:
@@ -1626,6 +1688,17 @@ async def assess_operation(
         "qualification": qualification,
         "served_provider": route.get("served_provider"),
         "served_model": route.get("served_model"),
+        "contract_version": review.get("schema_version"),
+        "serving": serving,
+        "authority": {
+            "owner_id": str(getattr(user, "id", "") or ""),
+            "agent_id": str(
+                (manifest.get("teaching_binding") or {}).get("agent_id") or ""),
+            "workspace_id": str(canvas.workspace_id or ""),
+            "tenant_id": str(canvas.tenant_id or ""),
+            "capability": _ASSESSMENT_CAPABILITY,
+            "topic": _ASSESSMENT_TOPIC,
+        },
         # The single reviewed artifact and its digest. No separate decision
         # map: what is approved is exactly what is returned downstream.
         "assessments": assessment_artifact,
@@ -2033,19 +2106,57 @@ def assessment_authorization(
         }
 
     binding = _assessment_binding(record, digest)
-    # Revocation is checked against the CURRENT registry, so withdrawing a
-    # qualification stops consumption without waiting for a new assessment.
+    # Current authority is re-evaluated from live state, never from the
+    # assessment's stored review_required flag. Qualification, task scope AND
+    # the owner's present autonomy gate must all still permit this operation.
     if record.get("review_policy") == _REVIEW_POLICY_SCOPED:
         current_qualification = assessment_qualification(
-            record.get("served_provider"), record.get("served_model"))
+            record.get("served_provider"), record.get("served_model"),
+            policy_text=manifest.get("task_policy") or "",
+            decision_options=manifest.get("decision_options") or [],
+            subject_field=(
+                manifest.get("data_binding") or {}).get("subject_field"),
+            contract_version=record.get("contract_version"),
+            serving=assessment_serving_configuration(
+                record.get("served_provider")),
+        )
         if not current_qualification.get("qualified"):
             return {
-                "state": "revoked",
+                "state": (
+                    "revoked" if current_qualification.get("revoked")
+                    else "qualification_out_of_scope"),
                 "reason": (
                     "qualification_revoked"
                     if current_qualification.get("revoked")
-                    else "qualification_not_qualified"),
+                    else "qualification_out_of_scope"),
                 "qualification": current_qualification,
+                "binding": binding,
+            }
+        authority = record.get("authority") or {}
+        if db is None:
+            return {
+                "state": "authority_unverified",
+                "reason": "no session to re-evaluate owner authority",
+                "authority": authority,
+                "binding": binding,
+            }
+        try:
+            from core.autonomy_policy import OUTCOME_EXECUTE, gate_for_topic
+
+            gate = gate_for_topic(
+                db,
+                str(authority.get("owner_id") or "") or None,
+                str(authority.get("topic") or _ASSESSMENT_TOPIC),
+                agent_id=str(authority.get("agent_id") or "") or None,
+            )
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            gate = {"outcome": "propose", "error": str(exc)[:200]}
+        if gate.get("outcome") != OUTCOME_EXECUTE:
+            return {
+                "state": "authority_withdrawn",
+                "reason": "owner autonomy gate no longer allows execution",
+                "authority": authority,
+                "gate": gate,
                 "binding": binding,
             }
     if not record.get("review_required"):
@@ -2195,7 +2306,7 @@ def approve_assessment(db, canvas: Canvas, user: Any, execution_id: str) -> Dict
     }
 
 
-def decisions_operation(canvas: Canvas, db=None) -> Dict[str, Any]:
+def decisions_operation(canvas: Canvas, db=None, user: Any = None) -> Dict[str, Any]:
     """Downstream consumer: decisions derived from the authorized artifact.
 
     Re-reads the authoritative row and revalidates the recomputed digest, the
@@ -2207,6 +2318,17 @@ def decisions_operation(canvas: Canvas, db=None) -> Dict[str, Any]:
     if not isinstance(record, dict) or not record:
         raise CapabilityError(
             "no_assessment", "There is no assessment on this canvas.", 409)
+    authority = (record.get("authority") or {})
+    if user is not None:
+        caller = str(getattr(user, "id", "") or "")
+        owner = str(authority.get("owner_id") or "")
+        if owner and caller != owner:
+            raise CapabilityError(
+                "authority_mismatch",
+                "This assessment belongs to a different owner.",
+                403,
+                owner_id=owner,
+            )
     authorization = assessment_authorization(fresh, db=db)
     if authorization.get("state") != "authorized":
         raise CapabilityError(

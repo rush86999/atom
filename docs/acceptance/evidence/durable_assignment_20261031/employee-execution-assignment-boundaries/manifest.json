@@ -1,8 +1,8 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-assignment-boundaries",
-  "source_checkpoint": "b80288e4e",
-  "final_candidate": "b80288e4e",
+  "source_checkpoint": "3385baa0f",
+  "final_candidate": "3385baa0f",
   "files": {
     "README.md": {
       "sha256": "83740da6f14f9d8668bd3be629cbc612d132795aa63b4810141c85f68a63e4b1",

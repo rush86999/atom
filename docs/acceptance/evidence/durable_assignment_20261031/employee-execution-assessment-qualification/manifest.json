@@ -3,12 +3,16 @@
   "directory": "employee-execution-assessment-qualification",
   "files": {
     "README.md": {
-      "sha256": "fbe461432b3342d8681de6d24ff121220d4b00818f2e41e1b425a4db11e3d090",
-      "bytes": 11905
+      "sha256": "914d9fe69c69282309b0de991279a05abd5535a6e6c0b68b3c5f9d3e67f0cfc9",
+      "bytes": 13551
     },
     "approval-concurrency-controls.log": {
       "sha256": "ddf86c9c99d85b81c2f09faeffa680c5f5c276639e6ebb56bc835e0206b27947",
       "bytes": 7033
+    },
+    "authority-recheck-controls.log": {
+      "sha256": "e8c7e1c34f8be2c240db9354a8c25f122704633ca26fbae35e1b23df59ea62b4",
+      "bytes": 7609
     },
     "authorization-controls.log": {
       "sha256": "1725363c2028970ede4d4258501f1942bb68e475fd57f5c55c9c79bce836cce8",
@@ -131,6 +135,6 @@
       "bytes": 6347
     }
   },
-  "source_checkpoint": "b80288e4e",
-  "final_candidate": "b80288e4e"
+  "source_checkpoint": "3385baa0f",
+  "final_candidate": "3385baa0f"
 }

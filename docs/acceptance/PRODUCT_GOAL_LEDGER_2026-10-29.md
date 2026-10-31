@@ -141,7 +141,11 @@ The existing assess response withholds the actionable artifact (`rendered`,
 authorization state. `scoped` is the earned path: it requires both a server-controlled qualification
 entry (`backend/config/assessment_qualification.json`, status `qualified`, not
 revoked) and the owner's autonomy policy for the registered `canvas_assessment`
-topic (mode × maturity × trust). The failed llama3.1:8b configuration is
+topic (mode × maturity × trust). Both are re-evaluated from live state at
+consumption: withdrawing the owner gate stops downstream use immediately even
+though the assessment recorded `review_required=false`. The qualification entry
+is scoped to its contract version, serving configuration, policy text, decision
+vocabulary and subject field — a model name authorizes nothing on its own. The failed llama3.1:8b configuration is
 registered as `failed`; revocation is re-read at consumption. `model_reported`
 is removed — a model cannot authorize itself.
 

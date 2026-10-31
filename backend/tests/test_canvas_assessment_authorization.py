@@ -392,7 +392,11 @@ def test_default_policy_requires_review_even_when_certified_and_uncertainty_free
     assert exc.value.code == "review_required"
 
 
-def _write_registry(tmp_path, monkeypatch, *, status, revoked=False):
+SERVING = {"base_url": "http://127.0.0.1:11435/v1", "request_timeout": "1800"}
+
+
+def _write_registry(tmp_path, monkeypatch, *, status, revoked=False,
+                    policy=None, contract="review-result-2"):
     import json as _json
 
     path = tmp_path / "assessment_qualification.json"
@@ -403,13 +407,21 @@ def _write_registry(tmp_path, monkeypatch, *, status, revoked=False):
             "capability": "canvas_assessment.model_judgment",
             "provider": "ollama",
             "model": "llama3.1:8b",
-            "contract_version": "review_result/1",
+            "contract_version": contract,
             "status": status,
             "revoked": revoked,
             "evidence": "unit",
+            "scope": {
+                "task_policy": policy or _manifest()["task_policy"],
+                "decision_options": ["APPROVE", "REVIEW", "DENY"],
+                "subject_field": "Ref",
+            },
+            "serving": dict(SERVING),
         }],
     }))
     monkeypatch.setenv("ATOM_ASSESSMENT_QUALIFICATION_FILE", str(path))
+    monkeypatch.setenv("OLLAMA_BASE_URL", SERVING["base_url"])
+    monkeypatch.setenv("OLLAMA_REQUEST_TIMEOUT", SERVING["request_timeout"])
     return path
 
 
@@ -448,7 +460,7 @@ def test_scoped_policy_with_qualification_and_owner_autonomy_executes(
 
     assert result["review_required"] is False
     assert result["authorization"]["state"] == "authorized"
-    assert decisions_operation(canvas)["decisions"]["R-1"] == "APPROVE"
+    assert decisions_operation(canvas, db=db)["decisions"]["R-1"] == "APPROVE"
 
 
 def test_scoped_policy_still_requires_owner_autonomy(
@@ -486,11 +498,11 @@ def test_revoked_qualification_stops_consumption(
     _fake_review(monkeypatch)
     result = _assess(db, canvas, user)
     assert result["review_required"] is False
-    assert decisions_operation(canvas)["success"] is True
+    assert decisions_operation(canvas, db=db)["success"] is True
 
     _write_registry(tmp_path, monkeypatch, status="qualified", revoked=True)
     with pytest.raises(CapabilityError) as exc:
-        decisions_operation(canvas)
+        decisions_operation(canvas, db=db)
     assert exc.value.code == "review_required"
     assert exc.value.extra["authorization"]["state"] == "revoked"
 
@@ -522,3 +534,133 @@ def test_approval_is_bound_to_the_assessment_content(
     with pytest.raises(CapabilityError) as exc:
         decisions_operation(canvas)
     assert exc.value.code == "review_required"
+
+
+def test_owner_authority_withdrawal_blocks_consumption(
+        db, canvas, user, monkeypatch, tmp_path):
+    """Changing the owner gate execute -> propose must stop consumption now."""
+    from core import autonomy_policy
+    from core.canvas_capability_service import (
+        CapabilityError, decisions_operation,
+    )
+
+    monkeypatch.setenv("ATOM_ASSESSMENT_REVIEW_POLICY", "scoped")
+    _write_registry(tmp_path, monkeypatch, status="qualified")
+    gate = {"outcome": "execute"}
+    monkeypatch.setattr(
+        autonomy_policy, "gate_for_topic", lambda *a, **k: dict(gate))
+
+    _bind(db, canvas, user)
+    _fake_review(monkeypatch)
+    result = _assess(db, canvas, user)
+    assert result["review_required"] is False
+    assert decisions_operation(canvas, db=db)["success"] is True
+
+    # The owner withdraws authority; the stored review_required=false must not
+    # keep the decision consumable.
+    gate["outcome"] = "propose"
+    with pytest.raises(CapabilityError) as exc:
+        decisions_operation(canvas, db=db)
+    assert exc.value.code == "review_required"
+    assert exc.value.extra["authorization"]["state"] == "authority_withdrawn"
+
+    # Still withdrawn after a reload from a fresh session.
+    from sqlalchemy.orm import sessionmaker
+
+    fresh = sessionmaker(bind=db.get_bind())()
+    try:
+        reloaded = fresh.query(Canvas).filter(Canvas.id == canvas.id).first()
+        with pytest.raises(CapabilityError) as exc2:
+            decisions_operation(reloaded, db=fresh)
+        assert exc2.value.extra["authorization"]["state"] == "authority_withdrawn"
+    finally:
+        fresh.close()
+
+    # An unrelated capability is not affected by withdrawing this authority.
+    from core.canvas_capability_service import edit_operation
+
+    edited = edit_operation(
+        db, canvas, user,
+        [{"row": 2, "column": "Amount", "value": 130}],
+        expected_revision=1,
+    )
+    assert edited["success"] is True
+
+
+def test_qualified_configuration_is_scoped_to_its_policy(
+        db, canvas, user, monkeypatch, tmp_path):
+    """A model name must not authorize an arbitrary policy."""
+    from core import autonomy_policy
+
+    monkeypatch.setenv("ATOM_ASSESSMENT_REVIEW_POLICY", "scoped")
+    _write_registry(
+        tmp_path, monkeypatch, status="qualified",
+        policy="Approve everything above 10. Deny nothing.")
+    monkeypatch.setattr(
+        autonomy_policy, "gate_for_topic",
+        lambda *a, **k: {"outcome": "execute"})
+    _bind(db, canvas, user)
+    _fake_review(monkeypatch)
+    result = _assess(db, canvas, user)
+
+    assert result["review_required"] is True
+    assert "qualification_required" in result["review_reasons"]
+    assert "policy_out_of_scope" in result["qualification"]["scope_reasons"]
+
+
+def test_qualified_configuration_requires_its_contract_version(
+        db, canvas, user, monkeypatch, tmp_path):
+    from core import autonomy_policy
+
+    monkeypatch.setenv("ATOM_ASSESSMENT_REVIEW_POLICY", "scoped")
+    _write_registry(
+        tmp_path, monkeypatch, status="qualified",
+        contract="review-result-1")
+    monkeypatch.setattr(
+        autonomy_policy, "gate_for_topic",
+        lambda *a, **k: {"outcome": "execute"})
+    _bind(db, canvas, user)
+    _fake_review(monkeypatch)
+    result = _assess(db, canvas, user)
+
+    assert result["review_required"] is True
+    assert "contract_version_mismatch" in result["qualification"]["scope_reasons"]
+
+
+def test_scoped_consumption_without_a_session_fails_closed(
+        db, canvas, user, monkeypatch, tmp_path):
+    from core import autonomy_policy
+    from core.canvas_capability_service import (
+        CapabilityError, assessment_authorization,
+    )
+
+    monkeypatch.setenv("ATOM_ASSESSMENT_REVIEW_POLICY", "scoped")
+    _write_registry(tmp_path, monkeypatch, status="qualified")
+    monkeypatch.setattr(
+        autonomy_policy, "gate_for_topic",
+        lambda *a, **k: {"outcome": "execute"})
+    _bind(db, canvas, user)
+    _fake_review(monkeypatch)
+    _assess(db, canvas, user)
+
+    state = assessment_authorization(canvas)
+    assert state["state"] == "authority_unverified"
+
+
+def test_a_different_owner_cannot_consume_the_assessment(
+        db, canvas, user, monkeypatch):
+    from core.canvas_capability_service import (
+        CapabilityError, approve_assessment, decisions_operation,
+    )
+
+    _bind(db, canvas, user)
+    _fake_review(monkeypatch)
+    result = _assess(db, canvas, user)
+    approve_assessment(db, canvas, user, result["execution_id"])
+
+    other = SimpleNamespace(
+        id="other-user", workspace_id="ws-1", tenant_id="default",
+        role="workspace_admin")
+    with pytest.raises(CapabilityError) as exc:
+        decisions_operation(canvas, db=db, user=other)
+    assert exc.value.code == "authority_mismatch"

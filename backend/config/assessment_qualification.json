@@ -7,11 +7,24 @@
       "capability": "canvas_assessment.model_judgment",
       "provider": "ollama",
       "model": "llama3.1:8b",
-      "contract_version": "review_result/1",
+      "contract_version": "review-result-2",
       "status": "failed",
       "revoked": false,
       "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-qualification/",
-      "limitations": "17/18 determinate under V1 and 18/19 under V3; invented APPROVE on Amount 0; stable Q-021 (blank Region) error; failing safe abstention."
+      "limitations": "17/18 determinate under V1 and 18/19 under V3; invented APPROVE on Amount 0; stable Q-021 (blank Region) error; failing safe abstention.",
+      "scope": {
+        "task_policy": "Approve Open records with Amount >= 100 and Risk Low. Review Open records with Amount 50-99 or Risk High. Deny Closed records. Exception: North region with Risk High requires Review even when Amount >= 100.",
+        "decision_options": [
+          "APPROVE",
+          "REVIEW",
+          "DENY"
+        ],
+        "subject_field": "Ref"
+      },
+      "serving": {
+        "base_url": "http://127.0.0.1:11435/v1",
+        "request_timeout": "1800"
+      }
     }
   ]
 }

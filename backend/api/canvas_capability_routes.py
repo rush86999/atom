@@ -297,7 +297,7 @@ async def capability_decisions(
     """
     try:
         canvas = _canvas(db, canvas_id, current_user)
-        return decisions_operation(canvas, db=db)
+        return decisions_operation(canvas, db=db, user=current_user)
     except CapabilityError as exc:
         return _error(exc)
 

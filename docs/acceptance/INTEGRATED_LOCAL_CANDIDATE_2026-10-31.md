@@ -322,9 +322,11 @@ and `docs/acceptance/readme_feature_readiness_2026-10-31/INTEGRATED_RERUN_2026-1
   recomputed from persisted content plus execution/source/policy/canvas
   revisions; a stale session cannot overwrite newer work, and a changed
   decision, basis, evidence entry or unresolved requirement requires fresh
-  review. `scoped` autonomy requires both a qualified registry entry and the
-  owner's `canvas_assessment` autonomy policy; revocation is re-read at
-  consumption. A stronger model is a candidate remedy, not a proven one.
+  review. `scoped` autonomy requires both a scoped qualified registry entry and the
+  owner's `canvas_assessment` autonomy policy, and both are re-evaluated at
+  consumption: withdrawing the owner gate blocks the decision immediately.
+  Qualification is scoped to contract version, serving configuration, policy
+  text, decision vocabulary and subject field. A stronger model is a candidate remedy, not a proven one.
   Cloud providers remain unavailable (DeepSeek key empty, OpenRouter HTTP 402);
   see `employee-execution-assessment-qualification/`,
   `employee-execution-substantive-assessment/` and the historical

@@ -309,7 +309,7 @@
       "manifest_revision",
       "assessment_content_sha256"
     ],
-    "controls": 25,
+    "controls": 30,
     "judge_safe_abstention": true,
     "scoring_version": "v2-2026-10-31 (phase-specific materiality)",
     "artifact": "one canonical assessment artifact (decisions, basis, evidence, policy refs, unresolved requirements)",
@@ -339,7 +339,24 @@
       ],
       "registry": "backend/config/assessment_qualification.json",
       "failed_configuration": "ollama/llama3.1:8b registered as failed; no autonomy",
-      "revocation": "re-read at consumption; state revoked refuses downstream use"
+      "revocation": "re-read at consumption; state revoked refuses downstream use",
+      "consumption_recheck": [
+        "qualification scope",
+        "owner gate_for_topic (mode x maturity x trust)",
+        "owner identity binding",
+        "fail closed without a session"
+      ],
+      "withdrawal_state": "authority_withdrawn",
+      "scope_dimensions": [
+        "capability",
+        "provider",
+        "model",
+        "contract_version",
+        "serving (base_url, request budget)",
+        "task_policy",
+        "decision_options",
+        "subject_field"
+      ]
     }
   }
 }

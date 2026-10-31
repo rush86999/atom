@@ -229,3 +229,35 @@ unchanged approval survives reload.
 
 Not claimed: a browser journey for the autonomous positive case. The
 deterministic taught-method path was not modified by this change.
+
+## Current-authority recheck at consumption (2026-10-31)
+
+The verifier's bypass: a qualified, authorized assessment stayed consumable
+after the owner gate changed from `execute` to `propose`. Consumption rechecked
+qualification but trusted the assessment's stored `review_required=false`.
+
+Repair:
+
+- The assessment records an **authority binding**: authenticated owner, employee
+  (`agent_id`), workspace, tenant, capability and governance topic.
+- Consumption re-evaluates live state every time: the qualification registry
+  (scope, contract, serving), then `gate_for_topic(owner, topic, agent)` for the
+  owner's CURRENT mode/maturity/trust. A stored `review_required=false` is never
+  evidence of present authority.
+- A different authenticated owner is refused (`authority_mismatch`).
+- A missing session fails closed (`authority_unverified`) rather than assuming
+  authority.
+
+Controls (`authority-recheck-controls.log`, 29 passed): qualified + execute →
+authorized; gate withdrawn to propose → consumption blocked
+(`authority_withdrawn`), including after a fresh-session reload; an unrelated
+deterministic edit still works; a qualified entry does not authorize a different
+policy (`policy_out_of_scope`); a different contract version is out of scope;
+consumption without a session fails closed; a different owner is refused.
+
+### Qualification scoping
+
+A registry entry now authorizes only the exact configuration it was qualified
+against: capability, provider, model, contract version, serving configuration
+(`base_url`, request budget), task policy text, decision vocabulary and subject
+field. A model name alone authorizes nothing.
