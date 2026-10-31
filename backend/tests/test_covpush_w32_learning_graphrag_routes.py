@@ -303,7 +303,9 @@ class TestGraphRAGRoutes:
         })
         assert r.status_code == 200
         assert r.json()["data"]["answer"] == "ok"
-        _engine.query.assert_awaited_once_with("ws1", "who is john", "auto")
+        _engine.query.assert_awaited_once_with(
+            workspace_id="ws1", query="who is john", mode="auto"
+        )
 
     def test_query_missing_query_422(self, client, _engine):
         r = client.post("/api/graphrag/query", json={"workspace_id": "ws1"})
@@ -332,7 +334,9 @@ class TestGraphRAGRoutes:
             )
         assert r.status_code == 200
         assert r.json()["data"]["entities"] == []
-        _engine.local_search.assert_called_once_with("ws1", "Acme", depth=2)
+        _engine.local_search.assert_called_once_with(
+            workspace_id="ws1", query="Acme", depth=2
+        )
 
     # ---- GET /api/graphrag/context ---------------------------------------
     def test_context_success(self, client, _engine):

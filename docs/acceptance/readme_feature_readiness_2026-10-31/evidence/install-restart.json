@@ -1,0 +1,81 @@
+{
+  "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-install-world",
+  "base": "http://127.0.0.1:8137",
+  "checks": {
+    "password_file": {
+      "exists": true,
+      "mode": "0o600",
+      "length": 22
+    },
+    "login": {
+      "status": 200,
+      "token": true
+    },
+    "profile": {
+      "status": 200,
+      "profile": "full"
+    },
+    "task_create": {
+      "status": 200,
+      "id": "cdd05151-2a67-4e05-a857-98c768e56dc6",
+      "body": {
+        "success": true,
+        "task": {
+          "id": "cdd05151-2a67-4e05-a857-98c768e56dc6",
+          "title": "install acceptance durable task",
+          "description": null,
+          "dueDate": null,
+          "priority": "medium",
+          "status": "todo",
+          "project": null,
+          "tags": [],
+          "estimatedHours": 0,
+          "actualHours": 0,
+          "color": "#3182CE",
+          "metadata": {},
+          "createdAt": "2026-10-31T13:46:20",
+          "updatedAt": "2026-10-31T13:46:20"
+        }
+      }
+    },
+    "workflow": {
+      "workflow_id": "11e3d47f-d5db-40ff-a104-8b790e778ee7",
+      "execution_id": "6c9f6962-0406-400f-997b-5767c9f74e98",
+      "create_status": 200,
+      "survives_restart": true,
+      "history_after_restart": [
+        {
+          "execution_id": "6c9f6962-0406-400f-997b-5767c9f74e98",
+          "workflow_id": "11e3d47f-d5db-40ff-a104-8b790e778ee7",
+          "trigger_data": {},
+          "start_time": "2026-10-31T13:46:20.016461",
+          "end_time": null,
+          "status": "completed",
+          "actions_executed": [],
+          "errors": [],
+          "results": {
+            "node-1": {
+              "status": "success",
+              "service": "database",
+              "action": "query",
+              "result": {
+                "action": "query",
+                "result": "Database query executed",
+                "status": "success"
+              },
+              "timestamp": "2026-10-31T09:46:20.155202",
+              "execution_method": "service_registry"
+            }
+          },
+          "duration_ms": 0.0
+        }
+      ]
+    },
+    "restart": {
+      "login_status": 200,
+      "task_survives": true,
+      "task_id": "cdd05151-2a67-4e05-a857-98c768e56dc6"
+    }
+  },
+  "status": "verified"
+}

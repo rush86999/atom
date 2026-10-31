@@ -1,0 +1,13 @@
+{
+  "results": [
+    {
+      "claim_id": "INST-03",
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/frontend-dev.txt"
+      ],
+      "notes": "next dev --webpack on :3130 (documented `make frontend` command) reached Ready and GET /login returned HTTP 200 with the Next.js app shell",
+      "blocker": ""
+    }
+  ]
+}

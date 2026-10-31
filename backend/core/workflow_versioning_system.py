@@ -236,11 +236,40 @@ class WorkflowVersioningSystem:
         if not old_data:
             return ChangeType.STRUCTURAL
 
+        def _steps(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+            """Steps for node-based and step-based definitions alike.
+
+            The editor stores ``"steps": null`` on node-based workflows (the
+            Pydantic model's optional field serializes to null), so a bare
+            ``data.get("steps", [])`` returns None and iteration crashed on the
+            SECOND version of every node-based workflow (rollback then 500'd).
+            Node graphs are compared by id + parameters from ``config`` so a
+            parameter edit is still PARAMETRIC and an added/removed node is
+            STRUCTURAL.
+            """
+            steps = data.get("steps")
+            if steps:
+                return [s for s in steps if isinstance(s, dict)]
+            derived = []
+            for node in data.get("nodes") or []:
+                if not isinstance(node, dict):
+                    continue
+                config = node.get("config") or {}
+                derived.append({
+                    "id": node.get("id"),
+                    "parameters": config.get("parameters", {}),
+                    "execution_logic": {
+                        "service": config.get("service"),
+                        "action": config.get("action"),
+                    },
+                })
+            return derived
+
         changes = []
 
         # Check structural changes
-        old_steps = {step.get('id'): step for step in old_data.get('steps', [])}
-        new_steps = {step.get('id'): step for step in new_data.get('steps', [])}
+        old_steps = {step.get('id'): step for step in _steps(old_data)}
+        new_steps = {step.get('id'): step for step in _steps(new_data)}
 
         if set(old_steps.keys()) != set(new_steps.keys()):
             changes.append('structural')
@@ -272,8 +301,8 @@ class WorkflowVersioningSystem:
             changes.append('metadata')
 
         # Check dependency changes
-        old_deps = set(old_data.get('dependencies', []))
-        new_deps = set(new_data.get('dependencies', []))
+        old_deps = set(old_data.get('dependencies') or [])
+        new_deps = set(new_data.get('dependencies') or [])
 
         if old_deps != new_deps:
             changes.append('dependency')

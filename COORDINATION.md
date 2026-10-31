@@ -165,3 +165,64 @@ cd backend && venv/bin/python -m pytest \
 ## Append your session below this line
 
 (Format: `## Session: <name> (<date>)` + Goal / Files owned / Notes / Status.)
+
+---
+
+## Session: README feature readiness, Agent 2 (2026-10-31)
+
+**Branch/worktree:** `codex/readme-feature-readiness` in
+`/Users/rushiparikh/projects/atom-readme-features`, based on immutable
+`local-core-2026-10-30-final` (`da9cc8b12`). Tags were not moved.
+
+**Goal:** establish and verify the README-marketed functional surface (breadth),
+without invalidating the accepted local-core work and without deploying.
+
+**Owned in this session (do not refactor in parallel without a note):**
+
+- `docs/acceptance/readme_feature_readiness_2026-10-31/` (inventory, coverage
+  report, evidence)
+- `scripts/acceptance/readme_claim_inventory.py`,
+  `scripts/acceptance/merge_readme_results.py`,
+  `scripts/acceptance/readme_local_install.py`
+- `backend/scripts/readme_acceptance/` (harness + local OpenAI/Anthropic/OAuth/
+  MCP stub)
+- README integration/catalog wiring:
+  `backend/core/integration_business_catalog.py`, `main_api_app.py`
+  (`/api/integrations` + `/business-catalog` only)
+- Hybrid search relevance floor: `core/hybrid_search/documents_hybrid.py`
+- GraphRAG route argument fix: `api/graphrag_routes.py`; extraction fallback:
+  `core/graphrag_engine.py`
+- MCP external-tool dispatch seam: `core/mcp_service.py`,
+  `integrations/mcp_service.py` (external branch only)
+- Workflow conductor context + node-versioning fixes:
+  `core/workflow_endpoints.py`, `core/workflow_versioning_system.py`
+- Episode creation null/list robustness: `core/episode_service.py`
+- Tests added/updated: `tests/test_integration_business_catalog.py`,
+  `tests/test_graphrag_pattern_fallback.py`,
+  `tests/core/test_documents_hybrid.py`,
+  `tests/test_covpush_wfengine.py`,
+  `tests/test_covpush_w32_learning_graphrag_routes.py`
+
+**Not owned / handed to Agent 1:**
+
+- Live BYOK key refresh for the cached chat LLM service. A key stored after
+  `LLMService` construction is not seen by chat (Settings → AI appears saved,
+  chat still says no provider) until restart. Gateway works. Repro and details
+  are in
+  `docs/acceptance/readme_feature_readiness_2026-10-31/COVERAGE_REPORT_2026-10-31.md`
+  §6. This is a shared Chat/lifecycle defect, not patched here.
+
+**Result:** 99/123 eligible functional claims verified (80.5%). Security 8/8
+separately. 24 claims remain unverified/partial/blocked/environment-limited or
+inaccurate; none are counted as passes. ORCH-08 (delegation nesting depth) is
+documented as **inaccurate** — the DB model stores `max_depth`, but
+`AgentFleetService.recruit_member` does not enforce it.
+
+**Worlds/ports:** harness worlds live under
+`/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-*`;
+the install check uses port 8137. No external credentials, sends, deployments
+or writes to connected systems.
+
+**Status:** COMPLETE for this coverage pass; awaiting independent verifier
+agreement and Agent 1's integrated checkpoint. Not a release declaration.
+

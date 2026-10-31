@@ -1,0 +1,3335 @@
+{
+  "schema_version": 1,
+  "title": "README feature-readiness claim inventory",
+  "generated_at": "2026-10-31T13:57:08.112169+00:00",
+  "readme": {
+    "path": "README.md",
+    "sha256": "392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0",
+    "commit": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d",
+    "tag": "local-core-2026-10-30-final",
+    "lines": 264
+  },
+  "denominator": {
+    "eligible_functional": 123,
+    "tracked_separately": 20,
+    "rule": "Partial/failed/unverified/blocked/environment-limited do not count as passing. Category count alone is never a score."
+  },
+  "claims": [
+    {
+      "id": "ORCH-01",
+      "category": "orchestration",
+      "readme_line": 144,
+      "readme_text": "Queen Agent (structured workflows)",
+      "operation": "Turn a plain-language workflow request into a structured, persisted workflow blueprint",
+      "entry": "Chat request classified WORKFLOW / POST /api/v1/workflows/generate-from-agent",
+      "implementation": [
+        "core/agents/queen_agent.py",
+        "core/agents/intent_classifier.py",
+        "core/atom_meta_agent.py"
+      ],
+      "config": "configured LLM provider",
+      "acceptance": "Send a workflow request; read the returned blueprint and persisted workflow",
+      "expected": "Blueprint has ordered steps and a HITL gate before a mutating step",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": "Queen workflow blueprint requires a configured reasoning model at the served boundary; no cloud key is used in this world [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORCH-02",
+      "category": "orchestration",
+      "readme_line": 144,
+      "readme_text": "Fleet Admiral (open-ended tasks)",
+      "operation": "Route an open-ended TASK intent to recruited specialist agents",
+      "entry": "Chat request classified TASK / AtomMetaAgent.execute",
+      "implementation": [
+        "core/fleet_admiral.py",
+        "core/atom_meta_agent.py",
+        "core/fleet_orchestration/"
+      ],
+      "config": "configured LLM provider; fleet routing enabled (default ON, shadow)",
+      "acceptance": "Send an open-ended task; inspect the fleet routing decision + audit row",
+      "expected": "Specialists recruited by ranked match and the response cites their work",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": "Fleet open-ended task requires a configured reasoning model at the served boundary; no cloud key is used in this world [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORCH-03",
+      "category": "orchestration",
+      "readme_line": 144,
+      "readme_text": "Conductor (5 execution strategies)",
+      "operation": "Execute a workflow under each of the five conductor strategies",
+      "entry": "POST /api/v1/workflows/workflows/conductor/execute",
+      "implementation": [
+        "core/orchestration/conductor_agent.py"
+      ],
+      "config": "authenticated admin",
+      "acceptance": "Execute the same deterministic workflow with all five strategies",
+      "expected": "Every supported strategy returns an execution result; unsupported values are rejected",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/orchestration/conductor.json"
+      ],
+      "blocker": "",
+      "notes": "accepted=['sequential', 'parallel', 'hybrid', 'adaptive', 'rollback_safe'] invalid=422; agent-step reasoning needs the model-backed scenario [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORCH-04",
+      "category": "orchestration",
+      "readme_line": 144,
+      "readme_text": "validated state machine",
+      "operation": "Reject illegal workflow state transitions and accept legal ones",
+      "entry": "core.orchestration.workflow_state_machine",
+      "implementation": [
+        "core/orchestration/workflow_state_machine.py"
+      ],
+      "config": "none",
+      "acceptance": "Apply a legal transition sequence and an illegal transition to the same run",
+      "expected": "Legal transitions move the run forward; illegal transitions raise/deny without mutation",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/orchestration/state_machine.json"
+      ],
+      "blocker": "",
+      "notes": "legal=TransitionResult.SUCCESS illegal=TransitionResult.INVALID state=WorkflowState.QUEUED [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORCH-05",
+      "category": "orchestration",
+      "readme_line": 144,
+      "readme_text": "rollback",
+      "operation": "Roll a workflow back to a prior version/execution after a change",
+      "entry": "POST /api/v1/workflows/{workflow_id}/rollback",
+      "implementation": [
+        "api/advanced_workflow_routes.py",
+        "core/advanced_workflow_system.py"
+      ],
+      "config": "authenticated admin; at least two workflow versions",
+      "acceptance": "Create version 2, roll back to version 1, re-read the workflow",
+      "expected": "Active definition equals version 1 and a rollback record exists",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "workflows/versioning.json"
+      ],
+      "blocker": "",
+      "notes": "Rollback to a prior version through the public API [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORCH-06",
+      "category": "orchestration",
+      "readme_line": 144,
+      "readme_text": "governed fleet routing with ranked specialist matching",
+      "operation": "Rank candidate specialists by capability overlap, tier and verified-episode ratio",
+      "entry": "core.specialist_matcher",
+      "implementation": [
+        "core/specialist_matcher.py",
+        "core/fleet_routing_config.py"
+      ],
+      "config": "agent registry rows",
+      "acceptance": "Score a roster against a task and inspect the ranked result",
+      "expected": "Best capability+tier+verified candidate ranks first; ties are deterministic",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/orchestration/matcher.json"
+      ],
+      "blocker": "",
+      "notes": "ranked=['5c039a2f-9353-482c-b078-be9147c31152', 'cba490e2-38c0-479f-adaa-e478e13553fa'] strong=5c039a2f-9353-482c-b078-be9147c31152 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORCH-07",
+      "category": "orchestration",
+      "readme_line": 144,
+      "readme_text": "governed fleet routing",
+      "operation": "Record a governed fleet-routing audit decision for an eligible task",
+      "entry": "AtomMetaAgent.execute / fleet_routing_audit table",
+      "implementation": [
+        "core/atom_meta_agent.py",
+        "core/fleet_orchestration/"
+      ],
+      "config": "ATOM_FLEET_ROUTING_ENABLED=true (default)",
+      "acceptance": "Run an eligible TASK intent and query the audit row",
+      "expected": "Audit row records candidates, chosen specialist and mode/shadow",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": "fleet routing audit row requires a configured reasoning model at the served boundary; no cloud key is used in this world [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORCH-08",
+      "category": "orchestration",
+      "readme_line": 144,
+      "readme_text": "delegation contracts",
+      "operation": "Enforce delegation nesting depth rather than link count",
+      "entry": "core.fleet_orchestration.delegation_contracts.DelegationChain",
+      "implementation": [
+        "core/fleet_orchestration/delegation_contracts.py"
+      ],
+      "config": "none",
+      "acceptance": "Build a chain at max depth and attempt one more nested delegation",
+      "expected": "The extra nesting is refused; a wide-but-shallow chain is allowed",
+      "external": false,
+      "status": "inaccurate",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/orchestration/depth.json"
+      ],
+      "blocker": "",
+      "notes": "DelegationChain stores max_depth but AgentFleetService.recruit_member does not reject a link beyond it; the README/CLAUDE.md enforcement claim is overstated. [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOV-01",
+      "category": "governance",
+      "readme_line": 145,
+      "readme_text": "4-tier maturity (Student->Autonomous)",
+      "operation": "Gate an action by the agent's maturity tier",
+      "entry": "POST /api/agent-governance/enforce-action",
+      "implementation": [
+        "core/agent_governance_service.py",
+        "core/agent_context_resolver.py"
+      ],
+      "config": "agent registry row with a tier",
+      "acceptance": "Submit a complexity-3 action as STUDENT/INTERN/SUPERVISED/AUTONOMOUS",
+      "expected": "STUDENT blocked, INTERN proposal, SUPERVISED allowed under supervision, AUTONOMOUS allowed",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/governance/tier_gate.json"
+      ],
+      "blocker": "",
+      "notes": "complexity-3 statuses={'student': 'BLOCKED', 'intern': 'BLOCKED', 'supervised': 'PENDING_APPROVAL', 'autonomous': 'APPROVED'}; student read=APPROVED [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOV-02",
+      "category": "governance",
+      "readme_line": 145,
+      "readme_text": "policy-gated HITL approval",
+      "operation": "Hold a risky mutation for human approval and execute only after approval",
+      "entry": "POST /api/agent-governance/submit-for-approval; /api/agents/approvals/pending; approve/reject",
+      "implementation": [
+        "core/proposal_service.py",
+        "api/agent_governance_routes.py",
+        "api/maturity_routes.py"
+      ],
+      "config": "configured approval policy",
+      "acceptance": "Submit a mutation, approve it, submit another and reject it",
+      "expected": "Approved action executes exactly once; rejected action has no side effect",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/governance/hitl.json"
+      ],
+      "blocker": "",
+      "notes": "approval_id=95096b03-a898-430e-954e-5117af15a8fe pending_found=True approve=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOV-03",
+      "category": "governance",
+      "readme_line": 145,
+      "readme_text": "comprehensive audit trail",
+      "operation": "Record actor, action, target and outcome for governed actions",
+      "entry": "AgentExecution/AgentActionAudit rows via public activity endpoints",
+      "implementation": [
+        "core/models.py",
+        "core/agent_action_audit.py"
+      ],
+      "config": "none",
+      "acceptance": "Perform a governed action and read the run/audit history",
+      "expected": "A durable audit row identifies the agent, action and result",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/governance/audit.json"
+      ],
+      "blocker": "",
+      "notes": "{\"hitl_id\": \"95096b03-a898-430e-954e-5117af15a8fe\", \"agent_id\": \"6b774a06-309c-4862-9ec7-45dea80d568c\", \"action_type\": \"deploy_workflow\", \"status\": \"approved\", \"created_at\": \"2026-10-31 13:44:23\", \"audit_log\": {\"action\": \"login_success\", \"user_email\": \"admin@example.com\", \"success\": true, \"timestamp\": \"2026-10-31 13:44:22.529806\"}} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOV-04",
+      "category": "governance",
+      "readme_line": 145,
+      "readme_text": "AI-powered training",
+      "operation": "Create a training session, receive guidance, complete it, and promote",
+      "entry": "POST /api/maturity/training/... + /api/maturity/proposals/...",
+      "implementation": [
+        "core/student_training_service.py",
+        "api/maturity_routes.py"
+      ],
+      "config": "agent below SUPERVISED",
+      "acceptance": "Start training as STUDENT, complete the session, inspect the promotion",
+      "expected": "Training session and proposal are persisted; promotion only after approval",
+      "external": false,
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/governance/training.json"
+      ],
+      "blocker": "",
+      "notes": "Training queue/proposals/complete API reachable; session creation is triggered by a blocked agent run (needs a model-backed run) [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOV-05",
+      "category": "governance",
+      "readme_line": 145,
+      "readme_text": "OIDC SSO",
+      "operation": "Configure an OIDC provider, start login, and consume the callback",
+      "entry": "GET/POST /api/auth/sso/oidc/{config,login,callback}",
+      "implementation": [
+        "api/sso_oidc_routes.py",
+        "core/enterprise_auth_service.py"
+      ],
+      "config": "issuer/client id/secret + redirect URI",
+      "acceptance": "Point the config at a bounded local OIDC test server and complete a login",
+      "expected": "Config round-trips; login redirects to the IdP; callback establishes a session",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/governance/sso_config.json"
+      ],
+      "blocker": "",
+      "notes": "config=200 read=200 secret_hidden=True login=503 (full IdP callback is exercised by the bounded-IdP scenario) [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOV-06",
+      "category": "governance",
+      "readme_line": 145,
+      "readme_text": "SCIM v2 provisioning",
+      "operation": "Provision, list and deactivate a user over SCIM v2",
+      "entry": "POST/GET/PATCH /api/scim/v2/Users",
+      "implementation": [
+        "api/scim_routes.py"
+      ],
+      "config": "SCIM bearer token configured",
+      "acceptance": "Create a user, list it, deactivate it, and attempt unauthorised access",
+      "expected": "User is created/deactivated; missing/incorrect token is rejected",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/governance/scim.json"
+      ],
+      "blocker": "",
+      "notes": "create=201 id=38990a1c-ecfa-4ffa-8c3c-3f783c9ea4fe list=200 unauth=401 deactivate=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOV-07",
+      "category": "governance",
+      "readme_line": 145,
+      "readme_text": "8-role RBAC",
+      "operation": "Enforce role permissions on an admin-only surface",
+      "entry": "GET/POST /api/admin/roles; admin routes",
+      "implementation": [
+        "core/rbac_service.py",
+        "api/admin_roles_routes.py"
+      ],
+      "config": "users with each role",
+      "acceptance": "Call an admin route as member/team lead/admin and list the role catalog",
+      "expected": "Catalog exposes the documented roles; non-admin is denied; admin succeeds",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/governance/rbac.json"
+      ],
+      "blocker": "",
+      "notes": "roles=['admin', 'guest', 'member', 'owner', 'super_admin', 'team_lead', 'viewer', 'workspace_admin'] member=403 admin=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOV-08",
+      "category": "governance",
+      "readme_line": 145,
+      "readme_text": "agent lifecycle",
+      "operation": "Create an agent, inspect capabilities, and deactivate it",
+      "entry": "/api/agent-governance/agents + /api/agents",
+      "implementation": [
+        "api/agent_governance_routes.py",
+        "core/agent_governance_service.py"
+      ],
+      "config": "authenticated user",
+      "acceptance": "Create -> read -> update capabilities -> deactivate",
+      "expected": "Lifecycle changes persist and are visible on re-read",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/governance/lifecycle.json"
+      ],
+      "blocker": "",
+      "notes": "create=201 id=390c63f4-7598-430a-aedc-1beec4ceca7e read=200 stop=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORACLE-01",
+      "category": "oracle",
+      "readme_line": 146,
+      "readme_text": "Postcondition oracle ... on by default",
+      "operation": "Verify the oracle registry is enabled and has postcondition verifiers",
+      "entry": "core.oracle.verifier registry",
+      "implementation": [
+        "core/oracle/__init__.py",
+        "core/oracle/postcondition_verifiers.py"
+      ],
+      "config": "ATOM_ORACLE_VERIFIER_ENABLED default ON",
+      "acceptance": "Read the resolved flag and enumerate registered verifiers",
+      "expected": "Oracle is enabled by default and covers the documented mutation classes",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/oracle/readback.json"
+      ],
+      "blocker": "",
+      "notes": "{\"trigger_workflow\": true, \"tasks.create\": true} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORACLE-02",
+      "category": "oracle",
+      "readme_line": 146,
+      "readme_text": "re-derives success against the system of record",
+      "operation": "Re-derive a claimed mutation from the database rather than the tool response",
+      "entry": "core.oracle verifier invoked on a real create/update",
+      "implementation": [
+        "core/oracle/postcondition_verifiers.py"
+      ],
+      "config": "none",
+      "acceptance": "Perform a real mutation, invoke the oracle, then remove the row and invoke again",
+      "expected": "Present row -> EXTERNAL_VERIFIED; missing row -> refuted",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/oracle/readback.json"
+      ],
+      "blocker": "",
+      "notes": "DB read-back: present row verified, removed row refuted [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORACLE-03",
+      "category": "oracle",
+      "readme_line": 146,
+      "readme_text": "a refuted self-report is stamped UNVERIFIED",
+      "operation": "Stamp a refuted tool self-report UNVERIFIED in the run outcome",
+      "entry": "agent run outcome / capability graduation input",
+      "implementation": [
+        "core/tool_outcome_verifier.py",
+        "core/capability_graduation_service.py"
+      ],
+      "config": "ATOM_ORACLE_ENFORCE companion",
+      "acceptance": "Run a tool that reports success without a matching system-of-record row",
+      "expected": "Stored outcome is UNVERIFIED and does not count toward graduation",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/oracle/readback.json"
+      ],
+      "blocker": "",
+      "notes": "A self-report with no system-of-record row is refuted [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORACLE-04",
+      "category": "oracle",
+      "readme_line": 146,
+      "readme_text": "ATOM_ORACLE_ENFORCE kill switch",
+      "operation": "Disable enforcement with the documented kill switch",
+      "entry": "environment / runtime settings",
+      "implementation": [
+        "core/oracle/__init__.py",
+        "core/runtime_settings.py"
+      ],
+      "config": "ATOM_ORACLE_ENFORCE=false",
+      "acceptance": "Toggle the flag and re-run the refuted-self-report scenario",
+      "expected": "Enforcement stops; shadow observation remains available",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/oracle/kill_switch.json"
+      ],
+      "blocker": "",
+      "notes": "ATOM_ORACLE_VERIFIER_ENABLED=false disables checks [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORACLE-05",
+      "category": "oracle",
+      "readme_line": 146,
+      "readme_text": "two-tier confidence provenance",
+      "operation": "Distinguish self-reported from externally verified confidence",
+      "entry": "run/verification result payload",
+      "implementation": [
+        "core/tool_outcome_verifier.py",
+        "core/episode_retrieval_service.py"
+      ],
+      "config": "none",
+      "acceptance": "Produce one self-reported and one externally verified outcome; compare stored provenance",
+      "expected": "The two provenance tiers are persisted distinctly and externally verified is the credible one",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/oracle/readback.json"
+      ],
+      "blocker": "",
+      "notes": "OracleResult carries independent verification separately from the claim [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ORACLE-06",
+      "category": "oracle",
+      "readme_line": 146,
+      "readme_text": "opt-in reviewer re-delegation loop",
+      "operation": "Re-delegate a failed review to the originating specialist with feedback",
+      "entry": "verification/review.py REVIEW strategy",
+      "implementation": [
+        "verification/review.py"
+      ],
+      "config": "review strategy enabled",
+      "acceptance": "Drive a failed REVIEW result and inspect the re-delegation request",
+      "expected": "Same specialist is re-invoked with feedback (no candidate swap)",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/oracle/reviewer.json"
+      ],
+      "blocker": "",
+      "notes": "Review strategy re-delegates to the originating specialist [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ASK-01",
+      "category": "ask",
+      "readme_line": 147,
+      "readme_text": "Every action type earns interruption-free status from its verified track record",
+      "operation": "Compute per-action-type autonomy from externally verified outcomes",
+      "entry": "core.trust_calibration + capability stats",
+      "implementation": [
+        "core/trust_calibration/",
+        "core/capability_graduation_service.py"
+      ],
+      "config": "ATOM_TRUST_CALIBRATION_ENABLED=true",
+      "acceptance": "Record verified successes for one action and ask for its autonomy decision",
+      "expected": "Earned action is allowed without asking; unproven action still asks",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/ask/learned_autonomy.json"
+      ],
+      "blocker": "",
+      "notes": "cold=ask warm=allow dangerous=ask [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ASK-02",
+      "category": "ask",
+      "readme_line": 147,
+      "readme_text": "keeps asking when evidence is thin (ask fails safe)",
+      "operation": "Ask for approval when the evidence posterior is uncertain",
+      "entry": "POST /api/v1/trust-calibration/assess",
+      "implementation": [
+        "core/trust_calibration/gateway.py"
+      ],
+      "config": "trust calibration enabled",
+      "acceptance": "Assess a cold-start action with no observations",
+      "expected": "Decision is allow/ask/block = ask (never a silent allow)",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/ask/cold_start.json"
+      ],
+      "blocker": "",
+      "notes": "cold-start recommendation=ask [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ASK-03",
+      "category": "ask",
+      "readme_line": 147,
+      "readme_text": "loses the privilege automatically when results regress",
+      "operation": "Revoke earned autonomy after a verified regression",
+      "entry": "trust calibration automation revoke path",
+      "implementation": [
+        "core/trust_calibration/automation.py"
+      ],
+      "config": "trust calibration automation enabled",
+      "acceptance": "Apply an allow verdict, then feed a regression and run automation",
+      "expected": "Prior allow is revoked automatically",
+      "external": false,
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/ask/automation.json"
+      ],
+      "blocker": "",
+      "notes": "Automatic revocation is consent-gated; live revocation needs certified observations [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ASK-04",
+      "category": "ask",
+      "readme_line": 147,
+      "readme_text": "held-out certification gate (Brier <= 0.25, denial-coverage >= 0.7)",
+      "operation": "Certify autonomy only after passing the held-out calibration thresholds",
+      "entry": "core.trust_calibration.certify",
+      "implementation": [
+        "core/trust_calibration/certify.py"
+      ],
+      "config": "calibration observations",
+      "acceptance": "Run certify on a weak and a strong labelled set",
+      "expected": "Weak set fails; strong set passes only when both thresholds are met",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/ask/certify.json"
+      ],
+      "blocker": "",
+      "notes": "weak_certified=False strong_certified=True strong_brier=4.2e-05 denial_coverage=1.0 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ASK-05",
+      "category": "ask",
+      "readme_line": 147,
+      "readme_text": "autonomy only relaxes after passing ... gate",
+      "operation": "Expose calibration stats and gated relaxation through the admin API",
+      "entry": "GET /api/v1/trust-calibration/{stats,automation}",
+      "implementation": [
+        "api/trust_calibration_routes.py"
+      ],
+      "config": "trust calibration flag",
+      "acceptance": "Read stats before/after observations and attempt relax without certification",
+      "expected": "Stats reflect labels; relaxation is refused until certification passes",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "ask/learned_autonomy.json"
+      ],
+      "blocker": "",
+      "notes": "Relaxation follows verified history; cold start stays ask [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "TEAM-01",
+      "category": "agent-teams",
+      "readme_line": 148,
+      "readme_text": "delegation contracts with a single accountable agent",
+      "operation": "Create a delegation contract that names exactly one accountable agent",
+      "entry": "core.fleet_orchestration.delegation_contracts",
+      "implementation": [
+        "core/fleet_orchestration/delegation_contracts.py"
+      ],
+      "config": "ATOM_DELEGATION_CONTRACTS_ENABLED=true (default)",
+      "acceptance": "Build a contract, then try zero/two accountable agents",
+      "expected": "Exactly-one is enforced; invalid contracts are rejected",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/teams/contracts.json"
+      ],
+      "blocker": "",
+      "notes": "accountable=agent-accountable-1 fields=['accountable_agent_id', 'effort_budget', 'objective', 'output_format', 'task_boundaries', 'tool_guidance'] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "TEAM-02",
+      "category": "agent-teams",
+      "readme_line": 148,
+      "readme_text": "expiring privilege leases instead of titles",
+      "operation": "Grant a privileged operation through a default-deny expiring lease",
+      "entry": "core.org_privileges + dispatch gate",
+      "implementation": [
+        "core/org_privileges.py",
+        "integrations/mcp_service.py"
+      ],
+      "config": "org privileges enabled",
+      "acceptance": "Attempt approve without a lease, with an expired lease, and with a live lease",
+      "expected": "Only the live lease is allowed; default is deny",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/teams/privileges.json"
+      ],
+      "blocker": "",
+      "notes": "default=False expired=False live=True revoked=False [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "TEAM-03",
+      "category": "agent-teams",
+      "readme_line": 148,
+      "readme_text": "conflict-of-interest detection",
+      "operation": "Detect self-recruitment / same-family conflicts in a fleet decision",
+      "entry": "core.org_integrity",
+      "implementation": [
+        "core/org_integrity.py"
+      ],
+      "config": "org integrity enabled",
+      "acceptance": "Evaluate an allocator choice where the coordinator recruits itself",
+      "expected": "Conflict is flagged and the choice is refused or marked for review",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/teams/coi.json"
+      ],
+      "blocker": "",
+      "notes": "self_conflict=True distinct=False rotation=b [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "TEAM-04",
+      "category": "agent-teams",
+      "readme_line": 148,
+      "readme_text": "contribution credit feeding graduation",
+      "operation": "Attribute realized outcome credit across a delegation chain",
+      "entry": "core.contribution_credit",
+      "implementation": [
+        "core/contribution_credit.py"
+      ],
+      "config": "fleet execution outcomes",
+      "acceptance": "Score a chain with a late failure and compare with an all-success chain",
+      "expected": "Weights sum to the realized outcome; late failure dampens but does not zero",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/teams/contribution.json"
+      ],
+      "blocker": "",
+      "notes": "success_sum=1.0 late_failure_sum=0.25 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "TEAM-05",
+      "category": "agent-teams",
+      "readme_line": 148,
+      "readme_text": "opt-in nightly alignment sweeps",
+      "operation": "Run a nightly alignment sweep that files findings without changing policy",
+      "entry": "core.org_alignment + automation",
+      "implementation": [
+        "core/org_alignment.py",
+        "api/org_politics_routes.py"
+      ],
+      "config": "org politics automation mode notify/approve",
+      "acceptance": "Run the automation pass and inspect the queued action",
+      "expected": "Findings are recorded; no policy changes without the configured consent mode",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/teams/alignment.json"
+      ],
+      "blocker": "",
+      "notes": "ran=True green=True max_gap=0.0 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "TEAM-06",
+      "category": "agent-teams",
+      "readme_line": 148,
+      "readme_text": "telemetry for ignored instructions / redone work",
+      "operation": "Record org events for recruit/radio/reviewer and report incumbency baselines",
+      "entry": "core.org_telemetry_service + scripts/org_dynamics_report.py",
+      "implementation": [
+        "core/org_telemetry_service.py",
+        "scripts/org_dynamics_report.py"
+      ],
+      "config": "ATOM_ORG_TELEMETRY_ENABLED default ON",
+      "acceptance": "Emit representative events and generate the dynamics report",
+      "expected": "Report includes incumbency/favouritism/COI sections from real rows",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/teams/telemetry.json"
+      ],
+      "blocker": "",
+      "notes": "{\"events\": 1, \"coi_pairs\": 0, \"latest\": {\"type\": \"fleet_recruit\", \"actor\": \"a\", \"target\": \"b\"}} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "MEM-01",
+      "category": "memory",
+      "readme_line": 149,
+      "readme_text": "Per-turn fact extraction",
+      "operation": "Extract durable facts from a completed turn into the five categories",
+      "entry": "turn_fact_extractor hook on sync_turn",
+      "implementation": [
+        "core/turn_fact_extractor.py",
+        "core/turn_fact_categories.py"
+      ],
+      "config": "configured LLM for extraction",
+      "acceptance": "Run a turn containing durable facts and enqueue extraction",
+      "expected": "Facts of the right category are persisted; transient chatter is not",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/memory/per_turn.json"
+      ],
+      "blocker": "",
+      "notes": "Controlled-model extraction pipeline persisted a categorized fact [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "MEM-02",
+      "category": "memory",
+      "readme_line": 149,
+      "readme_text": "2-tier recall (SQL + LanceDB)",
+      "operation": "Recall facts through the fast SQL tier",
+      "entry": "GET /api/memory/search + documents.search",
+      "implementation": [
+        "core/turn_fact_extractor.py",
+        "core/memory_store_bootstrap.py"
+      ],
+      "config": "none",
+      "acceptance": "Store a fact and recall it by keyword with vector tier disabled",
+      "expected": "SQL tier returns the fact with source attribution",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/memory/sql_recall.json"
+      ],
+      "blocker": "",
+      "notes": "prompt_tier_hit=True public_api_hit=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "MEM-03",
+      "category": "memory",
+      "readme_line": 149,
+      "readme_text": "2-tier recall ... LanceDB",
+      "operation": "Recall semantically related facts through the vector tier",
+      "entry": "memory vector store",
+      "implementation": [
+        "core/turn_fact_vector_store.py"
+      ],
+      "config": "lancedb + embedding model",
+      "acceptance": "Store paraphrased facts and query with a semantically related phrase",
+      "expected": "Vector tier returns the related fact even without lexical overlap",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/memory/semantic.json"
+      ],
+      "blocker": "",
+      "notes": "vector_written=1 semantic_hit=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "MEM-04",
+      "category": "memory",
+      "readme_line": 149,
+      "readme_text": "episodic memory",
+      "operation": "Create, retrieve and graduate from past episodes",
+      "entry": "POST /api/episodes/create; /api/episodes/retrieve/*; /api/episodes/graduation/*",
+      "implementation": [
+        "core/episode_service.py",
+        "core/episode_retrieval_service.py",
+        "core/agent_graduation_service.py"
+      ],
+      "config": "agent executions",
+      "acceptance": "Create episodes, retrieve by semantic/temporal mode, inspect graduation readiness",
+      "expected": "Episodes persist and retrieval modes return the matching episode",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/core/episodes.json"
+      ],
+      "blocker": "",
+      "notes": "episode=74b86eda-6e93-494b-ba8c-80175e98517f episodes=1 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-world/evidence/core.json]"
+    },
+    {
+      "id": "MEM-05",
+      "category": "memory",
+      "readme_line": 149,
+      "readme_text": "memory_remember",
+      "operation": "Store an agent memory through the tool surface",
+      "entry": "tool `memory_remember` (RPC action / MCP dispatch)",
+      "implementation": [
+        "tools/memory_tool.py"
+      ],
+      "config": "INTERN+ agent",
+      "acceptance": "Call memory_remember with a fact and read it back through search",
+      "expected": "Fact is stored with provenance and returned by recall",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/memory/remember.json"
+      ],
+      "blocker": "",
+      "notes": "fact_id=35037638-4e6c-45ec-91b4-f8bc11bed22d [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "MEM-06",
+      "category": "memory",
+      "readme_line": 149,
+      "readme_text": "memory_forget",
+      "operation": "Delete an agent memory through the tool surface",
+      "entry": "tool `memory_forget`",
+      "implementation": [
+        "tools/memory_tool.py"
+      ],
+      "config": "SUPERVISED+ agent",
+      "acceptance": "Forget a stored fact as INTERN and as SUPERVISED",
+      "expected": "INTERN is denied; SUPERVISED deletes and recall no longer returns it",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/memory/forget.json"
+      ],
+      "blocker": "",
+      "notes": "forget=True after={'found': True, 'status': 'invalidated'} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "MEM-07",
+      "category": "memory",
+      "readme_line": 149,
+      "readme_text": "self-evolution (Memento/AlphaEvolver, self-evolving harness)",
+      "operation": "Turn a tool error into a pending evolution candidate for human approval",
+      "entry": "evolution harness / Agent Studio Auto-Dev Fixes",
+      "implementation": [
+        "core/agent_evolution_loop.py"
+      ],
+      "config": "ATOM_AGENT_EVOLUTION_ENABLED=true",
+      "acceptance": "Trigger a tool error and inspect the pending candidate",
+      "expected": "Candidate is queued as pending; no code change without approval",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": "Evolution harness is disabled in this world (ATOM_AGENT_EVOLUTION_ENABLED=false); enabling it is a separate controlled world [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "SEARCH-01",
+      "category": "hybrid-search",
+      "readme_line": 150,
+      "readme_text": "documents.search fuses BM25 (FTS5/tsvector)",
+      "operation": "Return a lexical BM25 match for an exact rare term",
+      "entry": "POST /api/documents/search; action documents.search",
+      "implementation": [
+        "core/hybrid_search/lexical_ranker.py",
+        "core/hybrid_search/fts_bootstrap.py"
+      ],
+      "config": "FTS5 available (SQLite default)",
+      "acceptance": "Ingest a document with a rare token and search for it",
+      "expected": "The document ranks first with a lexical score",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/search/lexical.json"
+      ],
+      "blocker": "",
+      "notes": "Exact rare token retrieved through documents.search [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "SEARCH-02",
+      "category": "hybrid-search",
+      "readme_line": 150,
+      "readme_text": "+ vector (LanceDB)",
+      "operation": "Return a semantic vector match with no lexical overlap",
+      "entry": "documents.search vector leg",
+      "implementation": [
+        "core/hybrid_search/documents_hybrid.py"
+      ],
+      "config": "lancedb + embedding model",
+      "acceptance": "Search a paraphrase of ingested content",
+      "expected": "The semantically related document is returned by the vector leg",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/search/vector.json"
+      ],
+      "blocker": "",
+      "notes": "Semantic paraphrase retrieved through the LanceDB route [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "SEARCH-03",
+      "category": "hybrid-search",
+      "readme_line": 150,
+      "readme_text": "via Reciprocal Rank Fusion (RRF)",
+      "operation": "Fuse lexical and vector rankings with RRF",
+      "entry": "documents.search result fusion",
+      "implementation": [
+        "core/hybrid_search/documents_hybrid.py"
+      ],
+      "config": "both legs available",
+      "acceptance": "Construct two ranked lists and fuse; compare with single-leg order",
+      "expected": "RRF formula (k=60) determines the fused order and combined score",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/search/rrf.json"
+      ],
+      "blocker": "",
+      "notes": "RRF k=60 scores {'doc_c310cf9c1402bf6518972bd7': 0.032787} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "SEARCH-04",
+      "category": "hybrid-search",
+      "readme_line": 150,
+      "readme_text": "semantic + precise retrieval with citations",
+      "operation": "Return source identity and line/citation for each search hit",
+      "entry": "documents.search response",
+      "implementation": [
+        "core/hybrid_search/documents_hybrid.py",
+        "core/action_registry.py"
+      ],
+      "config": "none",
+      "acceptance": "Search an ingested document and inspect the hit fields",
+      "expected": "Hit includes document id, path/source and a citable locator",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/search/hybrid.json"
+      ],
+      "blocker": "",
+      "notes": "hits=5 label=None legs={\"lexical\": {\"status\": \"ok\", \"required\": true, \"error_category\": null, \"hit_count\": 1, \"duration_ms\": 1.98}, \"vector\": {\"status\": \"ok\", \"required\": true, \"error_category\": null, \"hit_count\": 5, \"duration_ms\": 9.67}, \"hydration\": {\"status\": \"ok\", \"required\": true, \"error_category\": null, \"hit_count\": [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "SEARCH-05",
+      "category": "hybrid-search",
+      "readme_line": 150,
+      "readme_text": "search behaviour",
+      "operation": "Missing results return an explicit empty result, not an error or a fabricated hit",
+      "entry": "documents.search",
+      "implementation": [
+        "core/action_registry.py"
+      ],
+      "config": "none",
+      "acceptance": "Search for a token that does not exist",
+      "expected": "success=true with zero hits and no invented citation",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/search/missing.json"
+      ],
+      "blocker": "",
+      "notes": "A token absent from the corpus yields an explicit empty result [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "VFS-01",
+      "category": "vfs",
+      "readme_line": 151,
+      "readme_text": "ls / tree",
+      "operation": "List the knowledge tree rooted at knowledge/documents",
+      "entry": "RPC action documents.ls / documents.tree",
+      "implementation": [
+        "integrations/vfs/knowledge_vfs.py",
+        "core/vfs_registry.py"
+      ],
+      "config": "ATOM_KNOWLEDGE_VFS_ENABLED default ON",
+      "acceptance": "Ingest a document and list the tree",
+      "expected": "Tree contains one directory per ingested document",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/vfs/ls.json",
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/vfs/tree.json"
+      ],
+      "blocker": "",
+      "notes": "entries=7 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "VFS-02",
+      "category": "vfs",
+      "readme_line": 151,
+      "readme_text": "cat with line-numbered citations",
+      "operation": "Read a document body as line-numbered citable content",
+      "entry": "RPC action documents.cat",
+      "implementation": [
+        "integrations/vfs/knowledge_vfs.py"
+      ],
+      "config": "VFS enabled",
+      "acceptance": "Cat a known document and verify the first line prefix",
+      "expected": "Body lines are prefixed L<n>: and match the ingested content",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/vfs/cat.json"
+      ],
+      "blocker": "",
+      "notes": "line-numbered=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "VFS-03",
+      "category": "vfs",
+      "readme_line": 151,
+      "readme_text": "grep",
+      "operation": "Regex-search all knowledge content and return citeable paths",
+      "entry": "RPC action documents.grep",
+      "implementation": [
+        "integrations/vfs/knowledge_vfs.py"
+      ],
+      "config": "VFS enabled",
+      "acceptance": "Grep for a phrase present in one document",
+      "expected": "Only matching documents are returned with path + line locator",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/vfs/grep.json"
+      ],
+      "blocker": "",
+      "notes": "matches=1 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "VFS-04",
+      "category": "vfs",
+      "readme_line": 151,
+      "readme_text": "instead of bespoke per-store queries",
+      "operation": "Fall back to the legacy documents.search when the VFS is disabled",
+      "entry": "ATOM_KNOWLEDGE_VFS_ENABLED=false + documents.search",
+      "implementation": [
+        "core/knowledge_vfs_config.py",
+        "core/action_registry.py"
+      ],
+      "config": "ATOM_KNOWLEDGE_VFS_ENABLED=false",
+      "acceptance": "Disable VFS and repeat a search",
+      "expected": "Search still works through the legacy path with the same logical hit",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/vfs/flag.json"
+      ],
+      "blocker": "",
+      "notes": "legacy_hits=1 with VFS disabled [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "RADIO-01",
+      "category": "agent-radio",
+      "readme_line": 152,
+      "readme_text": "Lateral peer-to-peer messaging between agents",
+      "operation": "Create a radio thread between two agents",
+      "entry": "RPC action radio.create_thread",
+      "implementation": [
+        "core/agent_radio/radio_actions.py",
+        "core/agent_radio/radio_service.py"
+      ],
+      "config": "ATOM_RADIO_ENABLED default ON; team config",
+      "acceptance": "Create a thread and read it back",
+      "expected": "Thread row persists with participating agents",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio/create.json"
+      ],
+      "blocker": "",
+      "notes": "thread=a57d180b-1689-43af-a6b4-b50187e3f845 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio.json]"
+    },
+    {
+      "id": "RADIO-02",
+      "category": "agent-radio",
+      "readme_line": 152,
+      "readme_text": "mention-first",
+      "operation": "Deliver a message to a mentioned peer and leave non-mentioned peers unbothered",
+      "entry": "RPC action radio.send_message / radio.read_inbox",
+      "implementation": [
+        "core/agent_radio/radio_service.py"
+      ],
+      "config": "radio enabled",
+      "acceptance": "Send one mention and drain both peers' inboxes",
+      "expected": "Mentioned peer receives it; other peer does not",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio/send.json"
+      ],
+      "blocker": "",
+      "notes": "sent=True mention_delivered=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio.json]"
+    },
+    {
+      "id": "RADIO-03",
+      "category": "agent-radio",
+      "readme_line": 152,
+      "readme_text": "budget-governed",
+      "operation": "Enforce the radio team budget",
+      "entry": "ATOM_RADIO_TEAM_BUDGET_USD + radio accounting",
+      "implementation": [
+        "core/agent_radio/radio_guard.py",
+        "core/agent_radio/radio_service.py"
+      ],
+      "config": "small budget",
+      "acceptance": "Send messages until the budget is exhausted, then send again",
+      "expected": "Second send past budget is refused and recorded",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio/budget.json"
+      ],
+      "blocker": "",
+      "notes": "error=budget_exceeded [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio.json]"
+    },
+    {
+      "id": "RADIO-04",
+      "category": "agent-radio",
+      "readme_line": 152,
+      "readme_text": "agents coordinate without hardcoded teams",
+      "operation": "Wait for a mention with timeout and read the passive inbox",
+      "entry": "RPC action radio.wait_for_mention / radio.read_inbox",
+      "implementation": [
+        "core/agent_radio/radio_actions.py"
+      ],
+      "config": "radio enabled",
+      "acceptance": "Wait on an empty inbox, then send a mention and wait again",
+      "expected": "First wait times out cleanly; second returns the mention",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio/wait.json"
+      ],
+      "blocker": "",
+      "notes": "first_timeout=True second_delivered=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio.json]"
+    },
+    {
+      "id": "OFF-01",
+      "category": "office",
+      "readme_line": 153,
+      "readme_text": "Agent-driven Excel/Word/PPTX editing",
+      "operation": "Create, read and edit a DOCX while preserving styles/tables",
+      "entry": "POST /api/v1/office/word; office tool write_word",
+      "implementation": [
+        "core/office_service.py",
+        "api/office_routes.py",
+        "tools/office_tool.py"
+      ],
+      "config": "writable data root",
+      "acceptance": "Create a DOCX with headings/table, edit a paragraph, reopen it",
+      "expected": "Edit persists; styles and table survive; extracted text matches",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/office/docx.json"
+      ],
+      "blocker": "",
+      "notes": "heading_preserved=True table_preserved=True font=Courier New [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "OFF-02",
+      "category": "office",
+      "readme_line": 153,
+      "readme_text": "Excel editing",
+      "operation": "Create a workbook with multiple sheets and leading-zero IDs, read/write cells",
+      "entry": "POST /api/v1/office/excel; office tool excel write_cell/read_range",
+      "implementation": [
+        "core/office_service.py"
+      ],
+      "config": "none",
+      "acceptance": "Create XLSX with '00123' and a cross-sheet formula; restart the reader",
+      "expected": "Leading zeros and sheet names survive; cell values round-trip",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/office/xlsx.json"
+      ],
+      "blocker": "",
+      "notes": "leading_zero='00123' formulas={'D2': '=SUM(B2:C2)', 'E2': '=B2*C2', 'SummaryB1': '=Data!D2+Data!D3'} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "OFF-03",
+      "category": "office",
+      "readme_line": 153,
+      "readme_text": "formula-evaluating workbook runtime",
+      "operation": "Evaluate formulas, including cross-sheet dependencies",
+      "entry": "POST /api/v1/office/excel/formula-result; POST /api/v1/office/excel/recalculate",
+      "implementation": [
+        "core/workbook_runtime.py"
+      ],
+      "config": "formulas package (default chain)",
+      "acceptance": "Evaluate =SUM and a cross-sheet reference; inspect cached vs computed values",
+      "expected": "Computed values match the formula engine; unsupported formulas are reported, not guessed",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/office/formula.json"
+      ],
+      "blocker": "",
+      "notes": "formula_result=200 recalc=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "OFF-04",
+      "category": "office",
+      "readme_line": 153,
+      "readme_text": "PPTX editing",
+      "operation": "Create, read and edit a PPTX slide",
+      "entry": "POST /api/v1/office/pptx; office tool pptx read/edit",
+      "implementation": [
+        "core/office_service.py"
+      ],
+      "config": "none",
+      "acceptance": "Create a deck, add/update a slide, reopen and extract text",
+      "expected": "Slide text persists and shape/notes structure survives",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/office/pptx.json"
+      ],
+      "blocker": "",
+      "notes": "titles=['PPTX-EDITED'] bodies=['Edited body'] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "OFF-05",
+      "category": "office",
+      "readme_line": 153,
+      "readme_text": "Agent-driven ... editing on Canvas",
+      "operation": "Present a real Office file as a canvas and download it",
+      "entry": "POST /api/v1/office/present; GET /api/v1/office/download",
+      "implementation": [
+        "api/office_routes.py",
+        "core/office_service.py"
+      ],
+      "config": "authenticated user",
+      "acceptance": "Present an XLSX, read the canvas, download the artifact",
+      "expected": "Canvas content references the file; downloaded bytes are a valid XLSX",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/office/present.json"
+      ],
+      "blocker": "",
+      "notes": "canvas=canvas_56e70528f230 download_ok=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "OFF-06",
+      "category": "office",
+      "readme_line": 153,
+      "readme_text": "agent<->document sync",
+      "operation": "Apply a canvas edit back to the file paragraph/cell in place",
+      "entry": "POST /api/v1/office/sync-update",
+      "implementation": [
+        "core/office_sync_service.py",
+        "api/office_routes.py"
+      ],
+      "config": "authenticated user; presented canvas",
+      "acceptance": "Edit one paragraph/cell through sync-update and reopen the file",
+      "expected": "Only the targeted paragraph/cell changes; other structure is preserved",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/office/sync.json"
+      ],
+      "blocker": "",
+      "notes": "paragraph_in_place=True heading_preserved=True tables=1 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "OFF-07",
+      "category": "office",
+      "readme_line": 153,
+      "readme_text": "live preview broadcast",
+      "operation": "Broadcast a structured snapshot after an agent write",
+      "entry": "notify_file_canvases -> canvas:{id} + user:{uid} WS",
+      "implementation": [
+        "core/office_sync_service.py",
+        "tools/office_tool.py"
+      ],
+      "config": "open canvas subscription",
+      "acceptance": "Open a canvas WS, perform an agent write, capture the message",
+      "expected": "Structured cells/paragraphs/slides snapshot arrives on both channels",
+      "external": false,
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/office/snapshot.json"
+      ],
+      "blocker": "",
+      "notes": "Structured snapshot is computed/persisted; live WS delivery needs a subscribed browser client [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "OFF-08",
+      "category": "office",
+      "readme_line": 153,
+      "readme_text": "live Canvas co-editing",
+      "operation": "Persist and reopen a presented file canvas after restart",
+      "entry": "/canvas/{id} + /api/v1/office/present",
+      "implementation": [
+        "api/office_routes.py",
+        "core/models.py"
+      ],
+      "config": "authenticated user",
+      "acceptance": "Present, reload the canvas, restart the backend, reload again",
+      "expected": "Same canvas row/content is reused; the file remains downloadable",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/office/reopen.json"
+      ],
+      "blocker": "",
+      "notes": "Canvas row persists and is bound to the file; a full backend restart re-read is the restart scenario [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "MINI-01",
+      "category": "mini-apps",
+      "readme_line": 154,
+      "readme_text": "Agent-authored stateful canvas apps",
+      "operation": "Scaffold a mini-app through the agent action surface",
+      "entry": "RPC action mini_app_scaffold; POST /api/mini-apps/scaffold",
+      "implementation": [
+        "core/mini_app_service.py",
+        "tools/mini_app_tool.py"
+      ],
+      "config": "agent context",
+      "acceptance": "Scaffold an app and read its manifest",
+      "expected": "Manifest + logic + tests are persisted with declared scopes",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/miniapp/scaffold.json"
+      ],
+      "blocker": "",
+      "notes": "app=16fda212-7fe7-4510-bf3d-0be97e965748 status=200 body={\"success\": true, \"app\": {\"id\": \"16fda212-7fe7-4510-bf3d-0be97e965748\", \"name\": \"acceptance-app-402fcc\", \"status\": \"draft\"}, \"canvas_id\": \"6c2fa19b-6f63-43a0-9dbe-081b6ea5b92b\", \"logic_source\": \"\", \"manifest\": {\"declared_scopes\": [\"*\"], \"skills\": [], \"integrations\": [], \"entrypoint\": \"logic\", \"dependencies\": [], \"base_image\": \"python:3.11-slim\", \"assets\": [], \"storage\": {\"enabled\": true, \"backend\" [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "MINI-02",
+      "category": "mini-apps",
+      "readme_line": 154,
+      "readme_text": "syntax-gated logic",
+      "operation": "Reject invalid logic and accept valid logic for a mini-app",
+      "entry": "RPC action mini_app_write_logic; /api/mini-apps/{id}/logic",
+      "implementation": [
+        "core/mini_app_service.py"
+      ],
+      "config": "scaffolded app",
+      "acceptance": "Write syntax-invalid Python, then valid Python",
+      "expected": "Invalid write is refused without changing logic; valid write persists",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/miniapp/logic.json"
+      ],
+      "blocker": "",
+      "notes": "invalid=400 valid=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "MINI-03",
+      "category": "mini-apps",
+      "readme_line": 154,
+      "readme_text": "dev_run / run_tests",
+      "operation": "Run the mini-app in the isolated runtime and receive test feedback",
+      "entry": "RPC action mini_app_dev_run/mini_app_run_tests",
+      "implementation": [
+        "core/mini_app_runtime.py"
+      ],
+      "config": "Firecracker runtime",
+      "acceptance": "Dev-run a scaffolded app on this host",
+      "expected": "Runtime executes OR fails closed with an explicit unavailable message",
+      "external": false,
+      "status": "environment_limited",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/miniapp/dev_run.json"
+      ],
+      "blocker": "",
+      "notes": "Firecracker is the only mini-app runtime; this macOS host has no KVM, so the runtime is expected to fail closed [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "MINI-04",
+      "category": "mini-apps",
+      "readme_line": 154,
+      "readme_text": "stateful ... per-instance state",
+      "operation": "Install an app, write records, and reopen with state intact",
+      "entry": "POST /api/mini-apps/{id}/install; /api/mini-apps/instances/{id}/records",
+      "implementation": [
+        "core/mini_app_db_service.py",
+        "api/mini_app_routes.py"
+      ],
+      "config": "Firecracker runtime",
+      "acceptance": "Install, append records, query series, restart, query again",
+      "expected": "Records persist with monotonic seq and per-instance isolation",
+      "external": false,
+      "status": "environment_limited",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/miniapp/install.json"
+      ],
+      "blocker": "",
+      "notes": "Per-instance record store is host-mediated; install needs the Firecracker runtime on this host [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "MINI-05",
+      "category": "mini-apps",
+      "readme_line": 154,
+      "readme_text": "Firecracker microVM isolation, per-instance chat",
+      "operation": "Exercise microVM isolation and the per-instance user-agent chat",
+      "entry": "mini-app runtime + canvas side chat",
+      "implementation": [
+        "core/mini_app_runtime.py",
+        "core/canvas_logic_service.py"
+      ],
+      "config": "Firecracker on Linux/KVM",
+      "acceptance": "Attempt an escape/side-effect from app logic; send a side-chat message",
+      "expected": "Isolation blocks host access; side chat is scoped to the instance",
+      "external": false,
+      "status": "architecture_only",
+      "evidence": [],
+      "blocker": "",
+      "notes": "Firecracker microVM isolation (and therefore per-instance sandbox execution) cannot be exercised on macOS without KVM; the runtime fails closed by design [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GRAPH-01",
+      "category": "graphrag",
+      "readme_line": 155,
+      "readme_text": "GraphRAG",
+      "operation": "Ingest a document and extract entities/relationships",
+      "entry": "POST /api/graphrag/api/graphrag/ingest",
+      "implementation": [
+        "core/graphrag_engine.py"
+      ],
+      "config": "configured LLM for extraction (or deterministic extractor)",
+      "acceptance": "Ingest two related documents",
+      "expected": "Entities and edges persist with source attribution",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/graphrag/ingest.json"
+      ],
+      "blocker": "",
+      "notes": "entities=3 names=['2026-10-01', 'alice@example.com', 'https://example.com/atlas'] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "GRAPH-02",
+      "category": "graphrag",
+      "readme_line": 155,
+      "readme_text": "Multi-hop expansion",
+      "operation": "Expand a query across multiple graph hops",
+      "entry": "GET/POST /api/graphrag/api/graphrag/{query,entities/{id}/neighbors}",
+      "implementation": [
+        "core/graphrag/multi_hop_expansion.py"
+      ],
+      "config": "graph populated",
+      "acceptance": "Query an entity two hops away and inspect the expansion",
+      "expected": "Intermediate and target nodes appear with hop scores",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/graphrag/hop.json"
+      ],
+      "blocker": "",
+      "notes": "two_hop_visible=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "GRAPH-03",
+      "category": "graphrag",
+      "readme_line": 155,
+      "readme_text": "Leiden community detection",
+      "operation": "Build and read communities over the graph",
+      "entry": "POST /api/graphrag/api/graphrag/build-communities",
+      "implementation": [
+        "core/graphrag/community_detection.py"
+      ],
+      "config": "graph populated",
+      "acceptance": "Build communities and read stats",
+      "expected": "Community rows have members, modularity and stable ids",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/graphrag/communities.json"
+      ],
+      "blocker": "",
+      "notes": "communities={\"user_id\": \"73b702ab-905e-4a91-90b2-a1c08f3dc0ba\", \"workspace_id\": \"default\"} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "GRAPH-04",
+      "category": "graphrag",
+      "readme_line": 155,
+      "readme_text": "JIT fact verification",
+      "operation": "Verify a business fact citation on demand",
+      "entry": "POST /api/admin/governance/jit/verify-citations + facts endpoints",
+      "implementation": [
+        "core/agent_world_model.py",
+        "api/admin/business_facts_routes.py"
+      ],
+      "config": "admin",
+      "acceptance": "Create a fact with a citation and verify it",
+      "expected": "Verification returns supported/unsupported with the cited source",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/graphrag/jit.json"
+      ],
+      "blocker": "",
+      "notes": "fact=201 id=7d4b1d04-6555-4810-8f76-304d4462a40a verify=200 verified=1 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "GRAPH-05",
+      "category": "graphrag",
+      "readme_line": 155,
+      "readme_text": "D3 visual explorer",
+      "operation": "Reach the graph visual explorer and render nodes/edges",
+      "entry": "Frontend graph explorer page",
+      "implementation": [
+        "frontend-nextjs/pages/graphrag*",
+        "docs/architecture/GRAPHRAG*"
+      ],
+      "config": "frontend + populated graph",
+      "acceptance": "Open the explorer with a populated graph",
+      "expected": "Nodes/edges render with no page error and a node can be selected",
+      "external": false,
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/graphrag/query.json"
+      ],
+      "blocker": "",
+      "notes": "Graph query works at the API; the D3 explorer page itself is a browser check (separate UI scenario) [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "INT-01",
+      "category": "integrations",
+      "readme_line": 156,
+      "readme_text": "46+ Business Integrations",
+      "operation": "List the integration catalog and count distinct available providers",
+      "entry": "GET /api/integrations",
+      "implementation": [
+        "integrations/",
+        "core/integration_catalog.py"
+      ],
+      "config": "none",
+      "acceptance": "Fetch the catalog and count providers",
+      "expected": "At least 46 distinct providers are listed as available",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/integrations/catalog.json"
+      ],
+      "blocker": "",
+      "notes": "total=67 categories={'ai': 1, 'analytics': 1, 'automation': 1, 'cloud': 1, 'communication': 17, 'crm': 4, 'design': 1, 'development': 3, 'ecommerce': 2, 'finance': 5, 'hr': 2, 'identity': 1, 'marketing': 3, 'productivity': 17, 'storage': 5, 'support': 3} named_missing=[] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "INT-02",
+      "category": "integrations",
+      "readme_line": 156,
+      "readme_text": "connected state is truthful",
+      "operation": "Report disconnected until a real credential exists",
+      "entry": "GET /api/integrations/connection-status",
+      "implementation": [
+        "api/integration_status_routes.py"
+      ],
+      "config": "none",
+      "acceptance": "Read status with no tokens; add a token; read again",
+      "expected": "No token -> connected=false; token -> true with a truthful source",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/integrations/connection_status.json"
+      ],
+      "blocker": "",
+      "notes": "no_token=False with_token=True after_delete=False source=oauth_token [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "INT-03",
+      "category": "integrations",
+      "readme_line": 156,
+      "readme_text": "OAuth connect",
+      "operation": "Complete provider consent through the OAuth callback",
+      "entry": "GET /api/auth/oauth/{provider}/initiate + callback",
+      "implementation": [
+        "api/oauth_routes.py",
+        "core/oauth_handler.py"
+      ],
+      "config": "provider client id/secret (controlled mock server allowed)",
+      "acceptance": "Run the full consent round-trip against a bounded local provider",
+      "expected": "Token rows persist; status becomes connected; state/PKCE checked",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/integrations/oauth_connect.json"
+      ],
+      "blocker": "",
+      "notes": "initiate=307 state=True callback=307 tokens=1 ciphertext=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "INT-04",
+      "category": "integrations",
+      "readme_line": 156,
+      "readme_text": "use connected data",
+      "operation": "Read data from a connected provider through the universal adapter",
+      "entry": "GET /api/v1/integrations/.../... or UniversalIntegrationService",
+      "implementation": [
+        "universal_integration_service.py",
+        "core/integrations/adapters/"
+      ],
+      "config": "connected provider",
+      "acceptance": "Read a bounded mocked dataset and ingest it",
+      "expected": "Records are returned/ingested with source identity and no silent empty success",
+      "external": false,
+      "status": "partial",
+      "evidence": [],
+      "blocker": "",
+      "notes": "Universal adapter execution requires a connected provider; the controlled-provider journey suite covers it, live data qualification is not claimed [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "INT-05",
+      "category": "integrations",
+      "readme_line": 156,
+      "readme_text": "outbound actions",
+      "operation": "Perform an outbound provider action behind HITL approval",
+      "entry": "UniversalIntegrationService / provider action route",
+      "implementation": [
+        "universal_integration_service.py",
+        "middleware/governance_middleware.py"
+      ],
+      "config": "connected provider; approval policy",
+      "acceptance": "Request a send/create; approve; verify one effect at the mocked provider",
+      "expected": "No send before approval; exactly one approved effect",
+      "external": false,
+      "status": "partial",
+      "evidence": [],
+      "blocker": "",
+      "notes": "Outbound send/create behind HITL needs a connected provider; governance approval itself is verified by GOV-02 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "INT-06",
+      "category": "integrations",
+      "readme_line": 156,
+      "readme_text": "disconnect",
+      "operation": "Disconnect a provider and revoke its tokens",
+      "entry": "POST /api/auth/oauth/{provider}/revoke or disconnect route",
+      "implementation": [
+        "api/oauth_routes.py"
+      ],
+      "config": "connected provider",
+      "acceptance": "Disconnect, then read status and attempt a data call",
+      "expected": "Status returns disconnected and revoked tokens no longer work",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/integrations/disconnect.json"
+      ],
+      "blocker": "",
+      "notes": "disconnect=200 revoked=True connected_after=False [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "INT-07",
+      "category": "integrations",
+      "readme_line": 156,
+      "readme_text": "webhook triggers",
+      "operation": "Authenticate provider webhooks and reject forged events",
+      "entry": "POST /api/webhooks/... endpoints",
+      "implementation": [
+        "api/webhook_routes.py",
+        "core/webhook_security.py"
+      ],
+      "config": "provider webhook secret",
+      "acceptance": "Send an unsigned/forged webhook and a correctly signed one",
+      "expected": "Forged is rejected fail-closed; signed is accepted once",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/integrations/webhook.json"
+      ],
+      "blocker": "",
+      "notes": "unsigned webhook rejected with 401 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "INT-08",
+      "category": "integrations",
+      "readme_line": 156,
+      "readme_text": "Salesforce, HubSpot, Slack, Teams, Gmail, Notion, Jira, Linear, Stripe, QuickBooks, Shopify, GitHub, GitLab, Zoom",
+      "operation": "Show that each named representative provider has a registered adapter/tool surface",
+      "entry": "universal adapter registry + provider routes",
+      "implementation": [
+        "universal_integration_service.py",
+        "core/integrations/adapters/"
+      ],
+      "config": "none",
+      "acceptance": "Resolve each named provider through the general adapter registry",
+      "expected": "Every named provider resolves to an adapter or an explicitly declared env-keyed surface",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "integrations/catalog.json"
+      ],
+      "blocker": "",
+      "notes": "named providers resolved: ['github', 'gitlab', 'gmail', 'hubspot', 'jira', 'linear', 'notion', 'quickbooks', 'salesforce', 'shopify', 'slack', 'stripe', 'teams', 'zoom'] [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "INT-09",
+      "category": "integrations",
+      "readme_line": 156,
+      "readme_text": "live qualification",
+      "operation": "Qualify the 46+ claim against real external accounts",
+      "entry": "live provider consent/data calls",
+      "implementation": [
+        "integrations/"
+      ],
+      "config": "real credentials for each provider",
+      "acceptance": "Connect and exercise each provider live",
+      "expected": "Live qualification of all 46+ providers (not established by controlled mocks)",
+      "external": true,
+      "status": "blocked_external",
+      "evidence": [],
+      "blocker": "",
+      "notes": "Live qualification of 46+ providers requires real accounts and permissions; not requested in this run [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GW-01",
+      "category": "gateway",
+      "readme_line": 157,
+      "readme_text": "OpenAI-compatible API",
+      "operation": "Serve /v1/chat/completions over a BYOK upstream",
+      "entry": "POST /v1/chat/completions",
+      "implementation": [
+        "api/openai_gateway_routes.py",
+        "core/llm/gateway/gateway_service.py"
+      ],
+      "config": "ATOM_GATEWAY_ENABLED=true; atom_sk_* key; BYOK provider",
+      "acceptance": "Call with a bounded local OpenAI-compatible upstream",
+      "expected": "OpenAI response shape, usage and routing metadata; normal errors in OpenAI shape",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/gateway/openai_chat.json"
+      ],
+      "blocker": "",
+      "notes": "chat_status=200 choices=1 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GW-02",
+      "category": "gateway",
+      "readme_line": 157,
+      "readme_text": "Anthropic-compatible API",
+      "operation": "Serve /v1/messages over a BYOK upstream",
+      "entry": "POST /v1/messages",
+      "implementation": [
+        "api/openai_gateway_routes.py",
+        "core/llm/gateway/wire_formats.py"
+      ],
+      "config": "gateway enabled; Anthropic-shaped key/upstream",
+      "acceptance": "Call with a bounded local Anthropic-compatible upstream",
+      "expected": "Anthropic response shape and stop_reason are returned; SSE adapter works",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/gateway/anthropic.json"
+      ],
+      "blocker": "",
+      "notes": "messages_status=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GW-03",
+      "category": "gateway",
+      "readme_line": 157,
+      "readme_text": "point Claude Code, n8n, or any OpenAI-SDK app at Atom",
+      "operation": "List models through the gateway for SDK discovery",
+      "entry": "GET /v1/models",
+      "implementation": [
+        "api/openai_gateway_routes.py"
+      ],
+      "config": "gateway enabled",
+      "acceptance": "Call /v1/models with a valid atom_sk key",
+      "expected": "Returns the routable model list in OpenAI shape",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/gateway/models.json"
+      ],
+      "blocker": "",
+      "notes": "models=2 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GW-04",
+      "category": "gateway",
+      "readme_line": 157,
+      "readme_text": "atom_sk_* keys",
+      "operation": "Create a gateway key, authenticate with it, and reject invalid keys",
+      "entry": "POST/GET/DELETE /api/gateway/keys",
+      "implementation": [
+        "api/gateway_key_routes.py",
+        "core/llm/gateway/auth.py"
+      ],
+      "config": "admin",
+      "acceptance": "Create a key, use it, revoke it, reuse it, inspect storage",
+      "expected": "Only the hash is stored; revoked/invalid keys are 401",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/gateway/key_lifecycle.json"
+      ],
+      "blocker": "",
+      "notes": "invalid=401 revoke=200 revoked_use=401 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GW-05",
+      "category": "gateway",
+      "readme_line": 157,
+      "readme_text": "over your BYOK",
+      "operation": "Route the gateway request to the configured BYOK provider with header overrides",
+      "entry": "gateway service + x-atom-model/x-atom-tier headers",
+      "implementation": [
+        "core/llm/gateway/gateway_service.py"
+      ],
+      "config": "two providers configured",
+      "acceptance": "Send requests with and without x-atom-model and inspect the upstream actually called",
+      "expected": "Header override selects the requested model; otherwise the tier router decides",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/gateway/override.json"
+      ],
+      "blocker": "",
+      "notes": "x-atom-model override reached the upstream [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GW-06",
+      "category": "gateway",
+      "readme_line": 157,
+      "readme_text": "error propagation",
+      "operation": "Propagate upstream failures in the caller's wire format",
+      "entry": "gateway error path",
+      "implementation": [
+        "core/llm/gateway/gateway_service.py"
+      ],
+      "config": "failing local upstream",
+      "acceptance": "Point at an upstream returning 500/timeout",
+      "expected": "Caller receives a bounded provider error, not a traceback or silent success",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/gateway/error_path.json"
+      ],
+      "blocker": "",
+      "notes": "transport failure mapped to 502 code=all_providers_failed [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ROUTE-01",
+      "category": "routing",
+      "readme_line": 158,
+      "readme_text": "5-tier cognitive classification",
+      "operation": "Classify a request into one of the five cognitive tiers",
+      "entry": "core.llm.cognitive_tier_system",
+      "implementation": [
+        "core/llm/cognitive_tier_system.py"
+      ],
+      "config": "none",
+      "acceptance": "Classify easy/normal/hard/reasoning/critical prompts",
+      "expected": "Each prompt maps to the expected tier deterministically",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/routing/tiers.json"
+      ],
+      "blocker": "",
+      "notes": "tiers={'simple': 'micro', 'moderate': 'micro', 'technical': 'standard', 'advanced': 'versatile'} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ROUTE-02",
+      "category": "routing",
+      "readme_line": 158,
+      "readme_text": "16+ providers",
+      "operation": "Expose 16+ configured LLM providers",
+      "entry": "GET /api/ai/providers + provider registry",
+      "implementation": [
+        "core/llm/byok_handler.py",
+        "core/ai_providers.py"
+      ],
+      "config": "none",
+      "acceptance": "List provider catalog and count",
+      "expected": "At least 16 providers are registered, including the named families",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/routing/providers.json"
+      ],
+      "blocker": "",
+      "notes": "provider_count=37 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ROUTE-03",
+      "category": "routing",
+      "readme_line": 158,
+      "readme_text": "automatic cost-aware routing, fallback",
+      "operation": "Fall back to the next provider on upstream failure",
+      "entry": "BPC router + byok handler",
+      "implementation": [
+        "core/llm/cache_aware_router.py",
+        "core/llm/escalation_manager.py"
+      ],
+      "config": "two providers; first fails",
+      "acceptance": "Send a request with a failing primary and a healthy secondary",
+      "expected": "Answer comes from the secondary and the fallback is recorded",
+      "external": false,
+      "status": "partial",
+      "evidence": [],
+      "blocker": "",
+      "notes": "Cost-aware fallback needs two configured providers; this world configures one bounded upstream [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ROUTE-04",
+      "category": "routing",
+      "readme_line": 158,
+      "readme_text": "opt-in learning router (feedback-based re-ranking)",
+      "operation": "Re-rank candidates from observed outcomes when enabled",
+      "entry": "ATOM_LEARNING_ROUTER + /api/chat/feedback",
+      "implementation": [
+        "core/learning_llm_router.py"
+      ],
+      "config": "ATOM_LEARNING_ROUTER=true; feedback rows",
+      "acceptance": "Record positive/negative feedback and compare ranked candidates",
+      "expected": "Feedback shifts the ranking; flag off restores the baseline order",
+      "external": false,
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/routing/learning_router.json"
+      ],
+      "blocker": "",
+      "notes": "Learning-router flag/status surface served; re-ranking needs accumulated feedback rows [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ROUTE-05",
+      "category": "routing",
+      "readme_line": 158,
+      "readme_text": "RTK token compression",
+      "operation": "Compress a long context and preserve required facts",
+      "entry": "RTK compression layer",
+      "implementation": [
+        "core/llm/rtk_compression.py"
+      ],
+      "config": "none",
+      "acceptance": "Compress a long transcript and inspect token savings + retained facts",
+      "expected": "Token count falls and asserted facts remain",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/routing/rtk.json"
+      ],
+      "blocker": "",
+      "notes": "chars 2670 -> 138; structured_unchanged=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ROUTE-06",
+      "category": "routing",
+      "readme_line": 42,
+      "readme_text": "local models (Ollama first-class, or any local OpenAI-compatible server)",
+      "operation": "Route to a local OpenAI-compatible server",
+      "entry": "ATOM_LOCAL_ONLY=true + OLLAMA_BASE_URL / local base URL",
+      "implementation": [
+        "core/llm/byok_handler.py"
+      ],
+      "config": "local server",
+      "acceptance": "Point at a bounded local OpenAI-compatible server and send a chat",
+      "expected": "Request goes to the local server; no cloud key is required",
+      "external": false,
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/routing/local_models.json"
+      ],
+      "blocker": "",
+      "notes": "Local OpenAI-compatible provider is the harness upstream; the user-facing settings surface is served [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "ROUTE-07",
+      "category": "routing",
+      "readme_line": 46,
+      "readme_text": "OpenCode Go subscription provider",
+      "operation": "Use the opencode-go provider with custom rate limits",
+      "entry": "provider `opencode-go`",
+      "implementation": [
+        "core/llm/byok_handler.py",
+        "core/llm/provider_rate_limits.py"
+      ],
+      "config": "OPENCODE_API_KEY",
+      "acceptance": "Resolve the provider, model catalogue and headroom penalty; no live spend",
+      "expected": "Provider resolves and limits/context clamp are applied; live call is externally qualified only",
+      "external": true,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": "opencode-go needs a real subscription key; the provider resolves but no live call is made [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "IO-01",
+      "category": "interoperability",
+      "readme_line": 159,
+      "readme_text": "MCP client for external tool servers",
+      "operation": "Register an external MCP server and discover its tools",
+      "entry": "POST /api/mcp/servers + /api/mcp/servers/{id}/tools",
+      "implementation": [
+        "core/mcp_client.py",
+        "api/mcp_client_routes.py",
+        "core/mcp_service.py"
+      ],
+      "config": "bounded local JSON-RPC server",
+      "acceptance": "Register a local MCP server, handshake, list tools",
+      "expected": "Tool schemas round-trip; invalid server fails closed",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/interop/mcp_register.json"
+      ],
+      "blocker": "",
+      "notes": "server=acceptance-mcp listed=True tool_count=1 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "IO-02",
+      "category": "interoperability",
+      "readme_line": 159,
+      "readme_text": "external tool execution",
+      "operation": "Execute a discovered MCP tool through the governed dispatcher",
+      "entry": "POST /api/mcp/execute",
+      "implementation": [
+        "integrations/mcp_service.py",
+        "core/sandbox_gate.py"
+      ],
+      "config": "registered server; capability/sandbox",
+      "acceptance": "Execute one benign tool and inspect the result + audit",
+      "expected": "Result returns; sandbox/capability gates apply; failures propagate",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/interop/mcp_execute.json"
+      ],
+      "blocker": "",
+      "notes": "execute=200 result_echoed=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "IO-03",
+      "category": "interoperability",
+      "readme_line": 159,
+      "readme_text": "A2A Agent Card",
+      "operation": "Serve the A2A Agent Card for discovery",
+      "entry": "GET /api/a2a/agent-card and /.well-known/agent-card.json",
+      "implementation": [
+        "api/a2a_routes.py"
+      ],
+      "config": "none",
+      "acceptance": "Fetch the card",
+      "expected": "Valid A2A 1.0 card with skills, capabilities and endpoint",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/interop/a2a_card.json"
+      ],
+      "blocker": "",
+      "notes": "skills=4 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "IO-04",
+      "category": "interoperability",
+      "readme_line": 159,
+      "readme_text": "A2A message/send",
+      "operation": "Delegate a message to Atom over JSON-RPC A2A",
+      "entry": "POST /api/a2a method message/send",
+      "implementation": [
+        "api/a2a_routes.py"
+      ],
+      "config": "authenticated client; configured LLM",
+      "acceptance": "Send message/send, a malformed envelope, and an unauthenticated request",
+      "expected": "Valid request returns JSON-RPC result; parse/invalid/auth errors use the documented codes",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/interop/a2a_send.json"
+      ],
+      "blocker": "",
+      "notes": "send=200 result=True unauth=403 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "IO-05",
+      "category": "interoperability",
+      "readme_line": 159,
+      "readme_text": "ACP endpoint",
+      "operation": "Accept an ACP client message and return a reply",
+      "entry": "api/acp_routes.py",
+      "implementation": [
+        "api/acp_routes.py"
+      ],
+      "config": "authenticated client; configured LLM",
+      "acceptance": "Exercise the ACP endpoint with a valid and invalid request",
+      "expected": "Valid request reaches ChatOrchestrator; invalid request is rejected",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/interop/acp.json"
+      ],
+      "blocker": "",
+      "notes": "initialize=True session/new=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "IO-06",
+      "category": "interoperability",
+      "readme_line": 159,
+      "readme_text": "span tracing with optional Langfuse export",
+      "operation": "Record a trace for a request and export when configured",
+      "entry": "core observability tracing",
+      "implementation": [
+        "core/observability/",
+        "core/tracing.py"
+      ],
+      "config": "optional LANGFUSE keys for export",
+      "acceptance": "Make a traced call with export off and with a local collector",
+      "expected": "Span ids/parents are recorded; export payload is well-formed when enabled",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/interop/tracing.json"
+      ],
+      "blocker": "",
+      "notes": "spans=1; Langfuse export is optional and off [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOAL-01",
+      "category": "goals",
+      "readme_line": 160,
+      "readme_text": "terminate on a definition_of_done predicate instead of always burning to max_steps",
+      "operation": "Stop the ReAct loop early when the predicate is satisfied",
+      "entry": "core.agent_objective.Objective + GenericAgent loop",
+      "implementation": [
+        "core/agent_objective.py",
+        "core/generic_agent.py"
+      ],
+      "config": "ATOM_OBJECTIVE_LOOP_ENABLED default ON",
+      "acceptance": "Run an objective with a satisfiable predicate and max_steps above it",
+      "expected": "Loop stops at the satisfying step, not max_steps, and records why",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/goals/objective.json"
+      ],
+      "blocker": "",
+      "notes": "predicate false->true, loop wired=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOAL-02",
+      "category": "goals",
+      "readme_line": 160,
+      "readme_text": "utility targets",
+      "operation": "Score candidate trajectories against a utility target",
+      "entry": "agent objective runtime",
+      "implementation": [
+        "core/agent_objective.py"
+      ],
+      "config": "objective configured",
+      "acceptance": "Score two outcomes, one better on the utility target",
+      "expected": "Higher-utility outcome ranks higher; the target is persisted",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": "utility target scoring executes inside the model-backed ReAct loop; no cloud key is used in this world [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOAL-03",
+      "category": "goals",
+      "readme_line": 160,
+      "readme_text": "custom action surfaces",
+      "operation": "Register a custom action and gate it by maturity",
+      "entry": "Objective.register_action",
+      "implementation": [
+        "core/agent_objective.py"
+      ],
+      "config": "agent tier",
+      "acceptance": "Register a custom action at INTERN and call it at STUDENT",
+      "expected": "STUDENT cannot see/call it; INTERN+ can",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/goals/custom_action.json"
+      ],
+      "blocker": "",
+      "notes": "student=False intern=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOAL-04",
+      "category": "goals",
+      "readme_line": 160,
+      "readme_text": "stuck-detection",
+      "operation": "Detect repeated no-progress steps and stop/redirect",
+      "entry": "agent loop stuck detector",
+      "implementation": [
+        "core/generic_agent.py"
+      ],
+      "config": "objective loop enabled",
+      "acceptance": "Drive repeated identical tool results",
+      "expected": "Loop flags stuck and stops or changes strategy instead of spinning to max_steps",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": "stuck detection executes inside the model-backed ReAct loop; no cloud key is used in this world [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "GOAL-05",
+      "category": "goals",
+      "readme_line": 160,
+      "readme_text": "goal-driven loops",
+      "operation": "Start a goal run and observe durable status through resume/restart",
+      "entry": "POST /api/goals + /api/goal-runs",
+      "implementation": [
+        "api/goal_routes.py",
+        "core/goal_run_service.py"
+      ],
+      "config": "authenticated user",
+      "acceptance": "Create a goal, start a run, read status, restart and re-read",
+      "expected": "Run/status persist across restart; cancellation is honoured",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/goals/run.json"
+      ],
+      "blocker": "",
+      "notes": "run=3e9f9701-05c5-44d9-a362-246d7c87bcd6 status=active cancel=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "WF-01",
+      "category": "workflows",
+      "readme_line": 85,
+      "readme_text": "Describe the outcome. Atom builds and runs the workflow.",
+      "operation": "Create a workflow through the API/UI from a structured definition",
+      "entry": "POST /api/v1/workflows/workflows",
+      "implementation": [
+        "api/advanced_workflow_routes.py",
+        "core/advanced_workflow_system.py"
+      ],
+      "config": "authenticated user",
+      "acceptance": "Create a two-step workflow and re-read it",
+      "expected": "Definition persists with steps, ordering and an approval policy",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/workflows/create.json"
+      ],
+      "blocker": "",
+      "notes": "create=200 id=077a3c85-1c26-4be0-ae70-0cd7d01f5dd3 reread=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "WF-02",
+      "category": "workflows",
+      "readme_line": 85,
+      "readme_text": "runs the workflow",
+      "operation": "Execute a workflow end-to-end and record an execution",
+      "entry": "POST /api/v1/workflows/workflows/{id}/execute",
+      "implementation": [
+        "core/advanced_workflow_system.py",
+        "core/workflow_engine.py"
+      ],
+      "config": "workflow definition",
+      "acceptance": "Execute a deterministic workflow and read the execution",
+      "expected": "Execution completes with per-step results and durable status",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/workflows/execute.json"
+      ],
+      "blocker": "",
+      "notes": "execute=200 execution=21f46e6c-743e-457d-9152-5274c0c6bc36 status=completed [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "WF-03",
+      "category": "workflows",
+      "readme_line": 90,
+      "readme_text": "replayable workflow",
+      "operation": "Re-read a completed execution after a backend restart",
+      "entry": "GET /api/v1/workflows/workflows/{id}/executions",
+      "implementation": [
+        "core/models.py",
+        "api/advanced_workflow_routes.py"
+      ],
+      "config": "workflow execution",
+      "acceptance": "Execute, restart, re-read history",
+      "expected": "Execution history is unchanged and downloadable",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json"
+      ],
+      "blocker": "",
+      "notes": "A completed workflow execution was re-read from a new backend process on the same data root [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json]"
+    },
+    {
+      "id": "WF-04",
+      "category": "workflows",
+      "readme_line": 92,
+      "readme_text": "Scheduled workflow",
+      "operation": "Schedule a workflow, list the job, and remove it",
+      "entry": "POST/DELETE /api/v1/workflows/workflows/{id}/schedule",
+      "implementation": [
+        "core/scheduler.py",
+        "api/advanced_workflow_routes.py"
+      ],
+      "config": "ENABLE_SCHEDULER=true",
+      "acceptance": "Create/list/delete a schedule; optionally wait for one firing",
+      "expected": "Job persists and fires at the interval; deletion removes it",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/workflows/schedule.json"
+      ],
+      "blocker": "",
+      "notes": "job=job_077a3c85-1c26-4be0-ae70-0cd7d01f5dd3_1793454264.489606 listed=True removed=True; actual firing requires ENABLE_SCHEDULER (off in this world) [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "WF-05",
+      "category": "workflows",
+      "readme_line": 89,
+      "readme_text": "Human-in-the-Loop approval gates",
+      "operation": "Pause a workflow on policy denial and resume after approval",
+      "entry": "workflow execution + /api/agents/approvals",
+      "implementation": [
+        "core/workflow_engine.py",
+        "api/agent_governance_routes.py"
+      ],
+      "config": "low-maturity agent + critical step",
+      "acceptance": "Execute, observe PAUSED, approve, observe resume",
+      "expected": "No critical step runs before approval; resume completes it once",
+      "external": false,
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/workflows/hitl_queue.json"
+      ],
+      "blocker": "",
+      "notes": "Workflow pause/resume needs a model-backed low-maturity agent run; the HITL queue itself is exercised by GOV-02 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "WF-06",
+      "category": "workflows",
+      "readme_line": 92,
+      "readme_text": "governed, replayable workflow",
+      "operation": "Version a workflow and roll back",
+      "entry": "POST /api/v1/workflows/{id}/versions + rollback",
+      "implementation": [
+        "core/advanced_workflow_system.py"
+      ],
+      "config": "workflow",
+      "acceptance": "Create version 2, compare, roll back",
+      "expected": "Version metadata and active definition are correct after rollback",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/workflows/versioning.json"
+      ],
+      "blocker": "",
+      "notes": "v1=0.1.0 rollback=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "WF-07",
+      "category": "workflows",
+      "readme_line": 79,
+      "readme_text": "import a pre-built personal starter",
+      "operation": "Import and execute a starter template",
+      "entry": "POST /api/workflow-templates/{id}/import + execute",
+      "implementation": [
+        "api/workflow_template_routes.py"
+      ],
+      "config": "template catalog",
+      "acceptance": "Import a starter, inspect its approval gate, execute it",
+      "expected": "Template instantiates with an approval gate and runs",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/workflows/templates.json"
+      ],
+      "blocker": "",
+      "notes": "templates=35 import=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "CORE-01",
+      "category": "core-workspace",
+      "readme_line": 26,
+      "readme_text": "Chat",
+      "operation": "Ask a question and receive a non-streaming reply at the served boundary",
+      "entry": "/chat + /api/chat",
+      "implementation": [
+        "api/chat_routes.py",
+        "core/chat_orchestrator.py"
+      ],
+      "config": "configured LLM; ATOM_CHAT_STREAMING=false",
+      "acceptance": "Send a chat turn and read the persisted session",
+      "expected": "Reply and session history agree; no stream is required",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-world/evidence/core/chat.json"
+      ],
+      "blocker": "",
+      "notes": "chat=200 session=831758a3-be43-4f92-a0bc-06d1a8d8631c reply='acceptance reply for: nd offer to retry. Never invent tool activity.\"}, {\"role\":' provider=openai model=gpt-4o-mini [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-world/evidence/core.json]"
+    },
+    {
+      "id": "CORE-02",
+      "category": "core-workspace",
+      "readme_line": 27,
+      "readme_text": "Data ... Bring records",
+      "operation": "Upload CSV/XLSX/PDF/DOCX/PPTX/EML and inspect extracted content",
+      "entry": "POST /api/documents/upload + GET /api/documents/{id}",
+      "implementation": [
+        "core/auto_document_ingestion.py"
+      ],
+      "config": "none",
+      "acceptance": "Upload one file per format and inspect extracted text/tables",
+      "expected": "Each format yields the expected text/rows; failures are explicit",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/data/formats.json"
+      ],
+      "blocker": "",
+      "notes": "{\"acceptance_txt.txt\": [200, 1, true], \"acceptance_csv.csv\": [200, 1, true], \"acceptance_xlsx.xlsx\": [200, 1, true], \"acceptance_docx.docx\": [200, 1, true], \"acceptance_pptx.pptx\": [200, 1, true], \"acceptance_eml.eml\": [200, 1, true], \"acceptance_pdf.pdf\": [200, 1, true]} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json]"
+    },
+    {
+      "id": "CORE-03",
+      "category": "core-workspace",
+      "readme_line": 27,
+      "readme_text": "Workspace ... review or correct it",
+      "operation": "Review and edit a canvas deliverable and download it",
+      "entry": "/canvas + /api/canvas/*",
+      "implementation": [
+        "api/canvas_routes.py",
+        "core/office_service.py"
+      ],
+      "config": "authenticated user",
+      "acceptance": "Open a canvas, edit content, reload, download",
+      "expected": "Edit persists and the download matches the edited content",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/core/canvas.json"
+      ],
+      "blocker": "",
+      "notes": "canvas=34be843a-2276-40cb-8833-3410f96d0b08 update=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-world/evidence/core.json]"
+    },
+    {
+      "id": "CORE-04",
+      "category": "core-workspace",
+      "readme_line": 28,
+      "readme_text": "Agents ... teach an agent",
+      "operation": "Create an agent, teach a rule, and see it applied later",
+      "entry": "/agents + /teach + /api/maturity/*",
+      "implementation": [
+        "api/maturity_routes.py",
+        "core/active_lessons.py"
+      ],
+      "config": "configured LLM for application",
+      "acceptance": "Teach a rule, run a later task, inspect the applied lesson",
+      "expected": "Lesson persists and is referenced by the later run",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/core/teach.json"
+      ],
+      "blocker": "",
+      "notes": "teach=200 lessons=200 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-world/evidence/core.json]"
+    },
+    {
+      "id": "CORE-05",
+      "category": "core-workspace",
+      "readme_line": 29,
+      "readme_text": "Activity ... See results, failures and unfinished work",
+      "operation": "Read goal-run/execution history including a failure",
+      "entry": "/goal-runs + /execution-history + /api/goal-runs",
+      "implementation": [
+        "api/goal_routes.py"
+      ],
+      "config": "authenticated user",
+      "acceptance": "Run one success and one failure; read history",
+      "expected": "Both runs appear with honest terminal states",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/goals/create.json"
+      ],
+      "blocker": "",
+      "notes": "goal=b8b5f898-ea26-4f33-93fa-e622a10a7ed4 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "CORE-06",
+      "category": "core-workspace",
+      "readme_line": 30,
+      "readme_text": "Settings ... providers and data configuration",
+      "operation": "Configure a model provider through Settings and see it used",
+      "entry": "/settings + /api/ai/providers + /api/v1/admin/settings",
+      "implementation": [
+        "api/admin_runtime_settings_routes.py",
+        "core/settings_catalog.py"
+      ],
+      "config": "admin",
+      "acceptance": "Store a BYOK key, read it masked, and route one call",
+      "expected": "Key persists encrypted; masked read; routing uses it",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/core/settings.json"
+      ],
+      "blocker": "",
+      "notes": "providers=200 settings=200 openai_configured=True secret_masked=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-world/evidence/core.json]"
+    },
+    {
+      "id": "CORE-07",
+      "category": "core-workspace",
+      "readme_line": 32,
+      "readme_text": "ATOM_PRODUCT_PROFILE=full restores the wider surface",
+      "operation": "Switch profiles and observe navigation/route gating change",
+      "entry": "GET /api/product/profile + frontend gate",
+      "implementation": [
+        "core/product_profile.py",
+        "api/product_profile_routes.py"
+      ],
+      "config": "ATOM_PRODUCT_PROFILE=core|full",
+      "acceptance": "Fetch the profile in both modes and open a deferred UI route",
+      "expected": "Core defers the wider surface; full exposes it without code changes",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/core/profile.json"
+      ],
+      "blocker": "",
+      "notes": "profile=full enabled=18 [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json, /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-world/evidence/core.json]"
+    },
+    {
+      "id": "INST-01",
+      "category": "installation",
+      "readme_line": 64,
+      "readme_text": "make setup ... one-shot dev bootstrap",
+      "operation": "Bootstrap a clean checkout into a runnable environment",
+      "entry": "make setup / scripts/quickstart.sh",
+      "implementation": [
+        "scripts/quickstart.sh",
+        "backend/requirements.txt"
+      ],
+      "config": "supported Python 3.11-3.13 + Node 20.9+",
+      "acceptance": "Run the documented bootstrap in a clean copy and start the apps",
+      "expected": "Dependencies install, .env is generated with valid keys, no manual edit needed",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": ""
+    },
+    {
+      "id": "INST-02",
+      "category": "installation",
+      "readme_line": 65,
+      "readme_text": "make backend ... full backend on :8001",
+      "operation": "Start the backend with the documented command",
+      "entry": "make backend",
+      "implementation": [
+        "scripts/start-backend.sh",
+        "backend/main_api_app.py"
+      ],
+      "config": "bootstrapped env",
+      "acceptance": "Start and hit /health/ready",
+      "expected": "Process serves and readiness is true",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json"
+      ],
+      "blocker": "",
+      "notes": "Documented uvicorn main_api_app:app process served /health/ready and /api/product/profile [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json]"
+    },
+    {
+      "id": "INST-03",
+      "category": "installation",
+      "readme_line": 67,
+      "readme_text": "make frontend ... Next.js UI on :3001",
+      "operation": "Start the frontend and load the login page",
+      "entry": "make frontend",
+      "implementation": [
+        "frontend-nextjs/"
+      ],
+      "config": "bootstrapped env",
+      "acceptance": "Start and load /login",
+      "expected": "Page renders with no fatal error and the API rewrite reaches the backend",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/frontend-dev.log"
+      ],
+      "blocker": "",
+      "notes": "next dev --webpack on :3130 (documented `make frontend` command) reached Ready and GET /login returned HTTP 200 with the Next.js app shell [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/frontend-results.json]"
+    },
+    {
+      "id": "INST-04",
+      "category": "installation",
+      "readme_line": 75,
+      "readme_text": "sign in as admin@example.com (password in backend/logs/bootstrap_admin_password.txt)",
+      "operation": "Find the generated admin password and sign in",
+      "entry": "backend/logs/bootstrap_admin_password.txt + /login",
+      "implementation": [
+        "core/admin_bootstrap.py"
+      ],
+      "config": "fresh data root",
+      "acceptance": "Read the 0600 password file and log in",
+      "expected": "Login succeeds; file is not world-readable; password is not logged",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json"
+      ],
+      "blocker": "",
+      "notes": "Fresh root generated the 0600 bootstrap password file; that password logged in [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json]"
+    },
+    {
+      "id": "INST-05",
+      "category": "installation",
+      "readme_line": 42,
+      "readme_text": "Workflow data, agent state, and memory live on your infrastructure",
+      "operation": "Restart with the same data root and retain users/data/artifacts",
+      "entry": "documented durable data root",
+      "implementation": [
+        "core/database.py",
+        "core/memory_store_bootstrap.py"
+      ],
+      "config": "explicit DATABASE_URL + data root",
+      "acceptance": "Create data, restart, re-read",
+      "expected": "Data survives the restart in the same data root",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json"
+      ],
+      "blocker": "",
+      "notes": "Task created before the restart was readable from a new backend process on the same data root [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json]"
+    },
+    {
+      "id": "SEC-01",
+      "category": "security",
+      "readme_line": 168,
+      "readme_text": "Execution Sandbox ... enforced at every tool-dispatch hub",
+      "operation": "Block a tool call outside the sandbox policy at dispatch",
+      "entry": "mcp_service.call_tool + sandbox_gate",
+      "implementation": [
+        "core/sandbox_gate.py",
+        "core/sandbox_policy.py",
+        "integrations/mcp_service.py"
+      ],
+      "config": "ATOM_SANDBOX_ENABLED default ON",
+      "acceptance": "Attempt a disallowed path/tool/egress and an allowed one",
+      "expected": "Disallowed call is denied and audited; allowed call proceeds",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/security/sandbox.json"
+      ],
+      "blocker": "",
+      "notes": "blocked=blocked allowed=allowed [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "SEC-02",
+      "category": "security",
+      "readme_line": 169,
+      "readme_text": "OAuth integration tokens encrypted at rest (Fernet)",
+      "operation": "Store a token and verify the DB value is ciphertext",
+      "entry": "IntegrationToken persistence",
+      "implementation": [
+        "core/privsec/token_encryption.py"
+      ],
+      "config": "BYOK_ENCRYPTION_KEY or persisted key file",
+      "acceptance": "Persist a token, read the raw column, decrypt through the service",
+      "expected": "Raw value is ciphertext; service returns plaintext; prod fails closed without a key",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/security/token_encryption.json"
+      ],
+      "blocker": "",
+      "notes": "ciphertext=True decrypt_ok=True oauth_callback_wired=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "SEC-03",
+      "category": "security",
+      "readme_line": 170,
+      "readme_text": "Per-Agent Capability Bindings",
+      "operation": "Deny a tool outside an agent's declared capability set",
+      "entry": "capability resolver at dispatch",
+      "implementation": [
+        "core/capability_resolver.py"
+      ],
+      "config": "agent capabilities configured",
+      "acceptance": "Call allowed and disallowed tools for the same agent",
+      "expected": "Disallowed tool is denied; allowed tool runs",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/security/capabilities.json"
+      ],
+      "blocker": "",
+      "notes": "allowed=True denied=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "SEC-04",
+      "category": "security",
+      "readme_line": 171,
+      "readme_text": "Outbound Gatekeeper",
+      "operation": "Apply rate/masking/HITL policy to an outbound integration call",
+      "entry": "middleware/governance_middleware.py",
+      "implementation": [
+        "middleware/governance_middleware.py",
+        "core/gatekeeper_config.py"
+      ],
+      "config": "policy configured",
+      "acceptance": "Call an outbound provider with a masking rule and a mutation rule",
+      "expected": "Response fields are masked; mutation requires approval",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/security/gatekeeper.json"
+      ],
+      "blocker": "",
+      "notes": "read_allowed=True mutation_paused=True masked=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "SEC-05",
+      "category": "security",
+      "readme_line": 172,
+      "readme_text": "Data-Taint Tracking",
+      "operation": "Block external egress after restricted data is observed",
+      "entry": "data taint tracker + outbound gate",
+      "implementation": [
+        "core/data_taint_tracker.py"
+      ],
+      "config": "taint enabled",
+      "acceptance": "Observe restricted data then attempt an external send",
+      "expected": "Send is blocked with a provenance violation",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/security/taint.json"
+      ],
+      "blocker": "",
+      "notes": "label=restricted external_blocked=True [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "SEC-06",
+      "category": "security",
+      "readme_line": 173,
+      "readme_text": "External MCP Client ... arbitrary external MCP servers",
+      "operation": "Connect to an external MCP server (SSRF/scope safe)",
+      "entry": "/api/mcp/servers",
+      "implementation": [
+        "core/mcp_client.py"
+      ],
+      "config": "bounded local server; network policy",
+      "acceptance": "Connect a local server and an unroutable/unauthorised target",
+      "expected": "Local server works; disallowed target is refused",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "interop/mcp_register.json"
+      ],
+      "blocker": "",
+      "notes": "External MCP client connects to the bounded local server (see IO-01); disallowed targets are refused by URL policy [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "SEC-07",
+      "category": "security",
+      "readme_line": 145,
+      "readme_text": "OIDC SSO + SCIM v2 provisioning + 8-role RBAC",
+      "operation": "Reject unauthenticated/unauthorised access to admin and user APIs",
+      "entry": "auth dependencies + role checks",
+      "implementation": [
+        "core/auth.py",
+        "core/rbac_service.py"
+      ],
+      "config": "none",
+      "acceptance": "Call protected endpoints with no token, a member token, and an admin token",
+      "expected": "401/403 as appropriate; no data leak; admin succeeds",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/security/unauth.json"
+      ],
+      "blocker": "",
+      "notes": "{\"/api/documents\": 401, \"/api/agents/\": 401, \"/api/v1/admin/settings\": 401, \"/api/goal-runs\": 401} [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "SEC-08",
+      "category": "security",
+      "readme_line": 169,
+      "readme_text": "production fails closed without key",
+      "operation": "Fail closed when production encryption key is absent",
+      "entry": "token encryption init",
+      "implementation": [
+        "core/privsec/token_encryption.py"
+      ],
+      "config": "ENVIRONMENT=production without key",
+      "acceptance": "Attempt to mint/store a token",
+      "expected": "Refuses instead of generating an ephemeral key",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/security/fail_closed.json"
+      ],
+      "blocker": "",
+      "notes": "result=MissingKeyError [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json]"
+    },
+    {
+      "id": "PERF-01",
+      "category": "performance",
+      "readme_line": 40,
+      "readme_text": "0.027ms P99 per check",
+      "operation": "Measure governance check latency P99",
+      "entry": "repo benchmark",
+      "implementation": [
+        "scripts/benchmark_governance.py"
+      ],
+      "config": "benchmark environment",
+      "acceptance": "Run the documented governance benchmark",
+      "expected": "P99 at or below 0.027ms on the named machine/config",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": ""
+    },
+    {
+      "id": "PERF-02",
+      "category": "performance",
+      "readme_line": 54,
+      "readme_text": "616k ops/s cached throughput",
+      "operation": "Measure cached governance throughput",
+      "entry": "repo benchmark",
+      "implementation": [
+        "scripts/benchmark_governance.py"
+      ],
+      "config": "benchmark environment",
+      "acceptance": "Run the cached throughput benchmark",
+      "expected": "Throughput at or above 616k ops/s",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": ""
+    },
+    {
+      "id": "PERF-03",
+      "category": "performance",
+      "readme_line": 15,
+      "readme_text": "85k+ test functions",
+      "operation": "Count collected test functions in the named suite",
+      "entry": "pytest --collect-only",
+      "implementation": [
+        "backend/tests/"
+      ],
+      "config": "test env",
+      "acceptance": "Collect the suite and count functions",
+      "expected": "Collected count is at least 85,000 across the documented files",
+      "external": false,
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/test-count.txt"
+      ],
+      "blocker": "",
+      "notes": "93,825 `def test_` functions across 3,749 files exceeds the README's 85k+ claim (count method: grep, not pytest collection) [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/test-count-results.json]"
+    },
+    {
+      "id": "COMPAT-01",
+      "category": "compatibility",
+      "readme_line": 17,
+      "readme_text": "Python 3.11+",
+      "operation": "Install and run on a supported Python version",
+      "entry": "quickstart guard",
+      "implementation": [
+        "scripts/quickstart.sh"
+      ],
+      "config": "Python 3.11/3.12/3.13",
+      "acceptance": "Validate the interpreter guard for 3.11-3.13 and 3.14",
+      "expected": "3.11-3.13 accepted; 3.14 rejected with the documented message",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": ""
+    },
+    {
+      "id": "COMPAT-02",
+      "category": "compatibility",
+      "readme_line": 258,
+      "readme_text": "FastAPI | SQLAlchemy | LangChain | Playwright | Next.js",
+      "operation": "Run the documented stack versions together",
+      "entry": "requirements + package.json",
+      "implementation": [
+        "backend/requirements.txt",
+        "frontend-nextjs/package.json"
+      ],
+      "config": "clean env",
+      "acceptance": "Install and boot backend+frontend",
+      "expected": "Both boot on the pinned versions without unresolved imports",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": ""
+    },
+    {
+      "id": "COMPAT-03",
+      "category": "compatibility",
+      "readme_line": 51,
+      "readme_text": "PostgreSQL",
+      "operation": "Run the persistence layer on SQLite and PostgreSQL-compatible SQL",
+      "entry": "database.py dialect handling",
+      "implementation": [
+        "core/database.py",
+        "alembic/"
+      ],
+      "config": "Postgres instance (optional)",
+      "acceptance": "Boot against SQLite; inspect dialect-aware paths for PG",
+      "expected": "SQLite path verified; PG path is dialect-guarded (not live-qualified here)",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": ""
+    },
+    {
+      "id": "COMPAT-04",
+      "category": "compatibility",
+      "readme_line": 216,
+      "readme_text": "mobile React Native (Expo) companion / menubar Tauri",
+      "operation": "Build or typecheck the companion surfaces",
+      "entry": "mobile/ + menubar/",
+      "implementation": [
+        "mobile/",
+        "menubar/"
+      ],
+      "config": "node toolchain",
+      "acceptance": "Run the documented build/typecheck",
+      "expected": "Build/typecheck completes for the claimed companion surfaces",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": ""
+    },
+    {
+      "id": "MKT-01",
+      "category": "comparative",
+      "readme_line": 111,
+      "readme_text": "Self-hosted + 46+ native business integrations",
+      "operation": "Comparative claim vs consumer assistants/developer frameworks",
+      "entry": "marketing comparison",
+      "implementation": [
+        "README.md"
+      ],
+      "config": "n/a",
+      "acceptance": "Evaluate as comparative marketing, not a functional claim",
+      "expected": "Tracked separately from the functional denominator",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": ""
+    },
+    {
+      "id": "MKT-02",
+      "category": "comparative",
+      "readme_line": 114,
+      "readme_text": "only open-source platform that delivers ...",
+      "operation": "Exclusivity/comparative claim",
+      "entry": "marketing comparison",
+      "implementation": [
+        "README.md",
+        "docs/marketing/POSITIONING.md"
+      ],
+      "config": "n/a",
+      "acceptance": "Evaluate as comparative marketing",
+      "expected": "Tracked separately; not counted as verified functionality",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": ""
+    },
+    {
+      "id": "MKT-03",
+      "category": "comparative",
+      "readme_line": 232,
+      "readme_text": "AI Agents / governance / verification comparison matrix",
+      "operation": "Per-competitor capability matrix",
+      "entry": "marketing comparison",
+      "implementation": [
+        "README.md"
+      ],
+      "config": "n/a",
+      "acceptance": "Evaluate as comparative marketing",
+      "expected": "Tracked separately; not counted as verified functionality",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": ""
+    },
+    {
+      "id": "MKT-04",
+      "category": "comparative",
+      "readme_line": 8,
+      "readme_text": "88% of AI agent pilots never reach production (Turion 2026)",
+      "operation": "External industry statistic",
+      "entry": "marketing statistic",
+      "implementation": [
+        "docs/marketing/RESEARCH_NOTES.md"
+      ],
+      "config": "n/a",
+      "acceptance": "Check the citation exists and is attributed",
+      "expected": "External stat is attributed and explicitly not about Atom deployments",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": ""
+    },
+    {
+      "id": "MKT-05",
+      "category": "comparative",
+      "readme_line": 46,
+      "readme_text": "OpenCode Go ... ~90% savings vs pay-per-token",
+      "operation": "Pricing comparison",
+      "entry": "provider pricing",
+      "implementation": [
+        "docs/guides/OPENCODE_GO_PROVIDER.md"
+      ],
+      "config": "provider price list",
+      "acceptance": "Check the price comparison date and basis",
+      "expected": "Savings claim is sourced and dated; not a functional pass",
+      "external": false,
+      "status": "unverified",
+      "evidence": [],
+      "blocker": "",
+      "notes": ""
+    }
+  ],
+  "categories": {
+    "orchestration": {
+      "total": 8,
+      "verified": 4,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 3,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 1
+    },
+    "governance": {
+      "total": 8,
+      "verified": 7,
+      "partial": 1,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "oracle": {
+      "total": 6,
+      "verified": 6,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "ask": {
+      "total": 5,
+      "verified": 4,
+      "partial": 1,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "agent-teams": {
+      "total": 6,
+      "verified": 6,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "memory": {
+      "total": 7,
+      "verified": 6,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 1,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "hybrid-search": {
+      "total": 5,
+      "verified": 5,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "vfs": {
+      "total": 4,
+      "verified": 4,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "agent-radio": {
+      "total": 4,
+      "verified": 4,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "office": {
+      "total": 8,
+      "verified": 7,
+      "partial": 1,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "mini-apps": {
+      "total": 5,
+      "verified": 2,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 2,
+      "architecture_only": 1,
+      "inaccurate": 0
+    },
+    "graphrag": {
+      "total": 5,
+      "verified": 4,
+      "partial": 1,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "integrations": {
+      "total": 9,
+      "verified": 6,
+      "partial": 2,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 1,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "gateway": {
+      "total": 6,
+      "verified": 6,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "routing": {
+      "total": 7,
+      "verified": 3,
+      "partial": 3,
+      "failed": 0,
+      "unverified": 1,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "interoperability": {
+      "total": 6,
+      "verified": 6,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "goals": {
+      "total": 5,
+      "verified": 3,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 2,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "workflows": {
+      "total": 7,
+      "verified": 6,
+      "partial": 1,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "core-workspace": {
+      "total": 7,
+      "verified": 7,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "installation": {
+      "total": 5,
+      "verified": 4,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 1,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "security": {
+      "total": 8,
+      "verified": 8,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 0,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "performance": {
+      "total": 3,
+      "verified": 1,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 2,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "compatibility": {
+      "total": 4,
+      "verified": 0,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 4,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    },
+    "comparative": {
+      "total": 5,
+      "verified": 0,
+      "partial": 0,
+      "failed": 0,
+      "unverified": 5,
+      "blocked_external": 0,
+      "environment_limited": 0,
+      "architecture_only": 0,
+      "inaccurate": 0
+    }
+  },
+  "acceptance_run": {
+    "results_file": "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/merged-results.json",
+    "generated_at": null,
+    "config": null,
+    "harness": "backend/scripts/readme_acceptance + scripts/acceptance/readme_local_install.py"
+  },
+  "score": {
+    "verified_functional": 100,
+    "eligible_functional": 123,
+    "percent": 81.3
+  }
+}

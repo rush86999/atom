@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "harness": "backend/scripts/readme_acceptance",
+  "generated_at": "2026-10-31T13:45:54.517621+00:00",
+  "started_at": "2026-10-31T13:45:46.394356+00:00",
+  "config": {
+    "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world",
+    "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/atom.db",
+    "product_profile": "full",
+    "external_integrations": "tokenless; schedulers/pollers off",
+    "llm": "bounded local OpenAI-compatible stub (no cloud spend)"
+  },
+  "groups": {
+    "graphrag": "groups_graphrag:graphrag",
+    "data": "groups_data:data_group",
+    "memory": "groups_data:memory_group"
+  },
+  "group_errors": [],
+  "results": [
+    {
+      "claim_id": "CORE-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data/formats.json"
+      ],
+      "notes": "{\"acceptance_txt.txt\": [200, 1, true], \"acceptance_csv.csv\": [200, 1, true], \"acceptance_xlsx.xlsx\": [200, 1, true], \"acceptance_docx.docx\": [200, 1, true], \"acceptance_pptx.pptx\": [200, 1, true], \"acceptance_eml.eml\": [200, 1, true], \"acceptance_pdf.pdf\": [200, 1, true]}",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GRAPH-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/graphrag/ingest.json"
+      ],
+      "notes": "entities=3 names=['2026-10-01', 'alice@example.com', 'https://example.com/atlas']",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GRAPH-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/graphrag/hop.json"
+      ],
+      "notes": "two_hop_visible=True",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GRAPH-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/graphrag/communities.json"
+      ],
+      "notes": "communities={\"user_id\": \"737770e3-97f8-4f96-82c3-f5f7b2de363c\", \"workspace_id\": \"default\"}",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GRAPH-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/graphrag/jit.json"
+      ],
+      "notes": "fact=201 id=7d4b1d04-6555-4810-8f76-304d4462a40a verify=200 verified=1",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GRAPH-05",
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/graphrag/query.json"
+      ],
+      "notes": "Graph query works at the API; the D3 explorer page itself is a browser check (separate UI scenario)",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/memory/per_turn.json"
+      ],
+      "notes": "Controlled-model extraction pipeline persisted a categorized fact",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/memory/sql_recall.json"
+      ],
+      "notes": "prompt_tier_hit=True public_api_hit=True",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/memory/semantic.json"
+      ],
+      "notes": "vector_written=1 semantic_hit=True",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-04",
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/memory/episodes.json"
+      ],
+      "notes": "Episode create/retrieve surface served; a session-backed episode needs the model-backed chat run",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/memory/remember.json"
+      ],
+      "notes": "fact_id=cca2b733-3115-4fc5-9e75-2691ae52d36c",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/memory/forget.json"
+      ],
+      "notes": "forget=True after={'found': True, 'status': 'invalidated'}",
+      "blocker": ""
+    },
+    {
+      "claim_id": "MEM-07",
+      "status": "unverified",
+      "evidence": [],
+      "notes": "Evolution harness is disabled in this world (ATOM_AGENT_EVOLUTION_ENABLED=false); enabling it is a separate controlled world",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEARCH-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/search/lexical.json"
+      ],
+      "notes": "Exact rare token retrieved through documents.search",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEARCH-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/search/vector.json"
+      ],
+      "notes": "Semantic paraphrase retrieved through the LanceDB route",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEARCH-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/search/rrf.json"
+      ],
+      "notes": "RRF k=60 scores {'doc_c310cf9c1402bf6518972bd7': 0.032787}",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEARCH-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/search/hybrid.json"
+      ],
+      "notes": "hits=5 label=None legs={\"lexical\": {\"status\": \"ok\", \"required\": true, \"error_category\": null, \"hit_count\": 1, \"duration_ms\": 2.19}, \"vector\": {\"status\": \"ok\", \"required\": true, \"error_category\": null, \"hit_count\": 5, \"duration_ms\": 9.96}, \"hydration\": {\"status\": \"ok\", \"required\": true, \"error_category\": null, \"hit_count\":",
+      "blocker": ""
+    },
+    {
+      "claim_id": "SEARCH-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/search/missing.json"
+      ],
+      "notes": "A token absent from the corpus yields an explicit empty result",
+      "blocker": ""
+    },
+    {
+      "claim_id": "VFS-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/vfs/ls.json",
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/vfs/tree.json"
+      ],
+      "notes": "entries=7",
+      "blocker": ""
+    },
+    {
+      "claim_id": "VFS-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/vfs/cat.json"
+      ],
+      "notes": "line-numbered=True",
+      "blocker": ""
+    },
+    {
+      "claim_id": "VFS-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/vfs/grep.json"
+      ],
+      "notes": "matches=1",
+      "blocker": ""
+    },
+    {
+      "claim_id": "VFS-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/vfs/flag.json"
+      ],
+      "notes": "legacy_hits=1 with VFS disabled",
+      "blocker": ""
+    }
+  ]
+}

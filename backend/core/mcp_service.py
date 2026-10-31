@@ -660,6 +660,13 @@ class MCPService:
             elif tool_name == "run_local_terminal":
                 from core.satellite_service import satellite_service
                 result = await satellite_service.execute_local_tool(tenant_id, "run_terminal", arguments)
+            elif (server_id and server_id in self.external_clients
+                  and (self.tool_registry is None
+                       or self.tool_registry.get(tool_name) is None)):
+                # External MCP server tool: dispatch over the live JSON-RPC
+                # client. Native registry tools keep precedence by name.
+                logger.info("MCP: Executing External Tool %s/%s", server_id, tool_name)
+                result = await self.call_external_tool(server_id, tool_name, arguments)
             elif self.tool_registry:
                 tool_meta = self.tool_registry.get(tool_name)
                 if tool_meta:
