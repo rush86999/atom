@@ -64,6 +64,14 @@ def install_claims(path: Path) -> dict:
             "notes": "A completed workflow execution was re-read from a new backend process on the same data root",
             "blocker": "",
         },
+        "OFF-08": {
+            "claim_id": "OFF-08",
+            "status": "verified" if (checks.get("office_canvas", {}).get("canvas_read")
+                                     and checks.get("office_canvas", {}).get("download_ok")) else "partial",
+            "evidence": common_ev,
+            "notes": "A presented Office canvas and its downloadable file were re-read from a new backend process on the same data root",
+            "blocker": "",
+        },
     }
 
 

@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-10-31",
+  "policy": "A claim is verified only when the harness executes the claimed operation and asserts its expected observable. Source-string checks, unconditional passes, existence-only checks, and assertions weaker than the stated acceptance are downgraded.",
+  "downgrades": [
+    {
+      "claim_id": "ORACLE-01",
+      "from": "verified",
+      "to": "partial",
+      "reason": "The registry contains postcondition verifiers for only trigger_workflow and tasks.create; the README's 'every mutating action is re-derived' is not established."
+    },
+    {
+      "claim_id": "GOV-02",
+      "from": "verified",
+      "to": "partial",
+      "reason": "The harness observes a pending HITL action and an approve 200, but no approved mutation/side effect was executed or re-read. 'Execute only after approval' is not demonstrated."
+    },
+    {
+      "claim_id": "GOV-03",
+      "from": "verified",
+      "to": "partial",
+      "reason": "One HITL row was inspected; a comprehensive actor/action/target/outcome audit trail across governed actions was not exercised."
+    },
+    {
+      "claim_id": "GOV-05",
+      "from": "verified",
+      "to": "partial",
+      "reason": "OIDC config round-trips and the secret is hidden, but login returned 503 and no IdP callback/session was completed."
+    },
+    {
+      "claim_id": "ASK-01",
+      "from": "verified",
+      "to": "partial",
+      "reason": "Autonomy was learned from synthetic observations, not externally verified outcomes from the real track record."
+    },
+    {
+      "claim_id": "ASK-05",
+      "from": "verified",
+      "to": "partial",
+      "reason": "The relaxation mechanism was exercised against synthetic history; the admin/stats surface did not drive a real relaxation decision."
+    },
+    {
+      "claim_id": "TEAM-01",
+      "from": "verified",
+      "to": "partial",
+      "reason": "A contract with one accountable-agent field was constructed; no validation/enforcement that exactly one accountable agent is required was exercised."
+    },
+    {
+      "claim_id": "TEAM-05",
+      "from": "verified",
+      "to": "partial",
+      "reason": "The alignment sweep was run manually with a fake chat function; the opt-in nightly automation path was not exercised."
+    },
+    {
+      "claim_id": "TEAM-06",
+      "from": "verified",
+      "to": "partial",
+      "reason": "One telemetry event was persisted; the incumbency/favouritism/COI report baselines were not generated."
+    },
+    {
+      "claim_id": "MEM-01",
+      "from": "verified",
+      "to": "partial",
+      "reason": "The extraction core was called directly with a controlled model; the agent sync_turn hook was not exercised."
+    },
+    {
+      "claim_id": "MEM-04",
+      "from": "verified",
+      "to": "partial",
+      "reason": "An episode was created and read; graduation from episodes was not exercised."
+    },
+    {
+      "claim_id": "IO-06",
+      "from": "verified",
+      "to": "partial",
+      "reason": "A span was written directly to the local recorder; request-level tracing and the configured Langfuse export were not exercised."
+    },
+    {
+      "claim_id": "GOAL-05",
+      "from": "verified",
+      "to": "partial",
+      "reason": "Goal run create/read/cancel was exercised; resume/restart durability was not."
+    },
+    {
+      "claim_id": "WF-07",
+      "from": "verified",
+      "to": "partial",
+      "reason": "A starter template was imported; executing the imported template was not exercised."
+    },
+    {
+      "claim_id": "CORE-04",
+      "from": "verified",
+      "to": "partial",
+      "reason": "The lesson was stored and listed; a later task applying that lesson was not exercised."
+    },
+    {
+      "claim_id": "CORE-06",
+      "from": "verified",
+      "to": "partial",
+      "reason": "Provider configuration and masking were read; a route was not exercised from a key stored through that Settings surface."
+    },
+    {
+      "claim_id": "INT-07",
+      "from": "verified",
+      "to": "partial",
+      "reason": "An unsigned/forged webhook was rejected; a correctly signed webhook being accepted exactly once was not exercised."
+    }
+  ]
+}

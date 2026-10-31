@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "harness": "backend/scripts/readme_acceptance",
+  "generated_at": "2026-10-31T15:06:20.503700+00:00",
+  "started_at": "2026-10-31T15:06:11.691672+00:00",
+  "config": {
+    "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world",
+    "database": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/atom.db",
+    "product_profile": "full",
+    "external_integrations": "tokenless; schedulers/pollers off",
+    "llm": "bounded local OpenAI-compatible stub (no cloud spend)"
+  },
+  "groups": {
+    "gateway": "groups_gateway:gateway"
+  },
+  "group_errors": [],
+  "results": [
+    {
+      "claim_id": "GW-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/evidence/gateway/openai_chat.json"
+      ],
+      "notes": "chat_status=200 choices=1",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GW-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/evidence/gateway/anthropic.json"
+      ],
+      "notes": "messages_status=200",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GW-03",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/evidence/gateway/models.json"
+      ],
+      "notes": "models=2",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GW-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/evidence/gateway/key_create.json"
+      ],
+      "notes": "key_created=True id=358ce939-2152-4bab-9e72-c3dd1d3f0cad",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GW-04",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/evidence/gateway/key_lifecycle.json"
+      ],
+      "notes": "invalid=401 revoke=200 revoked_use=401",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GW-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/evidence/gateway/override.json"
+      ],
+      "notes": "x-atom-model override reached the upstream",
+      "blocker": ""
+    },
+    {
+      "claim_id": "GW-06",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/evidence/gateway/error_path.json"
+      ],
+      "notes": "transport failure mapped to 502 code=all_providers_failed",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-01",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/evidence/routing/tiers.json"
+      ],
+      "notes": "tiers={'simple': 'micro', 'moderate': 'micro', 'technical': 'standard', 'advanced': 'versatile'}",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-02",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/evidence/routing/providers.json"
+      ],
+      "notes": "provider_count=37",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-03",
+      "status": "partial",
+      "evidence": [],
+      "notes": "Cost-aware fallback needs two configured providers; this world configures one bounded upstream",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-04",
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/evidence/routing/learning_router.json"
+      ],
+      "notes": "Learning-router flag/status surface served; re-ranking needs accumulated feedback rows",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-05",
+      "status": "verified",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/evidence/routing/rtk.json"
+      ],
+      "notes": "chars 2670 -> 138; structured_unchanged=True",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-06",
+      "status": "partial",
+      "evidence": [
+        "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-gateway-final-world/evidence/routing/local_models.json"
+      ],
+      "notes": "Local OpenAI-compatible provider is the harness upstream; the user-facing settings surface is served",
+      "blocker": ""
+    },
+    {
+      "claim_id": "ROUTE-07",
+      "status": "unverified",
+      "evidence": [],
+      "notes": "opencode-go needs a real subscription key; the provider resolves but no live call is made",
+      "blocker": ""
+    }
+  ]
+}
