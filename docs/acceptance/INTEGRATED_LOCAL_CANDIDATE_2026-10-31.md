@@ -10,8 +10,8 @@ publication remain deferred by the owner.
 | Item | Value |
 |---|---|
 | Branch | `codex/employee-execution-readiness` |
-| Final code/evidence | `24b0633df` (code `814962078`) |
-| Assessment safety | `460f38c27` (atomic approval/scoped autonomy), `b80288e4e` (authoritative reads), `6363e3794` (route-level exact approval) |
+| Final code/evidence | `399c25405` (code `099c15e02`) |
+| Assessment safety | `460f38c27` (atomic approval/scoped autonomy), `b80288e4e` (authoritative reads), `6363e3794` (route-level exact approval), `8123f12c6` + `099c15e02` (clarification identity/revisions) |
 | Practical browser recovery | `b24f67c29` / `e564890e7` (5/5 checks) |
 | Bounded autonomy boundaries | `814962078` / `24b0633df` (185 backend + 6 frontend tests) |
 | Two-domain autonomous journey | `814962078` / `24b0633df` (5/5 browser checks) |
@@ -333,7 +333,11 @@ correctable card.
   Assignments panel exposes the evidence and all three verdicts.
 - **Assessment clarification** re-dispatches the original selection ask with
   the answers as clarification context, so an answer value cannot contaminate
-  selection; the route test pins a new execution and prior-approval
+  selection. Each obligation carries a stable `requirement_id`; a subject-only
+  answer is refused when the subject has multiple open requirements; changed
+  source/policy/manifest revisions preserve answers as history and require a
+  reassessment instead of transferring them; the resumed prompt names the
+  accepted revisions. The route test pins a new execution and prior-approval
   invalidation.
 - **UI**: the canvas panel labels an unapproved assessment as a draft, approves
   the exact execution, answers durable clarifications, and only exposes
