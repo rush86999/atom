@@ -280,13 +280,18 @@ and `docs/acceptance/readme_feature_readiness_2026-10-31/INTEGRATED_RERUN_2026-1
 
 ## Known limitations and failure records
 
-- **Canvas assessment quality is bounded by the serving model.** The pipeline
-  is verified end-to-end on `ollama`/`llama3.1:8b` with real provenance,
-  correction and post-restart stability, but that 8B CPU model approved one
-  boundary record (Amount 95) under the complex policy: 5/6, then 6/6 on the
-  simpler corrected policy. No reliable boundary-judgment claim is made for it.
+- **Canvas assessment requires human review for substantive recommendations.**
+  The pipeline is verified end-to-end on `ollama`/`llama3.1:8b` with real
+  provenance, correction and post-restart stability. Qualification on a frozen
+  24-record set scored **17/18 determinate (94.4%)** in every phase, with all
+  eight V1→V3 flips correct and 10/10 restart gates. But the error is stable
+  (`Q-021`, blank Region → REVIEW) and one untaught value was **approved**
+  (`Q-012`, Amount 0). Autonomous substantive decisions therefore stay outside
+  this configuration's supported scope; a human must review its
+  recommendations. A stronger model is a candidate remedy, not a proven one.
   Cloud providers remain unavailable (DeepSeek key empty, OpenRouter HTTP 402);
-  see `employee-execution-substantive-assessment/` and the historical
+  see `employee-execution-assessment-qualification/`,
+  `employee-execution-substantive-assessment/` and the historical
   `employee-execution-assessment-blocker/`.
 - **PPTX** is verified as an editable 4-slide artifact with grounded text; it
   is not a visual-design or chart-rendering claim.

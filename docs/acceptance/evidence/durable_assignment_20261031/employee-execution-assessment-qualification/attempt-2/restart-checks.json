@@ -1,0 +1,33 @@
+{
+  "schema": "atom-substantive-assessment-restart-checks-1",
+  "before": {
+    "pid": 1550,
+    "started_at": "2026-10-31T17:13:49.628402+00:00",
+    "source_id": "1852d37837f1",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/assessment_qualification_20261031/atom.db",
+    "port": 8072,
+    "status": "healthy"
+  },
+  "after": {
+    "pid": 5333,
+    "started_at": "2026-10-31T18:05:12.110055+00:00",
+    "source_id": "1852d37837f1",
+    "database": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/assessment_qualification_20261031/atom.db",
+    "port": 8072,
+    "status": "healthy"
+  },
+  "checks": {
+    "new_backend_process": true,
+    "backend_started_later": true,
+    "same_source_id": true,
+    "same_served_provider": true,
+    "same_served_model": true,
+    "same_policy_revision": true,
+    "same_source_revision": true,
+    "same_request_sha256": true,
+    "new_execution_id": true,
+    "same_decisions": true
+  },
+  "failed": [],
+  "ok": true
+}

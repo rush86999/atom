@@ -7,6 +7,13 @@ dispatched to an actual served model and records its provenance.
 This supersedes the earlier **blocked-external** status: the cloud keys are
 still absent, but a readable local model store was found and served.
 
+> **Judgment claims:** this run is the first pipeline demonstration on six
+> records. The configuration's decision reliability is qualified separately on a
+> frozen 24-record set in `../employee-execution-assessment-qualification/`:
+> 17/18 determinate in every phase, with a stable error and one invented
+> approval. Substantive recommendations from this configuration require human
+> review.
+
 ## Model and world
 
 | Item | Value |

@@ -1,0 +1,54 @@
+{
+  "schema": "atom-assessment-qualification-identity-1",
+  "dataset_id": "qualification-2026-10-31",
+  "dataset_sha256": "54a7037e8ab76e8f990bb5271136047b243167ba26d287857d41d3a1785b8235",
+  "world": "/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/assessment_qualification_20261031",
+  "source_id": "1852d37837f1",
+  "backend_ports": {
+    "backend": 8072,
+    "frontend": 3132
+  },
+  "review_configuration": {
+    "ATOM_REVIEW_MODEL": "llama3.1:8b",
+    "ATOM_REVIEW_PROVIDER": "ollama",
+    "OLLAMA_BASE_URL": "http://127.0.0.1:11435/v1",
+    "OLLAMA_REQUEST_TIMEOUT": "1800",
+    "OLLAMA_CONTEXT_LENGTH": "8192",
+    "ATOM_ASSESSMENT_HTTP_TIMEOUT": "2400",
+    "ATOM_LOCAL_ONLY": "true",
+    "ATOM_PRODUCT_PROFILE": "core"
+  },
+  "served_model_identity": {
+    "name": "llama3.1:8b",
+    "digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+    "quantization_level": "Q4_K_M",
+    "parameter_size": "8.0B",
+    "runtime": "ollama serve on 127.0.0.1:11435, OLLAMA_MODELS=~/.ollama/models-local, CPU inference"
+  },
+  "attempts": [
+    {
+      "id": "attempt-1",
+      "runtime": "default 600s Ollama client timeout, 4096 context",
+      "outcome": "incomplete_runtime_timeout",
+      "detail": "three provider calls each ended at exactly 10m0s (HTTP 500); no judgment observed"
+    },
+    {
+      "id": "attempt-2",
+      "runtime": "OLLAMA_REQUEST_TIMEOUT=1800, context 8192",
+      "outcome": "completed_with_findings",
+      "detail": "create 1685s, correct 1355s, after-restart 804s"
+    }
+  ],
+  "restart": {
+    "before_pid": 1550,
+    "after_pid": 5333,
+    "before_started_at": "2026-10-31T17:13:49.628402+00:00",
+    "after_started_at": "2026-10-31T18:05:12.110055+00:00",
+    "gates_passed": 10
+  },
+  "notes": [
+    "Attempt 1 is preserved, not retried to green: it produced no judgment because the runtime budget was too small.",
+    "Attempt 2 used the SAME frozen set; only the declared runtime budget changed.",
+    "No cloud provider, credential, real send or connected-system write was used."
+  ]
+}

@@ -240,5 +240,35 @@
     "finding": "A-204 (Amount 95) approved instead of REVIEW under policy v1; model reading error, not a rendering defect",
     "claim": "pipeline verified; reliable boundary judgment not claimed for the 8B local model",
     "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-substantive-assessment/"
+  },
+  "assessment_qualification": {
+    "status": "completed_with_findings",
+    "dataset_id": "qualification-2026-10-31",
+    "dataset_sha256": "54a7037e8ab76e8f990bb5271136047b243167ba26d287857d41d3a1785b8235",
+    "records": 24,
+    "determinate_cases": 18,
+    "gap_cases": 6,
+    "attempts": [
+      {
+        "id": "attempt-1",
+        "runtime": "default 600s budget, 4096 context",
+        "outcome": "incomplete_runtime_timeout"
+      },
+      {
+        "id": "attempt-2",
+        "runtime": "OLLAMA_REQUEST_TIMEOUT=1800, 8192 context",
+        "outcome": "completed_with_findings"
+      }
+    ],
+    "judgment": {
+      "create_v1": 0.9444,
+      "correct_v3": 0.9444,
+      "after_restart_v3": 0.9444
+    },
+    "restart_gates": "10/10",
+    "stable_error": "Q-021 (blank Region) returns REVIEW instead of APPROVE",
+    "dangerous_gap": "Q-012 (Amount 0) approved although the policy gives no rule below 50",
+    "requirement": "human review for substantive recommendations; autonomous decisions outside supported scope",
+    "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-qualification/"
   }
 }

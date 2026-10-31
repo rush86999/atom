@@ -84,6 +84,29 @@ Evidence:
 Historical failed-closed attempts remain in
 `employee-execution-assessment-blocker/`.
 
+### Qualification on a fixed unseen set
+
+The intended local launch configuration was then qualified against a frozen
+24-record set (`sha256 54a7037e…`, committed before the run) covering exact
+thresholds, decimals, exceptions, missing values, conflicting context and a
+correction with a real restart:
+
+- **Attempt 1** (default 600 s provider budget, 4096 context): **incomplete** —
+  three calls ended at exactly 10m0s; no judgment observed. Preserved.
+- **Attempt 2** (same set; `OLLAMA_REQUEST_TIMEOUT=1800`, context 8192):
+  completed. `create` **17/18 (94.4%)**, `correct` **17/18**, `after-restart`
+  **17/18**; all **8** V1→V3 flips correct, including the three non-North
+  `Risk High` records that isolate the two rule changes; 10/10 restart gates.
+- Stable error: `Q-021` (Region blank, otherwise approvable) returns REVIEW.
+- Serious gap behaviour: `Q-012` (**Amount 0**) is APPROVE in every phase,
+  although the policy gives no rule below 50. That is an invented approval.
+
+**Verdict:** pipeline verified, configuration **not** reliable enough for
+autonomous substantive recommendations. Substantive recommendations from this
+configuration require **human review**; autonomous decisions stay outside its
+supported scope. Evidence:
+`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-qualification/`.
+
 ## README marketed-surface coverage
 
 The frozen README claim inventory (123 eligible functional claims) was
