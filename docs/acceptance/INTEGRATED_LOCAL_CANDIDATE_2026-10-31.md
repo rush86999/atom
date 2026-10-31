@@ -350,7 +350,14 @@ and `docs/acceptance/readme_feature_readiness_2026-10-31/INTEGRATED_RERUN_2026-1
   owner's `canvas_assessment` autonomy policy, and both are re-evaluated at
   consumption: withdrawing the owner gate blocks the decision immediately.
   Qualification is scoped to contract version, serving configuration, policy
-  text, decision vocabulary and subject field. A stronger model is a candidate remedy, not a proven one.
+  text, decision vocabulary and subject field. The exact-content boundary is
+  also exercised through the public routes: an unreviewed assessment is
+  refused, approval of the exact execution authorizes it, and changing one
+  reviewed decision while leaving the stored hash untouched makes authorization,
+  decisions and re-approval refuse (`content_drift`). 104 focused
+  assessment/canvas tests pass; evidence:
+  `docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-approval/`.
+  A stronger model is a candidate remedy, not a proven one.
   Cloud providers remain unavailable (DeepSeek key empty, OpenRouter HTTP 402);
   see `employee-execution-assessment-qualification/`,
   `employee-execution-substantive-assessment/` and the historical

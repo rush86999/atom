@@ -313,7 +313,7 @@ async def capability_authorization(
         return {
             "success": True,
             "canvas_id": canvas.id,
-            "authorization": assessment_authorization(canvas),
+            "authorization": assessment_authorization(canvas, db=db),
         }
     except CapabilityError as exc:
         return _error(exc)
