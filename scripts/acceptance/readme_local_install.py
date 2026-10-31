@@ -25,8 +25,12 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 BACKEND = REPO / "backend"
-PYTHON = Path("/Users/rushiparikh/projects/atom-phase-d/backend/venv/bin/python")
-OVERLAY = "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-pyoverlay"
+PYTHON = Path(os.getenv(
+    "ATOM_ACCEPTANCE_PYTHON",
+    "/Users/rushiparikh/projects/atom-phase-d/backend/venv/bin/python"))
+OVERLAY = os.getenv(
+    "ATOM_ACCEPTANCE_OVERLAY",
+    "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom-pyoverlay")
 ADMIN_PASSWORD = "ReadmeInstall!2026"
 
 
