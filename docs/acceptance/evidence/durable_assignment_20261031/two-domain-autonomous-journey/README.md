@@ -13,7 +13,7 @@ per-send approval.
 ## What the run proves
 
 - both jobs entered `waiting` and survived a real backend restart
-  (`pid 35742 → 35805` in the recorded run);
+  (the PIDs are recorded in `two-domain.json`);
 - each send was covered by its own 1-use grant and recorded a
   `standing_authority_receipt`;
 - both grants are `used_effects=1`, `max_effects=1`, `status=exhausted`;
@@ -23,7 +23,8 @@ per-send approval.
 - the page never showed an approval prompt for either send.
 
 `two-domain.json` records the objectives, run ids, step statuses, outbox rows,
-PID identities, screenshot paths and source hashes. Screenshots are in
+PID identities, screenshot paths and source hashes. The recorded run is source
+`b7ee7ee22` after the post-effect classification and hard-cost fixes. Screenshots are in
 `screenshots/`.
 
 ## Reproduce

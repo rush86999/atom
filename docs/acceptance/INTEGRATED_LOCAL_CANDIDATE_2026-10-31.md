@@ -325,8 +325,18 @@ correctable card.
   fall back to ordinary approval. Only the acceptance-controlled outbox opts
   in; live email send stays approval-required.
 - **Budgets** enforce `max_steps`, `max_attempts_per_step`,
-  `max_wall_seconds` and now `max_cost_usd`, with step cost accumulated on the
-  assignment.
+  `max_wall_seconds` and `max_cost_usd`. Cost is a conservative reservation
+  made under the assignment CAS **before dispatch**: a hard limit refuses the
+  operation when committed + reserved + bound would exceed it (and refuses a
+  cost-bearing adapter with no declared bound); concurrent reservations and
+  retries share the same bound; uncertainty charges the bound and a proven
+  no-effect failure releases it. A soft limit requires an explicit authorizer
+  and exposes the overrun. Wall time is enforced during the operation.
+- **Post-effect errors** are `uncertain`, never `failed_before_effect`: an
+  ordinary runtime error, parse error, timeout or cancellation after an
+  external adapter was invoked preserves uncertainty and never resends.
+  Retryable `failed_before_effect` requires a trusted
+  `ExternalOutcomeNotApplied` / `effect_possible=False`.
 - **Uncertain effects** reconcile through a TEAM_LEAD route with mandatory
   evidence: `applied` never resends, `not_applied` creates a new operation for
   the next approval/resume, `insufficient` preserves the uncertain state. The
@@ -344,7 +354,9 @@ correctable card.
   decisions once authorized.
 
 Evidence: `employee-execution-autonomy-boundaries/` (185 backend + 6 frontend
-tests) and `two-domain-autonomous-journey/` — sales **85** and grants **4250**
+tests at the autonomy source), `employee-execution-execution-boundaries/`
+(81 assignment executor/route controls for the post-effect and cost fixes),
+and `two-domain-autonomous-journey/` — sales **85** and grants **4250**
 from unfamiliar datasets, one bounded grant per send, backend restart while
 both wait, both complete on return with **2 effects / 0 assignment approvals**,
 **5/5** browser checks.

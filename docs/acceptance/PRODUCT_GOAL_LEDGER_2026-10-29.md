@@ -188,8 +188,12 @@ Closed after the verifier handoff:
   the assignment CAS before dispatch; exhausted/out-of-scope steps fall back to
   approval. Only the controlled outbox opts in; live send stays
   approval-required (`employee-execution-autonomy-boundaries/`);
-- **budgets and uncertain-effect reconciliation**: `max_cost_usd` is enforced
-  and step cost accumulated; a TEAM_LEAD reconcile route settles
+- **execution boundaries**: post-effect runtime errors, parse errors, timeouts
+  and cancellations are `uncertain` (never `failed_before_effect`) and never
+  resend; `max_cost_usd` is a conservative pre-dispatch reservation with
+  concurrent/retry accounting, hard refusal before overspend, an explicit
+  soft-limit path, and wall-time enforcement during the operation
+  (`employee-execution-execution-boundaries/`). A TEAM_LEAD reconcile route settles
   applied/not_applied/insufficient with mandatory evidence, never resending an
   applied effect (`employee-execution-autonomy-boundaries/`);
 - **draft vs authorized assessment UI**: the canvas panel labels unapproved
