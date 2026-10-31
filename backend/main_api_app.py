@@ -4629,12 +4629,30 @@ except Exception as e:
 
 @app.get("/api/integrations")
 async def list_integrations(current_user: User = Depends(get_current_user)):
-    """List all available integrations and their status"""
+    """List available integrations and their status.
+
+    ``integrations`` remains the lazy-loaded router-module inventory for
+    backward compatibility. ``business_catalog`` is the truthful, user-facing
+    provider catalog (each entry records the evidence that it ships); the
+    README's "46+ business integrations" claim is measured against that block,
+    never against the internal module list.
+    """
+    from core.integration_business_catalog import build_business_catalog
+
     return {
         "total": len(get_integration_list()),
         "integrations": list(get_integration_list().keys()),
         "loaded": get_loaded_integrations(),
+        "business_catalog": build_business_catalog(),
     }
+
+
+@app.get("/api/integrations/business-catalog")
+async def list_business_integrations(current_user: User = Depends(get_current_user)):
+    """The canonical business-provider catalog (provider count + evidence)."""
+    from core.integration_business_catalog import build_business_catalog
+
+    return build_business_catalog()
 
 
 @app.post("/api/integrations/{integration_name}/load")
