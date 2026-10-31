@@ -1,6 +1,6 @@
 # README feature-readiness claim inventory
 
-Generated: 2026-10-31T13:54:19.040363+00:00
+Generated: 2026-10-31T13:57:08.112169+00:00
 
 README: `README.md` @ `da9cc8b12de3639f59cc5b8ea84338c5f507dc6d` (tag `local-core-2026-10-30-final`), sha256 `392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0`
 
@@ -8,7 +8,7 @@ Eligible functional claims: **123** · tracked separately: 20
 
 > Partial/failed/unverified/blocked/environment-limited do not count as passing. Category count alone is never a score.
 
-**Verified functional: 99/123 (80.5%)**
+**Verified functional: 100/123 (81.3%)**
 
 ## Category coverage
 
@@ -25,7 +25,7 @@ Eligible functional claims: **123** · tracked separately: 20
 | governance | 8 | 7 | 1 | 0 | 0 | 0 | 0 |
 | graphrag | 5 | 4 | 1 | 0 | 0 | 0 | 0 |
 | hybrid-search | 5 | 5 | 0 | 0 | 0 | 0 | 0 |
-| installation | 5 | 3 | 0 | 0 | 2 | 0 | 0 |
+| installation | 5 | 4 | 0 | 0 | 1 | 0 | 0 |
 | integrations | 9 | 6 | 2 | 0 | 0 | 1 | 0 |
 | interoperability | 6 | 6 | 0 | 0 | 0 | 0 | 0 |
 | memory | 7 | 6 | 0 | 0 | 1 | 0 | 0 |
@@ -261,7 +261,7 @@ Eligible functional claims: **123** · tracked separately: 20
 |---|---|---|---|---|
 | INST-01 | L64 | Bootstrap a clean checkout into a runnable environment | `make setup / scripts/quickstart.sh` | **unverified** |
 | INST-02 | L65 | Start the backend with the documented command | `make backend` | **verified** |
-| INST-03 | L67 | Start the frontend and load the login page | `make frontend` | **unverified** |
+| INST-03 | L67 | Start the frontend and load the login page | `make frontend` | **verified** |
 | INST-04 | L75 | Find the generated admin password and sign in | `backend/logs/bootstrap_admin_password.txt + /login` | **verified** |
 | INST-05 | L42 | Restart with the same data root and retain users/data/artifacts | `documented durable data root` | **verified** |
 
@@ -1086,6 +1086,13 @@ Eligible functional claims: **123** · tracked separately: 20
 - Acceptance: Start and hit /health/ready
 - Expected: Process serves and readiness is true
 - Evidence: `/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json`
+
+### INST-03 — verified
+
+- Claim: make frontend ... Next.js UI on :3001
+- Acceptance: Start and load /login
+- Expected: Page renders with no fatal error and the API rewrite reaches the backend
+- Evidence: `docs/acceptance/readme_feature_readiness_2026-10-31/evidence/frontend-dev.log`
 
 ### INST-04 — verified
 

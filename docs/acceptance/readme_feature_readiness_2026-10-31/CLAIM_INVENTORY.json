@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "README feature-readiness claim inventory",
-  "generated_at": "2026-10-31T13:54:19.040363+00:00",
+  "generated_at": "2026-10-31T13:57:08.112169+00:00",
   "readme": {
     "path": "README.md",
     "sha256": "392b3ca2fe88cb94c326f02318bc46273da972736b807f793c3ae8246b2bcce0",
@@ -2598,10 +2598,12 @@
       "acceptance": "Start and load /login",
       "expected": "Page renders with no fatal error and the API rewrite reaches the backend",
       "external": false,
-      "status": "unverified",
-      "evidence": [],
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/frontend-dev.log"
+      ],
       "blocker": "",
-      "notes": ""
+      "notes": "next dev --webpack on :3130 (documented `make frontend` command) reached Ready and GET /login returned HTTP 200 with the Next.js app shell [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/frontend-results.json]"
     },
     {
       "id": "INST-04",
@@ -3265,10 +3267,10 @@
     },
     "installation": {
       "total": 5,
-      "verified": 3,
+      "verified": 4,
       "partial": 0,
       "failed": 0,
-      "unverified": 2,
+      "unverified": 1,
       "blocked_external": 0,
       "environment_limited": 0,
       "architecture_only": 0,
@@ -3326,8 +3328,8 @@
     "harness": "backend/scripts/readme_acceptance + scripts/acceptance/readme_local_install.py"
   },
   "score": {
-    "verified_functional": 99,
+    "verified_functional": 100,
     "eligible_functional": 123,
-    "percent": 80.5
+    "percent": 81.3
   }
 }

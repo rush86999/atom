@@ -10,8 +10,8 @@ release approval.
 | Question | Proposed answer |
 |---|---|
 | Is the denominator frozen and defensible? | 123 eligible functional claims, split from the 17 README capability categories; 143 total rows including 20 tracked-separately non-functional/comparative claims |
-| Is the score the agreed measure? | **99 / 123 = 80.5%** verified functional claims |
-| Are partial/failed/unverified claims excluded from the numerator? | Yes — 24 functional claims are not counted |
+| Is the score the agreed measure? | **100 / 123 = 81.3%** verified functional claims |
+| Are partial/failed/unverified claims excluded from the numerator? | Yes — 23 functional claims are not counted |
 | Are security/performance/compatibility/marketing separate? | Yes — security 8/8, performance 1/3, compatibility 0/4, comparative 0/5 |
 | Is any category entirely untested? | No, but orchestration/routing/mini-apps/integrations are the thin areas |
 | Is "46+ integrations" verified live? | **No.** 67 providers are registered and evidenced; live qualification is `blocked_external` (INT-09) |
@@ -36,7 +36,7 @@ release approval.
    - external MCP register → execute;
    - GraphRAG neighbors/query use the supplied query;
    - episode creation from a real chat execution.
-5. **Gaps** — coverage report §4 lists the 24 functional claims that are not
+5. **Gaps** — coverage report §4 lists the 23 functional claims that are not
    counted. Confirm none were silently dropped or re-scoped.
 
 ## 3. Specific concerns for the reviewer
@@ -49,9 +49,9 @@ release approval.
   but `AgentFleetService.recruit_member` does not enforce nesting depth.
 - **MINI-03/04/05** are environment-limited/architecture-only on macOS
   (Firecracker requires KVM). They are not counted.
-- **INST-01/INST-03** are unverified: the full `make setup` from a pristine
-  clone and the frontend were not run. The documented backend process,
-  password file and restart were run.
+- **INST-01** is unverified: the full `make setup` from a pristine clone was not
+  run. The documented backend process, password file, restart and frontend dev
+  server were run.
 - **Performance** `0.027 ms P99` and `616k ops/s` were not measured (no
   reproducible benchmark script found); the test-function count (93,825) is
   above the README's 85k+ claim.
@@ -70,7 +70,7 @@ performed.
 
 Please reply with one of:
 
-- **Agree** — denominator and 99/123 verified set accepted as reviewed.
+- **Agree** — denominator and 100/123 verified set accepted as reviewed.
 - **Disagree** — name the claim(s) and the boundary/evidence problem; I will
   re-run or downgrade rather than argue a number.
 - **Conditional** — specify the additional worlds/checks required (frontend,

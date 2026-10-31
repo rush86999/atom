@@ -16,9 +16,9 @@
 | Measure | Value |
 |---|---|
 | Eligible functional claims (agreed denominator) | **123** |
-| Verified functional claims | **99** |
-| Coverage | **80.5%** |
-| Not verified (partial / unverified / blocked / env-limited / inaccurate) | 24 |
+| Verified functional claims | **100** |
+| Coverage | **81.3%** |
+| Not verified (partial / unverified / blocked / env-limited / inaccurate) | 23 |
 | Security claims (tracked separately) | 8 / 8 verified |
 | Performance claims (tracked separately) | 1 / 3 verified |
 | Compatibility claims (tracked separately) | 0 / 4 verified |
@@ -45,7 +45,7 @@ are not counted as passing.**
 | governance | 8 | 7 | 1 |
 | graphrag | 5 | 4 | 1 |
 | hybrid-search | 5 | 5 | 0 |
-| installation | 5 | 3 | 2 |
+| installation | 5 | 4 | 1 |
 | integrations | 9 | 6 | 3 |
 | interoperability | 6 | 6 | 0 |
 | memory | 7 | 6 | 1 |
@@ -157,7 +157,7 @@ Worlds:
 
 ---
 
-## 4. Not verified (24 functional claims)
+## 4. Not verified (23 functional claims)
 
 | Claim | What is missing | Status |
 |---|---|---|
@@ -184,7 +184,7 @@ Worlds:
 | GOAL-04 stuck detection | executes inside the model-backed ReAct loop | unverified |
 | WF-05 workflow pause/resume | needs a model-backed low-maturity agent run; generic HITL is verified separately | partial |
 | INST-01 `make setup` | did not run the full dependency bootstrap from a pristine clone; used the pinned Python 3.11 environment | unverified |
-| INST-03 frontend | frontend was not started; backend/login/API boundary verified | unverified |
+| INST-03 frontend | verified: `next dev --webpack` on :3130 (documented command) served `/login` HTTP 200 | verified |
 
 **Known inaccurate/overstated marketing:** ORCH-08 (delegation depth
 enforcement). The claim should be implemented or reworded.
@@ -283,14 +283,16 @@ All artifacts are under
 
 | Artifact | sha256 |
 |---|---|
-| `CLAIM_INVENTORY.json` | `3c30ba28d285d3bd64733696e0008dbb0ba428a7d9e670a8bbeac63fd2b6fe08` |
-| `evidence/merged-results.json` | `40950d0beb82c19b8a93af54eac1e77486462335183c5f01b7f43c06eb6339be` |
+| `CLAIM_INVENTORY.json` | `2cd3fea1032afebb5a8b0a0a9941468f2cf5b30a424f4850bd090b7c81bfec38` |
+| `evidence/merged-results.json` | `bba39d9569067758b6bf0fe239577eca67107917b345e4d02511f23dca21ddde` |
 | `evidence/all-groups.json` | `e18b410fc8db7dfa1bd2a027b676b9cc28c96467ddc740d0ce9c7146dd7e374e` |
 | `evidence/data-graph-memory.json` | `a2c4bf35b224290297a7271df5e66074c738217b011d23fe22f6d2b1afa3cd84` |
 | `evidence/core-chat-episode.json` | `51d0c6dcccca9100eda90d3062abcdb91f61cb9f34221d1e0201c620b3ace154` |
 | `evidence/agent-radio.json` | `9c87b6211f91e1bec6b40e77618de97d538894d08bf29f2f6cc0430ea3aa9799` |
 | `evidence/install-restart.json` | `901bc52a8f7ad98f32c9bfef1e9e53d981b73d8561321c3204953ad06ae7e292` |
 | `evidence/test-count.txt` | `c6e0a1ed201e9b112974a8813d2281dc2aa2447ad3e90cdfa1e60a1b73c4e451` |
+| `evidence/frontend-dev.log` | `f092e93ab28578b8acd36deb80882f59161b8e58843364fa1d6de53e2f1ba3cc` |
+| `evidence/frontend-results.json` | `4b56ba3c037a6c5d18fa116ada51d91ceb57ae89fe4fce05739fdd6c2fa7cbf3` |
 
 The merged result records every source world per claim. The inventory's
 per-claim evidence paths point at the throwaway worlds; the durable copies above

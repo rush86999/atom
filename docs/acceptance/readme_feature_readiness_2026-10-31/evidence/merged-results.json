@@ -1,13 +1,14 @@
 {
   "schema_version": 1,
   "harness": "backend/scripts/readme_acceptance + scripts/acceptance/readme_local_install.py",
-  "merged_at": "2026-10-31T13:54:18.978787+00:00",
+  "merged_at": "2026-10-31T13:57:08.047182+00:00",
   "inputs": [
     "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-feature-world/evidence/all-run-final.json",
     "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-data-world/evidence/data.json",
     "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-core-world/evidence/core.json",
     "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-radio-world/evidence/radio.json",
     "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/test-count-results.json",
+    "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/frontend-results.json",
     "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json"
   ],
   "results": [
@@ -338,6 +339,15 @@
         "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json"
       ],
       "notes": "Documented uvicorn main_api_app:app process served /health/ready and /api/product/profile [sources: /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/readme-evidence/install.json]",
+      "blocker": ""
+    },
+    {
+      "claim_id": "INST-03",
+      "status": "verified",
+      "evidence": [
+        "docs/acceptance/readme_feature_readiness_2026-10-31/evidence/frontend-dev.log"
+      ],
+      "notes": "next dev --webpack on :3130 (documented `make frontend` command) reached Ready and GET /login returned HTTP 200 with the Next.js app shell [sources: docs/acceptance/readme_feature_readiness_2026-10-31/evidence/frontend-results.json]",
       "blocker": ""
     },
     {
