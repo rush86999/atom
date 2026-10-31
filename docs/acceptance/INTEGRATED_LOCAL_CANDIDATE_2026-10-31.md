@@ -10,10 +10,10 @@ publication remain deferred by the owner.
 | Item | Value |
 |---|---|
 | Branch | `codex/employee-execution-readiness` |
-| Final code/evidence | `df3a0197c` |
+| Final code/evidence | `ecf5088eb` |
 | Evidence source | `06d80f834` (product teaching `3e344f5b1`) |
 | Agent 2 merge | `931892be0` |
-| Integrated README rerun | `df3a0197c` |
+| Integrated README rerun | `ecf5088eb` |
 | Preserved core | `local-core-2026-10-30-final` → `da9cc8b12` |
 | Preserved reviewed successor | `conversation-learning-2026-10-30` → `d2b297deb` |
 | Python | 3.11.16 |

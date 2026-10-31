@@ -1,7 +1,7 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-integrated-readme",
-  "source_checkpoint": "8d75173d2",
+  "source_checkpoint": "ecf5088eb",
   "files": {
     "README.md": {
       "sha256": "414d15153ea5e8dac88b6c6992dc04e38598ad2d7a8038d795ba414a433e49b6",
@@ -16,5 +16,5 @@
       "bytes": 1505131
     }
   },
-  "final_candidate": "8d75173d2"
+  "final_candidate": "ecf5088eb"
 }
