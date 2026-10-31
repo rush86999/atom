@@ -217,9 +217,11 @@ def main() -> int:
         page.screenshot(path=str(out / "active-completed.png"), full_page=True)
 
         page.reload(wait_until="domcontentloaded")
-        page.get_by_test_id("assignment-detail").wait_for(timeout=30000)
+        reloaded_detail = page.get_by_test_id("assignment-detail")
+        reloaded_detail.wait_for(timeout=30000)
         reloaded = api(page, f"/api/assignments/{run_id}")
-        page.get_by_text("completed", exact=True).wait_for(timeout=30000)
+        reloaded_detail.get_by_text(
+            "completed", exact=True).wait_for(timeout=30000)
 
         # New work at revised scope uses the new lesson; the active run did not.
         start_and_resolve(
