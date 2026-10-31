@@ -1668,6 +1668,53 @@ class TestVersioningBasics:
         deps_changed = {**base, "dependencies": ["d2"]}
         assert versioner._determine_change_type(base, deps_changed) == ChangeType.DEPENDENCY
 
+    def test_node_based_workflow_with_null_steps(self, versioner):
+        """Editor workflows serialize ``steps: null`` and carry ``nodes``.
+
+        Regression: the second version of every node-based workflow raised
+        "'NoneType' object is not iterable", so version comparison and rollback
+        returned 500 from the public API.
+        """
+        base = {
+            "id": "wf-1",
+            "name": "node workflow",
+            "steps": None,
+            "nodes": [
+                {"id": "n1", "type": "trigger",
+                 "config": {"service": "database", "action": "query",
+                            "parameters": {"q": "a"}}},
+                {"id": "n2", "type": "action",
+                 "config": {"service": "webhook", "action": "post",
+                            "parameters": {}}},
+            ],
+            "connections": [
+                {"id": "c1", "source": "n1", "target": "n2"},
+            ],
+        }
+        # Identical definition is a no-op change, not a crash.
+        assert versioner._determine_change_type(base, base) == ChangeType.METADATA
+        # Parameter edit on a node is parametric.
+        changed_params = {
+            **base,
+            "nodes": [
+                {**base["nodes"][0],
+                 "config": {**base["nodes"][0]["config"],
+                            "parameters": {"q": "b"}}},
+                base["nodes"][1],
+            ],
+        }
+        assert versioner._determine_change_type(base, changed_params) == ChangeType.PARAMETRIC
+        # Adding a node is structural.
+        added = {
+            **base,
+            "nodes": base["nodes"] + [
+                {"id": "n3", "type": "action",
+                 "config": {"service": "ai", "action": "generate",
+                            "parameters": {}}},
+            ],
+        }
+        assert versioner._determine_change_type(base, added) == ChangeType.STRUCTURAL
+
     def test_bump_version(self, versioner):
         assert versioner._bump_version("1.0.0", VersionType.MAJOR) == "2.0.0"
         assert versioner._bump_version("1.0.0", VersionType.MINOR) == "1.1.0"
