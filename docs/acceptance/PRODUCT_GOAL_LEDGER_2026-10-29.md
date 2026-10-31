@@ -5,7 +5,7 @@ contract. The prior ledger and its appended history are preserved separately
 at `docs/acceptance/PRODUCT_GOAL_LEDGER_HISTORY_2026-10-29.md`; historical
 statuses there do not override this table.
 
-**Candidate source:** `c8203613e` on branch `codex/employee-execution-readiness`
+**Candidate source:** `18a3b3b94` on branch `codex/employee-execution-readiness`
 (evidence source `06d80f834`; product teaching `3e344f5b1`; Agent 2
 README-readiness merge `931892be0`). **Configuration:** isolated local world, `ATOM_PRODUCT_PROFILE=core`,
 `ATOM_LOCAL_ONLY=true`, `ATOM_TURN_DECISION_ROUTING=0`,
