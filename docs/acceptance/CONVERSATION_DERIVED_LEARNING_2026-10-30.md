@@ -1,17 +1,21 @@
 # Conversation-derived, reference-bound learning
 
 Status: **bounded successor implementation complete; independent verifier
-review pending.** Consumer source `a888f5d6c` (tree `31b2d33`), building on
-the applicability source `50b53bef6` (tree `cf7d8d3`). This is deliberately
-separate from the accepted local-core closure at `da9cc8b12` / tag
-`local-core-2026-10-30-final`. It does not relabel historical browser/live
-evidence or claim a full application journey on this source.
+review pending.** Closure source `54543b493` (tree `395c16f3`), building on
+consumer source `37904dcd0` / `a888f5d6c` and applicability source
+`50b53bef6` (tree `cf7d8d3`). This is deliberately separate from the accepted
+local-core closure at `da9cc8b12` / tag `local-core-2026-10-30-final`. It does
+not relabel historical browser/live evidence or claim a full application
+journey on this source.
 
 Applicability evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-50b53be/`.
 
-Ordinary-consumer evidence:
+Earlier consumer wiring:
 `docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-a888f5d6c/`.
+
+Closure evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-54543b493/`.
 
 ## 1. Why this phase exists
 
@@ -129,18 +133,39 @@ cannot write a lesson directly.
   navigation. The page uses an authorized employee selector and exposes an
   apply-to-unfamiliar-work action after promotion.
 
-### 3.8 Ordinary consumer wiring
+### 3.8 Ordinary consumer closure
 
-- Chat extracts the turn's `task_context` (plus top-level `customer`,
-  `qualification`, `task_scope`, `recipient`) and passes it through
-  `assemble_memory_context` to the same `get_agent_lessons(...,
-  task_context=..., workspace_id=...)` retrieval used by work-time memory.
-  `include_context_bound=True` is never used for prompt injection.
-- A matching context renders the lesson block with its journal id, revision
-  and method. A wrong context excludes the lesson. A missing required key
-  renders a `TEACHING CONTEXT REQUIRED` clarification, and a successful reply
-  that ignores it is replaced with the deterministic ask (observed live: the
-  model invented a substitute rate).
+- `resolve_teaching_contract` returns a typed decision independent of prompt
+  rendering: `applicable_lessons`, `required_context`, `conflicts`,
+  `excluded_lessons`, `consumed_lesson_refs`, `source_bindings`,
+  `method_status`, `method_lessons`, `all_context_values`.
+- Applicable guidance and unresolved requirements are resolved
+  independently. A general lesson cannot hide a relevant scoped requirement;
+  an unrelated scoped lesson is excluded by the bounded relevance vocabulary
+  and does not block the task. Matching one instruction never asserts that
+  all required teaching dependencies are satisfied.
+- Chat resolves teaching BEFORE intent analysis / reply generation. Missing
+  context is a typed clarification created before the reply budget is spent;
+  the model cannot generate a speculative answer that is later replaced.
+- The pending clarification is durable in session metadata (and in the
+  existing task ledger when the conversation already has an active task). It
+  stores the original objective, session/user/employee/workspace, lesson
+  IDs/revisions, requested fields, allowed values, source bindings, request
+  identity and state. No second task engine or new GoalRun is created.
+- The original request establishes only unambiguous allowed context (e.g.
+  “Customer-A” → `customer`). The answer turn binds to the pending request;
+  “Probably licensed” preserves uncertainty, multiple values are ambiguous,
+  and an explicit value for an established key is a scope update. A
+  self-reported qualification is `user_confirmation`, never independently
+  verified certification.
+- Approved methods run through `conversation_learning.apply_lesson_method`.
+  The reply is rendered from the typed result; the model does not redo the
+  arithmetic. Wrong context is an explicit exclusion (no calculation),
+  missing context is a clarification, and competing equally specific methods
+  are a conflict (no calculation).
+- Duplicate confirmation replays the stored result idempotently. A
+  clarification from a foreign session/user/workspace/employee cannot mutate
+  the obligation.
 - Assignment start resolves applicable conversation methods and compiles the
   promoted method into the existing `formula.calculate` step. Wrong context
   returns HTTP 409 `teaching_context_mismatch`; missing context returns HTTP
@@ -194,12 +219,15 @@ frontend targeted **35 passed**; TypeScript clean. The production frontend
 build succeeded. Those numbers remain in the `conversation-learning-50b53be`
 evidence.
 
-The ordinary-consumer source adds the chat/assignment wiring. Its targeted
-backend set is **303 passed** and its frontend learning suites are **4
-passed**. Fourteen `test_chat_canvas_editor.py` tests fail in a wider run; the same
-failure mode is present at the parent commit `55dddd6d4` with `lane refused pre-planning: the turn's own
-words do not authorize a canvas mutation`; they are pre-existing and
-unrelated, and are not counted in the 303-pass set.
+The earlier consumer source added the chat/assignment wiring and recorded
+**303 passed**. The closure source adds the typed resolver, durable
+clarification, deterministic chat execution, wrong/conflict outcomes and the
+browser/restart journeys. Its targeted backend set is **413 passed**; its
+frontend learning suites are **4 passed**; TypeScript `--noEmit` is clean.
+Fourteen `test_chat_canvas_editor.py` tests fail in a wider run; the same
+failure mode is present at the parent commit `55dddd6d4` with `lane refused
+pre-planning: the turn's own words do not authorize a canvas mutation`; they
+are pre-existing and unrelated, and are not counted in the 413-pass set.
 
 Two domains are exercised by the method-transfer case: sales pricing
 (`quantity × unit price`) and payroll-style units/rates, with independently
@@ -255,29 +283,52 @@ The production frontend build and full app were exercised on
     lesson `stale`, apply HTTP 409;
 11. no page errors.
 
-## 6.2 Ordinary Chat / Assignments live evidence
+## 6.2 Ordinary Chat closure live evidence
 
 Isolated world `/Users/rushiparikh/projects/atom-conversation-context-world`,
-lesson `97543615ea294d769807c0d0165eb65c` rev `1` scoped to
-`customer=Customer-A, qualification=licensed`, dataset `rates` (`Qty`,
-`Price`). The local turn-decision interpretation was disabled for the run so
-the slow local model would not consume the reply budget; the ordinary Chat
-route, memory assembler, lesson retrieval and response composition are
-unchanged.
+backend `127.0.0.1:8071`, frontend `127.0.0.1:3130`. The browser journey
+promoted a fresh scoped method through `/learning`:
+lesson `77fcb41c777f45b1bf50e4a6f5644267` rev `1`, context
+`customer=Customer-A, qualification=licensed`, method `multiply_sum` over
+`Qty`/`Price`. A general lesson was added through normal `/teach`.
 
 | Case | Result |
 |---|---|
-| Chat matching | `memory_context` carries `TRAINING LESSONS`, lesson id, `rev 1`, `multiply_sum`; reply applies `2 × 7.50 = 15` |
-| Chat wrong | no training lesson, no lesson id, no clarification |
-| Chat missing qualification | clarification in `memory_context`; reply is the deterministic ask |
-| Assignment matching | `completed`, formula `20.00`, `effective_lesson_ids` with id/revision |
-| Assignment wrong | HTTP 409 `teaching_context_mismatch` |
-| Assignment missing | HTTP 409 `teaching_context_unresolved`, `missing=["qualification"]` |
-| Assignment restart | `GET` still `completed`, same lesson id/revision, formula `20.00` |
+| Ask without qualification | visible ask for `qualification (one of: licensed)`; general lesson retained in `memory_context`; both lesson refs named |
+| Answer “licensed” | original objective resumed; deterministic `multiply_sum(quantity=2 units, unit_price=7.50 USD) = 15 USD`; lesson id/rev exact; outcome `completed`; no “1.75”, no extra confirmation |
+| Refresh | result visible; history last assistant outcome `completed` with the same lesson revision |
+| Restart while waiting | pending clarification survived a backend restart; same session answered “licensed”; same exact result and lesson revision |
+| Wrong context | outcome `partial`, `teaching_exclusion` (`teaching_context_mismatch`), no `teaching_execution` |
+| Duplicate “licensed” | replayed the stored `completed` result idempotently |
+| “Probably licensed” | did not confirm; asked for a plain value; a later “licensed” completed |
 
-Artifacts and hashes are in the ordinary-consumer evidence directory.
+Configuration: `ATOM_TURN_DECISION_ROUTING=0`, local Ollama,
+`ATOM_TASK_LIFECYCLE_ENABLED=1`, `ATOM_LOCAL_ONLY=true`. The task ledger is
+used only when the conversation already has an active task; otherwise the
+existing session/assistant-metadata carrier is the durable obligation. The
+isolated world used `agent-browser-final` (workspace `default`) and moved
+`agent-learn` to `agent-learn-ws` so its older scoped lesson would not appear
+as a sibling method. This is world isolation, not a product change.
 
-## 7. Bounds and deferred work
+Artifacts and hashes are in the closure evidence directory. Assignment
+evidence from the earlier applicability phase remains separately valid.
+
+## 7. Consumer audit
+
+| Surface | Established task context | Required-context clarification | Scoped conversation methods | Consumed revision record |
+|---|---|---|---|---|
+| Chat (`process_chat_message` / `_get_qwen_response`) | Request `task_context`/top-level keys, plus unambiguous allowed values inferred from the original message; answer turn merges only confirmed fields | Yes — typed pending clarification before intent analysis; durable in session metadata and active task ledger | Yes — uniquely applicable executable method runs through `apply_lesson_method` | `teaching_execution.lesson_id`/`lesson_revision`, `teaching_clarification.lesson_refs`, history metadata |
+| Memory assembly (`assemble_memory_context` / `_lessons_leg`) | Caller-supplied `task_context`; resolver returns typed `required_context`/`conflicts` separately from rendered prompt | Renders the question; does not decide it | Applies matching lessons to the prompt; never injects missing-context lessons | `consumed_lesson_refs`, `required_context.lesson_ids`, `source_bindings` |
+| Canvas co-editor / canvas training | Canvas turn context; `get_agent_lessons` calls without `task_context` exclude context-bound methods | No chat clarification on pure canvas lanes; the chat-first gate applies when the turn is a chat turn | Intentionally not applied to canvas mutations; artifact format/mapping teaching keeps `resolve_artifact_teaching` | Artifact lesson fields / canvas teaching record |
+| Review / derivation | Turn/objective context; lesson lookups without `task_context` exclude context-bound methods | Not claimed on these internal lanes | Intentionally excluded; general guidance only | Not claimed |
+| Assignment start (`assignment_routes`) | `body.task_context` plus objective | HTTP 409 `teaching_context_unresolved` with missing keys | `applicable_method_lessons` filters by `evaluate_lesson_context` before `build_conversation_calculation` | `effective_lesson_ids` on start and `GET /api/assignments/{run_id}` |
+| Goal-run / generic agent | Goal/run context; lesson lookups without `task_context` exclude context-bound methods | Not claimed | Intentionally excluded; general guidance only | Not claimed |
+
+`include_context_bound=True` is used only inside resolvers that immediately
+evaluate context (`applicable_method_lessons`, `resolve_artifact_teaching`);
+it is never used to inject unvalidated instructions into a prompt.
+
+## 8. Bounds and deferred work
 
 This phase is intentionally bounded:
 

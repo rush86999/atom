@@ -1,0 +1,74 @@
+{
+  "session_id": "session_1793409270043_8axp3qool",
+  "restart_clarification": {
+    "message": "Before I can apply the taught method, I need to confirm: qualification (one of: licensed).",
+    "outcome": "partial",
+    "metadata": {
+      "teaching_clarification": {
+        "schema": "teaching-clarification-1",
+        "clarification_id": "88c2c85e8044486a9b30a50c78816d6d",
+        "state": "pending",
+        "required_context": [
+          {
+            "key": "qualification",
+            "allowed_values": [
+              "licensed"
+            ],
+            "lesson_ids": [
+              "77fcb41c777f45b1bf50e4a6f5644267"
+            ],
+            "authority": "user_confirmation"
+          }
+        ],
+        "lesson_refs": [
+          {
+            "id": "132c8f051e004c7d83888cd4eb7a3716",
+            "revision": 1
+          },
+          {
+            "id": "77fcb41c777f45b1bf50e4a6f5644267",
+            "revision": 1
+          }
+        ],
+        "authority": "user_confirmation"
+      },
+      "replay_pin": {
+        "status": "pinned",
+        "durable": true
+      }
+    }
+  },
+  "answer": {
+    "message": "Using the taught method from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=7.50 USD) = 15 USD. This result comes from the deterministic calculator, not free-form estimation.",
+    "outcome": "completed",
+    "model": "teaching-method",
+    "teaching_execution": {
+      "status": "applied",
+      "lesson_id": "77fcb41c777f45b1bf50e4a6f5644267",
+      "lesson_revision": 1,
+      "operation": "multiply_sum",
+      "operands": {
+        "quantity": {
+          "value": "2",
+          "unit": "units",
+          "column": "Qty"
+        },
+        "unit_price": {
+          "value": "7.50",
+          "unit": "USD",
+          "column": "Price"
+        }
+      },
+      "value": "15",
+      "unit": "USD",
+      "input_totals": {
+        "quantity": "2",
+        "unit_price": "7.5"
+      },
+      "assumptions": [],
+      "deterministic_delivery": true
+    }
+  },
+  "history_last_outcome": "completed",
+  "page_errors": []
+}

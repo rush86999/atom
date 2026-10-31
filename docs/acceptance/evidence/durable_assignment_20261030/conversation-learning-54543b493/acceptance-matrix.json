@@ -1,0 +1,146 @@
+{
+  "schema": "atom-conversation-learning-acceptance-5",
+  "source_commit": "54543b4938a4e88cfc1ce6de4a479d0058ff7991",
+  "source_tree": "395c16f3f1c6a2712f7175e3fa9c1157470052c8",
+  "parent_consumer_commit": "37904dcd057c9d759efc96c906838c8db207d7c7",
+  "preserved_baseline_tag": {
+    "name": "local-core-2026-10-30-final",
+    "commit": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d"
+  },
+  "resolver_matrix": [
+    {
+      "teaching_context": "general lesson + relevant scoped lesson, qualification missing",
+      "expected": "general guidance retained; required clarification present",
+      "test": "test_memory_leg_keeps_general_lesson_and_scoped_requirement",
+      "result": "pass"
+    },
+    {
+      "teaching_context": "same lessons, matching context",
+      "expected": "scoped method consumed",
+      "test": "test_teaching_resolver_matrix",
+      "result": "pass"
+    },
+    {
+      "teaching_context": "same lessons, wrong context",
+      "expected": "scoped method excluded",
+      "test": "test_teaching_resolver_matrix",
+      "result": "pass"
+    },
+    {
+      "teaching_context": "unrelated scoped lesson",
+      "expected": "does not block current task",
+      "test": "test_teaching_resolver_matrix",
+      "result": "pass"
+    },
+    {
+      "teaching_context": "competing applicable methods",
+      "expected": "conflict, no calculation",
+      "test": "test_teaching_resolver_marks_competing_methods_conflict",
+      "result": "pass"
+    }
+  ],
+  "chat_controls": [
+    {
+      "case": "clarification is created before reply generation",
+      "test": "test_chat_reply_asks_for_missing_teaching_context",
+      "result": "pass"
+    },
+    {
+      "case": "answer resumes original objective and executes the method",
+      "test": "test_chat_clarification_answer_resumes_original_objective",
+      "result": "pass"
+    },
+    {
+      "case": "duplicate confirmation replays idempotently",
+      "test": "test_chat_clarification_answer_resumes_original_objective",
+      "result": "pass"
+    },
+    {
+      "case": "foreign-session confirmation cannot mutate the obligation",
+      "test": "test_chat_clarification_answer_resumes_original_objective",
+      "result": "pass"
+    },
+    {
+      "case": "pending clarification survives restart",
+      "test": "test_teaching_clarification_survives_restart_via_session_metadata",
+      "result": "pass"
+    },
+    {
+      "case": "wrong context excludes scoped method without calculation",
+      "test": "test_chat_wrong_context_excludes_scoped_method_without_calculation",
+      "result": "pass"
+    },
+    {
+      "case": "competing methods conflict without calculation",
+      "test": "test_chat_competing_methods_conflict_without_calculation",
+      "result": "pass"
+    },
+    {
+      "case": "original request infers only unambiguous context",
+      "test": "test_original_request_infers_only_unambiguous_context",
+      "result": "pass"
+    },
+    {
+      "case": "uncertain answer preserves uncertainty",
+      "test": "test_teaching_clarification_interprets_bounded_answers",
+      "result": "pass"
+    }
+  ],
+  "live_browser": [
+    {
+      "case": "promote fresh scoped method through /learning",
+      "evidence": "chat-context-journey-full.json",
+      "result": "pass"
+    },
+    {
+      "case": "add general lesson through /teach",
+      "evidence": "chat-context-journey-full.json",
+      "result": "pass"
+    },
+    {
+      "case": "ask without qualification; only qualification requested",
+      "evidence": "chat-context-journey-full.json",
+      "result": "pass"
+    },
+    {
+      "case": "answer resumes and executes exact method/operands/result",
+      "evidence": "chat-context-journey-full.json",
+      "result": "pass"
+    },
+    {
+      "case": "refresh and history/outcome agree",
+      "evidence": "chat-context-journey-full.json",
+      "result": "pass"
+    },
+    {
+      "case": "restart while waiting; pending survives and answer completes",
+      "evidence": "chat-context-restart-part1.json, chat-context-restart-part2.json",
+      "result": "pass"
+    },
+    {
+      "case": "wrong context excludes scoped method with no calculation",
+      "evidence": "chat-wrong-final.json",
+      "result": "pass"
+    }
+  ],
+  "tests": {
+    "targeted_backend": {
+      "result": "413 passed",
+      "log": "targeted-regressions.log"
+    },
+    "frontend_learning": {
+      "result": "4 passed",
+      "log": "frontend-learning-tests.log"
+    },
+    "typescript": {
+      "result": "clean",
+      "log": "typescript-check.log"
+    },
+    "known_preexisting_failures": {
+      "suite": "tests/test_chat_canvas_editor.py",
+      "count": 14,
+      "reason": "lane refused pre-planning: the turn's own words do not authorize a canvas mutation",
+      "verified_at_parent_commit": "55dddd6d4c215029bb98b9d56098b02172655878"
+    }
+  }
+}
