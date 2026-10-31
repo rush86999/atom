@@ -476,19 +476,35 @@ class DocumentsHybridSearch:
         rows = await asyncio.to_thread(
             lancedb.search, "documents", query, limit=limit * _VECTOR_LIMIT_MULTIPLIER
         )
-        return [
-            {
+        # The handler returns a similarity ``score`` (higher is better).
+        # Older tables/backends exposed ``_distance`` (lower is better); read
+        # both and normalize so a vector-only nearest neighbour cannot be
+        # treated as a relevance match just because it exists. Without a
+        # floor a nonsense query returned the k nearest documents (the empty
+        # case was indistinguishable from a real semantic hit).
+        floor = float(os.getenv("ATOM_HYBRID_VECTOR_MIN_SCORE", "0.3"))
+        out: List[Dict[str, Any]] = []
+        for r in rows:
+            if not r.get("id"):
+                continue
+            raw = r.get("score")
+            if raw is None:
+                raw = r.get("_distance")
+                similarity = 1.0 - float(raw) if raw is not None else 0.0
+            else:
+                similarity = float(raw)
+            if similarity < floor:
+                continue
+            out.append({
                 "id": str(r.get("id") or ""),
-                "score": float(r.get("_distance", 1.0)),
+                "score": similarity,
                 "metadata": r.get("metadata") or {},
                 # Bounded body text for the tool lane: the chat renders the
                 # top hit's content so the reply can answer from the document
                 # (previews truncate before the fact in long files).
                 "text": str(r.get("text") or "")[:4000],
-            }
-            for r in rows
-            if r.get("id")
-        ]
+            })
+        return out
 
     # -- fusion + hydration ---------------------------------------------------
 
