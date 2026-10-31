@@ -1,11 +1,11 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-launcher-safety",
-  "source_checkpoint": "d57bb66f6",
+  "source_checkpoint": "16c113880",
   "files": {
     "README.md": {
-      "sha256": "0079ce964ef16361a98404e9795265b4fc183750215a35cd77cea7f63f39ee01",
-      "bytes": 1663
+      "sha256": "4a92ba1eaf5da97bd46ddef7448a601fceeee3688e60b0f0b9465252ed52f671",
+      "bytes": 1653
     },
     "failure-cleanup.log": {
       "sha256": "2fe0945e39a41445615d959eb7a78eb456ac2fb6b4dbd89f3e8abc58a0aebedf",
@@ -47,5 +47,6 @@
       "sha256": "b09359d7b8486cda9ac07968e83ecc83914ac81b5d6378026f45cd921bd5b9bc",
       "bytes": 1797
     }
-  }
+  },
+  "final_candidate": "16c113880"
 }

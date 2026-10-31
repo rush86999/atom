@@ -33,5 +33,5 @@ trap does not kill an unrelated process or the existing 8001 service.
 ## Preserved limitation
 
 The successful run used source ID `d57bb66f6796-dirty…` because the launcher
-changes were not yet committed at test time. The final committed candidate
-reports a clean source ID; the identity check is the same code path.
+changes were not yet committed at test time. The final code/evidence commit is
+`16c113880`; the identity check is the same code path.
