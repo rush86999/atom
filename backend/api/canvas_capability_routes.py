@@ -19,12 +19,15 @@ from core.deployment_audience import require_pilot_user
 from core.base_routes import BaseAPIRouter
 from core.canvas_capability_service import (
     CapabilityError,
+    approve_assessment,
     assess_operation,
+    assessment_authorization,
     authorize_canvas,
     bind_connected_dataset,
     bind_dataset,
     calculate_operation,
     current_revision,
+    decisions_operation,
     edit_operation,
     effective_operations,
     export_operation,
@@ -271,6 +274,57 @@ async def capability_assess(
             db, canvas, current_user, request.ask,
             max_subjects=request.max_subjects,
         )
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.get("/{canvas_id}/capability/decisions")
+async def capability_decisions(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Downstream use of an assessment's decisions.
+
+    Refuses with ``review_required`` / ``stale_assessment`` unless the current
+    assessment is certified without unresolved requirements or a human
+    approved exactly this execution at the same source/policy revisions.
+    """
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return decisions_operation(canvas)
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.get("/{canvas_id}/capability/authorization")
+async def capability_authorization(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return {
+            "success": True,
+            "canvas_id": canvas.id,
+            "authorization": assessment_authorization(canvas),
+        }
+    except CapabilityError as exc:
+        return _error(exc)
+
+
+@router.post("/{canvas_id}/capability/assess/{execution_id}/approve")
+async def capability_approve_assessment(
+    canvas_id: str,
+    execution_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Human approval bound to one exact assessment."""
+    try:
+        canvas = _canvas(db, canvas_id, current_user)
+        return approve_assessment(db, canvas, current_user, execution_id)
     except CapabilityError as exc:
         return _error(exc)
 

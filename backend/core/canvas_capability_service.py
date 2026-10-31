@@ -21,6 +21,7 @@ not CanvasContext.
 from __future__ import annotations
 
 import csv
+import copy
 import hashlib
 import io
 import json
@@ -1456,6 +1457,17 @@ async def assess_operation(
         policy_index=policies,
     )
     certified = bool(review.get("ok")) and review.get("completion") == "completed"
+    unresolved_subjects = [
+        str(item.get("subject_id"))
+        for item in (review.get("assessments") or [])
+        if isinstance(item, dict) and (item.get("unresolved_requirements") or [])
+    ]
+    review_reasons: List[str] = []
+    if not certified:
+        review_reasons.append("assessment_uncertified")
+    if unresolved_subjects:
+        review_reasons.append("unresolved_requirements")
+    review_required = bool(review_reasons)
     execution_fingerprint = _sha256_json({
         "policy_revision": policy_revision(manifest),
         "teaching_context": manifest.get("teaching_context") or {},
@@ -1466,6 +1478,34 @@ async def assess_operation(
         "assessed_subjects": subjects,
         "decisions": decisions,
     })[:24]
+    # Deep copy: SQLAlchemy's JSON column compares old and new values, so an
+    # in-place mutation of a nested record would be seen as "no change" and
+    # silently skip the UPDATE.
+    content = copy.deepcopy(_canvas_content(canvas))
+    content["assessment_review"] = {
+        "execution_id": execution_id,
+        "execution_fingerprint": execution_fingerprint,
+        "source_revision": source.get("source_version"),
+        "policy_revision": policy_revision(manifest),
+        "manifest_revision": manifest.get("manifest_revision"),
+        "certified": certified,
+        "review_required": review_required,
+        "review_reasons": review_reasons,
+        "unresolved_subjects": unresolved_subjects,
+        "decisions": {
+            str(item.get("subject_id")): str(item.get("decision"))
+            for item in (review.get("assessments") or [])
+            if isinstance(item, dict)
+        },
+        "assessed_at": _now().isoformat(),
+        # A new assessment invalidates any earlier human approval: the
+        # authorization below is cleared here and must be granted again for
+        # THIS execution, source revision and policy revision.
+        "authorization": None,
+    }
+    canvas.content = content
+    db.commit()
+
     return {
         "success": certified,
         "operation": "assess",
@@ -1474,6 +1514,10 @@ async def assess_operation(
         "execution_fingerprint": execution_fingerprint,
         "status": review.get("completion"),
         "certified": certified,
+        "review_required": review_required,
+        "review_reasons": review_reasons,
+        "unresolved_subjects": unresolved_subjects,
+        "authorization": assessment_authorization(canvas),
         "assessments": review.get("assessments") or [],
         "errors": review.get("errors") or [],
         "review": review,
@@ -1634,6 +1678,148 @@ def edit_operation(
         "source": fresh_source,
         "writeback": fresh_source.get("writeback"),
         "manifest_revision": manifest.get("manifest_revision"),
+    }
+
+
+_APPROVER_ROLES = {"workspace_admin", "admin", "owner", "super_admin"}
+
+
+def _assessment_binding(record: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        key: record.get(key)
+        for key in (
+            "execution_id", "execution_fingerprint", "source_revision",
+            "policy_revision", "manifest_revision",
+        )
+    }
+
+
+def assessment_authorization(canvas: Canvas) -> Dict[str, Any]:
+    """Authorization state of the CURRENT assessment on this canvas.
+
+    ``authorized`` means the assessment is certified with no unresolved
+    requirements, or a human approved exactly THIS execution at the same
+    source/policy revisions. Everything else refuses downstream use: an
+    assessment must never become an authorized decision by being old.
+    """
+    content = _canvas_content(canvas)
+    record = content.get("assessment_review")
+    if not isinstance(record, dict) or not record:
+        return {"state": "no_assessment"}
+    manifest = get_manifest(canvas) or {}
+    source = _dataset_source(canvas)
+    current_policy = policy_revision(manifest) if manifest else None
+    current_source = source.get("source_version")
+    if (
+        record.get("policy_revision") != current_policy
+        or record.get("source_revision") != current_source
+    ):
+        return {
+            "state": "stale_assessment",
+            "reason": "policy or source changed since this assessment",
+            "binding": _assessment_binding(record),
+        }
+    if not record.get("review_required"):
+        return {"state": "authorized", "approval": None, "binding": _assessment_binding(record)}
+    approval = record.get("authorization") or {}
+    binding = _assessment_binding(record)
+    if approval and all(approval.get(key) == value for key, value in binding.items()):
+        return {"state": "authorized", "approval": approval, "binding": binding}
+    return {
+        "state": "review_required",
+        "review_reasons": list(record.get("review_reasons") or []),
+        "unresolved_subjects": list(record.get("unresolved_subjects") or []),
+        "binding": binding,
+    }
+
+
+def approve_assessment(db, canvas: Canvas, user: Any, execution_id: str) -> Dict[str, Any]:
+    """Record a human approval bound to one exact assessment.
+
+    The approval carries the execution fingerprint, source revision and policy
+    revision it was granted for. Re-assessing (or changing the policy/source)
+    produces a different binding, so the old approval cannot authorize it.
+    """
+    content = copy.deepcopy(_canvas_content(canvas))
+    record = content.get("assessment_review")
+    if not isinstance(record, dict) or not record:
+        raise CapabilityError(
+            "no_assessment", "There is no assessment on this canvas to approve.", 409)
+    if str(record.get("execution_id")) != str(execution_id):
+        raise CapabilityError(
+            "stale_assessment",
+            "The named assessment is not the current one; re-read and approve "
+            "the current execution.",
+            409,
+            current_execution_id=record.get("execution_id"),
+        )
+    role = str(getattr(user, "role", "") or "").lower()
+    if role not in _APPROVER_ROLES:
+        raise CapabilityError(
+            "approval_forbidden",
+            "Only a workspace admin or owner can approve an assessment.",
+            403,
+        )
+    if not record.get("review_required"):
+        return {
+            "success": True,
+            "canvas_id": canvas.id,
+            "authorization": assessment_authorization(canvas),
+        }
+    approval = {
+        **_assessment_binding(record),
+        "approved_by": str(getattr(user, "id", "") or ""),
+        "approved_role": role,
+        "approved_at": _now().isoformat(),
+    }
+    record["authorization"] = approval
+    content["assessment_review"] = record
+    canvas.content = content
+    _audit(db, canvas, user, "capability_assessment_approved", {
+        **{key: approval.get(key) for key in (
+            "execution_id", "execution_fingerprint", "source_revision",
+            "policy_revision", "manifest_revision")},
+        "unresolved_subjects": list(record.get("unresolved_subjects") or []),
+    })
+    db.commit()
+    return {
+        "success": True,
+        "canvas_id": canvas.id,
+        "authorization": assessment_authorization(canvas),
+    }
+
+
+def decisions_operation(canvas: Canvas) -> Dict[str, Any]:
+    """Downstream consumer: return the decisions only when authorized.
+
+    This is the action-taking boundary. An assessment that needs review, is
+    stale against the current policy/source, or has never been approved
+    refuses here with an explicit state instead of handing out decisions that
+    a caller could treat as authorized.
+    """
+    record = _canvas_content(canvas).get("assessment_review")
+    if not isinstance(record, dict) or not record:
+        raise CapabilityError(
+            "no_assessment", "There is no assessment on this canvas.", 409)
+    authorization = assessment_authorization(canvas)
+    if authorization.get("state") != "authorized":
+        raise CapabilityError(
+            "review_required",
+            "This assessment has not been authorized for downstream use.",
+            409,
+            authorization=authorization,
+        )
+    return {
+        "success": True,
+        "operation": "decisions",
+        "canvas_id": canvas.id,
+        "execution_id": record.get("execution_id"),
+        "execution_fingerprint": record.get("execution_fingerprint"),
+        "source_revision": record.get("source_revision"),
+        "policy_revision": record.get("policy_revision"),
+        "manifest_revision": record.get("manifest_revision"),
+        "decisions": dict(record.get("decisions") or {}),
+        "authorization": authorization,
     }
 
 
