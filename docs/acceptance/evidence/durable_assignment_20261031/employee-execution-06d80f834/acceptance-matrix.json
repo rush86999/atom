@@ -1,0 +1,142 @@
+{
+  "schema": "atom-employee-execution-acceptance-1",
+  "source_checkpoint": "06d80f834",
+  "product_teaching_commit": "3e344f5b1",
+  "preserved_tags": {
+    "local-core-2026-10-30-final": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d",
+    "conversation-learning-2026-10-30": "d2b297deb846df548b6cfe6ab5b0bf9724fcad69"
+  },
+  "configuration": {
+    "world": "/Users/rushiparikh/projects/atom-integrated-world-20261031",
+    "backend": "http://127.0.0.1:8071",
+    "frontend": "http://127.0.0.1:3130",
+    "product_profile": "core",
+    "local_only": true,
+    "turn_decision_routing": false,
+    "task_lifecycle_enabled": true,
+    "scheduler": false,
+    "ingestion_sync": false,
+    "controlled_transport": true,
+    "real_send": false
+  },
+  "goals": [
+    {
+      "id": 1,
+      "goal": "Domain-independent employee work",
+      "status": "verified_for_tested_scope",
+      "evidence": ["sales/verify.json", "grants/verify.json"],
+      "result": "sales 400.00 USD and 2225.75 USD; grants 4250.00 USD twice",
+      "gap": "two domains only; arbitrary domains/schemas not claimed"
+    },
+    {
+      "id": 2,
+      "goal": "Teaching context, approach, protocol, formatting, correction",
+      "status": "verified_for_tested_scope",
+      "evidence": ["sales/first-conflict.txt", "sales/missing-qualification.txt", "grants/verify.json", "conversation-guidance/candidates.json"],
+      "result": "conflict surfaced; missing qualification clarified; revised teaching adopted for new work; guidance-only candidate promoted with method_status=not_applicable and format_spec",
+      "gap": "arbitrary prose and every renderer field not claimed"
+    },
+    {
+      "id": 3,
+      "goal": "Unfamiliar sheets, columns, mappings and units",
+      "status": "verified_for_tested_scope",
+      "evidence": ["sales/verify.json", "grants/verify.json", "logs/targeted-backend.log"],
+      "result": "Price -> Gross Amount; Approved Amount -> Award Amount / Approved Award; source units established",
+      "gap": "arbitrary Excel schemas and authority surfaces not claimed"
+    },
+    {
+      "id": 4,
+      "goal": "Connected ingestion and retrieval",
+      "status": "partial",
+      "evidence": ["sales/part1.json", "grants/part1.json"],
+      "result": "controlled local CSV uploads and retrieval through the product",
+      "gap": "no fresh live connector run; historical Microsoft evidence is source-bound to 001f93472"
+    },
+    {
+      "id": 5,
+      "goal": "Large workbooks and formula ingestion",
+      "status": "partial",
+      "evidence": [],
+      "result": "historical 24-sheet/formula evidence preserved outside this candidate",
+      "gap": "not rerun on 06d80f834; small CSVs only"
+    },
+    {
+      "id": 6,
+      "goal": "User-created canvas operations and export",
+      "status": "verified_for_supported_adapter",
+      "evidence": ["canvas/canvas.json", "canvas/canvas-export.xlsx"],
+      "result": "calculate 290.00; edit row 2 75->110 with readback; calculate 325.00; XLSX exported; reload revision 2 / 4 rows",
+      "gap": "canvas assessment not run (no ATOM_REVIEW_MODEL); arbitrary spreadsheet controls not claimed"
+    },
+    {
+      "id": 7,
+      "goal": "Grounded selection, calculations and assessments",
+      "status": "partial",
+      "evidence": ["sales/verify.json", "grants/verify.json", "logs/targeted-backend.log"],
+      "result": "calculations with row/cell provenance; review contract tests pass",
+      "gap": "live model-backed assessment unverified on this candidate"
+    },
+    {
+      "id": 8,
+      "goal": "Editable DOCX/PPTX and email draft",
+      "status": "verified_for_tested_scope",
+      "evidence": ["sales/active-reload-assignment-artifact.docx", "sales/revised-assignment-artifact.docx", "grants/active-reload-assignment-artifact.docx", "grants/revised-assignment-artifact.docx", "presentation/presentation.json", "sales/verify.json", "grants/verify.json"],
+      "result": "DOCX with taught fonts/headings; 4-slide PPTX; controlled email draft with protocol",
+      "gap": "no real send; no image/chart understanding claim"
+    },
+    {
+      "id": 9,
+      "goal": "User-created canvases inherit capabilities",
+      "status": "verified_for_supported_adapter",
+      "evidence": ["canvas/canvas.json"],
+      "result": "manifest installed, CSV bound, calculate/edit/export/reload",
+      "gap": "table adapter only"
+    },
+    {
+      "id": 10,
+      "goal": "Long-running, complex and durable execution",
+      "status": "verified_for_tested_scope",
+      "evidence": ["sales/part1.json", "sales/verify.json", "grants/part1.json", "grants/verify.json", "logs/targeted-backend.log"],
+      "result": "browser close, real backend restart, durable wait, delayed response, teaching change, artifact restart; recovery/cancel/uncertain/duplicate tests pass",
+      "gap": "one worker; no multi-day soak or multi-worker campaign"
+    },
+    {
+      "id": 11,
+      "goal": "Approval binding and controlled continuation",
+      "status": "verified_for_tested_scope",
+      "evidence": ["sales/verify.json", "grants/verify.json", "sales/negative-controls.json", "grants/negative-controls.json", "logs/targeted-backend.log"],
+      "result": "exact payload approval executed once; duplicate/rejection/drift controls; no real send",
+      "gap": "recipient delivery and real-provider send not claimed"
+    },
+    {
+      "id": 12,
+      "goal": "Local usability, install and recovery",
+      "status": "verified_for_documented_local_configuration",
+      "evidence": ["docs/acceptance/INTEGRATED_LOCAL_CANDIDATE_2026-10-31.md", "sales/reopened-after-restart.png", "grants/reopened-after-restart.png"],
+      "result": "isolated local backend/frontend, normal login, restart and resume",
+      "gap": "hosted deployment/publication owner-deferred; live connectors and real sends not performed"
+    }
+  ],
+  "tests": {
+    "targeted_backend": "284 passed",
+    "frontend_learning": "5 passed",
+    "typescript": "clean"
+  },
+  "verifier_handoff": {
+    "harnesses": [
+      "scripts/acceptance/composite_long_running_part1.py",
+      "scripts/acceptance/composite_long_running_part2.py",
+      "scripts/acceptance/composite_long_running_verify.py",
+      "scripts/acceptance/canvas_capability_local.py",
+      "scripts/acceptance/launch_integrated_local_candidate.sh"
+    ],
+    "browser_actions": "agent creation, teaching, conflict removal, data upload, assignment start, mapping confirmation, correlated response, approval, download, canvas create/bind/calculate/edit/export/reload",
+    "setup_actions": "isolated world creation, admin password, controlled outbox, source-bound local fixtures",
+    "known_failures": [
+      "canvas assessment requires an unconfigured ATOM_REVIEW_MODEL",
+      "large-workbook/formula recalculation not rerun",
+      "live connector qualification not repeated",
+      "no real send or recipient-delivery claim"
+    ]
+  }
+}

@@ -1,0 +1,176 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-06d80f834",
+  "source_checkpoint": "06d80f834",
+  "product_teaching_commit": "3e344f5b1",
+  "preserved_tags": {
+    "local-core-2026-10-30-final": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d",
+    "conversation-learning-2026-10-30": "d2b297deb846df548b6cfe6ab5b0bf9724fcad69"
+  },
+  "files": {
+    "README.md": {
+      "sha256": "f1e7db3b7692d266afc9f694956627a35a54f73fe754aa1c6e9a535b7ea99427",
+      "bytes": 5045
+    },
+    "acceptance-matrix.json": {
+      "sha256": "86b90453d0c2655f793640d520693791fc96738bac7a135c41a38a5209e6b6fa",
+      "bytes": 6902
+    },
+    "runtime.json": {
+      "sha256": "f7fad6ae75f62a51d295ca0206365519315afe95b18cd8ebac583d3053210a4e",
+      "bytes": 1647
+    },
+    "sales/active-assignment-artifact.docx": {
+      "sha256": "44ccb68f06e6cb11b24a8263adcc2f731fd91bbb5606edfe2d011447b90acd90",
+      "bytes": 37214
+    },
+    "sales/active-completed.png": {
+      "sha256": "e9ace0a9d12999f07eca3dbd33043a0c59b6d84536df0c57cb38d3eb823d4c55",
+      "bytes": 183879
+    },
+    "sales/active-reload-assignment-artifact.docx": {
+      "sha256": "44ccb68f06e6cb11b24a8263adcc2f731fd91bbb5606edfe2d011447b90acd90",
+      "bytes": 37214
+    },
+    "sales/approval-panel.txt": {
+      "sha256": "0db249381fa2913dd5e426448453155709ea3399cd78b30cb51cc133b2292286",
+      "bytes": 1111
+    },
+    "sales/first-conflict.txt": {
+      "sha256": "46c9d8d7bd23402cb748391210b88b14a3c82865ab3e8741e155ebe0785fe0a1",
+      "bytes": 768
+    },
+    "sales/missing-qualification.txt": {
+      "sha256": "515e4527a5a6d37df5f5a434e89b0cb297e0f36bac44c0638861c30ddeecddaf",
+      "bytes": 729
+    },
+    "sales/negative-controls.json": {
+      "sha256": "77ed5b26c412dfed3705b2e18a2f244eea9251e4f43c2deee441c3cf53d30ede",
+      "bytes": 676
+    },
+    "sales/part1.json": {
+      "sha256": "616338843c6c8bd4d68ef9c78e4e6ccfecc3a6683513f6d8b94a003fcb5cd823",
+      "bytes": 3161
+    },
+    "sales/reopened-after-restart.png": {
+      "sha256": "7d2b080e5a2b59e0dfd459c1c5c3bcf18cd12f7bf3fe809785e5948491a5d1ed",
+      "bytes": 171609
+    },
+    "sales/revised-assignment-artifact.docx": {
+      "sha256": "30696aedb5320ccd1babb86b95f7b1bb4ea7d6456b567d461bc34606acc9e950",
+      "bytes": 37165
+    },
+    "sales/revised-completed.png": {
+      "sha256": "23a3b43ab0f07a4e7b847df084e4e425897ebc2f2331434e473802eb27b8ccbb",
+      "bytes": 163847
+    },
+    "sales/verify.json": {
+      "sha256": "04c472281c9ed1bd1fccff5d80254b4d8a75ba689c32f65c5a37a9a07b22ee1c",
+      "bytes": 4746
+    },
+    "sales/waiting-before-restart.png": {
+      "sha256": "df38355b1de032c2179796857a859b79769ca9d5ee6ee9bb1773d9906753926e",
+      "bytes": 193348
+    },
+    "grants/active-assignment-artifact.docx": {
+      "sha256": "72f82ce554b846a689dbe220f346d381fdeb5ad2ad55cee9bfde26ff2f461f44",
+      "bytes": 37227
+    },
+    "grants/active-completed.png": {
+      "sha256": "ecc7d4dcea2ad4834a7d5b444f84cf85b65dc64fdb850a6a3e2b37c4cb4ee507",
+      "bytes": 192582
+    },
+    "grants/active-reload-assignment-artifact.docx": {
+      "sha256": "72f82ce554b846a689dbe220f346d381fdeb5ad2ad55cee9bfde26ff2f461f44",
+      "bytes": 37227
+    },
+    "grants/approval-panel.txt": {
+      "sha256": "c28bf87dea055c5f96f578656835928be19e0cdc310245d7b9a9e0e28e371fe0",
+      "bytes": 1157
+    },
+    "grants/first-conflict.txt": {
+      "sha256": "6eaaec04248549bdedcf899dfa6338efaa0e3562fa01a1a50c4f004519718418",
+      "bytes": 1904
+    },
+    "grants/missing-qualification.txt": {
+      "sha256": "65b3e844ccbe9dfbeb7d1820d1b4ebf478be5d390a666c5769776679b57ce961",
+      "bytes": 1865
+    },
+    "grants/negative-controls.json": {
+      "sha256": "c173ad7df91085adadfdbce60afd3884c4484697d1436967d84a0f1a46c81350",
+      "bytes": 676
+    },
+    "grants/part1.json": {
+      "sha256": "365542850ce8bf530d267ea388bac68e3bba429702549e1c3c883d9484ad951a",
+      "bytes": 4436
+    },
+    "grants/reopened-after-restart.png": {
+      "sha256": "e36cfbff9f30dbbc8ad343f308d515825db68eee2dcac9d1bdfdf54a163453b8",
+      "bytes": 175803
+    },
+    "grants/revised-assignment-artifact.docx": {
+      "sha256": "2bfabdce188e79c972f6108f4e262e7fe0826e1b64be71f12a526b660a31e481",
+      "bytes": 37174
+    },
+    "grants/revised-completed.png": {
+      "sha256": "9ae1891fb4fa432406b97a90d41b2619076fbc33643852ee36c54bc44bb9df91",
+      "bytes": 190259
+    },
+    "grants/verify.json": {
+      "sha256": "b0160578417ca382fb82b31be5019bc157abbf7900e57da5237d487ddd6b6b12",
+      "bytes": 5090
+    },
+    "grants/waiting-before-restart.png": {
+      "sha256": "20f1a4b8aed8b526b70718d70ca1e371001ebbeebdf03c534aa0a014b36fda33",
+      "bytes": 199588
+    },
+    "canvas/canvas-completed.png": {
+      "sha256": "b23603b377e044e2815db15ef25c5c95accfb96d1c9275d1b90252f1babcbac7",
+      "bytes": 180418
+    },
+    "canvas/canvas-export.xlsx": {
+      "sha256": "0f10cc8e896081e569c9119ff15e4dd651e105a99cf46f7849dbc79198a76208",
+      "bytes": 5647
+    },
+    "canvas/canvas.json": {
+      "sha256": "74f57c77e16536573c543a9d3141879b6c26eae6ba9fb78511ad121486a68f4a",
+      "bytes": 4938
+    },
+    "logs/frontend-learning.log": {
+      "sha256": "35c47e3c0f36e6641ef2aa2137ac44b0a6a113fdeb51d54e9f09a1e8d0351f38",
+      "bytes": 661
+    },
+    "logs/targeted-backend.log": {
+      "sha256": "01ae3b73e99f774b6eeb03c3a145bd97c0b146bda730f095b329f07044254b1c",
+      "bytes": 103775
+    },
+    "logs/typescript.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "conversation-guidance/candidate-drafted.png": {
+      "sha256": "40c519c9d0cbeb7d6cc1d5e4f4f9e6d4d3631dc93a041e68b4cc0c83079f0c2a",
+      "bytes": 134379
+    },
+    "conversation-guidance/candidate-promoted.png": {
+      "sha256": "15a71b53208af4a47da77082d03346ee0591c29bf15219334aec1adc27d6657e",
+      "bytes": 145817
+    },
+    "conversation-guidance/candidates.json": {
+      "sha256": "8c7b9ba1278e2ff1a06b16aa9912a731fb0be973c924b0123a8d9d096057ec70",
+      "bytes": 3364
+    },
+    "presentation/grant-summary-assignment-artifact.pptx": {
+      "sha256": "760abec5d3f8899bac08538ca48638aad97bb8d2b92c0543d4aff1e1c29395dd",
+      "bytes": 31600
+    },
+    "presentation/presentation-completed.png": {
+      "sha256": "b5a9edd0355c10e844b6e050d2f6e0aa63e971387cbe2c59c6de1077c58054c2",
+      "bytes": 184835
+    },
+    "presentation/presentation.json": {
+      "sha256": "f49bbf7a5ec83e128a259bf332ff292e5c51dc112b9a2016c2d32b601ca9f0ec",
+      "bytes": 1182
+    }
+  }
+}

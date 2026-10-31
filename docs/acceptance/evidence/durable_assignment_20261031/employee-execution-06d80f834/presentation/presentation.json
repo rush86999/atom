@@ -1,0 +1,41 @@
+{
+  "schema": "atom-presentation-artifact-1",
+  "path": "presentation/grant-summary-assignment-artifact.pptx",
+  "sha256": "760abec5d3f8899bac08538ca48638aad97bb8d2b92c0543d4aff1e1c29395dd",
+  "bytes": 31600,
+  "slides": 4,
+  "texts": [
+    {
+      "slide": 1,
+      "text": "Overview"
+    },
+    {
+      "slide": 1,
+      "text": "- Build an editable grant summary presentation 2026-10-31"
+    },
+    {
+      "slide": 2,
+      "text": "Result"
+    },
+    {
+      "slide": 2,
+      "text": "- sum of Approved Award: 4250.00 USD"
+    },
+    {
+      "slide": 3,
+      "text": "Findings"
+    },
+    {
+      "slide": 3,
+      "text": "- grant_applications_revised.csv / grant_applications_revised\n  - row 2 | sheet_row | 2 | 1100.00 | USD | C2\n  - row 3 | sheet_row | 3 | 2400.00 | USD | C3\n  - row 4 | sheet_row | 4 | 750.00 | USD | C4"
+    },
+    {
+      "slide": 4,
+      "text": "Sources"
+    },
+    {
+      "slide": 4,
+      "text": "- upload_grant_applications_revised__grant_applications_revised\n- grant_applications_revised.csv\n- grant_applications_revised\n- 119f79df-92d7-47b9-867b-31c7c18120db\n- grant_applications_revised.csv / grant_applications_revised"
+    }
+  ]
+}
