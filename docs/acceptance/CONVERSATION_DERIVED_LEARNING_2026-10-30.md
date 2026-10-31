@@ -1,13 +1,13 @@
 # Conversation-derived, reference-bound learning
 
 Status: **bounded successor implementation complete; independent verifier
-review pending.** Method-boundary source `525a768d1` (tree `98ce2c11`),
-building on closure source `54543b493` / `550e8c165`, consumer source
-`37904dcd0` / `a888f5d6c` and applicability source `50b53bef6` (tree
-`cf7d8d3`). This is deliberately separate from the accepted local-core
-closure at `da9cc8b12` / tag `local-core-2026-10-30-final`. It does not
-relabel historical browser/live evidence or claim a full application journey
-on this source.
+review pending.** Parser/continuation source `dfa940ee5` (tree `774ed1f1`),
+building on method-boundary source `525a768d1` / `a660065cd`, closure source
+`54543b493` / `550e8c165`, consumer source `37904dcd0` / `a888f5d6c` and
+applicability source `50b53bef6` (tree `cf7d8d3`). This is deliberately
+separate from the accepted local-core closure at `da9cc8b12` / tag
+`local-core-2026-10-30-final`. It does not relabel historical browser/live
+evidence or claim a full application journey on this source.
 
 Applicability evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-50b53be/`.
@@ -20,6 +20,9 @@ Closure evidence:
 
 Method-boundary evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-525a768d1/`.
+
+Parser/continuation evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-dfa940ee5/`.
 
 ## 1. Why this phase exists
 
@@ -218,6 +221,27 @@ obligation is kept open in the approval ledger (pending `HITLAction` and the
 active task ledger where present), and the turn outcome is `partial`. No
 outbound action runs during this repair.
 
+### 3.10 Prefix units, answer validation and compound continuation
+
+- Prefix (`$`, `€`, `£`) and suffix units are captured in the same candidate
+  record and validated against the method. `€7.50` with a USD method is
+  incompatible; it is never an absent unit. No currency conversion is
+  implicit.
+- Clarification answers use the same extraction/validation contract as the
+  original input: labeled answers collect every candidate, bare answers
+  collect every numeric token, malformed tokens remain malformed, and
+  multiple values remain ambiguous. A failed answer refreshes the pending
+  question to the latest candidates instead of reverting to the original.
+- Compound email work continues to a real draft. If the recipient is missing,
+  a durable `email_draft` clarification asks for it while retaining the draft
+  and receipt. The recipient answer updates the draft, creates a concrete
+  `AgentProposal` (`action_type=send_email`) and files a
+  `chat_request_obligation` HITL row.
+- `hitl_resume` handles `chat_request_obligation` by approving/rejecting the
+  prepared proposal through `ProposalService`. Approval executes the existing
+  email path, not a second send path. Tests use a controlled
+  `EmailCanvasService.send_email` mock; no real send runs.
+
 ## 4. Acceptance matrix
 
 All cases run through the shared implementation in
@@ -263,8 +287,10 @@ The earlier consumer source added the chat/assignment wiring and recorded
 clarification, deterministic chat execution, wrong/conflict outcomes and the
 browser/restart journeys. The method-boundary source adds candidate/unit
 validation, calculation receipts, compound-request settlement and operand
-clarification. Its targeted backend set is **420 passed**; its frontend
-learning suites are **4 passed**; TypeScript `--noEmit` is clean. Fourteen
+clarification. The parser/continuation source adds prefix units, shared
+answer validation and resumable compound email work. Its targeted backend set
+is **421 passed**; its frontend learning suites are **4 passed**; TypeScript
+`--noEmit` is clean. Fourteen
 `test_chat_canvas_editor.py` tests fail in a wider run; the same failure mode
 is present at the parent commit `55dddd6d4` with `lane refused pre-planning:
 the turn's own words do not authorize a canvas mutation`; they are
@@ -375,6 +401,25 @@ asserts the receipt, `covered_obligations=["calculation"]`, the open email
 obligation, a pending `HITLAction`, and arms `_execute_send_email` to fail if
 called.
 
+## 6.4 Parser and compound-continuation live campaign
+
+| Case | Result |
+|---|---|
+| `Price €7.50` | partial; incompatible-unit clarification; no receipt |
+| answer `€8.00` | partial; refreshed incompatible-unit question; no receipt |
+| answer `8.00 USD` | completed; receipt `16 USD` |
+| ambiguous `7.50 or 8.00` | partial; clarification |
+| answer `8.00 or 9.00` | partial; ambiguous; no receipt |
+| answer `8.00` | completed; receipt `16 USD` |
+| `Price 7.50.5` | partial; malformed-value clarification; no receipt |
+| answer `Price 7.50` | completed; receipt `15 USD` |
+| compound `email the quote` | partial; receipt + draft + recipient clarification |
+| answer `alice@example.com` | partial; draft updated; proposal + HITL pending; no send |
+| HITL approval (controlled transport) | `handled=true`, `resumed=true`; proposal executed; no real send |
+
+The controlled transport recorded one call to `alice@example.com`; the
+proposal moved to `executed` with `execution_success=true`.
+
 ## 7. Consumer audit
 
 | Surface | Established task context | Required-context clarification | Scoped conversation methods | Consumed revision record |
@@ -406,7 +451,8 @@ This phase is intentionally bounded:
 - no currency conversion is authorized or implemented; explicit units are
   validated against the method and incompatible/unknown units clarify;
 - a compound request keeps its non-calculation obligations in the approval
-  ledger; no outbound send runs;
+  ledger; approval resumes the prepared proposal through `hitl_resume` and
+  `ProposalService`; tests use controlled transport and no real send runs;
 - the existing core tag and its historical evidence are unchanged.
 
 Hosted deployment, publication, source shutdown and additional real sends

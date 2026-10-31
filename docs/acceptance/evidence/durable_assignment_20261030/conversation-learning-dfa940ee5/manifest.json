@@ -1,0 +1,60 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "conversation-learning-dfa940ee5",
+  "source_commit": "dfa940ee5ee248d5bde3fda5a367fc454ce84dc8",
+  "source_tree": "774ed1f15bfa93f7a84f9bd44c3e88c513a37f12",
+  "files": {
+    "SUMMARY.md": {
+      "sha256": "30e889ba16e1d527fb268e148b3014f5a771502f3f6c78e8694ffbaf013e3305",
+      "bytes": 4663
+    },
+    "acceptance-matrix.json": {
+      "sha256": "745c291b41a58183d2e75f42551738967271c0b827677e83473f7c296843550e",
+      "bytes": 4536
+    },
+    "boundary-campaign.json": {
+      "sha256": "164acc9098e35171ef5a6b77756949e1c0021955e46191ad8516d83a53e793aa",
+      "bytes": 15779
+    },
+    "boundary-db-verification.json": {
+      "sha256": "a4e6b1564f4ba25732edc0f0b88c1158692bc4e24b7a655b46980c8a15cdf4a4",
+      "bytes": 5163
+    },
+    "boundary-hitl-resume.json": {
+      "sha256": "338cc256890f12ed072972b26b10f34589b0a9cba2e4b04a9c3b868c5f6d4f7a",
+      "bytes": 486
+    },
+    "frontend-learning-tests.log": {
+      "sha256": "094e63fab34864f420d567ec5cfbd8d8651aa479f163ea21d1b437044595e8ff",
+      "bytes": 661
+    },
+    "git-status.txt": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "preserved-baseline.json": {
+      "sha256": "db9008220f757111038b0f944b2d14d49e2600c822c7350528c4694ce6be8c7c",
+      "bytes": 281
+    },
+    "runtime.json": {
+      "sha256": "8ab79e39fe2aaef1da0bfee056c456e9e172c27fb8f856bee71e0364f4ab1aab",
+      "bytes": 1801
+    },
+    "source-commit.txt": {
+      "sha256": "e55ea2e5236c39b61fb227fffff449085985fe14e293273633478f75d3dd3693",
+      "bytes": 41
+    },
+    "source-tree.txt": {
+      "sha256": "882312b5bf2e1d1f1e77be42e16d5746ab19fc2675ea6b6e1b04d00e9c4905cf",
+      "bytes": 41
+    },
+    "targeted-regressions.log": {
+      "sha256": "02b8adae11bd5103f3452e158c044388eab8f6cffb34192c9e79f165e36bccb4",
+      "bytes": 242117
+    },
+    "typescript-check.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  }
+}

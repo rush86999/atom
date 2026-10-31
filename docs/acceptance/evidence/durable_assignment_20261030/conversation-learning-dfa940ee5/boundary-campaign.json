@@ -1,0 +1,547 @@
+{
+  "prefix_ask": {
+    "outcome": "partial",
+    "message": "Before I can run the taught method, Price 7.50 is in \u20ac, but the taught method requires USD. I can't convert currencies without an approved conversion method. Please provide the value in USD. Reply with the field and value, for example 'Price 8.00 USD'.",
+    "has_execution": false,
+    "receipt": null,
+    "proposal_id": null,
+    "approval_id": null,
+    "draft_canvas_id": null,
+    "open_obligations": null
+  },
+  "prefix_eur_answer": {
+    "outcome": "partial",
+    "message": "Before I can run the taught method, Price 8.00 is in \u20ac, but the taught method requires USD. I can't convert currencies without an approved conversion method. Please provide the value in USD. Reply with the field and value, for example 'Price 8.00 USD'.",
+    "has_execution": false,
+    "receipt": null,
+    "proposal_id": null,
+    "approval_id": null,
+    "draft_canvas_id": null,
+    "open_obligations": null
+  },
+  "prefix_usd_answer": {
+    "outcome": "completed",
+    "message": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=8.00 USD) = 16 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only.",
+    "has_execution": true,
+    "receipt": {
+      "status": "applied",
+      "operation": "multiply_sum",
+      "validated_inputs": [
+        {
+          "concept": "quantity",
+          "column": "Qty",
+          "label": "Qty",
+          "raw_value": "2",
+          "value": "2",
+          "raw_unit": "",
+          "normalized_unit": "units",
+          "required_unit": "units",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            62,
+            67
+          ],
+          "source": "user_message",
+          "malformed": false
+        },
+        {
+          "concept": "unit_price",
+          "column": "Price",
+          "label": "Price",
+          "raw_value": "8.00",
+          "value": "8.00",
+          "raw_unit": "USD",
+          "normalized_unit": "USD",
+          "required_unit": "USD",
+          "unit_status": "compatible",
+          "unit_authority": "user_message",
+          "span": [
+            0,
+            7
+          ],
+          "source": "user_confirmation",
+          "malformed": false
+        }
+      ],
+      "value": "16",
+      "unit": "USD",
+      "lesson_ref": {
+        "id": "77fcb41c777f45b1bf50e4a6f5644267",
+        "revision": 1
+      },
+      "input_evidence": [
+        {
+          "concept": "quantity",
+          "column": "Qty",
+          "raw_value": "2",
+          "raw_unit": "",
+          "normalized_unit": "units",
+          "required_unit": "units",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            62,
+            67
+          ],
+          "source": "user_message"
+        },
+        {
+          "concept": "unit_price",
+          "column": "Price",
+          "raw_value": "8.00",
+          "raw_unit": "USD",
+          "normalized_unit": "USD",
+          "required_unit": "USD",
+          "unit_status": "compatible",
+          "unit_authority": "user_message",
+          "span": [
+            0,
+            7
+          ],
+          "source": "user_confirmation"
+        }
+      ],
+      "covered_obligations": [
+        "calculation"
+      ],
+      "input_totals": {
+        "quantity": "2",
+        "unit_price": "8"
+      },
+      "assumptions": []
+    },
+    "proposal_id": null,
+    "approval_id": null,
+    "draft_canvas_id": null,
+    "open_obligations": null
+  },
+  "ambiguous_ask": {
+    "outcome": "partial",
+    "message": "Before I can run the taught method, I found more than one value for Price: 7.50, 8.00. Which one should I use? Reply with the field and value, for example 'Price 8.00 USD'.",
+    "has_execution": false,
+    "receipt": null,
+    "proposal_id": null,
+    "approval_id": null,
+    "draft_canvas_id": null,
+    "open_obligations": null
+  },
+  "ambiguous_two_answer": {
+    "outcome": "partial",
+    "message": "Before I can run the taught method, I found more than one value for Price: 8.00, 9.00. Which one should I use? Reply with the field and value, for example 'Price 8.00 USD'.",
+    "has_execution": false,
+    "receipt": null,
+    "proposal_id": null,
+    "approval_id": null,
+    "draft_canvas_id": null,
+    "open_obligations": null
+  },
+  "ambiguous_one_answer": {
+    "outcome": "completed",
+    "message": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=8.00 USD) = 16 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only.",
+    "has_execution": true,
+    "receipt": {
+      "status": "applied",
+      "operation": "multiply_sum",
+      "validated_inputs": [
+        {
+          "concept": "quantity",
+          "column": "Qty",
+          "label": "Qty",
+          "raw_value": "2",
+          "value": "2",
+          "raw_unit": "",
+          "normalized_unit": "units",
+          "required_unit": "units",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            62,
+            67
+          ],
+          "source": "user_message",
+          "malformed": false
+        },
+        {
+          "concept": "unit_price",
+          "column": "Price",
+          "label": "Price",
+          "raw_value": "8.00",
+          "value": "8.00",
+          "raw_unit": "",
+          "normalized_unit": "USD",
+          "required_unit": "USD",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            0,
+            4
+          ],
+          "source": "user_confirmation",
+          "malformed": false
+        }
+      ],
+      "value": "16",
+      "unit": "USD",
+      "lesson_ref": {
+        "id": "77fcb41c777f45b1bf50e4a6f5644267",
+        "revision": 1
+      },
+      "input_evidence": [
+        {
+          "concept": "quantity",
+          "column": "Qty",
+          "raw_value": "2",
+          "raw_unit": "",
+          "normalized_unit": "units",
+          "required_unit": "units",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            62,
+            67
+          ],
+          "source": "user_message"
+        },
+        {
+          "concept": "unit_price",
+          "column": "Price",
+          "raw_value": "8.00",
+          "raw_unit": "",
+          "normalized_unit": "USD",
+          "required_unit": "USD",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            0,
+            4
+          ],
+          "source": "user_confirmation"
+        }
+      ],
+      "covered_obligations": [
+        "calculation"
+      ],
+      "input_totals": {
+        "quantity": "2",
+        "unit_price": "8"
+      },
+      "assumptions": []
+    },
+    "proposal_id": null,
+    "approval_id": null,
+    "draft_canvas_id": null,
+    "open_obligations": null
+  },
+  "malformed_ask": {
+    "outcome": "partial",
+    "message": "Before I can run the taught method, I couldn't read '7.50.5' as a valid number for Price. Please provide a plain value in USD. Reply with the field and value, for example 'Price 8.00 USD'.",
+    "has_execution": false,
+    "receipt": null,
+    "proposal_id": null,
+    "approval_id": null,
+    "draft_canvas_id": null,
+    "open_obligations": null
+  },
+  "malformed_answer": {
+    "outcome": "completed",
+    "message": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=7.50 USD) = 15 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only.",
+    "has_execution": true,
+    "receipt": {
+      "status": "applied",
+      "operation": "multiply_sum",
+      "validated_inputs": [
+        {
+          "concept": "quantity",
+          "column": "Qty",
+          "label": "Qty",
+          "raw_value": "2",
+          "value": "2",
+          "raw_unit": "",
+          "normalized_unit": "units",
+          "required_unit": "units",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            62,
+            67
+          ],
+          "source": "user_message",
+          "malformed": false
+        },
+        {
+          "concept": "unit_price",
+          "column": "Price",
+          "label": "Price",
+          "raw_value": "7.50",
+          "value": "7.50",
+          "raw_unit": "",
+          "normalized_unit": "USD",
+          "required_unit": "USD",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            0,
+            10
+          ],
+          "source": "user_confirmation",
+          "malformed": false
+        }
+      ],
+      "value": "15",
+      "unit": "USD",
+      "lesson_ref": {
+        "id": "77fcb41c777f45b1bf50e4a6f5644267",
+        "revision": 1
+      },
+      "input_evidence": [
+        {
+          "concept": "quantity",
+          "column": "Qty",
+          "raw_value": "2",
+          "raw_unit": "",
+          "normalized_unit": "units",
+          "required_unit": "units",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            62,
+            67
+          ],
+          "source": "user_message"
+        },
+        {
+          "concept": "unit_price",
+          "column": "Price",
+          "raw_value": "7.50",
+          "raw_unit": "",
+          "normalized_unit": "USD",
+          "required_unit": "USD",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            0,
+            10
+          ],
+          "source": "user_confirmation"
+        }
+      ],
+      "covered_obligations": [
+        "calculation"
+      ],
+      "input_totals": {
+        "quantity": "2",
+        "unit_price": "7.5"
+      },
+      "assumptions": []
+    },
+    "proposal_id": null,
+    "approval_id": null,
+    "draft_canvas_id": null,
+    "open_obligations": null
+  },
+  "compound_ask": {
+    "outcome": "partial",
+    "message": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=7.50 USD) = 15 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only. I prepared the email draft, but I need the recipient before I can request approval. Who should I email it to? Reply with an email address.",
+    "has_execution": true,
+    "receipt": {
+      "status": "applied",
+      "operation": "multiply_sum",
+      "validated_inputs": [
+        {
+          "concept": "quantity",
+          "column": "Qty",
+          "label": "Qty",
+          "raw_value": "2",
+          "value": "2",
+          "raw_unit": "",
+          "normalized_unit": "units",
+          "required_unit": "units",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            62,
+            67
+          ],
+          "source": "user_message",
+          "malformed": false
+        },
+        {
+          "concept": "unit_price",
+          "column": "Price",
+          "label": "Price",
+          "raw_value": "7.50",
+          "value": "7.50",
+          "raw_unit": "",
+          "normalized_unit": "USD",
+          "required_unit": "USD",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            72,
+            82
+          ],
+          "source": "user_message",
+          "malformed": false
+        }
+      ],
+      "value": "15",
+      "unit": "USD",
+      "lesson_ref": {
+        "id": "77fcb41c777f45b1bf50e4a6f5644267",
+        "revision": 1
+      },
+      "input_evidence": [
+        {
+          "concept": "quantity",
+          "column": "Qty",
+          "raw_value": "2",
+          "raw_unit": "",
+          "normalized_unit": "units",
+          "required_unit": "units",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            62,
+            67
+          ],
+          "source": "user_message"
+        },
+        {
+          "concept": "unit_price",
+          "column": "Price",
+          "raw_value": "7.50",
+          "raw_unit": "",
+          "normalized_unit": "USD",
+          "required_unit": "USD",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            72,
+            82
+          ],
+          "source": "user_message"
+        }
+      ],
+      "covered_obligations": [
+        "calculation"
+      ],
+      "input_totals": {
+        "quantity": "2",
+        "unit_price": "7.5"
+      },
+      "assumptions": []
+    },
+    "proposal_id": null,
+    "approval_id": null,
+    "draft_canvas_id": null,
+    "open_obligations": [
+      {
+        "kind": "action",
+        "text": "email the quote"
+      }
+    ]
+  },
+  "compound_recipient": {
+    "outcome": "partial",
+    "message": "I prepared the email draft to alice@example.com and requested approval. No email was sent.",
+    "has_execution": true,
+    "receipt": {
+      "status": "applied",
+      "operation": "multiply_sum",
+      "validated_inputs": [
+        {
+          "concept": "quantity",
+          "column": "Qty",
+          "label": "Qty",
+          "raw_value": "2",
+          "value": "2",
+          "raw_unit": "",
+          "normalized_unit": "units",
+          "required_unit": "units",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            62,
+            67
+          ],
+          "source": "user_message",
+          "malformed": false
+        },
+        {
+          "concept": "unit_price",
+          "column": "Price",
+          "label": "Price",
+          "raw_value": "7.50",
+          "value": "7.50",
+          "raw_unit": "",
+          "normalized_unit": "USD",
+          "required_unit": "USD",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            72,
+            82
+          ],
+          "source": "user_message",
+          "malformed": false
+        }
+      ],
+      "value": "15",
+      "unit": "USD",
+      "lesson_ref": {
+        "id": "77fcb41c777f45b1bf50e4a6f5644267",
+        "revision": 1
+      },
+      "input_evidence": [
+        {
+          "concept": "quantity",
+          "column": "Qty",
+          "raw_value": "2",
+          "raw_unit": "",
+          "normalized_unit": "units",
+          "required_unit": "units",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            62,
+            67
+          ],
+          "source": "user_message"
+        },
+        {
+          "concept": "unit_price",
+          "column": "Price",
+          "raw_value": "7.50",
+          "raw_unit": "",
+          "normalized_unit": "USD",
+          "required_unit": "USD",
+          "unit_status": "compatible",
+          "unit_authority": "method_declared",
+          "span": [
+            72,
+            82
+          ],
+          "source": "user_message"
+        }
+      ],
+      "covered_obligations": [
+        "calculation"
+      ],
+      "input_totals": {
+        "quantity": "2",
+        "unit_price": "7.5"
+      },
+      "assumptions": []
+    },
+    "proposal_id": "3d2cad7a-8418-4328-b1c9-a3cd04effe6c",
+    "approval_id": "26e5c037-0f39-4f2c-9421-ca3cc7e39e16",
+    "draft_canvas_id": "93282faa-f516-4597-add3-36bd3fc2d224",
+    "open_obligations": [
+      {
+        "kind": "action",
+        "text": "email the quote"
+      }
+    ]
+  }
+}
