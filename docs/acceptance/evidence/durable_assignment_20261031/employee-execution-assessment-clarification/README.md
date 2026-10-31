@@ -40,5 +40,20 @@ answers against the exact execution:
 5. an answer for an unknown subject is refused;
 6. an answer against a superseded execution is refused as stale.
 
+## Hardening (8123f12c6)
+
+- each obligation carries a stable `requirement_id` (execution + subject +
+  ordinal + requirement), so two requirements on one subject cannot collapse;
+- a subject-only answer is refused as `ambiguous_requirement` when more than
+  one requirement is open; answers may be reordered by id;
+- unknown ids and conflicting replays are refused;
+- when the source/policy/manifest revision moves, answers are preserved as
+  history and the result is `reassessment_required`; they are never silently
+  transferred to the new rules;
+- readiness is re-read immediately before resume, closing the race between
+  recording an answer and dispatching the reassessment.
+
+`clarification-hardening.log`: **17 passed** (clarification + route tests).
+
 Not claimed: an autonomous browser journey through clarification. `reconcile`
 remains reserved.

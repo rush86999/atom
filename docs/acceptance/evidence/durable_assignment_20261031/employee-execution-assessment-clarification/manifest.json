@@ -1,16 +1,20 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-assessment-clarification",
-  "source_checkpoint": "661c751b2",
-  "final_candidate": "661c751b2",
+  "source_checkpoint": "8123f12c6",
+  "final_candidate": "8123f12c6",
   "files": {
     "README.md": {
-      "sha256": "9b021798e4c0ac92f6570a46b626ceb5ba92c307e0dc4d674e49e63ec9bd72bb",
-      "bytes": 1654
+      "sha256": "fadd6e9645edd766bfab5063abc3635edee6129135dd94676ab0bbd5430e852a",
+      "bytes": 2413
     },
     "clarification-controls.log": {
       "sha256": "91a0cc65b9ded38d5e50b1399977d050206efcbb89546f1482366e9e59b5460c",
       "bytes": 4518
+    },
+    "clarification-hardening.log": {
+      "sha256": "e0fbd3f1d77754888bb9aebc11de73e1a2c0f230ef727505c877d909437eb730",
+      "bytes": 7924
     }
   }
 }
