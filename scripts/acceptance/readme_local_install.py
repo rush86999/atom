@@ -14,7 +14,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
 import signal
 import subprocess
 import sys
@@ -23,8 +22,12 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import docx
+
 REPO = Path(__file__).resolve().parents[2]
 BACKEND = REPO / "backend"
+sys.path.insert(0, str(BACKEND))
+from scripts.readme_acceptance.common import reset_world  # noqa: E402
 PYTHON = Path(os.getenv(
     "ATOM_ACCEPTANCE_PYTHON",
     "/Users/rushiparikh/projects/atom-phase-d/backend/venv/bin/python"))
@@ -122,8 +125,11 @@ def main() -> None:
     parser.add_argument("--out", type=Path)
     parser.add_argument("--keep-world", action="store_true")
     args = parser.parse_args()
-    if args.world.exists() and not args.keep_world:
-        shutil.rmtree(args.world)
+    reset_world(
+        args.world,
+        reset=not args.keep_world,
+        allowed_root=Path(os.getenv("ATOM_README_WORLD_ROOT", str(args.world.parent))),
+    )
     (args.world / "logs").mkdir(parents=True, exist_ok=True)
     out = args.out or (args.world / "install-result.json")
     base = f"http://127.0.0.1:{args.port}"
@@ -202,6 +208,20 @@ def main() -> None:
         result["checks"]["workflow"] = {
             "workflow_id": workflow_id, "execution_id": execution_id,
             "create_status": status}
+
+        # A presented Office canvas must survive a real backend restart.
+        office_dir = args.world / "office"
+        office_dir.mkdir(parents=True, exist_ok=True)
+        office_file = office_dir / "install_canvas.docx"
+        document = docx.Document()
+        document.add_paragraph("install canvas survives restart")
+        document.save(str(office_file))
+        status, presented = request(f"{base}/api/v1/office/present", "POST", {
+            "file_path": str(office_file), "user_id": "acceptance",
+            "title": "install canvas"}, token=token)
+        canvas_id = presented.get("canvas_id")
+        result["checks"]["office_canvas"] = {
+            "canvas_id": canvas_id, "present_status": status}
     finally:
         backend.stop()
 
@@ -228,6 +248,33 @@ def main() -> None:
                 h.get("execution_id") == execution_id for h in history2)
             result["checks"]["workflow"]["survives_restart"] = bool(survived)
             result["checks"]["workflow"]["history_after_restart"] = history2
+        canvas_id = (result["checks"].get("office_canvas") or {}).get("canvas_id")
+        if canvas_id:
+            status, canvas_after = request(
+                f"{base}/api/canvas/{canvas_id}", token=token2)
+            canvas_text = json.dumps(canvas_after)
+            canvas_ok = (status == 200
+                         and ("install_canvas" in canvas_text
+                              or "office_file" in canvas_text))
+            file_path = str(args.world / "office" / "install_canvas.docx")
+            import urllib.parse
+            query = urllib.parse.urlencode({
+                "file_path": file_path, "canvas_id": canvas_id})
+            download_ok = False
+            try:
+                req = urllib.request.Request(
+                    f"{base}/api/v1/office/download?{query}",
+                    headers={"authorization": f"Bearer {token2}"})
+                with urllib.request.urlopen(req, timeout=30) as response:
+                    download_ok = (response.status == 200
+                                   and response.read(2) == b"PK")
+            except Exception:
+                download_ok = False
+            result["checks"]["office_canvas"].update({
+                "restart_status": status,
+                "canvas_read": canvas_ok,
+                "download_ok": download_ok,
+            })
     finally:
         restarted.stop()
         if workflows_backup is not None:
@@ -245,6 +292,8 @@ def main() -> None:
             and checks.get("password_file", {}).get("length", 0) >= 16
             and checks.get("restart", {}).get("task_survives")
             and checks.get("workflow", {}).get("survives_restart")
+            and checks.get("office_canvas", {}).get("canvas_read")
+            and checks.get("office_canvas", {}).get("download_ok")
         ) else "partial"
     )
     # Never persist the plaintext credential in the evidence artifact.
