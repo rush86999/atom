@@ -62,6 +62,17 @@ CORE-06.
 - fallback ladder includes async-only local providers;
 - install/restart evidence includes a paused goal checkpoint.
 
+## 3.1 Practical employee gate
+
+The controlled connected-assignment gate passed: real catalog/Parquet retrieval,
+teaching standards, grounded calculation (`85.00` sum / `3` count), DOCX/PPTX
+artifacts, approval/outbox, and durable reopen. Evidence:
+`evidence/practical-assignment.json`. It does not yet cover process restart
+while waiting, changed-source invalidation, ambiguity, cancellation or
+duplicate resume; those remain open.
+
+---
+
 ## 4. Specific remaining work
 
 - **CORE-06 / ROUTE-06**: the credential-revision rebuild, dispatch-time

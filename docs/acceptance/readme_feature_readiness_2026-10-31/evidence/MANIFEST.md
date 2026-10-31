@@ -12,6 +12,8 @@ Final run: `evidence/final-all-groups.json`
 
 Install/restart: `evidence/install-final.json`
 
+Practical gate: `evidence/practical-assignment.json`
+
 Next-claim plan: `NEXT_CLAIM_BATCHES_2026-10-31.md`
 
 | Artifact | sha256 | bytes |
@@ -19,8 +21,8 @@ Next-claim plan: `NEXT_CLAIM_BATCHES_2026-10-31.md`
 | `README.md` | `f83bfe7e12bd17b84ac107438b18f232101ab565713de048dd882f6e7d323b19` | 2334 |
 | `CLAIM_INVENTORY.json` | `94b2de5b425de02587357165695df2a877ed41fcb3442819c95a015eae12a6d4` | 151412 |
 | `CLAIM_INVENTORY.md` | `82dac145893afc63f6ea67f25ce6669992272cbf96df0054a5f7f20c5e46a2f6` | 64997 |
-| `COVERAGE_REPORT_2026-10-31.md` | `4d93c2760521cdcf522a7f5aa174831b9729522aa135eb9d99f693582a8cae4a` | 11993 |
-| `VERIFIER_REVIEW_REQUEST.md` | `6a299a793f62ebc911c97018b45cffd69280ff26824a5f20f7777b40bd68fead` | 5612 |
+| `COVERAGE_REPORT_2026-10-31.md` | `a2597dcd7cbabc159fd5182bc73b006cdaa94ab5e62809e9cabaa554c3250afc` | 12944 |
+| `VERIFIER_REVIEW_REQUEST.md` | `9dd82f34e576a032b0617c17c9c16d70d1e709309fa6cba3246d1b963fcd1de8` | 6051 |
 | `NEXT_CLAIM_BATCHES_2026-10-31.md` | `d9488457011c0e52fbbe9f83dc49e3516431ae58912467ebe710db23eb227e9d` | 26532 |
 | `evidence/corrected-results.json` | `2833cbf6563ee9b7f3f8d51c63e9a7e1682d32e835974a7b65abd5b46db0ee2a` | 64398 |
 | `evidence/CLAIM_AUDIT_2026-10-31_final.json` | `cbe045b61c2d52a36cb95b51520f927aed5c94750e5125d491300fb930989798` | 1672 |
@@ -45,6 +47,7 @@ Next-claim plan: `NEXT_CLAIM_BATCHES_2026-10-31.md`
 | `evidence/core-chat-episode.json` | `51d0c6dcccca9100eda90d3062abcdb91f61cb9f34221d1e0201c620b3ace154` | 2626 |
 | `evidence/install-restart.json` | `901bc52a8f7ad98f32c9bfef1e9e53d981b73d8561321c3204953ad06ae7e292` | 2292 |
 | `evidence/frontend-results.pre-rename.json` | `4b56ba3c037a6c5d18fa116ada51d91ceb57ae89fe4fce05739fdd6c2fa7cbf3` | 386 |
+| `evidence/practical-assignment.json` | `af3d0608c7ac3ddc17bcb8e83403accf7e46c75a3cdf6f62eace5e08ef274706` | 9929 |
 
 ## Hash history
 

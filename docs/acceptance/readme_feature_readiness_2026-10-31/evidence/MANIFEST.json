@@ -52,13 +52,13 @@
     },
     {
       "path": "COVERAGE_REPORT_2026-10-31.md",
-      "sha256": "4d93c2760521cdcf522a7f5aa174831b9729522aa135eb9d99f693582a8cae4a",
-      "bytes": 11993
+      "sha256": "a2597dcd7cbabc159fd5182bc73b006cdaa94ab5e62809e9cabaa554c3250afc",
+      "bytes": 12944
     },
     {
       "path": "VERIFIER_REVIEW_REQUEST.md",
-      "sha256": "6a299a793f62ebc911c97018b45cffd69280ff26824a5f20f7777b40bd68fead",
-      "bytes": 5612
+      "sha256": "9dd82f34e576a032b0617c17c9c16d70d1e709309fa6cba3246d1b963fcd1de8",
+      "bytes": 6051
     },
     {
       "path": "NEXT_CLAIM_BATCHES_2026-10-31.md",
@@ -179,6 +179,11 @@
       "path": "evidence/frontend-results.pre-rename.json",
       "sha256": "4b56ba3c037a6c5d18fa116ada51d91ceb57ae89fe4fce05739fdd6c2fa7cbf3",
       "bytes": 386
+    },
+    {
+      "path": "evidence/practical-assignment.json",
+      "sha256": "af3d0608c7ac3ddc17bcb8e83403accf7e46c75a3cdf6f62eace5e08ef274706",
+      "bytes": 9929
     }
   ]
 }

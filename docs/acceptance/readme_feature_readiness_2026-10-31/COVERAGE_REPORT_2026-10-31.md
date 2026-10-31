@@ -213,6 +213,28 @@ or blocker.
 
 ---
 
+## 5.1 Practical employee gate — controlled orchestration
+
+The connected-assignment acceptance (`assignment_connected_acceptance.py`)
+passed on the integrated candidate:
+
+- real scoped `DatasetEntry` → real materialized Parquet rows;
+- delivered teaching standards (document and presentation) applied;
+- grounded sum (`85.00`) and count (`3`) over the full eligible sheet;
+- generated DOCX/PPTX artifacts with source-bound references and hashes;
+- controlled approval/outbox with no provider contact;
+- durable reopen/read-back of both completed assignments.
+
+Evidence: `evidence/practical-assignment.json`.
+
+**Not yet covered by this gate:** a real process restart while the assignment is
+waiting and after approval preparation, a changed-source/lesson-revision
+invalidation case, ambiguity clarification, cancellation, and duplicate resume.
+Those remain open; the controlled gate proves orchestration, not model judgment
+or live delivery.
+
+---
+
 ## 6. Evidence and reproduction
 
 Authoritative result: `evidence/corrected-results.json` (99/123).
