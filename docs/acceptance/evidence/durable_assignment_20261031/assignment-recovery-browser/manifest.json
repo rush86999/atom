@@ -1,8 +1,8 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "assignment-recovery-browser",
-  "source_checkpoint": "b24f67c29",
-  "final_candidate": "e564890e7",
+  "source_checkpoint": "9cb8daee5",
+  "final_candidate": "9cb8daee5",
   "harness": "scripts/acceptance/assignment_recovery_ui.cjs",
   "files": {
     "README.md": {
