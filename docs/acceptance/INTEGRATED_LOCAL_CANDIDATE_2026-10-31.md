@@ -10,7 +10,7 @@ publication remain deferred by the owner.
 | Item | Value |
 |---|---|
 | Branch | `codex/employee-execution-readiness` |
-| Final code/evidence | `2108a2839` (code `099c15e02`) |
+| Final code/evidence | `2108a2839` |
 | Assessment safety | `460f38c27` (atomic approval/scoped autonomy), `b80288e4e` (authoritative reads), `6363e3794` (route-level exact approval), `8123f12c6` + `099c15e02` (clarification identity/revisions) |
 | Practical browser recovery | `b24f67c29` / `e564890e7` (5/5 checks) |
 | Bounded autonomy boundaries | `814962078` / `24b0633df` (185 backend + 6 frontend tests) |

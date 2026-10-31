@@ -1,8 +1,8 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "two-domain-autonomous-journey",
-  "source_checkpoint": "814962078",
-  "final_candidate": "24b0633df",
+  "source_checkpoint": "2108a2839",
+  "final_candidate": "2108a2839",
   "files": {
     "README.md": {
       "sha256": "0b6a5e891ec72c19bcddfddd3d70ffd50fd8ae746df9450025bf8ad40d710c9d",
@@ -16,6 +16,10 @@
       "sha256": "3ce134f40bcab0d4b7d709823a29a93f3f5392ee3540c3ba31d3d2f3660bfd35",
       "bytes": 312
     },
+    "two-domain.json": {
+      "sha256": "eb089028bd5c99256cc5869db6991efbdcd1af85d751b1aecb1f297803e18adb",
+      "bytes": 5222
+    },
     "screenshots/01-two-domains-waiting.png": {
       "sha256": "70647a83492fe21f271e18d958ab4eeef3421d0af48310775d254056b6887288",
       "bytes": 125216
@@ -27,10 +31,6 @@
     "screenshots/02-sales-completed.png": {
       "sha256": "7b07cf599d093b29772e878ea66e5d6a3c039364c4fdb8ba03d9f43881261819",
       "bytes": 127435
-    },
-    "two-domain.json": {
-      "sha256": "eb089028bd5c99256cc5869db6991efbdcd1af85d751b1aecb1f297803e18adb",
-      "bytes": 5222
     }
   }
 }
