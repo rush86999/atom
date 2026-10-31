@@ -203,7 +203,9 @@ async def query_graphrag(request: QueryRequest, current_user: User = Depends(get
 
     # R83: align with the workspace partition agents actually recall from
     _ws = request.workspace_id or getattr(current_user, "workspace_id", None) or "default"
-    result = await graphrag_engine.query(_ws, request.query, request.mode)
+    result = await graphrag_engine.query(
+            workspace_id=_ws, query=request.query, mode=request.mode
+        )
     return router.success_response(
         data=result,
         message="Query executed successfully"
@@ -221,7 +223,9 @@ async def get_entity_neighbors(workspace_id: str, entity_id: str, depth: int = 1
         if not entity:
             raise router.error_response("NOT_FOUND", "Entity not found", status_code=404)
             
-        result = graphrag_engine.local_search(workspace_id, entity.name, depth=depth)
+        result = graphrag_engine.local_search(
+            workspace_id=workspace_id, query=entity.name, depth=depth
+        )
         return router.success_response(
             data=result,
             message="Neighborhood retrieved successfully"
