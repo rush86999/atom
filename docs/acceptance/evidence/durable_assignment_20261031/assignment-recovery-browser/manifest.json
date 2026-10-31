@@ -2,7 +2,7 @@
   "schema": "atom-local-evidence-manifest-1",
   "directory": "assignment-recovery-browser",
   "source_checkpoint": "f8198c60e",
-  "final_candidate": "9de2f920a",
+  "final_candidate": "54eea4462",
   "harness": "scripts/acceptance/assignment_recovery_ui.cjs",
   "files": {
     "README.md": {
