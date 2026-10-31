@@ -1,0 +1,8 @@
+⚠️  Using SQLite file database (/Users/rushiparikh/projects/atom-employee-execution/backend/dev.db)
+⚠️  Using SQLite file database (/Users/rushiparikh/projects/atom-employee-execution/backend/dev.db)
+⚠️  Using SQLite file database (/Users/rushiparikh/projects/atom-employee-execution/backend/dev.db)
+ERROR:    [Errno 48] error while attempting to bind on address ('127.0.0.1', 8090): address already in use
+⚠️  Using SQLite file database (/Users/rushiparikh/projects/atom-employee-execution/backend/dev.db)
+⚠️  Using SQLite file database (/Users/rushiparikh/projects/atom-employee-execution/backend/dev.db)
+ERROR:    [Errno 48] error while attempting to bind on address ('127.0.0.1', 8090): address already in use
+⚠️  Using SQLite file database (/Users/rushiparikh/projects/atom-employee-execution/backend/dev.db)

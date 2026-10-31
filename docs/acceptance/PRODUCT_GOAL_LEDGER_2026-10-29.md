@@ -175,15 +175,30 @@ Closed with browser-level evidence:
   approval, and a full answer re-dispatches the same work
   (`employee-execution-assessment-clarification/`).
 
+Closed after the verifier handoff:
+
+- **bounded standing authority for external effects**: an explicit user grant
+  (named recipients, hard 1–20 effect bound, optional expiry) is consumed under
+  the assignment CAS before dispatch; exhausted/out-of-scope steps fall back to
+  approval. Only the controlled outbox opts in; live send stays
+  approval-required (`employee-execution-autonomy-boundaries/`);
+- **budgets and uncertain-effect reconciliation**: `max_cost_usd` is enforced
+  and step cost accumulated; a TEAM_LEAD reconcile route settles
+  applied/not_applied/insufficient with mandatory evidence, never resending an
+  applied effect (`employee-execution-autonomy-boundaries/`);
+- **draft vs authorized assessment UI**: the canvas panel labels unapproved
+  assessments as drafts, approves the exact execution, answers durable
+  clarifications, and exposes decisions only when authorized;
+- **integrated two-domain autonomous journey**: sales (85) and grants (4250)
+  from unfamiliar datasets, one bounded grant per send, backend restart while
+  both wait, both complete on return, **2 effects / 0 assignment approvals**
+  (`two-domain-autonomous-journey/`, 5/5).
+
 Still open:
 
-- standing authority at the assessment boundary and for external effects;
-- bounded request/operation/assignment budgets and uncertain-effect
-  reconciliation beyond the covered cancellation path;
-- presenting unapproved drafts vs authorized decisions in the canvas UI;
-- the integrated two-domain autonomous positive journey (teach → unfamiliar
-  workbook → deterministic result → draft → durable wait → restart → resume →
-  complete without redundant approval).
+- independent verification of these runs — acceptance is not self-granted;
+- multi-worker/soak, live connectors and real sends remain outside this
+  candidate's scope.
 
 ## README marketed-surface coverage
 

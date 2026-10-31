@@ -1,0 +1,134 @@
+{
+  "schema": "atom-two-domain-autonomous-journey-1",
+  "generated_at": "2026-10-31T22:29:16.991Z",
+  "ui_base": "http://127.0.0.1:3004",
+  "api_base": "http://127.0.0.1:8090",
+  "world": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/two-domain-autonomous",
+  "backend_pids": [
+    35742,
+    35805
+  ],
+  "domains": [
+    {
+      "key": "sales",
+      "objective": "Sales: sum the scotch parts total",
+      "run_id": "395ce91b-5d60-42e4-86fb-5cb395ee72ee",
+      "recipient": "sales@example.invalid",
+      "expected": "85"
+    },
+    {
+      "key": "grants",
+      "objective": "Grants: sum the approved applications",
+      "run_id": "fbb52525-6944-4e86-9847-31ec428ece0b",
+      "recipient": "grants@example.invalid",
+      "expected": "4250"
+    }
+  ],
+  "outbox": [
+    {
+      "operation_id": "3a95db55-dbec-4b6e-bfc0-33efc18c23cf",
+      "to": [
+        "sales@example.invalid"
+      ],
+      "subject": "Sales: sum the scotch parts total",
+      "body": "Result:\n- sum of Total: 85.00 USD\n- controlled reply received: approved_reference: REF-2026\nFindings:\n- scotch-parts.xlsx / US$ SCOTCH PARTS\n  - SC-1 | identity_column | 2 | 20.00 | USD | E2\n  - SC-2 | identity_column | 3 | 60.00 | USD | E3\n  - SC-3 | identity_column | 4 | 5.00 | USD | E4\nSources:\n- scotch_parts_price_list\n- scotch-parts.xlsx\n- US$ SCOTCH PARTS\n- browser-scotch-entry\n- scotch-parts.xlsx / US$ SCOTCH PARTS",
+      "teaching_revision": "d8e9661c074ff2d7"
+    },
+    {
+      "operation_id": "ad1f4405-f105-4106-aad4-6dd94a856bd3",
+      "to": [
+        "grants@example.invalid"
+      ],
+      "subject": "Grants: sum the approved applications",
+      "body": "Result:\n- sum of Approved Amount: 4250.00\n- controlled reply received: approved_reference: REF-2026\nFindings:\n- grant-applications.xlsx / GRANT APPLICATIONS\n  - row 2 | sheet_row | 2 | 1500.00 |  | B2\n  - row 3 | sheet_row | 3 | 2000.00 |  | B3\n  - row 4 | sheet_row | 4 | 750.00 |  | B4\nSources:\n- grant_applications\n- grant-applications.xlsx\n- GRANT APPLICATIONS\n- browser-grant-entry\n- grant-applications.xlsx / GRANT APPLICATIONS",
+      "teaching_revision": "d8e9661c074ff2d7"
+    }
+  ],
+  "hitl_assignment_approvals": 0,
+  "checks": [
+    {
+      "name": "sales starts and waits",
+      "ok": true,
+      "detail": {
+        "runId": "395ce91b-5d60-42e4-86fb-5cb395ee72ee",
+        "status": "waiting"
+      }
+    },
+    {
+      "name": "grants starts and waits",
+      "ok": true,
+      "detail": {
+        "runId": "fbb52525-6944-4e86-9847-31ec428ece0b",
+        "status": "waiting"
+      }
+    },
+    {
+      "name": "sales completes under bounded standing authority",
+      "ok": true,
+      "detail": {
+        "runId": "395ce91b-5d60-42e4-86fb-5cb395ee72ee",
+        "status": "completed",
+        "stepStatuses": [
+          "source-1:applied",
+          "wait:applied",
+          "deliverable-1:applied",
+          "send:applied"
+        ],
+        "usedOnce": true,
+        "covered": true,
+        "noApprovalUi": true,
+        "expectedResult": true
+      }
+    },
+    {
+      "name": "grants completes under bounded standing authority",
+      "ok": true,
+      "detail": {
+        "runId": "fbb52525-6944-4e86-9847-31ec428ece0b",
+        "status": "completed",
+        "stepStatuses": [
+          "source-1:applied",
+          "wait:applied",
+          "deliverable-1:applied",
+          "send:applied"
+        ],
+        "usedOnce": true,
+        "covered": true,
+        "noApprovalUi": true,
+        "expectedResult": true
+      }
+    },
+    {
+      "name": "two domains produced exactly two covered effects and no approval",
+      "ok": true,
+      "detail": {
+        "effects": 2,
+        "recipients": [
+          "sales@example.invalid",
+          "grants@example.invalid"
+        ],
+        "hitlAssignmentApprovals": 0,
+        "pid1": 35742,
+        "pid2": 35805,
+        "restarted": true,
+        "screenshots": [
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/two-domain-autonomous-journey/screenshots/01-two-domains-waiting.png",
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/two-domain-autonomous-journey/screenshots/02-sales-completed.png",
+          "/Users/rushiparikh/projects/atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/two-domain-autonomous-journey/screenshots/02-grants-completed.png"
+        ]
+      }
+    }
+  ],
+  "passed": 5,
+  "failed": 0,
+  "source": {
+    "backend_head": "814962078",
+    "files": {
+      "backend/scripts/assignment_browser_acceptance_server.py": "867ae38df24050dc74b23ed07d8a3bddf8de36debd01657f5308648fbc0455ac",
+      "backend/core/assignment_executor.py": "8f690088f47d0f5ebafb37aeb2d97653c1e619ac6e481fb9d08e8842c31c50ad",
+      "backend/core/assignment_plan.py": "d33cec59962f47f9d4bf8f01edd2a895d8a065e09704c19b5a2c80d12bdea853",
+      "backend/api/assignment_routes.py": "252eac6d39be5408e1a304c69347acd58154afdd5b58875e5c39dfff319f814a",
+      "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "9724717299f801defdb7d57600f1e4e915295d8800f336b62241440194c9808b"
+    }
+  }
+}

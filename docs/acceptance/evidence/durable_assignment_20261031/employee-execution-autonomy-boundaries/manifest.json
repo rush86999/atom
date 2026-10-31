@@ -1,0 +1,20 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-autonomy-boundaries",
+  "source_checkpoint": "814962078",
+  "final_candidate": "814962078",
+  "files": {
+    "README.md": {
+      "sha256": "793deda6daa1b4c752072fce2bec21dceae2d1593f457466aa632b7e273cb09d",
+      "bytes": 3462
+    },
+    "focused-backend-tests.log": {
+      "sha256": "221ceff4a1782dccfb4279f4dd73edbf4e4fde8ac948e23ab1377890e074deed",
+      "bytes": 43985
+    },
+    "frontend-tests.log": {
+      "sha256": "5b91fc890f76e8fcd160825d0eea01728a5cf2dfb6488f2235cc6ec98ddc2d35",
+      "bytes": 694
+    }
+  }
+}

@@ -314,6 +314,35 @@ mappings that share a concept open the form on both cards. The route still
 requires the mapping's sheet/version identity, and the safe path is the
 correctable card.
 
+### Bounded autonomy, budgets and reconciliation
+
+- **Standing authority** is an explicit user grant, never model-inferred:
+  outbound effects only, named recipients, a hard 1–20 effect bound and an
+  optional expiry. The executor consumes one use under the assignment CAS
+  before dispatch; exhausted, expired, out-of-scope or wrong-recipient steps
+  fall back to ordinary approval. Only the acceptance-controlled outbox opts
+  in; live email send stays approval-required.
+- **Budgets** enforce `max_steps`, `max_attempts_per_step`,
+  `max_wall_seconds` and now `max_cost_usd`, with step cost accumulated on the
+  assignment.
+- **Uncertain effects** reconcile through a TEAM_LEAD route with mandatory
+  evidence: `applied` never resends, `not_applied` creates a new operation for
+  the next approval/resume, `insufficient` preserves the uncertain state. The
+  Assignments panel exposes the evidence and all three verdicts.
+- **Assessment clarification** re-dispatches the original selection ask with
+  the answers as clarification context, so an answer value cannot contaminate
+  selection; the route test pins a new execution and prior-approval
+  invalidation.
+- **UI**: the canvas panel labels an unapproved assessment as a draft, approves
+  the exact execution, answers durable clarifications, and only exposes
+  decisions once authorized.
+
+Evidence: `employee-execution-autonomy-boundaries/` (185 backend + 6 frontend
+tests) and `two-domain-autonomous-journey/` — sales **85** and grants **4250**
+from unfamiliar datasets, one bounded grant per send, backend restart while
+both wait, both complete on return with **2 effects / 0 assignment approvals**,
+**5/5** browser checks.
+
 ## README breadth on the integrated candidate
 
 Agent 2's corrected frozen inventory (123 eligible functional claims) reports
