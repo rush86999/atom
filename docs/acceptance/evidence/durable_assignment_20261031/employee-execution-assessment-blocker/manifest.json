@@ -1,7 +1,7 @@
 {
   "schema": "atom-local-evidence-manifest-1",
   "directory": "employee-execution-assessment-blocker",
-  "source_checkpoint": "16c113880",
+  "source_checkpoint": "676d5e648",
   "files": {
     "README.md": {
       "sha256": "1271f5e2b5dd39ce3bf0027e14dcd1697e27ab30d103f177b888910198320f1e",
@@ -20,5 +20,5 @@
       "bytes": 22962
     }
   },
-  "final_candidate": "16c113880"
+  "final_candidate": "676d5e648"
 }
