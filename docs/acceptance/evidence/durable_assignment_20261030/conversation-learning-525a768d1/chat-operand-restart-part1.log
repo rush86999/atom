@@ -1,0 +1,78 @@
+{
+  "session_id": "session_1793413816142_oskeniboc",
+  "clarification": "Before I can run the taught method, I found more than one value for Price: 7.50, 8.00. Which one should I use? Reply with the field and value, for example 'Price 8.00 USD'.",
+  "metadata": {
+    "teaching_operand_clarification": {
+      "schema": "teaching-clarification-1",
+      "clarification_id": "3559e15b0b744ccda1391fff6ca7f1eb",
+      "state": "pending",
+      "kind": "operands",
+      "operand_questions": [
+        {
+          "concept": "unit_price",
+          "column": "Price",
+          "reason": "ambiguous_value",
+          "candidates": [
+            {
+              "concept": "unit_price",
+              "column": "Price",
+              "label": "Price",
+              "raw_value": "7.50",
+              "value": "7.50",
+              "raw_unit": "",
+              "normalized_unit": "USD",
+              "required_unit": "USD",
+              "unit_status": "compatible",
+              "unit_authority": "method_declared",
+              "span": [
+                72,
+                82
+              ],
+              "source": "user_message",
+              "malformed": false
+            },
+            {
+              "concept": "unit_price",
+              "column": "Price",
+              "label": "Price",
+              "raw_value": "8.00",
+              "value": "8.00",
+              "raw_unit": "",
+              "normalized_unit": "USD",
+              "required_unit": "USD",
+              "unit_status": "compatible",
+              "unit_authority": "method_declared",
+              "span": [
+                86,
+                96
+              ],
+              "source": "user_message",
+              "malformed": false
+            }
+          ],
+          "required_unit": "USD"
+        }
+      ],
+      "method_ref": {
+        "id": "77fcb41c777f45b1bf50e4a6f5644267",
+        "revision": 1
+      },
+      "lesson_refs": [
+        {
+          "id": "77fcb41c777f45b1bf50e4a6f5644267",
+          "revision": 1
+        },
+        {
+          "id": "132c8f051e004c7d83888cd4eb7a3716",
+          "revision": 1
+        }
+      ],
+      "authority": "user_confirmation"
+    },
+    "replay_pin": {
+      "status": "pinned",
+      "durable": true
+    }
+  },
+  "page_errors": []
+}

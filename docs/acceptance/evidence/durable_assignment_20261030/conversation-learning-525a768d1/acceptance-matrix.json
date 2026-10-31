@@ -1,0 +1,143 @@
+{
+  "schema": "atom-conversation-learning-acceptance-6",
+  "source_commit": "525a768d1a2f7f28e2f2e61d7fd2205d05f66eef",
+  "source_tree": "98ce2c11b75c992fc1df31a3cd83f9f4dc493991",
+  "preserved_baseline_tag": {
+    "name": "local-core-2026-10-30-final",
+    "commit": "da9cc8b12de3639f59cc5b8ea84338c5f507dc6d"
+  },
+  "operand_matrix": [
+    {
+      "case": "Qty 2, Price 7.50 USD",
+      "expected": "15.00 USD",
+      "test": "test_method_operand_validation_matrix",
+      "result": "pass"
+    },
+    {
+      "case": "Price 7.50 CAD with USD method",
+      "expected": "no arithmetic; incompatible unit",
+      "test": "test_method_operand_validation_matrix",
+      "result": "pass"
+    },
+    {
+      "case": "unknown explicit unit",
+      "expected": "clarification",
+      "test": "test_method_operand_validation_matrix",
+      "result": "pass"
+    },
+    {
+      "case": "Price 7.50 or Price 8.00",
+      "expected": "clarification",
+      "test": "test_method_operand_validation_matrix",
+      "result": "pass"
+    },
+    {
+      "case": "quantity given twice with conflicting values",
+      "expected": "clarification",
+      "test": "test_method_operand_validation_matrix",
+      "result": "pass"
+    },
+    {
+      "case": "missing operand",
+      "expected": "targeted clarification",
+      "test": "test_method_operand_validation_matrix",
+      "result": "pass"
+    },
+    {
+      "case": "malformed number",
+      "expected": "clarification; no repaired value",
+      "test": "test_method_operand_validation_matrix",
+      "result": "pass"
+    },
+    {
+      "case": "clearly confirmed replacement value",
+      "expected": "confirmed value with user_confirmation provenance",
+      "test": "test_operand_answer_confirms_or_preserves_units",
+      "result": "pass"
+    },
+    {
+      "case": "changed method revision",
+      "expected": "old operand override ignored; reassessment",
+      "test": "test_changed_method_revision_reassesses_operand_override",
+      "result": "pass"
+    },
+    {
+      "case": "duplicate confirmation",
+      "expected": "no duplicate execution; stored result replayed",
+      "test": "test_chat_operand_clarification_resumes_with_confirmed_value",
+      "result": "pass"
+    },
+    {
+      "case": "restart during operand clarification",
+      "expected": "same task resumes",
+      "test": "test_operand_clarification_survives_restart",
+      "result": "pass"
+    }
+  ],
+  "compound_matrix": [
+    {
+      "case": "calculation plus email request",
+      "expected": "calculation covered; email obligation retained; no send",
+      "test": "test_public_chat_compound_request_keeps_email_obligation",
+      "result": "pass"
+    },
+    {
+      "case": "compound chat unit settlement",
+      "expected": "partial outcome; receipt plus open obligations",
+      "test": "test_chat_compound_request_keeps_email_obligation",
+      "result": "pass"
+    }
+  ],
+  "live_browser": [
+    {
+      "case": "valid calculation completes truthfully",
+      "evidence": "chat-operand-journey.json",
+      "result": "pass"
+    },
+    {
+      "case": "ambiguous price asks for clarification",
+      "evidence": "chat-operand-journey.json",
+      "result": "pass"
+    },
+    {
+      "case": "confirmed 8.00 resumes original task",
+      "evidence": "chat-operand-journey.json",
+      "result": "pass"
+    },
+    {
+      "case": "explicit CAD remains blocked",
+      "evidence": "chat-operand-journey.json",
+      "result": "pass"
+    },
+    {
+      "case": "compound calculation/email is partial with pending approval",
+      "evidence": "chat-operand-journey.json, operand-compound-final.json",
+      "result": "pass"
+    },
+    {
+      "case": "restart while awaiting operand resumes same task",
+      "evidence": "chat-operand-restart-part1.json, chat-operand-restart-part2.json",
+      "result": "pass"
+    }
+  ],
+  "tests": {
+    "targeted_backend": {
+      "result": "420 passed",
+      "log": "targeted-regressions.log"
+    },
+    "frontend_learning": {
+      "result": "4 passed",
+      "log": "frontend-learning-tests.log"
+    },
+    "typescript": {
+      "result": "clean",
+      "log": "typescript-check.log"
+    },
+    "known_preexisting_failures": {
+      "suite": "tests/test_chat_canvas_editor.py",
+      "count": 14,
+      "reason": "lane refused pre-planning: the turn's own words do not authorize a canvas mutation",
+      "verified_at_parent_commit": "55dddd6d4c215029bb98b9d56098b02172655878"
+    }
+  }
+}

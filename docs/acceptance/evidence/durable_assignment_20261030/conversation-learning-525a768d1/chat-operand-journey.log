@@ -1,0 +1,452 @@
+{
+  "page_errors": [],
+  "cases": {
+    "valid": {
+      "session_id": "session_1793413728023_hc2tag4ta",
+      "outcome": "completed",
+      "message": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=7.50 USD) = 15 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only.",
+      "receipt": {
+        "status": "applied",
+        "operation": "multiply_sum",
+        "validated_inputs": [
+          {
+            "concept": "quantity",
+            "column": "Qty",
+            "label": "Qty",
+            "raw_value": "2",
+            "value": "2",
+            "raw_unit": "",
+            "normalized_unit": "units",
+            "required_unit": "units",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              62,
+              67
+            ],
+            "source": "user_message",
+            "malformed": false
+          },
+          {
+            "concept": "unit_price",
+            "column": "Price",
+            "label": "Price",
+            "raw_value": "7.50",
+            "value": "7.50",
+            "raw_unit": "USD",
+            "normalized_unit": "USD",
+            "required_unit": "USD",
+            "unit_status": "compatible",
+            "unit_authority": "user_message",
+            "span": [
+              72,
+              85
+            ],
+            "source": "user_message",
+            "malformed": false
+          }
+        ],
+        "value": "15",
+        "unit": "USD",
+        "lesson_ref": {
+          "id": "77fcb41c777f45b1bf50e4a6f5644267",
+          "revision": 1
+        },
+        "input_evidence": [
+          {
+            "concept": "quantity",
+            "column": "Qty",
+            "raw_value": "2",
+            "raw_unit": "",
+            "normalized_unit": "units",
+            "required_unit": "units",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              62,
+              67
+            ],
+            "source": "user_message"
+          },
+          {
+            "concept": "unit_price",
+            "column": "Price",
+            "raw_value": "7.50",
+            "raw_unit": "USD",
+            "normalized_unit": "USD",
+            "required_unit": "USD",
+            "unit_status": "compatible",
+            "unit_authority": "user_message",
+            "span": [
+              72,
+              85
+            ],
+            "source": "user_message"
+          }
+        ],
+        "covered_obligations": [
+          "calculation"
+        ],
+        "input_totals": {
+          "quantity": "2",
+          "unit_price": "7.5"
+        },
+        "assumptions": []
+      }
+    },
+    "ambiguous_resume": {
+      "session_id": "session_1793413753952_vmjo5ntyg",
+      "clarification": "Before I can run the taught method, I found more than one value for Price: 7.50, 8.00. Which one should I use? Reply with the field and value, for example 'Price 8.00 USD'.",
+      "clarification_meta": {
+        "schema": "teaching-clarification-1",
+        "clarification_id": "62bdc1e36a0a415b892b6aed6a89dd1e",
+        "state": "pending",
+        "kind": "operands",
+        "operand_questions": [
+          {
+            "concept": "unit_price",
+            "column": "Price",
+            "reason": "ambiguous_value",
+            "candidates": [
+              {
+                "concept": "unit_price",
+                "column": "Price",
+                "label": "Price",
+                "raw_value": "7.50",
+                "value": "7.50",
+                "raw_unit": "",
+                "normalized_unit": "USD",
+                "required_unit": "USD",
+                "unit_status": "compatible",
+                "unit_authority": "method_declared",
+                "span": [
+                  72,
+                  82
+                ],
+                "source": "user_message",
+                "malformed": false
+              },
+              {
+                "concept": "unit_price",
+                "column": "Price",
+                "label": "Price",
+                "raw_value": "8.00",
+                "value": "8.00",
+                "raw_unit": "",
+                "normalized_unit": "USD",
+                "required_unit": "USD",
+                "unit_status": "compatible",
+                "unit_authority": "method_declared",
+                "span": [
+                  86,
+                  96
+                ],
+                "source": "user_message",
+                "malformed": false
+              }
+            ],
+            "required_unit": "USD"
+          }
+        ],
+        "method_ref": {
+          "id": "77fcb41c777f45b1bf50e4a6f5644267",
+          "revision": 1
+        },
+        "lesson_refs": [
+          {
+            "id": "77fcb41c777f45b1bf50e4a6f5644267",
+            "revision": 1
+          },
+          {
+            "id": "132c8f051e004c7d83888cd4eb7a3716",
+            "revision": 1
+          }
+        ],
+        "authority": "user_confirmation"
+      },
+      "answer_outcome": "completed",
+      "answer_message": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=8.00 USD) = 16 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only.",
+      "receipt": {
+        "status": "applied",
+        "operation": "multiply_sum",
+        "validated_inputs": [
+          {
+            "concept": "quantity",
+            "column": "Qty",
+            "label": "Qty",
+            "raw_value": "2",
+            "value": "2",
+            "raw_unit": "",
+            "normalized_unit": "units",
+            "required_unit": "units",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              62,
+              67
+            ],
+            "source": "user_message",
+            "malformed": false
+          },
+          {
+            "concept": "unit_price",
+            "column": "Price",
+            "label": "Price",
+            "raw_value": "8.00",
+            "value": "8.00",
+            "raw_unit": "",
+            "normalized_unit": "USD",
+            "required_unit": "USD",
+            "unit_status": "compatible",
+            "unit_authority": "user_confirmation",
+            "span": [
+              0,
+              4
+            ],
+            "source": "user_confirmation",
+            "malformed": false
+          }
+        ],
+        "value": "16",
+        "unit": "USD",
+        "lesson_ref": {
+          "id": "77fcb41c777f45b1bf50e4a6f5644267",
+          "revision": 1
+        },
+        "input_evidence": [
+          {
+            "concept": "quantity",
+            "column": "Qty",
+            "raw_value": "2",
+            "raw_unit": "",
+            "normalized_unit": "units",
+            "required_unit": "units",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              62,
+              67
+            ],
+            "source": "user_message"
+          },
+          {
+            "concept": "unit_price",
+            "column": "Price",
+            "raw_value": "8.00",
+            "raw_unit": "",
+            "normalized_unit": "USD",
+            "required_unit": "USD",
+            "unit_status": "compatible",
+            "unit_authority": "user_confirmation",
+            "span": [
+              0,
+              4
+            ],
+            "source": "user_confirmation"
+          }
+        ],
+        "covered_obligations": [
+          "calculation"
+        ],
+        "input_totals": {
+          "quantity": "2",
+          "unit_price": "8"
+        },
+        "assumptions": []
+      }
+    },
+    "incompatible_unit": {
+      "session_id": "session_1793413765957_zkm4x58em",
+      "blocked_message": "Before I can run the taught method, Price 7.50 is in CAD, but the taught method requires USD. I can't convert currencies without an approved conversion method. Please provide the value in USD. Reply with the field and value, for example 'Price 8.00 USD'.",
+      "answer_outcome": "completed",
+      "receipt": {
+        "status": "applied",
+        "operation": "multiply_sum",
+        "validated_inputs": [
+          {
+            "concept": "quantity",
+            "column": "Qty",
+            "label": "Qty",
+            "raw_value": "2",
+            "value": "2",
+            "raw_unit": "",
+            "normalized_unit": "units",
+            "required_unit": "units",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              62,
+              67
+            ],
+            "source": "user_message",
+            "malformed": false
+          },
+          {
+            "concept": "unit_price",
+            "column": "Price",
+            "label": "Price",
+            "raw_value": "7.50",
+            "value": "7.50",
+            "raw_unit": "USD",
+            "normalized_unit": "USD",
+            "required_unit": "USD",
+            "unit_status": "compatible",
+            "unit_authority": "user_confirmation",
+            "span": [
+              0,
+              13
+            ],
+            "source": "user_confirmation",
+            "malformed": false
+          }
+        ],
+        "value": "15",
+        "unit": "USD",
+        "lesson_ref": {
+          "id": "77fcb41c777f45b1bf50e4a6f5644267",
+          "revision": 1
+        },
+        "input_evidence": [
+          {
+            "concept": "quantity",
+            "column": "Qty",
+            "raw_value": "2",
+            "raw_unit": "",
+            "normalized_unit": "units",
+            "required_unit": "units",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              62,
+              67
+            ],
+            "source": "user_message"
+          },
+          {
+            "concept": "unit_price",
+            "column": "Price",
+            "raw_value": "7.50",
+            "raw_unit": "USD",
+            "normalized_unit": "USD",
+            "required_unit": "USD",
+            "unit_status": "compatible",
+            "unit_authority": "user_confirmation",
+            "span": [
+              0,
+              13
+            ],
+            "source": "user_confirmation"
+          }
+        ],
+        "covered_obligations": [
+          "calculation"
+        ],
+        "input_totals": {
+          "quantity": "2",
+          "unit_price": "7.5"
+        },
+        "assumptions": []
+      }
+    },
+    "compound": {
+      "session_id": "session_1793413775307_kabayp8gq",
+      "outcome": "partial",
+      "message": "Calculation receipt from lesson 77fcb41c777f45b1bf50e4a6f5644267 rev 1: multiply_sum(quantity=2 units, unit_price=7.50 USD) = 15 USD. The arithmetic was run by the deterministic calculator; this receipt covers the calculation only. Additional work remains open: email the quote. No outbound action was performed; the remaining request is awaiting approval or further work.",
+      "receipt": {
+        "status": "applied",
+        "operation": "multiply_sum",
+        "validated_inputs": [
+          {
+            "concept": "quantity",
+            "column": "Qty",
+            "label": "Qty",
+            "raw_value": "2",
+            "value": "2",
+            "raw_unit": "",
+            "normalized_unit": "units",
+            "required_unit": "units",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              62,
+              67
+            ],
+            "source": "user_message",
+            "malformed": false
+          },
+          {
+            "concept": "unit_price",
+            "column": "Price",
+            "label": "Price",
+            "raw_value": "7.50",
+            "value": "7.50",
+            "raw_unit": "",
+            "normalized_unit": "USD",
+            "required_unit": "USD",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              72,
+              82
+            ],
+            "source": "user_message",
+            "malformed": false
+          }
+        ],
+        "value": "15",
+        "unit": "USD",
+        "lesson_ref": {
+          "id": "77fcb41c777f45b1bf50e4a6f5644267",
+          "revision": 1
+        },
+        "input_evidence": [
+          {
+            "concept": "quantity",
+            "column": "Qty",
+            "raw_value": "2",
+            "raw_unit": "",
+            "normalized_unit": "units",
+            "required_unit": "units",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              62,
+              67
+            ],
+            "source": "user_message"
+          },
+          {
+            "concept": "unit_price",
+            "column": "Price",
+            "raw_value": "7.50",
+            "raw_unit": "",
+            "normalized_unit": "USD",
+            "required_unit": "USD",
+            "unit_status": "compatible",
+            "unit_authority": "method_declared",
+            "span": [
+              72,
+              82
+            ],
+            "source": "user_message"
+          }
+        ],
+        "covered_obligations": [
+          "calculation"
+        ],
+        "input_totals": {
+          "quantity": "2",
+          "unit_price": "7.5"
+        },
+        "assumptions": []
+      },
+      "open_obligations": [
+        {
+          "kind": "action",
+          "text": "email the quote"
+        }
+      ],
+      "approval_id": "b21e882b-d737-4bdf-98d7-c25881688a53"
+    }
+  }
+}

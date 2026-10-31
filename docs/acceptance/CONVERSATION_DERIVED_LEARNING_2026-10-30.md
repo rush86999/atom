@@ -1,12 +1,13 @@
 # Conversation-derived, reference-bound learning
 
 Status: **bounded successor implementation complete; independent verifier
-review pending.** Closure source `54543b493` (tree `395c16f3`), building on
-consumer source `37904dcd0` / `a888f5d6c` and applicability source
-`50b53bef6` (tree `cf7d8d3`). This is deliberately separate from the accepted
-local-core closure at `da9cc8b12` / tag `local-core-2026-10-30-final`. It does
-not relabel historical browser/live evidence or claim a full application
-journey on this source.
+review pending.** Method-boundary source `525a768d1` (tree `98ce2c11`),
+building on closure source `54543b493` / `550e8c165`, consumer source
+`37904dcd0` / `a888f5d6c` and applicability source `50b53bef6` (tree
+`cf7d8d3`). This is deliberately separate from the accepted local-core
+closure at `da9cc8b12` / tag `local-core-2026-10-30-final`. It does not
+relabel historical browser/live evidence or claim a full application journey
+on this source.
 
 Applicability evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-50b53be/`.
@@ -16,6 +17,9 @@ Earlier consumer wiring:
 
 Closure evidence:
 `docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-54543b493/`.
+
+Method-boundary evidence:
+`docs/acceptance/evidence/durable_assignment_20261030/conversation-learning-525a768d1/`.
 
 ## 1. Why this phase exists
 
@@ -179,6 +183,41 @@ cannot write a lesson directly.
   methods stay out of those prompts; artifact format/mapping lessons keep
   using `resolve_artifact_teaching`'s existing context resolver.
 
+### 3.9 Deterministic method boundary
+
+The deterministic Chat shortcut is four explicit stages:
+
+1. **Extract** every candidate for each declared input, retaining concept,
+   column, raw value, Decimal value, raw unit, span and source. Aliases that
+   map to one concept are checked together.
+2. **Validate** against the accepted method: missing, malformed, multiple
+   conflicting values, incompatible units and unknown units are typed
+   questions. No first/last/nearest selection.
+3. **Execute** only validated inputs through the existing
+   `apply_lesson_method` allowlist and Decimal arithmetic.
+4. **Settle** the typed `calculation_receipt` (`covered_obligations =
+   ["calculation"]`) through the existing obligation/finalization path. The
+   calculator never returns a whole-task completed verdict.
+
+Unit evidence is explicit: user-stated unit, required method unit, normalized
+unit (when recognized), authority (`user_message` or `method_declared`) and
+compatibility status. Explicit CAD with a USD method is incompatible; unknown
+units are unresolved; no currency conversion is authorized. Absent units use
+the method-declared unit and record that basis.
+
+Operand questions reuse the durable teaching-clarification carrier with
+`kind="operands"`; the pending record stores the objective, method
+id/revision, accepted context, competing/missing operands and units, request
+identity and completed work. Confirmed answers become operand overrides and
+resume the original objective; duplicate confirmation replays; changed method
+revisions reassess; refresh/restart preserves the pending question.
+
+For a compound request, the existing request-assignment extractor identifies
+the additional work. The calculation receipt is retained, the remaining
+obligation is kept open in the approval ledger (pending `HITLAction` and the
+active task ledger where present), and the turn outcome is `partial`. No
+outbound action runs during this repair.
+
 ## 4. Acceptance matrix
 
 All cases run through the shared implementation in
@@ -222,12 +261,14 @@ evidence.
 The earlier consumer source added the chat/assignment wiring and recorded
 **303 passed**. The closure source adds the typed resolver, durable
 clarification, deterministic chat execution, wrong/conflict outcomes and the
-browser/restart journeys. Its targeted backend set is **413 passed**; its
-frontend learning suites are **4 passed**; TypeScript `--noEmit` is clean.
-Fourteen `test_chat_canvas_editor.py` tests fail in a wider run; the same
-failure mode is present at the parent commit `55dddd6d4` with `lane refused
-pre-planning: the turn's own words do not authorize a canvas mutation`; they
-are pre-existing and unrelated, and are not counted in the 413-pass set.
+browser/restart journeys. The method-boundary source adds candidate/unit
+validation, calculation receipts, compound-request settlement and operand
+clarification. Its targeted backend set is **420 passed**; its frontend
+learning suites are **4 passed**; TypeScript `--noEmit` is clean. Fourteen
+`test_chat_canvas_editor.py` tests fail in a wider run; the same failure mode
+is present at the parent commit `55dddd6d4` with `lane refused pre-planning:
+the turn's own words do not authorize a canvas mutation`; they are
+pre-existing and unrelated, and are not counted in the 420-pass set.
 
 Two domains are exercised by the method-transfer case: sales pricing
 (`quantity × unit price`) and payroll-style units/rates, with independently
@@ -313,11 +354,32 @@ as a sibling method. This is world isolation, not a product change.
 Artifacts and hashes are in the closure evidence directory. Assignment
 evidence from the earlier applicability phase remains separately valid.
 
+## 6.3 Deterministic method-boundary live evidence
+
+Ordinary Chat, same isolated world and configuration, lesson
+`77fcb41c777f45b1bf50e4a6f5644267` rev `1`.
+
+| Case | Result |
+|---|---|
+| Valid `Qty 2 / Price 7.50 USD` | `completed`; receipt `15 USD`; lesson rev `1` |
+| Ambiguous `Price 7.50 or Price 8.00` | `partial`; visible clarification with both candidates; no receipt |
+| Confirm `8.00` | original task resumes; receipt `16 USD`; `user_confirmation` provenance |
+| `Price 7.50 CAD` with USD method | `partial`; incompatible-unit clarification; no arithmetic |
+| Compatible replacement `Price 7.50 USD` | original task resumes; receipt `15 USD` |
+| `calculate; then email the quote` | `partial`; receipt `15 USD`; `open_obligations=[email the quote]`; pending `HITLAction`; no send |
+| Restart while awaiting operand | pending survives; answer resumes original task; receipt `16 USD`; history outcome `completed` |
+| Duplicate confirmation | stored result replayed; no duplicate execution |
+
+The public-route test posts the compound request to `/api/chat/message`,
+asserts the receipt, `covered_obligations=["calculation"]`, the open email
+obligation, a pending `HITLAction`, and arms `_execute_send_email` to fail if
+called.
+
 ## 7. Consumer audit
 
 | Surface | Established task context | Required-context clarification | Scoped conversation methods | Consumed revision record |
 |---|---|---|---|---|
-| Chat (`process_chat_message` / `_get_qwen_response`) | Request `task_context`/top-level keys, plus unambiguous allowed values inferred from the original message; answer turn merges only confirmed fields | Yes — typed pending clarification before intent analysis; durable in session metadata and active task ledger | Yes — uniquely applicable executable method runs through `apply_lesson_method` | `teaching_execution.lesson_id`/`lesson_revision`, `teaching_clarification.lesson_refs`, history metadata |
+| Chat (`process_chat_message` / `_get_qwen_response`) | Request `task_context`/top-level keys, plus unambiguous allowed values inferred from the original message; answer turn merges only confirmed fields | Yes — typed context or operand clarification before intent analysis; durable in session metadata and active task ledger | Yes — uniquely applicable executable method runs through `apply_lesson_method` after candidate/unit validation | `calculation_receipt.lesson_ref`, `input_evidence`, `covered_obligations`, `teaching_clarification.lesson_refs`, history metadata |
 | Memory assembly (`assemble_memory_context` / `_lessons_leg`) | Caller-supplied `task_context`; resolver returns typed `required_context`/`conflicts` separately from rendered prompt | Renders the question; does not decide it | Applies matching lessons to the prompt; never injects missing-context lessons | `consumed_lesson_refs`, `required_context.lesson_ids`, `source_bindings` |
 | Canvas co-editor / canvas training | Canvas turn context; `get_agent_lessons` calls without `task_context` exclude context-bound methods | No chat clarification on pure canvas lanes; the chat-first gate applies when the turn is a chat turn | Intentionally not applied to canvas mutations; artifact format/mapping teaching keeps `resolve_artifact_teaching` | Artifact lesson fields / canvas teaching record |
 | Review / derivation | Turn/objective context; lesson lookups without `task_context` exclude context-bound methods | Not claimed on these internal lanes | Intentionally excluded; general guidance only | Not claimed |
@@ -341,6 +403,10 @@ This phase is intentionally bounded:
 - candidate creation is explicit through the UI/API; automatic teaching-cue
   extraction from every email is not claimed;
 - only the allowlisted arithmetic operations are executable;
+- no currency conversion is authorized or implemented; explicit units are
+  validated against the method and incompatible/unknown units clarify;
+- a compound request keeps its non-calculation obligations in the approval
+  ledger; no outbound send runs;
 - the existing core tag and its historical evidence are unchanged.
 
 Hosted deployment, publication, source shutdown and additional real sends
