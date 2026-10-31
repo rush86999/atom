@@ -1,3 +1,20 @@
+# SUPERSEDED as a status — cloud blocker record
+
+This directory records the **failed-closed cloud attempts** of 2026-10-31 and
+remains accurate about them: `DEEPSEEK_API_KEY` is empty, OpenRouter returned
+HTTP 402 "requires more credits", and the packaged Ollama server's model store
+was unreadable.
+
+It is **no longer the current assessment status**. A readable local model store
+was found at `~/.ollama/models-local`, served separately, and the full campaign
+then ran with real `served_provider`/`served_model` provenance:
+`../employee-execution-substantive-assessment/`.
+
+The campaign harness described below is the one that ran; its preflight is
+`ready` for the local model, not blocked.
+
+---
+
 # Substantive assessment — external blocker
 
 The grant journey's calculation is valid cross-schema evidence, but it is not a

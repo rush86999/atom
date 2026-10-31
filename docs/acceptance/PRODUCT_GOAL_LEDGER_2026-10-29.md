@@ -29,8 +29,8 @@ reliability.
 | 3 | Resolve unfamiliar columns and units; confirm or correct a mapping; resume the same assignment | Mapping resolver in `core/artifact_teaching.py`; gap/correction and resume in `core/assignment_executor.py` and `backend/api/assignment_routes.py`; `AssignmentPanel` UI | `06d80f834`; sales `Price → Gross Amount`, grants `Approved Amount → Award Amount` and `Approved Amount → Approved Award` | `sales-composite-2/verify.json`, `grants-composite-2/verify.json`; mapping/unit/stale tests in the 284-pass suite | Arbitrary Excel schemas and every authority surface are not claimed. |
 | 4 | Upload/connect authorized data and retrieve it for work | `core/assignment_resources.py`, `core/sheet_dataset_service.py`, document/data ingestion, shared OAuth resolver | Current candidate: controlled local uploads only. Historical live Microsoft evidence is bound to `001f93472`; it is not a current-candidate live-connector run | Current: sales/grant CSV uploads and source picker through the UI. Historical: `live-connected/guided/gate-result.json`, `live-connected/changed-source/gate-result.json` | No fresh live Outlook/OneDrive/Zoho run on this candidate; no credential change or external write. Connector breadth beyond the historical Microsoft scope is unverified. |
 | 5 | Ingest large/multi-sheet workbooks and supported formulas; retrieve and calculate with citations | Workbook ingestion, `sheet_dataset_service`, formula sidecar/evaluator, `dataset_aggregation` | Historical large-workbook evidence at `connected_core_20261028`; current candidate uses small CSVs | Historical evidence preserved; current composite proves sourced aggregation and row/cell citations | Current-candidate 24-sheet/formula recalculation was not rerun. Arbitrary Excel compatibility and unsupported formulas as certified recalculation are not claimed. |
-| 6 | Create a user canvas, bind data, calculate, edit with readback, export XLSX, reload | Canvas capability manifest/adapter, authoritative frame, revision-checked edits, office export | `06d80f834`; supported table adapter; `canvas-capability/canvas.json` | 290.00 → edit A-101 75→110 → 325.00; readback matched; XLSX `0f10cc8e…`; reload `revision 2 · 4 rows`; no page errors | Canvas assessment was not run because `ATOM_REVIEW_MODEL` is unconfigured. Arbitrary spreadsheet controls, formulas and future canvas components are not claimed. |
-| 7 | Grounded selection, calculation and assessment with citations | `core/table_selection.py`, `core/dataset_aggregation.py`, `core/review_result.py`, review contract, deterministic receipts | `06d80f834`; local candidate | Calculations: 400.00 USD (sales, rows 2–4) and 4250.00 USD (grants, rows 2–4) with source identity. Review contract/unit tests pass in the 284 suite. Assessment attempt: `employee-execution-assessment-blocker/` | **Blocked-external**: no usable model infrastructure (DeepSeek key empty; OpenRouter HTTP 402; local Ollama model store unreadable). The review contract is tested, but no live assessment-quality claim is made. |
+| 6 | Create a user canvas, bind data, calculate, edit with readback, export XLSX, reload | Canvas capability manifest/adapter, authoritative frame, revision-checked edits, office export | `06d80f834`; supported table adapter; `canvas-capability/canvas.json` | 290.00 → edit A-101 75→110 → 325.00; readback matched; XLSX `0f10cc8e…`; reload `revision 2 · 4 rows`; no page errors | Canvas assessment was not part of this row's run (it is row 7). Arbitrary spreadsheet controls, formulas and future canvas components are not claimed. |
+| 7 | Grounded selection, calculation and assessment with citations | `core/table_selection.py`, `core/dataset_aggregation.py`, `core/review_result.py`, review contract, deterministic receipts | `06d80f834`; local candidate | Calculations: 400.00 USD (sales, rows 2–4) and 4250.00 USD (grants, rows 2–4) with source identity. Review contract/unit tests pass in the 284 suite. Assessment attempt: `employee-execution-assessment-blocker/` | **Executed on a local model** (`ollama`/`llama3.1:8b`, CPU) on six unfamiliar grant records with real `served_provider`/`served_model` provenance: certified 6/6 subjects; judgment **5/6** under policy v1 (approved `A-204`, Amount 95), **6/6** after the policy correction, **6/6** after a real backend restart with an identical request hash. Pipeline verified; the 8B model's boundary judgment is **not** claimed reliable. Cloud providers remain unavailable (DeepSeek key empty; OpenRouter HTTP 402). Evidence: `employee-execution-substantive-assessment/`; earlier failed-closed attempts in `employee-execution-assessment-blocker/`. |
 | 8 | Produce editable DOCX/PPTX and an email draft | `core/office_service.py`, artifact renderers, `core/canvas_email_service.py`, assignment deliverable adapters | `06d80f834`; controlled outbox; no live send | DOCX active/reload hashes; PPTX 4 slides with result/findings/sources (`grants-presentation/`); email draft `[Quote]`/`[Grant]` with greeting/signature; controlled outbox exactly one line per job | Image/chart understanding and real recipient delivery are not claimed. Real send remains disabled. |
 | 9 | User-created canvases inherit supported capabilities | Versioned capability manifests, adapter registry, canvas routes | `06d80f834`; table adapter only | `canvas-capability/canvas.json`: manifest installed, CSV bound, calculate/edit/export/reload | Only the supported table adapter is verified; every future canvas component is not. |
 | 10 | Long-running multi-source assignment with missing information, browser close, restart, delayed response, changed teaching, artifact restart, cancellation/uncertain-effect controls | `core/task_lifecycle.py`, GoalRun services, executor checkpoints, durable waits, HITL routes, reconciliation | `06d80f834`; one worker; controlled transport | Sales and grant composites: waiting → browser closed → backend PID changed → same run resumed → correlated response → artifact. `test_assignment_executor` recovery/cancel/uncertain/duplicate/artifact-restart tests pass in the 284 suite | One-worker topology only. No multi-day soak, multi-worker campaign or unrestricted autonomous browsing. Real credential expiry is not exercised on this candidate. |
@@ -58,6 +58,31 @@ restart: save, replacement and removal; the bounded provider sees the saved
 and replacement keys, removal makes no new call, and key values do not appear
 in logs. Evidence:
 `docs/acceptance/evidence/durable_assignment_20261031/employee-execution-byok-refresh/`.
+
+## Substantive model-backed assessment
+
+Executed on a real served model instead of remaining blocked:
+
+- `ollama` / `llama3.1:8b` (Q4_K_M, CPU) served from a readable local store on
+  a separate port; `ATOM_REVIEW_MODEL`/`ATOM_REVIEW_PROVIDER` declared and
+  pinned; `ATOM_LOCAL_ONLY=true`; no cloud provider used.
+- Six unfamiliar grant records, a taught policy, a policy correction that
+  removes a regional exception, and a fresh judgment after a real backend
+  restart (pid 93571 → 94951).
+- System gates passed at every phase: certified, exact subject coverage,
+  non-empty `served_provider`/`served_model`, changed policy revision after the
+  correction, identical request hash and decisions after restart.
+- Judgment: **5/6** on policy v1 — the model approved `A-204` (Amount **95**)
+  citing `Amount >= 100`, a model reading error on the boundary record — then
+  **6/6** on the corrected policy and **6/6** after restart.
+- Therefore the assessment **pipeline** is verified end-to-end; reliable
+  boundary judgment is **not** claimed for this 8B CPU model. Cloud providers
+  remain unavailable (DeepSeek key empty, OpenRouter HTTP 402).
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-substantive-assessment/`.
+Historical failed-closed attempts remain in
+`employee-execution-assessment-blocker/`.
 
 ## README marketed-surface coverage
 

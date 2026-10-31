@@ -221,7 +221,7 @@
     "scope": "bounded local OpenAI-compatible server; x-atom-model=gpt-4o-mini; no real provider send"
   },
   "assessment_campaign": {
-    "status": "prepared_blocked",
+    "status": "executed_with_findings",
     "harness": "scripts/acceptance/substantive_assessment_campaign.py",
     "phases": [
       "preflight",
@@ -229,7 +229,16 @@
       "correct",
       "after-restart"
     ],
-    "blocker": "no ATOM_REVIEW_MODEL/ATOM_REVIEW_PROVIDER; DeepSeek key empty; OpenRouter 402; local Ollama unreadable",
-    "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-blocker/"
+    "served_provider": "ollama",
+    "served_model": "llama3.1:8b",
+    "system_gates": "certified, 6/6 subject coverage, real provenance, changed policy revision, post-restart stability",
+    "judgment": {
+      "create_v1": 0.8333,
+      "correct_v3": 1.0,
+      "after_restart_v3": 1.0
+    },
+    "finding": "A-204 (Amount 95) approved instead of REVIEW under policy v1; model reading error, not a rendering defect",
+    "claim": "pipeline verified; reliable boundary judgment not claimed for the 8B local model",
+    "evidence": "docs/acceptance/evidence/durable_assignment_20261031/employee-execution-substantive-assessment/"
   }
 }

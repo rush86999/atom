@@ -1,0 +1,72 @@
+{
+  "schema": "atom-local-evidence-manifest-1",
+  "directory": "employee-execution-substantive-assessment",
+  "files": {
+    "README.md": {
+      "sha256": "c9b121040ccb77078ae9893709b151ab5c767c2ab76b7eeba061126f929c9679",
+      "bytes": 5540
+    },
+    "after-restart-raw.json": {
+      "sha256": "a0707eecec934750b07a3904ea334829413193fa9a9b66a82ce9a14e7063556a",
+      "bytes": 26284
+    },
+    "after-restart.json": {
+      "sha256": "a0707eecec934750b07a3904ea334829413193fa9a9b66a82ce9a14e7063556a",
+      "bytes": 26284
+    },
+    "after-restart.log": {
+      "sha256": "046f5e55d51992b9ba86b7c2dcf849330efdc05d7f224a7c9e4735579849b870",
+      "bytes": 909
+    },
+    "correct-raw.json": {
+      "sha256": "100f4ba259d501d72ef75c62562110fa1d5fd2c2763ff68803e5c00057bb5a8c",
+      "bytes": 26002
+    },
+    "correct.json": {
+      "sha256": "100f4ba259d501d72ef75c62562110fa1d5fd2c2763ff68803e5c00057bb5a8c",
+      "bytes": 26002
+    },
+    "correct.log": {
+      "sha256": "55873f5643deb7b5be53a6f3120be9a8b0ed7aa3df24e59b002f7e7caa240908",
+      "bytes": 897
+    },
+    "create-raw.json": {
+      "sha256": "26045f560898d045c3b25a5490bbb641007f657a3f96d43928294549ab1c8c15",
+      "bytes": 27471
+    },
+    "create.json": {
+      "sha256": "26045f560898d045c3b25a5490bbb641007f657a3f96d43928294549ab1c8c15",
+      "bytes": 27471
+    },
+    "judgment-after-restart.json": {
+      "sha256": "6f313a6f53139233f32c81a5c6b4210af5c840ebe09c692c83e3111906143ecb",
+      "bytes": 516
+    },
+    "judgment-correct.json": {
+      "sha256": "92813eff3970c26a9254fe98fda6573067cee8abe16606cf60c94e1e68c3dab1",
+      "bytes": 510
+    },
+    "judgment-create.json": {
+      "sha256": "3f0872790d90e480e0f6cb74db23357d7e9c7ec16ffca8b891511a618f57c0ad",
+      "bytes": 590
+    },
+    "preflight.json": {
+      "sha256": "c91e3d8362bb657a0bc5cfd0481dc8f0a48fcda2dfb34da799fc2ff62536d081",
+      "bytes": 1068
+    },
+    "preflight.log": {
+      "sha256": "c91e3d8362bb657a0bc5cfd0481dc8f0a48fcda2dfb34da799fc2ff62536d081",
+      "bytes": 1068
+    },
+    "state.json": {
+      "sha256": "b58e31b02d45a217ac2a8b19ee0e2599a8c9a41996536d5523b1be296bd6c728",
+      "bytes": 59616
+    },
+    "world-identity.json": {
+      "sha256": "9d029e0ffddf0dd06d8b29af52019c30e617d60a59f63cdf00f0033d0109d601",
+      "bytes": 1479
+    }
+  },
+  "source_checkpoint": "8d75173d2",
+  "final_candidate": "8d75173d2"
+}

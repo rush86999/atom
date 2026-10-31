@@ -1,0 +1,713 @@
+{
+  "success": true,
+  "operation": "assess",
+  "canvas_id": "47c3f983-eea9-4a0f-baee-360cf82da874",
+  "execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+  "execution_fingerprint": "34a9f9ff583a9ed4b99c47b4",
+  "status": "completed",
+  "certified": true,
+  "assessments": [
+    {
+      "subject_id": "A-201",
+      "decision": "APPROVE",
+      "basis": [
+        "Amount 120 is >= 100, so the record is approved regardless of Risk."
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "ev:A-201:2",
+          "subject_id": "A-201",
+          "row_ref": "row 2",
+          "source_identity": {
+            "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+            "file_name": "grant_eligibility_20261031.csv",
+            "source_version": "2bf13f2e11d2fd37",
+            "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+            "snapshot_version": "2bf13f2e11d2fd37",
+            "upstream_provider": null,
+            "upstream_external_id": null,
+            "upstream_version": null
+          },
+          "retrieval_operation": "canvas_table_read",
+          "retrieval_execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+          "values": [
+            "Ref='A-201'",
+            "Amount=120",
+            "Status='Open'",
+            "Risk='Low'",
+            "Region='North'"
+          ]
+        }
+      ],
+      "policy_refs": [
+        {
+          "policy_id": "policy:e6b1be82d58d0b5d",
+          "topic": "task policy",
+          "lesson": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records."
+        }
+      ],
+      "unresolved_requirements": [],
+      "reported_unresolved_requirements": [],
+      "accepted_unresolved_requirements": [],
+      "basis_supported_requirements": [],
+      "unclassified_requirements": [],
+      "source_execution_ids": [
+        "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+      ],
+      "resumed_read": false
+    },
+    {
+      "subject_id": "A-202",
+      "decision": "REVIEW",
+      "basis": [
+        "Amount 80 is between 50 and 99, so the record requires review."
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "ev:A-202:3",
+          "subject_id": "A-202",
+          "row_ref": "row 3",
+          "source_identity": {
+            "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+            "file_name": "grant_eligibility_20261031.csv",
+            "source_version": "2bf13f2e11d2fd37",
+            "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+            "snapshot_version": "2bf13f2e11d2fd37",
+            "upstream_provider": null,
+            "upstream_external_id": null,
+            "upstream_version": null
+          },
+          "retrieval_operation": "canvas_table_read",
+          "retrieval_execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+          "values": [
+            "Ref='A-202'",
+            "Amount=80",
+            "Status='Open'",
+            "Risk='High'",
+            "Region='South'"
+          ]
+        }
+      ],
+      "policy_refs": [
+        {
+          "policy_id": "policy:e6b1be82d58d0b5d",
+          "topic": "task policy",
+          "lesson": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records."
+        }
+      ],
+      "unresolved_requirements": [],
+      "reported_unresolved_requirements": [],
+      "accepted_unresolved_requirements": [],
+      "basis_supported_requirements": [],
+      "unclassified_requirements": [],
+      "source_execution_ids": [
+        "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+      ],
+      "resumed_read": false
+    },
+    {
+      "subject_id": "A-203",
+      "decision": "DENY",
+      "basis": [
+        "Status is Closed, so the record is denied."
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "ev:A-203:4",
+          "subject_id": "A-203",
+          "row_ref": "row 4",
+          "source_identity": {
+            "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+            "file_name": "grant_eligibility_20261031.csv",
+            "source_version": "2bf13f2e11d2fd37",
+            "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+            "snapshot_version": "2bf13f2e11d2fd37",
+            "upstream_provider": null,
+            "upstream_external_id": null,
+            "upstream_version": null
+          },
+          "retrieval_operation": "canvas_table_read",
+          "retrieval_execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+          "values": [
+            "Ref='A-203'",
+            "Amount=200",
+            "Status='Closed'",
+            "Risk='Low'",
+            "Region='North'"
+          ]
+        }
+      ],
+      "policy_refs": [
+        {
+          "policy_id": "policy:e6b1be82d58d0b5d",
+          "topic": "task policy",
+          "lesson": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records."
+        }
+      ],
+      "unresolved_requirements": [],
+      "reported_unresolved_requirements": [],
+      "accepted_unresolved_requirements": [],
+      "basis_supported_requirements": [],
+      "unclassified_requirements": [],
+      "source_execution_ids": [
+        "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+      ],
+      "resumed_read": false
+    },
+    {
+      "subject_id": "A-204",
+      "decision": "REVIEW",
+      "basis": [
+        "Amount 95 is between 50 and 99, so the record requires review."
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "ev:A-204:5",
+          "subject_id": "A-204",
+          "row_ref": "row 5",
+          "source_identity": {
+            "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+            "file_name": "grant_eligibility_20261031.csv",
+            "source_version": "2bf13f2e11d2fd37",
+            "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+            "snapshot_version": "2bf13f2e11d2fd37",
+            "upstream_provider": null,
+            "upstream_external_id": null,
+            "upstream_version": null
+          },
+          "retrieval_operation": "canvas_table_read",
+          "retrieval_execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+          "values": [
+            "Ref='A-204'",
+            "Amount=95",
+            "Status='Open'",
+            "Risk='Low'",
+            "Region='North'"
+          ]
+        }
+      ],
+      "policy_refs": [
+        {
+          "policy_id": "policy:e6b1be82d58d0b5d",
+          "topic": "task policy",
+          "lesson": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records."
+        }
+      ],
+      "unresolved_requirements": [],
+      "reported_unresolved_requirements": [],
+      "accepted_unresolved_requirements": [],
+      "basis_supported_requirements": [],
+      "unclassified_requirements": [],
+      "source_execution_ids": [
+        "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+      ],
+      "resumed_read": false
+    },
+    {
+      "subject_id": "A-205",
+      "decision": "APPROVE",
+      "basis": [
+        "Amount 150 is >= 100, so the record is approved regardless of Risk."
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "ev:A-205:6",
+          "subject_id": "A-205",
+          "row_ref": "row 6",
+          "source_identity": {
+            "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+            "file_name": "grant_eligibility_20261031.csv",
+            "source_version": "2bf13f2e11d2fd37",
+            "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+            "snapshot_version": "2bf13f2e11d2fd37",
+            "upstream_provider": null,
+            "upstream_external_id": null,
+            "upstream_version": null
+          },
+          "retrieval_operation": "canvas_table_read",
+          "retrieval_execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+          "values": [
+            "Ref='A-205'",
+            "Amount=150",
+            "Status='Open'",
+            "Risk='High'",
+            "Region='North'"
+          ]
+        }
+      ],
+      "policy_refs": [
+        {
+          "policy_id": "policy:e6b1be82d58d0b5d",
+          "topic": "task policy",
+          "lesson": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records."
+        }
+      ],
+      "unresolved_requirements": [],
+      "reported_unresolved_requirements": [],
+      "accepted_unresolved_requirements": [],
+      "basis_supported_requirements": [],
+      "unclassified_requirements": [],
+      "source_execution_ids": [
+        "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+      ],
+      "resumed_read": false
+    },
+    {
+      "subject_id": "A-206",
+      "decision": "REVIEW",
+      "basis": [
+        "Amount 60 is between 50 and 99, so the record requires review."
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "ev:A-206:7",
+          "subject_id": "A-206",
+          "row_ref": "row 7",
+          "source_identity": {
+            "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+            "file_name": "grant_eligibility_20261031.csv",
+            "source_version": "2bf13f2e11d2fd37",
+            "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+            "snapshot_version": "2bf13f2e11d2fd37",
+            "upstream_provider": null,
+            "upstream_external_id": null,
+            "upstream_version": null
+          },
+          "retrieval_operation": "canvas_table_read",
+          "retrieval_execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+          "values": [
+            "Ref='A-206'",
+            "Amount=60",
+            "Status='Open'",
+            "Risk='High'",
+            "Region='North'"
+          ]
+        }
+      ],
+      "policy_refs": [
+        {
+          "policy_id": "policy:e6b1be82d58d0b5d",
+          "topic": "task policy",
+          "lesson": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records."
+        }
+      ],
+      "unresolved_requirements": [],
+      "reported_unresolved_requirements": [],
+      "accepted_unresolved_requirements": [],
+      "basis_supported_requirements": [],
+      "unclassified_requirements": [],
+      "source_execution_ids": [
+        "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+      ],
+      "resumed_read": false
+    }
+  ],
+  "errors": [],
+  "review": {
+    "schema_version": "review-result-2",
+    "execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+    "requested_subjects": [
+      "A-201",
+      "A-202",
+      "A-203",
+      "A-204",
+      "A-205",
+      "A-206"
+    ],
+    "allowed_decisions": [
+      "APPROVE",
+      "REVIEW",
+      "DENY"
+    ],
+    "source_execution_ids": [
+      "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+    ],
+    "assessments": [
+      {
+        "subject_id": "A-201",
+        "decision": "APPROVE",
+        "basis": [
+          "Amount 120 is >= 100, so the record is approved regardless of Risk."
+        ],
+        "evidence_refs": [
+          {
+            "evidence_id": "ev:A-201:2",
+            "subject_id": "A-201",
+            "row_ref": "row 2",
+            "source_identity": {
+              "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+              "file_name": "grant_eligibility_20261031.csv",
+              "source_version": "2bf13f2e11d2fd37",
+              "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+              "snapshot_version": "2bf13f2e11d2fd37",
+              "upstream_provider": null,
+              "upstream_external_id": null,
+              "upstream_version": null
+            },
+            "retrieval_operation": "canvas_table_read",
+            "retrieval_execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+            "values": [
+              "Ref='A-201'",
+              "Amount=120",
+              "Status='Open'",
+              "Risk='Low'",
+              "Region='North'"
+            ]
+          }
+        ],
+        "policy_refs": [
+          {
+            "policy_id": "policy:e6b1be82d58d0b5d",
+            "topic": "task policy",
+            "lesson": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records."
+          }
+        ],
+        "unresolved_requirements": [],
+        "reported_unresolved_requirements": [],
+        "accepted_unresolved_requirements": [],
+        "basis_supported_requirements": [],
+        "unclassified_requirements": [],
+        "source_execution_ids": [
+          "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+        ],
+        "resumed_read": false
+      },
+      {
+        "subject_id": "A-202",
+        "decision": "REVIEW",
+        "basis": [
+          "Amount 80 is between 50 and 99, so the record requires review."
+        ],
+        "evidence_refs": [
+          {
+            "evidence_id": "ev:A-202:3",
+            "subject_id": "A-202",
+            "row_ref": "row 3",
+            "source_identity": {
+              "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+              "file_name": "grant_eligibility_20261031.csv",
+              "source_version": "2bf13f2e11d2fd37",
+              "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+              "snapshot_version": "2bf13f2e11d2fd37",
+              "upstream_provider": null,
+              "upstream_external_id": null,
+              "upstream_version": null
+            },
+            "retrieval_operation": "canvas_table_read",
+            "retrieval_execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+            "values": [
+              "Ref='A-202'",
+              "Amount=80",
+              "Status='Open'",
+              "Risk='High'",
+              "Region='South'"
+            ]
+          }
+        ],
+        "policy_refs": [
+          {
+            "policy_id": "policy:e6b1be82d58d0b5d",
+            "topic": "task policy",
+            "lesson": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records."
+          }
+        ],
+        "unresolved_requirements": [],
+        "reported_unresolved_requirements": [],
+        "accepted_unresolved_requirements": [],
+        "basis_supported_requirements": [],
+        "unclassified_requirements": [],
+        "source_execution_ids": [
+          "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+        ],
+        "resumed_read": false
+      },
+      {
+        "subject_id": "A-203",
+        "decision": "DENY",
+        "basis": [
+          "Status is Closed, so the record is denied."
+        ],
+        "evidence_refs": [
+          {
+            "evidence_id": "ev:A-203:4",
+            "subject_id": "A-203",
+            "row_ref": "row 4",
+            "source_identity": {
+              "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+              "file_name": "grant_eligibility_20261031.csv",
+              "source_version": "2bf13f2e11d2fd37",
+              "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+              "snapshot_version": "2bf13f2e11d2fd37",
+              "upstream_provider": null,
+              "upstream_external_id": null,
+              "upstream_version": null
+            },
+            "retrieval_operation": "canvas_table_read",
+            "retrieval_execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+            "values": [
+              "Ref='A-203'",
+              "Amount=200",
+              "Status='Closed'",
+              "Risk='Low'",
+              "Region='North'"
+            ]
+          }
+        ],
+        "policy_refs": [
+          {
+            "policy_id": "policy:e6b1be82d58d0b5d",
+            "topic": "task policy",
+            "lesson": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records."
+          }
+        ],
+        "unresolved_requirements": [],
+        "reported_unresolved_requirements": [],
+        "accepted_unresolved_requirements": [],
+        "basis_supported_requirements": [],
+        "unclassified_requirements": [],
+        "source_execution_ids": [
+          "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+        ],
+        "resumed_read": false
+      },
+      {
+        "subject_id": "A-204",
+        "decision": "REVIEW",
+        "basis": [
+          "Amount 95 is between 50 and 99, so the record requires review."
+        ],
+        "evidence_refs": [
+          {
+            "evidence_id": "ev:A-204:5",
+            "subject_id": "A-204",
+            "row_ref": "row 5",
+            "source_identity": {
+              "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+              "file_name": "grant_eligibility_20261031.csv",
+              "source_version": "2bf13f2e11d2fd37",
+              "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+              "snapshot_version": "2bf13f2e11d2fd37",
+              "upstream_provider": null,
+              "upstream_external_id": null,
+              "upstream_version": null
+            },
+            "retrieval_operation": "canvas_table_read",
+            "retrieval_execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+            "values": [
+              "Ref='A-204'",
+              "Amount=95",
+              "Status='Open'",
+              "Risk='Low'",
+              "Region='North'"
+            ]
+          }
+        ],
+        "policy_refs": [
+          {
+            "policy_id": "policy:e6b1be82d58d0b5d",
+            "topic": "task policy",
+            "lesson": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records."
+          }
+        ],
+        "unresolved_requirements": [],
+        "reported_unresolved_requirements": [],
+        "accepted_unresolved_requirements": [],
+        "basis_supported_requirements": [],
+        "unclassified_requirements": [],
+        "source_execution_ids": [
+          "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+        ],
+        "resumed_read": false
+      },
+      {
+        "subject_id": "A-205",
+        "decision": "APPROVE",
+        "basis": [
+          "Amount 150 is >= 100, so the record is approved regardless of Risk."
+        ],
+        "evidence_refs": [
+          {
+            "evidence_id": "ev:A-205:6",
+            "subject_id": "A-205",
+            "row_ref": "row 6",
+            "source_identity": {
+              "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+              "file_name": "grant_eligibility_20261031.csv",
+              "source_version": "2bf13f2e11d2fd37",
+              "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+              "snapshot_version": "2bf13f2e11d2fd37",
+              "upstream_provider": null,
+              "upstream_external_id": null,
+              "upstream_version": null
+            },
+            "retrieval_operation": "canvas_table_read",
+            "retrieval_execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+            "values": [
+              "Ref='A-205'",
+              "Amount=150",
+              "Status='Open'",
+              "Risk='High'",
+              "Region='North'"
+            ]
+          }
+        ],
+        "policy_refs": [
+          {
+            "policy_id": "policy:e6b1be82d58d0b5d",
+            "topic": "task policy",
+            "lesson": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records."
+          }
+        ],
+        "unresolved_requirements": [],
+        "reported_unresolved_requirements": [],
+        "accepted_unresolved_requirements": [],
+        "basis_supported_requirements": [],
+        "unclassified_requirements": [],
+        "source_execution_ids": [
+          "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+        ],
+        "resumed_read": false
+      },
+      {
+        "subject_id": "A-206",
+        "decision": "REVIEW",
+        "basis": [
+          "Amount 60 is between 50 and 99, so the record requires review."
+        ],
+        "evidence_refs": [
+          {
+            "evidence_id": "ev:A-206:7",
+            "subject_id": "A-206",
+            "row_ref": "row 7",
+            "source_identity": {
+              "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+              "file_name": "grant_eligibility_20261031.csv",
+              "source_version": "2bf13f2e11d2fd37",
+              "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+              "snapshot_version": "2bf13f2e11d2fd37",
+              "upstream_provider": null,
+              "upstream_external_id": null,
+              "upstream_version": null
+            },
+            "retrieval_operation": "canvas_table_read",
+            "retrieval_execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b",
+            "values": [
+              "Ref='A-206'",
+              "Amount=60",
+              "Status='Open'",
+              "Risk='High'",
+              "Region='North'"
+            ]
+          }
+        ],
+        "policy_refs": [
+          {
+            "policy_id": "policy:e6b1be82d58d0b5d",
+            "topic": "task policy",
+            "lesson": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records."
+          }
+        ],
+        "unresolved_requirements": [],
+        "reported_unresolved_requirements": [],
+        "accepted_unresolved_requirements": [],
+        "basis_supported_requirements": [],
+        "unclassified_requirements": [],
+        "source_execution_ids": [
+          "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+        ],
+        "resumed_read": false
+      }
+    ],
+    "candidate_assessments": [],
+    "errors": [],
+    "ok": true,
+    "required_actions": [],
+    "action_receipts": [],
+    "completion": "completed"
+  },
+  "rendered": "VALIDATED REVIEW (request-bound):\n- A-201: Decision: APPROVE\n  Evidence: grant_eligibility_20261031.csv canvas:47c3f983-eea9-4a0f-baee-360cf82da874 row 2\n  Policy: task policy\n  Basis: Amount 120 is >= 100, so the record is approved regardless of Risk.\n- A-202: Decision: REVIEW\n  Evidence: grant_eligibility_20261031.csv canvas:47c3f983-eea9-4a0f-baee-360cf82da874 row 3\n  Policy: task policy\n  Basis: Amount 80 is between 50 and 99, so the record requires review.\n- A-203: Decision: DENY\n  Evidence: grant_eligibility_20261031.csv canvas:47c3f983-eea9-4a0f-baee-360cf82da874 row 4\n  Policy: task policy\n  Basis: Status is Closed, so the record is denied.\n- A-204: Decision: REVIEW\n  Evidence: grant_eligibility_20261031.csv canvas:47c3f983-eea9-4a0f-baee-360cf82da874 row 5\n  Policy: task policy\n  Basis: Amount 95 is between 50 and 99, so the record requires review.\n- A-205: Decision: APPROVE\n  Evidence: grant_eligibility_20261031.csv canvas:47c3f983-eea9-4a0f-baee-360cf82da874 row 6\n  Policy: task policy\n  Basis: Amount 150 is >= 100, so the record is approved regardless of Risk.\n- A-206: Decision: REVIEW\n  Evidence: grant_eligibility_20261031.csv canvas:47c3f983-eea9-4a0f-baee-360cf82da874 row 7\n  Policy: task policy\n  Basis: Amount 60 is between 50 and 99, so the record requires review.",
+  "route": {
+    "ok": true,
+    "request_sha256": "e3362adf95e4f103c88265a8f622840c9542c791c9d6f47e52164f4b18761f1f",
+    "message_count": 2,
+    "failure_kind": null,
+    "failure_stage": null,
+    "dispatched": true,
+    "provider": "ollama",
+    "model": "llama3.1:8b",
+    "output_mode": "json",
+    "pin": {
+      "provider_model": [
+        "ollama",
+        "llama3.1:8b"
+      ]
+    },
+    "served_provider": "ollama",
+    "served_model": "llama3.1:8b",
+    "payload_type": "ReviewPayloadModel"
+  },
+  "source": {
+    "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+    "file_name": "grant_eligibility_20261031.csv",
+    "source_version": "2bf13f2e11d2fd37",
+    "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+    "snapshot": {
+      "kind": "canvas_dataset_snapshot",
+      "resource_id": "canvas:47c3f983-eea9-4a0f-baee-360cf82da874",
+      "version": "2bf13f2e11d2fd37",
+      "sha256": "2bf13f2e11d2fd37728e930bddd05e49c67372a8f2d2d2b1a3784c7634dbb0be",
+      "rows": 6,
+      "columns": 5
+    },
+    "writeback": {
+      "supported": false,
+      "upstream_mutated": false,
+      "performed": false
+    }
+  },
+  "source_revision": "2bf13f2e11d2fd37",
+  "upstream_revision": null,
+  "manifest_revision": "761fba001e3e6484",
+  "policy_revision": "e6b1be82d58d0b5d",
+  "teaching_snapshot": {
+    "policy_revision": "e6b1be82d58d0b5d",
+    "task_policy": "Approve Open records with Amount >= 100 regardless of Risk. Review Open records with Amount 50-99. Deny Closed records.",
+    "decision_options": [
+      "APPROVE",
+      "REVIEW",
+      "DENY"
+    ],
+    "teaching_context": {},
+    "source_snapshot_version": "2bf13f2e11d2fd37",
+    "source_upstream_version": null,
+    "execution_id": "canvas-47c3f983-eea9-4a0f-baee-360cf82da874-d62eca396c9b"
+  },
+  "subjects": [
+    "A-201",
+    "A-202",
+    "A-203",
+    "A-204",
+    "A-205",
+    "A-206"
+  ],
+  "unassessed_subjects": [],
+  "coverage": {
+    "selected_count": 6,
+    "assessed_count": 6,
+    "unassessed_count": 0,
+    "assessment_truncated": false,
+    "max_subjects": 50,
+    "limit_source": "default",
+    "assessed_subjects": [
+      "A-201",
+      "A-202",
+      "A-203",
+      "A-204",
+      "A-205",
+      "A-206"
+    ],
+    "unassessed_subjects": [],
+    "selection_source_row_count": 6
+  },
+  "evidence_count": 6
+}

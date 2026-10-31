@@ -48,36 +48,41 @@ The two-domain acceptance uses **deterministic assignment, teaching,
 calculation, artifact and approval paths**. It does not dispatch an LLM for the
 final business result.
 
-A substantive model-backed assessment was attempted on an unfamiliar six-record
-grant dataset with a declared policy and decision labels. It is **blocked by
-external model infrastructure**, not completed:
+A substantive model-backed assessment **was executed** on an unfamiliar
+six-record grant dataset with a declared policy, a policy correction and a
+fresh post-restart judgment. The cloud blockers remain real (DeepSeek key
+empty; OpenRouter HTTP 402), but a readable local model store was found and
+served: `ollama` / `llama3.1:8b` (Q4_K_M, CPU) on a separate server over
+`~/.ollama/models-local`.
 
-- DeepSeek direct: `DEEPSEEK_API_KEY` is present but empty; no deepseek client
-  was built (`pin_unavailable`).
-- OpenRouter / `deepseek/deepseek-v4-pro`: the pin resolved and dispatch was
-  attempted; OpenRouter returned HTTP 402 "requires more credits" for the
-  6000-token request; fallback models also returned 402 (`empty_payload`).
-- Local Ollama: model storage is on an unreadable/unmounted external volume.
+| Phase | Certification | Judgment |
+|---|---|---|
+| `create` (policy v1) | certified, 6/6 subjects, `served_provider=ollama`, `served_model=llama3.1:8b` | **5/6** |
+| `correct` (policy v3, exception removed) | certified, changed policy revision | **6/6** |
+| `after-restart` (policy v3, new backend pid) | certified, identical request hash, identical decisions | **6/6** |
 
-The failed-closed response, sanitized provider errors, dataset hash and policy
-are preserved in
-`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-blocker/`.
-The executable campaign (`scripts/acceptance/substantive_assessment_campaign.py`)
-is prepared for `create → correct → restart → after-restart` with real
-`served_provider`/`served_model` provenance; its current preflight is blocked
-on the same missing model configuration.
-The smallest required input is a funded provider key with a declared review
-model, or a readable local Ollama model store. No assessment-quality claim is
-made until then. Historical DeepSeek assessment/send qualifications remain
-bound to their own source/configuration and are **not** merged into this
-candidate's claim.
+The single failure is stated plainly: under v1 the model approved `A-204`
+(Amount **95**) and cited `Amount >= 100`, although the row was rendered as
+`Amount=95`. That is a model reading error on the boundary record, not a
+rendering defect; the same model returned `A-204` = REVIEW and `A-205` =
+APPROVE after the correction. So the **assessment pipeline** is verified
+end-to-end with real provenance, while `llama3.1:8b` is **not** reliable enough
+on the more complex policy to claim correct boundary judgment. A stronger
+serving model is required for that claim.
+
+Evidence:
+`docs/acceptance/evidence/durable_assignment_20261031/employee-execution-substantive-assessment/`.
+The earlier failed-closed cloud attempts are preserved as history in
+`employee-execution-assessment-blocker/`. Historical DeepSeek assessment/send
+qualifications remain bound to their own source/configuration and are **not**
+merged into this candidate's claim.
 
 Declared operation → model:
 
 | Operation | Model/provider |
 |---|---|
 | Teaching review/promotion, assignment planning, calculation, DOCX/PPTX/XLSX rendering, approval | deterministic application code; no model dispatch |
-| Canvas assessment | **blocked** — attempted DeepSeek direct, OpenRouter and local Ollama; no usable model infrastructure |
+| Canvas assessment | `ollama`/`llama3.1:8b` (local, CPU) — pipeline verified; judgment 5/6 on policy v1, 6/6 on the corrected policy |
 | Chat prose generation | not exercised for a final result in this acceptance |
 
 ## Install
@@ -275,10 +280,13 @@ and `docs/acceptance/readme_feature_readiness_2026-10-31/INTEGRATED_RERUN_2026-1
 
 ## Known limitations and failure records
 
-- **Canvas assessment is blocked by external model infrastructure.** DeepSeek
-  direct has an empty key, OpenRouter returns HTTP 402 (no credits), and local
-  Ollama's model store is unreadable. The review contract is unit-tested, but
-  no live model-quality claim is made. See
+- **Canvas assessment quality is bounded by the serving model.** The pipeline
+  is verified end-to-end on `ollama`/`llama3.1:8b` with real provenance,
+  correction and post-restart stability, but that 8B CPU model approved one
+  boundary record (Amount 95) under the complex policy: 5/6, then 6/6 on the
+  simpler corrected policy. No reliable boundary-judgment claim is made for it.
+  Cloud providers remain unavailable (DeepSeek key empty, OpenRouter HTTP 402);
+  see `employee-execution-substantive-assessment/` and the historical
   `employee-execution-assessment-blocker/`.
 - **PPTX** is verified as an editable 4-slide artifact with grounded text; it
   is not a visual-design or chart-rendering claim.
@@ -311,8 +319,9 @@ The independent verifier should challenge:
 6. the guidance-only conversation candidate with no calculation method;
 7. the two-domain browser/API composite and artifact hashes;
 8. canvas export/reload and the XLSX contents;
-9. the declared model-provenance boundary and the assessment blocker
-   (deterministic paths; DeepSeek/OpenRouter/Ollama attempts).
+9. the declared model-provenance boundary and the executed assessment
+   (deterministic paths; local `ollama`/`llama3.1:8b` provenance, the 5/6 v1
+   judgment and the 6/6 corrected/post-restart result).
 
 Acceptance is not self-granted. This document supplies the executable
 harnesses, source/config identity, browser actions versus setup, restart
