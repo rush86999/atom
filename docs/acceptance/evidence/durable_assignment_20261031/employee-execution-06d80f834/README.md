@@ -1,6 +1,6 @@
 # Employee execution acceptance — 06d80f834
 
-Evidence source: `06d80f834`; final code/evidence: `18a3b3b94`;
+Evidence source: `06d80f834`; final code/evidence: `619960832`;
 product teaching: `3e344f5b1`; Agent 2 merge: `931892be0`. Preserved tags: core `da9cc8b12`, reviewed successor
 `d2b297deb`. Isolated world:
 `/Users/rushiparikh/projects/atom-integrated-world-20261031`.
