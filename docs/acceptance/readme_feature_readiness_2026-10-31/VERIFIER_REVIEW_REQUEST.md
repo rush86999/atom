@@ -86,6 +86,17 @@ concurrent resume dispatches once with no outbox effect. Evidence:
 `atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/assignment-recovery-browser/`.
 This is a product gate, not an addition to the README breadth denominator.
 
+The bounded-autonomy follow-up also passed on the same candidate (code
+`814962078`): explicit recipient/count-bounded standing authority consumed
+under the assignment CAS before dispatch, `max_cost_usd` enforcement, a
+TEAM_LEAD uncertain-effect reconcile route with mandatory evidence, and a
+draft-vs-authorized assessment panel. The integrated sales (`85`) + grants
+(`4250`) browser journey restarted while both waited and completed with
+**2 effects and 0 assignment approvals** (5/5). Evidence:
+`atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-autonomy-boundaries/`
+and `.../two-domain-autonomous-journey/`. This remains separate from README
+breadth.
+
 ---
 
 ## 4. Specific remaining work
@@ -106,7 +117,7 @@ This is a product gate, not an addition to the README breadth denominator.
 - **Model-backed**: model access is now available locally. ORCH-01/02/07,
   GOAL-02/04, GOV-04, WF-05, MEM-07 and ROUTE-07 remain engineering work.
   The substantive assessment was executed on local `ollama`/`llama3.1:8b`;
-  it scored 17/18 determinate in every phase and produced a false APPROVE on
+  it scored 17/18 on V1 and 18/19 on V3/post-restart, and produced a false APPROVE on
   `Q-012`, so the qualification verdict is **failed**, not pending
   infrastructure.
 - **Assessment safety repairs**: done on `codex/employee-execution-readiness`

@@ -283,10 +283,39 @@ The canvas assessment safety repairs are verified on
 - unsupported approvals fail the qualification gate (`safe_abstention`).
 
 The substantive assessment on local `ollama`/`llama3.1:8b` remains **failed**
-(17/18 determinate in every phase; a false APPROVE on `Q-012`). Autonomous
+(17/18 on V1 and 18/19 on V3/post-restart; a false APPROVE on `Q-012`). Autonomous
 substantive decisions stay outside the supported configuration. Evidence:
 `atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-assessment-approval/`
 and `.../employee-execution-assessment-qualification/`. 106 focused tests pass.
+
+
+---
+
+## 5.3 Bounded autonomy and the two-domain autonomous journey — separate product gate
+
+On `codex/employee-execution-readiness` (code `814962078`):
+
+- **standing authority** is an explicit user grant — named recipients, a hard
+  1–20 effect bound, optional expiry — consumed under the assignment CAS
+  before dispatch. Exhausted, expired, out-of-scope or wrong-recipient steps
+  fall back to approval; only the controlled outbox opts in, and live email
+  send remains approval-required;
+- **budgets** enforce steps, attempts, wall time and `max_cost_usd`, with step
+  cost accumulated;
+- **uncertain effects** reconcile through a TEAM_LEAD route with mandatory
+  evidence (`applied` never resends, `not_applied` creates a new operation,
+  `insufficient` preserves uncertainty);
+- the canvas capability panel labels unapproved assessments as drafts, approves
+  the exact execution, answers durable clarifications, and exposes decisions
+  only when authorized;
+- the **integrated two-domain journey** — sales `85` and grants `4250` from
+  unfamiliar datasets, one bounded grant per send, backend restart while both
+  wait, both complete on return — passed **5/5** with **2 effects and 0
+  assignment approvals**.
+
+This is a product gate, not part of the 123-claim breadth denominator.
+Evidence: `atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-autonomy-boundaries/`
+(185 backend + 6 frontend tests) and `.../two-domain-autonomous-journey/`.
 
 ---
 
