@@ -163,20 +163,31 @@ class ProposalService:
         action_to_execute: Optional[Dict[str, Any]] = None,
     ) -> AgentProposal:
         reviewed_at = datetime.now()
-        current = self._proposal_query(proposal_id, tenant_id).first()
+        if expected_payload_sha256:
+            # End any earlier read snapshot so the claim sees committed
+            # changes from another session. The captured execution snapshot
+            # is NOT the database drift value.
+            self.db.rollback()
+        current = (
+            self._proposal_query(proposal_id, tenant_id)
+            .populate_existing()
+            .with_for_update()
+            .first()
+        )
         if current is None:
             raise ProposalNotFoundError(f"Proposal {proposal_id} not found")
         if expected_payload_sha256:
-            current_sha = proposal_payload_sha256(
-                action_to_execute or current.proposal_data)
+            current_sha = proposal_payload_sha256(current.proposal_data)
             if current_sha != str(expected_payload_sha256):
+                self.db.rollback()
                 raise ProposalApprovalInvalidated(
                     "the proposal payload changed after review; fresh "
                     "approval is required")
         if expected_artifact_revision:
             current_revision = self._proposal_artifact_revision(
-                current, action_to_execute or current.proposal_data)
+                current, current.proposal_data)
             if current_revision != str(expected_artifact_revision):
+                self.db.rollback()
                 raise ProposalApprovalInvalidated(
                     "the canvas/artifact changed after review; fresh "
                     "approval is required")
@@ -205,10 +216,13 @@ class ProposalService:
             # The UPDATE holds the row lock. Re-check the payload and
             # artifact before committing so a concurrent change cannot pass
             # between validation and the approval claim.
-            fresh = self._proposal_query(proposal_id, tenant_id).first()
+            fresh = (
+                self._proposal_query(proposal_id, tenant_id)
+                .populate_existing()
+                .first()
+            )
             if expected_payload_sha256 and fresh is not None:
-                fresh_sha = proposal_payload_sha256(
-                    action_to_execute or fresh.proposal_data)
+                fresh_sha = proposal_payload_sha256(fresh.proposal_data)
                 if fresh_sha != str(expected_payload_sha256):
                     self.db.rollback()
                     raise ProposalApprovalInvalidated(
@@ -216,7 +230,7 @@ class ProposalService:
                         "fresh approval is required")
             if expected_artifact_revision and fresh is not None:
                 fresh_revision = self._proposal_artifact_revision(
-                    fresh, action_to_execute or fresh.proposal_data)
+                    fresh, fresh.proposal_data)
                 if fresh_revision != str(expected_artifact_revision):
                     self.db.rollback()
                     raise ProposalApprovalInvalidated(
@@ -250,8 +264,13 @@ class ProposalService:
         data = action or proposal.proposed_action or {}
         canvas_id = str(data.get("canvas_id") or proposal.canvas_id or "")
         if canvas_id:
-            canvas = self.db.query(Canvas).filter(
-                Canvas.id == canvas_id).first()
+            canvas = (
+                self.db.query(Canvas)
+                .populate_existing()
+                .with_for_update()
+                .filter(Canvas.id == canvas_id)
+                .first()
+            )
             if canvas is not None:
                 return _approval_payload_hash(canvas.content or {})
         return str(data.get("artifact_revision") or "")
@@ -506,8 +525,20 @@ Please review and approve or reject this proposal.
         if execution_id is not None:
             proposal.execution_id = str(execution_id)
 
+        executed_action = dict(action_to_execute)
+        executed_action_sha256 = proposal_payload_sha256(executed_action)
+        execution_details = dict(execution_result)
+        execution_details["executed_action"] = executed_action
+        execution_details["executed_action_sha256"] = executed_action_sha256
+        if expected_payload_sha256:
+            execution_details["reviewed_payload_sha256"] = str(
+                expected_payload_sha256)
+        if expected_artifact_revision:
+            execution_details["reviewed_artifact_revision"] = str(
+                expected_artifact_revision)
         proposal.execution_success = bool(execution_result["success"])
-        proposal.execution_outcome_details = self._serialize_mapped_text(execution_result)
+        proposal.execution_outcome_details = self._serialize_mapped_text(
+            execution_details)
         proposal.status = (
             ProposalStatus.EXECUTED.value
             if execution_result["success"]

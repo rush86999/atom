@@ -311,6 +311,11 @@ def test_compound_email_draft_clarification_and_approval_resume(
             AgentProposal.id == proposal["proposal_id"]).first()
         assert proposal_row.status == "executed"
         assert proposal_row.execution_success is True
+        import json as _json
+        details = _json.loads(proposal_row.execution_outcome_details or "{}")
+        assert details["executed_action"]["to"] == "alice@example.com"
+        assert details["executed_action_sha256"]
+        assert details["reviewed_payload_sha256"]
     finally:
         db.close()
 
@@ -455,5 +460,105 @@ def test_chat_obligation_rejection_has_no_transport(route_env, monkeypatch):
         proposal = db.query(AgentProposal).filter(
             AgentProposal.id == prepared["proposal_id"]).first()
         assert proposal.status == "rejected"
+    finally:
+        db.close()
+
+
+def _interleave_change(route_env, monkeypatch, field, value):
+    """Change the proposal immediately before the claim transaction."""
+    from core.models import AgentProposal
+    from core.proposal_service import ProposalService
+
+    original = ProposalService._claim_proposal
+
+    def interleaved(service_self, *args, **kwargs):
+        db = route_env["factory"]()
+        try:
+            proposal_id = kwargs.get("proposal_id") or args[0]
+            row = db.query(AgentProposal).filter(
+                AgentProposal.id == proposal_id).first()
+            data = dict(row.proposal_data or {})
+            data[field] = value
+            row.proposal_data = data
+            db.commit()
+        finally:
+            db.close()
+        return original(service_self, *args, **kwargs)
+
+    monkeypatch.setattr(ProposalService, "_claim_proposal", interleaved)
+
+
+def test_chat_obligation_change_between_read_and_claim_refused(
+        route_env, monkeypatch):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    from core.canvas_email_service import EmailCanvasService
+    from core.hitl_resume import resume_after_hitl_decision
+    from core.models import AgentProposal
+
+    prepared = _prepare_email_proposal(route_env)
+    _interleave_change(
+        route_env, monkeypatch, "to",
+        "changed-between-read-and-claim@example.invalid")
+    send = AsyncMock(return_value={"success": True, "status": "draft_only"})
+    monkeypatch.setattr(EmailCanvasService, "send_email", send)
+    result = asyncio.run(resume_after_hitl_decision(
+        prepared["hitl_id"], approved=True, reviewer_id="user-1"))
+    assert result["handled"] is True
+    assert result["resumed"] is False
+    assert result["status"] == "payload_changed"
+    assert result["fresh_review_required"] is True
+    assert send.await_count == 0
+    db = route_env["factory"]()
+    try:
+        proposal = db.query(AgentProposal).filter(
+            AgentProposal.id == prepared["proposal_id"]).first()
+        assert proposal.status == "pending_approval"
+    finally:
+        db.close()
+
+
+def test_chat_obligation_canvas_change_between_read_and_claim_refused(
+        route_env, monkeypatch):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    from core.canvas_email_service import EmailCanvasService
+    from core.hitl_resume import resume_after_hitl_decision
+    from core.models import AgentProposal, Canvas
+    from core.proposal_service import ProposalService
+
+    prepared = _prepare_email_proposal(route_env)
+    original = ProposalService._claim_proposal
+
+    def interleaved(service_self, *args, **kwargs):
+        db = route_env["factory"]()
+        try:
+            canvas = db.query(Canvas).filter(
+                Canvas.id == prepared["draft_canvas_id"]).first()
+            content = dict(canvas.content or {})
+            content["body"] = "Canvas changed between review and claim."
+            canvas.content = content
+            db.commit()
+        finally:
+            db.close()
+        return original(service_self, *args, **kwargs)
+
+    monkeypatch.setattr(ProposalService, "_claim_proposal", interleaved)
+    send = AsyncMock(return_value={"success": True, "status": "draft_only"})
+    monkeypatch.setattr(EmailCanvasService, "send_email", send)
+    result = asyncio.run(resume_after_hitl_decision(
+        prepared["hitl_id"], approved=True, reviewer_id="user-1"))
+    assert result["handled"] is True
+    assert result["resumed"] is False
+    assert result["status"] == "payload_changed"
+    assert result["fresh_review_required"] is True
+    assert send.await_count == 0
+    db = route_env["factory"]()
+    try:
+        proposal = db.query(AgentProposal).filter(
+            AgentProposal.id == prepared["proposal_id"]).first()
+        assert proposal.status == "pending_approval"
     finally:
         db.close()
