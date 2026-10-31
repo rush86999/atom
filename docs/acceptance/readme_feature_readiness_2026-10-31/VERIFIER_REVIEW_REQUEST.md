@@ -97,6 +97,15 @@ draft-vs-authorized assessment panel. The integrated sales (`85`) + grants
 and `.../two-domain-autonomous-journey/`. This remains separate from README
 breadth.
 
+The execution-boundary follow-up (code `b7ee7ee22`) makes post-effect runtime,
+parse, timeout and cancellation errors `uncertain` (never
+`failed_before_effect`) and replaces stop-after-overspend with a conservative
+pre-dispatch cost reservation, concurrent/retry accounting, an explicit
+soft-limit path and in-operation wall-time enforcement. Evidence:
+`atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-execution-boundaries/`.
+The two-domain browser journey was rerun on that source: 5/5, 2 effects, 0
+assignment approvals.
+
 ---
 
 ## 4. Specific remaining work

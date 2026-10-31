@@ -317,6 +317,27 @@ This is a product gate, not part of the 123-claim breadth denominator.
 Evidence: `atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-autonomy-boundaries/`
 (185 backend + 6 frontend tests) and `.../two-domain-autonomous-journey/`.
 
+
+## 5.4 Execution boundaries — post-effect uncertainty and hard cost budgets
+
+On `codex/employee-execution-readiness` (code `b7ee7ee22`):
+
+- a generic exception after an external adapter is invoked — ordinary runtime
+  error, parse error, timeout or cancellation — is recorded as **uncertain**
+  with reconciliation required and is never resent. `failed_before_effect` now
+  requires a trusted `ExternalOutcomeNotApplied` / `effect_possible=False`;
+- cost is a conservative **pre-dispatch reservation** under the assignment CAS.
+  A hard limit refuses before dispatch when committed + reserved + bound would
+  exceed it, refuses a cost-bearing adapter with no bound, and accounts for
+  concurrent reservations and retries. A soft limit requires an explicit
+  authorizer and exposes the overrun. Wall time is enforced during the
+  operation, not only between steps.
+
+The accepted two-domain browser journey was rerun on this source: **5/5**, two
+controlled effects, zero assignment approvals. Evidence:
+`atom-employee-execution/docs/acceptance/evidence/durable_assignment_20261031/employee-execution-execution-boundaries/`
+(81 assignment executor/route controls) and `.../two-domain-autonomous-journey/`.
+
 ---
 
 ## 6. Evidence and reproduction
