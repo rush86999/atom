@@ -140,7 +140,7 @@ async def read_capability(
             # Existing read consumers see the review state, so none of them
             # can treat the assessment as authorized by omission.
             "review_policy": assessment_review_policy(),
-            "authorization": assessment_authorization(canvas),
+            "authorization": assessment_authorization(canvas, db=db),
             "dataset": {
                 "columns": dataset.get("columns") or [],
                 "row_count": len(dataset.get("rows") or []),
@@ -297,7 +297,7 @@ async def capability_decisions(
     """
     try:
         canvas = _canvas(db, canvas_id, current_user)
-        return decisions_operation(canvas)
+        return decisions_operation(canvas, db=db)
     except CapabilityError as exc:
         return _error(exc)
 
