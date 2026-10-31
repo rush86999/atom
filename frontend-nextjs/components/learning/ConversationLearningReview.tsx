@@ -599,6 +599,17 @@ export function ConversationLearningReview({
             >
               <XCircle className="mr-1 h-3 w-3" /> Reject
             </Button>
+            <Button
+              data-testid="learning-new-draft"
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setPayload(null);
+                setNotice("Draft another lesson from this conversation.");
+              }}
+            >
+              Draft another lesson
+            </Button>
           </div>
           {review.status === "promoted" ? (
             <div className="rounded border p-2" data-testid="learning-apply">

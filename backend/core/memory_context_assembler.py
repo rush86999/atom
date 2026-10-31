@@ -561,21 +561,56 @@ async def _facts_leg(message: str, workspace_id: str) -> List[str]:
     return [str(getattr(f, "fact_text", "")).strip() for f in facts or [] if getattr(f, "fact_text", "")]
 
 
+def render_teaching_requirements(resolution: Dict[str, Any]) -> str:
+    """Render the clarification prompt from the structured resolver result.
+
+    The resolver's typed blockers are the control signal; this function is
+    presentation only. It never re-derives applicability from lesson text.
+    """
+    required = list((resolution or {}).get("required_context") or [])
+    if not required:
+        return ""
+    fields: List[str] = []
+    lesson_ids: List[str] = []
+    for row in required:
+        key = str(row.get("key") or "").strip()
+        if not key:
+            continue
+        allowed = [str(value) for value in (row.get("allowed_values") or [])
+                   if str(value).strip()]
+        label = key + (f" (one of: {', '.join(allowed)})" if allowed else "")
+        fields.append(label)
+        for lesson_id in row.get("lesson_ids") or []:
+            if lesson_id not in lesson_ids:
+                lesson_ids.append(str(lesson_id))
+    if not fields:
+        return ""
+    suffix = f" (lessons: {', '.join(lesson_ids)})" if lesson_ids else ""
+    return (
+        "TEACHING CONTEXT REQUIRED — this employee has scoped guidance "
+        "that cannot be applied until the user confirms: "
+        + "; ".join(fields)
+        + ". Ask for that context before proceeding."
+        + suffix
+    )
+
+
 async def _lessons_leg(
     message: str,
     agent_id: Optional[str],
     task_context: Optional[Dict[str, Any]] = None,
     workspace_id: Optional[str] = None,
+    resolution_out: Optional[Dict[str, Any]] = None,
 ) -> str:
     """The operating agent's PERMANENT taught lessons (TrainingPanel /teach,
     mentor lessons, observed human corrections) as a rendered prompt block.
 
-    Storage alone only moved a confidence score — this leg is what makes a
-    lesson shape the agent's actual work-time behavior, on every chat
-    surface (canvas co-editor, agent chat, IM) and at every maturity tier
-    (lessons survive graduation — that is what makes a trained agent stay
-    trained). Cheap JSON-column read; runs in a thread like the other sync
-    legs. Returns "" when the agent has no lessons (no block rendered)."""
+    The structured resolution is filled into ``resolution_out`` on every
+    call, including when applicable lessons exist. Applicable guidance and
+    unresolved requirements are independent: a general lesson never hides a
+    scoped lesson whose required context is missing."""
+    if resolution_out is not None:
+        resolution_out.clear()
     if not agent_id:
         return ""
 
@@ -583,29 +618,29 @@ async def _lessons_leg(
         from core.database import SessionLocal
         from core.student_learning_service import (
             format_lessons_block,
-            get_agent_lessons,
-            lesson_context_requirements,
+            resolve_teaching_contract,
         )
 
         db = SessionLocal()
         try:
-            lessons = get_agent_lessons(
-                db, agent_id, query=message, limit=5,
+            resolution = resolve_teaching_contract(
+                db, agent_id, query=message,
                 task_context=task_context, workspace_id=workspace_id)
+            if resolution_out is not None:
+                resolution_out.update(resolution)
+            parts: List[str] = []
+            lessons = resolution.get("applicable_lessons") or []
             if lessons:
-                return format_lessons_block(lessons)
-            requirements = lesson_context_requirements(
-                db, agent_id, task_context,
-                workspace_id=workspace_id, query=message)
-            if requirements.get("needs_context"):
-                missing = ", ".join(requirements.get("missing") or [])
-                return (
-                    "TEACHING CONTEXT REQUIRED — this employee has scoped "
-                    f"guidance that cannot be applied until the user confirms: "
-                    f"{missing}. Ask for that context before proceeding. "
-                    f"(lessons: {', '.join(requirements.get('lesson_ids') or [])})"
-                )
-            return ""
+                parts.append(format_lessons_block(lessons))
+            requirements = render_teaching_requirements(resolution)
+            if requirements:
+                parts.append(requirements)
+            if resolution.get("method_status") == "conflict":
+                parts.append(
+                    "TEACHING METHOD CONFLICT — two equally specific taught "
+                    "methods apply to this task. Do not choose one or "
+                    "calculate; ask the user which method governs.")
+            return "\n\n".join(part for part in parts if part)
         finally:
             db.close()
 
@@ -1256,6 +1291,7 @@ async def assemble_memory_context(
     source_observations_out: Optional[List[Dict[str, Any]]] = None,
     lessons_only: bool = False,
     task_context: Optional[Dict[str, Any]] = None,
+    teaching_resolution_out: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """Return a bounded `RELEVANT MEMORY` prompt block, or None if nothing
     relevant (or the flag is off). Never raises.
@@ -1277,7 +1313,8 @@ async def assemble_memory_context(
         return None
     if lessons_only:
         return await _safe(
-            _lessons_leg(message, agent_id, task_context, workspace_id),
+            _lessons_leg(message, agent_id, task_context, workspace_id,
+                         resolution_out=teaching_resolution_out),
             "lessons",
             timeout=float(os.getenv("ATOM_MEMORY_LESSONS_TIMEOUT", "5")),
         ) or None
@@ -1300,7 +1337,8 @@ async def assemble_memory_context(
             # load, so handoff turns ran lesson-less ('I found 0
             # results'). Cheap leg, durable budget.
             _safe(_lessons_leg(
-                message, agent_id, task_context, workspace_id), "lessons",
+                message, agent_id, task_context, workspace_id,
+                resolution_out=teaching_resolution_out), "lessons",
                   timeout=float(os.getenv(
                       "ATOM_MEMORY_LESSONS_TIMEOUT", "5"))),
             _safe(_exchange_examples_leg(message, workspace_id), "exchange_examples"),

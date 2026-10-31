@@ -361,6 +361,148 @@ def test_lesson_context_requirements_clarifies_missing_and_mismatch(db):
     assert matched["mismatch"] is False
 
 
+def _promote_scoped(db, lesson, context):
+    candidate = _candidate(lesson=lesson, context=context)
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    promoted = promote_candidate(
+        db, candidate, reviewer="owner", expected_revision=1)
+    return promoted["entry"]
+
+
+def test_teaching_resolver_matrix(db):
+    from core.student_learning_service import (
+        journal_standing_lesson_entry,
+        resolve_teaching_contract,
+    )
+
+    _agent(db)
+    general = journal_standing_lesson_entry(
+        db, "agent-1", "Always cite the source document.",
+        source="teacher", topic="general", workspace_id="ws-1")
+    scoped = _promote_scoped(
+        db, "Use the Customer-A licensed pricing method.",
+        {"customer": "Customer-A", "qualification": "licensed"})
+
+    missing = resolve_teaching_contract(
+        db, "agent-1", query="pricing method for Customer-A",
+        task_context={"customer": "Customer-A"}, workspace_id="ws-1")
+    assert missing["needs_context"] is True
+    assert [row["key"] for row in missing["required_context"]] == [
+        "qualification"]
+    assert any(item.get("id") == general["id"]
+               for item in missing["applicable_lessons"])
+    assert any(item.get("id") == scoped["id"]
+               for item in missing["excluded_lessons"])
+
+    matching = resolve_teaching_contract(
+        db, "agent-1", query="pricing method for Customer-A",
+        task_context={"customer": "Customer-A",
+                      "qualification": "licensed"},
+        workspace_id="ws-1")
+    assert matching["needs_context"] is False
+    assert matching["method_status"] == "applicable"
+    assert any(item["entry"].get("id") == scoped["id"]
+               for item in matching["method_lessons"])
+    assert any(item.get("id") == general["id"]
+               for item in matching["applicable_lessons"])
+
+    wrong = resolve_teaching_contract(
+        db, "agent-1", query="pricing method for Customer-B",
+        task_context={"customer": "Customer-B",
+                      "qualification": "unlicensed"},
+        workspace_id="ws-1")
+    assert wrong["needs_context"] is False
+    assert wrong["mismatch"] is True
+    assert any(item.get("id") == scoped["id"]
+               and item.get("reason") == "context_mismatch"
+               for item in wrong["excluded_lessons"])
+
+    _agent(db, "agent-unrelated")
+    from core.models import AgentRegistry
+    db.query(AgentRegistry).filter(
+        AgentRegistry.id == "agent-unrelated").update(
+            {"workspace_id": "ws-2"})
+    db.commit()
+    unrelated = journal_standing_lesson_entry(
+        db, "agent-unrelated", "Use the northern freight surcharge method.",
+        source="teacher", topic="freight",
+        context={"region": "north"}, workspace_id="ws-1")
+    unrelated_result = resolve_teaching_contract(
+        db, "agent-unrelated", query="price this customer order",
+        task_context={}, workspace_id="ws-1")
+    assert unrelated_result["needs_context"] is False
+    assert any(item.get("id") == unrelated["id"]
+               and item.get("reason") == "unrelated_to_task"
+               for item in unrelated_result["excluded_lessons"])
+
+
+def test_teaching_resolver_marks_competing_methods_conflict(db):
+    from core.student_learning_service import resolve_teaching_contract
+
+    _agent(db)
+    _promote_scoped(
+        db, "Use the licensed multiply method.",
+        {"qualification": "licensed"})
+    # A second equally specific method with a different signature.
+    from core.conversation_learning import MethodInput, MethodSpec
+    from core.student_learning_service import journal_standing_lesson_entry
+
+    other = MethodSpec(
+        intended_outcome="Apply a percentage",
+        operation="percentage",
+        inputs=[
+            MethodInput(concept="base", column="Price", unit="USD"),
+            MethodInput(concept="rate", column="Rate", unit="%"),
+        ],
+        output_unit="USD",
+        transformation="base * rate / 100",
+    )
+    journal_standing_lesson_entry(
+        db, "agent-1", "Use the licensed percentage method.",
+        source="teacher", topic="pricing",
+        context={"qualification": "licensed"},
+        details={"conversation_learning": {
+            "candidate_id": "lc-competing",
+            "method": other.model_dump(mode="json"),
+        }},
+        workspace_id="ws-1")
+    result = resolve_teaching_contract(
+        db, "agent-1", query="pricing method",
+        task_context={"qualification": "licensed"},
+        workspace_id="ws-1")
+    assert result["method_status"] == "conflict"
+    assert result["status"] == "conflict"
+
+
+def test_memory_leg_keeps_general_lesson_and_scoped_requirement(
+        db, monkeypatch):
+    """A general lesson must not hide a relevant scoped requirement."""
+    import asyncio
+
+    from core import memory_context_assembler
+    from core.student_learning_service import journal_standing_lesson_entry
+
+    _agent(db)
+    journal_standing_lesson_entry(
+        db, "agent-1", "Always cite the source document.",
+        source="teacher", topic="general", workspace_id="ws-1")
+    scoped = _promote_scoped(
+        db, "Use the Customer-A licensed pricing method.",
+        {"customer": "Customer-A", "qualification": "licensed"})
+    bind = db.get_bind()
+    factory = sessionmaker(bind=bind, expire_on_commit=False)
+    monkeypatch.setattr("core.database.SessionLocal", factory)
+
+    block = asyncio.run(memory_context_assembler._lessons_leg(
+        "pricing method for Customer-A", "agent-1",
+        {"customer": "Customer-A"}, "ws-1"))
+    assert "Always cite the source document." in block
+    assert "TEACHING CONTEXT REQUIRED" in block
+    assert "qualification" in block
+    assert scoped["id"] in block
+
+
 def test_memory_lessons_leg_carries_context_and_clarifies(db, monkeypatch):
     import asyncio
 
@@ -422,13 +564,27 @@ async def test_chat_reply_asks_for_missing_teaching_context():
         "success": True, "content": "The price is $18.75.",
         "model": "m", "provider": "p",
     })
-    clarification = (
-        "TEACHING CONTEXT REQUIRED — this employee has scoped guidance "
-        "that cannot be applied until the user confirms: qualification. "
-        "Ask for that context before proceeding. (lessons: lesson-1)")
+    async def fake_assemble(**kwargs):
+        out = kwargs.get("teaching_resolution_out")
+        if out is not None:
+            out.update({
+                "needs_context": True,
+                "required_context": [{
+                    "key": "qualification",
+                    "allowed_values": ["licensed", "unlicensed"],
+                    "lesson_ids": ["lesson-1"],
+                }],
+                "conflicts": [],
+                "excluded_lessons": [],
+                "consumed_lesson_refs": [{"id": "lesson-1", "revision": 1}],
+                "method_status": "not_applicable",
+                "method_lessons": [],
+            })
+        return "TRAINING LESSONS — general guidance"
+
     with patch(
             "core.memory_context_assembler.assemble_memory_context",
-            new=AsyncMock(return_value=clarification)) as assemble:
+            new=AsyncMock(side_effect=fake_assemble)) as assemble:
         result = await orch._get_qwen_response(
             "price the Customer-A order", [],
             user_id="u1", agent_id="agent-1",
@@ -439,6 +595,379 @@ async def test_chat_reply_asks_for_missing_teaching_context():
     assert result is not None
     assert "confirm: qualification" in result["content"]
     assert "$18.75" not in result["content"]
+    assert result["teaching_clarification"]["lesson_refs"][0]["id"] == (
+        "lesson-1")
+    orch.llm_service.generate_completion.assert_not_awaited()
+
+
+def test_teaching_clarification_interprets_bounded_answers():
+    from core.teaching_clarification import (
+        extract_confirmation,
+        new_pending,
+    )
+
+    pending = new_pending(
+        session_id="s1", user_id="u1", agent_id="agent-1",
+        workspace_id="ws-1", tenant_id="t-1",
+        objective="price the Customer-A order",
+        required_context=[{
+            "key": "qualification",
+            "allowed_values": ["licensed", "unlicensed"],
+            "lesson_ids": ["lesson-1"],
+        }],
+        established_context={"customer": "Customer-A"},
+        all_context_values={
+            "customer": ["Customer-A", "Customer-B"],
+            "qualification": ["licensed", "unlicensed"],
+        },
+    )
+    confirmed = extract_confirmation("Licensed", pending)
+    assert confirmed["status"] == "confirmed"
+    assert confirmed["answers"] == {"qualification": "licensed"}
+
+    uncertain = extract_confirmation("Probably licensed", pending)
+    assert uncertain["status"] == "uncertain"
+    assert uncertain["answers"] == {}
+
+    ambiguous = extract_confirmation("licensed or unlicensed", pending)
+    assert ambiguous["status"] == "ambiguous"
+    assert ambiguous["answers"] == {}
+
+    explicit = extract_confirmation("qualification: licensed", pending)
+    assert explicit["status"] == "confirmed"
+
+    scope = extract_confirmation(
+        "qualification=licensed, customer=Customer-B", pending)
+    assert scope["status"] == "confirmed"
+    assert scope["scope_updates"] == {"customer": "Customer-B"}
+
+
+def test_original_request_infers_only_unambiguous_context():
+    from core.teaching_clarification import infer_context_from_message
+
+    values = {
+        "customer": ["Customer-A", "Customer-B"],
+        "qualification": ["licensed", "unlicensed"],
+    }
+    inferred = infer_context_from_message(
+        "Use the pricing method for the Customer-A order with Qty 2",
+        values)
+    assert inferred == {"customer": "Customer-A"}
+    assert infer_context_from_message(
+        "Use Customer-A or Customer-B", values) == {}
+    assert infer_context_from_message(
+        "Probably Customer-A", values) == {}
+
+
+def test_chat_method_execution_uses_the_existing_calculator():
+    from core.chat_teaching_runtime import execute_method_lesson
+    from core.conversation_learning import MethodInput, MethodSpec
+
+    method = MethodSpec(
+        intended_outcome="Price the order",
+        operation="multiply_sum",
+        inputs=[
+            MethodInput(concept="quantity", column="Qty", unit="units"),
+            MethodInput(concept="unit_price", column="Price", unit="USD"),
+        ],
+        output_unit="USD",
+        transformation="quantity * unit_price",
+        rounding={"places": 2, "stage": "final"},
+    )
+    entry = {
+        "id": "lesson-1", "revision": 3,
+        "details": {"conversation_learning": {
+            "method": method.model_dump(mode="json")}},
+    }
+    result = execute_method_lesson(
+        entry, "Use the pricing method for Qty 2 and Price 7.50",
+        task_context={"customer": "Customer-A",
+                      "qualification": "licensed"},
+        workspace_id="ws-1")
+    assert result["status"] == "applied"
+    assert result["value"] == "15.00"
+    assert result["lesson_id"] == "lesson-1"
+    assert result["lesson_revision"] == 3
+    assert "1.75" not in result["content"]
+    assert "quantity=2 units" in result["content"]
+    assert "unit_price=7.50 USD" in result["content"]
+    assert result["_recorded_outcome"]["state"] == "completed"
+
+
+@pytest.mark.asyncio
+async def test_chat_executes_applicable_method_without_the_model():
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from core.conversation_learning import MethodInput, MethodSpec
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    method = MethodSpec(
+        intended_outcome="Price the order",
+        operation="multiply_sum",
+        inputs=[
+            MethodInput(concept="quantity", column="Qty", unit="units"),
+            MethodInput(concept="unit_price", column="Price", unit="USD"),
+        ],
+        output_unit="USD",
+        transformation="quantity * unit_price",
+        rounding={"places": 2, "stage": "final"},
+    )
+    entry = {
+        "id": "lesson-1", "revision": 2,
+        "details": {"conversation_learning": {
+            "method": method.model_dump(mode="json")}},
+    }
+    orch = ChatOrchestrator()
+    orch.ai_engines = {}
+    orch.llm_service = MagicMock()
+    orch.llm_service.generate_completion = AsyncMock(
+        return_value={"success": True, "content": "invented 1.75"})
+
+    async def fake_assemble(**kwargs):
+        out = kwargs.get("teaching_resolution_out")
+        if out is not None:
+            out.update({
+                "needs_context": False,
+                "required_context": [],
+                "conflicts": [],
+                "excluded_lessons": [],
+                "consumed_lesson_refs": [{"id": "lesson-1", "revision": 2}],
+                "method_status": "applicable",
+                "method_lessons": [{
+                    "entry": entry, "method": method, "specificity": 2,
+                }],
+            })
+        return "TRAINING LESSONS — method"
+
+    with patch(
+            "core.memory_context_assembler.assemble_memory_context",
+            new=AsyncMock(side_effect=fake_assemble)):
+        result = await orch._get_qwen_response(
+            "Use the pricing method for Qty 2 and Price 7.50", [],
+            user_id="u1", agent_id="agent-1",
+            task_context={"customer": "Customer-A",
+                          "qualification": "licensed"})
+    assert result is not None
+    assert result["teaching_execution"]["value"] == "15.00"
+    assert result["teaching_execution"]["lesson_id"] == "lesson-1"
+    assert result["teaching_execution"]["lesson_revision"] == 2
+    assert "1.75" not in result["content"]
+    assert "15.00" in result["content"]
+    assert result["_recorded_outcome"]["state"] == "completed"
+    orch.llm_service.generate_completion.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_chat_clarification_answer_resumes_original_objective():
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from core.conversation_learning import MethodInput, MethodSpec
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    method = MethodSpec(
+        intended_outcome="Price the order",
+        operation="multiply_sum",
+        inputs=[
+            MethodInput(concept="quantity", column="Qty", unit="units"),
+            MethodInput(concept="unit_price", column="Price", unit="USD"),
+        ],
+        output_unit="USD",
+        transformation="quantity * unit_price",
+        rounding={"places": 2, "stage": "final"},
+    )
+    entry = {
+        "id": "lesson-1", "revision": 2,
+        "details": {"conversation_learning": {
+            "method": method.model_dump(mode="json")}},
+    }
+    orch = ChatOrchestrator()
+    orch.ai_engines = {}
+    orch.llm_service = MagicMock()
+    orch.llm_service.generate_completion = AsyncMock(
+        return_value={"success": True, "content": "invented"})
+    session = {"id": "s1", "history": []}
+    objective = "Use the pricing method for Qty 2 and Price 7.50"
+    clarification = orch._apply_teaching_resolution(
+        resolution={
+            "needs_context": True,
+            "required_context": [{
+                "key": "qualification",
+                "allowed_values": ["licensed", "unlicensed"],
+                "lesson_ids": ["lesson-1"],
+            }],
+            "conflicts": [],
+            "excluded_lessons": [],
+            "consumed_lesson_refs": [{"id": "lesson-1", "revision": 2}],
+            "method_status": "not_applicable",
+            "method_lessons": [],
+            "all_context_values": {
+                "qualification": ["licensed", "unlicensed"],
+                "customer": ["Customer-A", "Customer-B"],
+            },
+        },
+        message=objective,
+        session=session,
+        session_id="s1",
+        user_id="u1",
+        agent_id="agent-1",
+        workspace_id="ws-1",
+        task_context={"customer": "Customer-A"},
+        memory_context="TRAINING LESSONS",
+    )
+    assert clarification is not None
+    assert "qualification" in clarification["content"]
+    assert session["_pending_teaching_clarification"]["state"] == "pending"
+
+    message, context, state = orch._resume_teaching_clarification(
+        session=session,
+        session_id="s1",
+        user_id="u1",
+        message="licensed",
+        context={"task_context": {"customer": "Customer-A"}},
+        workspace_id="ws-1",
+        agent_id="agent-1",
+    )
+    assert state["confirmed"] is True
+    assert context["task_context"]["qualification"] == "licensed"
+    assert session["_teaching_resume"]["objective"] == objective
+
+    async def fake_assemble(**kwargs):
+        out = kwargs.get("teaching_resolution_out")
+        if out is not None:
+            out.update({
+                "needs_context": False,
+                "required_context": [],
+                "conflicts": [],
+                "excluded_lessons": [],
+                "consumed_lesson_refs": [{"id": "lesson-1", "revision": 2}],
+                "method_status": "applicable",
+                "method_lessons": [{
+                    "entry": entry, "method": method, "specificity": 2,
+                }],
+            })
+        return "TRAINING LESSONS — method"
+
+    with patch(
+            "core.memory_context_assembler.assemble_memory_context",
+            new=AsyncMock(side_effect=fake_assemble)):
+        result = await orch._get_qwen_response(
+            message, [], user_id="u1", agent_id="agent-1",
+            session=session,
+            task_context=context["task_context"])
+    assert result is not None
+    assert result["teaching_execution"]["value"] == "15.00"
+    assert "quantity=2 units" in result["content"]
+    assert "1.75" not in result["content"]
+    assert "_teaching_resume" not in session
+    assert session["_pending_teaching_clarification"][
+        "last_result"]["teaching_execution"]["value"] == "15.00"
+    orch.llm_service.generate_completion.assert_not_awaited()
+
+    # Duplicate confirmation is idempotent: replay the stored result, do not
+    # recalculate or ask again.
+    replay_message, replay_context, replay_state = (
+        orch._resume_teaching_clarification(
+            session=session, session_id="s1", user_id="u1",
+            message="licensed",
+            context={"task_context": {"customer": "Customer-A"}},
+            workspace_id="ws-1", agent_id="agent-1"))
+    assert replay_state["replayed"] is True
+    replayed = await orch._get_qwen_response(
+        replay_message, [], user_id="u1", agent_id="agent-1",
+        session=session, task_context=replay_context["task_context"])
+    assert replayed["teaching_execution"]["value"] == "15.00"
+    orch.llm_service.generate_completion.assert_not_awaited()
+
+    # A confirmation from a different session cannot mutate this one.
+    foreign_message, foreign_context, foreign_state = (
+        orch._resume_teaching_clarification(
+            session=session, session_id="other-session", user_id="u1",
+            message="licensed",
+            context={"task_context": {"customer": "Customer-A"}},
+            workspace_id="ws-1", agent_id="agent-1"))
+    assert foreign_state["foreign"] is True
+    assert foreign_context.get("task_context") == {"customer": "Customer-A"}
+
+
+def test_teaching_clarification_survives_restart_via_session_metadata():
+    from core.teaching_clarification import new_pending
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    class FakeSessionManager:
+        def __init__(self):
+            self.metadata = {}
+
+        def update_session_metadata(self, session_id, values):
+            self.metadata.setdefault(session_id, {}).update(values)
+            return True
+
+        def get_session(self, session_id):
+            return {"metadata": self.metadata.get(session_id, {})}
+
+    manager = FakeSessionManager()
+    orch = ChatOrchestrator()
+    orch.session_manager = manager
+    pending = new_pending(
+        session_id="s1", user_id="u1", agent_id="agent-1",
+        workspace_id="ws-1", tenant_id="t-1",
+        objective="price the Customer-A order",
+        required_context=[{
+            "key": "qualification",
+            "allowed_values": ["licensed", "unlicensed"],
+            "lesson_ids": ["lesson-1"],
+        }],
+        established_context={"customer": "Customer-A"},
+    )
+    orch._persist_pending_teaching_clarification(
+        {"id": "s1"}, "s1", pending)
+
+    restarted = ChatOrchestrator()
+    restarted.session_manager = manager
+    loaded = restarted._load_pending_teaching_clarification("s1")
+    assert loaded["clarification_id"] == pending["clarification_id"]
+    message, context, state = restarted._resume_teaching_clarification(
+        session={"id": "s1"}, session_id="s1", user_id="u1",
+        message="licensed",
+        context={"task_context": {"customer": "Customer-A"}},
+        workspace_id="ws-1", agent_id="agent-1")
+    assert state["confirmed"] is True
+    assert context["task_context"]["qualification"] == "licensed"
+
+
+def test_chat_wrong_context_excludes_scoped_method_without_calculation():
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    orch = ChatOrchestrator()
+    orch.ai_engines = {}
+    reply = orch._apply_teaching_resolution(
+        resolution={
+            "needs_context": False,
+            "required_context": [],
+            "conflicts": [{
+                "key": "customer", "required": "Customer-A",
+                "actual": "Customer-B", "lesson_id": "lesson-1",
+            }],
+            "excluded_lessons": [{
+                "id": "lesson-1", "revision": 1,
+                "reason": "context_mismatch",
+            }],
+            "consumed_lesson_refs": [],
+            "method_status": "not_applicable",
+            "method_lessons": [],
+            "mismatch": True,
+        },
+        message="price the Customer-B order with Qty 2 and Price 7.50",
+        session={"id": "s1"}, session_id="s1", user_id="u1",
+        agent_id="agent-1", workspace_id="ws-1",
+        task_context={"customer": "Customer-B", "qualification": "unlicensed"},
+        memory_context="TRAINING LESSONS",
+    )
+    assert reply is not None
+    assert "does not apply" in reply["content"]
+    assert "did not calculate" in reply["content"]
+    assert reply["teaching_exclusion"]["reason"] == (
+        "teaching_context_mismatch")
+    assert reply["_recorded_outcome"]["state"] == "partial"
 
 
 def test_conversation_method_compiles_for_assignment():
